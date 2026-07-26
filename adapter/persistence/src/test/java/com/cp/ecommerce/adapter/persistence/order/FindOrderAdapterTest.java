@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
@@ -59,5 +60,15 @@ class FindOrderAdapterTest {
 
         verify(orderEntityRepository, times(1)).getOrderEntityByOrderNumber(TEST_ORDER_NUMBER);
         assertEquals(mockOrder, order);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenMappingFails() {
+
+        final OrderEntity mockEntity = OrderEntityBuilder.mockOrderEntity();
+        doReturn(mockEntity).when(orderEntityRepository).getOrderEntityByOrderNumber(TEST_ORDER_NUMBER);
+        doReturn(Optional.empty()).when(orderPersistenceMapper).mapToDomainObject(eq(mockEntity));
+
+        assertThrows(IllegalStateException.class, () -> findOrderAdapter.find(TEST_ORDER_NUMBER));
     }
 }
