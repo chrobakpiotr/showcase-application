@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @WebAdapter
-@ConditionalOnProperty(name = "service.mail.enabled", havingValue = "false")
+@ConditionalOnProperty(name = "service.mail.enabled", havingValue = "false", matchIfMissing = true)
 public class DoNotSendEmailAdapter implements SendEmailOutPort {
 
     @Override

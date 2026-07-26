@@ -32,7 +32,12 @@ public class SaveOrderAdapter implements SaveOrderOutPort {
     @Override
     public Order save(final Order order) {
 
-        orderEntityRepository.save(orderPersistenceMapper.mapToEntity(order).orElseThrow());
+        orderEntityRepository.save(
+                orderPersistenceMapper.mapToEntity(order)
+                        .orElseThrow(
+                                () -> new IllegalStateException(
+                                        "Failed to map order domain object to entity for order number: "
+                                                + order.getOrderNumber())));
         outboxEventEntityRepository.save(
                 OutboxEventEntity.builder()
                         .orderNumber(order.getOrderNumber())

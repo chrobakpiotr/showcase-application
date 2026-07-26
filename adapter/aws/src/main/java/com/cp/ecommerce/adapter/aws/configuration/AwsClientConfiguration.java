@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
+import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -32,13 +34,7 @@ public class AwsClientConfiguration {
     @ConditionalOnProperty(name = "service.aws.s3.enabled", havingValue = "true")
     public S3Client s3Client() {
 
-        return S3Client.builder()
-                .endpointOverride(URI.create(awsProperties.getEndpointOverride()))
-                .region(Region.of(awsProperties.getRegion()))
-                .credentialsProvider(staticCredentials())
-                .httpClient(UrlConnectionHttpClient.create())
-                .forcePathStyle(true)
-                .build();
+        return configure(S3Client.builder()).forcePathStyle(true).build();
     }
 
     /**
@@ -48,12 +44,7 @@ public class AwsClientConfiguration {
     @ConditionalOnProperty(name = "service.aws.sqs.enabled", havingValue = "true")
     public SqsClient sqsClient() {
 
-        return SqsClient.builder()
-                .endpointOverride(URI.create(awsProperties.getEndpointOverride()))
-                .region(Region.of(awsProperties.getRegion()))
-                .credentialsProvider(staticCredentials())
-                .httpClient(UrlConnectionHttpClient.create())
-                .build();
+        return configure(SqsClient.builder()).build();
     }
 
     /**
@@ -63,12 +54,18 @@ public class AwsClientConfiguration {
     @ConditionalOnProperty(name = "service.aws.secretsmanager.enabled", havingValue = "true")
     public SecretsManagerClient secretsManagerClient() {
 
-        return SecretsManagerClient.builder()
-                .endpointOverride(URI.create(awsProperties.getEndpointOverride()))
+        return configure(SecretsManagerClient.builder()).build();
+    }
+
+    /**
+     * Applies the common endpoint/region/credentials/httpClient configuration shared by all AWS SDK v2 client builders.
+     */
+    private <B extends AwsClientBuilder<B, C> & SdkSyncClientBuilder<B, C>, C> B configure(final B builder) {
+
+        return builder.endpointOverride(URI.create(awsProperties.getEndpointOverride()))
                 .region(Region.of(awsProperties.getRegion()))
                 .credentialsProvider(staticCredentials())
-                .httpClient(UrlConnectionHttpClient.create())
-                .build();
+                .httpClient(UrlConnectionHttpClient.create());
     }
 
     private StaticCredentialsProvider staticCredentials() {

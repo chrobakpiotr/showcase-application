@@ -7,14 +7,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.Value;
 
 /**
  * Class representing customer's address data.
  */
 @Value
-@ToString
 @EqualsAndHashCode(callSuper = false)
 @Builder
 public class Address extends ValidDomainObject<Address> {

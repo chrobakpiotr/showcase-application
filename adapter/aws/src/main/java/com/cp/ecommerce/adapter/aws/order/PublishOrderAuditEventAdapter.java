@@ -30,11 +30,13 @@ public class PublishOrderAuditEventAdapter implements PublishOrderAuditEventOutP
 
     private static final String EVENT_TYPE = "ORDER_PLACED";
 
-    private final transient SqsClient sqsClient;
+    private final SqsClient sqsClient;
 
-    private final transient String queueUrl;
+    private final String queueUrl;
 
-    private final transient ResilientExecutor resilientExecutor;
+    private final ResilientExecutor resilientExecutor;
+
+    private final Gson gson;
 
     @Override
     public void publish(final Order order) {
@@ -45,7 +47,7 @@ public class PublishOrderAuditEventAdapter implements PublishOrderAuditEventOutP
                 .eventType(EVENT_TYPE)
                 .timestamp(Instant.now().toString())
                 .build();
-        final String json = new Gson().toJson(event);
+        final String json = gson.toJson(event);
         log.info("Publishing order audit event to SQS: queueUrl={}, orderNumber={}", queueUrl, order.getOrderNumber());
         resilientExecutor.runResilient(RESILIENCE_INSTANCE_NAME, () -> {
             final SendMessageRequest request = SendMessageRequest.builder().queueUrl(queueUrl).messageBody(json).build();

@@ -50,10 +50,7 @@ public class OutboxEventPublisher {
     private void publishPendingEvent(final OutboxEventEntity outboxEventEntity) {
 
         try {
-            transactionOperations.execute(status -> {
-                processPendingEvent(outboxEventEntity);
-                return null;
-            });
+            transactionOperations.executeWithoutResult(status -> processPendingEvent(outboxEventEntity));
         } catch (RuntimeException exception) {
             log.warn("Could not publish outbox event for order: {}", outboxEventEntity.getOrderNumber(), exception);
         }

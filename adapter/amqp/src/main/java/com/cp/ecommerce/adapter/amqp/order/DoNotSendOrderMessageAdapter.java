@@ -13,7 +13,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @WebAdapter
-@ConditionalOnProperty(name = "service.rabbitmq.enabled", havingValue = "false")
+@ConditionalOnProperty(name = "service.rabbitmq.enabled", havingValue = "false", matchIfMissing = true)
 public class DoNotSendOrderMessageAdapter implements SendOrderMessageOutPort {
 
     @Override

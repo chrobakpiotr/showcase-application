@@ -25,7 +25,7 @@ public class LogOrderAdapter implements LogOrderOutPort {
 
             log.info("Order's content: \n{}", objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(order));
         } catch (JsonProcessingException e) {
-            log.info("Error while parsing order request: \n{}", e.getMessage());
+            log.warn("Error while parsing order for logging: {}", e.getMessage(), e);
         }
     }
 

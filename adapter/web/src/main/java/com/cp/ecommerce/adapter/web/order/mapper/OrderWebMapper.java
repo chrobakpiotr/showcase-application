@@ -11,13 +11,10 @@ import com.cp.ecommerce.domain.order.Order;
 
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * Mapper responsible for mapping {@link Order} object from Resource.
  */
 @Component
-@RequiredArgsConstructor
 public class OrderWebMapper implements WebMapper<Order, OrderResource> {
 
     @Override

@@ -25,7 +25,12 @@ class FindOrderAdapter implements FindOrderOutPort {
     public Order find(final String orderNumber) {
 
         return Optional.ofNullable(orderEntityRepository.getOrderEntityByOrderNumber(orderNumber))
-                .map(order -> orderPersistenceMapper.mapToDomainObject(order).orElseThrow())
+                .map(
+                        order -> orderPersistenceMapper.mapToDomainObject(order)
+                                .orElseThrow(
+                                        () -> new IllegalStateException(
+                                                "Failed to map order entity to domain object for order number: "
+                                                        + orderNumber)))
                 .orElse(null);
     }
 

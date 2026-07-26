@@ -72,7 +72,7 @@ public class GlobalExceptionHandler {
             final String message,
             final ResponseEntity.BodyBuilder builder) {
 
-        log.error(exception.getClass().getSimpleName() + ": {}", exception.getMessage());
+        log.error("{}: {}", exception.getClass().getSimpleName(), exception.getMessage());
         return builder.body(ErrorResource.builder().message(message).id(UUID.randomUUID().toString()).build());
     }
 

@@ -20,6 +20,8 @@ import lombok.Value;
 @EqualsAndHashCode(callSuper = false)
 public class Contact extends ValidDomainObject<Contact> {
 
+    private static final String PHONE_PATTERN = "^$|[- +()0-9]+";
+
     @Size(max = ValidationConstants.CONTACT_NAME_MAX, message = ValidationConstants.INVALID_FULL_NAME)
     String fullName;
 
@@ -27,7 +29,7 @@ public class Contact extends ValidDomainObject<Contact> {
     @Size(max = ValidationConstants.CONTACT_EMAIL_MAX, message = ValidationConstants.INVALID_EMAIL)
     String email;
 
-    @Pattern(regexp = "^$|[- +()0-9]+", message = ValidationConstants.INVALID_PHONE)
+    @Pattern(regexp = PHONE_PATTERN, message = ValidationConstants.INVALID_PHONE)
     @Size(max = ValidationConstants.CONTACT_PHONE_MAX, message = ValidationConstants.INVALID_PHONE)
     String phone;
 

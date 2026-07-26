@@ -3,8 +3,6 @@ package com.cp.ecommerce.adapter.aws.configuration;
 import java.net.URI;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
@@ -15,6 +13,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.MapPropertySource;
 
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -38,11 +37,12 @@ import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueReques
  * {@code HIGHEST_PRECEDENCE + 10}) has loaded all profile-specific {@code application-{profile}.yml} files. That guarantees the
  * {@code aws.*} properties required to build the Secrets Manager client are already available.
  */
+@Slf4j
 public class SecretsManagerDbCredentialsEnvironmentPostProcessor implements EnvironmentPostProcessor, Ordered {
 
-    private static final Logger LOG = Logger.getLogger(SecretsManagerDbCredentialsEnvironmentPostProcessor.class.getName());
-
     private static final String PROPERTY_SOURCE_NAME = "aws-secretsmanager-db-credentials";
+
+    private static final Gson GSON = new Gson();
 
     /** Run very late so profile YAML files are already loaded. */
     @Override
@@ -55,7 +55,7 @@ public class SecretsManagerDbCredentialsEnvironmentPostProcessor implements Envi
     public void postProcessEnvironment(final ConfigurableEnvironment environment, final SpringApplication application) {
 
         final Boolean enabled = environment.getProperty("service.aws.secretsmanager.enabled", Boolean.class, false);
-        if (!Boolean.TRUE.equals(enabled)) {
+        if (!enabled) {
             return;
         }
 
@@ -70,7 +70,7 @@ public class SecretsManagerDbCredentialsEnvironmentPostProcessor implements Envi
             final String secretString = client.getSecretValue(GetSecretValueRequest.builder().secretId(secretName).build())
                     .secretString();
 
-            final DbCredentials credentials = new Gson().fromJson(secretString, DbCredentials.class);
+            final DbCredentials credentials = GSON.fromJson(secretString, DbCredentials.class);
 
             final Map<String, Object> props = new LinkedHashMap<>();
             props.put("spring.datasource.username", credentials.username);
@@ -78,14 +78,15 @@ public class SecretsManagerDbCredentialsEnvironmentPostProcessor implements Envi
 
             // addFirst ensures this source takes precedence over application-*.yml values
             environment.getPropertySources().addFirst(new MapPropertySource(PROPERTY_SOURCE_NAME, props));
-            LOG.info("Datasource credentials loaded from Secrets Manager secret: " + secretName);
+            log.info("Datasource credentials loaded from Secrets Manager secret: {}", secretName);
 
         } catch (Exception ex) {
 
-            LOG.log(
-                    Level.WARNING,
-                    "Could not load datasource credentials from Secrets Manager (secret: " + secretName
-                            + "). Falling back to application.yml credentials. Cause: " + ex.getMessage(),
+            log.warn(
+                    "Could not load datasource credentials from Secrets Manager (secret: {}). "
+                            + "Falling back to application.yml credentials. Cause: {}",
+                    secretName,
+                    ex.getMessage(),
                     ex);
         }
     }

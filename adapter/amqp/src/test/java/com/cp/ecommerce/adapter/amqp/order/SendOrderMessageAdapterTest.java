@@ -6,7 +6,9 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.amqp.order.mapper.OrderMessageMapper;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
+import com.google.gson.Gson;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,6 +44,9 @@ class SendOrderMessageAdapterTest {
     @Mock
     transient ResilientExecutor resilientExecutor;
 
+    @Mock
+    transient Gson gson;
+
     @InjectMocks
     transient SendOrderMessageAdapter adapter;
 
@@ -50,11 +55,21 @@ class SendOrderMessageAdapterTest {
 
         final Order order = mockOrder();
         given(mapper.mapToMessage(order)).willReturn(Optional.ofNullable(mockOrderMessage()));
+        given(gson.toJson(any(Object.class))).willReturn("{}");
         runResilientActionEagerly();
 
         adapter.send(order);
 
         verify(rabbitTemplate).convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), any(String.class));
+    }
+
+    @Test
+    void shouldThrowWhenMapperReturnsEmpty() {
+
+        final Order order = mockOrder();
+        given(mapper.mapToMessage(order)).willReturn(Optional.empty());
+
+        Assertions.assertThatThrownBy(() -> adapter.send(order)).isInstanceOf(IllegalStateException.class);
     }
 
     private void runResilientActionEagerly() {

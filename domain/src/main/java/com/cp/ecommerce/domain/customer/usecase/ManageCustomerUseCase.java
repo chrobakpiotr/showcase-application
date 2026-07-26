@@ -7,7 +7,7 @@ import com.cp.ecommerce.domain.customer.port.outgoing.CheckCustomerOutPort;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Use case for placing order.
+ * Use case for managing customer information and checking whether a customer already exists.
  */
 @RequiredArgsConstructor
 @UseCase

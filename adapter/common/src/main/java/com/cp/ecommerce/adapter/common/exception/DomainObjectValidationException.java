@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.common.exception;
 
+import java.io.Serial;
 import java.util.Set;
 
 import jakarta.validation.ConstraintViolation;
@@ -10,6 +11,7 @@ import jakarta.validation.ConstraintViolationException;
  */
 public class DomainObjectValidationException extends ConstraintViolationException {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     public DomainObjectValidationException(

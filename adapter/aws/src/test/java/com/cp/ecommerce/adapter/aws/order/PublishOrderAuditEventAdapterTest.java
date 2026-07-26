@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.aws.order;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
+import com.google.gson.Gson;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,13 +33,21 @@ class PublishOrderAuditEventAdapterTest {
     @Mock
     transient ResilientExecutor resilientExecutor;
 
+    @Mock
+    transient Gson gson;
+
     @Test
     void shouldPublishAuditEventToSqs() {
 
         final Order order = mockOrder();
         final String queueUrl = "http://localhost:4566/000000000000/ecommerce-order-audit";
-        final PublishOrderAuditEventAdapter adapter = new PublishOrderAuditEventAdapter(sqsClient, queueUrl, resilientExecutor);
+        final PublishOrderAuditEventAdapter adapter = new PublishOrderAuditEventAdapter(
+                sqsClient,
+                queueUrl,
+                resilientExecutor,
+                gson);
         runResilientActionEagerly();
+        given(gson.toJson(any(Object.class))).willReturn("{}");
         given(sqsClient.sendMessage(any(SendMessageRequest.class))).willReturn(SendMessageResponse.builder().build());
 
         adapter.publish(order);
@@ -51,8 +60,13 @@ class PublishOrderAuditEventAdapterTest {
 
         final Order order = mockOrder();
         final String queueUrl = "http://localhost:4566/000000000000/ecommerce-order-audit";
-        final PublishOrderAuditEventAdapter adapter = new PublishOrderAuditEventAdapter(sqsClient, queueUrl, resilientExecutor);
+        final PublishOrderAuditEventAdapter adapter = new PublishOrderAuditEventAdapter(
+                sqsClient,
+                queueUrl,
+                resilientExecutor,
+                gson);
         runResilientActionEagerly();
+        given(gson.toJson(any(Object.class))).willReturn("{}");
         given(sqsClient.sendMessage(any(SendMessageRequest.class))).willReturn(SendMessageResponse.builder().build());
 
         adapter.publish(order);

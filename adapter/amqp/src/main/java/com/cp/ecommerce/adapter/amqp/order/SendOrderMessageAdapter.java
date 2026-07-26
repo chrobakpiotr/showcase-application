@@ -28,19 +28,22 @@ public class SendOrderMessageAdapter implements SendOrderMessageOutPort {
 
     private static final String RESILIENCE_INSTANCE_NAME = "sendOrderMessage";
 
-    private final transient OrderMessageMapper mapper;
+    private final OrderMessageMapper mapper;
 
-    private final transient RabbitTemplate rabbitTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
-    private final transient ResilientExecutor resilientExecutor;
+    private final ResilientExecutor resilientExecutor;
+
+    private final Gson gson;
 
     public void send(final Order order) {
 
-        final OrderMessage orderMessage = mapper.mapToMessage(order).orElse(null);
+        final OrderMessage orderMessage = mapper.mapToMessage(order)
+                .orElseThrow(() -> new IllegalStateException("Failed to map order to message: " + order.getOrderNumber()));
         log.info("Message: {}", orderMessage);
         resilientExecutor.runResilient(
                 RESILIENCE_INSTANCE_NAME,
-                () -> rabbitTemplate.convertAndSend(TOPIC_EXCHANGE_NAME, ROUTING_KEY, new Gson().toJson(orderMessage)));
+                () -> rabbitTemplate.convertAndSend(TOPIC_EXCHANGE_NAME, ROUTING_KEY, gson.toJson(orderMessage)));
     }
 
 }

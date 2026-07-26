@@ -9,6 +9,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
+    implementation 'com.google.code.gson:gson'
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker'
     implementation 'io.github.resilience4j:resilience4j-core'
     implementation 'io.github.resilience4j:resilience4j-micrometer'

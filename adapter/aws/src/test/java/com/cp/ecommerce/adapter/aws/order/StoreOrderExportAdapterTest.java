@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.aws.order;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
+import com.google.gson.Gson;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,12 +34,16 @@ class StoreOrderExportAdapterTest {
     @Mock
     transient ResilientExecutor resilientExecutor;
 
+    @Mock
+    transient Gson gson;
+
     @Test
     void shouldStoreOrderExportInS3() {
 
         final Order order = mockOrder();
-        final StoreOrderExportAdapter adapter = new StoreOrderExportAdapter(s3Client, "test-bucket", resilientExecutor);
+        final StoreOrderExportAdapter adapter = new StoreOrderExportAdapter(s3Client, "test-bucket", resilientExecutor, gson);
         runResilientActionEagerly();
+        given(gson.toJson(any(Object.class))).willReturn("{}");
         given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .willReturn(PutObjectResponse.builder().build());
 
@@ -52,8 +57,9 @@ class StoreOrderExportAdapterTest {
 
         final Order order = mockOrder();
         final String bucket = "ecommerce-order-exports";
-        final StoreOrderExportAdapter adapter = new StoreOrderExportAdapter(s3Client, bucket, resilientExecutor);
+        final StoreOrderExportAdapter adapter = new StoreOrderExportAdapter(s3Client, bucket, resilientExecutor, gson);
         runResilientActionEagerly();
+        given(gson.toJson(any(Object.class))).willReturn("{}");
         given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .willReturn(PutObjectResponse.builder().build());
 

@@ -10,7 +10,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 class DefaultDomainObjectValidator {
 
-    private final transient Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     Validator get() {
 

@@ -30,16 +30,18 @@ public class StoreOrderExportAdapter implements StoreOrderExportOutPort {
 
     private static final String S3_KEY_SUFFIX = ".json";
 
-    private final transient S3Client s3Client;
+    private final S3Client s3Client;
 
-    private final transient String bucketName;
+    private final String bucketName;
 
-    private final transient ResilientExecutor resilientExecutor;
+    private final ResilientExecutor resilientExecutor;
+
+    private final Gson gson;
 
     @Override
     public void store(final Order order) {
 
-        final String json = new Gson().toJson(order);
+        final String json = gson.toJson(order);
         final String key = S3_KEY_PREFIX + order.getOrderNumber() + S3_KEY_SUFFIX;
         log.info("Storing order export to S3: bucket={}, key={}", bucketName, key);
         resilientExecutor.runResilient(RESILIENCE_INSTANCE_NAME, () -> {

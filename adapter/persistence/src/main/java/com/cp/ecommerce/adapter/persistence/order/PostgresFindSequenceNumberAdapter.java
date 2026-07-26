@@ -5,8 +5,8 @@ import com.cp.ecommerce.domain.order.port.outgoing.FindSequenceNumberOutPort;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.support.incrementer.PostgresSequenceMaxValueIncrementer;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 /**

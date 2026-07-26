@@ -8,8 +8,6 @@ import com.cp.ecommerce.domain.order.port.incoming.PlaceOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.LogOrderOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SendEmailOutPort;
 
-import org.apache.logging.log4j.util.Strings;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,8 +46,10 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
             return savedOrder.getOrderNumber();
         } else {
 
-            log.info("Order for current customer already exists.");
-            return Strings.EMPTY;
+            log.info(
+                    "Customer with email '{}' already exists, order will not be placed.",
+                    order.getCustomer().getContact().getEmail());
+            return "";
         }
     }
 

@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.mail.freemarker;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
 
 import freemarker.template.TemplateMethodModelEx;
@@ -37,7 +37,7 @@ public class FreeMarkerMessageSource {
 
     private String getMessageForLocale(final String key, final Object... args) {
 
-        return messageSource.getMessage(key, args, Locale.getDefault());
+        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
     }
 
 }
