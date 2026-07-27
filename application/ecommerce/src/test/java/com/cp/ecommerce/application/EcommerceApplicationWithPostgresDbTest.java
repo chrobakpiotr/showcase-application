@@ -1,6 +1,5 @@
 package com.cp.ecommerce.application;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -19,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @ActiveProfiles("postgres-local")
 @ContextConfiguration(initializers = { EcommerceApplicationWithPostgresDbTest.Initializer.class })
-@Testcontainers
-@Disabled("Manual test cases - docker image has to run in the background.")
+@Testcontainers(disabledWithoutDocker = true)
 class EcommerceApplicationWithPostgresDbTest extends AbstractEcommerceApplicationTest {
 
     private static final String IMAGE_VERSION = "postgres:14.1";
