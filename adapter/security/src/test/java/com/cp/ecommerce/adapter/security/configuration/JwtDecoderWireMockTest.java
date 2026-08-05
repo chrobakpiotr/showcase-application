@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.security.configuration;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
@@ -19,7 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.restclient.RestTemplateBuilder;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.JwkSetUriJwtDecoderBuilderCustomizer;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -47,7 +52,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
  * </p>
  */
 @SpringBootTest
-@Import(SecurityTestConfiguration.class)
+@Import({ SecurityTestConfiguration.class, JwtDecoderWireMockTest.JwtDecoderTestConfiguration.class })
 class JwtDecoderWireMockTest {
 
     private static final String JWKS_PATH = "/realms/ecommerce/protocol/openid-connect/certs";
@@ -130,6 +135,25 @@ class JwtDecoderWireMockTest {
         signedJwt.sign(new RSASSASigner(signingKey));
 
         return signedJwt.serialize();
+    }
+
+    /**
+     * Nimbus' default JWKS resource retriever times out after 500ms, which is too aggressive on a loaded CI runner and makes
+     * the JWKS fetch flaky. This customizer widens the connect/read timeouts used by {@link JwtDecoder} when talking to the
+     * (stubbed) JWKS endpoint.
+     */
+    @TestConfiguration
+    static class JwtDecoderTestConfiguration {
+
+        @Bean
+        JwkSetUriJwtDecoderBuilderCustomizer jwkSetUriJwtDecoderBuilderCustomizer() {
+
+            return builder -> builder.restOperations(
+                    new RestTemplateBuilder().connectTimeout(Duration.ofSeconds(10))
+                            .readTimeout(Duration.ofSeconds(10))
+                            .build());
+        }
+
     }
 
 }
