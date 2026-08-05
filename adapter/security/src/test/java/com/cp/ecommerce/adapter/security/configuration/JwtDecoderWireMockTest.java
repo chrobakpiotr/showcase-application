@@ -42,7 +42,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 
 /**
- * Integration test verifying that the Spring Boot autoconfigured {@link JwtDecoder} correctly retrieves and validates signing
+ * Integration test verifying that the Spring Boot auto-configured {@link JwtDecoder} correctly retrieves and validates signing
  * keys against a JWKS endpoint stubbed with WireMock, exercising the same {@code jwk-set-uri}/{@code issuer-uri} wiring as
  * {@link WebSecurityConfiguration} in production.
  *

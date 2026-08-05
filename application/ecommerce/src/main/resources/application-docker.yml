@@ -4,7 +4,7 @@
 spring:
   config:
     import:
-      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml
+      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml
   liquibase:
     contexts: local
 

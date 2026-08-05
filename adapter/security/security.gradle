@@ -39,6 +39,7 @@ dependencies {
     testImplementation project(':adapter:persistence')
     testImplementation project(':adapter:amqp')
     testImplementation project(':adapter:aws')
+    testImplementation project(':adapter:kafka')
     testImplementation project(':adapter:web')
     testImplementation 'jakarta.persistence:jakarta.persistence-api'
     testImplementation 'org.springframework.boot:spring-boot-autoconfigure'

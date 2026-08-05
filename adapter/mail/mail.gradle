@@ -34,6 +34,7 @@ dependencies {
     testImplementation project(':adapter:web')
     testImplementation project(':adapter:amqp')
     testImplementation project(':adapter:aws')
+    testImplementation project(':adapter:kafka')
     testImplementation 'com.icegreen:greenmail-junit5'
     testImplementation 'org.hamcrest:hamcrest'
     testImplementation 'org.springframework.boot:spring-boot-test'

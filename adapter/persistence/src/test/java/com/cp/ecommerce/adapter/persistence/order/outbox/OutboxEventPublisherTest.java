@@ -7,6 +7,7 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
+import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 
@@ -50,6 +51,9 @@ class OutboxEventPublisherTest {
     @Mock
     private transient PublishOrderAuditEventInPort publishOrderAuditEventInPort;
 
+    @Mock
+    private transient PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
+
     @Test
     void shouldPublishPendingOutboxEvents() {
 
@@ -66,6 +70,7 @@ class OutboxEventPublisherTest {
                 sendMessageInPort,
                 exportOrderInPort,
                 publishOrderAuditEventInPort,
+                publishOrderAnalyticsEventInPort,
                 executeInSimpleTransaction());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(outboxEventEntity));
@@ -77,6 +82,7 @@ class OutboxEventPublisherTest {
         verify(sendMessageInPort, times(1)).sendMessage(order);
         verify(exportOrderInPort, times(1)).exportOrder(order);
         verify(publishOrderAuditEventInPort, times(1)).publishAuditEvent(order);
+        verify(publishOrderAnalyticsEventInPort, times(1)).publishAnalyticsEvent(order);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntityCaptor.capture());
         assertThat(outboxEventEntityCaptor.getValue().getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(outboxEventEntityCaptor.getValue().getSentDate()).isNotNull();
@@ -110,6 +116,7 @@ class OutboxEventPublisherTest {
                 sendMessageInPort,
                 exportOrderInPort,
                 publishOrderAuditEventInPort,
+                publishOrderAnalyticsEventInPort,
                 executeInSimpleTransaction());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(failedEvent, successfulEvent));
@@ -145,6 +152,7 @@ class OutboxEventPublisherTest {
                 sendMessageInPort,
                 exportOrderInPort,
                 publishOrderAuditEventInPort,
+                publishOrderAnalyticsEventInPort,
                 executeInSimpleTransaction());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(outboxEventEntity));
@@ -173,11 +181,41 @@ class OutboxEventPublisherTest {
                 sendMessageInPort,
                 exportOrderInPort,
                 publishOrderAuditEventInPort,
+                publishOrderAnalyticsEventInPort,
                 executeInSimpleTransaction());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(outboxEventEntity));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doThrow(new RuntimeException("SQS unavailable")).when(publishOrderAuditEventInPort).publishAuditEvent(order);
+
+        assertDoesNotThrow(outboxEventPublisher::publishPendingEvents);
+
+        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
+    }
+
+    @Test
+    void shouldStillMarkEventSentWhenKafkaAnalyticsPublishFails() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        final OutboxEventPublisher outboxEventPublisher = new OutboxEventPublisher(
+                outboxEventEntityRepository,
+                manageOrderInPort,
+                sendMessageInPort,
+                exportOrderInPort,
+                publishOrderAuditEventInPort,
+                publishOrderAnalyticsEventInPort,
+                executeInSimpleTransaction());
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new RuntimeException("Kafka unavailable")).when(publishOrderAnalyticsEventInPort).publishAnalyticsEvent(order);
 
         assertDoesNotThrow(outboxEventPublisher::publishPendingEvents);
 

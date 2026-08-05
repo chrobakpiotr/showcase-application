@@ -1,5 +1,5 @@
 # Full containerized stack for the e-commerce showcase: the application itself plus
-# Postgres, RabbitMQ, Keycloak and the observability stack (Prometheus/Tempo/Grafana),
+# Postgres, RabbitMQ, Kafka, Keycloak and the observability stack (Prometheus/Tempo/Grafana),
 # all sharing one Docker network.
 #
 # Start with:   docker compose up -d --build
@@ -28,6 +28,8 @@ services:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
       keycloak:
         condition: service_started
@@ -65,6 +67,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: ecommerce-kafka
+    restart: unless-stopped
+    environment:
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_LISTENERS=CONTROLLER://:29093,PLAINTEXT_HOST://:9092,PLAINTEXT://:19092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT_HOST://localhost:9092,PLAINTEXT://kafka:19092
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:29093
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:19092" ]
+      interval: 5s
+      timeout: 5s
+      retries: 15
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0

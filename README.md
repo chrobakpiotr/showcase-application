@@ -23,6 +23,7 @@ Among many frameworks, libraries and tools, the most important being used are as
 - Postgres
 - H2
 - RabbitMq
+- Apache Kafka
 - Docker
 - Lombok
 - TestContainers
@@ -79,13 +80,13 @@ Execution of command `./gradlew clean build` will build the application and make
 bundles the Angular frontend as static resources via the Gradle node plugin, so no separate `npm install`/`ng
 build` step is required.
 
-Only run one option below at a time - both bind the same host ports (9080/9081, 5432, 5672, 8081, ...), so
+Only run one option below at a time - both bind the same host ports (9080/9081, 5432, 5672, 9092, 8081, ...), so
 starting the second while the first is still up will fail with port conflicts.
 
 ### Option 1: Full containerized stack
 
 The root [`docker-compose.yml`](docker-compose.yml) builds the app image and starts the whole stack -
-Postgres, RabbitMQ, Keycloak and the observability stack (Prometheus/Tempo/Grafana) - on one Docker network:
+Postgres, RabbitMQ, Kafka, Keycloak and the observability stack (Prometheus/Tempo/Grafana) - on one Docker network:
 
 ```
 docker compose up -d --build
@@ -114,17 +115,21 @@ pre-defined IntelliJ run configurations (under `.run/`):
 - `ECOMMERCE-postgres` - Postgres database, no RabbitMQ connection
 - `ECOMMERCE-postgres-amqp` - Postgres database with RabbitMQ connection
 
-Standalone Compose files for each dependency live under `etc/docker/{postgres,rabbitmq,keycloak,observability}`
+Standalone Compose files for each dependency live under `etc/docker/{postgres,rabbitmq,kafka,keycloak,observability}`
 and use `host.docker.internal` so containers can reach the app running on the host, e.g.:
 
 ```
 docker compose -f etc/docker/postgres/docker-compose.yml up -d
 docker compose -f etc/docker/rabbitmq/docker-compose.yml up -d
+docker compose -f etc/docker/kafka/docker-compose.yml up -d
 ```
 
 Then start the app with the matching run configuration (or `./gradlew bootRun -Dspring.profiles.active=<profile>`,
-e.g. `postgres-amqp-local`). If you need Keycloak too (for the secured order endpoints), see the standalone
-Keycloak Compose file referenced in [Authentication & authorization](#authentication--authorization) below.
+e.g. `postgres-amqp-local`). To also enable the Kafka order-analytics event stream, add the `kafka-local` profile,
+e.g. `SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun` (see
+[Event streaming (Kafka)](#event-streaming-kafka) below). If you need Keycloak too (for the secured order
+endpoints), see the standalone Keycloak Compose file referenced in
+[Authentication & authorization](#authentication--authorization) below.
 
 ## Continuous Integration
 
@@ -142,8 +147,8 @@ application is running:
 
 Both are publicly accessible (no authentication required) so the API can be explored immediately.
 
-The asynchronous side of the API (RabbitMQ order events, and the optional AWS SQS order-audit
-event) is documented separately with an [AsyncAPI](https://www.asyncapi.com/) spec:
+The asynchronous side of the API (RabbitMQ order events, the optional AWS SQS order-audit event, and the Kafka
+order-analytics event) is documented separately with an [AsyncAPI](https://www.asyncapi.com/) spec:
 [`etc/asyncapi/asyncapi.yml`](etc/asyncapi/asyncapi.yml). View it rendered with the
 [AsyncAPI Studio](https://studio.asyncapi.com/) (paste the file contents in), or validate it
 locally with `npx @asyncapi/cli validate etc/asyncapi/asyncapi.yml`.
@@ -195,10 +200,11 @@ Spring Boot application separately before/after bringing up the stack.
 
 ## Resilience
 
-The two outbound integrations that talk to external systems - RabbitMQ (`SendOrderMessageAdapter`) and SMTP
-(`SendEmailAdapter`) - are wrapped with a circuit breaker and retry, implemented with
+The outbound integrations that talk to external systems - RabbitMQ (`SendOrderMessageAdapter`), SMTP
+(`SendEmailAdapter`), AWS SQS (`PublishOrderAuditEventAdapter`) and Kafka (`PublishOrderAnalyticsEventAdapter`) -
+are wrapped with a circuit breaker and retry, implemented with
 [resilience4j](https://resilience4j.readme.io/). The registries and the reusable `ResilientExecutor` helper live in
-`adapter:common` (`com.cp.ecommerce.adapter.common.resilience`), so both adapters share the same defaults:
+`adapter:common` (`com.cp.ecommerce.adapter.common.resilience`), so all adapters share the same defaults:
 
 - Retry: up to 3 attempts, 500ms wait between attempts.
 - Circuit breaker: opens once 50% of the last 10 calls fail, stays open for 10s, then allows 3 trial calls in
@@ -325,6 +331,38 @@ Order persistence now uses a transactional outbox to avoid losing RabbitMQ event
 - Message delivery still goes through the existing resilience4j-wrapped `SendOrderMessageAdapter`, so retry/circuit-breaker behavior is unchanged.
 - Properties: `outbox.publisher.enabled` (default `true`) and `outbox.publisher.poll-interval-ms` (default `5000`).
 
+## Event streaming (Kafka)
+
+Order placement now has three distinct outbound channels, each chosen for a different messaging shape rather than as
+redundant copies of the same event:
+
+| Channel | Purpose | Consumption model |
+|---|---|---|
+| RabbitMQ (`SendOrderMessageAdapter`) | Fulfillment command: "process this order" | Point-to-point queue, one logical downstream processor |
+| AWS SQS (`PublishOrderAuditEventAdapter`) | Lightweight compliance/audit trail | Point-to-point queue, single audit consumer |
+| Kafka (`PublishOrderAnalyticsEventAdapter`) | Order-placed event for analytics/BI | Fan-out log; any number of independent consumer groups (recommendation engine, BI dashboards, customer analytics, ...) can subscribe and replay history without the producer knowing about them upfront |
+
+A queue is the right tool when exactly one thing must happen to a message (fulfil the order, audit it once). Kafka is
+the right tool when the same event may need to reach several current *and future* consumers, potentially replayed
+from an earlier offset for backfills - which is exactly the profile of an "order placed" fact feeding a data
+platform, rather than driving a specific business transaction.
+
+- `KafkaTopicConfiguration` declares the `com.cp.e.topic.order.analytics` topic (3 partitions, so a downstream
+  consumer group can scale out, keyed by order number so all events for one order stay ordered on the same
+  partition).
+- Like the RabbitMQ and SQS channels, publishing is wired through the transactional outbox
+  (`OutboxEventPublisher`) and is best-effort: a failure to publish to Kafka never blocks the order flow or the
+  RabbitMQ/SQS publishes, and doesn't prevent the outbox row from being marked `SENT`.
+- Publishing goes through the same resilience4j-wrapped `ResilientExecutor` as the other channels (see
+  [Resilience](#resilience)), under the `publishOrderAnalyticsEvent` circuit breaker/retry instance.
+- Enabled via `service.kafka.enabled` (`true` in the containerized stack - see `application-kafka-docker.yml`).
+  For host-based `bootRun`, start the standalone broker and activate the `kafka-local` profile:
+
+```bash
+docker compose -f etc/docker/kafka/docker-compose.yml up -d
+SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun
+```
+
 ## Caching
 
 The order read path (`GET /api/order/{orderNumber}`) is backed by a JCache/Ehcache cache to avoid hitting the
@@ -358,10 +396,10 @@ the domain module is 100%.
 It is intentionally not wired into the default `build` / `check` lifecycle because mutation analysis is materially
 slower than regular unit tests and is better used as an explicit quality gate when changing the domain layer.
 
-The AMQP module also includes a lightweight producer-side contract test for the order message. Instead of introducing
-the full operational footprint of Spring Cloud Contract or Pact (stub artifacts, brokers or additional publishing
-infrastructure), the showcase verifies the real `Order -> OrderMessage -> Gson JSON` path directly and asserts the
-wire-level schema that a consumer depends on.
+The AMQP and Kafka modules also include lightweight producer-side contract tests for their respective order
+messages. Instead of introducing the full operational footprint of Spring Cloud Contract or Pact (stub artifacts,
+brokers or additional publishing infrastructure), the showcase verifies the real `Order -> ... -> Gson JSON` path
+directly and asserts the wire-level schema that a consumer depends on.
 
 ## Frontend modernization
 

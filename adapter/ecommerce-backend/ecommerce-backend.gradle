@@ -20,6 +20,7 @@ dependencies {
     implementation project(':domain')
     implementation project(':adapter:amqp')
     implementation project(':adapter:aws')
+    implementation project(':adapter:kafka')
 }
 
 processResources.dependsOn(':adapter:ecommerce-frontend:processGeneratedResources')

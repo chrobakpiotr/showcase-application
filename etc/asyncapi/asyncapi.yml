@@ -4,11 +4,11 @@ info:
   title: Showcase application - Async API
   version: '1.0.0'
   description: >
-    Documents the asynchronous, event-driven side of the showcase (RabbitMQ order events and the
-    optional AWS SQS order-audit side-channel), mirroring what springdoc-openapi does for the
-    synchronous REST API. Both messages originate from the same transactional outbox
-    (`OutboxEventPublisher`) once an order has been persisted - see
-    [docs/adr/0002](../../docs/adr/0002-transactional-outbox-over-2pc.md).
+    Documents the asynchronous, event-driven side of the showcase (RabbitMQ order events, the
+    optional AWS SQS order-audit side-channel, and the Kafka order-analytics event stream),
+    mirroring what springdoc-openapi does for the synchronous REST API. All three messages
+    originate from the same transactional outbox (`OutboxEventPublisher`) once an order has been
+    persisted - see [docs/adr/0002](../../docs/adr/0002-transactional-outbox-over-2pc.md).
   license:
     name: Unlicense
 
@@ -26,6 +26,13 @@ servers:
       LocalStack-emulated AWS SQS, provisioned by Terraform (etc/terraform). Only active when the
       `aws-localstack` Spring profile and `service.aws.sqs.enabled=true` are set - see
       docs/adr/0007.
+  kafka-local:
+    host: localhost:9092
+    protocol: kafka
+    description: >
+      Local single-node Kafka broker (see etc/docker/kafka or docker-compose.yml). Only active
+      when `service.kafka.enabled=true` is set (default in the containerized stack, opt-in via the
+      `kafka-local` Spring profile for host-based bootRun).
 
 channels:
   order-topic:
@@ -50,6 +57,21 @@ channels:
     messages:
       orderAudit:
         $ref: '#/components/messages/OrderAuditMessage'
+
+  order-analytics-topic:
+    address: com.cp.e.topic.order.analytics
+    description: >
+      Kafka topic `com.cp.e.topic.order.analytics` (3 partitions, keyed by order number - see
+      `KafkaTopicConfiguration` in adapter:kafka). Unlike the point-to-point RabbitMQ/SQS channels
+      above, this is a fan-out event log: any number of independent consumer groups (BI/analytics
+      pipelines, recommendation engine, ...) can subscribe and replay it without coordinating with
+      the producer. Best-effort: publish failures never block the order's outbox event from being
+      marked SENT.
+    servers:
+      - $ref: '#/servers/kafka-local'
+    messages:
+      orderAnalytics:
+        $ref: '#/components/messages/OrderAnalyticsMessage'
 
 operations:
   publishOrderPlaced:
@@ -78,6 +100,14 @@ operations:
     messages:
       - $ref: '#/channels/order-audit-queue/messages/orderAudit'
 
+  publishOrderAnalytics:
+    action: send
+    channel:
+      $ref: '#/channels/order-analytics-topic'
+    summary: Published by PublishOrderAnalyticsEventAdapter (adapter:kafka), when enabled.
+    messages:
+      - $ref: '#/channels/order-analytics-topic/messages/orderAnalytics'
+
 components:
   messages:
     OrderPlacedMessage:
@@ -95,6 +125,14 @@ components:
       contentType: application/json
       payload:
         $ref: '#/components/schemas/OrderAuditEvent'
+
+    OrderAnalyticsMessage:
+      name: OrderAnalyticsMessage
+      title: Order analytics event
+      summary: Fan-out order-placed event for analytics/BI consumers.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/OrderAnalyticsEvent'
 
   schemas:
     OrderMessage:
@@ -139,6 +177,36 @@ components:
           format: date-time
           description: ISO-8601 timestamp string, e.g. 2024-01-01T00:00:00Z.
       required:
+        - orderNumber
+        - customerId
+        - eventType
+        - timestamp
+
+    OrderAnalyticsEvent:
+      type: object
+      description: >
+        Wire schema for the Kafka order-analytics message
+        (adapter.kafka.order.dto.OrderAnalyticsEvent).
+      properties:
+        schemaVersion:
+          type: string
+          description: Schema version of this message payload, for forward-compatible evolution.
+          example: '1.0'
+        orderNumber:
+          type: string
+        customerId:
+          type: integer
+          format: int64
+        eventType:
+          type: string
+          enum:
+            - ORDER_PLACED
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO-8601 timestamp string, e.g. 2024-01-01T00:00:00Z.
+      required:
+        - schemaVersion
         - orderNumber
         - customerId
         - eventType

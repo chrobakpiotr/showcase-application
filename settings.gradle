@@ -9,6 +9,7 @@ addSubproject('adapter:persistence')
 addSubproject('adapter:web')
 addSubproject('adapter:amqp')
 addSubproject('adapter:aws')
+addSubproject('adapter:kafka')
 addSubproject('application:ecommerce')
 addSubproject('domain')
 

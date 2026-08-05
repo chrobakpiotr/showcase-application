@@ -5,6 +5,7 @@ import java.util.Date;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
+import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 
@@ -35,6 +36,8 @@ public class OutboxEventPublisher {
 
     private final PublishOrderAuditEventInPort publishOrderAuditEventInPort;
 
+    private final PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
+
     private final TransactionOperations transactionOperations;
 
     /**
@@ -62,6 +65,7 @@ public class OutboxEventPublisher {
         sendMessageInPort.sendMessage(order);
         exportOrderBestEffort(order);
         publishAuditEventBestEffort(order);
+        publishAnalyticsEventBestEffort(order);
         outboxEventEntity.setStatus(OutboxEventStatus.SENT);
         outboxEventEntity.setSentDate(new Date());
         outboxEventEntityRepository.save(outboxEventEntity);
@@ -82,6 +86,15 @@ public class OutboxEventPublisher {
             publishOrderAuditEventInPort.publishAuditEvent(order);
         } catch (RuntimeException exception) {
             log.warn("Could not publish SQS audit event (best-effort): {}", order.getOrderNumber(), exception);
+        }
+    }
+
+    private void publishAnalyticsEventBestEffort(final Order order) {
+
+        try {
+            publishOrderAnalyticsEventInPort.publishAnalyticsEvent(order);
+        } catch (RuntimeException exception) {
+            log.warn("Could not publish Kafka analytics event (best-effort): {}", order.getOrderNumber(), exception);
         }
     }
 
