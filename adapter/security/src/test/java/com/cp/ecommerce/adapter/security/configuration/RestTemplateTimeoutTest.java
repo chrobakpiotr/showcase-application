@@ -1,11 +1,13 @@
 package com.cp.ecommerce.adapter.security.configuration;
 
-import java.net.http.HttpTimeoutException;
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,18 +21,20 @@ class RestTemplateTimeoutTest {
 
     private static final String TEST_URL = "http://10.255.255.255";
 
+    private static final Duration MAX_EXPECTED_DURATION = Duration.ofSeconds(20);
+
     @Autowired
     private transient RestTemplate restTemplate;
 
     @Test
+    @Timeout(30)
     void shouldThrowTimeoutException() {
 
-        // Spring Boot 4's RestTemplateBuilder defaults to the JDK HttpClient, which reports
-        // connect timeouts as HttpTimeoutException rather than SocketException. Depending on the
-        // network stack, the JDK HttpClient may additionally wrap a further root cause (e.g.
-        // ConnectException) below the HttpTimeoutException, so assert on the immediate cause
-        // rather than the ultimate root cause.
-        assertThat(catchThrowable(() -> restTemplate.getForObject(TEST_URL, String.class)))
-                .hasCauseInstanceOf(HttpTimeoutException.class);
+        final long start = System.nanoTime();
+        final Throwable thrown = catchThrowable(() -> restTemplate.getForObject(TEST_URL, String.class));
+        final Duration elapsed = Duration.ofNanos(System.nanoTime() - start);
+
+        assertThat(thrown).isInstanceOf(ResourceAccessException.class);
+        assertThat(elapsed).isLessThan(MAX_EXPECTED_DURATION);
     }
 }

@@ -50,6 +50,7 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework:spring-test'
     testImplementation 'org.springframework:spring-webmvc'
+    testImplementation 'org.wiremock:wiremock-jetty12'
 }
 
 configureTestDependencies(project)

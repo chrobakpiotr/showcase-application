@@ -97,6 +97,9 @@ def configureDependencyManagement(subproject) {
 				dependency 'org.apache.xmlgraphics:fop-core:2.11'
 				dependency 'org.apache.xmlgraphics:xmlgraphics-commons:2.11'
 				dependency 'org.assertj:assertj-core:3.27.7'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.10'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlets:12.1.10'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.10'
 				dependency 'org.ehcache:ehcache:3.12.0'
 				dependency 'org.hamcrest:hamcrest:3.0'
 				dependency 'org.hibernate.orm:hibernate-core:7.4.1.Final'
@@ -134,6 +137,7 @@ def configureDependencyManagement(subproject) {
 				dependency 'org.springframework:spring-webmvc:7.0.8'
 				dependency 'org.testcontainers:junit-jupiter:1.21.4'
 				dependency 'org.testcontainers:postgresql:1.21.4'
+				dependency 'org.wiremock:wiremock-jetty12:3.13.2'
 				dependency 'xml-apis:xml-apis:1.0.b2'
 			}
 		}
