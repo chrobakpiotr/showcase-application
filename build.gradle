@@ -64,6 +64,7 @@ def configureDependencyManagement(subproject) {
 				mavenBom SpringBootPlugin.BOM_COORDINATES
 				mavenBom 'org.junit:junit-bom:6.1.1'
 				mavenBom 'software.amazon.awssdk:bom:2.48.3'
+				mavenBom 'org.apache.camel.springboot:camel-spring-boot-bom:4.21.0'
 			}
 			dependencies {
 				dependency 'ch.qos.logback:logback-classic:1.5.34'

@@ -7,6 +7,7 @@ import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
+import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,6 +39,8 @@ public class OutboxEventPublisher {
 
     private final PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
 
+    private final RouteOrderNotificationInPort routeOrderNotificationInPort;
+
     private final TransactionOperations transactionOperations;
 
     /**
@@ -63,15 +66,16 @@ public class OutboxEventPublisher {
 
         final Order order = manageOrderInPort.findOrder(outboxEventEntity.getOrderNumber());
         sendMessageInPort.sendMessage(order);
-        exportOrderBestEffort(order);
-        publishAuditEventBestEffort(order);
-        publishAnalyticsEventBestEffort(order);
+        exportOrder(order);
+        publishAuditEvent(order);
+        publishAnalyticsEvent(order);
+        routeNotification(order);
         outboxEventEntity.setStatus(OutboxEventStatus.SENT);
         outboxEventEntity.setSentDate(new Date());
         outboxEventEntityRepository.save(outboxEventEntity);
     }
 
-    private void exportOrderBestEffort(final Order order) {
+    private void exportOrder(final Order order) {
 
         try {
             exportOrderInPort.exportOrder(order);
@@ -80,7 +84,7 @@ public class OutboxEventPublisher {
         }
     }
 
-    private void publishAuditEventBestEffort(final Order order) {
+    private void publishAuditEvent(final Order order) {
 
         try {
             publishOrderAuditEventInPort.publishAuditEvent(order);
@@ -89,12 +93,21 @@ public class OutboxEventPublisher {
         }
     }
 
-    private void publishAnalyticsEventBestEffort(final Order order) {
+    private void publishAnalyticsEvent(final Order order) {
 
         try {
             publishOrderAnalyticsEventInPort.publishAnalyticsEvent(order);
         } catch (RuntimeException exception) {
             log.warn("Could not publish Kafka analytics event (best-effort): {}", order.getOrderNumber(), exception);
+        }
+    }
+
+    private void routeNotification(final Order order) {
+
+        try {
+            routeOrderNotificationInPort.routeNotification(order);
+        } catch (RuntimeException exception) {
+            log.warn("Could not route order notification via Camel (best-effort): {}", order.getOrderNumber(), exception);
         }
     }
 

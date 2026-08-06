@@ -89,6 +89,8 @@ graph LR
         security["adapter:security<br/>OAuth2 Resource Server / JWT"]
         persistence["adapter:persistence<br/>JPA, outbox, cache"]
         amqp["adapter:amqp<br/>RabbitMQ publisher"]
+        kafka["adapter:kafka<br/>Order analytics event publisher"]
+        camel["adapter:camel<br/>Order notification routing (EIPs)"]
         mail["adapter:mail<br/>SMTP + PDF/Freemarker"]
         aws["adapter:aws<br/>S3 / SQS / Secrets Manager"]
         common["adapter:common<br/>Resilience4j, shared utils"]
@@ -100,6 +102,8 @@ graph LR
     security --> domain
     persistence --> domain
     amqp --> domain
+    kafka --> domain
+    camel --> domain
     mail --> domain
     aws --> domain
     common -.-> amqp
@@ -109,6 +113,8 @@ graph LR
     app --> security
     app --> persistence
     app --> amqp
+    app --> kafka
+    app --> camel
     app --> mail
     app --> aws
 

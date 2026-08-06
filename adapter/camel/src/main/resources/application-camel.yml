@@ -1,0 +1,4 @@
+service:
+  camel:
+    enabled: true
+    domestic-country-code: PL

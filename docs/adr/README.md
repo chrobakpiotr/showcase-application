@@ -14,6 +14,7 @@ than editing it in place.
 | [0005](0005-aws-sdk-url-connection-http-client.md) | AWS SDK v2 uses the JDK URL-connection HTTP client |
 | [0006](0006-mutation-testing-with-pitest.md) | Mutation testing (Pitest) as a targeted quality gate |
 | [0007](0007-optional-cloud-integrations-as-opt-in-adapters.md) | Optional cloud/messaging integrations as opt-in adapters |
+| [0008](0008-apache-camel-for-order-notification-routing.md) | Apache Camel for order notification routing |
 
 ## Template for new ADRs
 

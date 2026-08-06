@@ -1,0 +1,23 @@
+apply from: '../../etc/checkstyle/checkstyle.gradle'
+apply from: '../../etc/jacoco.gradle'
+apply from: '../../etc/spotless/spotless-java.gradle'
+apply from: '../../etc/dependencycheck/dependencycheck.gradle'
+apply from: '../../etc/pmd/pmd.gradle'
+
+dependencies {
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    implementation project(':adapter:common')
+    implementation project(':domain')
+
+    implementation 'com.google.code.gson:gson'
+    implementation 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    implementation 'org.apache.camel.springboot:camel-spring-boot-starter'
+    implementation 'org.apache.camel.springboot:camel-file-starter'
+    testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
+}
+
+configureTestDependencies(project)

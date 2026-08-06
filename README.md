@@ -24,6 +24,7 @@ Among many frameworks, libraries and tools, the most important being used are as
 - H2
 - RabbitMq
 - Apache Kafka
+- Apache Camel
 - Docker
 - Lombok
 - TestContainers
@@ -201,7 +202,8 @@ Spring Boot application separately before/after bringing up the stack.
 ## Resilience
 
 The outbound integrations that talk to external systems - RabbitMQ (`SendOrderMessageAdapter`), SMTP
-(`SendEmailAdapter`), AWS SQS (`PublishOrderAuditEventAdapter`) and Kafka (`PublishOrderAnalyticsEventAdapter`) -
+(`SendEmailAdapter`), AWS SQS (`PublishOrderAuditEventAdapter`), Kafka (`PublishOrderAnalyticsEventAdapter`) and
+Apache Camel (`RouteOrderNotificationAdapter`) -
 are wrapped with a circuit breaker and retry, implemented with
 [resilience4j](https://resilience4j.readme.io/). The registries and the reusable `ResilientExecutor` helper live in
 `adapter:common` (`com.cp.ecommerce.adapter.common.resilience`), so all adapters share the same defaults:
@@ -362,6 +364,33 @@ platform, rather than driving a specific business transaction.
 docker compose -f etc/docker/kafka/docker-compose.yml up -d
 SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun
 ```
+
+## Order fan-out and routing (Apache Camel)
+
+Besides the queue/topic channels above, placing an order also needs to be **routed** to a different
+fulfillment handler depending on its content (domestic vs. international shipping), while an
+independent copy is tapped off for auditing - a job better expressed declaratively with
+[Enterprise Integration Patterns](https://www.enterpriseintegrationpatterns.com/) than with
+hand-written `if`/`else` branching. `adapter:camel` (`OrderNotificationRoutes`) wires up two EIPs on
+top of Apache Camel:
+
+- **Wire Tap**: every order sent to `direct:orderNotification` is asynchronously copied to
+  `direct:orderNotificationAudit`, without affecting the main routing decision below.
+- **Content-Based Router**: the order is then routed to `direct:domesticOrderFulfillment` or
+  `direct:internationalOrderFulfillment` depending on whether its shipping address's country code
+  matches `service.camel.domestic-country-code` (default `PL`).
+- Each terminal route marshals the order to JSON and writes it to a `file:` endpoint under
+  `service.camel.notification-directory` (default: a subfolder of the OS temp directory) - a
+  stand-in for a real messaging/HTTP/FTP endpoint, chosen deliberately so this feature needs no
+  external infrastructure to run or test, consistent with the RabbitMQ/AWS/Kafka channels above.
+- `RouteOrderNotificationAdapter` sends into the route via a Camel `ProducerTemplate`, wired through
+  the transactional outbox (`OutboxEventPublisher`) as a fifth best-effort side-channel, and wrapped
+  by the same resilience4j `ResilientExecutor` as the other adapters (see [Resilience](#resilience)),
+  under the `routeOrderNotification` circuit breaker/retry instance.
+- Enabled via `service.camel.enabled` (default `true`, see `application-camel.yml`); when disabled,
+  `DoNotRouteOrderNotificationAdapter` is used instead and no `CamelContext` is created.
+- See [ADR 0008](docs/adr/0008-apache-camel-for-order-notification-routing.md) for the full
+  rationale.
 
 ## Caching
 

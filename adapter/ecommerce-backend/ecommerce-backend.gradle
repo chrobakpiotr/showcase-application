@@ -21,6 +21,7 @@ dependencies {
     implementation project(':adapter:amqp')
     implementation project(':adapter:aws')
     implementation project(':adapter:kafka')
+    implementation project(':adapter:camel')
 }
 
 processResources.dependsOn(':adapter:ecommerce-frontend:processGeneratedResources')
