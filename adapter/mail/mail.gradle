@@ -20,6 +20,8 @@ dependencies {
     implementation 'org.apache.commons:commons-lang3'
     implementation 'org.apache.xmlgraphics:fop-core'
     implementation 'org.apache.xmlgraphics:xmlgraphics-commons'
+    implementation 'xalan:xalan:2.7.3'
+    implementation 'xalan:serializer:2.7.3'
     implementation 'org.freemarker:freemarker'
     implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'

@@ -11,23 +11,14 @@ import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import jakarta.servlet.ServletException;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
@@ -46,35 +37,25 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
 /**
  * Test class checking order page controller's behavior and order page API response.
  */
-@AutoConfigureMockMvc
-@EnableWebMvc
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
     private static final String ORDER_ENDPOINT = "/api/order";
 
+    @Autowired
     private transient MockMvc mockMvc;
 
-    @InjectMocks
-    private transient OrderController orderController;
-
-    @Mock
+    @MockitoBean
     private transient PlaceOrderUseCase placeOrderUseCase;
 
-    @Mock
+    @MockitoBean
     private transient ManageOrderUseCase manageOrderUseCase;
 
-    @Mock
+    @MockitoBean
     private transient OrderWebMapper orderWebMapper;
 
-    @Mock
+    @MockitoBean
     private transient OrderMetrics orderMetrics;
-
-    @BeforeEach
-    public void setUp() {
-
-        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();
-    }
 
     @Test
     void shouldPlaceOrderSuccessfully() throws Exception {
@@ -92,18 +73,17 @@ class OrderControllerTest {
     }
 
     @Test
-    void shouldThrowMissingDataExceptionForEmptyOptional() {
+    void shouldThrowMissingDataExceptionForEmptyOptional() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.empty());
-        final Exception exception = assertThrows(
-                ServletException.class,
-                () -> this.mockMvc
-                        .perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource())));
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Order data is missing"));
 
         verify(placeOrderUseCase, never()).placeOrder(null);
         verify(orderWebMapper, atMostOnce()).mapToDomainObject(any());
         verify(orderMetrics, never()).recordOrderPlaced();
-        assertTrue(exception.getMessage().contains("Order data is missing"));
     }
 
     @Test
