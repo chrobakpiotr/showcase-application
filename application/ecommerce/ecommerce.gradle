@@ -8,6 +8,12 @@ gitProperties {
     failOnNoGitDirectory = false
 }
 
+// This module produces the actual deployable Spring Boot jar (every other module is a library
+// dependency of it), so its own CycloneDX component is an application, not a library.
+tasks.cyclonedxDirectBom {
+    projectType = 'application'
+}
+
 evaluationDependsOn(':adapter:ecommerce-backend')
 
 configureBootProject(project, 'ecommerce')

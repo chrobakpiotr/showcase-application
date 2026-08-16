@@ -11,6 +11,7 @@ plugins {
 	id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 	id 'com.asarkar.gradle.build-time-tracker' version '5.0.2'
 	id 'com.github.ben-manes.versions' version '0.54.0' apply false
+	id 'org.cyclonedx.bom' version '3.4.1'
 }
 
 allprojects {
@@ -19,6 +20,12 @@ allprojects {
         google()
     }
 }
+
+// Root project has no group of its own (only bootable/library subprojects set one via
+// configureBootProject below); set it anyway so the CycloneDX aggregate SBOM's main component
+// (the whole application, see the cyclonedxBom config near the bottom of this file) has a
+// well-formed identity instead of falling back to "unspecified".
+group = 'com.cp'
 
 idea {
 	project {
@@ -196,6 +203,16 @@ buildTimeTracker {
 	maxWidth = 100
 	sortBy = com.asarkar.gradle.buildtimetracker.Sort.DESC
 	minTaskDuration = Duration.ofMillis(1)
+}
+
+// Aggregate CycloneDX Software Bill of Materials (SBOM) covering every module's resolved
+// dependency graph - see https://cyclonedx.org/. Applying the plugin to the root project also
+// registers a per-module `cyclonedxDirectBom` task (see application/ecommerce/ecommerce.gradle
+// for the deployable jar's own component-type override). Run explicitly with
+// `./gradlew cyclonedxBom`; output at build/reports/cyclonedx/bom.json, also published as a CI
+// artifact (see .github/workflows/ci.yml).
+tasks.cyclonedxBom {
+	projectType = 'application'
 }
 
 wrapper {

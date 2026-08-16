@@ -73,6 +73,10 @@ dir):
 10. [Pitest](https://pitest.org/) – mutation testing for the
     `domain` module, configured in `etc/pitest/pitest.gradle`. Not part of the default build/check lifecycle; run
     explicitly with `./gradlew :domain:pitest` (see [Testing depth](#testing-depth)).
+11. [CycloneDX Gradle plugin](https://github.com/CycloneDX/cyclonedx-gradle-plugin) – generates a
+    CycloneDX Software Bill of Materials (SBOM) from the resolved dependency graph of every module. Not part of the
+    default build/check lifecycle; run explicitly with `./gradlew cyclonedxBom` (output at
+    `build/reports/cyclonedx/bom.json`), or see the `sbom` CI job which publishes it as a build artifact on every push.
 
 ## Starting the application
 
@@ -136,8 +140,8 @@ endpoints), see the standalone Keycloak Compose file referenced in
 ## Continuous Integration
 
 A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR: backend build, test and quality
-gates (Checkstyle, PMD, SpotBugs, JaCoCo, Spotless), an OWASP DependencyCheck scan, and a separate frontend
-build/lint/test job.
+gates (Checkstyle, PMD, SpotBugs, JaCoCo, Spotless), an OWASP DependencyCheck scan, a CycloneDX SBOM
+generation job, and a separate frontend build/lint/test job.
 
 ## API documentation
 
