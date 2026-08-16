@@ -7,7 +7,7 @@ plugins {
     id 'com.github.spotbugs' version '6.5.8' apply false
     id 'info.solidsoft.pitest' version '1.19.0' apply false
 	id 'com.diffplug.spotless' version '8.8.0' apply false
-	id 'org.owasp.dependencycheck' version '12.2.2' apply false
+	id 'org.owasp.dependencycheck' version '13.0.0' apply false
 	id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 	id 'com.asarkar.gradle.build-time-tracker' version '5.0.2'
 	id 'com.github.ben-manes.versions' version '0.54.0' apply false
