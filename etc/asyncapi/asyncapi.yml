@@ -7,8 +7,9 @@ info:
     Documents the asynchronous, event-driven side of the showcase (RabbitMQ order events, the
     optional AWS SQS order-audit side-channel, and the Kafka order-analytics event stream),
     mirroring what springdoc-openapi does for the synchronous REST API. All three messages
-    originate from the same transactional outbox (`OutboxEventPublisher`) once an order has been
-    persisted - see [docs/adr/0002](../../docs/adr/0002-transactional-outbox-over-2pc.md).
+    originate from the same transactional outbox (`OrderPlacementSagaOrchestrator`) once an order
+    has been persisted - see [docs/adr/0002](../../docs/adr/0002-transactional-outbox-over-2pc.md)
+    and [docs/adr/0009](../../docs/adr/0009-order-placement-saga.md).
   license:
     name: Unlicense
 
@@ -39,7 +40,10 @@ channels:
     address: com.cp.e.topic.order
     description: >
       Topic exchange `com.cp.e.topic.order`, routing key `order.v1`, bound to the durable queue
-      `com.cp.q.order.v1` (see `MessagingConfiguration` in adapter:amqp).
+      `com.cp.q.order.v1` (see `MessagingConfiguration` in adapter:amqp). This is the
+      order-placement saga's pivot/compensable step: bounded retries are tracked on the outbox
+      event, and once exhausted the saga cancels the order instead of retrying forever - see
+      [docs/adr/0009](../../docs/adr/0009-order-placement-saga.md).
     servers:
       - $ref: '#/servers/rabbitmq-local'
     messages:
@@ -79,8 +83,8 @@ operations:
     channel:
       $ref: '#/channels/order-topic'
     summary: >
-      Published by SendOrderMessageAdapter once OutboxEventPublisher has reloaded the persisted
-      order aggregate.
+      Published by SendOrderMessageAdapter once OrderPlacementSagaOrchestrator has reloaded the
+      persisted order aggregate.
     messages:
       - $ref: '#/channels/order-topic/messages/orderPlaced'
 

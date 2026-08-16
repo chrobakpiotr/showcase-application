@@ -15,6 +15,7 @@ import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityReposi
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventStatus;
 import com.cp.ecommerce.adapter.persistence.utils.CustomerEntityBuilder;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderStatus;
 
 import org.junit.jupiter.api.Test;
 
@@ -95,6 +96,7 @@ class OrderPersistenceAdapterTest {
                 .orderNumber(TEST_ORDER_NUMBER)
                 .created(new Date())
                 .customer(CustomerEntityBuilder.mockContactEntity())
+                .status(OrderStatus.CONFIRMED)
                 .build();
 
         orderEntityRepository.save(entity);
@@ -155,6 +157,7 @@ class OrderPersistenceAdapterTest {
                 .orderNumber(TEST_ORDER_NUMBER)
                 .created(new Date())
                 .customer(CustomerEntityBuilder.mockContactEntity())
+                .status(OrderStatus.CONFIRMED)
                 .build();
         orderEntityRepository.save(original);
         orderEntityRepository.getOrderEntityByOrderNumber(TEST_ORDER_NUMBER);
@@ -164,6 +167,7 @@ class OrderPersistenceAdapterTest {
                 .orderNumber(TEST_ORDER_NUMBER)
                 .created(new Date())
                 .customer(CustomerEntityBuilder.mockContactEntity())
+                .status(OrderStatus.CONFIRMED)
                 .build();
         orderEntityRepository.save(reusedOrderNumber);
 

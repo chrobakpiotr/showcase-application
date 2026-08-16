@@ -31,6 +31,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .orderNumber(domain.getOrderNumber())
                         .created(domain.getCreated())
                         .customer(customerEntityMapper.mapToEntity(order.getCustomer()).orElse(null))
+                        .status(domain.getStatus())
                         .build());
     }
 
@@ -43,6 +44,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .orderNumber(entity.getOrderNumber())
                         .created(entity.getCreated())
                         .customer(customerEntityMapper.mapToDomainObject(entity.getCustomer()).orElse(null))
+                        .status(entity.getStatus())
                         .build());
     }
 

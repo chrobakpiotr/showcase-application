@@ -329,9 +329,34 @@ an IDE) - they're unchanged and still reach the app via `host.docker.internal`.
 Order persistence now uses a transactional outbox to avoid losing RabbitMQ events when the broker is temporarily unavailable, without introducing a 2-phase commit or a fragile dual-write between the database and AMQP.
 
 - `SaveOrderAdapter` writes the order row and a `PENDING` row in `OUTBOX_EVENT` in the same database transaction. If the transaction rolls back, neither record is kept.
-- `OutboxEventPublisher` polls pending rows on a schedule, reloads the full aggregate through `ManageOrderInPort.findOrder(...)`, publishes through `SendMessageInPort`, and marks the outbox row as `SENT` with a timestamp once publishing succeeds.
+- `OrderPlacementSagaOrchestrator` polls pending rows on a schedule and reloads the full aggregate through `ManageOrderInPort.findOrder(...)` before driving it through the saga steps described below, marking the outbox row as `SENT` with a timestamp once the pivot step succeeds.
 - Message delivery still goes through the existing resilience4j-wrapped `SendOrderMessageAdapter`, so retry/circuit-breaker behavior is unchanged.
 - Properties: `outbox.publisher.enabled` (default `true`) and `outbox.publisher.poll-interval-ms` (default `5000`).
+
+## Order placement saga
+
+Placing an order triggers a chain of side effects - notify fulfillment, e-mail the customer, export an audit
+copy, publish an analytics event, route a notification - spread across several unreliable external systems. An
+orchestration-based Saga (see [ADR 0009](docs/adr/0009-order-placement-saga.md)) coordinates that chain on top of
+the outbox above, instead of holding a database transaction open across all of them or letting a slow mail
+server turn an already-placed order into an HTTP error:
+
+- `PlaceOrderUseCase` only ever does one thing synchronously: validate the customer and durably save the order
+  (+ its `PENDING` outbox row) in one transaction. It no longer calls out to e-mail, SQS, Kafka or Camel - the
+  HTTP response reflects the order being placed, never the availability of a downstream system.
+- `OrderPlacementSagaOrchestrator` then drives each pending outbox row through the saga:
+  1. **`notifyFulfillment` (RabbitMQ)** - the *pivot* step. The order isn't considered fulfilled until this
+     succeeds, so it's retried with a bounded number of attempts (`OUTBOX_EVENT.ATTEMPTS`,
+     `outbox.publisher.max-fulfillment-attempts`, default `5`) instead of forever. Once the limit is reached,
+     the orchestrator runs the **compensating transaction**: `CancelOrderInPort` transitions the order to
+     `OrderStatus.CANCELLED` (visible immediately via `GET /api/order/{orderNumber}`) and the outbox row is
+     marked `COMPENSATED` with the last error recorded, so it's never retried again.
+  2. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event and
+     route the Camel notification - unchanged best-effort semantics (log and continue on failure) - only run
+     *after* fulfillment succeeds, so the customer is never e-mailed about an order that ends up cancelled.
+- `OrderStatus` (`CONFIRMED` default, `CANCELLED` after compensation) lives on the `Order` aggregate itself, so
+  the saga's outcome is a first-class, queryable part of the domain model rather than an implementation detail
+  buried in the outbox table.
 
 ## Event streaming (Kafka)
 
@@ -353,8 +378,9 @@ platform, rather than driving a specific business transaction.
   consumer group can scale out, keyed by order number so all events for one order stay ordered on the same
   partition).
 - Like the RabbitMQ and SQS channels, publishing is wired through the transactional outbox
-  (`OutboxEventPublisher`) and is best-effort: a failure to publish to Kafka never blocks the order flow or the
-  RabbitMQ/SQS publishes, and doesn't prevent the outbox row from being marked `SENT`.
+  (`OrderPlacementSagaOrchestrator`, see [Order placement saga](#order-placement-saga)) and is best-effort: a
+  failure to publish to Kafka never blocks the order flow or the RabbitMQ/SQS publishes, and doesn't prevent the
+  outbox row from being marked `SENT`.
 - Publishing goes through the same resilience4j-wrapped `ResilientExecutor` as the other channels (see
   [Resilience](#resilience)), under the `publishOrderAnalyticsEvent` circuit breaker/retry instance.
 - Enabled via `service.kafka.enabled` (`true` in the containerized stack - see `application-kafka-docker.yml`).
@@ -384,7 +410,7 @@ top of Apache Camel:
   stand-in for a real messaging/HTTP/FTP endpoint, chosen deliberately so this feature needs no
   external infrastructure to run or test, consistent with the RabbitMQ/AWS/Kafka channels above.
 - `RouteOrderNotificationAdapter` sends into the route via a Camel `ProducerTemplate`, wired through
-  the transactional outbox (`OutboxEventPublisher`) as a fifth best-effort side-channel, and wrapped
+  the transactional outbox (`OrderPlacementSagaOrchestrator`) as a fifth best-effort side-channel, and wrapped
   by the same resilience4j `ResilientExecutor` as the other adapters (see [Resilience](#resilience)),
   under the `routeOrderNotification` circuit breaker/retry instance.
 - Enabled via `service.camel.enabled` (default `true`, see `application-camel.yml`); when disabled,

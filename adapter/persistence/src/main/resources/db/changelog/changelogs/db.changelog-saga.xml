@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Order-placement saga: order status (compensating transaction target) and outbox retry/compensation bookkeeping. -->
+
+    <changeSet id="6" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="STATUS" defaultValue="CONFIRMED" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+    </changeSet>
+
+    <changeSet id="7" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="ATTEMPTS" defaultValueNumeric="0" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPENSATED_DATE" type="TIMESTAMP" />
+            <column name="LAST_ERROR" type="VARCHAR(500)" />
+        </addColumn>
+
+    </changeSet>
+
+</databaseChangeLog>

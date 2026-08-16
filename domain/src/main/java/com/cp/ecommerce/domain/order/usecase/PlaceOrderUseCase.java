@@ -6,13 +6,19 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PlaceOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.LogOrderOutPort;
-import com.cp.ecommerce.domain.order.port.outgoing.SendEmailOutPort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Use case for placing order.
+ *
+ * <p>
+ * This use case only guarantees that the order is durably saved (order row + {@code PENDING} outbox row written atomically, per
+ * the transactional outbox pattern). Everything else the order placement fans out to - confirmation email, fulfillment
+ * notification, export, audit, analytics - is deliberately left to the asynchronous order-placement saga
+ * ({@code OrderPlacementSagaOrchestrator}) so that a slow/unavailable downstream dependency can never turn an order that was
+ * actually placed into a failed HTTP response.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -20,8 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PlaceOrderUseCase implements PlaceOrderInPort {
 
     private final ManageOrderInPort manageOrderInPort;
-
-    private final SendEmailOutPort sendEmailOutPort;
 
     private final LogOrderOutPort logOrderOutPort;
 
@@ -38,10 +42,6 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
             log.info("Order's number: {}", savedOrder.getOrderNumber());
             logOrderOutPort.log(savedOrder);
-
-            log.info("Starting process of sending confirmation email...");
-            sendEmailOutPort.send(savedOrder);
-            log.info("Sending confirmation email completed.");
 
             return savedOrder.getOrderNumber();
         } else {

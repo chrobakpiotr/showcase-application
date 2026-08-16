@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.persistence.utils;
 import java.util.Date;
 
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntity;
+import com.cp.ecommerce.domain.order.OrderStatus;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,12 @@ public class OrderEntityBuilder {
 
     public static OrderEntity mockOrderEntity() {
 
-        return OrderEntity.builder().remarks(TEST_REMARKS).orderNumber(TEST_ORDER_NUMBER).created(new Date()).build();
+        return OrderEntity.builder()
+                .remarks(TEST_REMARKS)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .created(new Date())
+                .status(OrderStatus.CONFIRMED)
+                .build();
     }
 
 }

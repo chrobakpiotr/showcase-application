@@ -30,6 +30,9 @@ public class Order extends ValidDomainObject<Order> {
 
     Customer customer;
 
+    @Builder.Default
+    OrderStatus status = OrderStatus.CONFIRMED;
+
     public static Order.OrderBuilder builder() {
 
         return new Order.OrderBuilder() {

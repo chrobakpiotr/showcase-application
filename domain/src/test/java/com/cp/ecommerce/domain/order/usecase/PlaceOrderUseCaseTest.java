@@ -4,7 +4,6 @@ import com.cp.ecommerce.domain.customer.port.incoming.ManageCustomerInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.LogOrderOutPort;
-import com.cp.ecommerce.domain.order.port.outgoing.SendEmailOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
 
 import org.junit.jupiter.api.Test;
@@ -30,9 +29,6 @@ class PlaceOrderUseCaseTest {
     private transient ManageOrderInPort manageOrderInPort;
 
     @Mock
-    private transient SendEmailOutPort sendEmailOutPort;
-
-    @Mock
     private transient LogOrderOutPort logOrderOutPort;
 
     @Mock
@@ -42,7 +38,7 @@ class PlaceOrderUseCaseTest {
     private transient PlaceOrderUseCase placeOrderUseCase;
 
     @Test
-    void shouldSaveLogAndSendEmailForNewCustomerOrder() {
+    void shouldSaveAndLogForNewCustomerOrder() {
 
         final Order order = TestDomainObjectFactory.validOrder();
         final Order savedOrder = TestDomainObjectFactory.validOrder();
@@ -53,7 +49,6 @@ class PlaceOrderUseCaseTest {
 
         verify(manageOrderInPort).saveOrder(order);
         verify(logOrderOutPort).log(savedOrder);
-        verify(sendEmailOutPort).send(savedOrder);
         assertEquals(savedOrder.getOrderNumber(), orderNumber);
     }
 
@@ -66,7 +61,7 @@ class PlaceOrderUseCaseTest {
         final String orderNumber = placeOrderUseCase.placeOrder(order);
 
         verify(manageOrderInPort, never()).saveOrder(any(Order.class));
-        verifyNoInteractions(logOrderOutPort, sendEmailOutPort);
+        verifyNoInteractions(logOrderOutPort);
         assertEquals("", orderNumber);
     }
 

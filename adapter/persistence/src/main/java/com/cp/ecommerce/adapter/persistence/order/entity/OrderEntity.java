@@ -4,10 +4,13 @@ import java.util.Date;
 
 import com.cp.ecommerce.adapter.persistence.customer.entity.CustomerEntity;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderStatus;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -55,5 +58,9 @@ public class OrderEntity {
     @OneToOne(targetEntity = CustomerEntity.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "CUSTOMER_ID")
     private CustomerEntity customer;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "STATUS", length = 20, nullable = false)
+    private OrderStatus status;
 
 }

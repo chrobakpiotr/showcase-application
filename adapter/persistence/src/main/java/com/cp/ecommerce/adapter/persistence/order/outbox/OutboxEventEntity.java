@@ -51,4 +51,13 @@ public class OutboxEventEntity {
     @Column(name = "SENT_DATE")
     private Date sentDate;
 
+    @Column(name = "COMPENSATED_DATE")
+    private Date compensatedDate;
+
+    @Column(name = "ATTEMPTS", nullable = false)
+    private int attempts;
+
+    @Column(name = "LAST_ERROR", length = 500)
+    private String lastError;
+
 }
