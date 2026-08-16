@@ -386,6 +386,31 @@ server turn an already-placed order into an HTTP error:
   the saga's outcome is a first-class, queryable part of the domain model rather than an implementation detail
   buried in the outbox table.
 
+## Idempotent order placement
+
+`POST /api/order` accepts an optional client-generated `Idempotency-Key` header, making it safe for a client to
+retry the call (e.g. after a network timeout with an unknown outcome) without risking a duplicate order - the
+same problem [Stripe's Idempotency-Key](https://docs.stripe.com/api/idempotent_requests) design solves, applied
+to this API.
+
+- `PlaceOrderUseCase` reserves the key together with a SHA-256 fingerprint of the request's client-controlled
+  fields (remarks, created date, customer id and e-mail) *before* placing the order, via
+  `IdempotencyKeyOutPort` / `IdempotencyKeyAdapter` (`adapter:persistence`, table `IDEMPOTENCY_KEY`).
+- Concurrency is arbitrated by the database, not application-level locking: `reserve(...)` always attempts an
+  INSERT first, relying on a unique constraint to decide which of two simultaneous requests for the same key
+  "wins" - the loser observes the constraint violation and re-reads the winner's row instead of inserting a
+  duplicate.
+- Repeating the exact same request with the same key **replays** the original order number (`HTTP 201`, no new
+  order placed, no double-counted `orders_placed_total` metric - see [Observability](#observability)); reusing
+  the same key for a request with **different** content, or one that's still being processed, is rejected as
+  `HTTP 409` / `urn:problem-type:idempotency-key-conflict` (see [Error handling](#error-handling)).
+- `order.idempotency.stale-after-ms` (default `60000`) bounds how long a key can be stuck `IN_PROGRESS` - e.g.
+  the app crashed after reserving the key but before completing the order - before a new attempt is allowed to
+  take it over. This favors availability over a fully saga-compensated solution, an accepted trade-off rather
+  than a defect.
+- The header is entirely optional: omitting it preserves the previous at-most-once-per-HTTP-call behavior, with
+  no idempotency guarantee across client retries.
+
 ## Event streaming (Kafka)
 
 Order placement now has three distinct outbound channels, each chosen for a different messaging shape rather than as

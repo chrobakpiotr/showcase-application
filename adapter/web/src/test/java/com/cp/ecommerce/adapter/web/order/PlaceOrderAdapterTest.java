@@ -2,7 +2,9 @@ package com.cp.ecommerce.adapter.web.order;
 
 import com.cp.ecommerce.domain.customer.port.incoming.ManageCustomerInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
+import com.cp.ecommerce.domain.order.port.outgoing.IdempotencyKeyOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.LogOrderOutPort;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 
@@ -35,6 +37,9 @@ class PlaceOrderAdapterTest {
     @Mock
     private transient LogOrderOutPort logOrderOutPort;
 
+    @Mock
+    private transient IdempotencyKeyOutPort idempotencyKeyOutPort;
+
     @InjectMocks
     private transient PlaceOrderUseCase placeOrderUseCase;
 
@@ -44,7 +49,9 @@ class PlaceOrderAdapterTest {
         when(manageCustomerInPort.checkCustomerExists(any(String.class))).thenReturn(false);
         when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(mockOrder());
 
-        assertFalse(placeOrderUseCase.placeOrder(mockOrder()).isEmpty());
+        final PlaceOrderResult result = placeOrderUseCase.placeOrder(mockOrder(), null);
+
+        assertFalse(result.orderNumber().isEmpty());
         verify(manageOrderInPort, atLeastOnce()).saveOrder(any(Order.class));
     }
 

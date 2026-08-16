@@ -5,6 +5,7 @@ import java.util.Set;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
+import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.order.Order;
 
@@ -25,6 +26,7 @@ import jakarta.validation.groups.Default;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -82,6 +84,16 @@ class GlobalExceptionHandlerTest {
                 handler.domainObjectValidationException(new DomainObjectValidationException(EXCEPTION_MESSAGE, null)),
                 INTERNAL_SERVER_ERROR,
                 "Domain Validation Error",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleIdempotencyKeyConflictException() {
+
+        assertProblem(
+                handler.idempotencyKeyConflictException(new IdempotencyKeyConflictException(EXCEPTION_MESSAGE)),
+                CONFLICT,
+                "Idempotency Key Conflict",
                 EXCEPTION_MESSAGE);
     }
 

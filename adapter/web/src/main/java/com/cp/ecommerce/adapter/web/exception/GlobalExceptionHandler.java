@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
+import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
 /**
@@ -45,6 +47,7 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_CONSTRAINT_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "constraint-violation");
     private static final URI TYPE_DOMAIN_VALIDATION_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "domain-validation-error");
     private static final URI TYPE_BUSINESS_RULE_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "business-rule-violation");
+    private static final URI TYPE_IDEMPOTENCY_KEY_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "idempotency-key-conflict");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
 
@@ -64,6 +67,18 @@ public class GlobalExceptionHandler {
                 INTERNAL_SERVER_ERROR,
                 TYPE_DOMAIN_VALIDATION_ERROR,
                 "Domain Validation Error",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(IdempotencyKeyConflictException.class)
+    public ProblemDetail idempotencyKeyConflictException(final IdempotencyKeyConflictException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_IDEMPOTENCY_KEY_CONFLICT,
+                "Idempotency Key Conflict",
                 exception.getMessage());
     }
 

@@ -6,6 +6,7 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
+import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,6 +21,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.atMostOnce;
@@ -41,6 +44,8 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
 class OrderControllerTest {
 
     private static final String ORDER_ENDPOINT = "/api/order";
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+    private static final String IDEMPOTENCY_KEY_VALUE = "client-key-1";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -61,6 +66,7 @@ class OrderControllerTest {
     void shouldPlaceOrderSuccessfully() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
+        given(placeOrderUseCase.placeOrder(any(), isNull())).willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isCreated())
@@ -68,8 +74,44 @@ class OrderControllerTest {
                 .getResponse()
                 .getContentAsString();
 
-        verify(placeOrderUseCase, atLeastOnce()).placeOrder(any());
+        verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
+    }
+
+    @Test
+    void shouldPassIdempotencyKeyHeaderToUseCase() throws Exception {
+
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
+        given(placeOrderUseCase.placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE)))
+                .willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
+
+        this.mockMvc
+                .perform(
+                        post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
+                                .header(IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY_VALUE)
+                                .content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isCreated());
+
+        verify(placeOrderUseCase).placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE));
+    }
+
+    @Test
+    void shouldNotRecordMetricWhenOrderWasNotNewlyPlaced() throws Exception {
+
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
+        given(placeOrderUseCase.placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE)))
+                .willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, false));
+
+        this.mockMvc
+                .perform(
+                        post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
+                                .header(IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY_VALUE)
+                                .content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isCreated());
+
+        verify(orderMetrics, never()).recordOrderPlaced();
     }
 
     @Test
@@ -82,7 +124,7 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("Order data is missing"));
 
-        verify(placeOrderUseCase, never()).placeOrder(null);
+        verify(placeOrderUseCase, never()).placeOrder(any(), any());
         verify(orderWebMapper, atMostOnce()).mapToDomainObject(any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
