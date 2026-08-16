@@ -1,0 +1,7 @@
+spring:
+  config:
+    import: classpath:application-cache-redis.yml
+  data:
+    redis:
+      host: localhost
+      port: 6379

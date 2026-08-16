@@ -5,6 +5,8 @@ management:
   health:
     rabbit:
       enabled: false
+    redis:
+      enabled: false
 spring:
   autoconfigure:
     exclude: org.springdoc.core.configuration.SpringDocHateoasConfiguration

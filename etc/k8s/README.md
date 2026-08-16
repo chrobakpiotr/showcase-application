@@ -9,10 +9,11 @@ demonstrate a Helm-based deployment; it is not tuned for a production cluster.
 
 - `helm/ecommerce/` - the Helm chart for the application itself (Deployment, Service, Ingress,
   HorizontalPodAutoscaler, ServiceAccount, Secret). See `values.yaml` for all configurable options.
-- `dev-dependencies.yaml` - minimal, dev-only plain Kubernetes manifests for Postgres, RabbitMQ and
-  Keycloak (matching the credentials used by the root `docker-compose.yml`), so the chart has
-  something to talk to in a throwaway cluster. **Not for production** - no persistent volumes, no
-  resource limits, a single replica each, plaintext credentials.
+- `dev-dependencies.yaml` - minimal, dev-only plain Kubernetes manifests for Postgres, RabbitMQ,
+  Redis and Keycloak (matching the credentials/images used by the root `docker-compose.yml`), so
+  the chart has something to talk to in a throwaway cluster. **Not for production** - no persistent
+  volumes, no resource limits, a single replica each, plaintext credentials (Redis has none at
+  all).
 
 The observability stack (Prometheus/Tempo/Grafana) is not duplicated here; use
 `etc/docker/observability/docker-compose.yml` alongside a port-forwarded app, or extend
@@ -28,11 +29,11 @@ kind create cluster --name ecommerce-showcase
 docker build -t ecommerce-showcase:local .
 kind load docker-image ecommerce-showcase:local --name ecommerce-showcase
 
-# 3. Deploy Postgres/RabbitMQ/Keycloak (dev-only, see caveats above)
+# 3. Deploy Postgres/RabbitMQ/Redis/Keycloak (dev-only, see caveats above)
 kubectl create configmap ecommerce-keycloak-realm \
   --from-file=realm-export.json=etc/docker/keycloak/realm-export.json
 kubectl apply -f etc/k8s/dev-dependencies.yaml
-kubectl wait --for=condition=available deployment/ecommerce-postgres deployment/ecommerce-rabbitmq deployment/ecommerce-keycloak --timeout=180s
+kubectl wait --for=condition=available deployment/ecommerce-postgres deployment/ecommerce-rabbitmq deployment/ecommerce-redis deployment/ecommerce-keycloak --timeout=180s
 
 # 4. Deploy the application with Helm
 helm install ecommerce etc/k8s/helm/ecommerce
@@ -47,8 +48,8 @@ Then open `http://localhost:9080/home` (Swagger UI at `/home/swagger-ui/index.ht
 
 ## Configuration
 
-All connection details (Postgres, RabbitMQ, Keycloak issuer/JWK-set URIs, OTLP tracing endpoint)
-are plain `values.yaml` entries, consumed by a dedicated `k8s` Spring profile
+All connection details (Postgres, RabbitMQ, Redis, Keycloak issuer/JWK-set URIs, OTLP tracing
+endpoint) are plain `values.yaml` entries, consumed by a dedicated `k8s` Spring profile
 (`application/ecommerce/src/main/resources/application-k8s.yml`) via environment variables - see
 that file for the full list and defaults. Point them at externally-hosted services instead of the
 in-cluster dev dependencies by overriding the relevant `env.*` values, e.g.:
@@ -62,6 +63,10 @@ helm install ecommerce etc/k8s/helm/ecommerce \
 For anything beyond local experimentation, move `env.dbPassword`/`env.rabbitmqPassword` out of
 `values.yaml` into a pre-created Kubernetes Secret and reference it via `extraEnv`, rather than
 plain-text Helm values.
+
+Redis is the distributed order cache backing every replica (see ADR 0010) - required once
+`replicaCount > 1` or `autoscaling.enabled` is set, since the default Ehcache provider caches
+locally per pod and would otherwise let different replicas serve stale/inconsistent orders.
 
 ## Uninstalling
 

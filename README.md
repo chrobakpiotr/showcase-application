@@ -32,6 +32,7 @@ Among many frameworks, libraries and tools, the most important being used are as
 - Apache FOP
 - Jakarta Mail
 - Ehcache
+- Redis
 - Freemarker
 - OpenAPI (Swagger UI)
 - Micrometer / Prometheus / OpenTelemetry
@@ -290,17 +291,17 @@ to the existing standalone infrastructure compose files under `etc/docker/*`.
   excluding `.git` disables the `gradle-git-properties` plugin's git metadata lookup; this is handled by setting
   `gitProperties { failOnNoGitDirectory = false }` in `application/ecommerce/ecommerce.gradle`.
 - `docker-compose.yml` (repo root): brings up the full stack in one command - `app`, `postgres` (official
-  `postgres:16-alpine` image), `rabbitmq` (`rabbitmq:3-management-alpine`), `keycloak`
-  (`quay.io/keycloak/keycloak:26.0`, importing the same realm used by the JWT security section), and the
-  observability stack (`prometheus`, `tempo`, `grafana` - the same images/provisioning as
-  `etc/docker/observability`). The app container waits on postgres/rabbitmq health checks, keycloak and tempo
-  starting. Since the app now shares the same network as Prometheus/Tempo, it uses a dedicated
+  `postgres:16-alpine` image), `rabbitmq` (`rabbitmq:3-management-alpine`), `redis` (`redis:7-alpine`),
+  `keycloak` (`quay.io/keycloak/keycloak:26.0`, importing the same realm used by the JWT security section),
+  and the observability stack (`prometheus`, `tempo`, `grafana` - the same images/provisioning as
+  `etc/docker/observability`). The app container waits on postgres/rabbitmq/redis health checks, keycloak
+  and tempo starting. Since the app now shares the same network as Prometheus/Tempo, it uses a dedicated
   `prometheus-docker.yml` scrape config (`app:9081` instead of `host.docker.internal:9081`), and the app's OTLP
   traces go straight to `tempo:4318` instead of via `host.docker.internal`.
 - A new `docker` Spring profile ties this together:
-  - `application/ecommerce/src/main/resources/application-docker.yml` imports two new sub-profiles
-    (`amqp-docker`, `persistence-postgres-docker`) that point at the in-network service names (`rabbitmq`,
-    `postgres`) instead of `localhost`.
+  - `application/ecommerce/src/main/resources/application-docker.yml` imports sub-profiles
+    (`amqp-docker`, `persistence-postgres-docker`, `kafka-docker`, `cache-redis-docker`) that point at the
+    in-network service names (`rabbitmq`, `postgres`, `kafka`, `redis`) instead of `localhost`.
   - The OAuth2 `issuer-uri` is kept as the browser-facing `http://localhost:8081/realms/ecommerce` (it must match
     the `iss` claim of tokens issued to a browser client), while `jwk-set-uri` uses the in-network address
     `http://keycloak:8080/...` for the app container to actually fetch signing keys - avoiding the need to
@@ -420,18 +421,35 @@ top of Apache Camel:
 
 ## Caching
 
-The order read path (`GET /api/order/{orderNumber}`) is backed by a JCache/Ehcache cache to avoid hitting the
-database for repeated lookups of the same order:
+The order read path (`GET /api/order/{orderNumber}`) is backed by a cache to avoid hitting the database for
+repeated lookups of the same order, with a choice of two backends (see
+[ADR 0010](docs/adr/0010-redis-opt-in-distributed-cache.md)):
 
-- `PersistenceCacheConfiguration` sets up an Ehcache-backed `javax.cache.CacheManager` (heap-based, 1 hour TTL,
-  100 max entries per `CacheProperties`), wrapped as a Spring `CacheManager` and enabled via `cache.enabled`
-  (default `true`; a `NoOpCacheManager` is used when disabled).
+- `PersistenceCacheConfiguration` wires a Spring `CacheManager`, enabled via `cache.enabled` (default `true`;
+  a `NoOpCacheManager` is used when disabled) and backed by whichever provider `cache.provider` selects:
+  - **`ehcache` (default)** - a heap-based, in-process JCache `CacheManager` (1 hour TTL, 100 max entries per
+    `CacheProperties`). Zero external dependencies, but local to each JVM instance.
+  - **`redis`** - a `RedisCacheManager` sharing cached orders across every application instance, serialized
+    as JSON per cache's configured value type. Needed once the app is scaled horizontally (Helm chart
+    `replicaCount > 1` / `autoscaling.enabled`): with Ehcache, each pod's cache is independent, so different
+    pods could serve different (possibly stale) data for the same order number.
 - `OrderEntityRepository.getOrderEntityByOrderNumber` is `@Cacheable` under `orderCache`, so `FindOrderAdapter` ->
-  `ManageOrderUseCase.findOrder(...)` -> the `GET` endpoint reads from cache on repeated calls.
+  `ManageOrderUseCase.findOrder(...)` -> the `GET` endpoint reads from cache on repeated calls, regardless of
+  provider.
 - `OrderEntityRepository.save` is overridden with `@CachePut` (keyed by the saved entity's order number) to keep
   the cache in sync on every save. This matters because `SEQ_ORDER_NUMBER` (see the Liquibase baseline changelog)
   cycles at 999 - without this, an order number reused after the sequence wraps around could serve a stale,
-  previously-cached order for up to the cache's TTL.
+  previously-cached order for up to the cache's TTL. With Ehcache this only keeps *one* instance's cache correct;
+  Redis is what makes it correct across every instance.
+- Redis is enabled in the containerized stack and Kubernetes deployment by default (`cache.provider: redis` in
+  `application-docker.yml`'s import chain and in `application-k8s.yml` respectively) - see
+  [App containerization](#app-containerization) / [Kubernetes deployment (Helm)](#kubernetes-deployment-helm).
+  For host-based `bootRun`, start the standalone instance and activate the `cache-redis-local` profile:
+
+```bash
+docker compose -f etc/docker/redis/docker-compose.yml up -d
+SPRING_PROFILES_ACTIVE=postgres-amqp-local,cache-redis-local ./gradlew bootRun
+```
 
 ## Testing depth
 
@@ -521,14 +539,17 @@ For full Terraform details see [`etc/terraform/README.md`](etc/terraform/README.
 The containerized application can also be deployed to Kubernetes via a Helm chart under
 `etc/k8s/helm/ecommerce`, complementing the Docker Compose setup above. It reuses the same image
 built by the root `Dockerfile` and a dedicated `k8s` Spring profile
-(`application-k8s.yml`) that resolves Postgres/RabbitMQ/Keycloak/Tempo connection details from
-environment variables, defaulting to in-cluster Service DNS names.
+(`application-k8s.yml`) that resolves Postgres/RabbitMQ/Redis/Keycloak/Tempo connection details from
+environment variables, defaulting to in-cluster Service DNS names. `cache.provider` defaults to
+`redis` here (see [Caching](#caching)) - the deployment target this chart's `replicaCount > 1` /
+`autoscaling.enabled` options are meant for is exactly where the default Ehcache provider stops
+being correct.
 
 ```bash
 kind create cluster --name ecommerce-showcase
 docker build -t ecommerce-showcase:local .
 kind load docker-image ecommerce-showcase:local --name ecommerce-showcase
-kubectl apply -f etc/k8s/dev-dependencies.yaml   # dev-only Postgres/RabbitMQ/Keycloak
+kubectl apply -f etc/k8s/dev-dependencies.yaml   # dev-only Postgres/RabbitMQ/Redis/Keycloak
 helm install ecommerce etc/k8s/helm/ecommerce
 ```
 

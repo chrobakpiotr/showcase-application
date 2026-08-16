@@ -53,6 +53,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "ecommerce.fullname" . }}-secrets
                   key: RABBITMQ_PASSWORD
+            - name: REDIS_HOST
+              value: {{ .Values.env.redisHost | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.env.redisPort | quote }}
             - name: OAUTH2_ISSUER_URI
               value: {{ .Values.env.oauth2IssuerUri | quote }}
             - name: OAUTH2_JWK_SET_URI

@@ -1,10 +1,10 @@
 # Profile for running the fully containerized app (see root Dockerfile / docker-compose.yml)
-# against dockerized Postgres, RabbitMQ, Keycloak and the observability stack, all sharing
-# the same Docker network.
+# against dockerized Postgres, RabbitMQ, Kafka, Redis, Keycloak and the observability stack, all
+# sharing the same Docker network.
 spring:
   config:
     import:
-      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml
+      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml,classpath:application-cache-redis-docker.yml
   liquibase:
     contexts: local
 

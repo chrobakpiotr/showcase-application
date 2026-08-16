@@ -26,3 +26,11 @@ spring:
 
 cache:
   enabled: true
+  provider: ehcache
+
+# See adapter/persistence's application-persistence.yml for why this is disabled by default (this
+# duplicate exists because the postgres/docker/k8s profiles don't import application-persistence.yml).
+management:
+  health:
+    redis:
+      enabled: false

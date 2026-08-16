@@ -16,6 +16,7 @@ than editing it in place.
 | [0007](0007-optional-cloud-integrations-as-opt-in-adapters.md) | Optional cloud/messaging integrations as opt-in adapters |
 | [0008](0008-apache-camel-for-order-notification-routing.md) | Apache Camel for order notification routing |
 | [0009](0009-order-placement-saga.md) | Order-placement saga (orchestration, bounded retry, compensation) |
+| [0010](0010-redis-opt-in-distributed-cache.md) | Redis as an opt-in distributed cache alongside the default Ehcache |
 
 ## Template for new ADRs
 

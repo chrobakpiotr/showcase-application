@@ -13,9 +13,9 @@ image:
 nameOverride: ""
 fullnameOverride: "ecommerce"
 
-# Spring profile(s) activated in-cluster. "k8s" resolves Postgres/RabbitMQ/Keycloak/Tempo hostnames
-# from the env vars below, defaulting to in-cluster Service DNS names matching this chart's
-# releaseName-based conventions (see application-k8s.yml).
+# Spring profile(s) activated in-cluster. "k8s" resolves Postgres/RabbitMQ/Redis/Keycloak/Tempo
+# hostnames from the env vars below, defaulting to in-cluster Service DNS names matching this
+# chart's releaseName-based conventions (see application-k8s.yml).
 springProfilesActive: "k8s"
 
 service:
@@ -59,9 +59,10 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 75
 
-# Connection details for dependent services. Defaults assume Postgres/RabbitMQ/Keycloak/Tempo are
-# deployed as their own Services in the same namespace, named as below (bring your own manifests,
-# a Bitnami chart, or reuse an external managed instance by overriding the host/port values).
+# Connection details for dependent services. Defaults assume Postgres/RabbitMQ/Redis/Keycloak/
+# Tempo are deployed as their own Services in the same namespace, named as below (bring your own
+# manifests, a Bitnami chart, or reuse an external managed instance by overriding the host/port
+# values).
 env:
   dbHost: ecommerce-postgres
   dbPort: "5432"
@@ -75,6 +76,12 @@ env:
   rabbitmqPort: "5672"
   rabbitmqUsername: sa
   rabbitmqPassword: sa
+
+  # Distributed cache (see ADR 0010) - required so every replica observes the same cached order
+  # data once replicaCount > 1 or autoscaling is enabled. No credentials: this dev-oriented chart
+  # ships an unauthenticated Redis, matching etc/k8s/dev-dependencies.yaml.
+  redisHost: ecommerce-redis
+  redisPort: "6379"
 
   oauth2IssuerUri: http://localhost:8081/realms/ecommerce
   oauth2JwkSetUri: http://ecommerce-keycloak:8080/realms/ecommerce/protocol/openid-connect/certs

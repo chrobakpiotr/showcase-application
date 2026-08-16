@@ -1,11 +1,11 @@
 # Profile for running the app inside Kubernetes (see etc/k8s/helm chart). Connection details for
-# Postgres/RabbitMQ/Keycloak/Tempo default to in-cluster Kubernetes Service DNS names matching the
-# Helm chart's defaults, but are overridable via environment variables so the same image works
-# against externally-hosted dependencies too (e.g. a managed Postgres instance).
+# Postgres/RabbitMQ/Redis/Keycloak/Tempo default to in-cluster Kubernetes Service DNS names
+# matching the Helm chart's defaults, but are overridable via environment variables so the same
+# image works against externally-hosted dependencies too (e.g. a managed Postgres instance).
 spring:
   config:
     import:
-      classpath:application.yml,classpath:application-persistence-postgres.yml,classpath:application-amqp.yml
+      classpath:application.yml,classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-cache-redis.yml
   datasource:
     url: "jdbc:postgresql://${DB_HOST:ecommerce-postgres}:${DB_PORT:5432}/${DB_NAME:test_db}"
     username: ${DB_USERNAME:sa}
@@ -15,6 +15,10 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:sa}
     password: ${RABBITMQ_PASSWORD:sa}
+  data:
+    redis:
+      host: ${REDIS_HOST:ecommerce-redis}
+      port: ${REDIS_PORT:6379}
   liquibase:
     contexts: local
 

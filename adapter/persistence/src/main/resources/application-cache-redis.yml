@@ -1,0 +1,9 @@
+cache:
+  provider: redis
+
+# Redis is genuinely reachable once this profile is active (see application-cache-redis-local.yml /
+# application-cache-redis-docker.yml), so its health indicator is meaningful again here.
+management:
+  health:
+    redis:
+      enabled: true
