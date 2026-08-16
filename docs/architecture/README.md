@@ -1,8 +1,8 @@
 # Architecture diagrams
 
-C4-style diagrams (context, container, and component level) for the e-commerce showcase, rendered
-as Mermaid so they display directly on GitHub. See also the [ADRs](../adr/README.md) for the
-reasoning behind the key decisions shown here.
+C4-style diagrams (context, container, and component level), plus one dynamic view of the
+order-placement saga, for the e-commerce showcase, rendered as Mermaid so they display directly on
+GitHub. See also the [ADRs](../adr/README.md) for the reasoning behind the key decisions shown here.
 
 ## System context
 
@@ -51,6 +51,8 @@ graph TB
         backend["Spring Boot Backend<br/>Java 25, Gradle multi-module"]
         postgres[("PostgreSQL 16<br/>order data")]
         rabbitmq["RabbitMQ<br/>order message broker"]
+        kafka["Kafka<br/>order analytics topic"]
+        redis[("Redis<br/>distributed order cache")]
         keycloak["Keycloak<br/>realm: ecommerce"]
         localstack["LocalStack<br/>S3 / SQS / Secrets Manager"]
         prometheus["Prometheus<br/>metrics storage"]
@@ -62,8 +64,10 @@ graph TB
     user -->|"HTTPS + JWT"| backend
     frontend -->|"REST API calls<br/>(bearer token attached)"| backend
     backend -->|JDBC| postgres
-    backend -->|AMQP| rabbitmq
-    backend -->|"JWKS / issuer validation"| keycloak
+    backend -->|"AMQP<br/>(saga pivot step)"| rabbitmq
+    backend -->|"Analytics event<br/>(best-effort, fan-out)"| kafka
+    backend -->|"Cached order read/write<br/>(cache.provider=redis)"| redis
+    backend -->|"JWKS / issuer / audience validation"| keycloak
     backend -->|"S3 PutObject, SQS SendMessage,<br/>Secrets Manager GetSecretValue"| localstack
     backend -->|"scraped by"| prometheus
     backend -->|"OTLP/HTTP traces"| tempo
@@ -120,3 +124,57 @@ graph LR
 
     style domain fill:#1168bd,stroke:#0b4884,color:#fff
 ```
+
+## Dynamic view: order placement saga
+
+Placing an order returns as soon as it's durably saved; everything else (fulfillment, e-mail,
+audit export, analytics, routing) is driven asynchronously by an orchestrator polling the
+transactional outbox, with RabbitMQ fulfillment as the retried *pivot* step and a compensating
+cancellation if it never succeeds (see [ADR 0009](../adr/0009-order-placement-saga.md) and
+[Order placement saga](../../README.md#order-placement-saga)).
+
+```mermaid
+sequenceDiagram
+    actor Client
+    participant API as OrderController
+    participant UseCase as PlaceOrderUseCase
+    participant DB as PostgreSQL<br/>(order + OUTBOX_EVENT)
+    participant Saga as OrderPlacementSagaOrchestrator<br/>(scheduled poller)
+    participant MQ as RabbitMQ<br/>(pivot step)
+    participant BestEffort as Email / S3 / SQS / Kafka / Camel<br/>(best-effort side-channels)
+
+    Client ->> API: POST /api/order (Idempotency-Key optional)
+    API ->> UseCase: placeOrder(command)
+    UseCase ->> DB: INSERT order + PENDING outbox row (one transaction)
+    UseCase -->> API: order number
+    API -->> Client: 201 Created
+
+    loop every outbox.publisher.poll-interval-ms (default 5s)
+        Saga ->> DB: fetch PENDING outbox rows
+        Saga ->> MQ: notifyFulfillment (pivot)
+        alt pivot succeeds
+            MQ -->> Saga: ack
+            Saga ->> BestEffort: run remaining side-effects (log & continue on failure)
+            Saga ->> DB: mark outbox SENT
+        else pivot fails, attempts < max-fulfillment-attempts (default 5)
+            MQ -->> Saga: nack / timeout
+            Saga ->> DB: increment ATTEMPTS, retry on next poll
+        else pivot exhausts max-fulfillment-attempts
+            Saga ->> DB: CancelOrderInPort -> OrderStatus.CANCELLED (compensating transaction)
+            Saga ->> DB: mark outbox COMPENSATED
+        end
+    end
+```
+
+## Cross-cutting concerns
+
+Two behaviors apply across the order API without changing the topology shown above:
+
+- **Problem Details (RFC 9457)** - every error response (validation failure, business-rule
+  violation, idempotency-key conflict, not-found, ...) is a `application/problem+json` body with a
+  stable `type` URI and a correlatable `errorId`, handled centrally by `GlobalExceptionHandler` -
+  see [Error handling](../../README.md#error-handling).
+- **Idempotency-Key** - `POST /api/order` accepts an optional client-generated key so a retried
+  request (e.g. after a client-side timeout) safely replays the original result instead of placing
+  a duplicate order, arbitrated by a database unique constraint rather than application-level
+  locking - see [Idempotent order placement](../../README.md#idempotent-order-placement).
