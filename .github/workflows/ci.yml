@@ -44,7 +44,7 @@ jobs:
 
       - name: Publish test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-test-reports
           path: |
@@ -55,7 +55,7 @@ jobs:
 
       - name: Publish JaCoCo coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-coverage-reports
           path: '**/build/reports/jacoco/'
@@ -64,7 +64,7 @@ jobs:
 
       - name: Publish static analysis reports (Checkstyle, PMD, SpotBugs)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-static-analysis-reports
           path: |
@@ -98,7 +98,7 @@ jobs:
 
       - name: Publish DependencyCheck reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-check-report
           path: '**/build/reports/security/'
@@ -126,7 +126,7 @@ jobs:
 
       - name: Publish SBOM
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-cyclonedx
           path: |
@@ -166,7 +166,7 @@ jobs:
 
       - name: Publish frontend coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-report
           path: adapter/ecommerce-frontend/coverage/
