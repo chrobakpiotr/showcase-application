@@ -1,3 +1,4 @@
+apply from: '../etc/spotbugs.gradle'
 apply from: '../etc/checkstyle/checkstyle.gradle'
 apply from: '../etc/spotless/spotless-java.gradle'
 apply from: '../etc/dependencycheck/dependencycheck.gradle'
