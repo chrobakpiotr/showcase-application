@@ -7,7 +7,6 @@ import com.cp.ecommerce.adapter.mail.pdf.PdfGenerator;
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
 import com.cp.ecommerce.domain.order.Order;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -25,23 +24,28 @@ import static org.springframework.mail.javamail.MimeMessageHelper.MULTIPART_MODE
 /**
  * Abstract class for creating message.
  */
-@Getter
-@Setter
 @Component
 abstract class AbstractMessageCreator implements MessageCreationStrategy {
 
     private static final String PDF_ATTACHMENT_FILENAME_PREFIX = "order_";
 
     private static final String PDF_ATTACHMENT_FILENAME_SUFFIX = "_confirmation.pdf";
-    @Autowired
-    transient JavaMailSender emailSender;
-    @Autowired
-    transient FreeMarkerTemplateProcessor freeMarkerTemplateProcessor;
-    @Autowired
-    transient ClasspathResourceResolver resourceResolver;
+
+    private final transient JavaMailSender emailSender;
+    private final transient FreeMarkerTemplateProcessor freeMarkerTemplateProcessor;
+    private final transient ClasspathResourceResolver resourceResolver;
+
+    @Getter
+    @Setter
     String templatePathEmail;
+    @Getter
+    @Setter
     String templateFileNameEmail;
+    @Getter
+    @Setter
     String templatePathPdf;
+    @Getter
+    @Setter
     String templateFileNamePdf;
     @Value("${spring.mail.username:}")
     private transient String from;
@@ -53,6 +57,16 @@ abstract class AbstractMessageCreator implements MessageCreationStrategy {
     private transient String templatePathName;
     @Value("classpath:/fop.xml")
     private transient Resource fopXml;
+
+    protected AbstractMessageCreator(
+            final JavaMailSender emailSender,
+            final FreeMarkerTemplateProcessor freeMarkerTemplateProcessor,
+            final ClasspathResourceResolver resourceResolver) {
+
+        this.emailSender = emailSender;
+        this.freeMarkerTemplateProcessor = freeMarkerTemplateProcessor;
+        this.resourceResolver = resourceResolver;
+    }
 
     public MimeMessage createMessage(final Order order) throws MessagingException {
 
