@@ -5,12 +5,14 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
+import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -32,6 +34,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
  * Controller serving the functionality of {@link Order} API.
@@ -103,21 +108,25 @@ public class OrderController {
     @ApiResponse(
             responseCode = "200",
             description = "Order found",
-            content = @Content(schema = @Schema(implementation = Order.class)))
+            content = @Content(
+                    mediaType = "application/hal+json",
+                    schema = @Schema(implementation = OrderDetailsResource.class)))
     @ApiResponse(
             responseCode = "404",
             description = "Order not found",
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
-    public Order findOrder(@PathVariable("orderNumber") final String orderNumber) {
+    public EntityModel<OrderDetailsResource> findOrder(@PathVariable("orderNumber") final String orderNumber) {
 
         final Order order = manageOrderUseCase.findOrder(orderNumber);
         if (Optional.ofNullable(order).isEmpty()) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        return order;
+        final OrderDetailsResource resource = orderWebMapper.mapToResource(order)
+                .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
+        return EntityModel.of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());
     }
 
 }

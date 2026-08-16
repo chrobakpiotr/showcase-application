@@ -2,10 +2,15 @@ package com.cp.ecommerce.adapter.web.order;
 
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
+import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
+import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
+import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
@@ -20,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -137,14 +143,52 @@ class OrderControllerTest {
     }
 
     @Test
+    void shouldThrowMissingDataExceptionWhenMapToResourceReturnsEmpty() throws Exception {
+
+        final Order order = OrderBuilder.mockOrder();
+        given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.empty());
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
+                .andDo(print())
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Order data is missing"));
+    }
+
+    @Test
     void shouldResponseWithExpectedOrder() throws Exception {
 
-        given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(OrderBuilder.mockOrder());
+        final Order order = OrderBuilder.mockOrder();
+        given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource()));
+
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.orderNumber").value(TEST_ORDER_NUMBER));
+                .andExpect(content().contentType("application/hal+json"))
+                .andExpect(jsonPath("$.orderNumber").value(TEST_ORDER_NUMBER))
+                .andExpect(jsonPath("$.customer.fullName").value(CustomerBuilder.TEST_FULL_NAME))
+                .andExpect(jsonPath("$._links.self.href", endsWith(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER)));
+    }
+
+    private OrderDetailsResource mockOrderDetailsResource() {
+
+        final CustomerResource customer = CustomerResource.builder()
+                .fullName(CustomerBuilder.TEST_FULL_NAME)
+                .email(CustomerBuilder.TEST_EMAIL)
+                .phone(CustomerBuilder.TEST_PHONE_NUMBER)
+                .street(CustomerBuilder.TEST_STREET_ADDRESS)
+                .postalCode(CustomerBuilder.TEST_POSTAL_CODE)
+                .city(CustomerBuilder.TEST_CITY)
+                .countryCode(CustomerBuilder.TEST_COUNTRY_CODE)
+                .build();
+        return OrderDetailsResource.builder()
+                .orderNumber(TEST_ORDER_NUMBER)
+                .status(OrderStatus.CONFIRMED)
+                .remarks(OrderBuilder.TEST_REMARKS)
+                .customer(customer)
+                .build();
     }
 
     private String createJsonResource() throws Exception {
