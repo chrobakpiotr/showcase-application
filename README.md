@@ -155,6 +155,24 @@ order-analytics event) is documented separately with an [AsyncAPI](https://www.a
 [AsyncAPI Studio](https://studio.asyncapi.com/) (paste the file contents in), or validate it
 locally with `npx @asyncapi/cli validate etc/asyncapi/asyncapi.yml`.
 
+## Error handling
+
+Every error response follows [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) ("Problem Details for HTTP
+APIs") instead of an ad-hoc JSON error body: `GlobalExceptionHandler` returns a Spring `ProblemDetail`, which is
+serialized as `application/problem+json` with the standard `type`/`title`/`status`/`detail` members.
+
+- `type` is a `urn:problem-type:<slug>` URI identifying the specific failure category (e.g.
+  `urn:problem-type:business-rule-violation`); a `ResponseStatusException` raised without a dedicated handler
+  (e.g. `404` from `GET /api/order/{orderNumber}`) falls back to a slug derived from its HTTP status
+  (`urn:problem-type:not-found`), or `urn:problem-type:error` for a non-standard status code.
+- Every response also carries an `errorId` extension member (a random UUID), which is logged server-side
+  alongside the exception, so a failure reported by a client can be correlated to the exact log line that
+  explains it without leaking a stack trace or internal details in the response body itself.
+- Validation failures (`ConstraintViolationException`), domain/business rule violations
+  (`DomainObjectValidationException`, `BusinessRuleException`), and anything unmapped (`RuntimeException`
+  fallback, never leaking the original message) each get their own `type`/`title`/HTTP status - documented
+  per-endpoint in Swagger UI via the `@ApiResponse` annotations on `OrderController`.
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating

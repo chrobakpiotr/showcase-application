@@ -79,7 +79,8 @@ class OrderControllerTest {
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.message").value("Order data is missing"));
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Order data is missing"));
 
         verify(placeOrderUseCase, never()).placeOrder(null);
         verify(orderWebMapper, atMostOnce()).mapToDomainObject(any());

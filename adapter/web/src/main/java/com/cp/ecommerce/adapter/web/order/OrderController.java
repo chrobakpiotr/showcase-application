@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.web.order;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
-import com.cp.ecommerce.adapter.web.exception.resource.ErrorResource;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
@@ -12,6 +11,8 @@ import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,7 +58,9 @@ public class OrderController {
     @ApiResponse(
             responseCode = "500",
             description = "Order data is missing or invalid",
-            content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     public String placeOrder(@RequestBody final OrderResource orderResource) {
 
         final Order order = orderWebMapper.mapToDomainObject(orderResource).orElse(null);
@@ -78,7 +81,9 @@ public class OrderController {
     @ApiResponse(
             responseCode = "404",
             description = "Order not found",
-            content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     public Order findOrder(@PathVariable("orderNumber") final String orderNumber) {
 
         final Order order = manageOrderUseCase.findOrder(orderNumber);

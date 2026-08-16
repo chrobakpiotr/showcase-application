@@ -1,11 +1,11 @@
 package com.cp.ecommerce.adapter.web.exception;
 
+import java.net.URI;
 import java.util.Set;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
-import com.cp.ecommerce.adapter.web.exception.resource.ErrorResource;
 import com.cp.ecommerce.domain.order.Order;
 
 import org.junit.jupiter.api.MethodOrderer;
@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.ConstraintViolation;
@@ -41,70 +42,104 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleConstraintViolationException() {
 
-        assertResponse(createConstraintViolationExceptionResponse(), BAD_REQUEST, EXCEPTION_MESSAGE);
+        assertProblem(createConstraintViolationExceptionResponse(), BAD_REQUEST, "Constraint Violation", EXCEPTION_MESSAGE);
     }
 
     @Test
     void shouldHandleRuntimeException() {
 
-        assertResponse(
+        assertProblem(
                 handler.runtimeException(new RuntimeException()),
                 INTERNAL_SERVER_ERROR,
+                "Internal Server Error",
                 GlobalExceptionHandler.RUNTIME_EXCEPTION_ERROR_MESSAGE);
     }
 
     @Test
     void shouldHandleTechnicalProblemException() {
 
-        assertResponse(
+        assertProblem(
                 handler.technicalProblemException(new TechnicalProblemException(EXCEPTION_MESSAGE)),
                 INTERNAL_SERVER_ERROR,
+                "Technical Problem",
                 EXCEPTION_MESSAGE);
     }
 
     @Test
     void shouldHandleBusinessRuleException() {
 
-        assertResponse(
-                handler.hexagonalRuleException(new BusinessRuleException(EXCEPTION_MESSAGE)),
+        assertProblem(
+                handler.businessRuleException(new BusinessRuleException(EXCEPTION_MESSAGE)),
                 INTERNAL_SERVER_ERROR,
+                "Business Rule Violation",
                 EXCEPTION_MESSAGE);
     }
 
     @Test
     void shouldHandleDomainObjectValidationException() {
 
-        assertResponse(
-                handler.hexagonalRuleException(new DomainObjectValidationException(EXCEPTION_MESSAGE, null)),
+        assertProblem(
+                handler.domainObjectValidationException(new DomainObjectValidationException(EXCEPTION_MESSAGE, null)),
                 INTERNAL_SERVER_ERROR,
+                "Domain Validation Error",
                 EXCEPTION_MESSAGE);
     }
 
     @Test
     void shouldHandleResponseStatusException403() {
 
-        assertResponse(
+        assertProblem(
                 handler.responseStatusException(new ResponseStatusException(FORBIDDEN, EXCEPTION_MESSAGE)),
                 FORBIDDEN,
+                FORBIDDEN.getReasonPhrase(),
                 EXCEPTION_MESSAGE);
     }
 
     @Test
     void shouldHandleResponseStatusException404() {
 
-        assertResponse(
+        assertProblem(
                 handler.responseStatusException(new ResponseStatusException(NOT_FOUND, EXCEPTION_MESSAGE)),
                 NOT_FOUND,
+                NOT_FOUND.getReasonPhrase(),
                 EXCEPTION_MESSAGE);
     }
 
-    private void assertResponse(final ResponseEntity<ErrorResource> response, final HttpStatus status, final String message) {
+    @Test
+    void shouldFallBackToGenericProblemTypeForNonStandardStatusCode() {
 
-        assertThat(response.getStatusCode()).isEqualTo(status);
-        assertThat(response.getBody().message()).isEqualTo(message);
+        final HttpStatusCode nonStandardStatus = HttpStatusCode.valueOf(599);
+
+        final ProblemDetail problemDetail = handler
+                .responseStatusException(new ResponseStatusException(nonStandardStatus, EXCEPTION_MESSAGE));
+
+        assertThat(problemDetail.getStatus()).isEqualTo(599);
+        assertThat(problemDetail.getTitle()).isNull();
+        assertThat(problemDetail.getType()).isEqualTo(URI.create("urn:problem-type:error"));
     }
 
-    private ResponseEntity<ErrorResource> createConstraintViolationExceptionResponse() {
+    @Test
+    void shouldAddCorrelatableErrorIdExtensionMember() {
+
+        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException());
+
+        assertThat(problemDetail.getProperties()).containsKey("errorId");
+        assertThat(problemDetail.getProperties().get("errorId")).asString().isNotBlank();
+    }
+
+    private void assertProblem(
+            final ProblemDetail problemDetail,
+            final HttpStatus status,
+            final String title,
+            final String detail) {
+
+        assertThat(problemDetail.getStatus()).isEqualTo(status.value());
+        assertThat(problemDetail.getTitle()).isEqualTo(title);
+        assertThat(problemDetail.getDetail()).isEqualTo(detail);
+        assertThat(problemDetail.getProperties()).containsKey("errorId");
+    }
+
+    private ProblemDetail createConstraintViolationExceptionResponse() {
 
         final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         final Set<ConstraintViolation<Order>> violationSet = validator.validate(Order.builder().build(), Default.class);
