@@ -68,6 +68,23 @@ Redis is the distributed order cache backing every replica (see ADR 0010) - requ
 `replicaCount > 1` or `autoscaling.enabled` is set, since the default Ehcache provider caches
 locally per pod and would otherwise let different replicas serve stale/inconsistent orders.
 
+## Pod security
+
+The chart's default `podSecurityContext`/`containerSecurityContext` (`values.yaml`) align the
+Deployment with the Kubernetes "restricted" Pod Security Standard: non-root, no privilege
+escalation, all Linux capabilities dropped, a read-only root filesystem, and the default seccomp
+profile. The container image already runs as a non-root `app` user (see the root `Dockerfile`). The
+only writes the application performs are the JVM/embedded Tomcat's own scratch space and the Apache
+Camel order-notification file drop (`service.camel.notification-directory`, see
+[Order fan-out and routing](../../README.md#order-fan-out-and-routing-apache-camel)), which
+both default to subdirectories of `java.io.tmpdir` - so a single `emptyDir` volume mounted at `/tmp`
+covers everything without loosening `readOnlyRootFilesystem`. If `notification-directory` is ever
+overridden to a path outside `/tmp`, mount an additional writable volume for it. The pod's
+ServiceAccount token is also not auto-mounted (`automountServiceAccountToken: false`), since the
+application never calls the Kubernetes API. Override any of this via
+`--set containerSecurityContext.readOnlyRootFilesystem=false` etc. if a target cluster's policies
+require it.
+
 ## Uninstalling
 
 ```bash

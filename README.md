@@ -611,5 +611,9 @@ kubectl apply -f etc/k8s/dev-dependencies.yaml   # dev-only Postgres/RabbitMQ/Re
 helm install ecommerce etc/k8s/helm/ecommerce
 ```
 
+The Deployment's pod/container `securityContext` defaults follow the Kubernetes "restricted" Pod
+Security Standard (non-root, read-only root filesystem, all Linux capabilities dropped - see
+`etc/k8s/README.md#pod-security`).
+
 See [`etc/k8s/README.md`](etc/k8s/README.md) for the full walkthrough, configuration options, and
 how to point the chart at externally-hosted dependencies instead.

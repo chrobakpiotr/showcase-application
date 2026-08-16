@@ -95,3 +95,20 @@ serviceAccount:
   create: true
   name: ""
   annotations: {}
+
+# Pod Security Standards "restricted"-aligned hardening (see
+# https://kubernetes.io/docs/concepts/security/pod-security-standards/). The container runs as a
+# non-root user with a read-only root filesystem and no Linux capabilities; the JVM's only need for
+# a writable path (java.io.tmpdir, and Tomcat's work directory) is satisfied by the "tmp" emptyDir
+# volume in deployment.yaml rather than loosening readOnlyRootFilesystem.
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
