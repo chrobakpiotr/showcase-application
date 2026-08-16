@@ -4,13 +4,13 @@ plugins {
 	id 'idea'
 	id 'org.springframework.boot' version '4.1.0' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
-    id 'com.github.spotbugs' version '6.5.8' apply false
+    id 'com.github.spotbugs' version '6.5.10' apply false
     id 'info.solidsoft.pitest' version '1.19.0' apply false
-	id 'com.diffplug.spotless' version '8.8.0' apply false
+	id 'com.diffplug.spotless' version '8.9.0' apply false
 	id 'org.owasp.dependencycheck' version '12.2.2' apply false
 	id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 	id 'com.asarkar.gradle.build-time-tracker' version '5.0.2'
-	id 'com.github.ben-manes.versions' version '0.54.0' apply false
+	id 'com.github.ben-manes.versions' version '0.61.0' apply false
 	id 'org.cyclonedx.bom' version '3.4.1'
 }
 
@@ -69,25 +69,25 @@ def configureDependencyManagement(subproject) {
 			imports {
 				mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
 				mavenBom SpringBootPlugin.BOM_COORDINATES
-				mavenBom 'org.junit:junit-bom:6.1.1'
-				mavenBom 'software.amazon.awssdk:bom:2.48.3'
+				mavenBom 'org.junit:junit-bom:6.1.3'
+				mavenBom 'software.amazon.awssdk:bom:2.52.1'
 				mavenBom 'org.apache.camel.springboot:camel-spring-boot-bom:4.21.0'
 			}
 			dependencies {
-				dependency 'ch.qos.logback:logback-classic:1.5.34'
-				dependency 'ch.qos.logback:logback-core:1.5.34'
-				dependency 'com.fasterxml.jackson.core:jackson-annotations:2.21'
-				dependency 'com.fasterxml.jackson.core:jackson-core:2.21.4'
-				dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.4'
-				dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.4'
-                dependency 'com.google.code.gson:gson:2.13.2'
+				dependency 'ch.qos.logback:logback-classic:1.6.2'
+				dependency 'ch.qos.logback:logback-core:1.6.2'
+				dependency 'com.fasterxml.jackson.core:jackson-annotations:2.22'
+				dependency 'com.fasterxml.jackson.core:jackson-core:2.22.4'
+				dependency 'com.fasterxml.jackson.core:jackson-databind:2.22.4'
+				dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.1'
+                dependency 'com.google.code.gson:gson:2.14.0'
                 dependency 'com.google.guava:guava:33.6.0-jre'
-                dependency 'com.icegreen:greenmail-junit5:2.1.9'
+                dependency 'com.icegreen:greenmail-junit5:2.1.12'
 				dependency 'com.h2database:h2:2.4.240'
 				dependency 'com.sun.activation:jakarta.activation:2.0.1'
 				dependency 'com.sun.istack:istack-commons-runtime:4.2.0'
 				dependency 'com.sun.mail:jakarta.mail:2.0.2'
-				dependency 'com.tngtech.archunit:archunit:1.4.2'
+				dependency 'com.tngtech.archunit:archunit:1.5.0'
 				dependency 'io.github.resilience4j:resilience4j-circuitbreaker:2.4.0'
 				dependency 'io.github.resilience4j:resilience4j-core:2.4.0'
 				dependency 'io.github.resilience4j:resilience4j-micrometer:2.4.0'
@@ -97,22 +97,22 @@ def configureDependencyManagement(subproject) {
                 dependency 'jakarta.validation:jakarta.validation-api:3.1.1'
 				dependency 'javax.cache:cache-api:1.1.1'
 				dependency 'org.apache.commons:commons-lang3:3.20.0'
-				dependency 'org.apache.logging.log4j:log4j-api:2.25.4'
-				dependency 'org.apache.logging.log4j:log4j-to-slf4j:2.25.4'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.22'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-jasper:11.0.22'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-websocket:11.0.22'
+				dependency 'org.apache.logging.log4j:log4j-api:2.26.1'
+				dependency 'org.apache.logging.log4j:log4j-to-slf4j:2.26.1'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.24'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-jasper:11.0.24'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-websocket:11.0.24'
 				dependency 'org.apache.xmlgraphics:fop-core:2.11'
 				dependency 'org.apache.xmlgraphics:xmlgraphics-commons:2.11'
 				dependency 'org.assertj:assertj-core:3.27.7'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.10'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlets:12.1.10'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.10'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.12'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlets:12.1.12'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.12'
 				dependency 'org.ehcache:ehcache:3.12.0'
 				dependency 'org.hamcrest:hamcrest:3.0'
-				dependency 'org.hibernate.orm:hibernate-core:7.4.1.Final'
+				dependency 'org.hibernate.orm:hibernate-core:7.4.5.Final'
 				dependency 'org.liquibase:liquibase-core:5.0.3'
-				dependency 'org.postgresql:postgresql:42.7.11'
+				dependency 'org.postgresql:postgresql:42.7.13'
 				dependency 'org.springframework.boot:spring-boot-actuator-autoconfigure:4.1.0'
 				dependency 'org.springframework.boot:spring-boot-actuator:4.1.0'
 				dependency 'org.springframework.boot:spring-boot-autoconfigure:4.1.0'
