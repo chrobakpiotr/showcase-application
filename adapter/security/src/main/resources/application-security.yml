@@ -41,3 +41,8 @@ spring:
         jwt:
           issuer-uri: ${security.oauth2.issuer-uri:http://localhost:8081/realms/ecommerce}
           jwk-set-uri: ${security.oauth2.jwk-set-uri:http://localhost:8081/realms/ecommerce/protocol/openid-connect/certs}
+          # Rejects tokens not intended for this API (e.g. issued by the same Keycloak realm to a different
+          # client), even though they carry a valid signature and issuer - see Keycloak's "ecommerce-app-audience"
+          # protocol mapper in etc/docker/keycloak/realm-export.json, which is what actually populates this claim.
+          audiences:
+            - ${security.oauth2.audience:ecommerce-app}

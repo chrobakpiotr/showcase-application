@@ -21,6 +21,8 @@ spring:
         jwt:
           issuer-uri: http://localhost:8081/realms/ecommerce
           jwk-set-uri: http://localhost:8081/realms/ecommerce/protocol/openid-connect/certs
+          audiences:
+            - ecommerce-app
   mail:
     default-encoding: UTF-8
     host: localhost

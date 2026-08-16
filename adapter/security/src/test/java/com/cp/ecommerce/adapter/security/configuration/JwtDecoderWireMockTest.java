@@ -44,7 +44,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 /**
  * Integration test verifying that the Spring Boot auto-configured {@link JwtDecoder} correctly retrieves and validates signing
  * keys against a JWKS endpoint stubbed with WireMock, exercising the same {@code jwk-set-uri}/{@code issuer-uri} wiring as
- * {@link WebSecurityConfiguration} in production.
+ * {@link WebSecurityConfiguration} in production. Also verifies the {@code spring.security.oauth2.resourceserver.jwt.audiences}
+ * property (configured in {@code application-security.yml}) rejects tokens that, while validly signed and unexpired, were not
+ * issued for this API - e.g. a token issued by the same Keycloak realm to an unrelated client.
  *
  * <p>
  * Each test signs its JWT with a freshly generated key (unique key ID) so that {@link JwtDecoder}'s internal JWK cache never
@@ -60,6 +62,8 @@ class JwtDecoderWireMockTest {
     private static final String ISSUER = "http://localhost:8081/realms/ecommerce";
 
     private static final String SUBJECT = "test-user";
+
+    private static final String EXPECTED_AUDIENCE = "ecommerce-app";
 
     private RSAKey signingKey;
 
@@ -85,7 +89,11 @@ class JwtDecoderWireMockTest {
     @Test
     void shouldDecodeJwtSignedWithKeyPublishedOnJwksEndpoint() throws Exception {
 
-        final String token = createSignedJwt(signingKey, Instant.now().minusSeconds(5), Instant.now().plusSeconds(60));
+        final String token = createSignedJwt(
+                signingKey,
+                Instant.now().minusSeconds(5),
+                Instant.now().plusSeconds(60),
+                EXPECTED_AUDIENCE);
         final Jwt jwt = jwtDecoder.decode(token);
 
         assertThat(jwt.getSubject()).isEqualTo(SUBJECT);
@@ -95,7 +103,11 @@ class JwtDecoderWireMockTest {
     @Test
     void shouldRejectExpiredJwt() throws Exception {
 
-        final String token = createSignedJwt(signingKey, Instant.now().minusSeconds(120), Instant.now().minusSeconds(60));
+        final String token = createSignedJwt(
+                signingKey,
+                Instant.now().minusSeconds(120),
+                Instant.now().minusSeconds(60),
+                EXPECTED_AUDIENCE);
 
         assertThatThrownBy(() -> jwtDecoder.decode(token)).isInstanceOf(JwtValidationException.class);
     }
@@ -104,9 +116,36 @@ class JwtDecoderWireMockTest {
     void shouldRejectJwtSignedWithKeyUnknownToJwksEndpoint() throws Exception {
 
         final RSAKey unknownKey = generateRsaKey();
-        final String token = createSignedJwt(unknownKey, Instant.now().minusSeconds(5), Instant.now().plusSeconds(60));
+        final String token = createSignedJwt(
+                unknownKey,
+                Instant.now().minusSeconds(5),
+                Instant.now().plusSeconds(60),
+                EXPECTED_AUDIENCE);
 
         assertThatThrownBy(() -> jwtDecoder.decode(token)).isInstanceOf(BadJwtException.class);
+    }
+
+    @Test
+    void shouldRejectJwtIssuedForADifferentAudience() throws Exception {
+
+        final String token = createSignedJwt(
+                signingKey,
+                Instant.now().minusSeconds(5),
+                Instant.now().plusSeconds(60),
+                "some-other-client");
+
+        assertThatThrownBy(() -> jwtDecoder.decode(token)).isInstanceOf(JwtValidationException.class);
+    }
+
+    @Test
+    void shouldRejectJwtWithoutAnAudienceClaim() throws Exception {
+
+        final String token = createSignedJwtWithoutAudience(
+                signingKey,
+                Instant.now().minusSeconds(5),
+                Instant.now().plusSeconds(60));
+
+        assertThatThrownBy(() -> jwtDecoder.decode(token)).isInstanceOf(JwtValidationException.class);
     }
 
     private static void stubJwksEndpoint(final RSAKey signingKey) {
@@ -120,14 +159,37 @@ class JwtDecoderWireMockTest {
         return new RSAKeyGenerator(2048).keyID(UUID.randomUUID().toString()).generate();
     }
 
-    private static String createSignedJwt(final RSAKey signingKey, final Instant issuedAt, final Instant expiresAt)
-            throws Exception {
+    private static String createSignedJwt(
+            final RSAKey signingKey,
+            final Instant issuedAt,
+            final Instant expiresAt,
+            final String audience) throws Exception {
+
+        final JWTClaimsSet claims = new JWTClaimsSet.Builder().subject(SUBJECT)
+                .issuer(ISSUER)
+                .audience(audience)
+                .issueTime(Date.from(issuedAt))
+                .expirationTime(Date.from(expiresAt))
+                .build();
+
+        return sign(signingKey, claims);
+    }
+
+    private static String createSignedJwtWithoutAudience(
+            final RSAKey signingKey,
+            final Instant issuedAt,
+            final Instant expiresAt) throws Exception {
 
         final JWTClaimsSet claims = new JWTClaimsSet.Builder().subject(SUBJECT)
                 .issuer(ISSUER)
                 .issueTime(Date.from(issuedAt))
                 .expirationTime(Date.from(expiresAt))
                 .build();
+
+        return sign(signingKey, claims);
+    }
+
+    private static String sign(final RSAKey signingKey, final JWTClaimsSet claims) throws Exception {
 
         final SignedJWT signedJwt = new SignedJWT(
                 new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(signingKey.getKeyID()).build(),

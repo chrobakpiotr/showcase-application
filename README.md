@@ -184,6 +184,12 @@ JWT bearer tokens issued by Keycloak. Two realm roles gate access:
 Everything else (the Angular frontend under `/home`, Swagger UI, actuator health/info/metrics/prometheus
 endpoints) remains publicly accessible.
 
+Beyond the standard signature/expiry/issuer checks, tokens are also validated against an expected `aud`
+(audience) claim (`spring.security.oauth2.resourceserver.jwt.audiences`, see `application-security.yml`), so a
+validly signed, unexpired token issued by the same Keycloak realm to a *different* client is still rejected.
+Keycloak is configured (see the `ecommerce-app-audience` protocol mapper in
+`etc/docker/keycloak/realm-export.json`) to stamp this API's tokens with a matching audience.
+
 A ready-to-use local Keycloak instance (realm `ecommerce`, client `ecommerce-app`, roles and two demo users
 `order-admin`/`order-viewer`) is provided under `/etc/docker/keycloak`:
 

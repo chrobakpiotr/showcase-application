@@ -19,7 +19,20 @@
       "directAccessGrantsEnabled": true,
       "standardFlowEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": [ "*" ]
+      "redirectUris": [ "*" ],
+      "protocolMappers": [
+        {
+          "name": "ecommerce-app-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "ecommerce-app",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
