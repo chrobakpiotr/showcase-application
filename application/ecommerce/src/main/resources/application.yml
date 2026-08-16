@@ -21,6 +21,15 @@ spring:
           enabled: true
           max-attempts: 10
           initial-interval: 5000
+  # This app is classic blocking Spring MVC/Tomcat with blocking JDBC/JPA, RestTemplate and RabbitMQ
+  # listener I/O throughout - the textbook fit for virtual threads (JEP 444). Tomcat's request-handling
+  # threads and Boot's auto-configured task executor/scheduler pick this up automatically; the
+  # AMQP listener container needs its own opt-in wiring since it's manually built (see
+  # MessagingConfiguration) - see ADR 0011 for the full rationale and caveats (e.g. HikariCP pool size
+  # remains the real DB-concurrency ceiling and is intentionally unchanged).
+  threads:
+    virtual:
+      enabled: true
   main:
     allow-bean-definition-overriding: true
 

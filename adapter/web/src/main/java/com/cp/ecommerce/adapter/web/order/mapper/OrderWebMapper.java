@@ -22,8 +22,8 @@ public class OrderWebMapper implements WebMapper<Order, OrderResource> {
         return Optional.ofNullable(orderResource)
                 .map(
                         resource -> Order.builder()
-                                .created(resource.getCreated())
-                                .remarks(resource.getRemarks())
+                                .created(resource.created())
+                                .remarks(resource.remarks())
                                 .customer(createLoggedInUser())
                                 .build());
     }

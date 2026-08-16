@@ -39,7 +39,7 @@ class OrderWebMapperTest {
         final Optional<Order> order = orderWebMapper.mapToDomainObject(orderResource);
 
         assertTrue(order.isPresent());
-        assertThat(order.get().getRemarks()).isEqualTo(orderResource.getRemarks());
+        assertThat(order.get().getRemarks()).isEqualTo(orderResource.remarks());
     }
 
     @Test

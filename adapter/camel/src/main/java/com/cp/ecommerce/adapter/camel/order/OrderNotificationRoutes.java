@@ -16,12 +16,12 @@ import lombok.RequiredArgsConstructor;
  * Camel route that fans a placed-order notification out to fulfillment channels using enterprise integration patterns:
  * <ul>
  * <li><b>Wire Tap</b> - every order is copied, fire-and-forget, to an audit trail file without affecting the main flow.</li>
- * <li><b>Content-Based Router</b> - orders shipping to the home market ({@link CamelProperties#getDomesticCountryCode()}) are
+ * <li><b>Content-Based Router</b> - orders shipping to the home market ({@link CamelProperties#domesticCountryCode()}) are
  * routed to the domestic fulfillment channel, all others to the international one.</li>
  * </ul>
- * Each channel is modeled here as a local JSON file drop (see {@link CamelProperties#getNotificationDirectory()}), which keeps
- * the showcase runnable with zero external infrastructure; in a real deployment the {@code file:} endpoints below would be
- * swapped for e.g. {@code sjms:}, {@code http:} or {@code ftp:} endpoints without touching the routing logic itself.
+ * Each channel is modeled here as a local JSON file drop (see {@link CamelProperties#notificationDirectory()}), which keeps the
+ * showcase runnable with zero external infrastructure; in a real deployment the {@code file:} endpoints below would be swapped
+ * for e.g. {@code sjms:}, {@code http:} or {@code ftp:} endpoints without touching the routing logic itself.
  */
 @Component
 @RequiredArgsConstructor
@@ -70,7 +70,7 @@ public class OrderNotificationRoutes extends RouteBuilder {
 
         final Order order = exchange.getIn().getBody(Order.class);
         final String countryCode = order.getCustomer().getAddress().getCountryCode();
-        return camelProperties.getDomesticCountryCode().equalsIgnoreCase(countryCode);
+        return camelProperties.domesticCountryCode().equalsIgnoreCase(countryCode);
     }
 
     private void marshalToJson(final Exchange exchange) {
@@ -82,8 +82,8 @@ public class OrderNotificationRoutes extends RouteBuilder {
 
     private String fileEndpoint(final String channel) {
 
-        return "file:" + camelProperties.getNotificationDirectory() + "/" + channel + "?fileName=${header."
-                + ORDER_NUMBER_HEADER + "}.json";
+        return "file:" + camelProperties.notificationDirectory() + "/" + channel + "?fileName=${header." + ORDER_NUMBER_HEADER
+                + "}.json";
     }
 
 }

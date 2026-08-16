@@ -48,7 +48,7 @@ graph TB
 
     subgraph docker["Docker Compose stack"]
         frontend["Angular Frontend<br/>(served by Spring Boot at /home)"]
-        backend["Spring Boot Backend<br/>Java 17, Gradle multi-module"]
+        backend["Spring Boot Backend<br/>Java 25, Gradle multi-module"]
         postgres[("PostgreSQL 16<br/>order data")]
         rabbitmq["RabbitMQ<br/>order message broker"]
         keycloak["Keycloak<br/>realm: ecommerce"]

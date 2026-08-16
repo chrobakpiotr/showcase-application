@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.security.configuration;
 import com.cp.ecommerce.adapter.security.utils.ManagementUserProperties;
 
 import org.springframework.boot.actuate.info.InfoEndpoint;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.micrometer.metrics.actuate.endpoint.MetricsEndpoint;
 import org.springframework.boot.micrometer.metrics.autoconfigure.export.prometheus.PrometheusScrapeEndpoint;
@@ -26,6 +27,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
  */
 @Configuration
 @ComponentScan("com.cp.ecommerce.adapter.security")
+@EnableConfigurationProperties(ManagementUserProperties.class)
 @Order(ActuatorSecurityConfiguration.BEFORE_DEFAULT_WEB_SECURITY_CONFIGURER_ADAPTER)
 @RequiredArgsConstructor
 public class ActuatorSecurityConfiguration {
@@ -61,7 +63,7 @@ public class ActuatorSecurityConfiguration {
     public UserDetailsService userDetailsService() {
 
         final InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
-        manager.createUser(User.withUsername(properties.getName()).password(properties.getPassword()).roles(ACTUATOR).build());
+        manager.createUser(User.withUsername(properties.name()).password(properties.password()).roles(ACTUATOR).build());
         return manager;
     }
 

@@ -101,7 +101,7 @@ class GlobalExceptionHandlerTest {
     private void assertResponse(final ResponseEntity<ErrorResource> response, final HttpStatus status, final String message) {
 
         assertThat(response.getStatusCode()).isEqualTo(status);
-        assertThat(response.getBody().getMessage()).isEqualTo(message);
+        assertThat(response.getBody().message()).isEqualTo(message);
     }
 
     private ResponseEntity<ErrorResource> createConstraintViolationExceptionResponse() {

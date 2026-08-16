@@ -1,22 +1,14 @@
 package com.cp.ecommerce.adapter.security.utils;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-
-import lombok.Getter;
-import lombok.Setter;
 
 /**
- * Class that represents properties of management server's user.
+ * Properties of the management server's user, bound from the {@code management.user.*} namespace via constructor binding.
+ *
+ * @param name management server basic-auth username.
+ * @param password management server basic-auth password.
  */
-@Getter
-@Setter
 @ConfigurationProperties(prefix = "management.user")
-@Component
-public class ManagementUserProperties {
-
-    private String name;
-
-    private String password;
+public record ManagementUserProperties(String name, String password) {
 
 }

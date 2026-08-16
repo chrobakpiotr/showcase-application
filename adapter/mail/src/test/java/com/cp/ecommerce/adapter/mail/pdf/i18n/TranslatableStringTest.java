@@ -16,13 +16,13 @@ class TranslatableStringTest {
     @Test
     public void shouldReturnKey() {
 
-        assertThat(TranslatableString.forKey(KEY, DEFAULT_STRING).getKey()).isEqualTo(KEY);
+        assertThat(TranslatableString.forKey(KEY, DEFAULT_STRING).key()).isEqualTo(KEY);
     }
 
     @Test
     public void shouldReturnDefaultMessage() {
 
-        assertThat(TranslatableString.forKey(KEY, DEFAULT_STRING).getDefaultMessage()).isEqualTo(DEFAULT_STRING);
+        assertThat(TranslatableString.forKey(KEY, DEFAULT_STRING).defaultMessage()).isEqualTo(DEFAULT_STRING);
     }
 
     @Test

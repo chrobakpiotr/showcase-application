@@ -43,9 +43,7 @@ class OrderNotificationRoutesTest {
     @BeforeEach
     void setUp() throws Exception {
 
-        final CamelProperties camelProperties = new CamelProperties();
-        camelProperties.setDomesticCountryCode(DOMESTIC_COUNTRY_CODE);
-        camelProperties.setNotificationDirectory(tempDir.toString());
+        final CamelProperties camelProperties = new CamelProperties(DOMESTIC_COUNTRY_CODE, tempDir.toString());
 
         camelContext = new DefaultCamelContext();
         camelContext.addRoutes(new OrderNotificationRoutes(camelProperties, new Gson()));

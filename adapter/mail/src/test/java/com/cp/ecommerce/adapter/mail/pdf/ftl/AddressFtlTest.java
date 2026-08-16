@@ -36,10 +36,10 @@ class AddressFtlTest {
                 .build();
         final AddressFtl addressFtl = AddressFtl.of(address);
         assertNotNull(addressFtl);
-        assertThat(addressFtl.getCity()).isEqualTo(address.getCity());
-        assertThat(addressFtl.getCountryCode()).isEqualTo(address.getCountryCode());
-        assertThat(addressFtl.getPostalCode()).isEqualTo(address.getPostalCode());
-        assertThat(addressFtl.getStreet()).isEqualTo(address.getStreet());
+        assertThat(addressFtl.city()).isEqualTo(address.getCity());
+        assertThat(addressFtl.countryCode()).isEqualTo(address.getCountryCode());
+        assertThat(addressFtl.postalCode()).isEqualTo(address.getPostalCode());
+        assertThat(addressFtl.street()).isEqualTo(address.getStreet());
     }
 
 }

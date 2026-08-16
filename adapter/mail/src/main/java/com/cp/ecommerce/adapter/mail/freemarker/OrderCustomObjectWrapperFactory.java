@@ -60,8 +60,8 @@ public class OrderCustomObjectWrapperFactory implements CustomObjectWrapperFacto
         @Override
         public TemplateModel wrap(final Object obj) throws TemplateModelException {
 
-            if (obj instanceof Order) {
-                return freemarkerCustomObjectWrapper.wrap(convertOrder((Order) obj));
+            if (obj instanceof Order order) {
+                return freemarkerCustomObjectWrapper.wrap(convertOrder(order));
             }
             return freemarkerCustomObjectWrapper.wrap(obj);
         }

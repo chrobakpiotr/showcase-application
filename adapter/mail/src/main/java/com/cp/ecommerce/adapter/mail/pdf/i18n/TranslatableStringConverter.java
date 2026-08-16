@@ -26,7 +26,7 @@ public class TranslatableStringConverter implements Converter<TranslatableString
 
     public String convert(final TranslatableString string, final Locale locale) {
 
-        return messageSource.getMessage(string.getKey(), null, string.getDefaultMessage(), locale);
+        return messageSource.getMessage(string.key(), null, string.defaultMessage(), locale);
     }
 
 }

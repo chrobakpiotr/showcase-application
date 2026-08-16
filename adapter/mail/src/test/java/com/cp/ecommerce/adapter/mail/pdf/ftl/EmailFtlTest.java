@@ -16,7 +16,7 @@ public class EmailFtlTest {
 
         final EmailFtl actual = EmailFtl.of(null);
 
-        assertThat(actual.getAddress(), is(nullValue()));
+        assertThat(actual.address(), is(nullValue()));
     }
 
 }

@@ -26,7 +26,7 @@ class OrderMessageMapperTest {
     void shouldSetDefaultValues() {
 
         final OrderMessage message = mapper.mapToMessage(OrderBuilder.mockOrder()).orElse(null);
-        assertThat(message.getSchemaVersion()).isEqualTo(SCHEMA_VERSION);
+        assertThat(message.schemaVersion()).isEqualTo(SCHEMA_VERSION);
     }
 
     @Test

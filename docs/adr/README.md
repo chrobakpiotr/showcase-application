@@ -17,6 +17,8 @@ than editing it in place.
 | [0008](0008-apache-camel-for-order-notification-routing.md) | Apache Camel for order notification routing |
 | [0009](0009-order-placement-saga.md) | Order-placement saga (orchestration, bounded retry, compensation) |
 | [0010](0010-redis-opt-in-distributed-cache.md) | Redis as an opt-in distributed cache alongside the default Ehcache |
+| [0011](0011-java-21-virtual-threads.md) | Java 21 upgrade with opt-in virtual threads |
+| [0012](0012-java-25-closing-the-pinning-gap.md) | Java 25 upgrade: closing the virtual-thread pinning gap |
 
 ## Template for new ADRs
 

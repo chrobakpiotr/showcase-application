@@ -14,7 +14,7 @@ class OrderMessageTest {
 
         final OrderMessage message = OrderMessage.builder().build();
 
-        assertEquals(OrderMessage.SCHEMA_VERSION, message.getSchemaVersion());
+        assertEquals(OrderMessage.SCHEMA_VERSION, message.schemaVersion());
     }
 
 }

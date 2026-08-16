@@ -5,24 +5,14 @@ import java.io.Serializable;
 import com.cp.ecommerce.domain.customer.Address;
 
 import lombok.Builder;
-import lombok.Getter;
 
 /**
  * FTL mapper used for mapping {@link Address} and {@link Address} objects into theirs FTL counterparts.
  */
-@Getter
 @Builder
-public class AddressFtl implements Serializable {
+public record AddressFtl(String countryCode, String postalCode, String city, String street) implements Serializable {
 
     private static final long serialVersionUID = 1L;
-
-    private final String countryCode;
-
-    private final String postalCode;
-
-    private final String city;
-
-    private final String street;
 
     public static AddressFtl of(final Address address) {
 

@@ -13,7 +13,7 @@ On the backend side, there is a Spring Boot application being used, on the front
 
 Among many frameworks, libraries and tools, the most important being used are as follows:
 
-- Java
+- Java (25)
 - Angular
 - Spring Boot
 - Spring Security (OAuth2 Resource Server / JWT)
@@ -76,7 +76,7 @@ dir):
 
 ## Starting the application
 
-**Prerequisites**: JDK 17+ (the Docker builder image uses JDK 21) and Docker Desktop (with `docker compose`).
+**Prerequisites**: JDK 25+ and Docker Desktop (with `docker compose`).
 
 Execution of command `./gradlew clean build` will build the application and make it ready to start. This also
 bundles the Angular frontend as static resources via the Gradle node plugin, so no separate `npm install`/`ng
@@ -276,16 +276,25 @@ thresholds on error rate and p95 latency for both endpoints. Run it side-by-side
 combine it with the [chaos testing](#chaos-testing-toxiproxy) Toxiproxy setup above to see the circuit breaker
 open under sustained load *and* a failing dependency at the same time.
 
+Request handling itself runs on Java 25 virtual threads (`spring.threads.virtual.enabled`), so scaling well
+beyond this default 10-VU scenario doesn't require hand-tuning Tomcat's platform-thread pool - see
+[ADR 0011](docs/adr/0011-java-21-virtual-threads.md) for the original adoption rationale and
+[ADR 0012](docs/adr/0012-java-25-closing-the-pinning-gap.md) for why the project moved straight to 25: JEP 491
+means blocking inside `synchronized` (including many JDBC drivers' internal socket reads) no longer pins a
+virtual thread to its carrier. The database connection pool, not the request-thread count, is still the
+practical ceiling for JDBC-bound throughput - virtual threads raise the request-thread ceiling, not the
+connection-pool one.
+
 ## App containerization
 
 The application itself (backend + built-in Angular frontend) can now be built and run as a container, in addition
 to the existing standalone infrastructure compose files under `etc/docker/*`.
 
-- `Dockerfile` (repo root): multi-stage build. The builder stage (`eclipse-temurin:21-jdk`, glibc-based) runs
+- `Dockerfile` (repo root): multi-stage build. The builder stage (`eclipse-temurin:25-jdk`, glibc-based) runs
   `./gradlew :application:ecommerce:bootJar`, which also triggers the Angular frontend build (the backend module
   depends on the frontend's generated resources). A glibc base is required here because the Gradle Node plugin
   downloads official Node.js binaries, which are not musl/Alpine-compatible. The runtime stage
-  (`eclipse-temurin:21-jre-alpine`) only needs the built jar, so it stays slim, and runs as a non-root user with an
+  (`eclipse-temurin:25-jre-alpine`) only needs the built jar, so it stays slim, and runs as a non-root user with an
   actuator-based `HEALTHCHECK`.
 - `.dockerignore`: excludes `.git`, `.gradle`/`**/.gradle`, `build`/`**/build`, `node_modules`, etc. Note that
   excluding `.git` disables the `gradle-git-properties` plugin's git metadata lookup; this is handled by setting
