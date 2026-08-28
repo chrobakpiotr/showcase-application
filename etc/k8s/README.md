@@ -8,7 +8,8 @@ demonstrate a Helm-based deployment; it is not tuned for a production cluster.
 ## What's here
 
 - `helm/ecommerce/` - the Helm chart for the application itself (Deployment, Service, Ingress,
-  HorizontalPodAutoscaler, ServiceAccount, Secret). See `values.yaml` for all configurable options.
+  HorizontalPodAutoscaler, PodDisruptionBudget, NetworkPolicy, ServiceAccount, Secret). See
+  `values.yaml` for all configurable options.
 - `dev-dependencies.yaml` - minimal, dev-only plain Kubernetes manifests for Postgres, RabbitMQ,
   Redis and Keycloak (matching the credentials/images used by the root `docker-compose.yml`), so
   the chart has something to talk to in a throwaway cluster. **Not for production** - no persistent
@@ -84,6 +85,31 @@ ServiceAccount token is also not auto-mounted (`automountServiceAccountToken: fa
 application never calls the Kubernetes API. Override any of this via
 `--set containerSecurityContext.readOnlyRootFilesystem=false` etc. if a target cluster's policies
 require it.
+
+## Availability and network hardening
+
+Two more cluster-hardening resources ship with the chart, both opt-in (`enabled: false` by
+default) since they only make sense in specific deployment situations:
+
+- **PodDisruptionBudget** (`podDisruptionBudget.enabled`) - guarantees `minAvailable` replicas stay
+  up during voluntary disruptions (node drains, cluster upgrades). Left off by default because a
+  `minAvailable: 1` budget would block every voluntary eviction outright when `replicaCount: 1` (the
+  chart's own default) - turn it on together with `replicaCount > 1` or `autoscaling.enabled`.
+- **NetworkPolicy** (`networkPolicy.enabled`) - restricts the pod's ingress to its
+  application/management ports and its egress to DNS plus the TCP ports listed in
+  `networkPolicy.egressPorts` (defaulting to Postgres/RabbitMQ/Redis/Keycloak/Tempo-OTLP, matching
+  `dev-dependencies.yaml`). Left off by default because enforcement depends entirely on the
+  cluster's CNI - `kind`'s default `kindnet` CNI silently ignores `NetworkPolicy` resources rather
+  than enforcing them, so enabling it there would give a false sense of security. Enable it on a
+  policy-enforcing CNI (Calico, Cilium, etc.), and widen `egressPorts`/add an IP-based rule if
+  `env.*` is pointed at externally-hosted dependencies instead of in-cluster ones.
+
+```bash
+helm install ecommerce etc/k8s/helm/ecommerce \
+  --set replicaCount=3 \
+  --set podDisruptionBudget.enabled=true \
+  --set networkPolicy.enabled=true
+```
 
 ## Uninstalling
 

@@ -11,6 +11,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnThreading;
 import org.springframework.boot.thread.Threading;
@@ -64,11 +65,17 @@ public class MessagingConfiguration {
         return new VirtualThreadTaskExecutor("rabbitmq-listener-");
     }
 
+    /**
+     * Narrowed to this configuration's own {@link #rabbitListenerTaskExecutor()} bean by {@link Qualifier}: since Boot 4 also
+     * auto-configures a virtual-thread {@code taskScheduler} bean (see {@code DefaultTaskSchedulerConfiguration}) that likewise
+     * implements {@link AsyncTaskExecutor}, an unqualified {@code ObjectProvider<AsyncTaskExecutor>} would find two matching
+     * candidates and {@link ObjectProvider#ifAvailable} would throw {@code NoUniqueBeanDefinitionException}.
+     */
     @Bean
     SimpleMessageListenerContainer container(
             final ConnectionFactory connectionFactory,
             final MessageListenerAdapter listenerAdapter,
-            final ObjectProvider<AsyncTaskExecutor> taskExecutorProvider) {
+            @Qualifier("rabbitListenerTaskExecutor") final ObjectProvider<AsyncTaskExecutor> taskExecutorProvider) {
 
         final SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);

@@ -8,13 +8,38 @@ datasources:
     isDefault: true
     editable: false
 
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        # Turns the "traceId" field already present in every JSON log line (see
+        # logging.structured.format.console in application-docker.yml/application-k8s.yml) into a
+        # clickable link straight to that trace in Tempo, without Promtail needing to promote
+        # traceId to an indexed label (see promtail-config.yaml).
+        - datasourceUid: tempo
+          matcherRegex: '"traceId":"(\w+)"'
+          name: TraceID
+          url: '$${__value.raw}'
+
   - name: Tempo
+    uid: tempo
     type: tempo
     access: proxy
     url: http://tempo:3200
     editable: false
     jsonData:
       tracesToLogsV2:
-        datasourceUid: ''
+        datasourceUid: loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        # Loki has no traceId label (see promtail-config.yaml - kept out of the index on purpose
+        # to avoid per-trace cardinality), so a plain full-text substring match against the raw
+        # JSON log line is more robust here than a label-based query.
+        customQuery: true
+        query: '{container=~".+"} |= "${__span.traceId}"'
       nodeGraph:
         enabled: true

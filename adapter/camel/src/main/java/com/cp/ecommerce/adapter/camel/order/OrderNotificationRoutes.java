@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.camel.order;
 
+import java.util.Objects;
+
 import com.cp.ecommerce.adapter.camel.configuration.CamelProperties;
 import com.cp.ecommerce.domain.order.Order;
 import com.google.gson.Gson;
@@ -68,14 +70,14 @@ public class OrderNotificationRoutes extends RouteBuilder {
 
     private boolean isDomesticOrder(final Exchange exchange) {
 
-        final Order order = exchange.getIn().getBody(Order.class);
+        final Order order = Objects.requireNonNull(exchange.getIn().getBody(Order.class), "Exchange body must be an Order");
         final String countryCode = order.getCustomer().getAddress().getCountryCode();
         return camelProperties.domesticCountryCode().equalsIgnoreCase(countryCode);
     }
 
     private void marshalToJson(final Exchange exchange) {
 
-        final Order order = exchange.getIn().getBody(Order.class);
+        final Order order = Objects.requireNonNull(exchange.getIn().getBody(Order.class), "Exchange body must be an Order");
         exchange.getIn().setHeader(ORDER_NUMBER_HEADER, order.getOrderNumber());
         exchange.getIn().setBody(gson.toJson(order));
     }

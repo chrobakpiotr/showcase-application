@@ -1,7 +1,10 @@
 package com.cp.ecommerce.adapter.web.order;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
+import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
@@ -17,6 +20,7 @@ import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +31,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.atMostOnce;
 import static org.mockito.Mockito.never;
@@ -67,6 +73,18 @@ class OrderControllerTest {
 
     @MockitoBean
     private transient OrderMetrics orderMetrics;
+
+    @MockitoBean
+    private transient RateLimitedExecutor rateLimitedExecutor;
+
+    @BeforeEach
+    void stubRateLimiterToRunActionsThrough() {
+
+        given(rateLimitedExecutor.callRateLimited(anyString(), any())).willAnswer(invocation -> {
+            final Supplier<?> action = invocation.getArgument(1);
+            return action.get();
+        });
+    }
 
     @Test
     void shouldPlaceOrderSuccessfully() throws Exception {
@@ -117,6 +135,23 @@ class OrderControllerTest {
                 .andDo(print())
                 .andExpect(status().isCreated());
 
+        verify(orderMetrics, never()).recordOrderPlaced();
+    }
+
+    @Test
+    void shouldRespondWith429WhenRateLimitExceeded() throws Exception {
+
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
+        willThrow(new RateLimitExceededException("Rate limit exceeded for 'placeOrder'", null)).given(rateLimitedExecutor)
+                .callRateLimited(anyString(), any());
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isTooManyRequests())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Rate Limit Exceeded"));
+
+        verify(placeOrderUseCase, never()).placeOrder(any(), any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
 

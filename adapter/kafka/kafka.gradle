@@ -16,7 +16,11 @@ dependencies {
     implementation 'com.google.code.gson:gson'
     implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
-    implementation 'org.springframework.kafka:spring-kafka'
+    // spring-boot-starter-kafka (not the bare spring-kafka library) is required: Spring Boot 4
+    // split per-technology autoconfiguration out of spring-boot-autoconfigure into dedicated
+    // modules (e.g. spring-boot-kafka, spring-boot-amqp), each pulled in transitively by its
+    // starter. Without it there is no KafkaAutoConfiguration to supply the KafkaTemplate bean.
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
     implementation 'org.slf4j:slf4j-api'
     testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
 }

@@ -2,7 +2,11 @@
 # Start with: docker compose -f etc/docker/observability/docker-compose.yml up -d
 # Prometheus scrapes the app's /actuator/prometheus endpoint on the management port (9081).
 # The app exports traces via OTLP/HTTP to Tempo on port 4318 (see application-security.yml).
-# Grafana (http://localhost:3000, admin/admin) comes pre-provisioned with both datasources
+# Promtail ships every container's stdout on this Docker host to Loki (see
+# promtail/promtail-config.yaml) - since the app itself runs on the host in this standalone
+# topology (see the root README's "Option 2"), only the observability containers' own logs are
+# collected here; run the root docker-compose.yml instead for the app's logs too.
+# Grafana (http://localhost:3000, admin/admin) comes pre-provisioned with all three datasources
 # and a starter "Showcase application - Overview" dashboard.
 services:
   prometheus:
@@ -28,6 +32,31 @@ services:
       - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:3.3.4
+    container_name: ecommerce-loki
+    command: [ "-config.file=/etc/loki/loki-config.yaml" ]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.3.4
+    container_name: ecommerce-promtail
+    command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
+    volumes:
+      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      # Read-only access to the Docker daemon's own API (service discovery) and the container log
+      # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
+      # stops, or otherwise controls containers through this socket, only reads.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
   grafana:
     image: grafana/grafana:11.3.1
     container_name: ecommerce-grafana
@@ -40,8 +69,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
     depends_on:
       - prometheus
       - tempo
+      - loki
     restart: unless-stopped

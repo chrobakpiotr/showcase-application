@@ -2,3 +2,10 @@ logging:
   structured:
     format:
       console: ecs
+    json:
+      context:
+        # Ensures MDC content - most importantly traceId/spanId, populated automatically by the
+        # OTel tracing bridge while a span is active - is included in the JSON output. This is
+        # what lets Grafana's Tempo -> Loki "trace to logs" link and the Loki datasource's
+        # traceId -> Tempo derived field (see etc/docker/observability/grafana) work.
+        include: true

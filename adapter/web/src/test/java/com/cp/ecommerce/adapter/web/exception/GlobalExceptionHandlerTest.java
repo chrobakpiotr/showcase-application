@@ -6,6 +6,7 @@ import java.util.Set;
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.order.Order;
 
@@ -30,6 +31,7 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 /**
  * Unit tests of the {@link GlobalExceptionHandler} behavior.
@@ -95,6 +97,16 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Idempotency Key Conflict",
                 EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleRateLimitExceededException() {
+
+        assertProblem(
+                handler.rateLimitExceededException(new RateLimitExceededException(EXCEPTION_MESSAGE, null)),
+                TOO_MANY_REQUESTS,
+                "Rate Limit Exceeded",
+                "Too many requests, please retry after a short delay");
     }
 
     @Test

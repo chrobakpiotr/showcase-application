@@ -59,6 +59,30 @@ autoscaling:
   maxReplicas: 5
   targetCPUUtilizationPercentage: 75
 
+# Voluntary-disruption budget (node drains, cluster upgrades, `kubectl evict`). Left disabled by
+# default since it only makes sense once more than one replica is actually running - a minAvailable
+# of 1 with replicaCount: 1 would block every voluntary eviction outright. Turn it on together with
+# replicaCount > 1 or autoscaling.enabled.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# NetworkPolicy restricting the pod's ingress/egress traffic to what it actually needs. Disabled by
+# default because enforcement depends entirely on the cluster's CNI (Calico, Cilium, etc.) -
+# vanilla `kind`'s default `kindnet` CNI silently ignores NetworkPolicy resources rather than
+# enforcing them, so this is opt-in rather than a default that would give a false sense of security.
+# egressPorts lists the TCP ports of same-namespace dependencies the pod is allowed to reach,
+# defaulting to Postgres/RabbitMQ/Keycloak/Tempo-OTLP from dev-dependencies.yaml plus Redis (see
+# ADR 0010); DNS (port 53) is always allowed separately so name resolution keeps working.
+networkPolicy:
+  enabled: false
+  egressPorts:
+    - 5432 # Postgres
+    - 5672 # RabbitMQ
+    - 6379 # Redis
+    - 8080 # Keycloak
+    - 4318 # Tempo OTLP/HTTP
+
 # Connection details for dependent services. Defaults assume Postgres/RabbitMQ/Redis/Keycloak/
 # Tempo are deployed as their own Services in the same namespace, named as below (bring your own
 # manifests, a Bitnami chart, or reuse an external managed instance by overriding the host/port

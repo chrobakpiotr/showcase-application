@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 /**
  * Class serving exception handling functionality.
@@ -49,6 +51,7 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_BUSINESS_RULE_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "business-rule-violation");
     private static final URI TYPE_IDEMPOTENCY_KEY_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "idempotency-key-conflict");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
+    private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
 
     @ResponseStatus(BAD_REQUEST)
@@ -80,6 +83,18 @@ public class GlobalExceptionHandler {
                 TYPE_IDEMPOTENCY_KEY_CONFLICT,
                 "Idempotency Key Conflict",
                 exception.getMessage());
+    }
+
+    @ResponseStatus(TOO_MANY_REQUESTS)
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ProblemDetail rateLimitExceededException(final RateLimitExceededException exception) {
+
+        return problemDetail(
+                exception,
+                TOO_MANY_REQUESTS,
+                TYPE_RATE_LIMIT_EXCEEDED,
+                "Rate Limit Exceeded",
+                "Too many requests, please retry after a short delay");
     }
 
     @ResponseStatus(INTERNAL_SERVER_ERROR)

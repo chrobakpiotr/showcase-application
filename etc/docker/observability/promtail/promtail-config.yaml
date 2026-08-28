@@ -1,0 +1,46 @@
+# Ships every container's stdout/stderr on this Docker host to Loki. Uses Docker service
+# discovery against the daemon directly (not scoped to a single compose project), so the same
+# config works whether Promtail is started from the root docker-compose.yml (full stack, app
+# included) or from this standalone etc/docker/observability/docker-compose.yml (app instead runs
+# on the host via an IDE - see the root README's "Option 2" - and therefore isn't picked up here,
+# only the observability containers themselves are).
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Container names are exposed with a leading "/" (e.g. "/ecommerce-app") - strip it so the
+      # "container" label matches what "docker ps"/docker-compose show.
+      - source_labels: [ __meta_docker_container_name ]
+        regex: '/(.*)'
+        target_label: container
+      - source_labels: [ __meta_docker_container_log_stream ]
+        target_label: stream
+    pipeline_stages:
+      # Application containers log ECS-formatted structured JSON (see the "json-logging" Spring
+      # profile, wired into the docker/k8s profiles in application-docker.yml/application-k8s.yml);
+      # parsing out the nested "log.level" field turns it into a proper Loki label so log volume
+      # can be filtered/graphed by severity. traceId/spanId are deliberately *not* promoted to
+      # labels here - Loki labels are meant to stay low-cardinality (a handful of index streams),
+      # and a label per unique trace ID would blow that up badly. They're still fully searchable
+      # via `| json | traceId="..."` LogQL, and the Loki datasource (see datasources.yml) links
+      # straight from the raw JSON text to Tempo via a derived field regex instead, so no extra
+      # plumbing is needed here for that. Non-JSON log lines (e.g. Postgres, RabbitMQ, Grafana
+      # itself) simply fail this stage silently and are still shipped with their raw text
+      # untouched.
+      - json:
+          expressions:
+              level: log.level
+      - labels:
+          level:

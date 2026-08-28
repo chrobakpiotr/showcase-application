@@ -214,11 +214,14 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
 - Health: `http://localhost:9081/actuator/health`
 - Traces are exported over OTLP/HTTP to `http://localhost:4318/v1/traces` (configurable via
   `management.otlp.tracing.endpoint`), with 100% sampling enabled for local/demo purposes.
-- Structured JSON console logging (Elastic Common Schema) can be enabled by activating the `json-logging`
-  Spring profile, useful for log aggregation in containerized/production environments.
+- Structured JSON console logging (Elastic Common Schema, via Spring Boot's native
+  `logging.structured.format.console` support - no third-party encoder needed) is provided by the opt-in
+  `json-logging` Spring profile and is automatically pulled in by both the `docker` and `k8s` profiles, since a
+  container's stdout is the only sane place to collect logs from in either environment. It can also be activated
+  standalone (e.g. for `local`) via `--spring.profiles.active=local,json-logging`.
 
-A ready-to-use observability stack (Prometheus + Grafana + Tempo, with pre-provisioned datasources and an
-"Showcase application - Overview" dashboard) is provided under `/etc/docker/observability`:
+A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Promtail, with pre-provisioned datasources
+and an "Showcase application - Overview" dashboard) is provided under `/etc/docker/observability`:
 
 ```
 docker compose -f etc/docker/observability/docker-compose.yml up -d
@@ -226,7 +229,18 @@ docker compose -f etc/docker/observability/docker-compose.yml up -d
 
 Grafana will be available at `http://localhost:3000` (admin/admin, or anonymous access is enabled for
 convenience). Prometheus scrapes the running application's actuator endpoint directly on the host, so start the
-Spring Boot application separately before/after bringing up the stack.
+Spring Boot application separately before/after bringing up the stack. Promtail ships every container's stdout to
+Loki (parsing out `log.level` as a Loki label for severity filtering, without promoting high-cardinality fields
+like `traceId` to labels), completing the metrics/traces/logs observability triad:
+
+- Grafana's Tempo datasource is wired to "trace to logs", jumping straight from any span to its matching Loki log
+  lines via a full-text `traceId` search.
+- The Loki datasource's `traceId` derived field links back the other way, from any log line containing a
+  `traceId` field to the matching trace in Tempo.
+
+Running the full stack instead via the root `docker-compose.yml` (which also builds and starts the application
+itself, with the `docker`+`json-logging` profiles active) exercises this end-to-end: every application log line is
+ECS-formatted JSON, correctly parsed by Promtail, and searchable/cross-linkable in Grafana.
 
 ## Resilience
 
@@ -246,6 +260,19 @@ Resilience4j's Spring Boot autoconfiguration starter is intentionally *not* used
 plain Java beans instead. When a `MeterRegistry` is present (i.e. the full application, not isolated module tests),
 circuit breaker/retry metrics are automatically bound to Micrometer and show up alongside the other Prometheus
 metrics described above.
+
+### Rate limiting
+
+The order placement endpoint (`POST /api/order`) is also protected by a resilience4j
+[`RateLimiter`](https://resilience4j.readme.io/docs/ratelimiter), guarding it against traffic spikes and basic
+abuse. The `placeOrder` limiter instance allows 20 requests per second and fails fast
+(`timeoutDuration = Duration.ZERO`) instead of queueing the calling virtual thread - a request that arrives once the
+limit is exhausted is rejected immediately rather than waiting for the next refresh period.
+
+The reusable `RateLimitedExecutor` (`adapter:common`, sitting next to `ResilientExecutor`) translates resilience4j's
+`RequestNotPermitted` into the adapter-agnostic `RateLimitExceededException`, which `GlobalExceptionHandler` maps to
+an HTTP `429 Too Many Requests` Problem Details response. Rate limiter metrics are bound to Micrometer through the
+same `TaggedRateLimiterMetrics` mechanism used for the circuit breaker/retry metrics above.
 
 ### Chaos testing (Toxiproxy)
 
@@ -617,7 +644,9 @@ helm install ecommerce etc/k8s/helm/ecommerce
 
 The Deployment's pod/container `securityContext` defaults follow the Kubernetes "restricted" Pod
 Security Standard (non-root, read-only root filesystem, all Linux capabilities dropped - see
-`etc/k8s/README.md#pod-security`).
+`etc/k8s/README.md#pod-security`). An opt-in `PodDisruptionBudget` and `NetworkPolicy` are also
+available (`podDisruptionBudget.enabled` / `networkPolicy.enabled`, both off by default - see
+`etc/k8s/README.md#availability-and-network-hardening`).
 
 See [`etc/k8s/README.md`](etc/k8s/README.md) for the full walkthrough, configuration options, and
 how to point the chart at externally-hosted dependencies instead.

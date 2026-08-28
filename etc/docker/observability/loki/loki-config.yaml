@@ -1,0 +1,33 @@
+# Minimal single-process Loki config for local development - filesystem storage, no
+# object-storage/replication/multi-tenancy setup, matching the scale of the rest of this
+# showcase's observability stack (single-node Prometheus/Tempo, no HA).
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Showcase/local-dev retention only - short enough to not accumulate disk usage indefinitely
+  # across long-running local stacks, generous enough to cover a normal working session.
+  retention_period: 168h

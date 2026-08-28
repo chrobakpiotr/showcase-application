@@ -5,7 +5,13 @@
 spring:
   config:
     import:
-      classpath:application.yml,classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-cache-redis.yml
+      classpath:application.yml,classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-cache-redis.yml,classpath:application-json-logging.yml
+  # See application-docker.yml for the rationale - a container's stdout is the only sane place to
+  # collect logs from in Kubernetes (no writable filesystem to speak of, see
+  # etc/k8s/README.md#pod-security), so it needs to already be machine-parseable JSON for whatever
+  # log-shipping agent (Promtail, Fluent Bit, ...) tails it. Imported directly (rather than via
+  # spring.profiles.include, which Boot disallows in a profile-specific document such as this one)
+  # alongside the rest of this profile's config.
   datasource:
     url: "jdbc:postgresql://${DB_HOST:ecommerce-postgres}:${DB_PORT:5432}/${DB_NAME:test_db}"
     username: ${DB_USERNAME:sa}

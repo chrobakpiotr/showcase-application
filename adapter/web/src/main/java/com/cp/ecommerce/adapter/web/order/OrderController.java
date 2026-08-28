@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.web.order;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
+import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
@@ -49,6 +50,8 @@ public class OrderController {
 
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
+    private static final String PLACE_ORDER_RATE_LIMITER = "placeOrder";
+
     private final PlaceOrderUseCase placeOrderUseCase;
 
     private final ManageOrderUseCase manageOrderUseCase;
@@ -56,6 +59,8 @@ public class OrderController {
     private final OrderWebMapper orderWebMapper;
 
     private final OrderMetrics orderMetrics;
+
+    private final RateLimitedExecutor rateLimitedExecutor;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -82,6 +87,12 @@ public class OrderController {
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
+            responseCode = "429",
+            description = "Too many order placement requests; retry after a short delay",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(
             responseCode = "500",
             description = "Order data is missing or invalid",
             content = @Content(
@@ -95,7 +106,8 @@ public class OrderController {
         Optional.ofNullable(order).ifPresentOrElse(Order::assertValidationsEmpty, () -> {
             throw new TechnicalProblemException("Order data is missing");
         });
-        final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, idempotencyKey);
+        final PlaceOrderResult result = rateLimitedExecutor
+                .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
         if (result.newlyPlaced()) {
 
             orderMetrics.recordOrderPlaced();

@@ -3,8 +3,13 @@
 # sharing the same Docker network.
 spring:
   config:
+    # Structured JSON console output (see adapter/security/application-json-logging.yml) so
+    # Promtail/Loki (etc/docker/observability) can parse fields directly instead of scraping raw
+    # text - a containerized deployment's stdout is the natural place log-shipping agents tail
+    # from. Imported directly (rather than via spring.profiles.include, which Boot disallows in a
+    # profile-specific document such as this one) alongside the rest of this profile's config.
     import:
-      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml,classpath:application-cache-redis-docker.yml
+      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml,classpath:application-cache-redis-docker.yml,classpath:application-json-logging.yml
   liquibase:
     contexts: local
 

@@ -141,6 +141,33 @@ services:
     volumes:
       - ./etc/docker/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
 
+  loki:
+    image: grafana/loki:3.3.4
+    container_name: ecommerce-loki
+    restart: unless-stopped
+    command: [ "-config.file=/etc/loki/loki-config.yaml" ]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./etc/docker/observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+
+  promtail:
+    image: grafana/promtail:3.3.4
+    container_name: ecommerce-promtail
+    restart: unless-stopped
+    command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
+    volumes:
+      - ./etc/docker/observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      # Read-only access to the Docker daemon's own API (service discovery) and the container log
+      # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
+      # stops, or otherwise controls containers through this socket, only reads. This is what
+      # picks up the "app" service's own JSON stdout (see logging.structured.format.console in
+      # application-docker.yml) alongside every other container's.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+
   grafana:
     image: grafana/grafana:11.3.1
     container_name: ecommerce-grafana
@@ -154,10 +181,10 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - ./etc/docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./etc/docker/observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
     depends_on:
       - prometheus
       - tempo
+      - loki
 
   # ---- AWS LocalStack stack (opt-in: docker compose --profile aws up) ----
   #
