@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Configuration;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
@@ -28,8 +27,7 @@ public class OpenApiConfiguration {
                         new Info().title("Showcase application - E-commerce API")
                                 .description("REST API showcasing application for placing " + "and retrieving orders.")
                                 .version("v1")
-                                .contact(new Contact().name("Showcase maintainers"))
-                                .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))
+                                .contact(new Contact().name("Showcase maintainers")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH_SCHEME_NAME))
                 .schemaRequirement(
                         BEARER_AUTH_SCHEME_NAME,

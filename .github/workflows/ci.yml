@@ -135,6 +135,74 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  infra-validation:
+    name: Infra-as-config validation (Docker, Helm, Terraform, AsyncAPI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Building the actual container image (not just compiling the jar) catches issues that unit
+      # tests alone can't, e.g. missing Boot auto-configuration starters that only bite once the
+      # app boots inside its real Docker image / classpath.
+      - name: Build container image
+        run: docker build -t showcase-application:ci .
+
+      - name: Validate docker-compose files
+        run: |
+          docker compose config -q
+          docker compose -f etc/docker/observability/docker-compose.yml config -q
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+
+      - name: Lint and render Helm chart
+        run: |
+          helm lint etc/k8s/helm/ecommerce
+          helm template etc/k8s/helm/ecommerce > /dev/null
+          helm template etc/k8s/helm/ecommerce \
+            --set autoscaling.enabled=true \
+            --set podDisruptionBudget.enabled=true \
+            --set networkPolicy.enabled=true > /dev/null
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Validate Terraform (LocalStack provisioning)
+        working-directory: etc/terraform
+        run: |
+          terraform fmt -check -diff
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Validate AsyncAPI spec
+        run: npx --yes @asyncapi/cli validate etc/asyncapi/asyncapi.yml
+
+  container-image-scan:
+    name: Container image vulnerability scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Build container image
+        run: docker build -t showcase-application:ci .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: showcase-application:ci
+          format: table
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          # Report-only for now (doesn't fail the build) - the base eclipse-temurin image's CVE
+          # backlog isn't something this showcase project controls the remediation timeline for;
+          # the scan's value here is visibility, matching the OWASP DependencyCheck job's
+          # continue-on-error stance on the same tradeoff for source dependencies.
+          exit-code: '0'
+
   frontend:
     name: Frontend build, lint & test
     runs-on: ubuntu-latest

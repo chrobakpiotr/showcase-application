@@ -10,8 +10,6 @@ info:
     originate from the same transactional outbox (`OrderPlacementSagaOrchestrator`) once an order
     has been persisted - see [docs/adr/0002](../../docs/adr/0002-transactional-outbox-over-2pc.md)
     and [docs/adr/0009](../../docs/adr/0009-order-placement-saga.md).
-  license:
-    name: Unlicense
 
 defaultContentType: application/json
 

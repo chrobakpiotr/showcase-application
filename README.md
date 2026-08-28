@@ -139,9 +139,19 @@ endpoints), see the standalone Keycloak Compose file referenced in
 
 ## Continuous Integration
 
-A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR: backend build, test and quality
-gates (Checkstyle, PMD, SpotBugs, JaCoCo, Spotless), an OWASP DependencyCheck scan, a CycloneDX SBOM
-generation job, and a separate frontend build/lint/test job.
+A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
+
+- Backend build, test and quality gates (Checkstyle, PMD, SpotBugs, JaCoCo, Spotless).
+- An OWASP DependencyCheck scan and a CycloneDX SBOM generation job (source-dependency security/inventory).
+- `infra-validation`: builds the actual container image (not just the jar - catches issues unit tests alone
+  can't, such as a missing Boot auto-configuration starter that only surfaces once the app boots inside its real
+  classpath), validates both docker-compose files, lints/renders the Helm chart (with its opt-in flags on and
+  off), validates the Terraform config (`fmt`/`validate`), and validates the AsyncAPI spec.
+- `container-image-scan`: a [Trivy](https://trivy.dev/) scan of the built container image for OS/library
+  vulnerabilities - the missing piece alongside DependencyCheck (source deps) and CodeQL (source code) for a
+  full supply-chain security picture. Report-only (doesn't fail the build), since remediation of the base
+  image's own CVE backlog isn't on this project's timeline.
+- A separate frontend build/lint/test job.
 
 ## API documentation
 

@@ -37,6 +37,15 @@ updates:
       - "dependencies"
       - "docker"
 
+  # Terraform provider (AWS/LocalStack provisioning, see etc/terraform)
+  - package-ecosystem: "terraform"
+    directory: "/etc/terraform"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "terraform"
+
   # CI/CD workflow actions
   - package-ecosystem: "github-actions"
     directory: "/"
