@@ -23,6 +23,8 @@ than editing it in place.
 | [0014](0014-in-process-kafka-consumer-order-analytics-read-model.md) | In-process Kafka consumer closes the order-analytics read model loop |
 | [0015](0015-end-to-end-tests-playwright-in-ci.md) | End-to-end tests (Playwright) against the containerized stack in CI |
 | [0016](0016-cicd-supply-chain-hardening.md) | CI/CD supply-chain hardening (SHA-pinned actions, dependency review, OpenSSF Scorecard) |
+| [0017](0017-order-api-operator-authorization-model.md) | Order API authorization model: role-based operator access, not per-customer ownership |
+| [0018](0018-kafka-consumer-error-handling.md) | Kafka consumer error handling: dead-letter topic + idempotent upsert |
 
 ## Template for new ADRs
 

@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
+import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
@@ -45,13 +46,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
  * Controller serving the functionality of {@link Order} API.
+ * <p>
+ * {@code ORDER_READ}/{@code ORDER_WRITE} grant access to every order in the system rather than only the caller's own - this is
+ * a back-office/operator authorization model, not per-customer ownership scoping (see ADR 0017). Accountability is instead
+ * provided by logging the acting operator's identity on every mutating action.
  */
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/order")
@@ -75,6 +82,8 @@ public class OrderController {
     private final OrderMetrics orderMetrics;
 
     private final RateLimitedExecutor rateLimitedExecutor;
+
+    private final CurrentOperatorProvider currentOperatorProvider;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -124,6 +133,10 @@ public class OrderController {
         if (result.newlyPlaced()) {
 
             orderMetrics.recordOrderPlaced();
+            log.info(
+                    "Order {} placed by operator {}",
+                    result.orderNumber(),
+                    currentOperatorProvider.currentOperator().orElse("unknown"));
         }
         return new OrderPlacementResource(result.orderNumber());
     }
@@ -237,6 +250,7 @@ public class OrderController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
         orderMetrics.recordOrderCancelled();
+        log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
     }
 

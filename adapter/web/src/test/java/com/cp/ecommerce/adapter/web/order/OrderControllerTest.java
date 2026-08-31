@@ -10,6 +10,7 @@ import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
@@ -93,6 +94,9 @@ class OrderControllerTest {
     @MockitoBean
     private transient RateLimitedExecutor rateLimitedExecutor;
 
+    @MockitoBean
+    private transient CurrentOperatorProvider currentOperatorProvider;
+
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
 
@@ -117,6 +121,7 @@ class OrderControllerTest {
 
         verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
+        verify(currentOperatorProvider, atLeastOnce()).currentOperator();
     }
 
     @Test
@@ -153,6 +158,7 @@ class OrderControllerTest {
                 .andExpect(status().isCreated());
 
         verify(orderMetrics, never()).recordOrderPlaced();
+        verify(currentOperatorProvider, never()).currentOperator();
     }
 
     @Test
@@ -259,6 +265,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$._links.cancel").doesNotExist());
 
         verify(orderMetrics).recordOrderCancelled();
+        verify(currentOperatorProvider, atLeastOnce()).currentOperator();
     }
 
     @Test
@@ -270,6 +277,7 @@ class OrderControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(orderMetrics, never()).recordOrderCancelled();
+        verify(currentOperatorProvider, never()).currentOperator();
     }
 
     @Test
@@ -288,6 +296,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.title").value("Order Not Cancellable"));
 
         verify(orderMetrics, never()).recordOrderCancelled();
+        verify(currentOperatorProvider, never()).currentOperator();
     }
 
     @Test

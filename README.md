@@ -250,6 +250,17 @@ automatically:
 Everything else (the Angular frontend under `/home`, Swagger UI, actuator health/info/metrics/prometheus
 endpoints) remains publicly accessible.
 
+**This is a role-based operator model, not per-customer ownership.** `ORDER_READ`/`ORDER_WRITE` grant
+access to the *entire* order book - there is no "customers can only see their own orders" check
+anywhere in the stack, and that's intentional: this API models a back-office/call-center (CSR) tool
+where a small number of staff accounts act on behalf of any customer (note how
+`POST /api/order/{orderNumber}/cancel` is documented as cancelling "on the customer's behalf"), not a
+direct-to-consumer self-service portal - there is no customer sign-up/login/"my orders" flow anywhere
+in the frontend. Accountability for who acted is instead provided by logging the acting operator's
+identity on every order placement and cancellation (see [Order API operator authorization
+model](docs/adr/0017-order-api-operator-authorization-model.md) for the full reasoning, including what
+would need to change before this API could be exposed directly to end customers).
+
 Beyond the standard signature/expiry/issuer checks, tokens are also validated against an expected `aud`
 (audience) claim (`spring.security.oauth2.resourceserver.jwt.audiences`, see `application-security.yml`), so a
 validly signed, unexpired token issued by the same Keycloak realm to a *different* client is still rejected.
