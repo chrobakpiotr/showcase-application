@@ -21,9 +21,10 @@ describe('app routes', () => {
     expect(defaultRoute?.pathMatch).toBe('full');
   });
 
-  it('redirects wildcard path to error', () => {
+  it('redirects wildcard path to the not-found component', async () => {
     const wildcardRoute = routes.find((route) => route.path === '**');
-    expect(wildcardRoute?.redirectTo).toBe('error');
-    expect(wildcardRoute?.pathMatch).toBe('full');
+    expect(wildcardRoute).toBeTruthy();
+    const component = await wildcardRoute?.loadComponent?.();
+    expect(component).toBeDefined();
   });
 });

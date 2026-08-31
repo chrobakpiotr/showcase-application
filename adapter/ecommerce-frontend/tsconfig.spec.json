@@ -15,6 +15,9 @@
     "src/**/*.d.ts"
   ],
   "angularCompilerOptions": {
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true,
     "extendedDiagnostics": {
       "checks": {
         "nullishCoalescingNotNullable": "suppress",

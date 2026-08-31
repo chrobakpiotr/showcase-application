@@ -14,5 +14,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   { path: '', redirectTo: 'order', pathMatch: 'full' },
-  { path: '**', redirectTo: 'error', pathMatch: 'full' },
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./not-found/not-found.component').then(
+        (m) => m.NotFoundComponent
+      ),
+  },
 ];

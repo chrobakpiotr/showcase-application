@@ -11,6 +11,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 
 import { authInterceptor } from '@app/auth/auth.interceptor';
+import { GlobalErrorHandler } from '@app/core/global-error-handler';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
@@ -24,6 +25,6 @@ export const appConfig: ApplicationConfig = {
     ),
     Title,
     { provide: APP_BASE_HREF, useValue: '/home' },
-    { provide: ErrorHandler },
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
   ],
 };

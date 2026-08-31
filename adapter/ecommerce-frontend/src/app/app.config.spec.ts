@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
+import { GlobalErrorHandler } from '@app/core/global-error-handler';
 import { appConfig } from './app.config';
 
 describe('appConfig', () => {
@@ -26,9 +27,8 @@ describe('appConfig', () => {
     expect(TestBed.inject(APP_BASE_HREF)).toBe('/home');
   });
 
-  it('registers an error handler provider', () => {
-    expect(() =>
-      TestBed.runInInjectionContext(() => inject(ErrorHandler))
-    ).not.toThrow();
+  it('registers a GlobalErrorHandler as the ErrorHandler', () => {
+    const handler = TestBed.runInInjectionContext(() => inject(ErrorHandler));
+    expect(handler).toBeInstanceOf(GlobalErrorHandler);
   });
 });
