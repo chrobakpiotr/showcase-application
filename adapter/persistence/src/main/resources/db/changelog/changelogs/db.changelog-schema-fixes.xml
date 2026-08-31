@@ -20,4 +20,24 @@
 
     </changeSet>
 
+    <!-- OrderPlacementSagaOrchestrator#publishPendingEvents polls OutboxEventEntityRepository#findAllByStatusOrderByCreatedDateAsc(PENDING) every outbox.publisher.poll-interval-ms (5s by default), i.e. this exact WHERE STATUS = ? ORDER BY CREATED_DATE query runs continuously for the lifetime of the application, yet OUTBOX_EVENT was never indexed on either column - every poll is a full table scan. 
+        A composite index (rather than two single-column ones) lets the DB satisfy both the filter and the ORDER BY from the same index scan without an extra sort step. -->
+    <changeSet id="14" author="cp">
+
+        <createIndex indexName="IDX_OUTBOX_EVENT_STATUS_CREATED_DATE" schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="STATUS" />
+            <column name="CREATED_DATE" />
+        </createIndex>
+
+    </changeSet>
+
+    <!-- FindOrdersAdapter#findAll (backing GET /api/order, the paginated order listing) sorts by CREATION_DATE descending on every call, yet the column was never indexed - degrading to a full sort of the whole table as order volume grows instead of an index-backed scan. -->
+    <changeSet id="15" author="cp">
+
+        <createIndex indexName="IDX_ORDER_CREATION_DATE" schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="CREATION_DATE" />
+        </createIndex>
+
+    </changeSet>
+
 </databaseChangeLog>
