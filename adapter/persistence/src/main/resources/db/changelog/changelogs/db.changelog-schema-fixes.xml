@@ -40,4 +40,13 @@
 
     </changeSet>
 
+    <!-- OrderAnalyticsEventConsumer is an at-least-once Kafka consumer (redelivery on rebalance/restart/retry), so the same order-analytics event can be consumed more than once. SaveOrderAnalyticsProjectionAdapter now relies on this unique constraint (catching the resulting DataIntegrityViolationException) to make re-processing a no-op instead of creating duplicate projection rows for the same order. -->
+    <changeSet id="16" author="cp">
+
+        <createIndex indexName="UK_ORDER_ANALYTICS_PROJECTION_ORDER_NUMBER" schemaName="${schema_name_full}" tableName="ORDER_ANALYTICS_PROJECTION" unique="true">
+            <column name="ORDER_NUMBER" />
+        </createIndex>
+
+    </changeSet>
+
 </databaseChangeLog>

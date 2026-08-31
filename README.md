@@ -580,6 +580,12 @@ customer analytics" consumers named as hypothetical subscribers above:
   security configuration changes were needed to add it.
 - This is a best-effort read model by design: if Kafka is disabled or nothing has been consumed yet, the endpoint
   simply returns an empty collection rather than an error.
+- **Delivery semantics**: at-least-once, made safe end-to-end rather than merely hoped for. Redelivery of an
+  already-recorded event is a no-op (`SaveOrderAnalyticsProjectionAdapter` catches the unique-constraint violation on
+  `ORDER_NUMBER`, mirroring `IdempotencyKeyAdapter`'s pattern), a record that fails processing is retried 3 times
+  (1s apart, `KafkaErrorHandlingConfiguration`) and then published to `com.cp.e.topic.order.analytics-dlt` instead of
+  silently dropped, and the consumer group runs one thread per partition (`spring.kafka.listener.concurrency: 3`) to
+  use the topic's full parallelism. See [ADR 0018](docs/adr/0018-kafka-consumer-error-handling.md).
 
 ## Order fan-out and routing (Apache Camel)
 

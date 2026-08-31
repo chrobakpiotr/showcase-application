@@ -13,10 +13,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.dao.DataIntegrityViolationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 /**
@@ -24,6 +28,8 @@ import static org.mockito.Mockito.never;
  */
 @ExtendWith(MockitoExtension.class)
 class SaveOrderAnalyticsProjectionAdapterTest {
+
+    private static final String ORDER_NUMBER = "ORDER-1";
 
     @InjectMocks
     private transient SaveOrderAnalyticsProjectionAdapter saveOrderAnalyticsProjectionAdapter;
@@ -37,27 +43,43 @@ class SaveOrderAnalyticsProjectionAdapterTest {
     @Test
     void shouldMapAndSaveProjection() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection("ORDER-1", 1L, new Date(), new Date());
-        final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder().orderNumber("ORDER-1").build();
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
+        final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
+                .orderNumber(ORDER_NUMBER)
+                .build();
         given(orderAnalyticsProjectionPersistenceMapper.mapToEntity(projection)).willReturn(Optional.of(entity));
 
         saveOrderAnalyticsProjectionAdapter.save(projection);
 
         final ArgumentCaptor<OrderAnalyticsProjectionEntity> captor = ArgumentCaptor
                 .forClass(OrderAnalyticsProjectionEntity.class);
-        then(orderAnalyticsProjectionEntityRepository).should().save(captor.capture());
+        then(orderAnalyticsProjectionEntityRepository).should().saveAndFlush(captor.capture());
         assertThat(captor.getValue()).isSameAs(entity);
     }
 
     @Test
     void shouldNotSaveWhenMappingFails() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection("ORDER-1", 1L, new Date(), new Date());
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
         given(orderAnalyticsProjectionPersistenceMapper.mapToEntity(projection)).willReturn(Optional.empty());
 
         saveOrderAnalyticsProjectionAdapter.save(projection);
 
-        then(orderAnalyticsProjectionEntityRepository).should(never()).save(any());
+        then(orderAnalyticsProjectionEntityRepository).should(never()).saveAndFlush(any());
+    }
+
+    @Test
+    void shouldIgnoreDuplicateRedeliveryInsteadOfPropagatingException() {
+
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
+        final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
+                .orderNumber(ORDER_NUMBER)
+                .build();
+        given(orderAnalyticsProjectionPersistenceMapper.mapToEntity(projection)).willReturn(Optional.of(entity));
+        willThrow(new DataIntegrityViolationException("duplicate key")).given(orderAnalyticsProjectionEntityRepository)
+                .saveAndFlush(entity);
+
+        assertThatCode(() -> saveOrderAnalyticsProjectionAdapter.save(projection)).doesNotThrowAnyException();
     }
 
 }

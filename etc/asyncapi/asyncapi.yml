@@ -75,6 +75,22 @@ channels:
       orderAnalytics:
         $ref: '#/components/messages/OrderAnalyticsMessage'
 
+  order-analytics-dead-letter-topic:
+    address: com.cp.e.topic.order.analytics-dlt
+    description: >
+      Dead-letter topic for `order-analytics-topic` (same partition count, so
+      `DeadLetterPublishingRecoverer` can preserve the original partition number - see
+      `KafkaErrorHandlingConfiguration` in adapter:kafka). A record only lands here after
+      `OrderAnalyticsEventConsumer` has failed to process it on 4 consecutive delivery attempts (1
+      initial + 3 retries, 1s apart); at that point it is republished here instead of being silently
+      skipped, so it can be inspected or manually replayed - see
+      [docs/adr/0018](../../docs/adr/0018-kafka-consumer-error-handling.md).
+    servers:
+      - $ref: '#/servers/kafka-local'
+    messages:
+      orderAnalytics:
+        $ref: '#/components/messages/OrderAnalyticsMessage'
+
 operations:
   publishOrderPlaced:
     action: send
@@ -120,6 +136,17 @@ operations:
       the pipeline that used to be producer-only.
     messages:
       - $ref: '#/channels/order-analytics-topic/messages/orderAnalytics'
+
+  deadLetterOrderAnalytics:
+    action: send
+    channel:
+      $ref: '#/channels/order-analytics-dead-letter-topic'
+    summary: >
+      Published by the DeadLetterPublishingRecoverer wired in KafkaErrorHandlingConfiguration
+      (adapter:kafka) once OrderAnalyticsEventConsumer has exhausted its retries for a record - see
+      docs/adr/0018.
+    messages:
+      - $ref: '#/channels/order-analytics-dead-letter-topic/messages/orderAnalytics'
 
 components:
   messages:

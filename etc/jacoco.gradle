@@ -22,6 +22,7 @@ jacocoTestCoverageVerification {
                           "com/cp/ecommerce/adapter/amqp/configuration/MessagingConfiguration**",
                           "com/cp/ecommerce/adapter/amqp/order/MessageListener**",
                           "com/cp/ecommerce/adapter/kafka/configuration/KafkaTopicConfiguration**",
+                          "com/cp/ecommerce/adapter/kafka/configuration/KafkaErrorHandlingConfiguration**",
                           "com/cp/ecommerce/adapter/persistence/configuration/SequenceNumberConfiguration**",
                           "com/cp/ecommerce/adapter/aws/configuration/AwsClientConfiguration**",
                           "com/cp/ecommerce/adapter/aws/configuration/AwsProperties**",

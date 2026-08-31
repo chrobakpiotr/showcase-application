@@ -11,3 +11,7 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      # Matches KafkaTopicConfiguration's partition count for the order-analytics topic: one consumer thread per
+      # partition, so a single slow/stuck partition can no longer starve the other two of processing time.
+      concurrency: 3
