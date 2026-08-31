@@ -65,7 +65,7 @@ graph TB
     frontend -->|"REST API calls<br/>(bearer token attached)"| backend
     backend -->|JDBC| postgres
     backend -->|"AMQP<br/>(saga pivot step)"| rabbitmq
-    backend -->|"Analytics event<br/>(best-effort, fan-out)"| kafka
+    backend <-->|"Analytics event<br/>(produced fan-out, consumed into read model)"| kafka
     backend -->|"Cached order read/write<br/>(cache.provider=redis)"| redis
     backend -->|"JWKS / issuer / audience validation"| keycloak
     backend -->|"S3 PutObject, SQS SendMessage,<br/>Secrets Manager GetSecretValue"| localstack
@@ -93,7 +93,7 @@ graph LR
         security["adapter:security<br/>OAuth2 Resource Server / JWT"]
         persistence["adapter:persistence<br/>JPA, outbox, cache"]
         amqp["adapter:amqp<br/>RabbitMQ publisher"]
-        kafka["adapter:kafka<br/>Order analytics event publisher"]
+        kafka["adapter:kafka<br/>Order analytics event publisher & consumer"]
         camel["adapter:camel<br/>Order notification routing (EIPs)"]
         mail["adapter:mail<br/>SMTP + PDF/Freemarker"]
         aws["adapter:aws<br/>S3 / SQS / Secrets Manager"]

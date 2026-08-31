@@ -110,6 +110,17 @@ operations:
     messages:
       - $ref: '#/channels/order-analytics-topic/messages/orderAnalytics'
 
+  consumeOrderAnalytics:
+    action: receive
+    channel:
+      $ref: '#/channels/order-analytics-topic'
+    summary: >
+      Consumed by OrderAnalyticsEventConsumer (adapter:kafka), an @KafkaListener that records each
+      event into a read-model projection queryable via GET /api/order/analytics/recent - completing
+      the pipeline that used to be producer-only.
+    messages:
+      - $ref: '#/channels/order-analytics-topic/messages/orderAnalytics'
+
 components:
   messages:
     OrderPlacedMessage:

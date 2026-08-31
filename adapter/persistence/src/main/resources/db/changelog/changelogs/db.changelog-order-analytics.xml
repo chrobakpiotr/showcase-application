@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Read-model projection populated by OrderAnalyticsEventConsumer (adapter:kafka), completing the producer-only Kafka analytics pipeline with an actual in-process consumer. -->
+
+    <changeSet id="10" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_ANALYTICS_PROJECTION">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_ORDER_ANALYTICS_PROJECTION" />
+            </column>
+
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CUSTOMER_ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORDER_PLACED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="CONSUMED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+    </changeSet>
+
+    <changeSet id="11" author="cp">
+
+        <createSequence sequenceName="SEQ_ORDER_ANALYTICS_PROJECTION" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+</databaseChangeLog>

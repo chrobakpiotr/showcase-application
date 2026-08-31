@@ -491,6 +491,24 @@ docker compose -f etc/docker/kafka/docker-compose.yml up -d
 SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun
 ```
 
+### Order analytics read model (Kafka consumer)
+
+The same service that produces to `com.cp.e.topic.order.analytics` also consumes it, closing the loop from
+"best-effort fan-out event" to a queryable read model - standing in for the "recommendation engine, BI dashboard,
+customer analytics" consumers named as hypothetical subscribers above:
+
+- `OrderAnalyticsEventConsumer` (adapter:kafka, `@KafkaListener`, consumer group `ecommerce-order-analytics`)
+  deserializes each event and persists it as an `OrderAnalyticsProjection` row via `RecordOrderAnalyticsProjectionUseCase` -
+  a deliberately simple, non-resilience4j-wrapped write, consistent with every other persistence write in this codebase
+  (resilience4j is reserved for outbound calls to external systems, not the database).
+- A schema-version mismatch is logged and skipped rather than failing the listener, so an older/newer producer doesn't
+  wedge the consumer group.
+- `GET /api/order/analytics/recent?limit=` (`OrderAnalyticsController`) exposes the most-recently-consumed projections,
+  most recent first, as a HAL collection. It shares the existing `ORDER_READ` security matcher (`/api/order/**`), so no
+  security configuration changes were needed to add it.
+- This is a best-effort read model by design: if Kafka is disabled or nothing has been consumed yet, the endpoint
+  simply returns an empty collection rather than an error.
+
 ## Order fan-out and routing (Apache Camel)
 
 Besides the queue/topic channels above, placing an order also needs to be **routed** to a different

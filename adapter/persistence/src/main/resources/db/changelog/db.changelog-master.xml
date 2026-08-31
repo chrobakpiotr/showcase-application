@@ -17,5 +17,6 @@
     <include file="changelogs/db.changelog-outbox.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-saga.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-idempotency.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-order-analytics.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>
