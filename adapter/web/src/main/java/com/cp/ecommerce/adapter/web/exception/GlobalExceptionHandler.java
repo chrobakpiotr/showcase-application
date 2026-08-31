@@ -11,9 +11,11 @@ import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -87,16 +89,19 @@ public class GlobalExceptionHandler {
                 exception.getMessage());
     }
 
-    @ResponseStatus(TOO_MANY_REQUESTS)
     @ExceptionHandler(RateLimitExceededException.class)
-    public ProblemDetail rateLimitExceededException(final RateLimitExceededException exception) {
+    public ResponseEntity<ProblemDetail> rateLimitExceededException(final RateLimitExceededException exception) {
 
-        return problemDetail(
+        final ProblemDetail problemDetail = problemDetail(
                 exception,
                 TOO_MANY_REQUESTS,
                 TYPE_RATE_LIMIT_EXCEEDED,
                 "Rate Limit Exceeded",
                 "Too many requests, please retry after a short delay");
+        final long retryAfterSeconds = Math.max(1, exception.getRetryAfter().toSeconds());
+        return ResponseEntity.status(TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds))
+                .body(problemDetail);
     }
 
     @ResponseStatus(CONFLICT)

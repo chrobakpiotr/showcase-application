@@ -54,7 +54,9 @@ class RateLimitedExecutorTest {
         assertThatThrownBy(() -> rateLimitedExecutor.callRateLimited(INSTANCE_NAME, invocations::incrementAndGet))
                 .isInstanceOf(RateLimitExceededException.class)
                 .hasMessageContaining(INSTANCE_NAME)
-                .hasCauseInstanceOf(RequestNotPermitted.class);
+                .hasCauseInstanceOf(RequestNotPermitted.class)
+                .extracting(exception -> ((RateLimitExceededException) exception).getRetryAfter())
+                .isEqualTo(Duration.ofMinutes(1));
         assertThat(invocations.get()).isEqualTo(1);
     }
 

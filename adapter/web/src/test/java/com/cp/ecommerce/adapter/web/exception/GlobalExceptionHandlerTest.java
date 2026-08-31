@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.Set;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
@@ -15,9 +16,11 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.ConstraintViolation;
@@ -113,11 +116,25 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldHandleRateLimitExceededException() {
 
+        final ResponseEntity<ProblemDetail> response = handler
+                .rateLimitExceededException(new RateLimitExceededException(EXCEPTION_MESSAGE, Duration.ofSeconds(5), null));
+
+        assertThat(response.getStatusCode()).isEqualTo(TOO_MANY_REQUESTS);
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("5");
         assertProblem(
-                handler.rateLimitExceededException(new RateLimitExceededException(EXCEPTION_MESSAGE, null)),
+                response.getBody(),
                 TOO_MANY_REQUESTS,
                 "Rate Limit Exceeded",
                 "Too many requests, please retry after a short delay");
+    }
+
+    @Test
+    void shouldClampRetryAfterHeaderToAtLeastOneSecond() {
+
+        final ResponseEntity<ProblemDetail> response = handler
+                .rateLimitExceededException(new RateLimitExceededException(EXCEPTION_MESSAGE, Duration.ofMillis(200), null));
+
+        assertThat(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("1");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.common.resilience;
 
+import java.time.Duration;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
@@ -40,7 +41,8 @@ public class RateLimitedExecutor {
             return RateLimiter.decorateSupplier(rateLimiter, action).get();
         } catch (final RequestNotPermitted exception) {
 
-            throw new RateLimitExceededException("Rate limit exceeded for '" + instanceName + "'", exception);
+            final Duration retryAfter = rateLimiter.getRateLimiterConfig().getLimitRefreshPeriod();
+            throw new RateLimitExceededException("Rate limit exceeded for '" + instanceName + "'", retryAfter, exception);
         }
     }
 
