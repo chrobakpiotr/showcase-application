@@ -4,7 +4,7 @@
 # Stage 1 builds the Spring Boot fat jar (including the Angular frontend bundled as static
 # resources); stage 2 copies only the resulting jar into a slim JRE runtime image.
 
-FROM eclipse-temurin:25-jdk AS builder
+FROM eclipse-temurin:25-jdk@sha256:e787e08ef76f4c16866108cd7f9fcd96a68eef3ac6cc76866897d4d02d5a2262 AS builder
 
 WORKDIR /workspace
 
@@ -24,7 +24,7 @@ COPY application ./application
 
 RUN ./gradlew :application:ecommerce:bootJar --no-daemon -x test -x check
 
-FROM eclipse-temurin:25-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682 AS runtime
 
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app

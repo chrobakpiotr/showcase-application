@@ -428,8 +428,8 @@ to the existing standalone infrastructure compose files under `etc/docker/*`.
   excluding `.git` disables the `gradle-git-properties` plugin's git metadata lookup; this is handled by setting
   `gitProperties { failOnNoGitDirectory = false }` in `application/ecommerce/ecommerce.gradle`.
 - `docker-compose.yml` (repo root): brings up the full stack in one command - `app`, `postgres` (official
-  `postgres:16-alpine` image), `rabbitmq` (`rabbitmq:3-management-alpine`), `redis` (`redis:7-alpine`),
-  `keycloak` (`quay.io/keycloak/keycloak:26.0`, importing the same realm used by the JWT security section),
+  `postgres:18-alpine` image), `rabbitmq` (`rabbitmq:4-management-alpine`), `redis` (`redis:8-alpine`),
+  `keycloak` (`quay.io/keycloak/keycloak:26.7`, importing the same realm used by the JWT security section),
   and the observability stack (`prometheus`, `tempo`, `grafana` - the same images/provisioning as
   `etc/docker/observability`). The app container waits on postgres/rabbitmq/redis health checks, keycloak
   and tempo starting. Since the app now shares the same network as Prometheus/Tempo, it uses a dedicated

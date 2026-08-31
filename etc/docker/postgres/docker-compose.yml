@@ -1,12 +1,13 @@
 version: "3.9"
 services:
   postgres:
-    image: centos/postgresql-96-centos7
+    container_name: postgres
+    image: postgres:18-alpine
     restart: always
     environment:
-      - POSTGRESQL_USER=sa
-      - POSTGRESQL_PASSWORD=sa
-      - POSTGRESQL_DATABASE=test_db
+      - POSTGRES_USER=sa
+      - POSTGRES_PASSWORD=sa
+      - POSTGRES_DB=test_db
     logging:
       options:
         max-size: 10m

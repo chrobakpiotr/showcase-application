@@ -1,9 +1,9 @@
 package com.cp.ecommerce.application;
 
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.ApplicationContextInitializer;
@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers(disabledWithoutDocker = true)
 class EcommerceApplicationWithPostgresDbTest extends AbstractEcommerceApplicationTest {
 
-    private static final String IMAGE_VERSION = "postgres:14.1";
+    private static final String IMAGE_VERSION = "postgres:18.6";
 
     private static final String DB_NAME = "test_db";
 
@@ -30,7 +30,7 @@ class EcommerceApplicationWithPostgresDbTest extends AbstractEcommerceApplicatio
     private static final String DB_PASS = "sa";
 
     @Container
-    private static final TestPostgreSQLContainer postgreSQLContainer = new TestPostgreSQLContainer(IMAGE_VERSION)
+    private static final PostgreSQLContainer postgreSQLContainer = new PostgreSQLContainer(IMAGE_VERSION)
             .withDatabaseName(DB_NAME)
             .withUsername(DB_USER)
             .withPassword(DB_PASS);
@@ -51,14 +51,6 @@ class EcommerceApplicationWithPostgresDbTest extends AbstractEcommerceApplicatio
                             "spring.datasource.username=" + postgreSQLContainer.getUsername(),
                             "spring.datasource.password=" + postgreSQLContainer.getPassword())
                     .applyTo(configurableApplicationContext.getEnvironment());
-        }
-    }
-
-    private static final class TestPostgreSQLContainer extends PostgreSQLContainer<TestPostgreSQLContainer> {
-
-        public TestPostgreSQLContainer(String dockerImageName) {
-
-            super(dockerImageName);
         }
     }
 

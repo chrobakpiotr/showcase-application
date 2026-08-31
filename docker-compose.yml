@@ -39,7 +39,7 @@ services:
         condition: service_started
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: ecommerce-postgres
     restart: unless-stopped
     environment:
@@ -55,7 +55,7 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4-management-alpine
     container_name: ecommerce-rabbitmq
     restart: unless-stopped
     environment:
@@ -71,7 +71,7 @@ services:
       retries: 10
 
   kafka:
-    image: apache/kafka:3.9.0
+    image: apache/kafka:4.3.1
     container_name: ecommerce-kafka
     restart: unless-stopped
     environment:
@@ -96,7 +96,7 @@ services:
       retries: 15
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: ecommerce-redis
     restart: unless-stopped
     ports:
@@ -108,20 +108,22 @@ services:
       retries: 10
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0
+    image: quay.io/keycloak/keycloak:26.7
     container_name: ecommerce-keycloak
     restart: unless-stopped
     command: [ "start-dev", "--import-realm" ]
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      # KC_BOOTSTRAP_ADMIN_* is the current, non-deprecated way to seed the initial admin user;
+      # it supersedes the older KEYCLOAK_ADMIN/KEYCLOAK_ADMIN_PASSWORD variables.
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     volumes:
       - ./etc/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "8081:8080"
 
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.14.0
     container_name: ecommerce-prometheus
     restart: unless-stopped
     ports:
@@ -130,7 +132,13 @@ services:
       - ./etc/docker/observability/prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
 
   tempo:
-    image: grafana/tempo:2.6.1
+    # Pinned to the latest 2.x release, not 3.0: Tempo 3.0 replaces the monolithic
+    # ingester/compactor architecture with a new block-builder/live-store design and requires
+    # removing the ingester/compactor config blocks below plus migrating the block format to
+    # vParquet4 - a real migration, not a drop-in version bump. Not worth the added complexity
+    # for this showcase's local-only, non-persistent tracing setup.
+    # See https://grafana.com/docs/tempo/latest/setup/upgrade/#upgrade-to-tempo-30
+    image: grafana/tempo:2.10.8
     container_name: ecommerce-tempo
     restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]
@@ -142,7 +150,7 @@ services:
       - ./etc/docker/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
 
   loki:
-    image: grafana/loki:3.3.4
+    image: grafana/loki:3.7.7
     container_name: ecommerce-loki
     restart: unless-stopped
     command: [ "-config.file=/etc/loki/loki-config.yaml" ]
@@ -152,7 +160,10 @@ services:
       - ./etc/docker/observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
 
   promtail:
-    image: grafana/promtail:3.3.4
+    # Promtail is end-of-life (EOL since March 2026, per Grafana's official announcement) - 3.6.11
+    # is its final release, no further versions will ever be published. Grafana's replacement log
+    # shipper is Alloy; migrating is a reasonable future step but out of scope for this bump.
+    image: grafana/promtail:3.6.11
     container_name: ecommerce-promtail
     restart: unless-stopped
     command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
@@ -169,7 +180,7 @@ services:
       - loki
 
   grafana:
-    image: grafana/grafana:11.3.1
+    image: grafana/grafana:13.2.0
     container_name: ecommerce-grafana
     restart: unless-stopped
     ports:
@@ -198,7 +209,12 @@ services:
   # Keycloak above (issuer-uri uses localhost:8081, jwk-set-uri uses keycloak:8080).
 
   localstack:
-    image: localstack/localstack:3.8
+    # Pinned to the last free "Community" edition release (pre-March-2026 unification).
+    # LocalStack's newer CalVer-tagged images (e.g. 2026.x.y) require a LOCALSTACK_AUTH_TOKEN
+    # for ALL usage, even the community-tier services used here (s3/sqs/secretsmanager) - that
+    # would break the zero-friction "just clone and run" local dev/demo experience this project
+    # aims for. See https://localstack.cloud/2026-updates for background.
+    image: localstack/localstack:4.14.0
     container_name: ecommerce-localstack
     profiles: ["aws"]
     environment:
@@ -213,7 +229,7 @@ services:
       retries: 20
 
   terraform:
-    image: hashicorp/terraform:1.9
+    image: hashicorp/terraform:1.16
     container_name: ecommerce-terraform
     profiles: ["aws"]
     depends_on:
@@ -244,7 +260,7 @@ services:
   # The app must be recreated with the extra "chaos" profile to route through the proxy:
   #   SPRING_PROFILES_ACTIVE=docker,chaos docker compose up -d --force-recreate app
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:2.9.0
+    image: ghcr.io/shopify/toxiproxy:2.12.0
     container_name: ecommerce-toxiproxy
     profiles: ["chaos"]
     command: ["-host=0.0.0.0", "-config=/etc/toxiproxy.json"]

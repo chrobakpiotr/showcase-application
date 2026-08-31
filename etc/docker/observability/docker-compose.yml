@@ -10,7 +10,7 @@
 # and a starter "Showcase application - Overview" dashboard.
 services:
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.14.0
     container_name: ecommerce-prometheus
     ports:
       - "9090:9090"
@@ -21,7 +21,13 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:2.6.1
+    # Pinned to the latest 2.x release, not 3.0: Tempo 3.0 replaces the monolithic
+    # ingester/compactor architecture with a new block-builder/live-store design and requires
+    # removing the ingester/compactor config blocks below plus migrating the block format to
+    # vParquet4 - a real migration, not a drop-in version bump. Not worth the added complexity
+    # for this showcase's local-only, non-persistent tracing setup.
+    # See https://grafana.com/docs/tempo/latest/setup/upgrade/#upgrade-to-tempo-30
+    image: grafana/tempo:2.10.8
     container_name: ecommerce-tempo
     command: [ "-config.file=/etc/tempo.yaml" ]
     ports:
@@ -33,7 +39,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:3.3.4
+    image: grafana/loki:3.7.7
     container_name: ecommerce-loki
     command: [ "-config.file=/etc/loki/loki-config.yaml" ]
     ports:
@@ -43,7 +49,10 @@ services:
     restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:3.3.4
+    # Promtail is end-of-life (EOL since March 2026, per Grafana's official announcement) - 3.6.11
+    # is its final release, no further versions will ever be published. Grafana's replacement log
+    # shipper is Alloy; migrating is a reasonable future step but out of scope for this bump.
+    image: grafana/promtail:3.6.11
     container_name: ecommerce-promtail
     command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
     volumes:
@@ -58,7 +67,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.3.1
+    image: grafana/grafana:13.2.0
     container_name: ecommerce-grafana
     ports:
       - "3000:3000"
