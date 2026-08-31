@@ -6,6 +6,7 @@ import java.util.Set;
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.order.Order;
@@ -96,6 +97,16 @@ class GlobalExceptionHandlerTest {
                 handler.idempotencyKeyConflictException(new IdempotencyKeyConflictException(EXCEPTION_MESSAGE)),
                 CONFLICT,
                 "Idempotency Key Conflict",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleOrderNotCancellableException() {
+
+        assertProblem(
+                handler.orderNotCancellableException(new OrderNotCancellableException(EXCEPTION_MESSAGE)),
+                CONFLICT,
+                "Order Not Cancellable",
                 EXCEPTION_MESSAGE);
     }
 

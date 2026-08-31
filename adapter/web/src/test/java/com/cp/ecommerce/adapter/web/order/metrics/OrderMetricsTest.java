@@ -9,7 +9,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Test class checking that {@link OrderMetrics} records the "orders.placed" counter correctly.
+ * Test class checking that {@link OrderMetrics} records the "orders.placed" and "orders.cancelled" counters correctly.
  */
 class OrderMetricsTest {
 
@@ -37,6 +37,20 @@ class OrderMetricsTest {
         orderMetrics.recordOrderPlaced();
 
         assertThat(meterRegistry.get("orders.placed").counter().count()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldRegisterOrdersCancelledCounterWithZeroInitialValue() {
+
+        assertThat(meterRegistry.get("orders.cancelled").counter().count()).isZero();
+    }
+
+    @Test
+    void shouldIncrementOrdersCancelledCounterOnEachRecordedCancellation() {
+
+        orderMetrics.recordOrderCancelled();
+
+        assertThat(meterRegistry.get("orders.cancelled").counter().count()).isEqualTo(1);
     }
 
 }

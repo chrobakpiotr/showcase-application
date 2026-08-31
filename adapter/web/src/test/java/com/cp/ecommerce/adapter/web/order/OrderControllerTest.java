@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.web.order;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
@@ -17,6 +18,7 @@ import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -56,6 +58,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
 class OrderControllerTest {
 
     private static final String ORDER_ENDPOINT = "/api/order";
+    private static final String CANCEL_PATH_SEGMENT = "/cancel";
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
     private static final String IDEMPOTENCY_KEY_VALUE = "client-key-1";
 
@@ -67,6 +70,9 @@ class OrderControllerTest {
 
     @MockitoBean
     private transient ManageOrderUseCase manageOrderUseCase;
+
+    @MockitoBean
+    private transient RequestOrderCancellationUseCase requestOrderCancellationUseCase;
 
     @MockitoBean
     private transient OrderWebMapper orderWebMapper;
@@ -196,7 +202,7 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource()));
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -204,10 +210,86 @@ class OrderControllerTest {
                 .andExpect(content().contentType("application/hal+json"))
                 .andExpect(jsonPath("$.orderNumber").value(TEST_ORDER_NUMBER))
                 .andExpect(jsonPath("$.customer.fullName").value(CustomerBuilder.TEST_FULL_NAME))
-                .andExpect(jsonPath("$._links.self.href", endsWith(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER)));
+                .andExpect(jsonPath("$._links.self.href", endsWith(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER)))
+                .andExpect(
+                        jsonPath(
+                                "$._links.cancel.href",
+                                endsWith(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT)));
     }
 
-    private OrderDetailsResource mockOrderDetailsResource() {
+    @Test
+    void shouldNotAdvertiseCancelLinkWhenOrderAlreadyCancelled() throws Exception {
+
+        final Order order = cancelledOrder();
+        given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$._links.self").exists())
+                .andExpect(jsonPath("$._links.cancel").doesNotExist());
+    }
+
+    @Test
+    void shouldCancelOrderSuccessfully() throws Exception {
+
+        final Order order = cancelledOrder();
+        given(requestOrderCancellationUseCase.requestCancellation(TEST_ORDER_NUMBER)).willReturn(order);
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/hal+json"))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$._links.cancel").doesNotExist());
+
+        verify(orderMetrics).recordOrderCancelled();
+    }
+
+    @Test
+    void shouldResponseWith404WhenCancellingNonExistentOrder() throws Exception {
+
+        given(requestOrderCancellationUseCase.requestCancellation(TEST_ORDER_NUMBER)).willReturn(null);
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
+                .andExpect(status().isNotFound());
+
+        verify(orderMetrics, never()).recordOrderCancelled();
+    }
+
+    @Test
+    void shouldResponseWith409WhenOrderIsNotCancellable() throws Exception {
+
+        willThrow(
+                new OrderNotCancellableException(
+                        "Order '" + TEST_ORDER_NUMBER + "' cannot be cancelled: it is already " + "CANCELLED"))
+                .given(requestOrderCancellationUseCase)
+                .requestCancellation(TEST_ORDER_NUMBER);
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
+                .andDo(print())
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Order Not Cancellable"));
+
+        verify(orderMetrics, never()).recordOrderCancelled();
+    }
+
+    private Order cancelledOrder() {
+
+        final Order confirmed = OrderBuilder.mockOrder();
+        return Order.builder()
+                .remarks(confirmed.getRemarks())
+                .orderNumber(confirmed.getOrderNumber())
+                .created(confirmed.getCreated())
+                .customer(confirmed.getCustomer())
+                .status(OrderStatus.CANCELLED)
+                .build();
+    }
+
+    private OrderDetailsResource mockOrderDetailsResource(final OrderStatus status) {
 
         final CustomerResource customer = CustomerResource.builder()
                 .fullName(CustomerBuilder.TEST_FULL_NAME)
@@ -220,7 +302,7 @@ class OrderControllerTest {
                 .build();
         return OrderDetailsResource.builder()
                 .orderNumber(TEST_ORDER_NUMBER)
-                .status(OrderStatus.CONFIRMED)
+                .status(status)
                 .remarks(OrderBuilder.TEST_REMARKS)
                 .customer(customer)
                 .build();

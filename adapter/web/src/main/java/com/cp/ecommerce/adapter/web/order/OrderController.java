@@ -9,9 +9,11 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
@@ -55,6 +57,8 @@ public class OrderController {
     private final PlaceOrderUseCase placeOrderUseCase;
 
     private final ManageOrderUseCase manageOrderUseCase;
+
+    private final RequestOrderCancellationUseCase requestOrderCancellationUseCase;
 
     private final OrderWebMapper orderWebMapper;
 
@@ -136,9 +140,59 @@ public class OrderController {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
+        return toResourceWithLinks(order, orderNumber);
+    }
+
+    @PostMapping("/{orderNumber}/cancel")
+    @Operation(
+            summary = "Cancel an order",
+            description = "Cancels an order on the customer's behalf. Only an order still in CONFIRMED status can be "
+                    + "cancelled this way; this is the same underlying mechanism the order-placement saga itself uses to "
+                    + "compensate a failed order, exposed here under an explicit state-machine guard instead of being "
+                    + "unconditional.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Order cancelled",
+            content = @Content(
+                    mediaType = "application/hal+json",
+                    schema = @Schema(implementation = OrderDetailsResource.class)))
+    @ApiResponse(
+            responseCode = "404",
+            description = "Order not found",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(
+            responseCode = "409",
+            description = "Order is no longer in a cancellable state (e.g. already cancelled)",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
+
+        final Order order = requestOrderCancellationUseCase.requestCancellation(orderNumber);
+        if (Optional.ofNullable(order).isEmpty()) {
+
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
+        }
+        orderMetrics.recordOrderCancelled();
+        return toResourceWithLinks(order, orderNumber);
+    }
+
+    // Affordance-driven HATEOAS: the "cancel" link is only advertised while the order is actually cancellable, so a client
+    // can rely on the link's mere presence rather than duplicating the CONFIRMED-only business rule enforced server-side by
+    // RequestOrderCancellationUseCase.
+    private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {
+
         final OrderDetailsResource resource = orderWebMapper.mapToResource(order)
                 .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
-        return EntityModel.of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());
+        final EntityModel<OrderDetailsResource> model = EntityModel
+                .of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());
+        if (order.getStatus() == OrderStatus.CONFIRMED) {
+
+            model.add(linkTo(methodOn(OrderController.class).cancelOrder(orderNumber)).withRel("cancel"));
+        }
+        return model;
     }
 
 }
