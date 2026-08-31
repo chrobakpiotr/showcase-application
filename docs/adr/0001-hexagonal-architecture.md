@@ -15,7 +15,7 @@ Gradle build:
 - `domain` - pure Java business logic (entities, use cases, incoming/outgoing ports). No Spring,
   no persistence, no messaging dependencies.
 - `adapter:*` - one module per technical concern (`persistence`, `amqp`, `aws`, `mail`, `security`,
-  `web`, `common`), each implementing one or more domain ports.
+  `web`, `common`, `kafka`, `camel`), each implementing one or more domain ports.
 - `application:ecommerce` - the Spring Boot entry point that wires domain use cases to adapter
   implementations via configuration classes.
 

@@ -154,7 +154,17 @@ sequenceDiagram
         Saga ->> MQ: notifyFulfillment (pivot)
         alt pivot succeeds
             MQ -->> Saga: ack
-            Saga ->> BestEffort: run remaining side-effects (log & continue on failure)
+            par Concurrent best-effort fan-out (virtual threads, ADR 0013)
+                Saga ->> BestEffort: sendConfirmationEmail
+            and
+                Saga ->> BestEffort: exportOrder (S3)
+            and
+                Saga ->> BestEffort: publishAuditEvent (SQS)
+            and
+                Saga ->> BestEffort: publishAnalyticsEvent (Kafka)
+            and
+                Saga ->> BestEffort: routeNotification (Camel)
+            end
             Saga ->> DB: mark outbox SENT
         else pivot fails, attempts < max-fulfillment-attempts (default 5)
             MQ -->> Saga: nack / timeout
@@ -168,7 +178,7 @@ sequenceDiagram
 
 ## Cross-cutting concerns
 
-Two behaviors apply across the order API without changing the topology shown above:
+Three behaviors apply across the order API without changing the topology shown above:
 
 - **Problem Details (RFC 9457)** - every error response (validation failure, business-rule
   violation, idempotency-key conflict, not-found, ...) is a `application/problem+json` body with a
@@ -178,3 +188,7 @@ Two behaviors apply across the order API without changing the topology shown abo
   request (e.g. after a client-side timeout) safely replays the original result instead of placing
   a duplicate order, arbitrated by a database unique constraint rather than application-level
   locking - see [Idempotent order placement](../../README.md#idempotent-order-placement).
+- **HATEOAS** - responses are HAL documents (`EntityModel`/`PagedModel`/`CollectionModel`) whose
+  links are affordance-driven (e.g. the `cancel` link only appears while an order is actually
+  `CONFIRMED`) rather than a client having to reimplement the same state-machine/pagination rules -
+  see [API response design](../../README.md#api-response-design-hateoas--pagination).

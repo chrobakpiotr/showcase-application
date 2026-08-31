@@ -92,7 +92,8 @@ starting the second while the first is still up will fail with port conflicts.
 ### Option 1: Full containerized stack
 
 The root [`docker-compose.yml`](docker-compose.yml) builds the app image and starts the whole stack -
-Postgres, RabbitMQ, Kafka, Keycloak and the observability stack (Prometheus/Tempo/Grafana) - on one Docker network:
+Postgres, RabbitMQ, Kafka, Redis, Keycloak and the observability stack
+(Prometheus/Tempo/Grafana/Loki/Promtail) - on one Docker network:
 
 ```
 docker compose up -d --build
@@ -187,13 +188,38 @@ serialized as `application/problem+json` with the standard `type`/`title`/`statu
   fallback, never leaking the original message) each get their own `type`/`title`/HTTP status - documented
   per-endpoint in Swagger UI via the `@ApiResponse` annotations on `OrderController`.
 
+## API response design (HATEOAS & pagination)
+
+Order responses are [HAL](https://stateless.group/hal-specification.html) documents built with
+[Spring HATEOAS](https://spring.io/projects/spring-hateoas) (`EntityModel`/`PagedModel`/`CollectionModel`),
+not plain DTOs, so a client can navigate the API by following links rather than hard-coding URL templates:
+
+- **Affordance-driven links**: `GET /api/order/{orderNumber}` always advertises a `self` link, and a `cancel`
+  link *only while the order is actually cancellable* (`OrderStatus.CONFIRMED`) - the link's mere presence tells
+  a client whether the action is currently valid, instead of duplicating the same state-machine rule
+  client-side and finding out it's stale with an HTTP 409.
+- **Pagination**: `GET /api/order?page=&size=` (`ListOrdersUseCase`, domain-first `PageQuery`/`PagedResult`
+  types rather than binding the domain layer to Spring Data's `Pageable`/`Page`, keeping the hexagonal boundary
+  framework-free per [ADR 0001](docs/adr/0001-hexagonal-architecture.md)) returns a `PagedModel` with
+  `first`/`prev`/`next`/`last` links, computed from the total element count so a client never has to guess
+  whether it has reached the last page.
+- `GET /api/order/analytics/recent` uses the simpler `CollectionModel` (a flat list with just a `self` link),
+  reflecting that it is a read-only projection with no per-item state machine or pagination cursor to expose
+  (see [Order analytics read model](#order-analytics-read-model-kafka-consumer)).
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating
-JWT bearer tokens issued by Keycloak. Two realm roles gate access:
+JWT bearer tokens issued by Keycloak. Two realm roles gate access, matched by HTTP method against the whole
+`/api/order/**` path rather than per literal endpoint - so every endpoint added under this path is covered
+automatically:
 
-- `ORDER_READ` – required to `GET /api/order/{orderNumber}`
-- `ORDER_WRITE` – required to `POST /api/order`
+- `ORDER_READ` – required for every `GET`, e.g. `GET /api/order` (paginated listing), `GET
+  /api/order/{orderNumber}` (single order) and `GET /api/order/analytics/recent` (the Kafka-backed
+  analytics read model, see [Order analytics read model](#order-analytics-read-model-kafka-consumer))
+- `ORDER_WRITE` – required for every `POST`, e.g. `POST /api/order` (place an order) and `POST
+  /api/order/{orderNumber}/cancel` (customer-initiated cancellation, see
+  [Order placement saga](#order-placement-saga))
 
 Everything else (the Angular frontend under `/home`, Swagger UI, actuator health/info/metrics/prometheus
 endpoints) remains publicly accessible.
@@ -428,10 +454,19 @@ server turn an already-placed order into an HTTP error:
      marked `COMPENSATED` with the last error recorded, so it's never retried again.
   2. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event and
      route the Camel notification - unchanged best-effort semantics (log and continue on failure) - only run
-     *after* fulfillment succeeds, so the customer is never e-mailed about an order that ends up cancelled.
+     *after* fulfillment succeeds, so the customer is never e-mailed about an order that ends up cancelled. These
+     five steps are mutually independent, so they run **concurrently** on virtual threads
+     (`Executors.newVirtualThreadPerTaskExecutor()`) instead of one after another - the saga's tail latency is the
+     slowest of the five rather than their sum. See [ADR 0013](docs/adr/0013-virtual-thread-fan-out-over-structured-concurrency-preview.md)
+     for why a plain virtual-thread executor was chosen over the still-preview `StructuredTaskScope` API.
 - `OrderStatus` (`CONFIRMED` default, `CANCELLED` after compensation) lives on the `Order` aggregate itself, so
   the saga's outcome is a first-class, queryable part of the domain model rather than an implementation detail
   buried in the outbox table.
+- A customer can also request cancellation directly, via `POST /api/order/{orderNumber}/cancel` -
+  `RequestOrderCancellationUseCase` shares the same `CancelOrderOutPort` persistence-level mechanism as the
+  saga's own compensating transaction above, but adds an explicit state-machine guard: only an order still
+  `CONFIRMED` can be cancelled this way (`HTTP 409` otherwise). The response advertises a `cancel` HATEOAS link
+  only while the order is actually in that state - see [API response design](#api-response-design-hateoas--pagination).
 
 ## Idempotent order placement
 
@@ -580,11 +615,14 @@ PIT is configured for the `domain` module through `etc/pitest/pitest.gradle`. Ru
 ./gradlew :domain:pitest
 ```
 
-The report is generated under `domain/build/reports/pitest/`, and the currently achieved/enforced mutation threshold for
-the domain module is 100%.
+The report is generated under `domain/build/reports/pitest/`, and the task fails below a 90% mutation-kill
+threshold (`mutationThreshold` in `etc/pitest/pitest.gradle`) - a small safety margin below the 100% mutation
+score the suite currently achieves, so a single marginal future mutant doesn't immediately fail the task before
+it can be triaged.
 
-It is intentionally not wired into the default `build` / `check` lifecycle because mutation analysis is materially
-slower than regular unit tests and is better used as an explicit quality gate when changing the domain layer.
+It is intentionally not wired into the default `build` / `check` lifecycle, nor into CI, because mutation
+analysis is materially slower than regular unit tests and is better used as an explicit quality gate when
+changing the domain layer.
 
 The AMQP and Kafka modules also include lightweight producer-side contract tests for their respective order
 messages. Instead of introducing the full operational footprint of Spring Cloud Contract or Pact (stub artifacts,

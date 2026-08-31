@@ -39,3 +39,9 @@ alongside the other Prometheus metrics, without needing the autoconfiguration st
   mismatch, at the cost of not automatically picking up new Resilience4j Spring Boot features.
 - If the project standardizes on a Resilience4j version with confirmed Boot 4 compatibility later,
   this decision can be revisited and superseded.
+- The same `ResilientExecutor` was subsequently reused, unchanged, for every other outbound
+  integration added later - AWS S3 (`StoreOrderExportAdapter`), AWS SQS
+  (`PublishOrderAuditEventAdapter`), Apache Camel (`RouteOrderNotificationAdapter`, see
+  [ADR 0008](0008-apache-camel-for-order-notification-routing.md)) and Kafka
+  (`PublishOrderAnalyticsEventAdapter`) - validating the original call: manual wiring turned out to
+  be a one-time cost, not a per-adapter one.

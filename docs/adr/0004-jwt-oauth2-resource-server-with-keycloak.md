@@ -15,7 +15,9 @@ Use Spring Security's OAuth2 Resource Server support, validating JWT bearer toke
 external identity provider (Keycloak), rather than implementing custom session/cookie-based auth
 or a hand-rolled JWT issuer inside the application itself:
 
-- `ORDER_READ` / `ORDER_WRITE` realm roles gate `GET`/`POST` on `/api/order`.
+- `ORDER_READ` / `ORDER_WRITE` realm roles gate `GET`/`POST` on `/api/order/**` - a wildcard match, so
+  every endpoint added later under this path (paginated listing, cancellation, the analytics read
+  model) is covered automatically without touching this security configuration again.
 - Everything else (frontend static assets, Swagger UI, actuator endpoints) is permitted without
   authentication.
 - A ready-to-use local Keycloak instance (realm `ecommerce`, client `ecommerce-app`, two demo

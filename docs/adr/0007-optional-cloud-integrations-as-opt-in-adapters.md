@@ -20,6 +20,15 @@ choice (`matchIfMissing = true`):
 | `SendEmailOutPort` | `SendEmailAdapter` (SMTP) | *(mail module only loaded when enabled)* |
 | `StoreOrderExportOutPort` | `StoreOrderExportAdapter` (S3) | `DoNotStoreOrderExportAdapter` |
 | `PublishOrderAuditEventOutPort` | `PublishOrderAuditEventAdapter` (SQS) | `DoNotPublishOrderAuditEventAdapter` |
+| `PublishOrderAnalyticsEventOutPort` | `PublishOrderAnalyticsEventAdapter` (Kafka) | `DoNotPublishOrderAnalyticsEventAdapter` |
+| `RouteOrderNotificationOutPort` | `RouteOrderNotificationAdapter` (Camel) | `DoNotRouteOrderNotificationAdapter` |
+
+The Kafka and Camel rows follow the identical toggle (`service.kafka.enabled` /
+`service.camel.enabled`, both `matchIfMissing = true` to the no-op side); Camel's fuller rationale
+is its own [ADR 0008](0008-apache-camel-for-order-notification-routing.md). The Kafka *consumer*
+side (`OrderAnalyticsEventConsumer`) is a different shape - an inbound listener has no caller
+depending on it, so it is gated by the same property but simply absent when disabled, with no
+no-op counterpart to register (see [ADR 0014](0014-in-process-kafka-consumer-order-analytics-read-model.md)).
 
 The S3/SQS adapters are additionally wired as **best-effort side-channels** inside
 `OutboxEventPublisher` (see [ADR 0002](0002-transactional-outbox-over-2pc.md)): their failure never

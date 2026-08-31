@@ -15,7 +15,10 @@ Add [Pitest](https://pitest.org/) mutation testing, scoped to the `domain` modul
 `etc/pitest/pitest.gradle`. Pitest generates small deliberate mutations of the production code
 (e.g. flipping a conditional, changing a boundary, negating a return value) and re-runs the test
 suite against each mutant - a mutant that survives (i.e. no test fails) reveals a test gap that
-line coverage alone would never surface. The mutation threshold for `domain` is enforced at 100%.
+line coverage alone would never surface. The build-breaking threshold for `domain` is set to 90%
+(`mutationThreshold` in `etc/pitest/pitest.gradle`) - a deliberate small safety margin below the
+100% mutation score the suite currently achieves in practice, so a marginal, judgment-call mutant
+introduced by a future change doesn't immediately fail the task before it can be triaged.
 
 It is intentionally run as an explicit task (`./gradlew :domain:pitest`) rather than being wired
 into the default `build`/`check` lifecycle, since mutation analysis is materially slower than
