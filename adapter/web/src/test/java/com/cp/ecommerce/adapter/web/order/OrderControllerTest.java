@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.web.order;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -15,7 +16,10 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PageQuery;
+import com.cp.ecommerce.domain.order.PagedResult;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
+import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
@@ -73,6 +77,9 @@ class OrderControllerTest {
 
     @MockitoBean
     private transient RequestOrderCancellationUseCase requestOrderCancellationUseCase;
+
+    @MockitoBean
+    private transient ListOrdersUseCase listOrdersUseCase;
 
     @MockitoBean
     private transient OrderWebMapper orderWebMapper;
@@ -275,6 +282,77 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.title").value("Order Not Cancellable"));
 
         verify(orderMetrics, never()).recordOrderCancelled();
+    }
+
+    @Test
+    void shouldListOrdersWithDefaultPaging() throws Exception {
+
+        final Order order = OrderBuilder.mockOrder();
+        given(listOrdersUseCase.listOrders(new PageQuery(0, 20))).willReturn(new PagedResult<>(List.of(order), 0, 20, 1, 1));
+        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/hal+json"))
+                .andExpect(jsonPath("$._embedded.orderDetailsResourceList[0].orderNumber").value(TEST_ORDER_NUMBER))
+                .andExpect(jsonPath("$._embedded.orderDetailsResourceList[0]._links.self").exists())
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.size").value(20))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalPages").value(1))
+                .andExpect(jsonPath("$._links.self.href", endsWith("/api/order?page=0&size=20")))
+                .andExpect(jsonPath("$._links.first").exists())
+                .andExpect(jsonPath("$._links.last").exists())
+                .andExpect(jsonPath("$._links.prev").doesNotExist())
+                .andExpect(jsonPath("$._links.next").doesNotExist());
+    }
+
+    @Test
+    void shouldIncludePrevAndNextLinksForMiddlePage() throws Exception {
+
+        given(listOrdersUseCase.listOrders(new PageQuery(1, 10))).willReturn(new PagedResult<>(List.of(), 1, 10, 30, 3));
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT).param("page", "1").param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$._links.prev.href", endsWith("/api/order?page=0&size=10")))
+                .andExpect(jsonPath("$._links.next.href", endsWith("/api/order?page=2&size=10")))
+                .andExpect(jsonPath("$._links.first.href", endsWith("/api/order?page=0&size=10")))
+                .andExpect(jsonPath("$._links.last.href", endsWith("/api/order?page=2&size=10")));
+    }
+
+    @Test
+    void shouldRejectNegativePage() throws Exception {
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT).param("page", "-1"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+
+        verify(listOrdersUseCase, never()).listOrders(any());
+    }
+
+    @Test
+    void shouldRejectSizeBelowOne() throws Exception {
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT).param("size", "0"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+
+        verify(listOrdersUseCase, never()).listOrders(any());
+    }
+
+    @Test
+    void shouldRejectSizeAboveMax() throws Exception {
+
+        this.mockMvc.perform(get(ORDER_ENDPOINT).param("size", String.valueOf(PageQuery.MAX_SIZE + 1)))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+
+        verify(listOrdersUseCase, never()).listOrders(any());
     }
 
     private Order cancelledOrder() {

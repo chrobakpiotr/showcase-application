@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.web.order;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -10,12 +11,17 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PageQuery;
+import com.cp.ecommerce.domain.order.PagedResult;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
+import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -25,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -59,6 +66,8 @@ public class OrderController {
     private final ManageOrderUseCase manageOrderUseCase;
 
     private final RequestOrderCancellationUseCase requestOrderCancellationUseCase;
+
+    private final ListOrdersUseCase listOrdersUseCase;
 
     private final OrderWebMapper orderWebMapper;
 
@@ -117,6 +126,58 @@ public class OrderController {
             orderMetrics.recordOrderPlaced();
         }
         return result.orderNumber();
+    }
+
+    @GetMapping
+    @Operation(summary = "List orders", description = "Returns a page of orders ordered by creation date, most recent first.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Page of orders",
+            content = @Content(
+                    mediaType = "application/hal+json",
+                    schema = @Schema(implementation = OrderDetailsResource.class)))
+    @ApiResponse(
+            responseCode = "400",
+            description = "page is negative, or size is not between 1 and " + PageQuery.MAX_SIZE,
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    public PagedModel<EntityModel<OrderDetailsResource>> listOrders(
+            @Parameter(description = "Zero-based page index") @RequestParam(name = "page", defaultValue = "0") final int page,
+            @Parameter(description = "Page size") @RequestParam(
+                    name = "size",
+                    defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+
+        if (page < 0 || size < 1 || size > PageQuery.MAX_SIZE) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
+        }
+        final PagedResult<Order> result = listOrdersUseCase.listOrders(new PageQuery(page, size));
+        final List<EntityModel<OrderDetailsResource>> content = result.content()
+                .stream()
+                .map(order -> toResourceWithLinks(order, order.getOrderNumber()))
+                .toList();
+        final PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(
+                result.size(),
+                result.page(),
+                result.totalElements(),
+                result.totalPages());
+        final PagedModel<EntityModel<OrderDetailsResource>> pagedModel = PagedModel
+                .of(content, metadata, linkTo(methodOn(OrderController.class).listOrders(page, size)).withSelfRel());
+        final int lastPage = Math.max(result.totalPages() - 1, 0);
+        pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(0, size)).withRel(IanaLinkRelations.FIRST));
+        if (page > 0) {
+
+            pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(page - 1, size)).withRel(IanaLinkRelations.PREV));
+        }
+        if (page < lastPage) {
+
+            pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(page + 1, size)).withRel(IanaLinkRelations.NEXT));
+        }
+        pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(lastPage, size)).withRel(IanaLinkRelations.LAST));
+        return pagedModel;
     }
 
     @GetMapping("/{orderNumber}")
