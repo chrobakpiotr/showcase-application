@@ -39,4 +39,4 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-data-jpa-test'
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)

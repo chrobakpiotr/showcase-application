@@ -56,4 +56,4 @@ dependencies {
     testImplementation 'org.wiremock:wiremock-jetty12'
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)

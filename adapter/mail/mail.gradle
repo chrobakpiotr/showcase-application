@@ -48,4 +48,4 @@ dependencies {
     testImplementation 'xml-apis:xml-apis'
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)

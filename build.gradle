@@ -1,16 +1,20 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
+import com.github.spotbugs.snom.Confidence
+import com.github.spotbugs.snom.Effort
+import org.cyclonedx.model.Component
+
 plugins {
 	id 'idea'
 	id 'org.springframework.boot' version '4.1.0' apply false
     id 'io.spring.dependency-management' version '1.1.7' apply false
-    id 'com.github.spotbugs' version '6.5.8' apply false
+    id 'com.github.spotbugs' version '6.5.11' apply false
     id 'info.solidsoft.pitest' version '1.19.0' apply false
-	id 'com.diffplug.spotless' version '8.8.0' apply false
-	id 'org.owasp.dependencycheck' version '12.2.2' apply false
+	id 'com.diffplug.spotless' version '8.10.1' apply false
+	id 'org.owasp.dependencycheck' version '13.0.0' apply false
 	id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 	id 'com.asarkar.gradle.build-time-tracker' version '5.0.2'
-	id 'com.github.ben-manes.versions' version '0.54.0' apply false
+	id 'io.github.ben-manes.versions' version '0.61.0' apply false
 	id 'org.cyclonedx.bom' version '3.4.1'
 }
 
@@ -34,9 +38,16 @@ idea {
 	}
 }
 
+// Typed SpotBugs enum constants, resolved here since the root script is the only one with a
+// compile-time-visible classpath to the plugin (declared with 'apply false' above). Consumed by
+// etc/spotbugs.gradle via rootProject.ext to avoid the deprecated String-to-enum coercion that
+// Gradle 10 will reject - see upgrading_version_8.html#deprecated_string_to_enum_coercion_for_rich_properties
+ext.spotbugsEffort = Effort.DEFAULT
+ext.spotbugsReportLevel = Confidence.valueOf('HIGH')
+
 subprojects {
 	apply plugin: 'java-library'
-	apply plugin: 'com.github.ben-manes.versions'
+	apply plugin: 'io.github.ben-manes.versions'
 	java {
         sourceCompatibility = 25
         targetCompatibility = 25
@@ -44,7 +55,7 @@ subprojects {
 	compileJava.options.encoding = 'UTF-8'
 	compileTestJava.options.encoding = 'UTF-8'
 
-	configureDependencyManagement(project)
+	rootProject.configureDependencyManagement(project)
 
 	task sourceJar(type: Jar) {
 		from sourceSets.main.allJava
@@ -67,27 +78,27 @@ def configureDependencyManagement(subproject) {
 
 		dependencyManagement {
 			imports {
-				mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
+				mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.3'
 				mavenBom SpringBootPlugin.BOM_COORDINATES
-				mavenBom 'org.junit:junit-bom:6.1.1'
-				mavenBom 'software.amazon.awssdk:bom:2.48.3'
-				mavenBom 'org.apache.camel.springboot:camel-spring-boot-bom:4.21.0'
+				mavenBom 'org.junit:junit-bom:6.1.3'
+				mavenBom 'software.amazon.awssdk:bom:2.54.7'
+				mavenBom 'org.apache.camel.springboot:camel-spring-boot-bom:4.22.0'
 			}
 			dependencies {
-				dependency 'ch.qos.logback:logback-classic:1.5.34'
-				dependency 'ch.qos.logback:logback-core:1.5.34'
-				dependency 'com.fasterxml.jackson.core:jackson-annotations:2.21'
-				dependency 'com.fasterxml.jackson.core:jackson-core:2.21.4'
-				dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.4'
-				dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.4'
-                dependency 'com.google.code.gson:gson:2.13.2'
-                dependency 'com.google.guava:guava:33.6.0-jre'
-                dependency 'com.icegreen:greenmail-junit5:2.1.9'
+				dependency 'ch.qos.logback:logback-classic:1.6.3'
+				dependency 'ch.qos.logback:logback-core:1.6.3'
+				dependency 'com.fasterxml.jackson.core:jackson-annotations:2.22'
+				dependency 'com.fasterxml.jackson.core:jackson-core:2.22.2'
+				dependency 'com.fasterxml.jackson.core:jackson-databind:2.22.2'
+				dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2'
+                dependency 'com.google.code.gson:gson:2.14.0'
+                dependency 'com.google.guava:guava:33.7.1-jre'
+                dependency 'com.icegreen:greenmail-junit5:2.1.13'
 				dependency 'com.h2database:h2:2.4.240'
 				dependency 'com.sun.activation:jakarta.activation:2.0.1'
 				dependency 'com.sun.istack:istack-commons-runtime:4.2.0'
 				dependency 'com.sun.mail:jakarta.mail:2.0.2'
-				dependency 'com.tngtech.archunit:archunit:1.4.2'
+				dependency 'com.tngtech.archunit:archunit:1.5.0'
 				dependency 'io.github.resilience4j:resilience4j-circuitbreaker:2.4.0'
 				dependency 'io.github.resilience4j:resilience4j-core:2.4.0'
 				dependency 'io.github.resilience4j:resilience4j-micrometer:2.4.0'
@@ -100,20 +111,20 @@ def configureDependencyManagement(subproject) {
 				dependency 'org.apache.commons:commons-lang3:3.20.0'
 				dependency 'org.apache.logging.log4j:log4j-api:2.25.4'
 				dependency 'org.apache.logging.log4j:log4j-to-slf4j:2.25.4'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.22'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-jasper:11.0.22'
-				dependency 'org.apache.tomcat.embed:tomcat-embed-websocket:11.0.22'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.25'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-jasper:11.0.25'
+				dependency 'org.apache.tomcat.embed:tomcat-embed-websocket:11.0.25'
 				dependency 'org.apache.xmlgraphics:fop-core:2.11'
 				dependency 'org.apache.xmlgraphics:xmlgraphics-commons:2.11'
 				dependency 'org.assertj:assertj-core:3.27.7'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.10'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlets:12.1.10'
-				dependency 'org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.10'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlet:12.1.12'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-servlets:12.1.12'
+				dependency 'org.eclipse.jetty.ee10:jetty-ee10-webapp:12.1.12'
 				dependency 'org.ehcache:ehcache:3.12.0'
 				dependency 'org.hamcrest:hamcrest:3.0'
 				dependency 'org.hibernate.orm:hibernate-core:7.4.1.Final'
-				dependency 'org.liquibase:liquibase-core:5.0.3'
-				dependency 'org.postgresql:postgresql:42.7.11'
+				dependency 'org.liquibase:liquibase-core:5.0.4'
+				dependency 'org.postgresql:postgresql:42.7.13'
 				dependency 'org.springframework.boot:spring-boot-actuator-autoconfigure:4.1.0'
 				dependency 'org.springframework.boot:spring-boot-actuator:4.1.0'
 				dependency 'org.springframework.boot:spring-boot-autoconfigure:4.1.0'
@@ -121,7 +132,7 @@ def configureDependencyManagement(subproject) {
 				dependency 'org.springframework.boot:spring-boot-test-autoconfigure:4.1.0'
 				dependency 'org.springframework.boot:spring-boot-test:4.1.0'
 				dependency 'org.springframework.boot:spring-boot:4.1.0'
-				dependency 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6'
+				dependency 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0'
 				dependency 'org.springframework.data:spring-data-commons:4.1.0'
 				dependency 'org.springframework.data:spring-data-jpa:4.1.0'
 				dependency 'org.springframework.integration:spring-integration-core:7.1.0'
@@ -144,8 +155,8 @@ def configureDependencyManagement(subproject) {
 				dependency 'org.springframework:spring-tx:7.0.8'
 				dependency 'org.springframework:spring-web:7.0.8'
 				dependency 'org.springframework:spring-webmvc:7.0.8'
-				dependency 'org.testcontainers:junit-jupiter:1.21.4'
-				dependency 'org.testcontainers:postgresql:1.21.4'
+				dependency 'org.testcontainers:testcontainers-junit-jupiter:2.0.5'
+				dependency 'org.testcontainers:testcontainers-postgresql:2.0.5'
 				dependency 'org.wiremock:wiremock-jetty12:3.13.2'
 				dependency 'xml-apis:xml-apis:1.0.b2'
 			}
@@ -162,7 +173,7 @@ ext.configureBootProject = { subproject, name ->
 		group = 'com.cp'
 		base.archivesName = name
 
-		configureDependencyManagement(subproject)
+		rootProject.configureDependencyManagement(subproject)
 	}
 }
 
@@ -213,10 +224,10 @@ buildTimeTracker {
 // `./gradlew cyclonedxBom`; output at build/reports/cyclonedx/bom.json, also published as a CI
 // artifact (see .github/workflows/ci.yml).
 tasks.cyclonedxBom {
-	projectType = 'application'
+	projectType = Component.Type.APPLICATION
 }
 
 wrapper {
-	gradleVersion = '9.6.1'
+	gradleVersion = '9.7.1'
 	distributionType = Wrapper.DistributionType.ALL
 }

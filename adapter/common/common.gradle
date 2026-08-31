@@ -42,4 +42,4 @@ artifacts {
     testArtifacts testJar
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)

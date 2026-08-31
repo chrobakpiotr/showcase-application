@@ -1,9 +1,9 @@
 apply plugin: 'com.github.spotbugs'
 
 spotbugs {
-	toolVersion = '4.10.2'
-	effort = 'default'
-	reportLevel = 'high'
+	toolVersion = '4.10.4'
+	effort = rootProject.spotbugsEffort
+	reportLevel = rootProject.spotbugsReportLevel
 }
 
 tasks.matching {task -> task.name.startsWith('spotbugs')}.configureEach {

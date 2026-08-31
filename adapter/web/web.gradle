@@ -45,4 +45,4 @@ dependencies {
     testImplementation 'org.springframework:spring-webmvc'
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)

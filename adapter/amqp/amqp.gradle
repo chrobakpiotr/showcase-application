@@ -22,4 +22,4 @@ dependencies {
     testImplementation project(path: ":adapter:common", configuration: 'testArtifacts')
 }
 
-configureTestDependencies(project)
+rootProject.configureTestDependencies(project)
