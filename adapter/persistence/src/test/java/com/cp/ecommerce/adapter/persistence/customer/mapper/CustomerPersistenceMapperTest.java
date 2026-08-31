@@ -54,6 +54,17 @@ class CustomerPersistenceMapperTest {
     }
 
     @Test
+    void shouldPropagatePersistedIdWhenMappingEntityToDomain() {
+
+        final CustomerEntity entity = CustomerEntityBuilder.mockContactEntity();
+        entity.setId(42L);
+        final Optional<Customer> result = customerPersistenceMapper.mapToDomainObject(entity);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getId()).isEqualTo(42L);
+    }
+
+    @Test
     void shouldMapToDomainObject() {
 
         final Optional<Customer> obj = customerPersistenceMapper.mapToDomainObject(null);

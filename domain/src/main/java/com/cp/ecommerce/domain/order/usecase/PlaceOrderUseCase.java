@@ -7,7 +7,6 @@ import java.util.HexFormat;
 
 import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
-import com.cp.ecommerce.domain.customer.port.incoming.ManageCustomerInPort;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
@@ -47,8 +46,6 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
     private final LogOrderOutPort logOrderOutPort;
 
-    private final ManageCustomerInPort manageCustomerInPort;
-
     private final IdempotencyKeyOutPort idempotencyKeyOutPort;
 
     @Override
@@ -80,23 +77,14 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
     private PlaceOrderResult doPlaceOrder(final Order order) {
 
-        if (!manageCustomerInPort.checkCustomerExists(order.getCustomer().getContact().getEmail())) {
+        log.info("Saving order data started...");
+        final Order savedOrder = manageOrderInPort.saveOrder(order);
+        log.info("Saving order completed.");
 
-            log.info("Saving order data started...");
-            final Order savedOrder = manageOrderInPort.saveOrder(order);
-            log.info("Saving order completed.");
+        log.info("Order's number: {}", savedOrder.getOrderNumber());
+        logOrderOutPort.log(savedOrder);
 
-            log.info("Order's number: {}", savedOrder.getOrderNumber());
-            logOrderOutPort.log(savedOrder);
-
-            return new PlaceOrderResult(savedOrder.getOrderNumber(), true);
-        } else {
-
-            log.info(
-                    "Customer with email '{}' already exists, order will not be placed.",
-                    order.getCustomer().getContact().getEmail());
-            return new PlaceOrderResult("", false);
-        }
+        return new PlaceOrderResult(savedOrder.getOrderNumber(), true);
     }
 
     // Stable hash of the order's client-controlled fields, used to detect an Idempotency-Key being reused for a

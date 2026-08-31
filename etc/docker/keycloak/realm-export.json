@@ -20,6 +20,7 @@
       "standardFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [ "*" ],
+      "webOrigins": [ "*" ],
       "protocolMappers": [
         {
           "name": "ecommerce-app-audience",
@@ -39,7 +40,10 @@
     {
       "username": "order-admin",
       "enabled": true,
+      "email": "order-admin@example.com",
       "emailVerified": true,
+      "firstName": "Order",
+      "lastName": "Admin",
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
@@ -48,7 +52,10 @@
     {
       "username": "order-viewer",
       "enabled": true,
+      "email": "order-viewer@example.com",
       "emailVerified": true,
+      "firstName": "Order",
+      "lastName": "Viewer",
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],

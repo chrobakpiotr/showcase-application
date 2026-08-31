@@ -8,6 +8,7 @@ import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
+import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -92,7 +93,7 @@ public class OrderController {
     @ApiResponse(
             responseCode = "201",
             description = "Order successfully placed",
-            content = @Content(schema = @Schema(implementation = String.class)))
+            content = @Content(schema = @Schema(implementation = OrderPlacementResource.class)))
     @ApiResponse(
             responseCode = "409",
             description = "Idempotency-Key was already used for a different request, or is still being processed",
@@ -111,21 +112,20 @@ public class OrderController {
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
-    public String placeOrder(
+    public OrderPlacementResource placeOrder(
             @RequestBody final OrderResource orderResource,
             @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) final String idempotencyKey) {
 
-        final Order order = orderWebMapper.mapToDomainObject(orderResource).orElse(null);
-        Optional.ofNullable(order).ifPresentOrElse(Order::assertValidationsEmpty, () -> {
-            throw new TechnicalProblemException("Order data is missing");
-        });
+        final Order order = orderWebMapper.mapToDomainObject(orderResource)
+                .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
+        order.assertValidationsEmpty();
         final PlaceOrderResult result = rateLimitedExecutor
                 .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
         if (result.newlyPlaced()) {
 
             orderMetrics.recordOrderPlaced();
         }
-        return result.orderNumber();
+        return new OrderPlacementResource(result.orderNumber());
     }
 
     @GetMapping

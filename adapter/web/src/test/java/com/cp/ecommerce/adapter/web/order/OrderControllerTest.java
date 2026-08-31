@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.web.order;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +52,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -107,9 +110,10 @@ class OrderControllerTest {
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
+                // A raw string body can't be parsed as JSON by standards-compliant HTTP clients (e.g. Angular's HttpClient
+                // defaults to responseType 'json'), so the order number must be wrapped in a proper JSON object.
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.orderNumber").value(TEST_ORDER_NUMBER));
 
         verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
@@ -155,12 +159,14 @@ class OrderControllerTest {
     void shouldRespondWith429WhenRateLimitExceeded() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        willThrow(new RateLimitExceededException("Rate limit exceeded for 'placeOrder'", null)).given(rateLimitedExecutor)
+        willThrow(new RateLimitExceededException("Rate limit exceeded for 'placeOrder'", Duration.ofSeconds(1), null))
+                .given(rateLimitedExecutor)
                 .callRateLimited(anyString(), any());
 
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isTooManyRequests())
+                .andExpect(header().longValue(HttpHeaders.RETRY_AFTER, 1))
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Rate Limit Exceeded"));
 

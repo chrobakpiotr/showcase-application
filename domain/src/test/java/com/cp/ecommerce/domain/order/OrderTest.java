@@ -2,6 +2,8 @@ package com.cp.ecommerce.domain.order;
 
 import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
+import com.cp.ecommerce.domain.customer.Address;
+import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
 
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,37 @@ class OrderTest {
                 .orderNumber(TestDomainObjectFactory.TEST_ORDER_NUMBER)
                 .created(TestDomainObjectFactory.TEST_CREATED)
                 .customer(TestDomainObjectFactory.validCustomer())
+                .build();
+
+        assertThrows(DomainObjectValidationException.class, order::assertValidationsEmpty);
+    }
+
+    @Test
+    void shouldFailValidationWhenCustomerIsMissing() {
+
+        final Order order = Order.builder()
+                .remarks(TestDomainObjectFactory.validOrder().getRemarks())
+                .orderNumber(TestDomainObjectFactory.TEST_ORDER_NUMBER)
+                .created(TestDomainObjectFactory.TEST_CREATED)
+                .build();
+
+        assertThrows(DomainObjectValidationException.class, order::assertValidationsEmpty);
+    }
+
+    @Test
+    void shouldFailValidationWhenNestedCustomerAddressIsInvalid() {
+
+        // Proves Order.customer's @Valid cascade actually reaches Address - a blank street was previously accepted
+        // silently because Order.customer carried no validation annotation at all.
+        final Order order = Order.builder()
+                .remarks(TestDomainObjectFactory.validOrder().getRemarks())
+                .orderNumber(TestDomainObjectFactory.TEST_ORDER_NUMBER)
+                .created(TestDomainObjectFactory.TEST_CREATED)
+                .customer(
+                        Customer.builder()
+                                .contact(TestDomainObjectFactory.validContact())
+                                .address(Address.builder().street("").city("Warsaw").countryCode("PL").build())
+                                .build())
                 .build();
 
         assertThrows(DomainObjectValidationException.class, order::assertValidationsEmpty);

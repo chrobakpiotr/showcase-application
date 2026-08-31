@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,6 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import archunit.ArchitectureElement;
+import archunit.Domain;
 import archunit.HexagonalArchitecture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +41,13 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 class HexagonalArchitecturePatternTest {
 
     private static final Path DOMAIN_PATH = Paths.get("src", "main", "java", "com", "cp", "ecommerce", "domain");
+
+    // Bounded contexts that are pure value-object support for another aggregate - no independent lifecycle, no REST
+    // endpoint, no use case of their own - are exempt from the "must have non-empty usecase/incoming-port/
+    // outgoing-port packages" rule that otherwise applies to every top-level domain/ subdirectory. "customer" is
+    // exactly that: Customer/Contact/Address only ever exist embedded inside an Order (see Order#customer, a
+    // @NotNull @Valid nested value), so they intentionally carry no usecase/port packages of their own.
+    private static final Set<String> VALUE_OBJECT_ONLY_DOMAINS = Set.of("customer");
 
     private static final Map<String, List<String>> ALL_BOUNDED_CONTEXTS = new HashMap<>();
 
@@ -86,13 +95,12 @@ class HexagonalArchitecturePatternTest {
 
         assertThat(domain).isNotEmpty();
 
-        HexagonalArchitecture.basePackage()
+        final Domain domainElement = HexagonalArchitecture.basePackage().withDomain(domain);
+        if (!VALUE_OBJECT_ONLY_DOMAINS.contains(domain)) {
 
-                .withDomain(domain)
-                .usecases()
-                .incomingPorts()
-                .outgoingPorts()
-                .and()
+            domainElement.usecases().incomingPorts().outgoingPorts();
+        }
+        domainElement.and()
 
                 .withAdapters()
                 .domain(domain)

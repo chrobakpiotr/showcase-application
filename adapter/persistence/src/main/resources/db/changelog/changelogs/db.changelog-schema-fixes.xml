@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- ORDER_.ORDER_NUMBER is the business key used for every order lookup (GET /order/{orderNumber}, cancellation, the order cache's key, ...) via OrderEntityRepository#getOrderEntityByOrderNumber, yet it was never indexed, forcing a full table scan on every cache miss. The value is generated as a random UUID prefix plus the cycling SEQ_ORDER_NUMBER suffix (see GenerateOrderNumberAdapter), so it 
+        is - for all practical purposes - globally unique; a unique index both fixes the missing-index performance gap and turns an (extremely unlikely) generator collision into a fast, explicit DB error instead of silently overwriting/ambiguous data. -->
+    <changeSet id="12" author="cp">
+
+        <createIndex indexName="UK_ORDER_ORDER_NUMBER" schemaName="${schema_name_full}" tableName="ORDER_" unique="true">
+            <column name="ORDER_NUMBER" />
+        </createIndex>
+
+    </changeSet>
+
+    <!-- Corrects a copy-paste typo in changeSet 1: CUSTOMER.PHONE was documented as "postal code" (duplicating the POSTAL_CODE column's comment) instead of describing itself. Re-issuing the COMMENT ON COLUMN statement here - rather than editing changeSet 1 - keeps that already-applied changeset's checksum stable. -->
+    <changeSet id="13" author="cp">
+
+        <sql stripComments="true" splitStatements="true">
+            comment on column ${schema_name}CUSTOMER.PHONE is 'CUSTOMER''s phone number';
+        </sql>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -22,10 +22,23 @@ class CustomerTest {
     }
 
     @Test
-    void shouldFailValidationForMissingId() {
+    void shouldPassValidationForCustomerWithoutId() {
 
+        // A customer submitted with a new order legitimately has no persistence identity yet - only
+        // CustomerPersistenceMapper populates id, once read back from an already-persisted CustomerEntity.
         final Customer customer = Customer.builder()
                 .contact(TestDomainObjectFactory.validContact())
+                .address(TestDomainObjectFactory.validAddress())
+                .build();
+
+        assertDoesNotThrow(customer::assertValidationsEmpty);
+    }
+
+    @Test
+    void shouldFailValidationWhenNestedContactIsInvalid() {
+
+        final Customer customer = Customer.builder()
+                .contact(Contact.builder().email("not-an-email").build())
                 .address(TestDomainObjectFactory.validAddress())
                 .build();
 

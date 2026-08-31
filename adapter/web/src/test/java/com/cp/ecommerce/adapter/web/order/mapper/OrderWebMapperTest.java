@@ -1,11 +1,13 @@
 package com.cp.ecommerce.adapter.web.order.mapper;
 
+import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.adapter.web.utils.CustomerResourceBuilder;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
@@ -45,6 +47,24 @@ class OrderWebMapperTest {
 
         assertTrue(order.isPresent());
         assertThat(order.get().getRemarks()).isEqualTo(orderResource.remarks());
+        assertThat(order.get().getCustomer().getContact().getFullName()).isEqualTo(CustomerResourceBuilder.TEST_FULL_NAME);
+        assertThat(order.get().getCustomer().getContact().getEmail()).isEqualTo(CustomerResourceBuilder.TEST_EMAIL);
+        assertThat(order.get().getCustomer().getContact().getPhone()).isEqualTo(CustomerResourceBuilder.TEST_PHONE_NUMBER);
+        assertThat(order.get().getCustomer().getAddress().getStreet()).isEqualTo(CustomerResourceBuilder.TEST_STREET_ADDRESS);
+        assertThat(order.get().getCustomer().getAddress().getPostalCode()).isEqualTo(CustomerResourceBuilder.TEST_POSTAL_CODE);
+        assertThat(order.get().getCustomer().getAddress().getCity()).isEqualTo(CustomerResourceBuilder.TEST_CITY);
+        assertThat(order.get().getCustomer().getAddress().getCountryCode())
+                .isEqualTo(CustomerResourceBuilder.TEST_COUNTRY_CODE);
+    }
+
+    @Test
+    void shouldMapOrderWithoutCustomerResourceToNullDomainCustomer() {
+
+        final OrderResource orderResource = OrderResource.builder().remarks("remark").created(new Date()).build();
+        final Optional<Order> order = orderWebMapper.mapToDomainObject(orderResource);
+
+        assertTrue(order.isPresent());
+        assertThat(order.get().getCustomer()).isNull();
     }
 
     @Test

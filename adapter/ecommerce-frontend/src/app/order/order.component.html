@@ -1,6 +1,120 @@
 <div class="order-container">
   <h2>Place an Order</h2>
   <form [formGroup]="orderForm" (ngSubmit)="placeOrder()">
+    <fieldset [formGroup]="customerForm" class="customer-fieldset">
+      <legend>Shipping details</legend>
+
+      <div class="field">
+        <label for="customer-fullName">Full name</label>
+        <input
+          id="customer-fullName"
+          type="text"
+          formControlName="fullName"
+          data-testid="customer-fullName"
+          placeholder="Jane Doe"
+        />
+        @if (customerForm.controls.fullName.invalid && customerForm.controls
+        .fullName.touched) { @if
+        (customerForm.controls.fullName.errors?.['required']) {
+        <span class="error">Full name is required.</span>
+        } @if (customerForm.controls.fullName.errors?.['maxlength']) {
+        <span class="error">Full name must be at most 80 characters.</span>
+        } }
+      </div>
+
+      <div class="field">
+        <label for="customer-email">Email</label>
+        <input
+          id="customer-email"
+          type="email"
+          formControlName="email"
+          data-testid="customer-email"
+          placeholder="jane.doe@example.com"
+        />
+        @if (customerForm.controls.email.invalid && customerForm.controls
+        .email.touched) { @if (customerForm.controls.email.errors?.['required'])
+        {
+        <span class="error">Email is required.</span>
+        } @if (customerForm.controls.email.errors?.['email']) {
+        <span class="error">Email must be a valid address.</span>
+        } @if (customerForm.controls.email.errors?.['maxlength']) {
+        <span class="error">Email must be at most 255 characters.</span>
+        } }
+      </div>
+
+      <div class="field">
+        <label for="customer-phone">Phone</label>
+        <input
+          id="customer-phone"
+          type="tel"
+          formControlName="phone"
+          data-testid="customer-phone"
+          placeholder="+1 555 123 4567"
+        />
+        @if (customerForm.controls.phone.invalid && customerForm.controls
+        .phone.touched) {
+        <span class="error">Phone number is invalid.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="customer-street">Street</label>
+        <input
+          id="customer-street"
+          type="text"
+          formControlName="street"
+          data-testid="customer-street"
+          placeholder="Main Street 1"
+        />
+        @if (customerForm.controls.street.invalid && customerForm.controls
+        .street.touched) {
+        <span class="error">Street address is required.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="customer-postalCode">Postal code</label>
+        <input
+          id="customer-postalCode"
+          type="text"
+          formControlName="postalCode"
+          data-testid="customer-postalCode"
+          placeholder="12-345"
+        />
+      </div>
+
+      <div class="field">
+        <label for="customer-city">City</label>
+        <input
+          id="customer-city"
+          type="text"
+          formControlName="city"
+          data-testid="customer-city"
+          placeholder="Warsaw"
+        />
+        @if (customerForm.controls.city.invalid && customerForm.controls.city
+        .touched) {
+        <span class="error">City is required.</span>
+        }
+      </div>
+
+      <div class="field">
+        <label for="customer-countryCode">Country code</label>
+        <input
+          id="customer-countryCode"
+          type="text"
+          formControlName="countryCode"
+          data-testid="customer-countryCode"
+          placeholder="PL"
+          maxlength="2"
+        />
+        @if (customerForm.controls.countryCode.invalid &&
+        customerForm.controls.countryCode.touched) {
+        <span class="error">Two-letter country code is required.</span>
+        }
+      </div>
+    </fieldset>
+
     <div class="field">
       <label for="remarks">Remarks</label>
       <textarea

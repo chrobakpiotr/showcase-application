@@ -22,6 +22,7 @@ public class CustomerPersistenceMapper implements PersistenceMapper<Customer, Cu
         return Optional.ofNullable(contactEntity)
                 .map(
                         entity -> Customer.builder()
+                                .id(entity.getId())
                                 .contact(
                                         Contact.builder()
                                                 .fullName(entity.getFullName())

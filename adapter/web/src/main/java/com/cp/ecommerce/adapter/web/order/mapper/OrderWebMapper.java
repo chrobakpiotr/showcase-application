@@ -27,7 +27,7 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                         resource -> Order.builder()
                                 .created(resource.created())
                                 .remarks(resource.remarks())
-                                .customer(createLoggedInUser())
+                                .customer(mapToCustomer(resource.customer()))
                                 .build());
     }
 
@@ -62,12 +62,25 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                 .build();
     }
 
-    private Customer createLoggedInUser() {
+    private Customer mapToCustomer(final CustomerResource customerResource) {
 
+        if (customerResource == null) {
+            return null;
+        }
         return Customer.builder()
-                .id(1L)
-                .contact(Contact.builder().fullName("Test user").email("test@test.com").phone("111 111 111").build())
-                .address(Address.builder().city("City").street("Street").postalCode("Postal code").countryCode("xx").build())
+                .contact(
+                        Contact.builder()
+                                .fullName(customerResource.fullName())
+                                .email(customerResource.email())
+                                .phone(customerResource.phone())
+                                .build())
+                .address(
+                        Address.builder()
+                                .street(customerResource.street())
+                                .postalCode(customerResource.postalCode())
+                                .city(customerResource.city())
+                                .countryCode(customerResource.countryCode())
+                                .build())
                 .build();
     }
 

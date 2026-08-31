@@ -40,6 +40,6 @@ public class ValidationConstants {
 
     public final String INVALID_REMARKS = "Invalid Remarks";
 
-    public final String INVALID_ID = "ID should not be null";
+    public final String INVALID_CUSTOMER = "Customer is required";
 
 }

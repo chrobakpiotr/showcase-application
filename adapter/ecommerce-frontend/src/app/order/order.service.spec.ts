@@ -6,12 +6,23 @@ import {
 } from '@angular/common/http/testing';
 import { OrderService } from '@app/order/order.service';
 import { OrderResponseModel } from '@app/order/order-response.model';
+import { CustomerRequestModel } from '@app/order/customer-request.model';
 import { environment } from '@environments/environment';
 import {
   provideHttpClient,
   withInterceptorsFromDi,
   withXhr,
 } from '@angular/common/http';
+
+const CUSTOMER: CustomerRequestModel = {
+  fullName: 'Jane Doe',
+  email: 'jane.doe@example.com',
+  phone: '+1 555 123 4567',
+  street: 'Main Street 1',
+  postalCode: '12-345',
+  city: 'Warsaw',
+  countryCode: 'PL',
+};
 
 describe('OrderService', () => {
   let orderService: OrderService;
@@ -46,7 +57,7 @@ describe('OrderService', () => {
 
     //when
     orderService
-      .placeOrder('test remarks')
+      .placeOrder('test remarks', CUSTOMER)
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     //then
@@ -54,6 +65,7 @@ describe('OrderService', () => {
       `${environment.apiPrefix}/order`
     );
     expect(req.request.method).toBe('POST');
+    expect(req.request.body.customer).toEqual(CUSTOMER);
 
     req.flush(orderResponse);
   });

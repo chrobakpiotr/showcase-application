@@ -1,7 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
-import com.cp.ecommerce.domain.customer.port.incoming.ManageCustomerInPort;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
@@ -45,20 +44,16 @@ class PlaceOrderUseCaseTest {
     private transient LogOrderOutPort logOrderOutPort;
 
     @Mock
-    private transient ManageCustomerInPort manageCustomerInPort;
-
-    @Mock
     private transient IdempotencyKeyOutPort idempotencyKeyOutPort;
 
     @InjectMocks
     private transient PlaceOrderUseCase placeOrderUseCase;
 
     @Test
-    void shouldSaveAndLogForNewCustomerOrderWithoutIdempotencyKey() {
+    void shouldSaveAndLogOrderWithoutIdempotencyKey() {
 
         final Order order = TestDomainObjectFactory.validOrder();
         final Order savedOrder = TestDomainObjectFactory.validOrder();
-        when(manageCustomerInPort.checkCustomerExists(order.getCustomer().getContact().getEmail())).thenReturn(false);
         when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(savedOrder);
 
         final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, null);
@@ -71,17 +66,32 @@ class PlaceOrderUseCaseTest {
     }
 
     @Test
-    void shouldReturnEmptyResultWhenCustomerAlreadyExistsAndNoIdempotencyKeyGiven() {
+    void shouldPlaceAnotherOrderForACustomerEmailThatAlreadyPlacedOne() {
 
-        final Order order = TestDomainObjectFactory.validOrder();
-        when(manageCustomerInPort.checkCustomerExists(order.getCustomer().getContact().getEmail())).thenReturn(true);
+        // A returning customer must always be able to place further orders; nothing should key order placement off
+        // whether their email was already used before (that used to silently drop every order but the first ever
+        // placed for a given email - see git history of PlaceOrderUseCase for the bug this guards against).
+        final Order firstOrder = TestDomainObjectFactory.validOrder();
+        // Deliberately distinct from firstOrder (different order number/remarks) but for the same customer e-mail, so
+        // the two stubs/verifications below can't collapse into each other via equals()-based Mockito matching.
+        final Order secondOrder = Order.builder()
+                .remarks("a later order from the same returning customer")
+                .orderNumber("ORD-1002")
+                .created(TestDomainObjectFactory.TEST_CREATED)
+                .customer(TestDomainObjectFactory.validCustomer())
+                .build();
+        when(manageOrderInPort.saveOrder(firstOrder)).thenReturn(firstOrder);
+        when(manageOrderInPort.saveOrder(secondOrder)).thenReturn(secondOrder);
 
-        final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, "");
+        final PlaceOrderResult firstResult = placeOrderUseCase.placeOrder(firstOrder, null);
+        final PlaceOrderResult secondResult = placeOrderUseCase.placeOrder(secondOrder, null);
 
-        verify(manageOrderInPort, never()).saveOrder(any(Order.class));
-        verifyNoInteractions(logOrderOutPort, idempotencyKeyOutPort);
-        assertEquals("", result.orderNumber());
-        assertFalse(result.newlyPlaced());
+        assertTrue(firstResult.newlyPlaced());
+        assertTrue(secondResult.newlyPlaced());
+        assertEquals(firstOrder.getOrderNumber(), firstResult.orderNumber());
+        assertEquals(secondOrder.getOrderNumber(), secondResult.orderNumber());
+        verify(manageOrderInPort).saveOrder(firstOrder);
+        verify(manageOrderInPort).saveOrder(secondOrder);
     }
 
     @Test
@@ -90,7 +100,6 @@ class PlaceOrderUseCaseTest {
         final Order order = TestDomainObjectFactory.validOrder();
         final Order savedOrder = TestDomainObjectFactory.validOrder();
         when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
-        when(manageCustomerInPort.checkCustomerExists(order.getCustomer().getContact().getEmail())).thenReturn(false);
         when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(savedOrder);
 
         final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
@@ -138,7 +147,7 @@ class PlaceOrderUseCaseTest {
                 .customer(TestDomainObjectFactory.validCustomer())
                 .build();
         when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
-        when(manageCustomerInPort.checkCustomerExists(any())).thenReturn(true);
+        when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(order);
 
         placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
         placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
