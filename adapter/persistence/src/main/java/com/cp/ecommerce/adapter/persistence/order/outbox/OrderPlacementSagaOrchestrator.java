@@ -1,6 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.util.Date;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
@@ -85,14 +87,41 @@ public class OrderPlacementSagaOrchestrator {
         final Order order = manageOrderInPort.findOrder(outboxEventEntity.getOrderNumber());
         if (notifyFulfillment(order, outboxEventEntity)) {
 
-            sendConfirmationEmail(order);
-            exportOrder(order);
-            publishAuditEvent(order);
-            publishAnalyticsEvent(order);
-            routeNotification(order);
+            runBestEffortStepsConcurrently(order);
             outboxEventEntity.setStatus(OutboxEventStatus.SENT);
             outboxEventEntity.setSentDate(new Date());
             outboxEventEntityRepository.save(outboxEventEntity);
+        }
+    }
+
+    /**
+     * Runs the saga's best-effort tail steps - confirmation email, S3 export, SQS audit, Kafka analytics, Camel notification
+     * routing - concurrently instead of one after another. They are mutually independent (each only reads the already-loaded
+     * {@code order}; none depends on another's outcome), so this is a textbook fan-out: tail latency drops to that of the
+     * single slowest step instead of their sum.
+     *
+     * <p>
+     * Uses the stable {@link Executors#newVirtualThreadPerTaskExecutor()} (available since JDK 21) rather than
+     * {@code StructuredTaskScope}, the API purpose-built for exactly this kind of fan-out/join: as of JDK 25,
+     * {@code StructuredTaskScope} is still a preview API (JEP 505, its fifth preview), which would force every build and
+     * deployment of this application onto {@code --enable-preview} - not an acceptable trade-off for a showcase meant to
+     * demonstrate production-grade engineering rather than bleeding-edge previews. See ADR 0013.
+     *
+     * <p>
+     * {@code ExecutorService#close()} (JDK 19+) blocks until every task submitted before it was called has finished, giving the
+     * same "wait for all steps" semantics the previous sequential code had, just executed in parallel. Each step already
+     * catches and logs its own {@link RuntimeException} (see below), so a failure in one never affects the others, and the
+     * event is still marked {@code SENT} once all five have at least been attempted - unchanged from before this change.
+     */
+    private void runBestEffortStepsConcurrently(final Order order) {
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
+            executor.execute(() -> sendConfirmationEmail(order));
+            executor.execute(() -> exportOrder(order));
+            executor.execute(() -> publishAuditEvent(order));
+            executor.execute(() -> publishAnalyticsEvent(order));
+            executor.execute(() -> routeNotification(order));
         }
     }
 
