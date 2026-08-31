@@ -1,5 +1,9 @@
 #  Showcase application
 
+[![CI](https://github.com/user99987/showcase-application/actions/workflows/ci.yml/badge.svg)](https://github.com/user99987/showcase-application/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/user99987/showcase-application/actions/workflows/codeql.yml/badge.svg)](https://github.com/user99987/showcase-application/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/user99987/showcase-application/badge)](https://scorecard.dev/viewer/?uri=github.com/user99987/showcase-application)
+
 Project created to showcase modern Java/Spring Boot/Angular stack, use of wide range of technologies and architectural patterns.
 
 📐 See [docs/architecture](docs/architecture/README.md) for C4-style context/container diagrams, and
@@ -144,6 +148,9 @@ A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
 
 - Backend build, test and quality gates (Checkstyle, PMD, SpotBugs, JaCoCo, Spotless).
 - An OWASP DependencyCheck scan and a CycloneDX SBOM generation job (source-dependency security/inventory).
+- `dependency-review`: on pull requests only, fails fast if a newly introduced/changed dependency (any
+  ecosystem - Gradle, npm, Docker base image) carries a known high-severity vulnerability or an incompatible
+  license, without waiting on the full-tree DependencyCheck/SBOM scans above.
 - `infra-validation`: builds the actual container image (not just the jar - catches issues unit tests alone
   can't, such as a missing Boot auto-configuration starter that only surfaces once the app boots inside its real
   classpath), validates both docker-compose files, lints/renders the Helm chart (with its opt-in flags on and
@@ -153,6 +160,25 @@ A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
   full supply-chain security picture. Report-only (doesn't fail the build), since remediation of the base
   image's own CVE backlog isn't on this project's timeline.
 - A separate frontend build/lint/test job.
+- `e2e`: boots the full stack with `docker compose up -d --build` (the same command a developer runs locally),
+  polls the app container's own Docker `HEALTHCHECK` until healthy, then runs the
+  [Playwright](https://playwright.dev/) suite (`npm run e2e`) against it end-to-end - login through Keycloak,
+  submit a real order, and assert an order number is returned - so a regression that only manifests once every
+  layer (DB, broker, Keycloak, the app itself) is wired together for real gets caught in CI, not just in unit
+  tests. The HTML report is published as a build artifact (`if: always()`) whether the run passes or fails.
+
+A separate scheduled/push workflow (`.github/workflows/codeql.yml`) runs [CodeQL](https://codeql.github.com/)
+static analysis (Java and TypeScript), and `.github/workflows/scorecard.yml` runs the
+[OpenSSF Scorecard](https://scorecard.dev/) to continuously assess the repository's own supply-chain security
+posture (badge above) - branch protection, pinned dependencies, dangerous workflow patterns, etc.
+
+### Supply-chain hardening
+
+- Every third-party GitHub Action referenced anywhere in `.github/workflows/` is pinned to a full commit SHA
+  (with a version-number comment alongside it), not a mutable tag - the standard mitigation for a compromised or
+  re-pointed upstream tag silently pulling in malicious action code.
+- Every job declares its own least-privilege `permissions:` block rather than relying on the workflow-level
+  default, so a compromised step in one job can't use a token scope that job never actually needed.
 
 ## API documentation
 

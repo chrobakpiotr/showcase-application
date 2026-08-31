@@ -21,6 +21,8 @@ than editing it in place.
 | [0012](0012-java-25-closing-the-pinning-gap.md) | Java 25 upgrade: closing the virtual-thread pinning gap |
 | [0013](0013-virtual-thread-fan-out-over-structured-concurrency-preview.md) | Virtual-thread fan-out for saga side-effects, not the (still preview) Structured Concurrency API |
 | [0014](0014-in-process-kafka-consumer-order-analytics-read-model.md) | In-process Kafka consumer closes the order-analytics read model loop |
+| [0015](0015-end-to-end-tests-playwright-in-ci.md) | End-to-end tests (Playwright) against the containerized stack in CI |
+| [0016](0016-cicd-supply-chain-hardening.md) | CI/CD supply-chain hardening (SHA-pinned actions, dependency review, OpenSSF Scorecard) |
 
 ## Template for new ADRs
 
