@@ -9,7 +9,6 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     implementation project(':adapter:common')
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

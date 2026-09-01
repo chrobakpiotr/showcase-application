@@ -12,10 +12,8 @@ dependencies {
     implementation project(':adapter:common')
     implementation project(':domain')
 
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations'
     implementation 'com.google.code.gson:gson'
-    implementation 'org.apache.commons:commons-lang3'
     implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
