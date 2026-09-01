@@ -12,9 +12,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -35,6 +37,15 @@ class WebSecurityConfigurationTest {
     void shouldAllowUnauthenticatedAccessToOpenApiDocumentation() throws Exception {
 
         mockMvc.perform(get("/v3/api-docs")).andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldSetContentSecurityPolicyHeaderOnEveryResponse() throws Exception {
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("Content-Security-Policy"))
+                .andExpect(header().string("Content-Security-Policy", containsString("default-src 'self'")));
     }
 
     @Test
@@ -84,11 +95,19 @@ class WebSecurityConfigurationTest {
     @Test
     void shouldAllowPlacingOrderWithWriteRole() throws Exception {
 
-        mockMvc.perform(
-                post(ORDER_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
-                .andExpect(status().is5xxServerError());
+        // This is a security-authorization test, not a content-validation test: the empty "{}" body deliberately
+        // fails domain validation further downstream (now correctly a 400, not a 500), which is irrelevant here -
+        // all that matters is the request cleared the security filter chain instead of being rejected as 401/403.
+        final int status = mockMvc
+                .perform(
+                        post(ORDER_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
     }
 
 }

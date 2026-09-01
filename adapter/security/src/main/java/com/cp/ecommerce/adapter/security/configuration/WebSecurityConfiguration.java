@@ -60,7 +60,19 @@ public class WebSecurityConfiguration {
                         oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(keycloakJwtAuthenticationConverter)))
                 .exceptionHandling(withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(AbstractHttpConfigurer::disable);
+                .csrf(AbstractHttpConfigurer::disable)
+                // Spring Security's defaults already add X-Content-Type-Options: nosniff, X-Frame-Options and
+                // HSTS-over-HTTPS without any of this - the one thing genuinely missing is a Content-Security-Policy,
+                // which Spring Security never sets a default for. 'unsafe-inline' on style-src is required by the
+                // bundled Swagger UI (springdoc-openapi), which injects syntax-highlighting <style> tags at runtime;
+                // everything else (this app's own Angular bundle plus Swagger UI's own JS) is served same-origin, so
+                // script-src/default-src can stay locked to 'self' with no external CDNs allow-listed.
+                .headers(
+                        headers -> headers.contentSecurityPolicy(
+                                csp -> csp.policyDirectives(
+                                        "default-src 'self'; " + "script-src 'self'; " + "style-src 'self' 'unsafe-inline'; "
+                                                + "img-src 'self' data:; " + "font-src 'self' data:; " + "connect-src 'self'; "
+                                                + "frame-ancestors 'none'; " + "base-uri 'self'; " + "form-action 'self'")));
 
         return http.build();
     }
