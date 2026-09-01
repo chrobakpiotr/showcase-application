@@ -1,3 +1,13 @@
 service:
   rabbitmq:
     enabled: true
+
+spring:
+  rabbitmq:
+    # Enables tracing for the autoconfigured RabbitTemplate (SendOrderMessageAdapter's producer
+    # side) so its traceparent header propagates into the same trace as the HTTP request/saga that
+    # triggered it - see MessagingConfiguration for the matching consumer-side wiring, which needs
+    # an explicit setObservationEnabled(true) call since its SimpleMessageListenerContainer is
+    # built by hand rather than through Boot's autoconfigured listener container factory.
+    template:
+      observation-enabled: true

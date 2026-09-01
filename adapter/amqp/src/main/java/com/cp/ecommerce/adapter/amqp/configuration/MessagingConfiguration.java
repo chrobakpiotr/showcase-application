@@ -82,6 +82,10 @@ public class MessagingConfiguration {
         container.setQueueNames(QUEUE_NAME);
         container.setMessageListener(listenerAdapter);
         taskExecutorProvider.ifAvailable(container::setTaskExecutor);
+        // Built by hand rather than through Boot's autoconfigured SimpleRabbitListenerContainerFactory, so
+        // spring.rabbitmq.listener.simple.observation-enabled has no effect here - has to be set directly to make this
+        // consumer extract the producer's traceparent header and continue the same trace instead of starting a new one.
+        container.setObservationEnabled(true);
         return container;
     }
 
