@@ -3,6 +3,7 @@
 [![CI](https://github.com/user99987/showcase-application/actions/workflows/ci.yml/badge.svg)](https://github.com/user99987/showcase-application/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/user99987/showcase-application/actions/workflows/codeql.yml/badge.svg)](https://github.com/user99987/showcase-application/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/user99987/showcase-application/badge)](https://scorecard.dev/viewer/?uri=github.com/user99987/showcase-application)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Project created to showcase modern Java/Spring Boot/Angular stack, use of wide range of technologies and architectural patterns.
 
@@ -759,3 +760,8 @@ available (`podDisruptionBudget.enabled` / `networkPolicy.enabled`, both off by 
 
 See [`etc/k8s/README.md`](etc/k8s/README.md) for the full walkthrough, configuration options, and
 how to point the chart at externally-hosted dependencies instead.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
