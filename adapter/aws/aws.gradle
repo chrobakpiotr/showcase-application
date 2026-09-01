@@ -28,6 +28,10 @@ dependencies {
         exclude group: 'software.amazon.awssdk', module: 'apache5-client'
     }
     implementation 'software.amazon.awssdk:url-connection-client'
+    // Needed only for the hand-rolled S3/SQS/SecretsManagerHealthIndicators: the AWS SDK v2 has no
+    // Spring Boot auto-configured health indicators of its own (unlike RabbitMQ/Redis/DB). Boot 4 moved the
+    // HealthIndicator/Health API out of spring-boot-actuator into its own dedicated module.
+    implementation 'org.springframework.boot:spring-boot-health'
     testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
 }
 

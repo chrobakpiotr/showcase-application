@@ -20,6 +20,11 @@ dependencies {
     // modules (e.g. spring-boot-kafka, spring-boot-amqp), each pulled in transitively by its
     // starter. Without it there is no KafkaAutoConfiguration to supply the KafkaTemplate bean.
     implementation 'org.springframework.boot:spring-boot-starter-kafka'
+    // Unlike RabbitMQ (spring-boot-amqp ships its own RabbitHealthContributorAutoConfiguration),
+    // Spring Boot 4's Kafka starter has no built-in HealthIndicator, so KafkaHealthIndicator is
+    // hand-rolled here - this is the only reason this module needs spring-boot-health directly
+    // (Boot 4 moved the HealthIndicator/Health API out of spring-boot-actuator into its own module).
+    implementation 'org.springframework.boot:spring-boot-health'
     implementation 'org.slf4j:slf4j-api'
     testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
 }
