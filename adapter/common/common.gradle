@@ -29,6 +29,11 @@ dependencies {
     implementation 'org.springframework.security:spring-security-core'
     testImplementation project(':domain')
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    // Parses etc/asyncapi/asyncapi.yml in AsyncApiSchema (test fixture below) - version-managed via the
+    // Spring Boot BOM (imported in configureDependencyManagement), already a transitive dependency of
+    // every module's spring-boot-starter-test, declared explicitly here since it's now compiled against
+    // directly rather than only used incidentally at runtime.
+    testImplementation 'org.yaml:snakeyaml'
 }
 
 configurations {

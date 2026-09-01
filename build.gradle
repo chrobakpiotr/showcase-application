@@ -63,6 +63,11 @@ subprojects {
 
 	test {
 		useJUnitPlatform()
+		// Absolute path so adapter:amqp/adapter:kafka's contract tests can parse etc/asyncapi/asyncapi.yml
+		// directly (see AsyncApiSchema in adapter:common's test fixtures) regardless of each module's own
+		// working directory - keeping that spec load-bearing (fails the build on drift) rather than just
+		// documentation kept in sync by hand.
+		systemProperty 'asyncApiSpecPath', rootProject.file('etc/asyncapi/asyncapi.yml').absolutePath
 		testLogging {
 			events "passed", "skipped", "failed"
 			exceptionFormat = 'full'

@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.kafka.order.contract;
 
-import java.util.Set;
-
+import com.cp.ecommerce.adapter.common.testfixtures.AsyncApiSchema;
 import com.cp.ecommerce.adapter.kafka.order.dto.OrderAnalyticsEvent;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -17,7 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>
  * Mirrors the AMQP {@code OrderMessageContractTest}: instead of introducing the full operational footprint of Spring Cloud
- * Contract or Pact, this asserts the wire-level JSON schema that analytics consumers depend on directly.
+ * Contract or Pact, this asserts the wire-level JSON schema that analytics consumers depend on directly. The expected field set
+ * comes from {@code etc/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than a duplicated {@code Set.of(...)}, so
+ * the spec and the actual wire format cannot silently drift apart.
  * </p>
  */
 class OrderAnalyticsEventContractTest {
@@ -45,7 +46,7 @@ class OrderAnalyticsEventContractTest {
         final String payload = new Gson().toJson(event);
         final JsonObject jsonPayload = JsonParser.parseString(payload).getAsJsonObject();
 
-        assertEquals(Set.of(SCHEMA_VERSION, ORDER_NUMBER, CUSTOMER_ID, EVENT_TYPE, TIMESTAMP), jsonPayload.keySet());
+        assertEquals(AsyncApiSchema.declaredProperties("OrderAnalyticsEvent"), jsonPayload.keySet());
         assertEquals(OrderAnalyticsEvent.SCHEMA_VERSION, jsonPayload.get(SCHEMA_VERSION).getAsString());
         assertEquals("ORD-1001", jsonPayload.get(ORDER_NUMBER).getAsString());
         assertEquals(1001L, jsonPayload.get(CUSTOMER_ID).getAsLong());

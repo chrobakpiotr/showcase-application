@@ -1,9 +1,9 @@
 package com.cp.ecommerce.adapter.amqp.order.contract;
 
 import java.util.Date;
-import java.util.Set;
 
 import com.cp.ecommerce.adapter.amqp.order.mapper.OrderMessageMapper;
+import com.cp.ecommerce.adapter.common.testfixtures.AsyncApiSchema;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
@@ -24,7 +24,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>
  * This keeps the showcase self-contained by asserting the published JSON schema directly, without introducing stub brokers,
  * stub artifact publishing or other infrastructure required by a full contract-testing framework. The current listener
- * intentionally only logs raw payloads, so the contract remains focused on the producer's wire format.
+ * intentionally only logs raw payloads, so the contract remains focused on the producer's wire format. The expected field set
+ * itself comes from {@code etc/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than being duplicated here, so the
+ * spec and the actual wire format cannot silently drift apart.
  * </p>
  */
 class OrderMessageContractTest {
@@ -47,7 +49,7 @@ class OrderMessageContractTest {
         final String payload = new Gson().toJson(mapper.mapToMessage(order).orElseThrow());
         final JsonObject jsonPayload = JsonParser.parseString(payload).getAsJsonObject();
 
-        assertEquals(Set.of(SCHEMA_VERSION, CREATED, CUSTOMER_ID, ORDER_NUMBER), jsonPayload.keySet());
+        assertEquals(AsyncApiSchema.declaredProperties("OrderMessage"), jsonPayload.keySet());
         assertTrue(jsonPayload.get(SCHEMA_VERSION).isJsonPrimitive());
         assertEquals(OrderMessage.SCHEMA_VERSION, jsonPayload.get(SCHEMA_VERSION).getAsString());
         assertTrue(jsonPayload.get(CREATED).isJsonPrimitive());
