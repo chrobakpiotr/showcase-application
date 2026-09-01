@@ -10,7 +10,10 @@ test('order happy path: login and place order', async ({ page }) => {
   await page.getByTestId('login-password').fill('password');
   await page.getByTestId('login-submit').click();
 
-  await expect(page).toHaveURL(/order/);
+  // Anchored to a literal "/order" path segment (not just a bare "order" substring): the auth guard
+  // redirects a failed/unauthenticated visit to "/login?returnUrl=%2Forder", whose query string itself
+  // contains "order" as a substring and would otherwise make this assertion pass even when login failed.
+  await expect(page).toHaveURL(/\/order(?:$|[?#])/);
 
   // A unique email per run keeps the test idempotent across repeated executions against the same database,
   // independent of whether a given backend revision happens to allow or reject repeat orders for one email.

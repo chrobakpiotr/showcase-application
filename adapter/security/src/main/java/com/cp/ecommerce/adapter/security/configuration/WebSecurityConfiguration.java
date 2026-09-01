@@ -1,5 +1,8 @@
 package com.cp.ecommerce.adapter.security.configuration;
 
+import java.net.URI;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -38,6 +41,15 @@ public class WebSecurityConfiguration {
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
+    // The Angular frontend authenticates via a direct resource-owner-password-credentials grant against
+    // Keycloak's token endpoint (see AuthService.login in the frontend module), so the browser issues an XHR
+    // straight to Keycloak's own origin rather than routing through this backend - connect-src therefore needs
+    // to allow-list that origin too, or the CSP silently blocks the login request itself. Reusing the same
+    // browser-facing issuer-uri already used for "iss" claim validation keeps both in lockstep across profiles
+    // (local/docker/k8s) instead of hand-maintaining a second, easily-forgotten Keycloak origin property.
+    @Value("${security.oauth2.issuer-uri:http://localhost:8081/realms/ecommerce}")
+    private String oauth2IssuerUri;
+
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
 
@@ -66,15 +78,29 @@ public class WebSecurityConfiguration {
                 // which Spring Security never sets a default for. 'unsafe-inline' on style-src is required by the
                 // bundled Swagger UI (springdoc-openapi), which injects syntax-highlighting <style> tags at runtime;
                 // everything else (this app's own Angular bundle plus Swagger UI's own JS) is served same-origin, so
-                // script-src/default-src can stay locked to 'self' with no external CDNs allow-listed.
+                // script-src/default-src can stay locked to 'self' with no external CDNs allow-listed. connect-src
+                // additionally allow-lists Keycloak's own origin (see oauth2IssuerUri field javadoc above) since the
+                // frontend talks to it directly for login, not through this backend.
                 .headers(
                         headers -> headers.contentSecurityPolicy(
                                 csp -> csp.policyDirectives(
                                         "default-src 'self'; " + "script-src 'self'; " + "style-src 'self' 'unsafe-inline'; "
-                                                + "img-src 'self' data:; " + "font-src 'self' data:; " + "connect-src 'self'; "
-                                                + "frame-ancestors 'none'; " + "base-uri 'self'; " + "form-action 'self'")));
+                                                + "img-src 'self' data:; " + "font-src 'self' data:; " + "connect-src 'self' "
+                                                + keycloakOrigin() + "; " + "frame-ancestors 'none'; " + "base-uri 'self'; "
+                                                + "form-action 'self'")));
 
         return http.build();
+    }
+
+    /**
+     * Extracts just the scheme+host+port ("origin") from the configured issuer URI, since a CSP source expression must not
+     * include a path (e.g. Keycloak's own "/realms/ecommerce" suffix would otherwise be sent verbatim to the browser, which
+     * silently ignores it as an invalid source and falls back to blocking the request).
+     */
+    private String keycloakOrigin() {
+
+        final URI issuerUri = URI.create(oauth2IssuerUri);
+        return issuerUri.getScheme() + "://" + issuerUri.getAuthority();
     }
 
 }
