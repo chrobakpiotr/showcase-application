@@ -36,7 +36,7 @@ public class RequestOrderCancellationUseCase implements RequestOrderCancellation
 
             return null;
         }
-        if (order.getStatus() != OrderStatus.CONFIRMED) {
+        if (!order.canBeCancelled()) {
 
             throw new OrderNotCancellableException(
                     "Order '" + orderNumber + "' cannot be cancelled: it is already " + order.getStatus());

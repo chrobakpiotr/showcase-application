@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link Order}.
@@ -45,6 +47,28 @@ class OrderTest {
                 .build();
 
         assertEquals(OrderStatus.CANCELLED, order.getStatus());
+    }
+
+    @Test
+    void shouldBeCancellableWhenConfirmed() {
+
+        final Order order = TestDomainObjectFactory.validOrder();
+
+        assertTrue(order.canBeCancelled());
+    }
+
+    @Test
+    void shouldNotBeCancellableWhenAlreadyCancelled() {
+
+        final Order order = Order.builder()
+                .remarks(TestDomainObjectFactory.validOrder().getRemarks())
+                .orderNumber(TestDomainObjectFactory.TEST_ORDER_NUMBER)
+                .created(TestDomainObjectFactory.TEST_CREATED)
+                .customer(TestDomainObjectFactory.validCustomer())
+                .status(OrderStatus.CANCELLED)
+                .build();
+
+        assertFalse(order.canBeCancelled());
     }
 
     @Test

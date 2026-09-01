@@ -52,4 +52,15 @@ public class Order extends ValidDomainObject<Order> {
         };
     }
 
+    /**
+     * Whether this order is still eligible for a customer-initiated cancellation request (see
+     * {@code RequestOrderCancellationUseCase}). Only {@link OrderStatus#CONFIRMED} orders qualify - once cancelled, an order
+     * stays cancelled; this keeps that one-way transition rule on the aggregate itself rather than duplicated/ re-derived by
+     * every caller that needs to check it.
+     */
+    public boolean canBeCancelled() {
+
+        return status == OrderStatus.CONFIRMED;
+    }
+
 }
