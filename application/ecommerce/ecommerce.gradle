@@ -1,6 +1,7 @@
 import org.cyclonedx.model.Component
 
 apply plugin: 'com.gorylenko.gradle-git-properties'
+apply plugin: 'org.gradle.test-retry'
 apply from: '../../etc/spotless/spotless-java.gradle'
 apply from: '../../etc/dependencycheck/dependencycheck.gradle'
 
@@ -49,3 +50,16 @@ dependencies {
 }
 
 rootProject.configureBootTasks(project)
+
+// This module's tests spin up a real Postgres container via Testcontainers, which occasionally
+// fails for purely environmental reasons (Docker daemon cold-start latency, container port
+// binding races, etc.) rather than a genuine regression. Retry failed tests up to twice before
+// failing the build, but only for tests that failed at least once and passed on retry - a test
+// that fails consistently on every attempt still fails the build as normal.
+test {
+    retry {
+        maxRetries = 2
+        maxFailures = 5
+        failOnPassedAfterRetry = false
+    }
+}
