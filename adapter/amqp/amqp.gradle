@@ -7,14 +7,12 @@ apply from: '../../etc/pmd/pmd.gradle'
 
 dependencies {
 
-    annotationProcessor 'org.projectlombok:lombok'
 
     implementation project(':adapter:common')
     implementation project(':domain')
 
     implementation 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations'
     implementation 'com.google.code.gson:gson'
-    implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     testImplementation project(path: ":adapter:common", configuration: 'testArtifacts')

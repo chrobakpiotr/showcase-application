@@ -7,7 +7,6 @@ apply from: '../../etc/pmd/pmd.gradle'
 
 dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-    annotationProcessor 'org.projectlombok:lombok'
 
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.google.code.gson:gson'
@@ -18,7 +17,6 @@ dependencies {
     implementation 'io.micrometer:micrometer-core'
     implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
-    implementation 'org.projectlombok:lombok'
     implementation 'org.springframework:spring-context'
     implementation 'org.springframework:spring-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

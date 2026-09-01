@@ -16,6 +16,7 @@ plugins {
 	id 'com.asarkar.gradle.build-time-tracker' version '5.0.2'
 	id 'io.github.ben-manes.versions' version '0.61.0' apply false
 	id 'org.cyclonedx.bom' version '3.4.1'
+	id 'io.freefair.lombok' version '9.5.0' apply false
 }
 
 allprojects {
@@ -48,6 +49,7 @@ ext.spotbugsReportLevel = Confidence.valueOf('HIGH')
 subprojects {
 	apply plugin: 'java-library'
 	apply plugin: 'io.github.ben-manes.versions'
+	apply plugin: 'io.freefair.lombok'
 	java {
         sourceCompatibility = 25
         targetCompatibility = 25
@@ -56,6 +58,14 @@ subprojects {
 	compileTestJava.options.encoding = 'UTF-8'
 
 	rootProject.configureDependencyManagement(project)
+
+	// Pin Lombok to the same version Spring Boot's BOM manages elsewhere in the build, instead of
+	// letting io.freefair.lombok default to its own bundled version - keeps every module's
+	// annotation-processed sources built with the exact Lombok release the rest of the dependency
+	// graph (and dependency-management's version enforcement) already agreed on.
+	lombok {
+		version = dependencyManagement.managedVersions['org.projectlombok:lombok']
+	}
 
 	task sourceJar(type: Jar) {
 		from sourceSets.main.allJava
@@ -198,7 +208,6 @@ ext.configureBootTasks = { subproject ->
 ext.configureTestDependencies = { subproject ->
 	configure(subproject) {
 		dependencies {
-			testAnnotationProcessor 'org.projectlombok:lombok'
 			testImplementation('org.springframework.boot:spring-boot-starter-test') {
 				exclude group: 'junit', module: 'junit'
 				exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'

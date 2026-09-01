@@ -8,14 +8,12 @@ apply from: '../../etc/pmd/pmd.gradle'
 dependencies {
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-    annotationProcessor 'org.projectlombok:lombok'
 
     implementation project(':adapter:common')
     implementation project(':domain')
 
     implementation 'com.google.code.gson:gson'
     implementation 'io.micrometer:micrometer-core'
-    implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     // spring-boot-starter-kafka (not the bare spring-kafka library) is required: Spring Boot 4
     // split per-technology autoconfiguration out of spring-boot-autoconfigure into dedicated

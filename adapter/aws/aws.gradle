@@ -8,13 +8,11 @@ apply from: '../../etc/pmd/pmd.gradle'
 dependencies {
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-    annotationProcessor 'org.projectlombok:lombok'
 
     implementation project(':adapter:common')
     implementation project(':domain')
 
     implementation 'com.google.code.gson:gson'
-    implementation 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-autoconfigure'
     // Exclude the default Apache HttpClient5 sync client: it leaks org.apache.httpcomponents.client5 onto the
     // classpath of every module depending on adapter:aws, which changes Spring Boot's auto-selected
