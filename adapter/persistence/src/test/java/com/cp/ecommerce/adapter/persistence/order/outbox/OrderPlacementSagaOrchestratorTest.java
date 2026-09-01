@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
@@ -25,6 +26,9 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.doThrow;
@@ -40,6 +44,10 @@ import static org.mockito.Mockito.when;
 class OrderPlacementSagaOrchestratorTest {
 
     private static final int MAX_FULFILLMENT_ATTEMPTS = 5;
+
+    private static final String OUTCOME_SUCCESS = "success";
+
+    private static final String OUTCOME_FAILURE = "failure";
 
     @Mock
     private transient OutboxEventEntityRepository outboxEventEntityRepository;
@@ -67,6 +75,10 @@ class OrderPlacementSagaOrchestratorTest {
 
     @Mock
     private transient CancelOrderInPort cancelOrderInPort;
+
+    private final transient MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
+    private final transient SagaMetrics sagaMetrics = new SagaMetrics(meterRegistry);
 
     @Test
     void shouldPublishPendingOutboxEvents() {
@@ -96,6 +108,13 @@ class OrderPlacementSagaOrchestratorTest {
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntityCaptor.capture());
         assertThat(outboxEventEntityCaptor.getValue().getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(outboxEventEntityCaptor.getValue().getSentDate()).isNotNull();
+        assertThat(timerCountFor("fulfillment", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("confirmation-email", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("s3-export", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("sqs-audit", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("kafka-analytics", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("camel-routing", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(compensationCount()).isZero();
     }
 
     @Test
@@ -174,6 +193,8 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(outboxEventEntity.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
         assertThat(outboxEventEntity.getCompensatedDate()).isNotNull();
         assertThat(outboxEventEntity.getSentDate()).isNull();
+        assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
+        assertThat(compensationCount()).isEqualTo(1);
     }
 
     @Test
@@ -327,7 +348,8 @@ class OrderPlacementSagaOrchestratorTest {
                 publishOrderAnalyticsEventInPort,
                 routeOrderNotificationInPort,
                 cancelOrderInPort,
-                executeInSimpleTransaction());
+                executeInSimpleTransaction(),
+                sagaMetrics);
     }
 
     private TransactionOperations executeInSimpleTransaction() {
@@ -345,6 +367,20 @@ class OrderPlacementSagaOrchestratorTest {
     private TransactionStatus newTransactionStatus() {
 
         return new SimpleTransactionStatus();
+    }
+
+    private double timerCountFor(final String step, final String outcome) {
+
+        return meterRegistry.get("saga.order-placement.step.duration")
+                .tag("step", step)
+                .tag("outcome", outcome)
+                .timer()
+                .count();
+    }
+
+    private double compensationCount() {
+
+        return meterRegistry.get("saga.order-placement.compensations").counter().count();
     }
 
 }

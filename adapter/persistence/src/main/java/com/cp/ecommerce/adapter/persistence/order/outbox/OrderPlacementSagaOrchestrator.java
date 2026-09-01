@@ -1,9 +1,12 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
+import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
@@ -59,6 +62,8 @@ public class OrderPlacementSagaOrchestrator {
     private final CancelOrderInPort cancelOrderInPort;
 
     private final TransactionOperations transactionOperations;
+
+    private final SagaMetrics sagaMetrics;
 
     @Value("${outbox.publisher.max-fulfillment-attempts:5}")
     private int maxFulfillmentAttempts = 5;
@@ -128,11 +133,14 @@ public class OrderPlacementSagaOrchestrator {
     // Pivot/compensable saga step: bounded-retry, and once exhausted, compensates instead of retrying forever.
     private boolean notifyFulfillment(final Order order, final OutboxEventEntity outboxEventEntity) {
 
+        final long startNanos = System.nanoTime();
         try {
             sendMessageInPort.sendMessage(order);
+            sagaMetrics.recordStepDuration("fulfillment", elapsedSince(startNanos), true);
             return true;
         } catch (RuntimeException exception) {
 
+            sagaMetrics.recordStepDuration("fulfillment", elapsedSince(startNanos), false);
             outboxEventEntity.setAttempts(outboxEventEntity.getAttempts() + 1);
             outboxEventEntity.setLastError(exception.getMessage());
             if (outboxEventEntity.getAttempts() >= maxFulfillmentAttempts) {
@@ -160,6 +168,7 @@ public class OrderPlacementSagaOrchestrator {
                 outboxEventEntity.getAttempts(),
                 exception);
         cancelOrderInPort.cancelOrder(order.getOrderNumber());
+        sagaMetrics.recordCompensation();
         outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATED);
         outboxEventEntity.setCompensatedDate(new Date());
         outboxEventEntityRepository.save(outboxEventEntity);
@@ -167,47 +176,67 @@ public class OrderPlacementSagaOrchestrator {
 
     private void sendConfirmationEmail(final Order order) {
 
-        try {
-            sendOrderConfirmationEmailInPort.sendConfirmationEmail(order);
-        } catch (RuntimeException exception) {
-            log.warn("Could not send order confirmation email (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        runBestEffortStep(
+                "confirmation-email",
+                order,
+                sendOrderConfirmationEmailInPort::sendConfirmationEmail,
+                "Could not send order confirmation email (best-effort): {}");
     }
 
     private void exportOrder(final Order order) {
 
-        try {
-            exportOrderInPort.exportOrder(order);
-        } catch (RuntimeException exception) {
-            log.warn("Could not export order to S3 (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        runBestEffortStep("s3-export", order, exportOrderInPort::exportOrder, "Could not export order to S3 (best-effort): {}");
     }
 
     private void publishAuditEvent(final Order order) {
 
-        try {
-            publishOrderAuditEventInPort.publishAuditEvent(order);
-        } catch (RuntimeException exception) {
-            log.warn("Could not publish SQS audit event (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        runBestEffortStep(
+                "sqs-audit",
+                order,
+                publishOrderAuditEventInPort::publishAuditEvent,
+                "Could not publish SQS audit event (best-effort): {}");
     }
 
     private void publishAnalyticsEvent(final Order order) {
 
-        try {
-            publishOrderAnalyticsEventInPort.publishAnalyticsEvent(order);
-        } catch (RuntimeException exception) {
-            log.warn("Could not publish Kafka analytics event (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        runBestEffortStep(
+                "kafka-analytics",
+                order,
+                publishOrderAnalyticsEventInPort::publishAnalyticsEvent,
+                "Could not publish Kafka analytics event (best-effort): {}");
     }
 
     private void routeNotification(final Order order) {
 
+        runBestEffortStep(
+                "camel-routing",
+                order,
+                routeOrderNotificationInPort::routeNotification,
+                "Could not route order notification via Camel (best-effort): {}");
+    }
+
+    // Shared execute-time-catch-log wrapper for the saga's independent, best-effort tail steps: each already had
+    // identical structure before metrics were added (call the port, catch RuntimeException, log a warning), so timing
+    // is added here once instead of duplicated across all five step methods above.
+    private void runBestEffortStep(
+            final String step,
+            final Order order,
+            final Consumer<Order> action,
+            final String failureLogMessage) {
+
+        final long startNanos = System.nanoTime();
         try {
-            routeOrderNotificationInPort.routeNotification(order);
+            action.accept(order);
+            sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), true);
         } catch (RuntimeException exception) {
-            log.warn("Could not route order notification via Camel (best-effort): {}", order.getOrderNumber(), exception);
+            sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), false);
+            log.warn(failureLogMessage, order.getOrderNumber(), exception);
         }
+    }
+
+    private static Duration elapsedSince(final long startNanos) {
+
+        return Duration.ofNanos(System.nanoTime() - startNanos);
     }
 
 }

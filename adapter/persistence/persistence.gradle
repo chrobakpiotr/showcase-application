@@ -22,6 +22,12 @@ dependencies {
     implementation 'jakarta.persistence:jakarta.persistence-api'
     implementation 'jakarta.transaction:jakarta.transaction-api'
     implementation 'javax.cache:cache-api'
+    implementation 'io.micrometer:micrometer-core'
+    // Autoconfigures a default MeterRegistry bean (CompositeMeterRegistryAutoConfiguration) - needed for
+    // SagaMetrics, whose MeterRegistry dependency would otherwise be unsatisfied in any Spring context that only
+    // imports PersistenceConfiguration (e.g. the module's own @SpringBootTest-based integration tests) without
+    // adapter:security or adapter:web also being on the classpath to pull this in transitively.
+    implementation 'org.springframework.boot:spring-boot-micrometer-metrics'
     implementation 'org.ehcache:ehcache'
     implementation 'org.hibernate.validator:hibernate-validator'
     implementation 'org.hibernate.orm:hibernate-core'
