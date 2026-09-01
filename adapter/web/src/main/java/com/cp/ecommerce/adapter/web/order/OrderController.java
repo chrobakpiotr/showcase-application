@@ -69,6 +69,8 @@ public class OrderController {
 
     private static final String PLACE_ORDER_RATE_LIMITER = "placeOrder";
 
+    private static final String CANCEL_ORDER_RATE_LIMITER = "cancelOrder";
+
     private final PlaceOrderUseCase placeOrderUseCase;
 
     private final ManageOrderUseCase manageOrderUseCase;
@@ -116,7 +118,7 @@ public class OrderController {
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(
-            responseCode = "500",
+            responseCode = "400",
             description = "Order data is missing or invalid",
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
@@ -126,7 +128,7 @@ public class OrderController {
             @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) final String idempotencyKey) {
 
         final Order order = orderWebMapper.mapToDomainObject(orderResource)
-                .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
         order.assertValidationsEmpty();
         final PlaceOrderResult result = rateLimitedExecutor
                 .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
@@ -242,9 +244,16 @@ public class OrderController {
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(
+            responseCode = "429",
+            description = "Too many order cancellation requests; retry after a short delay",
+            content = @Content(
+                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
     public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
 
-        final Order order = requestOrderCancellationUseCase.requestCancellation(orderNumber);
+        final Order order = rateLimitedExecutor
+                .callRateLimited(CANCEL_ORDER_RATE_LIMITER, () -> requestOrderCancellationUseCase.requestCancellation(orderNumber));
         if (Optional.ofNullable(order).isEmpty()) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");

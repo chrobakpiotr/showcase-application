@@ -88,7 +88,7 @@ class GlobalExceptionHandlerTest {
 
         assertProblem(
                 handler.domainObjectValidationException(new DomainObjectValidationException(EXCEPTION_MESSAGE, null)),
-                INTERNAL_SERVER_ERROR,
+                BAD_REQUEST,
                 "Domain Validation Error",
                 EXCEPTION_MESSAGE);
     }

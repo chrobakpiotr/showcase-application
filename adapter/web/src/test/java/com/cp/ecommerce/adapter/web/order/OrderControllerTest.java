@@ -186,12 +186,30 @@ class OrderControllerTest {
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.empty());
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
-                .andExpect(status().isInternalServerError())
+                .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("Order data is missing"));
 
         verify(placeOrderUseCase, never()).placeOrder(any(), any());
         verify(orderWebMapper, atMostOnce()).mapToDomainObject(any());
+        verify(orderMetrics, never()).recordOrderPlaced();
+    }
+
+    @Test
+    void shouldReturn400WhenOrderFailsDomainValidation() throws Exception {
+
+        // No customer set - Order.customer is @NotNull, so assertValidationsEmpty() fails Bean Validation. A client
+        // submitting incomplete order data must get a 400, not the 500 this used to (incorrectly) return.
+        final Order orderMissingCustomer = Order.builder().build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(orderMissingCustomer));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Domain Validation Error"));
+
+        verify(placeOrderUseCase, never()).placeOrder(any(), any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
 

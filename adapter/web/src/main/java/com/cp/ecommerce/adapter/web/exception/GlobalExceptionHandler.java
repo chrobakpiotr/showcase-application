@@ -65,13 +65,13 @@ public class GlobalExceptionHandler {
         return problemDetail(exception, BAD_REQUEST, TYPE_CONSTRAINT_VIOLATION, "Constraint Violation", exception.getMessage());
     }
 
-    @ResponseStatus(INTERNAL_SERVER_ERROR)
+    @ResponseStatus(BAD_REQUEST)
     @ExceptionHandler(DomainObjectValidationException.class)
     public ProblemDetail domainObjectValidationException(final DomainObjectValidationException exception) {
 
         return problemDetail(
                 exception,
-                INTERNAL_SERVER_ERROR,
+                BAD_REQUEST,
                 TYPE_DOMAIN_VALIDATION_ERROR,
                 "Domain Validation Error",
                 exception.getMessage());
