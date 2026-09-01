@@ -252,8 +252,9 @@ public class OrderController {
                     schema = @Schema(implementation = ProblemDetail.class)))
     public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
 
-        final Order order = rateLimitedExecutor
-                .callRateLimited(CANCEL_ORDER_RATE_LIMITER, () -> requestOrderCancellationUseCase.requestCancellation(orderNumber));
+        final Order order = rateLimitedExecutor.callRateLimited(
+                CANCEL_ORDER_RATE_LIMITER,
+                () -> requestOrderCancellationUseCase.requestCancellation(orderNumber));
         if (Optional.ofNullable(order).isEmpty()) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
