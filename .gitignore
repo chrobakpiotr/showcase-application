@@ -9,6 +9,7 @@ target/
 generated/
 *.db
 postgres-data/
+.angular/
 etc/terraform/.terraform/
 etc/terraform/*.tfstate
 etc/terraform/*.tfstate.backup
