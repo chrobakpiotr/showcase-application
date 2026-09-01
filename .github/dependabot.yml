@@ -28,9 +28,13 @@ updates:
       - "dependencies"
       - "frontend"
 
-  # Container base images
+  # Container base images: root Dockerfile/docker-compose.yml plus every legacy per-service
+  # compose file under etc/docker/*, which pin their own image versions independently and would
+  # otherwise silently drift out of sync (this happened once already - see docs/adr and git log).
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/"
+      - "/etc/docker/*"
     schedule:
       interval: "weekly"
     labels:

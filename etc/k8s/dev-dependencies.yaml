@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: postgres:18-alpine
           ports: [{ containerPort: 5432 }]
           env:
             - { name: POSTGRES_USER, value: "sa" }
@@ -55,7 +55,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: rabbitmq:3-management-alpine
+          image: rabbitmq:4-management-alpine
           ports:
             - { containerPort: 5672 }
             - { containerPort: 15672 }
@@ -92,7 +92,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: redis:8-alpine
           ports: [{ containerPort: 6379 }]
           readinessProbe:
             exec:
@@ -123,12 +123,14 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:26.0
+          image: quay.io/keycloak/keycloak:26.7
           args: ["start-dev", "--import-realm"]
           ports: [{ containerPort: 8080 }]
           env:
-            - { name: KEYCLOAK_ADMIN, value: "admin" }
-            - { name: KEYCLOAK_ADMIN_PASSWORD, value: "admin" }
+            # KC_BOOTSTRAP_ADMIN_USERNAME/_PASSWORD replace the deprecated KEYCLOAK_ADMIN/
+            # KEYCLOAK_ADMIN_PASSWORD as of Keycloak 26.0.
+            - { name: KC_BOOTSTRAP_ADMIN_USERNAME, value: "admin" }
+            - { name: KC_BOOTSTRAP_ADMIN_PASSWORD, value: "admin" }
           volumeMounts:
             - name: realm-export
               mountPath: /opt/keycloak/data/import

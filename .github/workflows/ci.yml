@@ -179,7 +179,17 @@ jobs:
       - name: Validate docker-compose files
         run: |
           docker compose config -q
-          docker compose -f etc/docker/observability/docker-compose.yml config -q
+          for f in etc/docker/*/docker-compose.yml; do
+            echo "Validating $f"
+            docker compose -f "$f" config -q
+          done
+
+      - name: Validate dev-only Kubernetes manifests (kubeconform)
+        run: |
+          curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+          echo "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  kubeconform.tar.gz" | sha256sum -c -
+          tar xzf kubeconform.tar.gz kubeconform
+          ./kubeconform -summary -strict etc/k8s/dev-dependencies.yaml
 
       - name: Set up Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
