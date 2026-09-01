@@ -53,6 +53,18 @@ probes:
     port: 9081
     periodSeconds: 10
 
+# On SIGTERM, kubelet removes the pod's endpoints (readiness "false") and starts this grace period
+# in parallel - meaning traffic can still land for up to one readiness periodSeconds (10s above)
+# after shutdown begins. preStopSleepSeconds pads that gap with a plain "keep serving, just don't
+# advertise as ready" sleep before the app is actually asked to shut down, so in-flight and
+# briefly-late-arriving requests aren't dropped mid-rollout. terminationGracePeriodSeconds must
+# comfortably cover preStopSleepSeconds + spring.lifecycle.timeout-per-shutdown-phase
+# (application.yml, 30s) plus a buffer for the JVM to actually exit - kubelet SIGKILLs the process
+# the instant this budget is exceeded, so going lower here would risk truncating Spring's own
+# graceful drain.
+preStopSleepSeconds: 5
+terminationGracePeriodSeconds: 45
+
 autoscaling:
   enabled: false
   minReplicas: 1

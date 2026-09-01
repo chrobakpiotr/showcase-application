@@ -16,6 +16,7 @@ spec:
       labels:
         {{- include "ecommerce.selectorLabels" . | nindent 8 }}
     spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "ecommerce.serviceAccountName" . }}
       automountServiceAccountToken: false
       securityContext:
@@ -89,6 +90,13 @@ spec:
             periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                # Keep serving in-flight/late-arriving requests while readiness propagates (see
+                # terminationGracePeriodSeconds comment in values.yaml) before SIGTERM actually
+                # triggers Spring's graceful shutdown.
+                command: ["sh", "-c", "sleep {{ .Values.preStopSleepSeconds }}"]
           volumeMounts:
             - name: tmp
               mountPath: /tmp

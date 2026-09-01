@@ -9,6 +9,14 @@ server:
     additional-tld-skip-patterns: '*.jar'
 
 spring:
+  lifecycle:
+    # Upper bound Spring waits for in-flight requests, the RabbitMQ listener container and
+    # scheduled tasks to finish once shutdown starts (server.shutdown: graceful above), before
+    # forcing them to stop anyway. Made explicit rather than relying on Boot's identical 30s
+    # default so the deployment's terminationGracePeriodSeconds (see etc/k8s/helm/ecommerce -
+    # deliberately larger to also cover the preStop delay and process exit) can be reasoned about
+    # without having to know Boot's implicit default.
+    timeout-per-shutdown-phase: 30s
   config:
     import:
       classpath:application-security.yml,classpath:application-mail.yml,classpath:application-camel.yml
