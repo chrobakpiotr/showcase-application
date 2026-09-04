@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Persisted AI-generated ops digests (see ADR 0022), one row per generation run (scheduled or eager on start-up). Only the latest row is ever read back, but every generated digest is kept for a simple historical audit trail rather than being overwritten in place. -->
+
+    <changeSet id="17" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="OPS_DIGEST">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_OPS_DIGEST" />
+            </column>
+
+            <column name="GENERATED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORDERS_PLACED_LAST_DAY" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STANDARD_COUNT" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="URGENT_COUNT" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPLAINT_COUNT" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="SUSPICIOUS_COUNT" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" />
+            </column>
+            <column name="NARRATIVE" type="VARCHAR(2000)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+    </changeSet>
+
+    <changeSet id="18" author="cp">
+
+        <createSequence sequenceName="SEQ_OPS_DIGEST" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -38,8 +38,27 @@ test('analytics assistant page: ask a question and see the mocked answer', async
     });
   });
 
+  await page.route('**/api/order/analytics/digest', async (route) => {
+    expect(route.request().method()).toBe('GET');
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        generatedDate: '2024-03-15T06:00:00.000Z',
+        ordersPlacedLastDay: 7,
+        remarksClassificationCounts: { STANDARD: 7 },
+        narrative: '7 orders were placed in the last 24 hours, all routine.',
+      }),
+    });
+  });
+
   await page.getByRole('link', { name: 'Analytics Assistant' }).click();
   await expect(page).toHaveURL(/\/analytics(?:$|[?#])/);
+
+  await expect(page.getByTestId('ops-digest-card')).toContainText(
+    '7 orders were placed in the last 24 hours, all routine.',
+    { timeout: 10_000 }
+  );
 
   await page
     .getByTestId('analytics-assistant-input')

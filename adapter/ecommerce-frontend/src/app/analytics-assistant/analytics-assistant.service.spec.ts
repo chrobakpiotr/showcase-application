@@ -12,6 +12,7 @@ import {
 
 import { AnalyticsAssistantService } from '@app/analytics-assistant/analytics-assistant.service';
 import { AnalyticsAnswerModel } from '@app/analytics-assistant/analytics-answer.model';
+import { OpsDigestModel } from '@app/analytics-assistant/ops-digest.model';
 import { environment } from '@environments/environment';
 
 describe('AnalyticsAssistantService', () => {
@@ -77,5 +78,36 @@ describe('AnalyticsAssistantService', () => {
     expect(firstRequest.request.body.conversationId).toBe(
       secondRequest.request.body.conversationId
     );
+  });
+
+  it('should GET the latest ops digest', () => {
+    const digest: OpsDigestModel = {
+      generatedDate: '2024-03-15T06:00:00.000Z',
+      ordersPlacedLastDay: 7,
+      remarksClassificationCounts: { STANDARD: 7 },
+      narrative: '7 orders placed in the last 24 hours, all routine.',
+    };
+
+    analyticsAssistantService
+      .getLatestDigest()
+      .subscribe((data) => expect(data).toEqual(digest));
+
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/order/analytics/digest`
+    );
+    expect(req.request.method).toBe('GET');
+
+    req.flush(digest);
+  });
+
+  it('should resolve to null when no digest has been generated yet (204)', () => {
+    analyticsAssistantService
+      .getLatestDigest()
+      .subscribe((data) => expect(data).toBeNull());
+
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/order/analytics/digest`
+    );
+    req.flush(null, { status: 204, statusText: 'No Content' });
   });
 });

@@ -14,15 +14,22 @@ describe('AnalyticsAssistantComponent', () => {
   let fixture: ComponentFixture<AnalyticsAssistantComponent>;
   let component: AnalyticsAssistantComponent;
   let askQuestionSpy: jasmine.Spy;
+  let getLatestDigestSpy: jasmine.Spy;
 
   function setup(): void {
     askQuestionSpy = jasmine.createSpy('askQuestion');
+    getLatestDigestSpy = jasmine
+      .createSpy('getLatestDigest')
+      .and.returnValue(of(null));
     TestBed.configureTestingModule({
       imports: [AnalyticsAssistantComponent],
       providers: [
         {
           provide: AnalyticsAssistantService,
-          useValue: { askQuestion: askQuestionSpy },
+          useValue: {
+            askQuestion: askQuestionSpy,
+            getLatestDigest: getLatestDigestSpy,
+          },
         },
       ],
     });
@@ -117,4 +124,73 @@ describe('AnalyticsAssistantComponent', () => {
     );
     expect(component.sending()).toBeFalse();
   }));
+
+  it('should not render a digest card when none has been generated yet', () => {
+    setup();
+    expect(component.opsDigest()).toBeNull();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('[data-testid="ops-digest-card"]')
+    ).toBeNull();
+  });
+
+  it('should render the digest card when one is returned', () => {
+    getLatestDigestSpy = jasmine.createSpy('getLatestDigest').and.returnValue(
+      of({
+        generatedDate: '2024-03-15T06:00:00.000Z',
+        ordersPlacedLastDay: 7,
+        remarksClassificationCounts: { STANDARD: 7 },
+        narrative: '7 orders placed in the last 24 hours, all routine.',
+      })
+    );
+    TestBed.configureTestingModule({
+      imports: [AnalyticsAssistantComponent],
+      providers: [
+        {
+          provide: AnalyticsAssistantService,
+          useValue: {
+            askQuestion: jasmine.createSpy('askQuestion'),
+            getLatestDigest: getLatestDigestSpy,
+          },
+        },
+      ],
+    });
+    fixture = TestBed.createComponent(AnalyticsAssistantComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.opsDigest()?.ordersPlacedLastDay).toBe(7);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('[data-testid="ops-digest-card"]')
+    ).toBeTruthy();
+    expect(compiled.textContent).toContain(
+      '7 orders placed in the last 24 hours, all routine.'
+    );
+  });
+
+  it('should set the digest to null on HTTP error while loading it', () => {
+    getLatestDigestSpy = jasmine
+      .createSpy('getLatestDigest')
+      .and.returnValue(
+        throwError(() => new HttpErrorResponse({ status: 500 }))
+      );
+    TestBed.configureTestingModule({
+      imports: [AnalyticsAssistantComponent],
+      providers: [
+        {
+          provide: AnalyticsAssistantService,
+          useValue: {
+            askQuestion: jasmine.createSpy('askQuestion'),
+            getLatestDigest: getLatestDigestSpy,
+          },
+        },
+      ],
+    });
+    fixture = TestBed.createComponent(AnalyticsAssistantComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.opsDigest()).toBeNull();
+  });
 });

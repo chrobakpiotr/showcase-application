@@ -28,6 +28,7 @@ than editing it in place.
 | [0019](0019-ai-assisted-order-remarks-triage.md) | AI-assisted order-remarks triage as an opt-in, best-effort saga step |
 | [0020](0020-ai-support-assistant-rag-tool-calling.md) | AI customer-support assistant: RAG + tool-calling, as a standalone bounded context |
 | [0021](0021-ai-ops-analytics-assistant-tool-calling.md) | AI ops-analytics assistant: tool-calling only, reusing the `order` bounded context |
+| [0022](0022-ai-ops-digest-scheduled-narrative-summary.md) | AI ops digest: scheduled, single-shot narrative summary |
 
 ## Template for new ADRs
 

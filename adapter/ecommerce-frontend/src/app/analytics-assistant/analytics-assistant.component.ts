@@ -1,12 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   inject,
   signal,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { DatePipe, KeyValuePipe } from '@angular/common';
 
 import { AnalyticsAssistantService } from '@app/analytics-assistant/analytics-assistant.service';
+import { OpsDigestModel } from '@app/analytics-assistant/ops-digest.model';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -22,15 +25,18 @@ const QUESTION_MAX_LENGTH = 2000;
   templateUrl: './analytics-assistant.component.html',
   styleUrls: ['./analytics-assistant.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DatePipe, KeyValuePipe],
 })
-export class AnalyticsAssistantComponent {
+export class AnalyticsAssistantComponent implements OnInit {
   private readonly analyticsAssistantService = inject(
     AnalyticsAssistantService
   );
 
   readonly sending = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
+  // Undefined while loading, null once loaded if no digest has been generated yet (rare - one is generated
+  // eagerly on application start-up).
+  readonly opsDigest = signal<OpsDigestModel | null | undefined>(undefined);
 
   readonly questionControl = new FormControl('', {
     nonNullable: true,
@@ -39,6 +45,13 @@ export class AnalyticsAssistantComponent {
       Validators.maxLength(QUESTION_MAX_LENGTH),
     ],
   });
+
+  ngOnInit(): void {
+    this.analyticsAssistantService.getLatestDigest().subscribe({
+      next: (digest) => this.opsDigest.set(digest),
+      error: () => this.opsDigest.set(null),
+    });
+  }
 
   askQuestion(): void {
     const question = this.questionControl.value.trim();

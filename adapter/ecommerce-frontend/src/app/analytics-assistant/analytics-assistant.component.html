@@ -7,6 +7,29 @@
     </p>
   </header>
 
+  @if (opsDigest(); as digest) {
+  <div class="digest-card" data-testid="ops-digest-card">
+    <h3>Latest ops digest</h3>
+    <p class="narrative">{{ digest.narrative }}</p>
+    <dl class="digest-figures">
+      <div>
+        <dt>Orders placed (last 24h)</dt>
+        <dd>{{ digest.ordersPlacedLastDay }}</dd>
+      </div>
+      @for ( entry of digest.remarksClassificationCounts | keyvalue; track
+      entry.key ) {
+      <div>
+        <dt>{{ entry.key }}</dt>
+        <dd>{{ entry.value }}</dd>
+      </div>
+      }
+    </dl>
+    <p class="generated-date">
+      Generated {{ digest.generatedDate | date : 'medium' }}
+    </p>
+  </div>
+  }
+
   <div class="messages" data-testid="analytics-assistant-messages">
     @if (messages().length === 0) {
     <p class="hint">

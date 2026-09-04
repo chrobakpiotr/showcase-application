@@ -118,8 +118,9 @@ Stop with `docker compose down`. Optional add-ons (AWS LocalStack, chaos/Toxipro
 Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terraform),
 [Chaos testing](#chaos-testing-toxiproxy),
 [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama),
-[AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) and
-[AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama) sections below.
+[AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama),
+[AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama) and
+[AI ops digest](#ai-ops-digest-scheduled-ollama) sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
@@ -823,6 +824,25 @@ SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
 # 4. Open http://localhost:9080/home/analytics, log in, and ask e.g.
 #    "How many orders were placed between 2024-01-01 and 2024-01-31?" or
 #    "What's the remarks classification breakdown?"
+```
+
+## AI ops digest (scheduled, Ollama)
+
+A fourth AI feature (see [ADR 0022](docs/adr/0022-ai-ops-digest-scheduled-narrative-summary.md)), and the
+first one that's *push*- rather than *pull*-based: a short, plain-English narrative summarizing recent order
+volume and remarks-triage trends, generated automatically - once eagerly on application start-up, then again
+daily on a cron schedule - rather than waiting for anyone to ask a question. It reuses the exact same
+order-count and remarks-classification data the ops-analytics assistant above already queries, so the two
+features complement each other on the same `/analytics` page: the digest card is a standing "here's what
+happened" summary, the chat below it is for follow-up questions. The underlying figures always come straight
+from the platform's own data regardless of AI availability - only the prose wrapped around them can fall back
+to a generic sentence if the model is disabled or unreachable, so the digest never reports misleading numbers.
+Fetched via `GET /api/order/analytics/digest` (`ORDER_READ`, same rule as the assistant above), no extra setup
+beyond what's already needed for the ops-analytics assistant:
+
+```bash
+# Same 3-step setup as the ops-analytics assistant above (Postgres/RabbitMQ/Keycloak, Ollama, ai-ollama profile),
+# then open http://localhost:9080/home/analytics - the digest card appears above the chat, refreshed daily.
 ```
 
 ## Kubernetes deployment (Helm)

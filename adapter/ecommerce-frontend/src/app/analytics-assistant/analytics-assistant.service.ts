@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import { AnalyticsAnswerModel } from '@app/analytics-assistant/analytics-answer.model';
 import { AnalyticsQuestionModel } from '@app/analytics-assistant/analytics-question.model';
+import { OpsDigestModel } from '@app/analytics-assistant/ops-digest.model';
 
 @Injectable({ providedIn: 'root' })
 export class AnalyticsAssistantService {
@@ -31,6 +32,13 @@ export class AnalyticsAssistantService {
       `${environment.apiPrefix}/order/analytics/ask`,
       body,
       this.httpOptions
+    );
+  }
+
+  // 204 (no digest generated yet) resolves to a null body here - the frontend simply omits the digest card in that case.
+  getLatestDigest(): Observable<OpsDigestModel | null> {
+    return this.httpClient.get<OpsDigestModel | null>(
+      `${environment.apiPrefix}/order/analytics/digest`
     );
   }
 }

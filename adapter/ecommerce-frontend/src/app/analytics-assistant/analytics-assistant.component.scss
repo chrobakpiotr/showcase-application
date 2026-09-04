@@ -18,6 +18,51 @@
     }
   }
 
+  .digest-card {
+    padding: 0.75rem 1rem;
+    border: 1px solid #b0bec5;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    background: #eceff1;
+
+    h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .narrative {
+      margin: 0 0 0.6rem;
+      font-size: 0.9rem;
+    }
+
+    .digest-figures {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.5rem;
+      margin: 0 0 0.4rem;
+
+      div {
+        margin: 0;
+      }
+
+      dt {
+        font-size: 0.75rem;
+        color: #607d8b;
+      }
+
+      dd {
+        margin: 0;
+        font-weight: 600;
+      }
+    }
+
+    .generated-date {
+      margin: 0;
+      font-size: 0.75rem;
+      color: #607d8b;
+    }
+  }
+
   .messages {
     min-height: 220px;
     max-height: 480px;
