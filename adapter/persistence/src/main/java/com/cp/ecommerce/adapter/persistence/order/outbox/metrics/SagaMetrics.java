@@ -18,10 +18,10 @@ import io.micrometer.core.instrument.Timer;
  *
  * <p>
  * A single dimensional timer ({@code saga.order-placement.step.duration}) tagged by {@code step} (fulfillment,
- * confirmation-email, s3-export, sqs-audit, kafka-analytics, camel-routing, ai-remarks-triage) and {@code outcome}
- * (success/failure) covers all seven saga steps, instead of one bespoke timer per step - this keeps the metric surface small
- * while still letting a Grafana/Prometheus query slice by either dimension (e.g. p99 duration of just the pivot "fulfillment"
- * step, or the failure rate of "sqs-audit" specifically).
+ * confirmation-email, s3-export, sqs-audit, kafka-analytics, camel-routing, ai-remarks-triage, ai-duplicate-order-detection)
+ * and {@code outcome} (success/failure) covers all eight saga steps, instead of one bespoke timer per step - this keeps the
+ * metric surface small while still letting a Grafana/Prometheus query slice by either dimension (e.g. p99 duration of just the
+ * pivot "fulfillment" step, or the failure rate of "sqs-audit" specifically).
  * </p>
  */
 @Component
@@ -36,6 +36,8 @@ public class SagaMetrics {
     // the same metric it increments here - see that class's javadoc for why this in-process read (rather than a separate,
     // persisted aggregate) is the deliberate design for the ops-analytics assistant (ADR 0021).
     static final String REMARKS_CLASSIFICATION_METRIC_NAME = "saga.order-placement.remarks-classifications";
+
+    private static final String DUPLICATE_ORDER_DETECTION_METRIC_NAME = "saga.order-placement.duplicate-order-detections";
 
     private final transient MeterRegistry meterRegistry;
 
@@ -82,6 +84,20 @@ public class SagaMetrics {
         Counter.builder(REMARKS_CLASSIFICATION_METRIC_NAME)
                 .description("Outcome categories of the AI-assisted order-remarks triage saga step")
                 .tag("category", category.name())
+                .register(meterRegistry)
+                .increment();
+    }
+
+    /**
+     * Records the outcome of an AI-assisted best-effort duplicate-order check, tagged by {@code duplicate} (true/false) - never
+     * used to automatically act on the order, only to give a human reviewer a Grafana-visible signal of how often likely
+     * accidental resubmissions are coming in.
+     */
+    public void recordDuplicateOrderDetection(final boolean duplicate) {
+
+        Counter.builder(DUPLICATE_ORDER_DETECTION_METRIC_NAME)
+                .description("Outcomes of the AI-assisted duplicate-order detection saga step")
+                .tag("duplicate", String.valueOf(duplicate))
                 .register(meterRegistry)
                 .increment();
     }

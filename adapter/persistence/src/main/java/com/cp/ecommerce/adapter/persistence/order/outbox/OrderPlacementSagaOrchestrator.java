@@ -7,11 +7,13 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
+import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 import com.cp.ecommerce.domain.order.RemarksTriageResult;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ClassifyOrderRemarksInPort;
+import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
@@ -37,9 +39,9 @@ import lombok.extern.slf4j.Slf4j;
  * with a bounded number of attempts recorded on the outbox event; once {@code outbox.publisher.max-fulfillment-attempts} is
  * reached, the saga runs its compensating transaction and cancels the order via {@link CancelOrderInPort} instead of retrying
  * forever. Only once fulfillment succeeds do the remaining steps run - confirmation email, export, audit, analytics,
- * notification routing, AI-assisted remarks triage - all best-effort: a failure there is logged and does not block the event
- * from being marked {@code SENT}, matching this application's existing eventual-consistency trade-offs (see ADR 0002 and ADR
- * 0008).
+ * notification routing, AI-assisted remarks triage, AI-assisted duplicate-order detection - all best-effort: a failure there is
+ * logged and does not block the event from being marked {@code SENT}, matching this application's existing eventual-consistency
+ * trade-offs (see ADR 0002 and ADR 0008).
  */
 @Slf4j
 @Component
@@ -64,6 +66,8 @@ public class OrderPlacementSagaOrchestrator {
     private final RouteOrderNotificationInPort routeOrderNotificationInPort;
 
     private final ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
+
+    private final DetectDuplicateOrderInPort detectDuplicateOrderInPort;
 
     private final CancelOrderInPort cancelOrderInPort;
 
@@ -134,6 +138,7 @@ public class OrderPlacementSagaOrchestrator {
             executor.execute(() -> publishAnalyticsEvent(order));
             executor.execute(() -> routeNotification(order));
             executor.execute(() -> classifyRemarks(order));
+            executor.execute(() -> detectDuplicateOrder(order));
         }
     }
 
@@ -242,6 +247,32 @@ public class OrderPlacementSagaOrchestrator {
         } catch (RuntimeException exception) {
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), false);
             log.warn("Could not classify order remarks (best-effort): {}", order.getOrderNumber(), exception);
+        }
+    }
+
+    // Custom (not runBestEffortStep-based) step, for the same reason as classifyRemarks above: needs the check's result
+    // (matched order number/similarity score), not just a success/failure outcome, to log a targeted warning and tag the
+    // SagaMetrics counter - see DetectDuplicateOrderOutPort's javadoc for why this is deliberately never used to
+    // automatically act on the order (human-in-the-loop only, same as the remarks triage).
+    private void detectDuplicateOrder(final Order order) {
+
+        final long startNanos = System.nanoTime();
+        try {
+            final DuplicateOrderCheckResult result = detectDuplicateOrderInPort.detectDuplicate(order);
+            sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), true);
+            sagaMetrics.recordDuplicateOrderDetection(result.isDuplicate());
+            if (result.isDuplicate()) {
+                log.warn(
+                        "Order flagged as a likely duplicate by AI similarity check (human review recommended): "
+                                + "orderNumber={}, matchedOrderNumber={}, similarityScore={}, rationale={}",
+                        order.getOrderNumber(),
+                        result.getMatchedOrderNumber(),
+                        result.getSimilarityScore(),
+                        result.getRationale());
+            }
+        } catch (RuntimeException exception) {
+            sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), false);
+            log.warn("Could not run AI duplicate-order detection (best-effort): {}", order.getOrderNumber(), exception);
         }
     }
 

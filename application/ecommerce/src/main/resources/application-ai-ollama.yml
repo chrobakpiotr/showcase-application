@@ -2,8 +2,9 @@
 #
 # Enables the AI-assisted order-remarks triage best-effort saga step (see ADR 0019), the AI customer-support
 # assistant (see ADR 0020), the AI ops-analytics chat assistant (see ADR 0021), the AI ops-digest narrator
-# (see ADR 0022) and AI language detection for order confirmation emails (see ADR 0023) - all backed by a
-# locally-hosted Ollama model, no API key, no external SaaS dependency.
+# (see ADR 0022), AI language detection for order confirmation emails (see ADR 0023) and AI-assisted
+# duplicate-order detection (see ADR 0024) - all backed by a locally-hosted Ollama model, no API key, no
+# external SaaS dependency.
 #
 # ---- HOW TO USE ----
 # Combine this profile with your DB+messaging profile when starting the app on the HOST
@@ -38,9 +39,17 @@ spring:
       chat:
         model: llama3.2:1b
       embedding:
-        # Backs the support assistant's retrieval-augmented generation (see
-        # SupportKnowledgeBaseConfiguration / ADR 0020). A small, well-known local embedding model -
-        # no API key, same zero-friction local dev/demo experience as the chat model above.
+        # Backs the support assistant's retrieval-augmented generation (see SupportKnowledgeBaseConfiguration /
+        # ADR 0020) and the duplicate-order similarity check (see DuplicateOrderDetectorAdapter / ADR 0024). A
+        # small, well-known local embedding model - no API key, same zero-friction local dev/demo experience as
+        # the chat model above.
         model: nomic-embed-text
       init:
         pull-model-strategy: when_missing
+
+# AI-assisted duplicate-order detection (ADR 0024) - both have safe inline defaults below, so no override is
+# required to activate the feature; only listed here for discoverability/documentation.
+#   service.ai.duplicate-order.lookback-minutes: how far back (relative to the new order's own created
+#     timestamp, not wall-clock time) to look for other orders from the same customer email to compare against.
+#   service.ai.duplicate-order.similarity-threshold: cosine-similarity cutoff (0-1) above which two orders'
+#     remarks are considered a likely duplicate.

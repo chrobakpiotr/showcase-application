@@ -120,8 +120,9 @@ Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terrafo
 [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama),
 [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama),
 [AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama),
-[AI ops digest](#ai-ops-digest-scheduled-ollama) and
-[AI language detection for order confirmations](#ai-language-detection-for-order-confirmations-ollama)
+[AI ops digest](#ai-ops-digest-scheduled-ollama),
+[AI language detection for order confirmations](#ai-language-detection-for-order-confirmations-ollama) and
+[AI-assisted duplicate-order detection](#ai-assisted-duplicate-order-detection-ollama)
 sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
@@ -867,6 +868,26 @@ failure (model unreachable, unparseable response) defaults to `ENGLISH` rather t
 # shouldSendEmailWithCorrectPayloadInPolish / shouldSendEmailWithCorrectPayloadInEnglish send the exact same
 # order through SendEmailAdapter with only the detected SupportedLocale differing, and assert the rendered
 # body/subject switch languages accordingly - proving the per-order (not JVM-wide) locale threading works.
+```
+
+## AI-assisted duplicate-order detection (Ollama)
+
+A sixth AI feature (see [ADR 0024](docs/adr/0024-ai-duplicate-order-detection.md)) that catches a real gap
+the existing `Idempotency-Key` mechanism doesn't cover: that header only protects against a byte-identical
+retried request, and the frontend doesn't even send one today. This feature instead looks for *semantically*
+near-duplicate resubmissions - the classic double-click or "form refilled and resubmitted" scenario - by
+comparing the new order's free-text remarks against its own customer's other recent orders (same email,
+within a configurable lookback window) using the same embedding model already backing the support assistant's
+retrieval-augmented search. A cosine-similarity match above a conservative threshold is logged as a
+best-effort saga step and recorded as a metric for a human reviewer - it never blocks, cancels, or otherwise
+automatically acts on the order.
+
+```bash
+# Same 3-step setup as the other Ollama-backed features above (Postgres/RabbitMQ/Keycloak, Ollama, ai-ollama
+# profile). Place two orders a few seconds apart with the same email and near-identical remarks (e.g. "leave
+# at front door" then "please leave the package by the front door") - watch the app log for a WARN like
+# "Order flagged as a likely duplicate by AI similarity check", and check the
+# saga.order-placement.duplicate-order-detections{duplicate="true"} counter in Prometheus/Grafana.
 ```
 
 ## Kubernetes deployment (Helm)

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Backs FindRecentOrdersByCustomerAdapter's candidate-set query for the AI-assisted duplicate-order check (see ADR 0024): WHERE CUSTOMER.EMAIL = ? AND ORDER_.CREATION_DATE > ? ..., run once per order-placement saga. CUSTOMER.EMAIL was never indexed, so without this the join would fall back to scanning every CUSTOMER row. -->
+    <changeSet id="19" author="cp">
+
+        <createIndex indexName="IDX_CUSTOMER_EMAIL" schemaName="${schema_name_full}" tableName="CUSTOMER">
+            <column name="EMAIL" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

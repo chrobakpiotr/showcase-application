@@ -5,11 +5,13 @@ import java.util.List;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
+import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 import com.cp.ecommerce.domain.order.RemarksTriageResult;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ClassifyOrderRemarksInPort;
+import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
@@ -86,6 +88,9 @@ class OrderPlacementSagaOrchestratorTest {
     private transient ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
 
     @Mock
+    private transient DetectDuplicateOrderInPort detectDuplicateOrderInPort;
+
+    @Mock
     private transient CancelOrderInPort cancelOrderInPort;
 
     private final transient MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -98,6 +103,7 @@ class OrderPlacementSagaOrchestratorTest {
         // lenient: tests where fulfillment fails/errors never reach this best-effort tail step at all.
         lenient().when(classifyOrderRemarksInPort.classifyRemarks(any()))
                 .thenReturn(RemarksTriageResult.standard("No remarks to classify."));
+        lenient().when(detectDuplicateOrderInPort.detectDuplicate(any())).thenReturn(DuplicateOrderCheckResult.none());
     }
 
     @Test
@@ -125,6 +131,7 @@ class OrderPlacementSagaOrchestratorTest {
         verify(publishOrderAnalyticsEventInPort, times(1)).publishAnalyticsEvent(order);
         verify(routeOrderNotificationInPort, times(1)).routeNotification(order);
         verify(classifyOrderRemarksInPort, times(1)).classifyRemarks(order);
+        verify(detectDuplicateOrderInPort, times(1)).detectDuplicate(order);
         verifyNoInteractions(cancelOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntityCaptor.capture());
         assertThat(outboxEventEntityCaptor.getValue().getStatus()).isEqualTo(OutboxEventStatus.SENT);
@@ -136,7 +143,9 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(timerCountFor("kafka-analytics", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("camel-routing", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("ai-remarks-triage", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("ai-duplicate-order-detection", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(remarksClassificationCount(RemarksTriageCategory.STANDARD)).isEqualTo(1);
+        assertThat(duplicateOrderDetectionCount(false)).isEqualTo(1);
         assertThat(compensationCount()).isZero();
     }
 
@@ -211,7 +220,8 @@ class OrderPlacementSagaOrchestratorTest {
                 publishOrderAuditEventInPort,
                 publishOrderAnalyticsEventInPort,
                 routeOrderNotificationInPort,
-                classifyOrderRemarksInPort);
+                classifyOrderRemarksInPort,
+                detectDuplicateOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
         assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
         assertThat(outboxEventEntity.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
@@ -357,6 +367,7 @@ class OrderPlacementSagaOrchestratorTest {
                 publishOrderAnalyticsEventInPort,
                 routeOrderNotificationInPort,
                 classifyOrderRemarksInPort,
+                detectDuplicateOrderInPort,
                 cancelOrderInPort);
         verify(outboxEventEntityRepository, times(0)).save(outboxEventEntity);
     }
@@ -413,6 +424,60 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(remarksClassificationCount(RemarksTriageCategory.SUSPICIOUS)).isEqualTo(1);
     }
 
+    @Test
+    void shouldStillMarkEventSentWhenDuplicateDetectionFails() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new RuntimeException("Ollama unavailable")).when(detectDuplicateOrderInPort).detectDuplicate(order);
+
+        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+
+        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
+        assertThat(timerCountFor("ai-duplicate-order-detection", OUTCOME_FAILURE)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRecordDuplicateFlagWithoutActingOnTheOrder() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(detectDuplicateOrderInPort.detectDuplicate(order)).thenReturn(
+                DuplicateOrderCheckResult.builder()
+                        .duplicate(true)
+                        .matchedOrderNumber("PRE-EXISTING-1")
+                        .similarityScore(0.99)
+                        .rationale("Remarks nearly identical to a recent order from the same customer.")
+                        .build());
+
+        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+
+        // Human-in-the-loop only: a positive duplicate check is surfaced via metrics/logs, never used to cancel/block the
+        // order (see DetectDuplicateOrderOutPort's javadoc).
+        verifyNoInteractions(cancelOrderInPort);
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
+        assertThat(duplicateOrderDetectionCount(true)).isEqualTo(1);
+    }
+
     private OrderPlacementSagaOrchestrator newOrchestrator() {
 
         return new OrderPlacementSagaOrchestrator(
@@ -425,6 +490,7 @@ class OrderPlacementSagaOrchestratorTest {
                 publishOrderAnalyticsEventInPort,
                 routeOrderNotificationInPort,
                 classifyOrderRemarksInPort,
+                detectDuplicateOrderInPort,
                 cancelOrderInPort,
                 executeInSimpleTransaction(),
                 sagaMetrics);
@@ -465,6 +531,14 @@ class OrderPlacementSagaOrchestratorTest {
 
         return meterRegistry.get("saga.order-placement.remarks-classifications")
                 .tag("category", category.name())
+                .counter()
+                .count();
+    }
+
+    private double duplicateOrderDetectionCount(final boolean duplicate) {
+
+        return meterRegistry.get("saga.order-placement.duplicate-order-detections")
+                .tag("duplicate", String.valueOf(duplicate))
                 .counter()
                 .count();
     }
