@@ -15,4 +15,9 @@ public class BusinessRuleException extends RuntimeException {
         super(message);
     }
 
+    public BusinessRuleException(final String message, final Throwable cause) {
+
+        super(message, cause);
+    }
+
 }

@@ -263,6 +263,29 @@ Angular frontend.
 - **Authorization** reuses the existing operator model rather than inventing a new one: `CATALOG_READ`/
   `CATALOG_WRITE` mirror `ORDER_READ`/`ORDER_WRITE` exactly (see [ADR 0017](docs/adr/0017-order-api-operator-authorization-model.md)).
 
+## Inventory
+
+The second new bounded context (see [ADR 0026](docs/adr/0026-inventory-bounded-context.md)): tracks
+on-hand/reserved stock per SKU via a new `/api/inventory/**` API. Back-office/API only - no Angular UI,
+since stock is browsed/adjusted by operators and other bounded contexts, not customers directly.
+
+- **`StockLevel` never 404s** - a SKU that has never been received is represented as a zero-on-hand,
+  zero-reserved stock level rather than "not found"; whether a SKU is a "real" catalog product is out
+  of scope for this context entirely (it references SKUs only by string, with no dependency on
+  `catalog.Product`).
+- **Optimistic locking with a bounded, business-aware retry loop**: `StockLevelEntity.version` backs
+  JPA optimistic locking; `SaveStockLevelAdapter` forces a synchronous flush (`saveAndFlush`) so a
+  concurrent-write conflict is observable and translated into a `409 Conflict` right where it happens.
+  `ManageStockUseCase` retries up to 3 times on conflict, **re-reading and re-evaluating business state
+  on every attempt** rather than blindly resubmitting the same write - this is the first deliberate
+  concurrency-control pattern in the codebase and a template for future SKU/quantity-style hotspots
+  (e.g. Shopping Cart line items).
+- `GET /api/inventory/{sku}` returns the current stock level; `POST /api/inventory/{sku}/receive`,
+  `/reserve`, `/release` and `/fulfill` mutate it. `reserveStock`/`fulfillStock` reject requests that
+  exceed currently available/reserved quantity with `InsufficientStockException` (also `409`).
+- **Authorization** again mirrors the operator model: `INVENTORY_READ`/`INVENTORY_WRITE` (see
+  [ADR 0017](docs/adr/0017-order-api-operator-authorization-model.md)).
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating

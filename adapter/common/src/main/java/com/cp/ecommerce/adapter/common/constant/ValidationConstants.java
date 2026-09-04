@@ -76,4 +76,10 @@ public class ValidationConstants {
 
     public final String INVALID_PRODUCT_CATEGORY = "Category is required";
 
+    public final int INVENTORY_SKU_MAX = 40;
+
+    public final String INVALID_INVENTORY_SKU = "Invalid SKU";
+
+    public final String INVALID_INVENTORY_QUANTITY = "Quantity must not be negative";
+
 }

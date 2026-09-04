@@ -8,6 +8,7 @@ import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
+import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.order.Order;
 
 import lombok.AccessLevel;
@@ -69,6 +70,11 @@ public final class TestDomainObjectFactory {
                 .active(true)
                 .created(TEST_CREATED)
                 .build();
+    }
+
+    public static StockLevel validStockLevel() {
+
+        return StockLevel.builder().sku(TEST_PRODUCT_SKU).quantityOnHand(10).quantityReserved(2).version(0).build();
     }
 
 }

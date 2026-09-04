@@ -33,6 +33,8 @@ public class WebSecurityConfiguration {
 
     private static final String CATALOG_API_PATH_MATCHER = "/api/catalog/**";
 
+    private static final String INVENTORY_API_PATH_MATCHER = "/api/inventory/**";
+
     // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
     // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
     // since the question is a free-text request body. Without this specific, narrower rule it would otherwise fall
@@ -51,6 +53,10 @@ public class WebSecurityConfiguration {
     private static final String CATALOG_READ_ROLE = "CATALOG_READ";
 
     private static final String CATALOG_WRITE_ROLE = "CATALOG_WRITE";
+
+    private static final String INVENTORY_READ_ROLE = "INVENTORY_READ";
+
+    private static final String INVENTORY_WRITE_ROLE = "INVENTORY_WRITE";
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
@@ -87,6 +93,10 @@ public class WebSecurityConfiguration {
                         .hasRole(CATALOG_WRITE_ROLE)
                         .requestMatchers(HttpMethod.PUT, CATALOG_API_PATH_MATCHER)
                         .hasRole(CATALOG_WRITE_ROLE)
+                        .requestMatchers(HttpMethod.GET, INVENTORY_API_PATH_MATCHER)
+                        .hasRole(INVENTORY_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, INVENTORY_API_PATH_MATCHER)
+                        .hasRole(INVENTORY_WRITE_ROLE)
                         .anyRequest()
                         .permitAll())
                 .oauth2ResourceServer(

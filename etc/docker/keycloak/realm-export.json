@@ -8,7 +8,9 @@
       { "name": "ORDER_READ", "description": "Allows reading orders" },
       { "name": "ORDER_WRITE", "description": "Allows placing orders" },
       { "name": "CATALOG_READ", "description": "Allows browsing the product catalog" },
-      { "name": "CATALOG_WRITE", "description": "Allows managing categories and products" }
+      { "name": "CATALOG_WRITE", "description": "Allows managing categories and products" },
+      { "name": "INVENTORY_READ", "description": "Allows reading SKU stock levels" },
+      { "name": "INVENTORY_WRITE", "description": "Allows adjusting SKU stock levels" }
     ]
   },
   "clients": [
@@ -49,7 +51,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE" ]
+      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE", "INVENTORY_READ", "INVENTORY_WRITE" ]
     },
     {
       "username": "order-viewer",
@@ -61,7 +63,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "CATALOG_READ" ]
+      "realmRoles": [ "ORDER_READ", "CATALOG_READ", "INVENTORY_READ" ]
     }
   ]
 }

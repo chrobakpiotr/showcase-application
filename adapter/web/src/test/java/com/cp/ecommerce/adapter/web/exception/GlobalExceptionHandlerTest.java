@@ -7,8 +7,10 @@ import java.util.Set;
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.order.Order;
 
@@ -111,6 +113,26 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Order Not Cancellable",
                 EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleInsufficientStockException() {
+
+        assertProblem(
+                handler.insufficientStockException(new InsufficientStockException(EXCEPTION_MESSAGE)),
+                CONFLICT,
+                "Insufficient Stock",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleStockLevelConflictException() {
+
+        assertProblem(
+                handler.stockLevelConflictException(new StockLevelConflictException("SKU-1", new IllegalStateException())),
+                CONFLICT,
+                "Stock Level Conflict",
+                "Concurrent stock modification detected for SKU SKU-1, please retry");
     }
 
     @Test

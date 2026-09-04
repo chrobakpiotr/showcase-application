@@ -49,4 +49,10 @@ public class OpenApiConfiguration {
         return GroupedOpenApi.builder().group("catalog").pathsToMatch("/api/catalog/**").build();
     }
 
+    @Bean
+    public GroupedOpenApi inventoryApi() {
+
+        return GroupedOpenApi.builder().group("inventory").pathsToMatch("/api/inventory/**").build();
+    }
+
 }

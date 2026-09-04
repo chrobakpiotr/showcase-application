@@ -32,6 +32,8 @@ class WebSecurityConfigurationTest {
 
     private static final String CATALOG_PRODUCTS_ENDPOINT = "/api/catalog/products";
 
+    private static final String INVENTORY_ENDPOINT = "/api/inventory/SKU-1234";
+
     @Autowired
     private transient MockMvc mockMvc;
 
@@ -164,6 +166,51 @@ class WebSecurityConfigurationTest {
                         post(CATALOG_PRODUCTS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_WRITE"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedAccessToInventoryApi() throws Exception {
+
+        mockMvc.perform(get(INVENTORY_ENDPOINT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldRejectReadingStockLevelWithoutInventoryReadRole() throws Exception {
+
+        mockMvc.perform(get(INVENTORY_ENDPOINT).with(jwt().authorities(() -> "ROLE_INVENTORY_WRITE")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowReadingStockLevelWithInventoryReadRole() throws Exception {
+
+        mockMvc.perform(get(INVENTORY_ENDPOINT).with(jwt().authorities(() -> "ROLE_INVENTORY_READ")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldRejectReceivingStockWithoutInventoryWriteRole() throws Exception {
+
+        mockMvc.perform(
+                post(INVENTORY_ENDPOINT + "/receive").with(jwt().authorities(() -> "ROLE_INVENTORY_READ"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quantity\":5}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowReceivingStockWithInventoryWriteRole() throws Exception {
+
+        final int status = mockMvc
+                .perform(
+                        post(INVENTORY_ENDPOINT + "/receive").with(jwt().authorities(() -> "ROLE_INVENTORY_WRITE"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"quantity\":5}"))
                 .andReturn()
                 .getResponse()
                 .getStatus();

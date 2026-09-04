@@ -7,8 +7,10 @@ import java.util.UUID;
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpHeaders;
@@ -54,6 +56,8 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_BUSINESS_RULE_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "business-rule-violation");
     private static final URI TYPE_IDEMPOTENCY_KEY_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "idempotency-key-conflict");
     private static final URI TYPE_ORDER_NOT_CANCELLABLE = URI.create(PROBLEM_TYPE_PREFIX + "order-not-cancellable");
+    private static final URI TYPE_INSUFFICIENT_STOCK = URI.create(PROBLEM_TYPE_PREFIX + "insufficient-stock");
+    private static final URI TYPE_STOCK_LEVEL_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "stock-level-conflict");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
@@ -109,6 +113,20 @@ public class GlobalExceptionHandler {
     public ProblemDetail orderNotCancellableException(final OrderNotCancellableException exception) {
 
         return problemDetail(exception, CONFLICT, TYPE_ORDER_NOT_CANCELLABLE, "Order Not Cancellable", exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(InsufficientStockException.class)
+    public ProblemDetail insufficientStockException(final InsufficientStockException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_INSUFFICIENT_STOCK, "Insufficient Stock", exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(StockLevelConflictException.class)
+    public ProblemDetail stockLevelConflictException(final StockLevelConflictException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_STOCK_LEVEL_CONFLICT, "Stock Level Conflict", exception.getMessage());
     }
 
     @ResponseStatus(INTERNAL_SERVER_ERROR)
