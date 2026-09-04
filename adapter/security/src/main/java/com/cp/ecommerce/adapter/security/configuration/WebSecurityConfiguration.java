@@ -35,6 +35,13 @@ public class WebSecurityConfiguration {
 
     private static final String INVENTORY_API_PATH_MATCHER = "/api/inventory/**";
 
+    // Unlike every other bounded context's API, shopping carts are customer-facing, and this application has no
+    // persisted customer-account/login concept at all (see ADR 0027) - Keycloak roles here exist only for back-office
+    // operators. Requiring a role would therefore make the cart unusable for its actual (anonymous) audience, so this
+    // is intentionally permitAll rather than gated like ORDER/CATALOG/INVENTORY above. Declared explicitly (even
+    // though it would already fall through to the anyRequest().permitAll() default below) purely for documentation.
+    private static final String CART_API_PATH_MATCHER = "/api/cart/**";
+
     // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
     // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
     // since the question is a free-text request body. Without this specific, narrower rule it would otherwise fall
@@ -97,6 +104,8 @@ public class WebSecurityConfiguration {
                         .hasRole(INVENTORY_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, INVENTORY_API_PATH_MATCHER)
                         .hasRole(INVENTORY_WRITE_ROLE)
+                        .requestMatchers(CART_API_PATH_MATCHER)
+                        .permitAll()
                         .anyRequest()
                         .permitAll())
                 .oauth2ResourceServer(

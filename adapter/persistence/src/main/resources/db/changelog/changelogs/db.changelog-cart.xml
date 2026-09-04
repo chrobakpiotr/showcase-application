@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="25" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="CART">
+            <column name="CART_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(40)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_CART" />
+            </column>
+
+            <column name="UPDATED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="VERSION" defaultValueNumeric="0" remarks="Optimistic-locking token, see ADR 0027" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+    </changeSet>
+
+    <changeSet id="26" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="CART_LINE_ITEM">
+            <column name="CART_ID" type="VARCHAR(40)">
+                <constraints nullable="false" foreignKeyName="FK_CART_LINE_ITEM_CART_ID" referencedTableName="CART" referencedColumnNames="CART_ID" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="SKU" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="PRODUCT_NAME" type="VARCHAR(200)">
+                <constraints nullable="false" />
+            </column>
+            <column name="UNIT_PRICE" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="QUANTITY" type="INT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <addPrimaryKey schemaName="${schema_name_full}" tableName="CART_LINE_ITEM" columnNames="CART_ID, SKU" constraintName="PK_CART_LINE_ITEM" />
+
+        <createIndex indexName="IDX_CART_LINE_ITEM_CART_ID" schemaName="${schema_name_full}" tableName="CART_LINE_ITEM">
+            <column name="CART_ID" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

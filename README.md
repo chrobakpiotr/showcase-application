@@ -286,6 +286,39 @@ since stock is browsed/adjusted by operators and other bounded contexts, not cus
 - **Authorization** again mirrors the operator model: `INVENTORY_READ`/`INVENTORY_WRITE` (see
   [ADR 0017](docs/adr/0017-order-api-operator-authorization-model.md)).
 
+## Shopping Cart
+
+The third new bounded context (see
+[ADR 0027](docs/adr/0027-shopping-cart-bounded-context.md)): lets a customer accumulate SKUs before
+checkout via a new `/api/cart/**` API. Unlike Catalog/Inventory, this is genuinely customer-facing - and
+this application has no persisted customer-account/login concept at all, which shapes every decision
+below.
+
+- **Anonymous, session-based** - a cart is keyed purely by a generated `cartId`
+  (`CART-<uuid>`), no `customerId` FK. The frontend holds onto the id (e.g. local storage) across
+  requests, the same way a real anonymous cart works pre-login.
+- **Genuinely public API** - `/api/cart/**` is explicitly `permitAll()`, the first bounded context in
+  this codebase not gated behind an operator role: requiring one would make the cart unusable by its
+  actual (anonymous) audience.
+- **Price/name snapshot, not a live catalog reference** - each line item stores its own `productName`/
+  `unitPrice` captured at add-time, so a cart's contents don't silently change if the catalog is updated
+  later. Resolving `sku` to its authoritative current name/price happens in the **web layer**
+  (`CartController` calls `ManageProductInPort.findProduct` before delegating to the cart use case) - the
+  cart domain itself has no dependency on `catalog.Product`, mirroring Inventory's stance on SKUs (ADR
+  0026).
+- **`@ElementCollection`/`@Embeddable` line items** - the first use of this JPA mapping style in the
+  codebase: a line item has no identity or lifecycle independent of its owning cart, so it's persisted as
+  a value-object collection rather than a full child entity with its own repository.
+- **Optimistic locking without a retry loop** - `CartEntity.version` backs the same
+  `saveAndFlush`-then-translate-conflict pattern as Inventory (409 `CartConflictException`), but
+  deliberately without Inventory's bounded retry loop: a cart is single-actor by design, so a conflict is
+  surfaced once rather than retried server-side.
+- `POST /api/cart` creates an empty cart; `GET /api/cart/{cartId}` fetches it (404s if unknown - unlike
+  Inventory's stock levels, an unknown cart id has no meaningful "zero" state); `POST
+  /api/cart/{cartId}/items` adds/merges an item; `PUT .../items/{sku}` updates its quantity; `DELETE
+  .../items/{sku}` removes it; `DELETE /api/cart/{cartId}` empties it. Update/remove are idempotent
+  no-ops if the sku isn't present.
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating

@@ -2,7 +2,10 @@ package com.cp.ecommerce.domain.support;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
+import com.cp.ecommerce.domain.cart.Cart;
+import com.cp.ecommerce.domain.cart.CartLineItem;
 import com.cp.ecommerce.domain.catalog.Category;
 import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.customer.Address;
@@ -27,6 +30,8 @@ public final class TestDomainObjectFactory {
     public static final String TEST_ORDER_NUMBER = "ORD-1001";
 
     public static final String TEST_PRODUCT_SKU = "SKU-1001";
+
+    public static final String TEST_CART_ID = "CART-1001";
 
     public static Order validOrder() {
 
@@ -75,6 +80,21 @@ public final class TestDomainObjectFactory {
     public static StockLevel validStockLevel() {
 
         return StockLevel.builder().sku(TEST_PRODUCT_SKU).quantityOnHand(10).quantityReserved(2).version(0).build();
+    }
+
+    public static CartLineItem validCartLineItem() {
+
+        return CartLineItem.builder()
+                .sku(TEST_PRODUCT_SKU)
+                .productName("Wireless Headphones")
+                .unitPrice(BigDecimal.valueOf(99.99))
+                .quantity(2)
+                .build();
+    }
+
+    public static Cart validCart() {
+
+        return Cart.builder().cartId(TEST_CART_ID).items(List.of(validCartLineItem())).updated(TEST_CREATED).build();
     }
 
 }

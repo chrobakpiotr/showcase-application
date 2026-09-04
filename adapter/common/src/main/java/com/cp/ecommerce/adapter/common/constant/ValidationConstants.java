@@ -82,4 +82,20 @@ public class ValidationConstants {
 
     public final String INVALID_INVENTORY_QUANTITY = "Quantity must not be negative";
 
+    public final int CART_ID_MAX = 40;
+
+    public final int CART_SKU_MAX = 40;
+
+    public final int CART_PRODUCT_NAME_MAX = 200;
+
+    public final String INVALID_CART_ID = "Invalid Cart Id";
+
+    public final String INVALID_CART_SKU = "Invalid SKU";
+
+    public final String INVALID_CART_PRODUCT_NAME = "Invalid Product Name";
+
+    public final String INVALID_CART_UNIT_PRICE = "Invalid Unit Price";
+
+    public final String INVALID_CART_QUANTITY = "Quantity must be at least 1";
+
 }

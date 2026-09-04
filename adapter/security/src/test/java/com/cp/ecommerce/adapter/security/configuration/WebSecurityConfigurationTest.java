@@ -34,6 +34,8 @@ class WebSecurityConfigurationTest {
 
     private static final String INVENTORY_ENDPOINT = "/api/inventory/SKU-1234";
 
+    private static final String CART_ENDPOINT = "/api/cart";
+
     @Autowired
     private transient MockMvc mockMvc;
 
@@ -214,6 +216,16 @@ class WebSecurityConfigurationTest {
                 .andReturn()
                 .getResponse()
                 .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldAllowUnauthenticatedAccessToCartApi() throws Exception {
+
+        // Unlike Order/Catalog/Inventory, Cart is a genuinely public, unauthenticated API (see ADR 0027) - there is
+        // no customer-account/login concept in this application to gate it behind.
+        final int status = mockMvc.perform(post(CART_ENDPOINT)).andReturn().getResponse().getStatus();
 
         assertThat(status).isNotIn(401, 403);
     }

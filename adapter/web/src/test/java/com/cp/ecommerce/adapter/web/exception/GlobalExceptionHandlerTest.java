@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Set;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
+import com.cp.ecommerce.adapter.common.exception.CartConflictException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
@@ -133,6 +134,16 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Stock Level Conflict",
                 "Concurrent stock modification detected for SKU SKU-1, please retry");
+    }
+
+    @Test
+    void shouldHandleCartConflictException() {
+
+        assertProblem(
+                handler.cartConflictException(new CartConflictException("CART-1", new IllegalStateException())),
+                CONFLICT,
+                "Cart Conflict",
+                "Concurrent cart modification detected for cart CART-1, please retry");
     }
 
     @Test

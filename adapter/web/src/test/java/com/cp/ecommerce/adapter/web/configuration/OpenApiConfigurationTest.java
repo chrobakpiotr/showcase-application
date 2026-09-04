@@ -41,4 +41,10 @@ class OpenApiConfigurationTest {
         assertThat(configuration.inventoryApi().getGroup()).isEqualTo("inventory");
     }
 
+    @Test
+    void shouldGroupCartApiEndpoints() {
+
+        assertThat(configuration.cartApi().getGroup()).isEqualTo("cart");
+    }
+
 }

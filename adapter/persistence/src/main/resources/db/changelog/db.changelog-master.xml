@@ -23,5 +23,6 @@
     <include file="changelogs/db.changelog-duplicate-order-detection.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-catalog.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-inventory.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-cart.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

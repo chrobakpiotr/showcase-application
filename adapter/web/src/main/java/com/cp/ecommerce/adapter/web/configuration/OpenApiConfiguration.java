@@ -55,4 +55,10 @@ public class OpenApiConfiguration {
         return GroupedOpenApi.builder().group("inventory").pathsToMatch("/api/inventory/**").build();
     }
 
+    @Bean
+    public GroupedOpenApi cartApi() {
+
+        return GroupedOpenApi.builder().group("cart").pathsToMatch("/api/cart/**").build();
+    }
+
 }
