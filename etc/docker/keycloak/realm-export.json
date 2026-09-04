@@ -6,7 +6,9 @@
   "roles": {
     "realm": [
       { "name": "ORDER_READ", "description": "Allows reading orders" },
-      { "name": "ORDER_WRITE", "description": "Allows placing orders" }
+      { "name": "ORDER_WRITE", "description": "Allows placing orders" },
+      { "name": "CATALOG_READ", "description": "Allows browsing the product catalog" },
+      { "name": "CATALOG_WRITE", "description": "Allows managing categories and products" }
     ]
   },
   "clients": [
@@ -47,7 +49,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "ORDER_WRITE" ]
+      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE" ]
     },
     {
       "username": "order-viewer",
@@ -59,7 +61,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ" ]
+      "realmRoles": [ "ORDER_READ", "CATALOG_READ" ]
     }
   ]
 }

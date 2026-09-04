@@ -50,4 +50,30 @@ public class ValidationConstants {
 
     public final String INVALID_CUSTOMER = "Customer is required";
 
+    public final int CATEGORY_NAME_MAX = 120;
+
+    public final int CATEGORY_SLUG_MAX = 120;
+
+    public final int PRODUCT_SKU_MAX = 40;
+
+    public final int PRODUCT_NAME_MAX = 200;
+
+    public final int PRODUCT_DESCRIPTION_MAX = 2000;
+
+    public final int PRODUCT_IMAGE_URL_MAX = 500;
+
+    public final String INVALID_CATEGORY_NAME = "Invalid Category Name";
+
+    public final String INVALID_CATEGORY_SLUG = "Invalid Category Slug";
+
+    public final String INVALID_PRODUCT_NAME = "Invalid Product Name";
+
+    public final String INVALID_PRODUCT_DESCRIPTION = "Invalid Product Description";
+
+    public final String INVALID_PRODUCT_PRICE = "Invalid Product Price";
+
+    public final String INVALID_PRODUCT_IMAGE_URL = "Invalid Product Image URL";
+
+    public final String INVALID_PRODUCT_CATEGORY = "Category is required";
+
 }

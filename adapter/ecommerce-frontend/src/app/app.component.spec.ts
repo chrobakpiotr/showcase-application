@@ -88,4 +88,16 @@ describe('AppComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/analytics"]')).toBeFalsy();
   });
+
+  it('shows the catalog nav link when the user has CATALOG_READ', () => {
+    setup(true, 'admin', ['CATALOG_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeTruthy();
+  });
+
+  it('hides the catalog nav link when the user lacks CATALOG_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeFalsy();
+  });
 });

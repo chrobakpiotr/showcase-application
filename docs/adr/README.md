@@ -31,6 +31,7 @@ than editing it in place.
 | [0022](0022-ai-ops-digest-scheduled-narrative-summary.md) | AI ops digest: scheduled, single-shot narrative summary |
 | [0023](0023-ai-language-detection-order-confirmations.md) | AI language detection for order confirmation emails |
 | [0024](0024-ai-duplicate-order-detection.md) | AI-assisted duplicate-order detection |
+| [0025](0025-product-catalog-bounded-context.md) | Product Catalog bounded context |
 
 ## Template for new ADRs
 

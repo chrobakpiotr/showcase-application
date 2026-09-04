@@ -22,6 +22,13 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines guarded catalog route', async () => {
+    const catalogRoute = routes.find((route) => route.path === 'catalog');
+    expect(catalogRoute?.canActivate?.length).toBe(1);
+    const component = await catalogRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('redirects empty path to order', () => {
     const defaultRoute = routes.find((route) => route.path === '');
     expect(defaultRoute?.redirectTo).toBe('order');

@@ -30,6 +30,8 @@ class WebSecurityConfigurationTest {
 
     private static final String ORDER_ENDPOINT = "/api/order";
 
+    private static final String CATALOG_PRODUCTS_ENDPOINT = "/api/catalog/products";
+
     @Autowired
     private transient MockMvc mockMvc;
 
@@ -113,6 +115,53 @@ class WebSecurityConfigurationTest {
         final int status = mockMvc
                 .perform(
                         post(ORDER_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedAccessToCatalogApi() throws Exception {
+
+        mockMvc.perform(get(CATALOG_PRODUCTS_ENDPOINT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldRejectListingProductsWithoutCatalogReadRole() throws Exception {
+
+        mockMvc.perform(get(CATALOG_PRODUCTS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_WRITE")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowListingProductsWithCatalogReadRole() throws Exception {
+
+        mockMvc.perform(get(CATALOG_PRODUCTS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_READ")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldRejectCreatingProductWithoutCatalogWriteRole() throws Exception {
+
+        mockMvc.perform(
+                post(CATALOG_PRODUCTS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_READ"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowCreatingProductWithCatalogWriteRole() throws Exception {
+
+        // Security-authorization test only: the empty "{}" body will fail downstream category resolution, which is
+        // irrelevant here - all that matters is the request cleared the security filter chain.
+        final int status = mockMvc
+                .perform(
+                        post(CATALOG_PRODUCTS_ENDPOINT).with(jwt().authorities(() -> "ROLE_CATALOG_WRITE"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
                 .andReturn()

@@ -1,7 +1,10 @@
 package com.cp.ecommerce.domain.support;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
+import com.cp.ecommerce.domain.catalog.Category;
+import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
@@ -21,6 +24,8 @@ public final class TestDomainObjectFactory {
     public static final Long TEST_CUSTOMER_ID = 1001L;
 
     public static final String TEST_ORDER_NUMBER = "ORD-1001";
+
+    public static final String TEST_PRODUCT_SKU = "SKU-1001";
 
     public static Order validOrder() {
 
@@ -45,6 +50,25 @@ public final class TestDomainObjectFactory {
     public static Address validAddress() {
 
         return Address.builder().street("Main Street 1").postalCode("12-345").city("Warsaw").countryCode("PL").build();
+    }
+
+    public static Category validCategory() {
+
+        return Category.builder().id(1L).name("Electronics").slug("electronics").build();
+    }
+
+    public static Product validProduct() {
+
+        return Product.builder()
+                .sku(TEST_PRODUCT_SKU)
+                .name("Wireless Mouse")
+                .description("A reliable wireless mouse.")
+                .category(validCategory())
+                .unitPrice(new BigDecimal("29.99"))
+                .imageUrl("https://example.com/images/wireless-mouse.png")
+                .active(true)
+                .created(TEST_CREATED)
+                .build();
     }
 
 }

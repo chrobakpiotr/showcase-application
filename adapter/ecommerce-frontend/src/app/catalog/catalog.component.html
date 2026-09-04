@@ -1,0 +1,61 @@
+<div class="catalog-container">
+  <h2>Product Catalog</h2>
+
+  <div class="filters">
+    <label for="category-filter">Category</label>
+    <select
+      id="category-filter"
+      data-testid="category-filter"
+      (change)="selectCategory($any($event.target).value)"
+    >
+      <option value="">All categories</option>
+      @for (category of categories(); track category.slug) {
+      <option [value]="category.slug">{{ category.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (loading()) {
+  <p class="loading">Loading products…</p>
+  } @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <div class="product-grid" data-testid="product-grid">
+    @for (product of products(); track product.sku) {
+    <article class="product-card" data-testid="product-card">
+      @if (product.imageUrl) {
+      <img [src]="product.imageUrl" [alt]="product.name" />
+      }
+      <h3>{{ product.name }}</h3>
+      <p class="category">{{ product.categoryName }}</p>
+      <p class="description">{{ product.description }}</p>
+      <p class="price">{{ product.unitPrice | currency }}</p>
+    </article>
+    } @empty {
+    <p class="empty" data-testid="empty-products">No products found.</p>
+    }
+  </div>
+
+  <div class="pagination">
+    <button
+      type="button"
+      data-testid="prev-page"
+      [disabled]="page() === 0"
+      (click)="previousPage()"
+    >
+      Previous
+    </button>
+    <span data-testid="page-indicator"
+      >Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span
+    >
+    <button
+      type="button"
+      data-testid="next-page"
+      [disabled]="page() + 1 >= totalPages()"
+      (click)="nextPage()"
+    >
+      Next
+    </button>
+  </div>
+</div>

@@ -242,6 +242,27 @@ not plain DTOs, so a client can navigate the API by following links rather than 
   reflecting that it is a read-only projection with no per-item state machine or pagination cursor to expose
   (see [Order analytics read model](#order-analytics-read-model-kafka-consumer)).
 
+## Product Catalog
+
+The first of a growing set of new bounded contexts (see [ADR 0025](docs/adr/0025-product-catalog-bounded-context.md)):
+a `Category`/`Product` domain, browsable via a new `/api/catalog/**` API and a lazy-loaded `/catalog` page in the
+Angular frontend.
+
+- **`Product` has no persistence id** - its SKU (`SKU-<uuid>`, generated independently of any database sequence)
+  is its sole business key, mirroring `Order.orderNumber`. `Category` does carry a real id, since categories are
+  referenced internally by both slug and id.
+- **Two-phase category resolution**: creating/updating a product only takes a `categorySlug` in the request body;
+  the web mapper builds a category-less "draft" `Product`, and the use case resolves the slug to a real `Category`
+  before the object is ever asserted valid - keeping the mapping and domain-resolution concerns cleanly separated.
+- **Independent pagination types**: `PagedResult`/`ProductPageQuery` are defined locally in `domain/catalog`
+  rather than reusing the `order` module's structurally similar types - each bounded context owns its own
+  contracts rather than being coupled through a shared "common paging" abstraction.
+- `GET /api/catalog/products` supports `category`/`activeOnly` filters and pagination (same `PagedModel`
+  HATEOAS shape as `GET /api/order` - see [API response design](#api-response-design-hateoas--pagination));
+  `GET /api/catalog/categories` lists all categories; `POST`/`PUT` manage products and categories.
+- **Authorization** reuses the existing operator model rather than inventing a new one: `CATALOG_READ`/
+  `CATALOG_WRITE` mirror `ORDER_READ`/`ORDER_WRITE` exactly (see [ADR 0017](docs/adr/0017-order-api-operator-authorization-model.md)).
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating

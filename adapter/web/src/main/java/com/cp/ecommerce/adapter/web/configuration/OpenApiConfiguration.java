@@ -43,4 +43,10 @@ public class OpenApiConfiguration {
         return GroupedOpenApi.builder().group("order").pathsToMatch("/api/order/**").build();
     }
 
+    @Bean
+    public GroupedOpenApi catalogApi() {
+
+        return GroupedOpenApi.builder().group("catalog").pathsToMatch("/api/catalog/**").build();
+    }
+
 }

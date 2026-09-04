@@ -29,4 +29,10 @@ class OpenApiConfigurationTest {
         assertThat(configuration.orderApi().getGroup()).isEqualTo("order");
     }
 
+    @Test
+    void shouldGroupCatalogApiEndpoints() {
+
+        assertThat(configuration.catalogApi().getGroup()).isEqualTo("catalog");
+    }
+
 }
