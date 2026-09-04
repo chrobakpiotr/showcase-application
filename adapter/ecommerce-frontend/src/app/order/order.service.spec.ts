@@ -5,6 +5,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { OrderService } from '@app/order/order.service';
+import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
 import { OrderResponseModel } from '@app/order/order-response.model';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
 import { environment } from '@environments/environment';
@@ -23,6 +24,15 @@ const CUSTOMER: CustomerRequestModel = {
   city: 'Warsaw',
   countryCode: 'PL',
 };
+
+const ITEMS: OrderLineItemRequestModel[] = [
+  {
+    sku: 'SKU-1234',
+    productName: 'Wireless Mouse',
+    unitPrice: 29.99,
+    quantity: 2,
+  },
+];
 
 describe('OrderService', () => {
   let orderService: OrderService;
@@ -57,7 +67,7 @@ describe('OrderService', () => {
 
     //when
     orderService
-      .placeOrder('test remarks', CUSTOMER)
+      .placeOrder('test remarks', CUSTOMER, ITEMS)
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     //then
@@ -66,6 +76,7 @@ describe('OrderService', () => {
     );
     expect(req.request.method).toBe('POST');
     expect(req.request.body.customer).toEqual(CUSTOMER);
+    expect(req.request.body.items).toEqual(ITEMS);
 
     req.flush(orderResponse);
   });

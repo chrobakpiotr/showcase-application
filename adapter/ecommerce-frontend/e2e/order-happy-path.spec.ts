@@ -1,6 +1,40 @@
-import { expect, test } from '@playwright/test';
+import { expect, request, test } from '@playwright/test';
+
+const KEYCLOAK_TOKEN_URL =
+  process.env['E2E_KEYCLOAK_TOKEN_URL'] ??
+  'http://localhost:8081/realms/ecommerce/protocol/openid-connect/token';
+const API_BASE_URL = process.env['E2E_BASE_URL'] ?? 'http://localhost:9080/home';
+
+// Stock must exist in Inventory before an order can reserve it - OrderController.placeOrder rejects a line
+// item with insufficient stock (HTTP 409). A fresh SKU per run keeps repeated executions independent of
+// whatever stock a prior run left behind.
+async function receiveStockForTestSku(sku: string): Promise<void> {
+  const apiContext = await request.newContext();
+
+  const tokenResponse = await apiContext.post(KEYCLOAK_TOKEN_URL, {
+    form: {
+      grant_type: 'password',
+      client_id: 'ecommerce-app',
+      username: 'order-admin',
+      password: 'password',
+    },
+  });
+  const { access_token: accessToken } = (await tokenResponse.json()) as {
+    access_token: string;
+  };
+
+  await apiContext.post(`${API_BASE_URL}/api/inventory/${sku}/receive`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: { quantity: 100 },
+  });
+
+  await apiContext.dispose();
+}
 
 test('order happy path: login and place order', async ({ page }) => {
+  const sku = `E2E-SKU-${Date.now()}`;
+  await receiveStockForTestSku(sku);
+
   // An empty path preserves baseURL's own "/home" context path in full; a leading "/" would instead resolve to the
   // server's root ("http://host:port/"), which 404s since the app is only served under /home.
   await page.goto('');
@@ -27,6 +61,10 @@ test('order happy path: login and place order', async ({ page }) => {
   await page
     .getByTestId('order-remarks')
     .fill('Integration test order remarks');
+  await page.getByTestId('item-sku-0').fill(sku);
+  await page.getByTestId('item-productName-0').fill('Wireless Mouse');
+  await page.getByTestId('item-unitPrice-0').fill('29.99');
+  await page.getByTestId('item-quantity-0').fill('2');
   await page.getByTestId('order-submit').click();
 
   await expect(page.getByTestId('order-number')).toBeVisible({

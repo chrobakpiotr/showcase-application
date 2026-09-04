@@ -115,6 +115,89 @@
       </div>
     </fieldset>
 
+    <fieldset formArrayName="items" class="items-fieldset">
+      <legend>Line items</legend>
+
+      @for (item of itemGroups; track $index; let i = $index) {
+      <div [formGroup]="item" class="line-item">
+        <div class="field">
+          <label [attr.for]="'item-sku-' + i">SKU</label>
+          <input
+            [id]="'item-sku-' + i"
+            type="text"
+            formControlName="sku"
+            [attr.data-testid]="'item-sku-' + i"
+            placeholder="SKU-1234"
+          />
+          @if (item.controls['sku'].invalid && item.controls['sku'].touched) {
+          <span class="error">SKU is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label [attr.for]="'item-productName-' + i">Product name</label>
+          <input
+            [id]="'item-productName-' + i"
+            type="text"
+            formControlName="productName"
+            [attr.data-testid]="'item-productName-' + i"
+            placeholder="Wireless Mouse"
+          />
+          @if (item.controls['productName'].invalid &&
+          item.controls['productName'].touched) {
+          <span class="error">Product name is required.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label [attr.for]="'item-unitPrice-' + i">Unit price</label>
+          <input
+            [id]="'item-unitPrice-' + i"
+            type="number"
+            step="0.01"
+            min="0.01"
+            formControlName="unitPrice"
+            [attr.data-testid]="'item-unitPrice-' + i"
+            placeholder="29.99"
+          />
+          @if (item.controls['unitPrice'].invalid &&
+          item.controls['unitPrice'].touched) {
+          <span class="error">Unit price must be greater than zero.</span>
+          }
+        </div>
+
+        <div class="field">
+          <label [attr.for]="'item-quantity-' + i">Quantity</label>
+          <input
+            [id]="'item-quantity-' + i"
+            type="number"
+            step="1"
+            min="1"
+            formControlName="quantity"
+            [attr.data-testid]="'item-quantity-' + i"
+          />
+          @if (item.controls['quantity'].invalid &&
+          item.controls['quantity'].touched) {
+          <span class="error">Quantity must be at least 1.</span>
+          }
+        </div>
+
+        <button
+          type="button"
+          (click)="removeItem(i)"
+          [disabled]="itemGroups.length <= 1"
+          [attr.data-testid]="'item-remove-' + i"
+        >
+          Remove
+        </button>
+      </div>
+      }
+
+      <button type="button" (click)="addItem()" data-testid="item-add">
+        Add item
+      </button>
+    </fieldset>
+
     <div class="field">
       <label for="remarks">Remarks</label>
       <textarea
