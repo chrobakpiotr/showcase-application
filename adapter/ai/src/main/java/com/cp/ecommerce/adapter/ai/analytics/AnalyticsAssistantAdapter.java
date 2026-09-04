@@ -22,13 +22,13 @@ import lombok.extern.slf4j.Slf4j;
  * see ADR 0021.
  *
  * <p>
- * Deliberately tool-calling only, <strong>not</strong> retrieval-augmented like {@code OllamaSupportAssistantAdapter}: there is
- * no static knowledge base to ground an ops-analytics question in, only live, structured data the model can query directly via
+ * Deliberately tool-calling only, <strong>not</strong> retrieval-augmented like {@code SupportAssistantAdapter}: there is no
+ * static knowledge base to ground an ops-analytics question in, only live, structured data the model can query directly via
  * {@link OrderAnalyticsTool} - adding a vector store here would be pure ceremony with nothing meaningful to retrieve.
  * </p>
  *
  * <p>
- * Like the support assistant and unlike {@code OllamaOrderRemarksClassifierAdapter}, a failed/unreachable model call is
+ * Like the support assistant and unlike {@code OrderRemarksClassifierAdapter}, a failed/unreachable model call is
  * <strong>not</strong> left to propagate: this is a direct, synchronous, operator-facing chat call with no saga orchestrator to
  * catch and log the failure on its behalf, so it is caught here and turned into {@link AnalyticsAnswer#unavailable()} instead.
  * </p>
@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @WebAdapter
 @ConditionalOnProperty(name = "service.ai.enabled", havingValue = "true")
-public class OllamaAnalyticsAssistantAdapter implements AskAnalyticsQuestionOutPort {
+public class AnalyticsAssistantAdapter implements AskAnalyticsQuestionOutPort {
 
     private static final String RESILIENCE_INSTANCE_NAME = "askAnalyticsQuestion";
 
@@ -51,7 +51,7 @@ public class OllamaAnalyticsAssistantAdapter implements AskAnalyticsQuestionOutP
 
     private final ResilientExecutor resilientExecutor;
 
-    public OllamaAnalyticsAssistantAdapter(
+    public AnalyticsAssistantAdapter(
             final ChatClient.Builder chatClientBuilder,
             final ChatMemory chatMemory,
             final OrderAnalyticsTool orderAnalyticsTool,

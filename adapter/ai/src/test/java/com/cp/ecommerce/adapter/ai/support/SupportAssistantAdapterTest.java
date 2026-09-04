@@ -35,13 +35,13 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link OllamaSupportAssistantAdapter}. As with {@code OllamaOrderRemarksClassifierAdapterTest}, a real
- * {@link ChatClient} is built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed. The
- * {@link ChatMemory} is a real, in-memory instance (nothing external to fake there); the {@link VectorStore} is mocked since
- * embedding/similarity search is itself an external-model boundary in the real adapter.
+ * Unit tests for {@link SupportAssistantAdapter}. As with {@code OrderRemarksClassifierAdapterTest}, a real {@link ChatClient}
+ * is built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed. The {@link ChatMemory} is
+ * a real, in-memory instance (nothing external to fake there); the {@link VectorStore} is mocked since embedding/similarity
+ * search is itself an external-model boundary in the real adapter.
  */
 @ExtendWith(MockitoExtension.class)
-class OllamaSupportAssistantAdapterTest {
+class SupportAssistantAdapterTest {
 
     @Mock
     transient ChatModel chatModel;
@@ -66,7 +66,7 @@ class OllamaSupportAssistantAdapterTest {
         runResilientActionEagerly();
         lenient().when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of(new Document("Confirmed orders are being processed.")));
-        final OllamaSupportAssistantAdapter adapter = newAdapter();
+        final SupportAssistantAdapter adapter = newAdapter();
 
         final SupportAnswer answer = adapter.ask(question("Where is my order?"), "conversation-1");
 
@@ -80,7 +80,7 @@ class OllamaSupportAssistantAdapterTest {
         respondWith("General policy answer.");
         runResilientActionEagerly();
         lenient().when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
-        final OllamaSupportAssistantAdapter adapter = newAdapter();
+        final SupportAssistantAdapter adapter = newAdapter();
 
         final SupportAnswer answer = adapter.ask(question("Can I cancel my order?"), null);
 
@@ -91,16 +91,16 @@ class OllamaSupportAssistantAdapterTest {
     void shouldReturnFallbackAnswerWhenResilienceFails() throws Exception {
 
         when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
-        final OllamaSupportAssistantAdapter adapter = newAdapter();
+        final SupportAssistantAdapter adapter = newAdapter();
 
         final SupportAnswer answer = adapter.ask(question("Where is my order?"), "conversation-1");
 
         assertThat(answer.isAssistantAvailable()).isFalse();
     }
 
-    private OllamaSupportAssistantAdapter newAdapter() {
+    private SupportAssistantAdapter newAdapter() {
 
-        return new OllamaSupportAssistantAdapter(
+        return new SupportAssistantAdapter(
                 ChatClient.builder(chatModel),
                 vectorStore,
                 chatMemory,

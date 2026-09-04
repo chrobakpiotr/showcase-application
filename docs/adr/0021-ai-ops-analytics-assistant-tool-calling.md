@@ -35,10 +35,10 @@ rather than hides.
   per-context adapter-completeness check with zero additional bookkeeping - unlike ADR 0020's `assistant`
   context, which needed a genuine ArchUnit harness bugfix to accommodate a context with an empty
   non-`web` adapter package. Reusing `order` sidesteps that class of problem entirely for this feature.
-- **Tool-calling only, no RAG, no `VectorStore` dependency** - `OllamaAnalyticsAssistantAdapter` wires
+- **Tool-calling only, no RAG, no `VectorStore` dependency** - `AnalyticsAssistantAdapter` wires
   `MessageChatMemoryAdvisor` (for multi-turn context, identical pattern to ADR 0020) and
   `defaultTools(orderAnalyticsTool)`, nothing else. This is the clearest structural difference from
-  `OllamaSupportAssistantAdapter`, and is documented as such in the adapter's own javadoc.
+  `SupportAssistantAdapter`, and is documented as such in the adapter's own javadoc.
 - **Two `@Tool` methods on `OrderAnalyticsTool`** (`adapter.ai.analytics`, mirroring `OrderLookupTool`'s
   read-only-wrapper shape from ADR 0020):
   - `countOrdersPlacedBetween(fromDate, toDate)` parses two ISO-8601 (`yyyy-MM-dd`) dates, expands the

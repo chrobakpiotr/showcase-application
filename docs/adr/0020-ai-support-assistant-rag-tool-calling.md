@@ -65,7 +65,7 @@ bounded context, `assistant`, with its own hexagonal slice, not a saga step wedg
 - **Exception handling deliberately diverges from ADR 0019's adapter.** The remarks-triage adapter rethrows
   on failure, because it runs inside the saga's virtual-thread fan-out, which already has its own
   catch-and-record-metrics wrapper per step. This adapter has no such caller: it is invoked directly and
-  synchronously from a web request with a human waiting on the other end. `OllamaSupportAssistantAdapter`
+  synchronously from a web request with a human waiting on the other end. `SupportAssistantAdapter`
   therefore catches failures internally (model unreachable, circuit open, timeout - all still wrapped in the
   existing `ResilientExecutor.callResilient`, ADR 0003) and returns `SupportAnswer.unavailable()`, a normal
   (not exceptional) value the controller renders as a 200 with `assistantAvailable: false` - the Angular

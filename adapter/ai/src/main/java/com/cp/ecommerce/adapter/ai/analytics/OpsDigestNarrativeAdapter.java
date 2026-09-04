@@ -18,10 +18,10 @@ import lombok.extern.slf4j.Slf4j;
  * to look up or remember across calls.
  *
  * <p>
- * Like {@code OllamaAnalyticsAssistantAdapter} and unlike {@code OllamaOrderRemarksClassifierAdapter}, a failed/unreachable
- * model call is <strong>not</strong> left to propagate: {@code OpsDigestScheduler} has no saga orchestrator to catch and log
- * the failure on its behalf, and unlike an operator-facing chat answer, aborting the whole digest here would also throw away
- * the perfectly good, deterministic figures ({@link RemarksClassificationSummary} and the order count) that {@code
+ * Like {@code AnalyticsAssistantAdapter} and unlike {@code OrderRemarksClassifierAdapter}, a failed/unreachable model call is
+ * <strong>not</strong> left to propagate: {@code OpsDigestScheduler} has no saga orchestrator to catch and log the failure on
+ * its behalf, and unlike an operator-facing chat answer, aborting the whole digest here would also throw away the perfectly
+ * good, deterministic figures ({@link RemarksClassificationSummary} and the order count) that {@code
  * GenerateOpsDigestUseCase} already computed. So only the prose degrades to a fixed fallback sentence - the digest itself is
  * still generated and persisted with accurate figures.
  * </p>
@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @WebAdapter
 @ConditionalOnProperty(name = "service.ai.enabled", havingValue = "true")
-public class OllamaOpsDigestNarrativeAdapter implements GenerateOpsDigestNarrativeOutPort {
+public class OpsDigestNarrativeAdapter implements GenerateOpsDigestNarrativeOutPort {
 
     private static final String RESILIENCE_INSTANCE_NAME = "generateOpsDigestNarrative";
 
@@ -45,9 +45,7 @@ public class OllamaOpsDigestNarrativeAdapter implements GenerateOpsDigestNarrati
 
     private final ResilientExecutor resilientExecutor;
 
-    public OllamaOpsDigestNarrativeAdapter(
-            final ChatClient.Builder chatClientBuilder,
-            final ResilientExecutor resilientExecutor) {
+    public OpsDigestNarrativeAdapter(final ChatClient.Builder chatClientBuilder, final ResilientExecutor resilientExecutor) {
 
         this.chatClient = chatClientBuilder.build();
         this.resilientExecutor = resilientExecutor;

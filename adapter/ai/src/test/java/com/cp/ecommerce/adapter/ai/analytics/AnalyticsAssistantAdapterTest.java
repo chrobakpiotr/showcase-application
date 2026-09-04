@@ -31,12 +31,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link OllamaAnalyticsAssistantAdapter}. As with {@code OllamaSupportAssistantAdapterTest}, a real
- * {@link ChatClient} is built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed. The
- * {@link ChatMemory} is a real, in-memory instance (nothing external to fake there).
+ * Unit tests for {@link AnalyticsAssistantAdapter}. As with {@code SupportAssistantAdapterTest}, a real {@link ChatClient} is
+ * built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed. The {@link ChatMemory} is a
+ * real, in-memory instance (nothing external to fake there).
  */
 @ExtendWith(MockitoExtension.class)
-class OllamaAnalyticsAssistantAdapterTest {
+class AnalyticsAssistantAdapterTest {
 
     @Mock
     transient ChatModel chatModel;
@@ -59,7 +59,7 @@ class OllamaAnalyticsAssistantAdapterTest {
 
         respondWith("14 orders were placed between 2024-01-01 and 2024-01-31 (inclusive, UTC).");
         runResilientActionEagerly();
-        final OllamaAnalyticsAssistantAdapter adapter = newAdapter();
+        final AnalyticsAssistantAdapter adapter = newAdapter();
 
         final AnalyticsAnswer answer = adapter.ask(question("How many orders were placed in January 2024?"), "conversation-1");
 
@@ -72,7 +72,7 @@ class OllamaAnalyticsAssistantAdapterTest {
 
         respondWith("2 orders are currently classified as URGENT.");
         runResilientActionEagerly();
-        final OllamaAnalyticsAssistantAdapter adapter = newAdapter();
+        final AnalyticsAssistantAdapter adapter = newAdapter();
 
         final AnalyticsAnswer answer = adapter.ask(question("How many urgent orders are there?"), null);
 
@@ -83,16 +83,16 @@ class OllamaAnalyticsAssistantAdapterTest {
     void shouldReturnFallbackAnswerWhenResilienceFails() throws Exception {
 
         when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
-        final OllamaAnalyticsAssistantAdapter adapter = newAdapter();
+        final AnalyticsAssistantAdapter adapter = newAdapter();
 
         final AnalyticsAnswer answer = adapter.ask(question("How many orders were placed today?"), "conversation-1");
 
         assertThat(answer.isAssistantAvailable()).isFalse();
     }
 
-    private OllamaAnalyticsAssistantAdapter newAdapter() {
+    private AnalyticsAssistantAdapter newAdapter() {
 
-        return new OllamaAnalyticsAssistantAdapter(
+        return new AnalyticsAssistantAdapter(
                 ChatClient.builder(chatModel),
                 chatMemory,
                 new OrderAnalyticsTool(countOrderAnalyticsProjectionsInPort, getRemarksClassificationSummaryInPort),

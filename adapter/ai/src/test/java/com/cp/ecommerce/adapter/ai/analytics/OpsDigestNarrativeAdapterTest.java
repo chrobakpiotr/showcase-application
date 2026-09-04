@@ -27,11 +27,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link OllamaOpsDigestNarrativeAdapter}. As with {@code OllamaAnalyticsAssistantAdapterTest}, a real
- * {@link ChatClient} is built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed.
+ * Unit tests for {@link OpsDigestNarrativeAdapter}. As with {@code AnalyticsAssistantAdapterTest}, a real {@link ChatClient} is
+ * built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed.
  */
 @ExtendWith(MockitoExtension.class)
-class OllamaOpsDigestNarrativeAdapterTest {
+class OpsDigestNarrativeAdapterTest {
 
     private static final RemarksClassificationSummary SUMMARY = new RemarksClassificationSummary(
             Map.of(
@@ -55,7 +55,7 @@ class OllamaOpsDigestNarrativeAdapterTest {
 
         respondWith("6 orders were placed in the last 24 hours, mostly routine with one urgent request.");
         runResilientActionEagerly();
-        final OllamaOpsDigestNarrativeAdapter adapter = newAdapter();
+        final OpsDigestNarrativeAdapter adapter = newAdapter();
 
         final String narrative = adapter.generateNarrative(6L, SUMMARY);
 
@@ -66,16 +66,16 @@ class OllamaOpsDigestNarrativeAdapterTest {
     void shouldReturnFallbackNarrativeWhenResilienceFails() throws Exception {
 
         when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
-        final OllamaOpsDigestNarrativeAdapter adapter = newAdapter();
+        final OpsDigestNarrativeAdapter adapter = newAdapter();
 
         final String narrative = adapter.generateNarrative(6L, SUMMARY);
 
         assertThat(narrative).isEqualTo("AI narrative generation is currently unavailable; see the figures above.");
     }
 
-    private OllamaOpsDigestNarrativeAdapter newAdapter() {
+    private OpsDigestNarrativeAdapter newAdapter() {
 
-        return new OllamaOpsDigestNarrativeAdapter(ChatClient.builder(chatModel), resilientExecutor);
+        return new OpsDigestNarrativeAdapter(ChatClient.builder(chatModel), resilientExecutor);
     }
 
     private void respondWith(final String content) {

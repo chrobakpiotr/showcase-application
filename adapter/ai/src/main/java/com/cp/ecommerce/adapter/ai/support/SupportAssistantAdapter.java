@@ -24,17 +24,17 @@ import lombok.extern.slf4j.Slf4j;
  * call - see ADR 0020.
  *
  * <p>
- * Unlike {@code OllamaOrderRemarksClassifierAdapter}, a failed/unreachable model call is <strong>not</strong> left to
- * propagate: this is a direct, synchronous, user-facing chat call with no saga orchestrator to catch and log the failure on its
- * behalf, so an uncaught exception here would surface as a raw HTTP 500 to a customer mid-conversation. It is caught and turned
- * into {@link SupportAnswer#unavailable()} instead - a deliberate, documented deviation from that other adapter's
- * rethrow-on-failure precedent.
+ * Unlike {@code OrderRemarksClassifierAdapter}, a failed/unreachable model call is <strong>not</strong> left to propagate: this
+ * is a direct, synchronous, user-facing chat call with no saga orchestrator to catch and log the failure on its behalf, so an
+ * uncaught exception here would surface as a raw HTTP 500 to a customer mid-conversation. It is caught and turned into
+ * {@link SupportAnswer#unavailable()} instead - a deliberate, documented deviation from that other adapter's rethrow-on-failure
+ * precedent.
  * </p>
  */
 @Slf4j
 @WebAdapter
 @ConditionalOnProperty(name = "service.ai.enabled", havingValue = "true")
-public class OllamaSupportAssistantAdapter implements AskSupportQuestionOutPort {
+public class SupportAssistantAdapter implements AskSupportQuestionOutPort {
 
     private static final String RESILIENCE_INSTANCE_NAME = "askSupportQuestion";
 
@@ -49,7 +49,7 @@ public class OllamaSupportAssistantAdapter implements AskSupportQuestionOutPort 
 
     private final ResilientExecutor resilientExecutor;
 
-    public OllamaSupportAssistantAdapter(
+    public SupportAssistantAdapter(
             final ChatClient.Builder chatClientBuilder,
             final VectorStore supportKnowledgeBaseVectorStore,
             final ChatMemory chatMemory,

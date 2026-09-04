@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @WebAdapter
 @ConditionalOnProperty(name = "service.ai.enabled", havingValue = "true")
-public class OllamaOrderRemarksClassifierAdapter implements ClassifyOrderRemarksOutPort {
+public class OrderRemarksClassifierAdapter implements ClassifyOrderRemarksOutPort {
 
     private static final String RESILIENCE_INSTANCE_NAME = "classifyOrderRemarks";
 
@@ -49,7 +49,7 @@ public class OllamaOrderRemarksClassifierAdapter implements ClassifyOrderRemarks
 
     private final ResilientExecutor resilientExecutor;
 
-    public OllamaOrderRemarksClassifierAdapter(
+    public OrderRemarksClassifierAdapter(
             final ChatClient.Builder chatClientBuilder,
             final ResilientExecutor resilientExecutor) {
 

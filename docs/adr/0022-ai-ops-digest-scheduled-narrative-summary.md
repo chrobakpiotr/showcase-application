@@ -31,7 +31,7 @@ narrative, on a schedule, and persisting the result so it survives until the nex
   means `GenerateOpsDigestUseCase` always persists an accurate digest of the real figures regardless of
   whether the AI narrator is enabled or currently reachable - a broken or disabled model degrades the prose
   quality, never the data.
-- **Single-shot, stateless prompt - no tools, no RAG, no chat memory.** `OllamaOpsDigestNarrativeAdapter` is
+- **Single-shot, stateless prompt - no tools, no RAG, no chat memory.** `OpsDigestNarrativeAdapter` is
   the simplest of the four adapters: one `ChatClient.prompt()` call per invocation, the two figures
   interpolated directly into the prompt text. There is nothing to retrieve and nothing to call back into the
   domain for - the figures are already computed before the model ever runs, so the model's only job is

@@ -34,12 +34,12 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 
 /**
- * Unit tests for {@link OllamaOrderRemarksClassifierAdapter}. Rather than mocking the fluent {@link ChatClient} API directly
- * (its return type per call-site makes that brittle), a real {@link ChatClient} is built around a mocked {@link ChatModel} -
- * the model call itself (the only external boundary) is what's stubbed.
+ * Unit tests for {@link OrderRemarksClassifierAdapter}. Rather than mocking the fluent {@link ChatClient} API directly (its
+ * return type per call-site makes that brittle), a real {@link ChatClient} is built around a mocked {@link ChatModel} - the
+ * model call itself (the only external boundary) is what's stubbed.
  */
 @ExtendWith(MockitoExtension.class)
-class OllamaOrderRemarksClassifierAdapterTest {
+class OrderRemarksClassifierAdapterTest {
 
     @Mock
     transient ChatModel chatModel;
@@ -56,7 +56,7 @@ class OllamaOrderRemarksClassifierAdapterTest {
                 .created(new Date())
                 .customer(mockCustomer())
                 .build();
-        final OllamaOrderRemarksClassifierAdapter adapter = newAdapter();
+        final OrderRemarksClassifierAdapter adapter = newAdapter();
 
         final RemarksTriageResult result = adapter.classify(order);
 
@@ -70,7 +70,7 @@ class OllamaOrderRemarksClassifierAdapterTest {
         respondWith("{\"category\": \"URGENT\", \"rationale\": \"Customer needs delivery by tomorrow.\"}");
         runResilientActionEagerly();
         final Order order = mockOrder();
-        final OllamaOrderRemarksClassifierAdapter adapter = newAdapter();
+        final OrderRemarksClassifierAdapter adapter = newAdapter();
 
         final RemarksTriageResult result = adapter.classify(order);
 
@@ -84,7 +84,7 @@ class OllamaOrderRemarksClassifierAdapterTest {
         respondWith("{\"category\": \"NOT_A_REAL_CATEGORY\", \"rationale\": \"unclear\"}");
         runResilientActionEagerly();
         final Order order = mockOrder();
-        final OllamaOrderRemarksClassifierAdapter adapter = newAdapter();
+        final OrderRemarksClassifierAdapter adapter = newAdapter();
 
         final RemarksTriageResult result = adapter.classify(order);
 
@@ -96,14 +96,14 @@ class OllamaOrderRemarksClassifierAdapterTest {
 
         when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
         final Order order = mockOrder();
-        final OllamaOrderRemarksClassifierAdapter adapter = newAdapter();
+        final OrderRemarksClassifierAdapter adapter = newAdapter();
 
         assertThatThrownBy(() -> adapter.classify(order)).isInstanceOf(IllegalStateException.class);
     }
 
-    private OllamaOrderRemarksClassifierAdapter newAdapter() {
+    private OrderRemarksClassifierAdapter newAdapter() {
 
-        return new OllamaOrderRemarksClassifierAdapter(ChatClient.builder(chatModel), resilientExecutor);
+        return new OrderRemarksClassifierAdapter(ChatClient.builder(chatModel), resilientExecutor);
     }
 
     private void respondWith(final String content) {

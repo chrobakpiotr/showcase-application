@@ -31,7 +31,7 @@ same shape:
   spotbugs/checkstyle/jacoco/spotless/dependencycheck/pmd plugin applies, depending on `adapter:common` +
   `domain`. Two adapters implement the out-port, following the same "opt-in real adapter + no-op default"
   shape as `RouteOrderNotificationAdapter`/`DoNotRouteOrderNotificationAdapter` (ADR 0007/0008):
-  `OllamaOrderRemarksClassifierAdapter` (`service.ai.enabled=true`) and `DoNotClassifyOrderRemarksAdapter`
+  `OrderRemarksClassifierAdapter` (`service.ai.enabled=true`) and `DoNotClassifyOrderRemarksAdapter`
   (the default, `matchIfMissing=true`).
 - **Ollama, not a hosted LLM API, was chosen deliberately.** No API key to provision/rotate/leak, no per-call
   cost, and no outbound network dependency for a showcase project meant to run standalone (`docker compose up`)
