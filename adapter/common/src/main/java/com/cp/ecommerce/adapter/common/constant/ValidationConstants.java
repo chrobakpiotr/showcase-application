@@ -98,4 +98,24 @@ public class ValidationConstants {
 
     public final String INVALID_CART_QUANTITY = "Quantity must be at least 1";
 
+    public final int REVIEW_ID_MAX = 40;
+
+    public final int REVIEW_SKU_MAX = 40;
+
+    public final int REVIEW_AUTHOR_NAME_MAX = 80;
+
+    public final int REVIEW_COMMENT_MAX = 2000;
+
+    public final String INVALID_REVIEW_ID = "Invalid Review Id";
+
+    public final String INVALID_REVIEW_SKU = "Invalid SKU";
+
+    public final String INVALID_REVIEW_AUTHOR_NAME = "Invalid Author Name";
+
+    public final String INVALID_REVIEW_RATING = "Rating must be between 1 and 5";
+
+    public final String INVALID_REVIEW_COMMENT = "Invalid Comment";
+
+    public final String INVALID_REVIEW_STATUS = "Invalid Review Status";
+
 }

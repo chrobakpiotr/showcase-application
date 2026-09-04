@@ -13,6 +13,8 @@ import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.review.Review;
+import com.cp.ecommerce.domain.review.ReviewStatus;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -32,6 +34,8 @@ public final class TestDomainObjectFactory {
     public static final String TEST_PRODUCT_SKU = "SKU-1001";
 
     public static final String TEST_CART_ID = "CART-1001";
+
+    public static final String TEST_REVIEW_ID = "REVIEW-1001";
 
     public static Order validOrder() {
 
@@ -95,6 +99,19 @@ public final class TestDomainObjectFactory {
     public static Cart validCart() {
 
         return Cart.builder().cartId(TEST_CART_ID).items(List.of(validCartLineItem())).updated(TEST_CREATED).build();
+    }
+
+    public static Review validReview() {
+
+        return Review.builder()
+                .reviewId(TEST_REVIEW_ID)
+                .sku(TEST_PRODUCT_SKU)
+                .authorName("Jane Smith")
+                .rating(5)
+                .comment("Great product, works as expected.")
+                .status(ReviewStatus.PENDING)
+                .created(TEST_CREATED)
+                .build();
     }
 
 }

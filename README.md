@@ -319,6 +319,34 @@ below.
   .../items/{sku}` removes it; `DELETE /api/cart/{cartId}` empties it. Update/remove are idempotent
   no-ops if the sku isn't present.
 
+## Reviews & Ratings
+
+The fourth new bounded context (see
+[ADR 0028](docs/adr/0028-reviews-ratings-bounded-context.md)): lets customers submit a rating/comment
+against a SKU and exposes an aggregate summary (average rating, review count) back to the storefront, via
+a new `/api/reviews/**` API. It's the first bounded context that needs both a genuinely public surface and
+a back-office one at the same time.
+
+- **SKU-only reference** - `Review.sku` is a bare string with no dependency on `catalog.Product`, the same
+  independence stance as Inventory (ADR 0026) and Cart (ADR 0027).
+- **Hybrid authorization under one path prefix** - submitting a review and reading approved
+  reviews/summary (`ReviewController`) is `permitAll()`, exactly like Cart; moderating pending reviews
+  (`ReviewModerationController`, under `/api/reviews/moderation/**`) requires new `REVIEWS_READ`/
+  `REVIEWS_WRITE` Keycloak roles. Both live under `/api/reviews`, so the security config declares the more
+  specific moderation matcher first so it wins before the broader public one - the same
+  first-match-wins technique already used for the AI analytics assistant's ask endpoint.
+- **Aggregate summary via query, not in-memory averaging** - average rating and review count are computed
+  with a derived count query plus an explicit `AVG(...)` query, mirroring the order-analytics
+  aggregate-query precedent, rather than loading every review into memory.
+- **Idempotent, unconditional moderation** - no optimistic locking or new conflict exception: a single
+  operator moderating one review at a time has no realistic multi-writer contention scenario. Re-approving
+  an already-approved review is a no-op; moderating a missing review id 404s, the same missing-resource
+  convention Cart already uses.
+- `POST /api/reviews` submits a review (starts `PENDING`); `GET /api/reviews?sku=...` lists approved
+  reviews for a SKU; `GET /api/reviews/summary?sku=...` returns the average rating/count; `GET
+  /api/reviews/moderation/pending` lists reviews awaiting moderation; `POST
+  /api/reviews/moderation/{reviewId}/approve` / `.../reject` moderate one.
+
 ## Authentication & authorization
 
 The order API (`/api/order/**`) is secured with Spring Security's OAuth2 Resource Server support, validating

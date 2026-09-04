@@ -36,6 +36,10 @@ class WebSecurityConfigurationTest {
 
     private static final String CART_ENDPOINT = "/api/cart";
 
+    private static final String REVIEWS_ENDPOINT = "/api/reviews";
+
+    private static final String REVIEWS_MODERATION_PENDING_ENDPOINT = "/api/reviews/moderation/pending";
+
     @Autowired
     private transient MockMvc mockMvc;
 
@@ -228,6 +232,38 @@ class WebSecurityConfigurationTest {
         final int status = mockMvc.perform(post(CART_ENDPOINT)).andReturn().getResponse().getStatus();
 
         assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldAllowUnauthenticatedSubmittingReview() throws Exception {
+
+        // Like Cart, review submission/reading is genuinely public - see ADR 0028. Only moderation is gated below.
+        final int status = mockMvc.perform(post(REVIEWS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedAccessToReviewsModerationApi() throws Exception {
+
+        mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldRejectListingPendingReviewsWithoutReviewsReadRole() throws Exception {
+
+        mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> "ROLE_REVIEWS_WRITE")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowListingPendingReviewsWithReviewsReadRole() throws Exception {
+
+        mockMvc.perform(get(REVIEWS_MODERATION_PENDING_ENDPOINT).with(jwt().authorities(() -> "ROLE_REVIEWS_READ")))
+                .andExpect(status().isOk());
     }
 
 }

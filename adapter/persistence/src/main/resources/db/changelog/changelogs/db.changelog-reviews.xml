@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="27" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="REVIEW">
+            <column name="REVIEW_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(40)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_REVIEW" />
+            </column>
+
+            <column name="SKU" remarks="Bare SKU reference only, no FK to PRODUCT - see ADR 0028" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="AUTHOR_NAME" type="VARCHAR(80)">
+                <constraints nullable="false" />
+            </column>
+            <column name="RATING" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMMENT_TEXT" type="VARCHAR(2000)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_REVIEW_SKU_STATUS" schemaName="${schema_name_full}" tableName="REVIEW">
+            <column name="SKU" />
+            <column name="STATUS" />
+        </createIndex>
+
+        <createIndex indexName="IDX_REVIEW_STATUS" schemaName="${schema_name_full}" tableName="REVIEW">
+            <column name="STATUS" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

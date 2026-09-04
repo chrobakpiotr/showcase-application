@@ -49,6 +49,15 @@ public class WebSecurityConfiguration {
     // general rule: Spring Security's authorizeHttpRequests matches path rules in declaration order, first match wins.
     private static final String ANALYTICS_ASK_API_PATH_MATCHER = "/api/order/analytics/ask";
 
+    // Same first-match-wins technique as ANALYTICS_ASK_API_PATH_MATCHER above: the moderation sub-path must be
+    // declared, and role-gated, before the general REVIEWS_API_PATH_MATCHER permitAll rule below, since submission
+    // and reading of approved reviews (see ADR 0028) is genuinely public/customer-facing, while moderation
+    // (listing pending reviews, approving/rejecting) is a back-office operator action - the first bounded context
+    // in this application with a hybrid public/gated authorization model.
+    private static final String REVIEWS_MODERATION_API_PATH_MATCHER = "/api/reviews/moderation/**";
+
+    private static final String REVIEWS_API_PATH_MATCHER = "/api/reviews/**";
+
     private static final String H2_PATH_MATCHER = "/h2-console/**";
 
     private static final String[] OPEN_API_PATH_MATCHERS = { "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**" };
@@ -64,6 +73,10 @@ public class WebSecurityConfiguration {
     private static final String INVENTORY_READ_ROLE = "INVENTORY_READ";
 
     private static final String INVENTORY_WRITE_ROLE = "INVENTORY_WRITE";
+
+    private static final String REVIEWS_READ_ROLE = "REVIEWS_READ";
+
+    private static final String REVIEWS_WRITE_ROLE = "REVIEWS_WRITE";
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
@@ -104,6 +117,12 @@ public class WebSecurityConfiguration {
                         .hasRole(INVENTORY_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, INVENTORY_API_PATH_MATCHER)
                         .hasRole(INVENTORY_WRITE_ROLE)
+                        .requestMatchers(HttpMethod.GET, REVIEWS_MODERATION_API_PATH_MATCHER)
+                        .hasRole(REVIEWS_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, REVIEWS_MODERATION_API_PATH_MATCHER)
+                        .hasRole(REVIEWS_WRITE_ROLE)
+                        .requestMatchers(REVIEWS_API_PATH_MATCHER)
+                        .permitAll()
                         .requestMatchers(CART_API_PATH_MATCHER)
                         .permitAll()
                         .anyRequest()
