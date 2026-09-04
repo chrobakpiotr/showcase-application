@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories(basePackages = "com.cp.ecommerce.adapter.persistence")
 @EnableScheduling
 @EntityScan(basePackages = "com.cp.ecommerce.adapter.persistence")
-@ComponentScan(basePackages = "com.cp.ecommerce.adapter.persistence")
+@ComponentScan(basePackages = { "com.cp.ecommerce.adapter.persistence", "com.cp.ecommerce.adapter.common.resilience" })
 public class PersistenceConfiguration {
 
 }

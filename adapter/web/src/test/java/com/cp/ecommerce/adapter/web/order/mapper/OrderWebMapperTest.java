@@ -12,6 +12,9 @@ import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +65,7 @@ class OrderWebMapperTest {
         assertThat(order.get().getItems().get(0).getUnitPrice())
                 .isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE);
         assertThat(order.get().getItems().get(0).getQuantity()).isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+        assertThat(order.get().getPaymentMethod()).isEqualTo(PaymentMethod.CARD);
     }
 
     @Test
@@ -104,6 +108,30 @@ class OrderWebMapperTest {
         assertThat(resource.get().items().get(0).sku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
         assertThat(resource.get().items().get(0).subtotal()).isEqualTo(order.getItems().get(0).getSubtotal());
         assertThat(resource.get().total()).isEqualTo(order.getTotal());
+        assertThat(resource.get().paymentMethod()).isEqualTo(order.getPaymentMethod());
+        assertThat(resource.get().payment()).isNull();
+    }
+
+    @Test
+    void shouldMapOrderToDetailsResourceWithPayment() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final PaymentTransaction payment = PaymentTransaction.builder()
+                .orderNumber(order.getOrderNumber())
+                .amount(order.getTotal())
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.CAPTURED)
+                .gatewayReference("mock-gw-1234")
+                .build();
+
+        final Optional<OrderDetailsResource> resource = orderWebMapper.mapToResource(order, payment);
+
+        assertTrue(resource.isPresent());
+        assertThat(resource.get().payment()).isNotNull();
+        assertThat(resource.get().payment().status()).isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(resource.get().payment().method()).isEqualTo(PaymentMethod.CARD);
+        assertThat(resource.get().payment().amount()).isEqualTo(order.getTotal());
+        assertThat(resource.get().payment().gatewayReference()).isEqualTo("mock-gw-1234");
     }
 
     @Test

@@ -24,6 +24,8 @@ import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
+import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
@@ -68,6 +70,11 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * stance already taken by {@code CartController} (ADR 0027). {@link #cancelOrder} releases that same reservation on a
  * customer-initiated cancellation; the order-placement saga's own internal compensation path releases it separately (see
  * {@code OrderPlacementSagaOrchestrator}), since that path never goes through this controller.
+ * <p>
+ * Payment capture happens asynchronously as a saga step, not synchronously in {@link #placeOrder} (see ADR 0030) - unlike
+ * stock, which must be reserved up front to prevent overselling, whether a charge succeeds has no bearing on whether the order
+ * can be durably recorded. {@link #cancelOrder} refunds via {@link ManagePaymentInPort#refundPayment}, unconditionally and
+ * symmetric with {@code releaseStockFor}, since that method is itself an idempotent no-op if payment was never captured.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -100,6 +107,10 @@ public class OrderController {
     private final CurrentOperatorProvider currentOperatorProvider;
 
     private final ManageStockInPort manageStockInPort;
+
+    private final ManagePaymentInPort managePaymentInPort;
+
+    private final GetPaymentInPort getPaymentInPort;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -276,6 +287,7 @@ public class OrderController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
         releaseStockFor(order);
+        refundPaymentFor(order);
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
@@ -309,12 +321,21 @@ public class OrderController {
         order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
     }
 
+    // Refunds a cancelled order's payment. Safe to call unconditionally: ManagePaymentInPort#refundPayment is an
+    // idempotent no-op if the saga hasn't captured payment for this order yet (e.g. cancelling before the payment-
+    // capture saga step has even run), matching releaseStockFor's convention above (see ADR 0030).
+    private void refundPaymentFor(final Order order) {
+
+        managePaymentInPort.refundPayment(order.getOrderNumber());
+    }
+
     // Affordance-driven HATEOAS: the "cancel" link is only advertised while the order is actually cancellable, so a client
     // can rely on the link's mere presence rather than duplicating the CONFIRMED-only business rule enforced server-side by
-    // RequestOrderCancellationUseCase.
+    // RequestOrderCancellationUseCase. Also composes in the order's payment transaction (a separate bounded context, see
+    // ADR 0030) so a client can see its status without a second round-trip.
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {
 
-        final OrderDetailsResource resource = orderWebMapper.mapToResource(order)
+        final OrderDetailsResource resource = orderWebMapper.mapToResource(order, getPaymentInPort.getPayment(orderNumber))
                 .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
         final EntityModel<OrderDetailsResource> model = EntityModel
                 .of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());

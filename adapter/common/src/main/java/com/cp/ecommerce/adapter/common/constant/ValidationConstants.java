@@ -132,4 +132,14 @@ public class ValidationConstants {
 
     public final String INVALID_ORDER_LINE_ITEMS = "At least one line item is required";
 
+    public final String INVALID_PAYMENT_METHOD = "Invalid Payment Method";
+
+    public final int PAYMENT_GATEWAY_REFERENCE_MAX = 80;
+
+    public final String INVALID_PAYMENT_ORDER_NUMBER = "Invalid Order Number";
+
+    public final String INVALID_PAYMENT_AMOUNT = "Payment amount must not be negative";
+
+    public final String INVALID_PAYMENT_GATEWAY_REFERENCE = "Invalid Gateway Reference";
+
 }

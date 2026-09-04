@@ -6,6 +6,7 @@ import java.util.List;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntity;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderLineItemEmbeddable;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,7 @@ public class OrderEntityBuilder {
                 .created(new Date())
                 .items(List.of(mockOrderLineItemEmbeddable()))
                 .status(OrderStatus.CONFIRMED)
+                .paymentMethod(PaymentMethod.CARD)
                 .build();
     }
 

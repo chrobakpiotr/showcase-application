@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
@@ -22,6 +23,7 @@ import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
+import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,10 +38,12 @@ import lombok.extern.slf4j.Slf4j;
  * Orchestrates the order-placement saga: polls pending outbox events and drives each one through its saga steps.
  *
  * <p>
- * {@link #notifyFulfillment} is the saga's pivot/compensable step (fulfillment notification via RabbitMQ): failures are retried
- * with a bounded number of attempts recorded on the outbox event; once {@code outbox.publisher.max-fulfillment-attempts} is
- * reached, the saga runs its compensating transaction and cancels the order via {@link CancelOrderInPort} instead of retrying
- * forever. Only once fulfillment succeeds do the remaining steps run - confirmation email, export, audit, analytics,
+ * {@link #ensurePaymentCaptured} is the saga's first pivot/compensable step (see ADR 0030): it charges the customer via
+ * {@link ManagePaymentInPort#capturePayment}, and only once that succeeds does {@link #notifyFulfillment} - the second
+ * pivot/compensable step (fulfillment notification via RabbitMQ) - run. Fulfillment failures are retried with a bounded number
+ * of attempts recorded on the outbox event; once {@code outbox.publisher.max-fulfillment-attempts} is reached, or the payment
+ * is declined, the saga runs its compensating transaction and cancels the order via {@link CancelOrderInPort} instead of
+ * retrying forever. Only once fulfillment succeeds do the remaining steps run - confirmation email, export, audit, analytics,
  * notification routing, AI-assisted remarks triage, AI-assisted duplicate-order detection - all best-effort: a failure there is
  * logged and does not block the event from being marked {@code SENT}, matching this application's existing eventual-consistency
  * trade-offs (see ADR 0002 and ADR 0008).
@@ -75,6 +79,8 @@ public class OrderPlacementSagaOrchestrator {
 
     private final ManageStockInPort manageStockInPort;
 
+    private final ManagePaymentInPort managePaymentInPort;
+
     private final TransactionOperations transactionOperations;
 
     private final SagaMetrics sagaMetrics;
@@ -104,6 +110,10 @@ public class OrderPlacementSagaOrchestrator {
     private void processPendingEvent(final OutboxEventEntity outboxEventEntity) {
 
         final Order order = manageOrderInPort.findOrder(outboxEventEntity.getOrderNumber());
+        if (!ensurePaymentCaptured(order, outboxEventEntity)) {
+
+            return;
+        }
         if (notifyFulfillment(order, outboxEventEntity)) {
 
             runBestEffortStepsConcurrently(order);
@@ -146,6 +156,30 @@ public class OrderPlacementSagaOrchestrator {
         }
     }
 
+    // Pivot/compensable saga step, run before notifyFulfillment: charges the customer for the order's total. Idempotent
+    // via ManagePaymentInPort#capturePayment itself (see its javadoc), so simply re-invoking this on every poll is safe
+    // and needs no attempts-counting of its own, unlike notifyFulfillment below. A decline is a genuine, deterministic
+    // business outcome (see PaymentDeclinedException) that would never succeed on a later poll, so it compensates
+    // immediately on the first attempt rather than being retried.
+    private boolean ensurePaymentCaptured(final Order order, final OutboxEventEntity outboxEventEntity) {
+
+        final long startNanos = System.nanoTime();
+        try {
+            managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
+            sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), true);
+            return true;
+        } catch (final PaymentDeclinedException exception) {
+
+            sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
+            log.error(
+                    "Payment capture declined for order: {}, compensating by cancelling the order.",
+                    order.getOrderNumber(),
+                    exception);
+            runCompensation(order, outboxEventEntity);
+            return false;
+        }
+    }
+
     // Pivot/compensable saga step: bounded-retry, and once exhausted, compensates instead of retrying forever.
     private boolean notifyFulfillment(final Order order, final OutboxEventEntity outboxEventEntity) {
 
@@ -161,7 +195,12 @@ public class OrderPlacementSagaOrchestrator {
             outboxEventEntity.setLastError(exception.getMessage());
             if (outboxEventEntity.getAttempts() >= maxFulfillmentAttempts) {
 
-                compensate(order, outboxEventEntity, exception);
+                log.error(
+                        "Fulfillment notification failed for order: {} after {} attempts, compensating by cancelling the order.",
+                        order.getOrderNumber(),
+                        outboxEventEntity.getAttempts(),
+                        exception);
+                runCompensation(order, outboxEventEntity);
             } else {
 
                 log.warn(
@@ -176,19 +215,34 @@ public class OrderPlacementSagaOrchestrator {
         }
     }
 
-    private void compensate(final Order order, final OutboxEventEntity outboxEventEntity, final RuntimeException exception) {
+    // Shared compensating-transaction actions for both pivot steps above: cancel the order, release its reserved
+    // stock, refund its payment (all best-effort where relevant/idempotent), record the compensation, and mark the
+    // outbox event COMPENSATED so it is never re-processed by a later poll.
+    private void runCompensation(final Order order, final OutboxEventEntity outboxEventEntity) {
 
-        log.error(
-                "Fulfillment notification failed for order: {} after {} attempts, compensating by cancelling the order.",
-                order.getOrderNumber(),
-                outboxEventEntity.getAttempts(),
-                exception);
         cancelOrderInPort.cancelOrder(order.getOrderNumber());
         releaseReservedStock(order);
+        refundCapturedPayment(order);
         sagaMetrics.recordCompensation();
         outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATED);
         outboxEventEntity.setCompensatedDate(new Date());
         outboxEventEntityRepository.save(outboxEventEntity);
+    }
+
+    // Refunds this order's payment as part of compensation - a no-op via ManagePaymentInPort#refundPayment's own
+    // idempotency if payment was never captured (e.g. compensating a payment decline itself) or already refunded, and
+    // an actual refund if fulfillment failed after payment had already been captured. Best-effort like
+    // releaseReservedStock above: a failure here must not prevent the order from being marked COMPENSATED.
+    private void refundCapturedPayment(final Order order) {
+
+        try {
+            managePaymentInPort.refundPayment(order.getOrderNumber());
+        } catch (final RuntimeException exception) {
+            log.warn(
+                    "Could not refund payment for order: {} (best-effort): {}",
+                    order.getOrderNumber(),
+                    exception.getMessage());
+        }
     }
 
     // Releases the stock reserved for this order at placement time (see OrderController#reserveStockFor), as part of

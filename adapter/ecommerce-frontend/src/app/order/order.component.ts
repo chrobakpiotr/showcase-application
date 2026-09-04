@@ -14,6 +14,10 @@ import {
 
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
 import { OrderService } from '@app/order/order.service';
+import {
+  PAYMENT_METHODS,
+  PaymentMethod,
+} from '@app/order/payment-method.model';
 import { SupportAssistantComponent } from '@app/support-assistant/support-assistant.component';
 
 // Phone pattern mirrors the backend's Contact.PHONE_PATTERN ("^$|[- +()0-9]+"): either blank, or digits with
@@ -53,6 +57,7 @@ export class OrderComponent {
   readonly submitting = signal(false);
   readonly orderNumber = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+  readonly paymentMethods = PAYMENT_METHODS;
 
   // Remarks max length mirrors the REMARK column in OrderEntity (length = 800). Customer/address field lengths
   // mirror the domain's Contact/Address validation constraints (ValidationConstants).
@@ -99,6 +104,10 @@ export class OrderComponent {
       }),
     }),
     items: new FormArray([createLineItemGroup()]),
+    paymentMethod: new FormControl<PaymentMethod>('CARD', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
   });
 
   get remarksControl() {
@@ -132,9 +141,15 @@ export class OrderComponent {
     this.submitting.set(true);
     this.orderNumber.set(null);
     this.errorMessage.set(null);
-    const { remarks, customer, items } = this.orderForm.getRawValue();
+    const { remarks, customer, items, paymentMethod } =
+      this.orderForm.getRawValue();
     this.orderService
-      .placeOrder(remarks, customer, items as OrderLineItemRequestModel[])
+      .placeOrder(
+        remarks,
+        customer,
+        items as OrderLineItemRequestModel[],
+        paymentMethod
+      )
       .subscribe({
         next: (response) => {
           this.submitting.set(false);

@@ -14,6 +14,9 @@ import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
+import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
 
@@ -46,6 +49,7 @@ public final class TestDomainObjectFactory {
                 .created(TEST_CREATED)
                 .customer(validCustomer())
                 .items(List.of(validOrderLineItem()))
+                .paymentMethod(PaymentMethod.CARD)
                 .build();
     }
 
@@ -96,6 +100,18 @@ public final class TestDomainObjectFactory {
     public static StockLevel validStockLevel() {
 
         return StockLevel.builder().sku(TEST_PRODUCT_SKU).quantityOnHand(10).quantityReserved(2).version(0).build();
+    }
+
+    public static PaymentTransaction validPaymentTransaction() {
+
+        return PaymentTransaction.builder()
+                .orderNumber(TEST_ORDER_NUMBER)
+                .amount(new BigDecimal("59.98"))
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.CAPTURED)
+                .gatewayReference("mock-gw-1234")
+                .created(TEST_CREATED)
+                .build();
     }
 
     public static CartLineItem validCartLineItem() {

@@ -605,6 +605,36 @@ reference into the Catalog. Placing an order now also reserves stock:
   `notifyFulfillment` step is retried across scheduler polls, and a saga-step reservation would double-reserve
   on retry.
 
+## Payment
+
+`Order` now carries a `paymentMethod` (`CARD` / `PAYPAL` / `BANK_TRANSFER`) and every placed order gets a
+`PaymentTransaction` captured against a simulated gateway - the fifth new bounded context (see
+[ADR 0030](docs/adr/0030-payment-bounded-context.md)), closing the last remaining gap between placing an
+order and actually paying for it.
+
+- **`PaymentMethod` stays on `Order`, `PaymentTransaction` is its own bounded context** - `PaymentMethod`
+  lives in the `order` package (Order's own attribute, like `remarks`), so `Order`'s domain has no
+  dependency on `payment`. `PaymentTransaction` (one row per order, keyed by order number like `StockLevel`
+  is keyed by SKU) is downstream of Order instead - it depends on `order.PaymentMethod`, not the other way
+  around.
+- **Capture is an async saga step, not synchronous at placement** - unlike stock reservation (which happens
+  once, synchronously, at placement time - see [Order line items and stock
+  reservation](#order-line-items-and-stock-reservation)), charging a payment gateway is exactly the kind of
+  external-system call the saga pattern exists to protect the placement request from. `placeOrder` returns
+  immediately after reserving stock and saving the order; `ensurePaymentCaptured` runs on the next saga poll,
+  ahead of fulfillment notification (see [Order placement saga](#order-placement-saga)).
+- **Self-idempotent capture and refund** - `ManagePaymentInPort.capturePayment` no-ops if already captured, so
+  the saga needs no attempts-counter for it (unlike `notifyFulfillment`); a decline is a deterministic
+  business outcome, never retried, and compensates the order immediately. `refundPayment` no-ops if payment
+  was never captured or already refunded, letting both `OrderController.cancelOrder` and saga compensation
+  call it unconditionally.
+- **Mock gateway follows the same resilience conventions as every other outbound adapter** -
+  `MockPaymentGatewayAdapter` runs its calls through `ResilientExecutor`, and declines deterministically above
+  a configurable amount threshold (`payment.gateway.mock.decline-above`, default `10000.00`) rather than at
+  random, so the failure path stays reproducible in tests.
+- `GET /api/order/{orderNumber}` embeds the order's current payment status/method/amount/gateway reference in
+  the response once captured (`PENDING`/absent beforehand, reflecting the async capture window).
+
 ## Order placement saga
 
 Placing an order triggers a chain of side effects - notify fulfillment, e-mail the customer, export an audit
@@ -617,13 +647,18 @@ server turn an already-placed order into an HTTP error:
   (+ its `PENDING` outbox row) in one transaction. It no longer calls out to e-mail, SQS, Kafka or Camel - the
   HTTP response reflects the order being placed, never the availability of a downstream system.
 - `OrderPlacementSagaOrchestrator` then drives each pending outbox row through the saga:
-  1. **`notifyFulfillment` (RabbitMQ)** - the *pivot* step. The order isn't considered fulfilled until this
-     succeeds, so it's retried with a bounded number of attempts (`OUTBOX_EVENT.ATTEMPTS`,
+  1. **`ensurePaymentCaptured` (mock gateway)** - the saga's first pivot step (see
+     [Payment](#payment)): captures the order's payment before fulfillment is ever notified. A decline is
+     deterministic and never retried - it triggers immediate compensation (cancel, release stock, refund
+     best-effort) on the very first poll.
+  2. **`notifyFulfillment` (RabbitMQ)** - the second *pivot* step. The order isn't considered fulfilled until
+     this succeeds, so it's retried with a bounded number of attempts (`OUTBOX_EVENT.ATTEMPTS`,
      `outbox.publisher.max-fulfillment-attempts`, default `5`) instead of forever. Once the limit is reached,
      the orchestrator runs the **compensating transaction**: `CancelOrderInPort` transitions the order to
-     `OrderStatus.CANCELLED` (visible immediately via `GET /api/order/{orderNumber}`) and the outbox row is
-     marked `COMPENSATED` with the last error recorded, so it's never retried again.
-  2. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event,
+     `OrderStatus.CANCELLED` (visible immediately via `GET /api/order/{orderNumber}`), reserved stock is
+     released, the payment is refunded, and the outbox row is marked `COMPENSATED` with the last error
+     recorded, so it's never retried again.
+  3. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event,
      route the Camel notification and run the AI-assisted remarks triage (see
      [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama)) - unchanged best-effort
      semantics (log and continue on failure) - only run *after* fulfillment succeeds, so the customer is never

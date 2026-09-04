@@ -199,6 +199,19 @@
     </fieldset>
 
     <div class="field">
+      <label for="paymentMethod">Payment method</label>
+      <select
+        id="paymentMethod"
+        formControlName="paymentMethod"
+        data-testid="order-paymentMethod"
+      >
+        @for (method of paymentMethods; track method) {
+        <option [value]="method">{{ method }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="field">
       <label for="remarks">Remarks</label>
       <textarea
         id="remarks"

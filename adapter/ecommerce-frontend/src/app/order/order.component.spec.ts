@@ -62,6 +62,7 @@ describe('OrderComponent', () => {
       remarks,
       customer: VALID_CUSTOMER,
       items: [VALID_ITEM],
+      paymentMethod: 'CARD',
     });
   }
 
@@ -103,15 +104,18 @@ describe('OrderComponent', () => {
     expect(placeOrderSpy).not.toHaveBeenCalled();
   });
 
-  it('should call orderService.placeOrder() with remarks, customer and line items', fakeAsync(() => {
+  it('should call orderService.placeOrder() with remarks, customer, line items and payment method', fakeAsync(() => {
     setup();
     placeOrderSpy.and.returnValue(of({ orderNumber: '123' }));
     fillValidForm('my remarks');
     component.placeOrder();
     tick();
-    expect(placeOrderSpy).toHaveBeenCalledWith('my remarks', VALID_CUSTOMER, [
-      VALID_ITEM,
-    ]);
+    expect(placeOrderSpy).toHaveBeenCalledWith(
+      'my remarks',
+      VALID_CUSTOMER,
+      [VALID_ITEM],
+      'CARD'
+    );
   }));
 
   it('should add and remove line items, never dropping below one row', () => {

@@ -50,6 +50,11 @@ public class Order extends ValidDomainObject<Order> {
     @Builder.Default
     OrderStatus status = OrderStatus.CONFIRMED;
 
+    // @NotNull: the order-placement saga's payment-capture step (see ADR 0030) needs to know how to charge the
+    // customer, so this can't be left implicit/defaulted the way e.g. remarks can.
+    @NotNull(message = ValidationConstants.INVALID_PAYMENT_METHOD)
+    PaymentMethod paymentMethod;
+
     public static Order.OrderBuilder builder() {
 
         return new Order.OrderBuilder() {

@@ -7,6 +7,7 @@ import java.util.List;
 import com.cp.ecommerce.adapter.persistence.customer.entity.CustomerEntity;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
@@ -73,5 +74,9 @@ public class OrderEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", length = 20, nullable = false)
     private OrderStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "PAYMENT_METHOD", length = 20, nullable = false)
+    private PaymentMethod paymentMethod;
 
 }

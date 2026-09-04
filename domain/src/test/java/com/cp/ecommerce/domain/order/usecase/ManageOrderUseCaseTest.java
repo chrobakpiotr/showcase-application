@@ -62,6 +62,7 @@ class ManageOrderUseCaseTest {
                 () -> assertEquals(order.getCustomer(), orderToSave.getCustomer()),
                 () -> assertEquals(order.getCreated(), orderToSave.getCreated()),
                 () -> assertEquals(order.getRemarks(), orderToSave.getRemarks()),
+                () -> assertEquals(order.getPaymentMethod(), orderToSave.getPaymentMethod()),
                 () -> assertEquals(orderToSave, savedOrder));
     }
 

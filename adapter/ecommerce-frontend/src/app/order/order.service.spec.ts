@@ -67,7 +67,7 @@ describe('OrderService', () => {
 
     //when
     orderService
-      .placeOrder('test remarks', CUSTOMER, ITEMS)
+      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD')
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     //then
@@ -77,6 +77,7 @@ describe('OrderService', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body.customer).toEqual(CUSTOMER);
     expect(req.request.body.items).toEqual(ITEMS);
+    expect(req.request.body.paymentMethod).toBe('CARD');
 
     req.flush(orderResponse);
   });

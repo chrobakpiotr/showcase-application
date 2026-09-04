@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -41,6 +42,7 @@ public class OrderResourceBuilder {
                 .created(new Date())
                 .customer(CustomerResourceBuilder.mockCustomerResource())
                 .items(List.of(mockOrderLineItemResource()))
+                .paymentMethod(PaymentMethod.CARD)
                 .build();
     }
 

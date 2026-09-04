@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,8 @@ public class OrderBuilder {
 
     public static final int TEST_ORDER_LINE_ITEM_QUANTITY = 2;
 
+    public static final PaymentMethod TEST_PAYMENT_METHOD = PaymentMethod.CARD;
+
     public static OrderLineItem mockOrderLineItem() {
 
         return OrderLineItem.builder()
@@ -46,6 +49,7 @@ public class OrderBuilder {
                 .created(new Date())
                 .customer(CustomerBuilder.mockCustomer())
                 .items(List.of(mockOrderLineItem()))
+                .paymentMethod(TEST_PAYMENT_METHOD)
                 .build();
     }
 

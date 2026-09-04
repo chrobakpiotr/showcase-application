@@ -10,6 +10,7 @@ import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
+import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -60,6 +61,7 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_INSUFFICIENT_STOCK = URI.create(PROBLEM_TYPE_PREFIX + "insufficient-stock");
     private static final URI TYPE_STOCK_LEVEL_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "stock-level-conflict");
     private static final URI TYPE_CART_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "cart-conflict");
+    private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
@@ -136,6 +138,18 @@ public class GlobalExceptionHandler {
     public ProblemDetail cartConflictException(final CartConflictException exception) {
 
         return problemDetail(exception, CONFLICT, TYPE_CART_CONFLICT, "Cart Conflict", exception.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)
+    @ExceptionHandler(PaymentDeclinedException.class)
+    public ProblemDetail paymentDeclinedException(final PaymentDeclinedException exception) {
+
+        return problemDetail(
+                exception,
+                HttpStatus.PAYMENT_REQUIRED,
+                TYPE_PAYMENT_DECLINED,
+                "Payment Declined",
+                exception.getMessage());
     }
 
     @ResponseStatus(INTERNAL_SERVER_ERROR)

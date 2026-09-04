@@ -32,6 +32,11 @@ than editing it in place.
 | [0023](0023-ai-language-detection-order-confirmations.md) | AI language detection for order confirmation emails |
 | [0024](0024-ai-duplicate-order-detection.md) | AI-assisted duplicate-order detection |
 | [0025](0025-product-catalog-bounded-context.md) | Product Catalog bounded context |
+| [0026](0026-inventory-bounded-context.md) | Inventory bounded context |
+| [0027](0027-shopping-cart-bounded-context.md) | Shopping Cart bounded context |
+| [0028](0028-reviews-ratings-bounded-context.md) | Reviews & Ratings bounded context |
+| [0029](0029-order-line-items-and-stock-reservation.md) | Order line items and stock reservation |
+| [0030](0030-payment-bounded-context.md) | Payment bounded context |
 
 ## Template for new ADRs
 

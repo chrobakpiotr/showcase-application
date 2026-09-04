@@ -26,5 +26,6 @@
     <include file="changelogs/db.changelog-cart.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-reviews.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-order-line-items.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-payment.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

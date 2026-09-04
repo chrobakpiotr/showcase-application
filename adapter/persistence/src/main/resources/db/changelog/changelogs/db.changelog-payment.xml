@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="29" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="PAYMENT_METHOD" type="VARCHAR(20)" defaultValue="CARD" remarks="How the customer chose to pay, see ADR 0030">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+    </changeSet>
+
+    <changeSet id="30" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="PAYMENT_TRANSACTION">
+            <column name="ORDER_NUMBER" remarks="Business key - one payment transaction row per order, see ADR 0030" type="VARCHAR(40)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PAYMENT_TRANSACTION" />
+            </column>
+            <column name="AMOUNT" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="METHOD" type="VARCHAR(20)" />
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="GATEWAY_REFERENCE" type="VARCHAR(80)" />
+            <column name="CREATION_DATE" type="TIMESTAMP" />
+        </createTable>
+
+    </changeSet>
+
+</databaseChangeLog>

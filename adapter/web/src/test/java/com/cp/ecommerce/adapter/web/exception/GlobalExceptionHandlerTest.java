@@ -10,6 +10,7 @@ import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
+import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -38,6 +39,7 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.PAYMENT_REQUIRED;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 
 /**
@@ -123,6 +125,16 @@ class GlobalExceptionHandlerTest {
                 handler.insufficientStockException(new InsufficientStockException(EXCEPTION_MESSAGE)),
                 CONFLICT,
                 "Insufficient Stock",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandlePaymentDeclinedException() {
+
+        assertProblem(
+                handler.paymentDeclinedException(new PaymentDeclinedException(EXCEPTION_MESSAGE)),
+                PAYMENT_REQUIRED,
+                "Payment Declined",
                 EXCEPTION_MESSAGE);
     }
 

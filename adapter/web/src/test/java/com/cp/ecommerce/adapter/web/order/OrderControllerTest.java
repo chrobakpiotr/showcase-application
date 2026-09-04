@@ -24,11 +24,14 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
+import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -105,6 +108,12 @@ class OrderControllerTest {
     @MockitoBean
     private transient ManageStockInPort manageStockInPort;
 
+    @MockitoBean
+    private transient ManagePaymentInPort managePaymentInPort;
+
+    @MockitoBean
+    private transient GetPaymentInPort getPaymentInPort;
+
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
 
@@ -153,6 +162,7 @@ class OrderControllerTest {
                 .remarks(OrderBuilder.TEST_REMARKS)
                 .customer(CustomerBuilder.mockCustomer())
                 .items(List.of(firstItem, secondItem))
+                .paymentMethod(PaymentMethod.CARD)
                 .build();
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
         given(manageStockInPort.reserveStock(SECOND_LINE_ITEM_SKU, 1))
@@ -269,7 +279,7 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.empty());
+        given(orderWebMapper.mapToResource(eq(order), any())).willReturn(Optional.empty());
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -283,7 +293,8 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
+        given(orderWebMapper.mapToResource(eq(order), any()))
+                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -303,7 +314,8 @@ class OrderControllerTest {
 
         final Order order = cancelledOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+        given(orderWebMapper.mapToResource(eq(order), any()))
+                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -317,7 +329,8 @@ class OrderControllerTest {
 
         final Order order = cancelledOrder();
         given(requestOrderCancellationUseCase.requestCancellation(TEST_ORDER_NUMBER)).willReturn(order);
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+        given(orderWebMapper.mapToResource(eq(order), any()))
+                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
 
         this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
                 .andDo(print())
@@ -368,7 +381,8 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(listOrdersUseCase.listOrders(new PageQuery(0, 20))).willReturn(new PagedResult<>(List.of(order), 0, 20, 1, 1));
-        given(orderWebMapper.mapToResource(order)).willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
+        given(orderWebMapper.mapToResource(eq(order), any()))
+                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT))
                 .andDo(print())

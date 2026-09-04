@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 import java.util.Date;
 import java.util.List;
 
+import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
@@ -20,6 +21,7 @@ import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
+import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,6 +101,9 @@ class OrderPlacementSagaOrchestratorTest {
     @Mock
     private transient ManageStockInPort manageStockInPort;
 
+    @Mock
+    private transient ManagePaymentInPort managePaymentInPort;
+
     private final transient MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     private final transient SagaMetrics sagaMetrics = new SagaMetrics(meterRegistry);
@@ -130,6 +135,8 @@ class OrderPlacementSagaOrchestratorTest {
         orderPlacementSagaOrchestrator.publishPendingEvents();
 
         final ArgumentCaptor<OutboxEventEntity> outboxEventEntityCaptor = ArgumentCaptor.forClass(OutboxEventEntity.class);
+        verify(managePaymentInPort, times(1))
+                .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
         verify(sendMessageInPort, times(1)).sendMessage(order);
         verify(sendOrderConfirmationEmailInPort, times(1)).sendConfirmationEmail(order);
         verify(exportOrderInPort, times(1)).exportOrder(order);
@@ -143,6 +150,7 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(outboxEventEntityCaptor.getValue().getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(outboxEventEntityCaptor.getValue().getSentDate()).isNotNull();
         assertThat(timerCountFor("fulfillment", OUTCOME_SUCCESS)).isEqualTo(1);
+        assertThat(timerCountFor("payment-capture", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("confirmation-email", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("s3-export", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("sqs-audit", OUTCOME_SUCCESS)).isEqualTo(1);
@@ -222,6 +230,7 @@ class OrderPlacementSagaOrchestratorTest {
         verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
         verify(manageStockInPort, times(1))
                 .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
         verifyNoInteractions(
                 sendOrderConfirmationEmailInPort,
                 exportOrderInPort,
@@ -236,6 +245,35 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(outboxEventEntity.getCompensatedDate()).isNotNull();
         assertThat(outboxEventEntity.getSentDate()).isNull();
         assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
+        assertThat(compensationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldCompensateImmediatelyWithoutAttemptingFulfillmentWhenPaymentDeclined() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new PaymentDeclinedException("Payment gateway declined charge")).when(managePaymentInPort)
+                .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
+
+        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+
+        verifyNoInteractions(sendMessageInPort);
+        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
+        verify(manageStockInPort, times(1))
+                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+        assertThat(timerCountFor("payment-capture", OUTCOME_FAILURE)).isEqualTo(1);
         assertThat(compensationCount()).isEqualTo(1);
     }
 
@@ -257,6 +295,33 @@ class OrderPlacementSagaOrchestratorTest {
         doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
         doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
                 .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+
+        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+
+        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
+        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+        assertThat(compensationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldStillCompensateWhenRefundingCapturedPaymentFails() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
+                .build();
+        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
+        doThrow(new IllegalStateException("Payment gateway unavailable")).when(managePaymentInPort)
+                .refundPayment(order.getOrderNumber());
 
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
@@ -527,6 +592,7 @@ class OrderPlacementSagaOrchestratorTest {
                 detectDuplicateOrderInPort,
                 cancelOrderInPort,
                 manageStockInPort,
+                managePaymentInPort,
                 executeInSimpleTransaction(),
                 sagaMetrics);
     }

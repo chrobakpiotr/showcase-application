@@ -9,11 +9,13 @@ import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.adapter.web.order.resource.PaymentResource;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 
 import org.springframework.stereotype.Component;
 
@@ -32,11 +34,23 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .remarks(resource.remarks())
                                 .customer(mapToCustomer(resource.customer()))
                                 .items(mapToLineItems(resource.items()))
+                                .paymentMethod(resource.paymentMethod())
                                 .build());
     }
 
     @Override
     public Optional<OrderDetailsResource> mapToResource(final Order domainObject) {
+        return mapToResource(domainObject, null);
+    }
+
+    /**
+     * Same as {@link #mapToResource(Order)}, additionally embedding {@code payment}'s status/method/gateway reference as a
+     * nested {@link PaymentResource} - composed here rather than in the domain layer so that {@code Order} carries no
+     * dependency on {@code domain.payment.PaymentTransaction} (see ADR 0030), the same "cross-context composition happens in
+     * the web layer" stance already taken for stock reservation (ADR 0029). {@code payment} may be {@code null} (e.g. when the
+     * caller has no payment lookup available), in which case the resource simply omits it.
+     */
+    public Optional<OrderDetailsResource> mapToResource(final Order domainObject, final PaymentTransaction payment) {
         return Optional.ofNullable(domainObject)
                 .map(
                         order -> OrderDetailsResource.builder()
@@ -47,7 +61,22 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .customer(mapCustomer(order.getCustomer()))
                                 .items(mapLineItemsToResources(order.getItems()))
                                 .total(order.getTotal())
+                                .paymentMethod(order.getPaymentMethod())
+                                .payment(mapPayment(payment))
                                 .build());
+    }
+
+    private PaymentResource mapPayment(final PaymentTransaction payment) {
+
+        if (payment == null) {
+            return null;
+        }
+        return PaymentResource.builder()
+                .status(payment.getStatus())
+                .method(payment.getMethod())
+                .amount(payment.getAmount())
+                .gatewayReference(payment.getGatewayReference())
+                .build();
     }
 
     private CustomerResource mapCustomer(final Customer customer) {

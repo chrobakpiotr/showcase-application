@@ -36,6 +36,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .customer(customerEntityMapper.mapToEntity(order.getCustomer()).orElse(null))
                         .items(domain.getItems().stream().map(this::mapItemToEmbeddable).toList())
                         .status(domain.getStatus())
+                        .paymentMethod(domain.getPaymentMethod())
                         .build());
     }
 
@@ -50,6 +51,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .customer(customerEntityMapper.mapToDomainObject(entity.getCustomer()).orElse(null))
                         .items(mapItemsToDomainObjects(entity.getItems()))
                         .status(entity.getStatus())
+                        .paymentMethod(entity.getPaymentMethod())
                         .build());
     }
 
