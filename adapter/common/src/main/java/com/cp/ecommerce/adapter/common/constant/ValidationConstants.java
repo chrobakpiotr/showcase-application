@@ -118,4 +118,18 @@ public class ValidationConstants {
 
     public final String INVALID_REVIEW_STATUS = "Invalid Review Status";
 
+    public final int ORDER_LINE_ITEM_SKU_MAX = 40;
+
+    public final int ORDER_LINE_ITEM_PRODUCT_NAME_MAX = 200;
+
+    public final String INVALID_ORDER_LINE_ITEM_SKU = INVALID_CART_SKU;
+
+    public final String INVALID_ORDER_LINE_ITEM_PRODUCT_NAME = INVALID_CART_PRODUCT_NAME;
+
+    public final String INVALID_ORDER_LINE_ITEM_UNIT_PRICE = INVALID_CART_UNIT_PRICE;
+
+    public final String INVALID_ORDER_LINE_ITEM_QUANTITY = "Quantity must be at least 1";
+
+    public final String INVALID_ORDER_LINE_ITEMS = "At least one line item is required";
+
 }

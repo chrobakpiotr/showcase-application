@@ -13,6 +13,7 @@ import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
 
@@ -44,6 +45,17 @@ public final class TestDomainObjectFactory {
                 .orderNumber(TEST_ORDER_NUMBER)
                 .created(TEST_CREATED)
                 .customer(validCustomer())
+                .items(List.of(validOrderLineItem()))
+                .build();
+    }
+
+    public static OrderLineItem validOrderLineItem() {
+
+        return OrderLineItem.builder()
+                .sku(TEST_PRODUCT_SKU)
+                .productName("Wireless Mouse")
+                .unitPrice(new BigDecimal("29.99"))
+                .quantity(2)
                 .build();
     }
 

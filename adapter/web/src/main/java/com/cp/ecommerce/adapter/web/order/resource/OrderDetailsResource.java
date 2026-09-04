@@ -1,6 +1,8 @@
 package com.cp.ecommerce.adapter.web.order.resource;
 
+import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 import com.cp.ecommerce.domain.order.OrderStatus;
 
@@ -14,6 +16,7 @@ import lombok.Builder;
 @Builder
 public record OrderDetailsResource(@Schema(example = "a343b57f-f1b0-46c4-846c-f8ee538f30f0-3") String orderNumber,
         @Schema(example = "CONFIRMED") OrderStatus status, @Schema(example = "2024-03-15T10:30:00.000Z") Date created,
-        @Schema(example = "Please leave the package with the concierge.") String remarks, CustomerResource customer) {
+        @Schema(example = "Please leave the package with the concierge.") String remarks, CustomerResource customer,
+        List<OrderLineItemResource> items, @Schema(example = "59.98") BigDecimal total) {
 
 }

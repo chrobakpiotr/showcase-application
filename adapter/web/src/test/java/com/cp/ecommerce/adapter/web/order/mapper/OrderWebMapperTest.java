@@ -55,6 +55,13 @@ class OrderWebMapperTest {
         assertThat(order.get().getCustomer().getAddress().getCity()).isEqualTo(CustomerResourceBuilder.TEST_CITY);
         assertThat(order.get().getCustomer().getAddress().getCountryCode())
                 .isEqualTo(CustomerResourceBuilder.TEST_COUNTRY_CODE);
+        assertThat(order.get().getItems()).hasSize(1);
+        assertThat(order.get().getItems().get(0).getSku()).isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_SKU);
+        assertThat(order.get().getItems().get(0).getProductName())
+                .isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_PRODUCT_NAME);
+        assertThat(order.get().getItems().get(0).getUnitPrice())
+                .isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE);
+        assertThat(order.get().getItems().get(0).getQuantity()).isEqualTo(OrderResourceBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
     }
 
     @Test
@@ -93,6 +100,10 @@ class OrderWebMapperTest {
         assertThat(resource.get().customer().postalCode()).isEqualTo(CustomerBuilder.TEST_POSTAL_CODE);
         assertThat(resource.get().customer().city()).isEqualTo(CustomerBuilder.TEST_CITY);
         assertThat(resource.get().customer().countryCode()).isEqualTo(CustomerBuilder.TEST_COUNTRY_CODE);
+        assertThat(resource.get().items()).hasSize(1);
+        assertThat(resource.get().items().get(0).sku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
+        assertThat(resource.get().items().get(0).subtotal()).isEqualTo(order.getItems().get(0).getSubtotal());
+        assertThat(resource.get().total()).isEqualTo(order.getTotal());
     }
 
     @Test

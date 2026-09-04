@@ -45,6 +45,11 @@ class OrderPersistenceMapperTest {
         assertThat(result.get().getOrderNumber()).isEqualTo(TEST_ORDER_NUMBER);
         assertThat(result.get().getCreated()).isNotNull();
         assertThat(result.get().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(result.get().getItems()).hasSize(1);
+        assertThat(result.get().getItems().get(0).getSku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
+        assertThat(result.get().getItems().get(0).getProductName()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_PRODUCT_NAME);
+        assertThat(result.get().getItems().get(0).getUnitPrice()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE);
+        assertThat(result.get().getItems().get(0).getQuantity()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
     }
 
     @Test
@@ -58,6 +63,8 @@ class OrderPersistenceMapperTest {
         assertThat(result.get().getOrderNumber()).isEqualTo(TEST_ORDER_NUMBER);
         assertThat(result.get().getCreated()).isNotNull();
         assertThat(result.get().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(result.get().getItems()).hasSize(1);
+        assertThat(result.get().getItems().get(0).getSku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
     }
 
     @Test

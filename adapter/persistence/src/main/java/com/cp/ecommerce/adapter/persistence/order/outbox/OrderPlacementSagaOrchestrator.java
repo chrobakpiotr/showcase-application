@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
@@ -47,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "outbox.publisher", name = "enabled", havingValue = "true", matchIfMissing = true)
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class OrderPlacementSagaOrchestrator {
 
     private final OutboxEventEntityRepository outboxEventEntityRepository;
@@ -70,6 +72,8 @@ public class OrderPlacementSagaOrchestrator {
     private final DetectDuplicateOrderInPort detectDuplicateOrderInPort;
 
     private final CancelOrderInPort cancelOrderInPort;
+
+    private final ManageStockInPort manageStockInPort;
 
     private final TransactionOperations transactionOperations;
 
@@ -180,10 +184,30 @@ public class OrderPlacementSagaOrchestrator {
                 outboxEventEntity.getAttempts(),
                 exception);
         cancelOrderInPort.cancelOrder(order.getOrderNumber());
+        releaseReservedStock(order);
         sagaMetrics.recordCompensation();
         outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATED);
         outboxEventEntity.setCompensatedDate(new Date());
         outboxEventEntityRepository.save(outboxEventEntity);
+    }
+
+    // Releases the stock reserved for this order at placement time (see OrderController#reserveStockFor), as part of
+    // the saga's compensating transaction. Best-effort like the tail steps below: a failure here must not prevent the
+    // order from being marked COMPENSATED, since the order itself is already cancelled either way - it would only leave
+    // stock over-reserved until manually corrected, which is preferable to silently swallowing the cancellation.
+    private void releaseReservedStock(final Order order) {
+
+        order.getItems().forEach(item -> {
+            try {
+                manageStockInPort.releaseStock(item.getSku(), item.getQuantity());
+            } catch (final RuntimeException exception) {
+                log.warn(
+                        "Could not release reserved stock for order: {}, sku: {} (best-effort): {}",
+                        order.getOrderNumber(),
+                        item.getSku(),
+                        exception.getMessage());
+            }
+        });
     }
 
     private void sendConfirmationEmail(final Order order) {

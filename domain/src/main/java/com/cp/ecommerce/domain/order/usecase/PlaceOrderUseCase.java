@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.stream.Collectors;
 
 import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
@@ -102,9 +103,20 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
                 String.valueOf(order.getRemarks()),
                 String.valueOf(order.getCreated()),
                 String.valueOf(order.getCustomer().getId()),
-                String.valueOf(order.getCustomer().getContact().getEmail()));
+                String.valueOf(order.getCustomer().getContact().getEmail()),
+                lineItemsFingerprint(order));
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    // Stable (order-preserving) representation of the order's line items, so an Idempotency-Key replay is only
+    // considered a genuine retry of the same request if the items also match - not just the customer/remarks.
+    private static String lineItemsFingerprint(final Order order) {
+
+        return order.getItems()
+                .stream()
+                .map(item -> item.getSku() + ":" + item.getQuantity() + ":" + item.getUnitPrice())
+                .collect(Collectors.joining(","));
     }
 
 }

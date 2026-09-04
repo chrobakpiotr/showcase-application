@@ -1,16 +1,19 @@
 package com.cp.ecommerce.adapter.web.order.mapper;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.mapping.WebRequestMapper;
 import com.cp.ecommerce.adapter.common.mapping.WebResponseMapper;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
+import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
 
 import org.springframework.stereotype.Component;
 
@@ -28,6 +31,7 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .created(resource.created())
                                 .remarks(resource.remarks())
                                 .customer(mapToCustomer(resource.customer()))
+                                .items(mapToLineItems(resource.items()))
                                 .build());
     }
 
@@ -41,6 +45,8 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .created(order.getCreated())
                                 .remarks(order.getRemarks())
                                 .customer(mapCustomer(order.getCustomer()))
+                                .items(mapLineItemsToResources(order.getItems()))
+                                .total(order.getTotal())
                                 .build());
     }
 
@@ -82,6 +88,36 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .countryCode(customerResource.countryCode())
                                 .build())
                 .build();
+    }
+
+    private List<OrderLineItem> mapToLineItems(final List<OrderLineItemResource> items) {
+
+        if (items == null) {
+            return List.of();
+        }
+        return items.stream()
+                .map(
+                        item -> OrderLineItem.builder()
+                                .sku(item.sku())
+                                .productName(item.productName())
+                                .unitPrice(item.unitPrice())
+                                .quantity(item.quantity())
+                                .build())
+                .toList();
+    }
+
+    private List<OrderLineItemResource> mapLineItemsToResources(final List<OrderLineItem> items) {
+
+        return items.stream()
+                .map(
+                        item -> OrderLineItemResource.builder()
+                                .sku(item.getSku())
+                                .productName(item.getProductName())
+                                .unitPrice(item.getUnitPrice())
+                                .quantity(item.getQuantity())
+                                .subtotal(item.getSubtotal())
+                                .build())
+                .toList();
     }
 
 }

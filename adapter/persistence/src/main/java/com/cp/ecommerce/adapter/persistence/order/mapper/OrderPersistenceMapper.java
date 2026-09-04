@@ -1,11 +1,14 @@
 package com.cp.ecommerce.adapter.persistence.order.mapper;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.mapping.PersistenceMapper;
 import com.cp.ecommerce.adapter.persistence.customer.mapper.CustomerPersistenceMapper;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntity;
+import com.cp.ecommerce.adapter.persistence.order.entity.OrderLineItemEmbeddable;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
 
 import org.springframework.stereotype.Component;
 
@@ -31,6 +34,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .orderNumber(domain.getOrderNumber())
                         .created(domain.getCreated())
                         .customer(customerEntityMapper.mapToEntity(order.getCustomer()).orElse(null))
+                        .items(domain.getItems().stream().map(this::mapItemToEmbeddable).toList())
                         .status(domain.getStatus())
                         .build());
     }
@@ -44,8 +48,32 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .orderNumber(entity.getOrderNumber())
                         .created(entity.getCreated())
                         .customer(customerEntityMapper.mapToDomainObject(entity.getCustomer()).orElse(null))
+                        .items(mapItemsToDomainObjects(entity.getItems()))
                         .status(entity.getStatus())
                         .build());
+    }
+
+    private OrderLineItemEmbeddable mapItemToEmbeddable(final OrderLineItem item) {
+
+        return OrderLineItemEmbeddable.builder()
+                .sku(item.getSku())
+                .productName(item.getProductName())
+                .unitPrice(item.getUnitPrice())
+                .quantity(item.getQuantity())
+                .build();
+    }
+
+    private List<OrderLineItem> mapItemsToDomainObjects(final List<OrderLineItemEmbeddable> items) {
+
+        return items.stream()
+                .map(
+                        item -> OrderLineItem.builder()
+                                .sku(item.getSku())
+                                .productName(item.getProductName())
+                                .unitPrice(item.getUnitPrice())
+                                .quantity(item.getQuantity())
+                                .build())
+                .toList();
     }
 
 }

@@ -1,8 +1,10 @@
 package com.cp.ecommerce.adapter.web.order;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
@@ -11,7 +13,9 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
@@ -57,12 +61,20 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * {@code ORDER_READ}/{@code ORDER_WRITE} grant access to every order in the system rather than only the caller's own - this is
  * a back-office/operator authorization model, not per-customer ownership scoping (see ADR 0017). Accountability is instead
  * provided by logging the acting operator's identity on every mutating action.
+ * <p>
+ * {@link #placeOrder} reserves stock for every line item via {@link ManageStockInPort#reserveStock} before the order is ever
+ * saved, composed here rather than in the domain layer so that {@code order.Order} carries no dependency on
+ * {@code inventory.StockLevel} (see ADR 0029) - the same "cross-context composition happens in the web layer, not the domain"
+ * stance already taken by {@code CartController} (ADR 0027). {@link #cancelOrder} releases that same reservation on a
+ * customer-initiated cancellation; the order-placement saga's own internal compensation path releases it separately (see
+ * {@code OrderPlacementSagaOrchestrator}), since that path never goes through this controller.
  */
 @Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/order")
 @Tag(name = "Order", description = "Placing and retrieving orders")
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class OrderController {
 
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
@@ -87,6 +99,8 @@ public class OrderController {
 
     private final CurrentOperatorProvider currentOperatorProvider;
 
+    private final ManageStockInPort manageStockInPort;
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
@@ -107,7 +121,8 @@ public class OrderController {
             content = @Content(schema = @Schema(implementation = OrderPlacementResource.class)))
     @ApiResponse(
             responseCode = "409",
-            description = "Idempotency-Key was already used for a different request, or is still being processed",
+            description = "Idempotency-Key was already used for a different request, or is still being processed, or "
+                    + "insufficient stock is available for one of the order's line items",
             content = @Content(
                     mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
@@ -130,6 +145,7 @@ public class OrderController {
         final Order order = orderWebMapper.mapToDomainObject(orderResource)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
         order.assertValidationsEmpty();
+        reserveStockFor(order);
         final PlaceOrderResult result = rateLimitedExecutor
                 .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
         if (result.newlyPlaced()) {
@@ -259,9 +275,38 @@ public class OrderController {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
+        releaseStockFor(order);
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
+    }
+
+    // Reserves stock for every line item before the order is ever saved, so an order can never be placed for a SKU
+    // that does not actually have enough available stock. If a later item in the list cannot be reserved, every
+    // earlier reservation made by this same call is released first, so a rejected order placement never leaves a
+    // partial reservation behind.
+    private void reserveStockFor(final Order order) {
+
+        final List<OrderLineItem> reserved = new ArrayList<>();
+        try {
+            for (final OrderLineItem item : order.getItems()) {
+
+                manageStockInPort.reserveStock(item.getSku(), item.getQuantity());
+                reserved.add(item);
+            }
+        } catch (final InsufficientStockException exception) {
+
+            reserved.forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
+            throw exception;
+        }
+    }
+
+    // Releases a cancelled order's stock reservation. Safe to call unconditionally: ManageStockInPort#releaseStock
+    // clamps reserved quantity at zero rather than going negative, so this is a no-op for any SKU that was never
+    // actually reserved (e.g. a legacy order placed before this reservation step existed).
+    private void releaseStockFor(final Order order) {
+
+        order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
     }
 
     // Affordance-driven HATEOAS: the "cancel" link is only advertised while the order is actually cancellable, so a client

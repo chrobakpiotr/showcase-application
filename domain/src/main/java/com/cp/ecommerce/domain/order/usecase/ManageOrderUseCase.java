@@ -35,6 +35,7 @@ public class ManageOrderUseCase implements ManageOrderInPort {
                         .orderNumber(orderNumber)
                         .created(order.getCreated())
                         .remarks(order.getRemarks())
+                        .items(order.getItems())
                         .build());
     }
 

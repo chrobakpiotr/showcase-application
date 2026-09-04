@@ -1,13 +1,17 @@
 package com.cp.ecommerce.adapter.persistence.order.entity;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import com.cp.ecommerce.adapter.persistence.customer.entity.CustomerEntity;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -58,6 +62,13 @@ public class OrderEntity {
     @OneToOne(targetEntity = CustomerEntity.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "CUSTOMER_ID")
     private CustomerEntity customer;
+
+    // @ElementCollection, not a full child entity/repository, mirroring CartEntity.items (ADR 0027): a line item has
+    // no identity or lifecycle independent of its owning order (see ADR 0029).
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "ORDER_LINE_ITEM", joinColumns = @JoinColumn(name = "ORDER_ID"))
+    @Builder.Default
+    private List<OrderLineItemEmbeddable> items = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "STATUS", length = 20, nullable = false)

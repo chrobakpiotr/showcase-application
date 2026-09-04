@@ -1,10 +1,12 @@
 package com.cp.ecommerce.adapter.web.order;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
@@ -16,7 +18,9 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
@@ -69,6 +73,7 @@ class OrderControllerTest {
     private static final String CANCEL_PATH_SEGMENT = "/cancel";
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
     private static final String IDEMPOTENCY_KEY_VALUE = "client-key-1";
+    private static final String SECOND_LINE_ITEM_SKU = "SKU-2";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -97,6 +102,9 @@ class OrderControllerTest {
     @MockitoBean
     private transient CurrentOperatorProvider currentOperatorProvider;
 
+    @MockitoBean
+    private transient ManageStockInPort manageStockInPort;
+
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
 
@@ -122,6 +130,42 @@ class OrderControllerTest {
         verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
+        verify(manageStockInPort, atLeastOnce())
+                .reserveStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+    }
+
+    @Test
+    void shouldRollBackReservedStockAndRespondWith409WhenLaterLineItemHasInsufficientStock() throws Exception {
+
+        final OrderLineItem firstItem = OrderLineItem.builder()
+                .sku("SKU-1")
+                .productName("Keyboard")
+                .unitPrice(BigDecimal.TEN)
+                .quantity(1)
+                .build();
+        final OrderLineItem secondItem = OrderLineItem.builder()
+                .sku(SECOND_LINE_ITEM_SKU)
+                .productName("Mouse")
+                .unitPrice(BigDecimal.ONE)
+                .quantity(1)
+                .build();
+        final Order order = Order.builder()
+                .remarks(OrderBuilder.TEST_REMARKS)
+                .customer(CustomerBuilder.mockCustomer())
+                .items(List.of(firstItem, secondItem))
+                .build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
+        given(manageStockInPort.reserveStock(SECOND_LINE_ITEM_SKU, 1))
+                .willThrow(new InsufficientStockException(SECOND_LINE_ITEM_SKU));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andDo(print())
+                .andExpect(status().isConflict());
+
+        verify(manageStockInPort).reserveStock("SKU-1", 1);
+        verify(manageStockInPort).reserveStock(SECOND_LINE_ITEM_SKU, 1);
+        verify(manageStockInPort).releaseStock("SKU-1", 1);
+        verify(placeOrderUseCase, never()).placeOrder(any(), any());
     }
 
     @Test
@@ -284,6 +328,8 @@ class OrderControllerTest {
 
         verify(orderMetrics).recordOrderCancelled();
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
+        verify(manageStockInPort)
+                .releaseStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
     }
 
     @Test
@@ -396,6 +442,7 @@ class OrderControllerTest {
                 .orderNumber(confirmed.getOrderNumber())
                 .created(confirmed.getCreated())
                 .customer(confirmed.getCustomer())
+                .items(confirmed.getItems())
                 .status(OrderStatus.CANCELLED)
                 .build();
     }

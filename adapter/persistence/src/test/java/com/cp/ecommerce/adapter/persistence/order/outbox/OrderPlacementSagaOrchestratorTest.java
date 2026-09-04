@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
@@ -60,6 +61,8 @@ class OrderPlacementSagaOrchestratorTest {
 
     private static final String OUTCOME_FAILURE = "failure";
 
+    private static final String RABBITMQ_UNAVAILABLE_MESSAGE = "RabbitMQ unavailable";
+
     @Mock
     private transient OutboxEventEntityRepository outboxEventEntityRepository;
 
@@ -92,6 +95,9 @@ class OrderPlacementSagaOrchestratorTest {
 
     @Mock
     private transient CancelOrderInPort cancelOrderInPort;
+
+    @Mock
+    private transient ManageStockInPort manageStockInPort;
 
     private final transient MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
@@ -176,7 +182,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of(failedEvent, successfulEvent));
         when(manageOrderInPort.findOrder(failedOrder.getOrderNumber())).thenReturn(failedOrder);
         when(manageOrderInPort.findOrder(successfulOrder.getOrderNumber())).thenReturn(successfulOrder);
-        doThrow(new IllegalStateException("RabbitMQ unavailable")).when(sendMessageInPort).sendMessage(failedOrder);
+        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(failedOrder);
 
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
@@ -188,7 +194,7 @@ class OrderPlacementSagaOrchestratorTest {
         verify(outboxEventEntityRepository, times(1)).save(successfulEvent);
         assertThat(failedEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(failedEvent.getAttempts()).isEqualTo(1);
-        assertThat(failedEvent.getLastError()).isEqualTo("RabbitMQ unavailable");
+        assertThat(failedEvent.getLastError()).isEqualTo(RABBITMQ_UNAVAILABLE_MESSAGE);
         assertThat(failedEvent.getSentDate()).isNull();
         assertThat(successfulEvent.getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(successfulEvent.getSentDate()).isNotNull();
@@ -209,11 +215,13 @@ class OrderPlacementSagaOrchestratorTest {
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(outboxEventEntity));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new IllegalStateException("RabbitMQ unavailable")).when(sendMessageInPort).sendMessage(order);
+        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
 
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
         verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
+        verify(manageStockInPort, times(1))
+                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
         verifyNoInteractions(
                 sendOrderConfirmationEmailInPort,
                 exportOrderInPort,
@@ -228,6 +236,32 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(outboxEventEntity.getCompensatedDate()).isNotNull();
         assertThat(outboxEventEntity.getSentDate()).isNull();
         assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
+        assertThat(compensationCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldStillCompensateWhenReleasingReservedStockFails() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
+                .build();
+        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEventEntity));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
+        doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
+                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+
+        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+
+        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
         assertThat(compensationCount()).isEqualTo(1);
     }
 
@@ -492,6 +526,7 @@ class OrderPlacementSagaOrchestratorTest {
                 classifyOrderRemarksInPort,
                 detectDuplicateOrderInPort,
                 cancelOrderInPort,
+                manageStockInPort,
                 executeInSimpleTransaction(),
                 sagaMetrics);
     }

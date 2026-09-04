@@ -585,6 +585,26 @@ Order persistence now uses a transactional outbox to avoid losing RabbitMQ event
 - Message delivery still goes through the existing resilience4j-wrapped `SendOrderMessageAdapter`, so retry/circuit-breaker behavior is unchanged.
 - Properties: `outbox.publisher.enabled` (default `true`) and `outbox.publisher.poll-interval-ms` (default `5000`).
 
+## Order line items and stock reservation
+
+`Order` carries real line items (`OrderLineItem`: sku, product name, unit price, quantity - see
+[ADR 0029](docs/adr/0029-order-line-items-and-stock-reservation.md)), each a price/name snapshot taken at
+order time, mirroring `CartLineItem`'s pattern (see [Shopping Cart](#shopping-cart)) rather than a live
+reference into the Catalog. Placing an order now also reserves stock:
+
+- `OrderController.placeOrder` calls `ManageStockInPort.reserveStock` for every line item, synchronously,
+  before `PlaceOrderUseCase` ever runs - composed at the web layer (not the domain) exactly like
+  `CartController` composes `ManageProductInPort`, so `Order` carries no dependency on Inventory's
+  `StockLevel`. If any line item is out of stock, `InsufficientStockException` rolls back every reservation
+  already made in that same call and the placement is rejected with `HTTP 409`.
+- Stock is released symmetrically in two places: `OrderController.cancelOrder` on a successful
+  customer-initiated cancellation, and `OrderPlacementSagaOrchestrator.compensate()` on the saga's own
+  internal cancellation path (exhausted fulfillment retries) - as a best-effort tail step that never blocks
+  the outbox event from being marked `COMPENSATED`.
+- Reservation deliberately happens once, synchronously, rather than as a new saga step - the saga's
+  `notifyFulfillment` step is retried across scheduler polls, and a saga-step reservation would double-reserve
+  on retry.
+
 ## Order placement saga
 
 Placing an order triggers a chain of side effects - notify fulfillment, e-mail the customer, export an audit
@@ -628,7 +648,7 @@ same problem [Stripe's Idempotency-Key](https://docs.stripe.com/api/idempotent_r
 to this API.
 
 - `PlaceOrderUseCase` reserves the key together with a SHA-256 fingerprint of the request's client-controlled
-  fields (remarks, created date, customer id and e-mail) *before* placing the order, via
+  fields (remarks, created date, customer id, e-mail and line items) *before* placing the order, via
   `IdempotencyKeyOutPort` / `IdempotencyKeyAdapter` (`adapter:persistence`, table `IDEMPOTENCY_KEY`).
 - Concurrency is arbitrated by the database, not application-level locking: `reserve(...)` always attempts an
   INSERT first, relying on a unique constraint to decide which of two simultaneous requests for the same key
