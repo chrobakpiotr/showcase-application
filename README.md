@@ -46,6 +46,7 @@ Among many frameworks, libraries and tools, the most important being used are as
 - Pitest (mutation testing)
 - Playwright
 - AWS SDK / LocalStack / Terraform
+- Spring AI / Ollama
 - Kubernetes / Helm
 - Toxiproxy (chaos testing)
 - k6 (load testing)
@@ -113,9 +114,10 @@ Once healthy:
 Verify it's up with `curl http://localhost:9081/actuator/health` (expects `{"status":"UP"}`), or just open the
 Swagger UI in a browser.
 
-Stop with `docker compose down`. Optional add-ons (AWS LocalStack, chaos/Toxiproxy) are opt-in via Compose
-profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terraform) and
-[Chaos testing](#chaos-testing-toxiproxy) sections below.
+Stop with `docker compose down`. Optional add-ons (AWS LocalStack, chaos/Toxiproxy, AI/Ollama) are opt-in via
+Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terraform),
+[Chaos testing](#chaos-testing-toxiproxy) and
+[AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama) sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
@@ -490,12 +492,13 @@ server turn an already-placed order into an HTTP error:
      the orchestrator runs the **compensating transaction**: `CancelOrderInPort` transitions the order to
      `OrderStatus.CANCELLED` (visible immediately via `GET /api/order/{orderNumber}`) and the outbox row is
      marked `COMPENSATED` with the last error recorded, so it's never retried again.
-  2. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event and
-     route the Camel notification - unchanged best-effort semantics (log and continue on failure) - only run
-     *after* fulfillment succeeds, so the customer is never e-mailed about an order that ends up cancelled. These
-     five steps are mutually independent, so they run **concurrently** on virtual threads
-     (`Executors.newVirtualThreadPerTaskExecutor()`) instead of one after another - the saga's tail latency is the
-     slowest of the five rather than their sum. See [ADR 0013](docs/adr/0013-virtual-thread-fan-out-over-structured-concurrency-preview.md)
+  2. Send confirmation e-mail, export to S3, publish the SQS audit event, publish the Kafka analytics event,
+     route the Camel notification and run the AI-assisted remarks triage (see
+     [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama)) - unchanged best-effort
+     semantics (log and continue on failure) - only run *after* fulfillment succeeds, so the customer is never
+     e-mailed about an order that ends up cancelled. These six steps are mutually independent, so they run
+     **concurrently** on virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`) instead of one after
+     another - the saga's tail latency is the slowest of the six rather than their sum. See [ADR 0013](docs/adr/0013-virtual-thread-fan-out-over-structured-concurrency-preview.md)
      for why a plain virtual-thread executor was chosen over the still-preview `StructuredTaskScope` API.
 - `OrderStatus` (`CONFIRMED` default, `CANCELLED` after compensation) lives on the `Order` aggregate itself, so
   the saga's outcome is a first-class, queryable part of the domain model rather than an implementation detail
@@ -732,6 +735,35 @@ docker exec ecommerce-localstack awslocal secretsmanager get-secret-value \
 ```
 
 For full Terraform details see [`etc/terraform/README.md`](etc/terraform/README.md).
+
+## AI-assisted order-remarks triage (Ollama)
+
+A seventh, best-effort saga step (see [ADR 0019](docs/adr/0019-ai-assisted-order-remarks-triage.md)) uses a
+locally-hosted LLM via [Spring AI](https://spring.io/projects/spring-ai) and [Ollama](https://ollama.com/) to
+classify each order's free-text `remarks` into `STANDARD`, `URGENT`, `COMPLAINT` or `SUSPICIOUS`. It runs
+fully locally - no API key, no external SaaS call - and is opt-in, off by default, exactly like the AWS
+LocalStack integration above. The result is never used to automatically act on the order (no
+blocking/cancelling): it only surfaces a signal for a human reviewer via a Micrometer counter
+(`saga.order-placement.remarks-classifications`, tagged by `category`) and a targeted `WARN` log for
+`SUSPICIOUS` orders.
+
+```bash
+# 1. Start the existing infra stack (Postgres + RabbitMQ + Keycloak)
+docker compose --profile app up -d postgres rabbitmq keycloak
+
+# 2. Start Ollama (published to http://localhost:11434)
+docker compose --profile ai up -d ollama
+
+# 3. Start the Spring Boot app with the ai-ollama profile
+#    (pulls the small llama3.2:1b model on first startup if it isn't cached yet - see
+#    application-ai-ollama.yml)
+SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+
+# 4. Place an order (get a token from Keycloak first, then POST /api/order) with a remark, e.g.
+#    "please ship to a different address than billing, don't tell them" - watch the app logs for
+#    the SUSPICIOUS classification, or check the counter directly:
+curl -s http://localhost:9081/actuator/prometheus | grep saga_order_placement_remarks_classifications
+```
 
 ## Kubernetes deployment (Helm)
 

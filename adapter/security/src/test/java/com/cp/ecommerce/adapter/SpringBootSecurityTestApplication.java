@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Import;
                 "com.cp.ecommerce.adapter.kafka",
                 "com.cp.ecommerce.adapter.camel",
                 "com.cp.ecommerce.domain",
+                "com.cp.ecommerce.adapter.ai",
                 "com.cp.ecommerce.adapter.common" })
 @Import(PersistenceConfiguration.class)
 public class SpringBootSecurityTestApplication {

@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
                 "com.cp.ecommerce.adapter.aws",
                 "com.cp.ecommerce.adapter.kafka",
                 "com.cp.ecommerce.adapter.camel",
+                "com.cp.ecommerce.adapter.ai",
                 "com.cp.ecommerce.adapter.common" })
 public class EcommerceApplication {
 

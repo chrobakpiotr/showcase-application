@@ -1,0 +1,38 @@
+# Profile: ai-ollama
+#
+# Enables the AI-assisted order-remarks triage best-effort saga step (see ADR 0019),
+# backed by a locally-hosted Ollama model - no API key, no external SaaS dependency.
+#
+# ---- HOW TO USE ----
+# Combine this profile with your DB+messaging profile when starting the app on the HOST
+# (i.e. via `./gradlew bootRun`), with Ollama running via the docker-composed "ai" profile:
+#
+#   docker compose --profile ai up -d ollama
+#   SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+#
+# spring.ai.ollama.init.pull-model-strategy below makes the app itself pull the configured
+# model on startup if it isn't already cached in Ollama's volume - no separate one-shot
+# "pull" container needed. Expect the first startup after a fresh `docker compose up` to take
+# a while (small model, but still a multi-hundred-MB download) before this profile's saga step
+# starts returning real classifications instead of failing over to STANDARD (see
+# OrderPlacementSagaOrchestrator - this step is best-effort and never blocks order placement).
+#
+# ---- ENDPOINT NOTE (same dual-URL pattern as Keycloak/LocalStack in application-docker.yml /
+# application-aws-localstack.yml) ----
+# When the Spring Boot app runs on the HOST machine, it reaches Ollama via the port published
+# to localhost: http://localhost:11434
+# When the app runs INSIDE the same Docker network as Ollama (e.g. the 'app' service in
+# docker-compose.yml), it would use the Docker service name instead: http://ollama:11434
+
+service:
+  ai:
+    enabled: true
+
+spring:
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: llama3.2:1b
+      init:
+        pull-model-strategy: when_missing

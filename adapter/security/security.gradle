@@ -39,6 +39,7 @@ dependencies {
     testImplementation project(':adapter:kafka')
     testImplementation project(':adapter:camel')
     testImplementation project(':adapter:web')
+    testImplementation project(':adapter:ai')
     testImplementation 'jakarta.persistence:jakarta.persistence-api'
     testImplementation 'org.springframework.boot:spring-boot-autoconfigure'
     testImplementation 'org.springframework.boot:spring-boot-resttestclient'

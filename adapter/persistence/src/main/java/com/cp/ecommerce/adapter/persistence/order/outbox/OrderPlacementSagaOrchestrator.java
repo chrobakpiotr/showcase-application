@@ -8,7 +8,10 @@ import java.util.function.Consumer;
 
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.RemarksTriageCategory;
+import com.cp.ecommerce.domain.order.RemarksTriageResult;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
+import com.cp.ecommerce.domain.order.port.incoming.ClassifyOrderRemarksInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
@@ -34,8 +37,9 @@ import lombok.extern.slf4j.Slf4j;
  * with a bounded number of attempts recorded on the outbox event; once {@code outbox.publisher.max-fulfillment-attempts} is
  * reached, the saga runs its compensating transaction and cancels the order via {@link CancelOrderInPort} instead of retrying
  * forever. Only once fulfillment succeeds do the remaining steps run - confirmation email, export, audit, analytics,
- * notification routing - all best-effort: a failure there is logged and does not block the event from being marked
- * {@code SENT}, matching this application's existing eventual-consistency trade-offs (see ADR 0002 and ADR 0008).
+ * notification routing, AI-assisted remarks triage - all best-effort: a failure there is logged and does not block the event
+ * from being marked {@code SENT}, matching this application's existing eventual-consistency trade-offs (see ADR 0002 and ADR
+ * 0008).
  */
 @Slf4j
 @Component
@@ -58,6 +62,8 @@ public class OrderPlacementSagaOrchestrator {
     private final PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
 
     private final RouteOrderNotificationInPort routeOrderNotificationInPort;
+
+    private final ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
 
     private final CancelOrderInPort cancelOrderInPort;
 
@@ -101,9 +107,9 @@ public class OrderPlacementSagaOrchestrator {
 
     /**
      * Runs the saga's best-effort tail steps - confirmation email, S3 export, SQS audit, Kafka analytics, Camel notification
-     * routing - concurrently instead of one after another. They are mutually independent (each only reads the already-loaded
-     * {@code order}; none depends on another's outcome), so this is a textbook fan-out: tail latency drops to that of the
-     * single slowest step instead of their sum.
+     * routing, AI-assisted remarks triage - concurrently instead of one after another. They are mutually independent (each only
+     * reads the already-loaded {@code order}; none depends on another's outcome), so this is a textbook fan-out: tail latency
+     * drops to that of the single slowest step instead of their sum.
      *
      * <p>
      * Uses the stable {@link Executors#newVirtualThreadPerTaskExecutor()} (available since JDK 21) rather than
@@ -116,7 +122,7 @@ public class OrderPlacementSagaOrchestrator {
      * {@code ExecutorService#close()} (JDK 19+) blocks until every task submitted before it was called has finished, giving the
      * same "wait for all steps" semantics the previous sequential code had, just executed in parallel. Each step already
      * catches and logs its own {@link RuntimeException} (see below), so a failure in one never affects the others, and the
-     * event is still marked {@code SENT} once all five have at least been attempted - unchanged from before this change.
+     * event is still marked {@code SENT} once all six have at least been attempted - unchanged from before this change.
      */
     private void runBestEffortStepsConcurrently(final Order order) {
 
@@ -127,6 +133,7 @@ public class OrderPlacementSagaOrchestrator {
             executor.execute(() -> publishAuditEvent(order));
             executor.execute(() -> publishAnalyticsEvent(order));
             executor.execute(() -> routeNotification(order));
+            executor.execute(() -> classifyRemarks(order));
         }
     }
 
@@ -215,7 +222,31 @@ public class OrderPlacementSagaOrchestrator {
                 "Could not route order notification via Camel (best-effort): {}");
     }
 
-    // Shared execute-time-catch-log wrapper for the saga's independent, best-effort tail steps: each already had
+    // Custom (not runBestEffortStep-based) step: unlike the other five, this one needs the *result* of its in-port call
+    // (the triage category/rationale), not just a success/failure outcome, to log a targeted warning for SUSPICIOUS orders
+    // and to tag the SagaMetrics counter by category - see ClassifyOrderRemarksOutPort's javadoc for why this is
+    // deliberately never used to automatically act on the order (human-in-the-loop only).
+    private void classifyRemarks(final Order order) {
+
+        final long startNanos = System.nanoTime();
+        try {
+            final RemarksTriageResult result = classifyOrderRemarksInPort.classifyRemarks(order);
+            sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), true);
+            sagaMetrics.recordRemarksClassification(result.getCategory());
+            if (result.getCategory() == RemarksTriageCategory.SUSPICIOUS) {
+                log.warn(
+                        "Order remarks flagged as SUSPICIOUS by AI triage (human review recommended): orderNumber={}, rationale={}",
+                        order.getOrderNumber(),
+                        result.getRationale());
+            }
+        } catch (RuntimeException exception) {
+            sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), false);
+            log.warn("Could not classify order remarks (best-effort): {}", order.getOrderNumber(), exception);
+        }
+    }
+
+    // Shared execute-time-catch-log wrapper for the saga's independent, best-effort tail steps that only need a
+    // success/failure outcome (unlike classifyRemarks above, which needs its result value too): each already had
     // identical structure before metrics were added (call the port, catch RuntimeException, log a warning), so timing
     // is added here once instead of duplicated across all five step methods above.
     private void runBestEffortStep(

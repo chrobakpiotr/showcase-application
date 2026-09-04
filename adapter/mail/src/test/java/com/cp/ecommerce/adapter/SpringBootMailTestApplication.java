@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Import;
                 "com.cp.ecommerce.adapter.aws",
                 "com.cp.ecommerce.adapter.kafka",
                 "com.cp.ecommerce.adapter.camel",
+                "com.cp.ecommerce.adapter.ai",
                 "com.cp.ecommerce.adapter.common" })
 @Import({ PersistenceConfiguration.class, MessageTemplateConfiguration.class, PdfConfiguration.class })
 public class SpringBootMailTestApplication {

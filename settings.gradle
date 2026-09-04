@@ -11,6 +11,7 @@ addSubproject('adapter:amqp')
 addSubproject('adapter:aws')
 addSubproject('adapter:kafka')
 addSubproject('adapter:camel')
+addSubproject('adapter:ai')
 addSubproject('application:ecommerce')
 addSubproject('domain')
 

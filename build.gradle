@@ -99,6 +99,7 @@ def configureDependencyManagement(subproject) {
 				mavenBom 'org.junit:junit-bom:6.1.3'
 				mavenBom 'software.amazon.awssdk:bom:2.54.7'
 				mavenBom 'org.apache.camel.springboot:camel-spring-boot-bom:4.22.0'
+				mavenBom 'org.springframework.ai:spring-ai-bom:2.0.0'
 			}
 			dependencies {
 				dependency 'ch.qos.logback:logback-classic:1.6.3'
