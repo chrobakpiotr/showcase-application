@@ -1,7 +1,8 @@
 # Profile: ai-ollama
 #
-# Enables the AI-assisted order-remarks triage best-effort saga step (see ADR 0019),
-# backed by a locally-hosted Ollama model - no API key, no external SaaS dependency.
+# Enables the AI-assisted order-remarks triage best-effort saga step (see ADR 0019) and the AI
+# customer-support assistant (see ADR 0020), both backed by a locally-hosted Ollama model - no API
+# key, no external SaaS dependency.
 #
 # ---- HOW TO USE ----
 # Combine this profile with your DB+messaging profile when starting the app on the HOST
@@ -11,11 +12,12 @@
 #   SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
 #
 # spring.ai.ollama.init.pull-model-strategy below makes the app itself pull the configured
-# model on startup if it isn't already cached in Ollama's volume - no separate one-shot
-# "pull" container needed. Expect the first startup after a fresh `docker compose up` to take
-# a while (small model, but still a multi-hundred-MB download) before this profile's saga step
-# starts returning real classifications instead of failing over to STANDARD (see
-# OrderPlacementSagaOrchestrator - this step is best-effort and never blocks order placement).
+# models on startup if not already cached in Ollama's volume - no separate one-shot "pull"
+# container needed. Expect the first startup after a fresh `docker compose up` to take a while
+# (small models, but still a multi-hundred-MB download combined) before the chat model starts
+# returning real classifications/answers instead of failing over to the STANDARD/unavailable
+# fallbacks (see OrderPlacementSagaOrchestrator and OllamaSupportAssistantAdapter - both fail
+# gracefully rather than blocking).
 #
 # ---- ENDPOINT NOTE (same dual-URL pattern as Keycloak/LocalStack in application-docker.yml /
 # application-aws-localstack.yml) ----
@@ -34,5 +36,10 @@ spring:
       base-url: http://localhost:11434
       chat:
         model: llama3.2:1b
+      embedding:
+        # Backs the support assistant's retrieval-augmented generation (see
+        # SupportKnowledgeBaseConfiguration / ADR 0020). A small, well-known local embedding model -
+        # no API key, same zero-friction local dev/demo experience as the chat model above.
+        model: nomic-embed-text
       init:
         pull-model-strategy: when_missing

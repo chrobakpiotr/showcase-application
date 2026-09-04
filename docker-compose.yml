@@ -272,17 +272,20 @@ services:
     depends_on:
       - rabbitmq
 
-  # ---- Local AI-assisted order-remarks triage (opt-in: docker compose --profile ai up -d ollama) ----
+  # ---- Local AI features: order-remarks triage + customer-support assistant (opt-in: docker compose
+  #      --profile ai up -d ollama) ----
   #
-  # Ollama serves a small local LLM for OllamaOrderRemarksClassifierAdapter's best-effort saga step (see
-  # ADR 0019). Runs fully locally - no API key, no external SaaS dependency - matching the same
-  # zero-friction "just clone and run" local dev/demo experience the AWS LocalStack stack above aims for.
+  # Ollama serves small local models for OllamaOrderRemarksClassifierAdapter's best-effort saga step (see
+  # ADR 0019) and OllamaSupportAssistantAdapter's retrieval-augmented support chatbot (see ADR 0020). Runs
+  # fully locally - no API key, no external SaaS dependency - matching the same zero-friction "just clone
+  # and run" local dev/demo experience the AWS LocalStack stack above aims for.
   #
-  # Enable the app's AI feature with the matching "ai-ollama" Spring profile, e.g.:
+  # Enable the app's AI features with the matching "ai-ollama" Spring profile, e.g.:
   #   SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
   #
-  # The app itself pulls the configured model on first startup if missing (see application-ai-ollama.yml's
-  # spring.ai.ollama.init.pull-model-strategy) - no separate one-shot "pull" container needed here.
+  # The app itself pulls the configured chat and embedding models on first startup if missing (see
+  # application-ai-ollama.yml's spring.ai.ollama.init.pull-model-strategy) - no separate one-shot "pull"
+  # container needed here.
   ollama:
     image: ollama/ollama:0.33.3
     container_name: ecommerce-ollama

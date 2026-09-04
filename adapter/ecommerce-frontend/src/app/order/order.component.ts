@@ -12,6 +12,7 @@ import {
 } from '@angular/forms';
 
 import { OrderService } from '@app/order/order.service';
+import { SupportAssistantComponent } from '@app/support-assistant/support-assistant.component';
 
 // Phone pattern mirrors the backend's Contact.PHONE_PATTERN ("^$|[- +()0-9]+"): either blank, or digits with
 // optional spaces/parentheses/dashes/plus sign.
@@ -22,7 +23,7 @@ const PHONE_PATTERN = /^$|^[- +()0-9]+$/;
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, SupportAssistantComponent],
 })
 export class OrderComponent {
   private readonly orderService = inject(OrderService);

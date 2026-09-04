@@ -17,6 +17,10 @@ dependencies {
     // opt-in, self-contained scope. Swapping in a hosted provider (OpenAI/Bedrock/etc.) later would
     // only require adding its starter here and a new adapter implementing ClassifyOrderRemarksOutPort.
     implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
+    // In-memory RAG building blocks for the support-assistant's knowledge base (SimpleVectorStore, TokenTextSplitter,
+    // QuestionAnswerAdvisor) - both managed by the root build.gradle's spring-ai-bom import, no explicit version needed.
+    implementation 'org.springframework.ai:spring-ai-vector-store'
+    implementation 'org.springframework.ai:spring-ai-vector-store-advisor'
     testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
 }
 

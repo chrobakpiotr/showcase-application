@@ -10,6 +10,7 @@ import { of, throwError } from 'rxjs';
 import { OrderComponent } from '@app/order/order.component';
 import { OrderService } from '@app/order/order.service';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
+import { SupportAssistantService } from '@app/support-assistant/support-assistant.service';
 
 const VALID_CUSTOMER: CustomerRequestModel = {
   fullName: 'Jane Doe',
@@ -34,6 +35,12 @@ describe('OrderComponent', () => {
         {
           provide: OrderService,
           useValue: { placeOrder: placeOrderSpy },
+        },
+        {
+          // The embedded <app-support-assistant /> widget injects SupportAssistantService, which itself needs
+          // HttpClient - stubbed out here since OrderComponent's own tests aren't about the support widget.
+          provide: SupportAssistantService,
+          useValue: { askQuestion: jasmine.createSpy('askQuestion') },
         },
       ],
     });

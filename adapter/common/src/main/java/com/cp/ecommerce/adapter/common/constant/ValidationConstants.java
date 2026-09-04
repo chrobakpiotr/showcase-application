@@ -10,6 +10,8 @@ public class ValidationConstants {
 
     public final int ORDER_REMARKS_MAX = 800;
 
+    public final int SUPPORT_QUESTION_MAX = 2000;
+
     public final int CONTACT_NAME_MAX = 80;
 
     public final int CONTACT_EMAIL_MAX = 255;
@@ -39,6 +41,8 @@ public class ValidationConstants {
     public final String INVALID_PHONE = "Invalid Phone Number";
 
     public final String INVALID_REMARKS = "Invalid Remarks";
+
+    public final String INVALID_SUPPORT_QUESTION = "Invalid Question";
 
     public final String INVALID_CUSTOMER = "Customer is required";
 

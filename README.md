@@ -116,8 +116,9 @@ Swagger UI in a browser.
 
 Stop with `docker compose down`. Optional add-ons (AWS LocalStack, chaos/Toxiproxy, AI/Ollama) are opt-in via
 Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terraform),
-[Chaos testing](#chaos-testing-toxiproxy) and
-[AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama) sections below.
+[Chaos testing](#chaos-testing-toxiproxy),
+[AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama) and
+[AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
@@ -763,6 +764,34 @@ SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
 #    "please ship to a different address than billing, don't tell them" - watch the app logs for
 #    the SUSPICIOUS classification, or check the counter directly:
 curl -s http://localhost:9081/actuator/prometheus | grep saga_order_placement_remarks_classifications
+```
+
+## AI customer-support assistant (RAG + tool-calling, Ollama)
+
+A second, differently-shaped AI feature (see
+[ADR 0020](docs/adr/0020-ai-support-assistant-rag-tool-calling.md)): a customer-facing chat widget, backed
+by Retrieval-Augmented Generation over a small bundled knowledge base
+(`adapter/ai/src/main/resources/support-knowledge-base/*.md` - order lifecycle, cancellation, shipping,
+returns) plus a tool-calling lookup against real order data. Unlike the remarks-triage saga step above, this
+is a synchronous, user-facing endpoint, not a background best-effort step - it lives in its own bounded
+context (`assistant`) entirely outside the order-placement saga. It runs fully locally via the same Ollama
+container (no API key, no external SaaS call), is opt-in/off by default, and gracefully degrades: if the
+model is unreachable, the endpoint still returns `200` with `assistantAvailable: false` rather than an error,
+and the chat widget shows an "assistant unavailable" hint.
+
+```bash
+# 1. Start the existing infra stack (Postgres + RabbitMQ + Keycloak)
+docker compose --profile app up -d postgres rabbitmq keycloak
+
+# 2. Start Ollama (published to http://localhost:11434) - pulls both the chat model (llama3.2:1b) and the
+#    embedding model (nomic-embed-text) on first startup if not already cached
+docker compose --profile ai up -d ollama
+
+# 3. Start the Spring Boot app with the ai-ollama profile
+SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+
+# 4. Open http://localhost:9080/home/order, log in, and click "Ask support" (bottom-right) - try
+#    "Can I still cancel my order?" or "What's the status of order <id>?"
 ```
 
 ## Kubernetes deployment (Helm)

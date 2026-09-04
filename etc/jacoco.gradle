@@ -26,7 +26,8 @@ jacocoTestCoverageVerification {
                           "com/cp/ecommerce/adapter/persistence/configuration/SequenceNumberConfiguration**",
                           "com/cp/ecommerce/adapter/aws/configuration/AwsClientConfiguration**",
                           "com/cp/ecommerce/adapter/aws/configuration/AwsProperties**",
-                          "com/cp/ecommerce/adapter/aws/configuration/SecretsManagerDbCredentialsEnvironmentPostProcessor**"]
+                          "com/cp/ecommerce/adapter/aws/configuration/SecretsManagerDbCredentialsEnvironmentPostProcessor**",
+                          "com/cp/ecommerce/adapter/ai/support/SupportKnowledgeBaseConfiguration**"]
             )
         }))
     }

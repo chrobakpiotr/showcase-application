@@ -26,6 +26,7 @@ than editing it in place.
 | [0017](0017-order-api-operator-authorization-model.md) | Order API authorization model: role-based operator access, not per-customer ownership |
 | [0018](0018-kafka-consumer-error-handling.md) | Kafka consumer error handling: dead-letter topic + idempotent upsert |
 | [0019](0019-ai-assisted-order-remarks-triage.md) | AI-assisted order-remarks triage as an opt-in, best-effort saga step |
+| [0020](0020-ai-support-assistant-rag-tool-calling.md) | AI customer-support assistant: RAG + tool-calling, as a standalone bounded context |
 
 ## Template for new ADRs
 

@@ -67,9 +67,15 @@ public class ArchitectureElement {
 
     EvaluationResult evaluateEmptyPackage(final String packageName) {
 
+        // allowEmptyShould(true): without it, ArchUnit throws instead of gracefully evaluating whenever the imported
+        // package literally contains zero classes (e.g. a bounded context with no persistence adapter at all) - which
+        // would otherwise abort evaluateEmptyPackagesViolation's loop over ALL adapter packages after only the first
+        // empty one, never reaching a later adapter package that IS populated (see ADR 0020 / the "assistant" bounded
+        // context, whose only adapter is a web controller with no persistence counterpart).
         return classes().that()
                 .resideInAPackage(matchAllClassesInPackage(packageName))
                 .should(containNumberOfElements(greaterThanOrEqualTo(1)))
+                .allowEmptyShould(true)
                 .evaluate(classesInPackage(packageName));
     }
 
@@ -78,6 +84,7 @@ public class ArchitectureElement {
         classes().that()
                 .resideInAPackage(matchAllClassesInPackage(packageName))
                 .should(containNumberOfElements(greaterThanOrEqualTo(1)))
+                .allowEmptyShould(true)
                 .check(classesInPackage(packageName));
     }
 
