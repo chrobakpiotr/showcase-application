@@ -15,6 +15,13 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines guarded analytics route', async () => {
+    const analyticsRoute = routes.find((route) => route.path === 'analytics');
+    expect(analyticsRoute?.canActivate?.length).toBe(1);
+    const component = await analyticsRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('redirects empty path to order', () => {
     const defaultRoute = routes.find((route) => route.path === '');
     expect(defaultRoute?.redirectTo).toBe('order');

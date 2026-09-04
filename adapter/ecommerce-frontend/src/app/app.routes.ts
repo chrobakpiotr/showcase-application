@@ -13,6 +13,14 @@ export const routes: Routes = [
       import('./order/order.component').then((m) => m.OrderComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'analytics',
+    loadComponent: () =>
+      import('./analytics-assistant/analytics-assistant.component').then(
+        (m) => m.AnalyticsAssistantComponent
+      ),
+    canActivate: [authGuard],
+  },
   { path: '', redirectTo: 'order', pathMatch: 'full' },
   {
     path: '**',

@@ -11,7 +11,11 @@ describe('AppComponent', () => {
   let logoutSpy: jasmine.Spy;
   let router: Router;
 
-  function setup(authenticated: boolean, username = ''): void {
+  function setup(
+    authenticated: boolean,
+    username = '',
+    roles: string[] = []
+  ): void {
     logoutSpy = jasmine.createSpy('logout');
 
     TestBed.configureTestingModule({
@@ -23,6 +27,7 @@ describe('AppComponent', () => {
           useValue: {
             isAuthenticated: signal(authenticated),
             username: signal(username),
+            roles: signal(roles),
             logout: logoutSpy,
           },
         },
@@ -70,5 +75,17 @@ describe('AppComponent', () => {
     component.logout();
     expect(logoutSpy).toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('shows the analytics nav link when the user has ORDER_READ', () => {
+    setup(true, 'admin', ['ORDER_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/analytics"]')).toBeTruthy();
+  });
+
+  it('hides the analytics nav link when the user lacks ORDER_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/analytics"]')).toBeFalsy();
   });
 });

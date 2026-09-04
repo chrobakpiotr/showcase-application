@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
+import java.util.Date;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,5 +21,15 @@ public interface OrderAnalyticsProjectionEntityRepository extends JpaRepository<
      * @return matching page of {@link OrderAnalyticsProjectionEntity}.
      */
     Page<OrderAnalyticsProjectionEntity> findAllByOrderByConsumedDateDesc(Pageable pageable);
+
+    /**
+     * Counts projections whose {@code orderPlacedDate} falls within the given range (inclusive), for the ops-analytics
+     * assistant (see ADR 0021).
+     *
+     * @param from start of the range (inclusive).
+     * @param to end of the range (inclusive).
+     * @return matching projection count.
+     */
+    long countByOrderPlacedDateBetween(Date from, Date to);
 
 }

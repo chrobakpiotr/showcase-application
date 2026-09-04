@@ -31,6 +31,13 @@ public class WebSecurityConfiguration {
 
     private static final String ORDER_API_PATH_MATCHER = "/api/order/**";
 
+    // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
+    // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
+    // since the question is a free-text request body. Without this specific, narrower rule it would otherwise fall
+    // through to the general POST /api/order/** rule below and incorrectly demand ORDER_WRITE. Declared before that
+    // general rule: Spring Security's authorizeHttpRequests matches path rules in declaration order, first match wins.
+    private static final String ANALYTICS_ASK_API_PATH_MATCHER = "/api/order/analytics/ask";
+
     private static final String H2_PATH_MATCHER = "/h2-console/**";
 
     private static final String[] OPEN_API_PATH_MATCHERS = { "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**" };
@@ -63,6 +70,8 @@ public class WebSecurityConfiguration {
                 authorize -> authorize.requestMatchers(OPEN_API_PATH_MATCHERS)
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, ORDER_API_PATH_MATCHER)
+                        .hasRole(ORDER_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, ANALYTICS_ASK_API_PATH_MATCHER)
                         .hasRole(ORDER_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, ORDER_API_PATH_MATCHER)
                         .hasRole(ORDER_WRITE_ROLE)

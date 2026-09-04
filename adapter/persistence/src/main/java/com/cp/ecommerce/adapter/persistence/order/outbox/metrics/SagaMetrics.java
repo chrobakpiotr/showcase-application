@@ -32,7 +32,10 @@ public class SagaMetrics {
 
     private static final String COMPENSATION_METRIC_NAME = "saga.order-placement.compensations";
 
-    private static final String REMARKS_CLASSIFICATION_METRIC_NAME = "saga.order-placement.remarks-classifications";
+    // Package-private (not private) so MicrometerRemarksClassificationSummaryAdapter, in this same package, can read back
+    // the same metric it increments here - see that class's javadoc for why this in-process read (rather than a separate,
+    // persisted aggregate) is the deliberate design for the ops-analytics assistant (ADR 0021).
+    static final String REMARKS_CLASSIFICATION_METRIC_NAME = "saga.order-placement.remarks-classifications";
 
     private final transient MeterRegistry meterRegistry;
 

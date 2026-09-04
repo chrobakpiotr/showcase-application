@@ -1,6 +1,10 @@
 @if (authService.isAuthenticated()) {
 <header>
   <nav>
+    <a routerLink="/order">Orders</a>
+    @if (authService.roles().includes('ORDER_READ')) {
+    <a routerLink="/analytics">Analytics Assistant</a>
+    }
     <span>Welcome, {{ authService.username() }}</span>
     <button type="button" (click)="logout()">Logout</button>
   </nav>

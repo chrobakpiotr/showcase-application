@@ -117,8 +117,9 @@ Swagger UI in a browser.
 Stop with `docker compose down`. Optional add-ons (AWS LocalStack, chaos/Toxiproxy, AI/Ollama) are opt-in via
 Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terraform),
 [Chaos testing](#chaos-testing-toxiproxy),
-[AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama) and
-[AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) sections below.
+[AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama),
+[AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) and
+[AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama) sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
@@ -792,6 +793,36 @@ SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
 
 # 4. Open http://localhost:9080/home/order, log in, and click "Ask support" (bottom-right) - try
 #    "Can I still cancel my order?" or "What's the status of order <id>?"
+```
+
+## AI ops-analytics assistant (tool-calling, Ollama)
+
+A third, differently-shaped AI feature (see
+[ADR 0021](docs/adr/0021-ai-ops-analytics-assistant-tool-calling.md)): an operator-facing chat page (`/analytics`)
+that answers ops-analytics questions in plain English - "how many orders were placed between 2024-01-01 and
+2024-01-31?", "what's the remarks-triage breakdown right now?" - via **tool-calling only, no RAG**. Unlike the
+support assistant above, there is no static knowledge base to ground answers in, only live, structured data: the
+model calls tools wrapping the existing order-analytics read model and the remarks-triage Micrometer counters
+(tying this feature back to the first one), never inventing figures. It reuses the `order` bounded context rather
+than a new one, runs fully locally via the same Ollama container, is opt-in/off by default behind the same
+`service.ai.enabled` flag, and gracefully degrades exactly like the support assistant (`200` with
+`assistantAvailable: false` rather than an error). The endpoint requires the `ORDER_READ` role (same as the
+existing `/api/order/analytics/recent` read model) - log in as `order-admin` or `order-viewer` (see
+[Authentication & authorization](#authentication--authorization)) to see the nav link.
+
+```bash
+# 1. Start the existing infra stack (Postgres + RabbitMQ + Keycloak)
+docker compose --profile app up -d postgres rabbitmq keycloak
+
+# 2. Start Ollama (published to http://localhost:11434)
+docker compose --profile ai up -d ollama
+
+# 3. Start the Spring Boot app with the ai-ollama profile
+SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+
+# 4. Open http://localhost:9080/home/analytics, log in, and ask e.g.
+#    "How many orders were placed between 2024-01-01 and 2024-01-31?" or
+#    "What's the remarks classification breakdown?"
 ```
 
 ## Kubernetes deployment (Helm)
