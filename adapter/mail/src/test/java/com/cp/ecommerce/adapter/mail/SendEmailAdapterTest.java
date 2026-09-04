@@ -4,6 +4,7 @@ import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.mail.message.EmailMessageFactory;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.SupportedLocale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,7 +64,7 @@ public class SendEmailAdapterTest {
         doNothing().when(emailSender).send(any(MimeMessage.class));
         runResilientActionEagerly();
 
-        sendEmailAdapter.send(order);
+        sendEmailAdapter.send(order, SupportedLocale.ENGLISH);
 
         verify(emailSender, times(1)).send(any(MimeMessage.class));
     }
@@ -74,7 +75,7 @@ public class SendEmailAdapterTest {
         final Order order = OrderBuilder.mockOrder();
         runResilientActionEagerly();
 
-        assertThrows(MailParseException.class, () -> sendEmailAdapter.send(order));
+        assertThrows(MailParseException.class, () -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH));
         verify(emailSender, never()).send(any(MimeMessage.class));
     }
 

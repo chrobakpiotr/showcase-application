@@ -2,7 +2,6 @@ package com.cp.ecommerce.adapter.mail.freemarker;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -10,6 +9,7 @@ import java.util.function.Consumer;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
 
 import freemarker.cache.ClassTemplateLoader;
@@ -92,7 +92,7 @@ public class FreeMarkerTemplateProcessor {
 
         Consumer<Environment> getConfigurer() {
 
-            return environment -> environment.setLocale(Locale.getDefault());
+            return environment -> environment.setLocale(LocaleContextHolder.getLocale());
         }
 
     }

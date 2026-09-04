@@ -119,8 +119,10 @@ Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terrafo
 [Chaos testing](#chaos-testing-toxiproxy),
 [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama),
 [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama),
-[AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama) and
-[AI ops digest](#ai-ops-digest-scheduled-ollama) sections below.
+[AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama),
+[AI ops digest](#ai-ops-digest-scheduled-ollama) and
+[AI language detection for order confirmations](#ai-language-detection-for-order-confirmations-ollama)
+sections below.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
@@ -843,6 +845,28 @@ beyond what's already needed for the ops-analytics assistant:
 ```bash
 # Same 3-step setup as the ops-analytics assistant above (Postgres/RabbitMQ/Keycloak, Ollama, ai-ollama profile),
 # then open http://localhost:9080/home/analytics - the digest card appears above the chat, refreshed daily.
+```
+
+## AI language detection for order confirmations (Ollama)
+
+A fifth AI feature (see
+[ADR 0023](docs/adr/0023-ai-language-detection-order-confirmations.md)) that fixes a genuine bug rather than
+adding a new surface: the mail module has shipped English and Polish translation bundles for a while, but
+nothing ever set a per-order locale, so every confirmation email/PDF was always rendered in English
+regardless of the customer. The model now classifies the free-text `remarks` a customer already enters on the
+order form into `ENGLISH` or `POLISH`, and that decision selects which of the two pre-written, professionally
+translated templates gets rendered - the AI never generates customer-facing prose itself, it only picks which
+fixed, reviewed copy to show. Detection is best-effort and synchronous with sending the confirmation email: any
+failure (model unreachable, unparseable response) defaults to `ENGLISH` rather than blocking the email.
+
+```bash
+# Mail sending itself is opt-in and off by default in every profile (service.mail.enabled=false,
+# no SMTP host configured out of the box) - the GreenMail-backed EmailIntegrationTest is the fastest way to
+# see the fix in action end-to-end without provisioning real SMTP credentials:
+./gradlew :adapter:mail:test --tests "*EmailIntegrationTest*"
+# shouldSendEmailWithCorrectPayloadInPolish / shouldSendEmailWithCorrectPayloadInEnglish send the exact same
+# order through SendEmailAdapter with only the detected SupportedLocale differing, and assert the rendered
+# body/subject switch languages accordingly - proving the per-order (not JVM-wide) locale threading works.
 ```
 
 ## Kubernetes deployment (Helm)

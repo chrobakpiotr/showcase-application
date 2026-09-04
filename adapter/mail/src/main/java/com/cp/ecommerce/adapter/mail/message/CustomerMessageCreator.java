@@ -1,13 +1,12 @@
 package com.cp.ecommerce.adapter.mail.message;
 
-import java.util.Locale;
-
 import com.cp.ecommerce.adapter.mail.freemarker.FreeMarkerTemplateProcessor;
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
 import com.cp.ecommerce.domain.order.Order;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +51,8 @@ class CustomerMessageCreator extends AbstractMessageCreator {
     @Override
     String createSubject(final Order order) {
 
-        return messageSource.getMessage(SUBJECT_MESSAGE, new Object[] { order.getOrderNumber() }, Locale.getDefault());
+        return messageSource
+                .getMessage(SUBJECT_MESSAGE, new Object[] { order.getOrderNumber() }, LocaleContextHolder.getLocale());
     }
 
 }

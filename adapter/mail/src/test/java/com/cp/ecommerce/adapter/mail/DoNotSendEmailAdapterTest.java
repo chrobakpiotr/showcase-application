@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.mail;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.SupportedLocale;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +17,7 @@ class DoNotSendEmailAdapterTest {
     void shouldPassSuccessfully() {
 
         final DoNotSendEmailAdapter adapter = new DoNotSendEmailAdapter();
-        assertDoesNotThrow(() -> adapter.send(Order.builder().build()));
+        assertDoesNotThrow(() -> adapter.send(Order.builder().build(), SupportedLocale.ENGLISH));
     }
 
 }

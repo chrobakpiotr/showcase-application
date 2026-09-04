@@ -29,6 +29,7 @@ than editing it in place.
 | [0020](0020-ai-support-assistant-rag-tool-calling.md) | AI customer-support assistant: RAG + tool-calling, as a standalone bounded context |
 | [0021](0021-ai-ops-analytics-assistant-tool-calling.md) | AI ops-analytics assistant: tool-calling only, reusing the `order` bounded context |
 | [0022](0022-ai-ops-digest-scheduled-narrative-summary.md) | AI ops digest: scheduled, single-shot narrative summary |
+| [0023](0023-ai-language-detection-order-confirmations.md) | AI language detection for order confirmation emails |
 
 ## Template for new ADRs
 

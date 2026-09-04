@@ -1,8 +1,9 @@
 # Profile: ai-ollama
 #
 # Enables the AI-assisted order-remarks triage best-effort saga step (see ADR 0019), the AI customer-support
-# assistant (see ADR 0020), the AI ops-analytics chat assistant (see ADR 0021), and the AI ops-digest narrator
-# (see ADR 0022) - all backed by a locally-hosted Ollama model, no API key, no external SaaS dependency.
+# assistant (see ADR 0020), the AI ops-analytics chat assistant (see ADR 0021), the AI ops-digest narrator
+# (see ADR 0022) and AI language detection for order confirmation emails (see ADR 0023) - all backed by a
+# locally-hosted Ollama model, no API key, no external SaaS dependency.
 #
 # ---- HOW TO USE ----
 # Combine this profile with your DB+messaging profile when starting the app on the HOST
@@ -16,7 +17,7 @@
 # container needed. Expect the first startup after a fresh `docker compose up` to take a while
 # (small models, but still a multi-hundred-MB download combined) before the chat model starts
 # returning real classifications/answers instead of failing over to the STANDARD/unavailable
-# fallbacks (see OrderPlacementSagaOrchestrator and OllamaSupportAssistantAdapter - both fail
+# fallbacks (see OrderPlacementSagaOrchestrator and SupportAssistantAdapter - both fail
 # gracefully rather than blocking).
 #
 # ---- ENDPOINT NOTE (same dual-URL pattern as Keycloak/LocalStack in application-docker.yml /

@@ -13,8 +13,6 @@ import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import static com.cp.ecommerce.adapter.mail.integration.EmailIntegrationTest.LOCALE_PL;
-
 /**
  * Test class that checks if the translation works correctly. System locale should not affect message translation.
  */
@@ -38,7 +36,7 @@ class FallbackToSystemLocaleTest {
     void shouldNotFallbackToSystemLocaleWhenTranslationIsFound() {
 
         Locale.setDefault(Locale.CHINA);
-        final String result = messageSource.getMessage(FOOTER_MESSAGE, new Object[] {}, new Locale(LOCALE_PL));
+        final String result = messageSource.getMessage(FOOTER_MESSAGE, new Object[] {}, Locale.of("pl"));
         assertThat(result).isEqualTo("Pozdrawiamy");
     }
 
