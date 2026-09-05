@@ -36,13 +36,18 @@ test('order happy path: login and place order', async ({ page }) => {
   await receiveStockForTestSku(sku);
 
   // An empty path preserves baseURL's own "/home" context path in full; a leading "/" would instead resolve to the
-  // server's root ("http://host:port/"), which 404s since the app is only served under /home.
+  // server's root ("http://host:port/"), which 404s since the app is only served under /home. The guarded default
+  // landing page is now the Dashboard (see the demo entry-point work), so an explicit click into "Orders" from the
+  // always-present top nav gets us to the order form, exactly like a real user would navigate.
   await page.goto('');
   await expect(page).toHaveURL(/login/);
 
   await page.getByTestId('login-username').fill('order-admin');
   await page.getByTestId('login-password').fill('password');
   await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
+
+  await page.getByRole('link', { name: 'Orders', exact: true }).click();
 
   // Anchored to a literal "/order" path segment (not just a bare "order" substring): the auth guard
   // redirects a failed/unauthenticated visit to "/login?returnUrl=%2Forder", whose query string itself

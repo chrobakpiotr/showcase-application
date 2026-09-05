@@ -106,13 +106,13 @@ describe('LoginComponent', () => {
     expect(navigateByUrlSpy).toHaveBeenCalledWith('/order');
   }));
 
-  it('on success with no returnUrl: navigates to /order', fakeAsync(() => {
+  it('on success with no returnUrl: navigates to /dashboard', fakeAsync(() => {
     setup();
     loginSpy.and.returnValue(of(void 0));
     component.loginForm.setValue({ username: 'admin', password: 'secret' });
     component.onSubmit();
     tick();
-    expect(navigateByUrlSpy).toHaveBeenCalledWith('/order');
+    expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard');
   }));
 
   it('on error: shows errorMessage', fakeAsync(() => {

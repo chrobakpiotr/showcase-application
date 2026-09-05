@@ -151,6 +151,34 @@ e.g. `SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun` 
 endpoints), see the standalone Keycloak Compose file referenced in
 [Authentication & authorization](#authentication--authorization) below.
 
+## Demo / one entry point
+
+Once the app is up (see [Starting the application](#starting-the-application)), open
+`http://localhost:9080/home` and log in with one of the two demo Keycloak users (`order-admin` /
+`order-viewer`, password `password`) - you'll land on the **Dashboard**, a single page linking to every
+feature area in this showcase:
+
+- **Order History** and **Place an order** - the order-placement saga, cancellation, HATEOAS-driven
+  order/payment detail view (see [Order placement saga](#order-placement-saga) and
+  [Payment](#payment))
+- **Shopping Cart** - anonymous, session-based cart backed by live catalog stock (see
+  [Shopping Cart](#shopping-cart))
+- **Product Catalog** - browse categories/products (see [Product Catalog](#product-catalog))
+- **Inventory** - stock levels, with role-gated receive/adjust actions (see
+  [Inventory](#inventory))
+- **Reviews & Ratings** - public browse/submit plus a moderation panel (see
+  [Reviews & Ratings](#reviews--ratings))
+- **Support assistant** and **Analytics assistant** - the two Ollama-backed AI chat widgets (see
+  [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) and
+  [AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama))
+
+Cards for write-gated areas (Order History, Inventory's write actions, Reviews' moderation panel) only
+render their write affordances when the logged-in user actually holds the corresponding role - log in as
+`order-viewer` to see the read-only experience, or `order-admin` for full access. This mirrors the
+role-based operator model described in
+[Authentication & authorization](#authentication--authorization): there is no per-customer "my account",
+just staff-facing tooling that happens to also expose a customer-facing storefront (Cart/Catalog/Reviews).
+
 ## Continuous Integration
 
 A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:

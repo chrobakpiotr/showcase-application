@@ -1,0 +1,100 @@
+<div class="inventory-container">
+  <h2>Inventory</h2>
+
+  <form
+    class="lookup-form"
+    [formGroup]="lookupForm"
+    (ngSubmit)="lookup()"
+    data-testid="lookup-form"
+  >
+    <div class="field">
+      <label for="sku">SKU</label>
+      <input id="sku" type="text" formControlName="sku" data-testid="sku" />
+    </div>
+    <button type="submit" data-testid="lookup" [disabled]="lookupForm.invalid">
+      Look up
+    </button>
+  </form>
+
+  @if (loading()) {
+  <p class="loading">Loading stock level…</p>
+  } @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  } @if (stockLevel()) {
+  <div class="stock-level" data-testid="stock-level">
+    <p>
+      SKU: <strong>{{ stockLevel()!.sku }}</strong>
+    </p>
+    <p>
+      On hand:
+      <span data-testid="quantity-on-hand">{{
+        stockLevel()!.quantityOnHand
+      }}</span>
+    </p>
+    <p>
+      Reserved:
+      <span data-testid="quantity-reserved">{{
+        stockLevel()!.quantityReserved
+      }}</span>
+    </p>
+    <p>
+      Available:
+      <span data-testid="quantity-available">{{
+        stockLevel()!.quantityAvailable
+      }}</span>
+    </p>
+  </div>
+
+  @if (canWrite) {
+  <form
+    class="adjustment-form"
+    [formGroup]="adjustmentForm"
+    data-testid="adjustment-form"
+  >
+    <div class="field">
+      <label for="quantity">Quantity</label>
+      <input
+        id="quantity"
+        type="number"
+        min="1"
+        formControlName="quantity"
+        data-testid="adjustment-quantity"
+      />
+    </div>
+    <div class="actions">
+      <button
+        type="button"
+        data-testid="receive"
+        [disabled]="adjustmentForm.invalid"
+        (click)="adjust('receive')"
+      >
+        Receive
+      </button>
+      <button
+        type="button"
+        data-testid="reserve"
+        [disabled]="adjustmentForm.invalid"
+        (click)="adjust('reserve')"
+      >
+        Reserve
+      </button>
+      <button
+        type="button"
+        data-testid="release"
+        [disabled]="adjustmentForm.invalid"
+        (click)="adjust('release')"
+      >
+        Release
+      </button>
+      <button
+        type="button"
+        data-testid="fulfill"
+        [disabled]="adjustmentForm.invalid"
+        (click)="adjust('fulfill')"
+      >
+        Fulfill
+      </button>
+    </div>
+  </form>
+  } }
+</div>

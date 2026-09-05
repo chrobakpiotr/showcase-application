@@ -13,7 +13,7 @@ test('analytics assistant page: ask a question and see the mocked answer', async
   await page.getByTestId('login-username').fill('order-admin');
   await page.getByTestId('login-password').fill('password');
   await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/order(?:$|[?#])/);
+  await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
 
   await page.route('**/api/order/analytics/ask', async (route) => {
     const request = route.request();
@@ -52,7 +52,9 @@ test('analytics assistant page: ask a question and see the mocked answer', async
     });
   });
 
-  await page.getByRole('link', { name: 'Analytics Assistant' }).click();
+  await page
+    .getByRole('link', { name: 'Analytics Assistant', exact: true })
+    .click();
   await expect(page).toHaveURL(/\/analytics(?:$|[?#])/);
 
   await expect(page.getByTestId('ops-digest-card')).toContainText(

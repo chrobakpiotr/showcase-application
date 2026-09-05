@@ -1,0 +1,158 @@
+<div class="reviews-container">
+  <h2>Reviews & Ratings</h2>
+
+  @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <section class="browse-section">
+    <h3>Browse reviews</h3>
+    <form
+      class="browse-form"
+      [formGroup]="browseForm"
+      (ngSubmit)="browse()"
+      data-testid="browse-form"
+    >
+      <div class="field">
+        <label for="browse-sku">SKU</label>
+        <input
+          id="browse-sku"
+          type="text"
+          formControlName="sku"
+          data-testid="browse-sku"
+        />
+      </div>
+      <button
+        type="submit"
+        data-testid="browse"
+        [disabled]="browseForm.invalid"
+      >
+        Browse
+      </button>
+    </form>
+
+    @if (summary()) {
+    <p class="summary" data-testid="review-summary">
+      Average rating: {{ summary()!.averageRating }} ({{
+        summary()!.reviewCount
+      }}
+      review(s))
+    </p>
+    }
+
+    <ul class="review-list" data-testid="review-list">
+      @for (review of reviews(); track review.reviewId) {
+      <li data-testid="review-item">
+        <strong>{{ review.authorName }}</strong> - {{ review.rating }}/5
+        <p>{{ review.comment }}</p>
+        <span class="date">{{ review.created | date }}</span>
+      </li>
+      } @empty {
+      <li class="empty" data-testid="empty-reviews">
+        No approved reviews yet.
+      </li>
+      }
+    </ul>
+  </section>
+
+  <section class="submit-section">
+    <h3>Write a review</h3>
+    <form
+      [formGroup]="submitForm"
+      (ngSubmit)="submit()"
+      data-testid="submit-form"
+    >
+      <div class="field">
+        <label for="submit-sku">SKU</label>
+        <input
+          id="submit-sku"
+          type="text"
+          formControlName="sku"
+          data-testid="submit-sku"
+        />
+      </div>
+      <div class="field">
+        <label for="author-name">Your name</label>
+        <input
+          id="author-name"
+          type="text"
+          formControlName="authorName"
+          data-testid="author-name"
+        />
+      </div>
+      <div class="field">
+        <label for="rating">Rating (1-5)</label>
+        <input
+          id="rating"
+          type="number"
+          min="1"
+          max="5"
+          formControlName="rating"
+          data-testid="rating"
+        />
+      </div>
+      <div class="field">
+        <label for="comment">Comment</label>
+        <textarea
+          id="comment"
+          formControlName="comment"
+          data-testid="comment"
+        ></textarea>
+      </div>
+      <button
+        type="submit"
+        data-testid="submit-review"
+        [disabled]="submitForm.invalid"
+      >
+        Submit review
+      </button>
+      @if (submitted()) {
+      <p class="success" data-testid="submit-success">
+        Thanks! Your review is pending moderation.
+      </p>
+      }
+    </form>
+  </section>
+
+  @if (canModerate) {
+  <section class="moderation-section">
+    <h3>Moderation queue</h3>
+    @if (moderationErrorMessage()) {
+    <div class="error-message" role="alert">
+      {{ moderationErrorMessage() }}
+    </div>
+    }
+    <ul class="review-list" data-testid="pending-review-list">
+      @for (review of pendingReviews(); track review.reviewId) {
+      <li data-testid="pending-review-item">
+        <strong>{{ review.authorName }}</strong> ({{ review.sku }}) -
+        {{ review.rating }}/5
+        <p>{{ review.comment }}</p>
+        @if (canWrite) {
+        <div class="actions">
+          <button
+            type="button"
+            data-testid="approve"
+            (click)="approve(review.reviewId)"
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            data-testid="reject"
+            (click)="reject(review.reviewId)"
+          >
+            Reject
+          </button>
+        </div>
+        }
+      </li>
+      } @empty {
+      <li class="empty" data-testid="empty-pending-reviews">
+        No reviews pending moderation.
+      </li>
+      }
+    </ul>
+  </section>
+  }
+</div>

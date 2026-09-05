@@ -5,6 +5,10 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { OrderService } from '@app/order/order.service';
+import {
+  OrderDetailsModel,
+  OrderPageModel,
+} from '@app/order/order-details.model';
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
 import { OrderResponseModel } from '@app/order/order-response.model';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
@@ -80,5 +84,50 @@ describe('OrderService', () => {
     expect(req.request.body.paymentMethod).toBe('CARD');
 
     req.flush(orderResponse);
+  });
+
+  it('lists orders with page and size params', () => {
+    const page: OrderPageModel = {
+      page: { size: 10, totalElements: 0, totalPages: 0, number: 0 },
+    };
+
+    orderService.listOrders(0, 10).subscribe((data) => expect(data).toBe(page));
+
+    const req = httpTestingController.expectOne(
+      (request) =>
+        request.url === `${environment.apiPrefix}/order` &&
+        request.params.get('page') === '0' &&
+        request.params.get('size') === '10'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(page);
+  });
+
+  it('finds an order by number', () => {
+    const orderDetails = { orderNumber: '20220915123015' } as OrderDetailsModel;
+
+    orderService
+      .findOrder('20220915123015')
+      .subscribe((data) => expect(data).toBe(orderDetails));
+
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/order/20220915123015`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(orderDetails);
+  });
+
+  it('cancels an order', () => {
+    const orderDetails = { orderNumber: '20220915123015' } as OrderDetailsModel;
+
+    orderService
+      .cancelOrder('20220915123015')
+      .subscribe((data) => expect(data).toBe(orderDetails));
+
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/order/20220915123015/cancel`
+    );
+    expect(req.request.method).toBe('POST');
+    req.flush(orderDetails);
   });
 });

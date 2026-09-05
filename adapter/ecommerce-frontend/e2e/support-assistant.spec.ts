@@ -13,6 +13,10 @@ test('support assistant widget: ask a question and see the mocked answer', async
   await page.getByTestId('login-username').fill('order-admin');
   await page.getByTestId('login-password').fill('password');
   await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
+
+  await page.getByRole('link', { name: 'Orders', exact: true }).click();
+  await expect(page).toHaveURL(/\/order(?:$|[?#])/);
   await expect(page).toHaveURL(/\/order(?:$|[?#])/);
 
   await page.route('**/api/support-assistant/questions', async (route) => {

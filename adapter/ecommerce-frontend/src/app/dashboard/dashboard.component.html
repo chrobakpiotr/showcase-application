@@ -1,0 +1,13 @@
+<div class="dashboard-container">
+  <h2>Welcome, {{ authService.username() }}</h2>
+  <p class="subtitle">Every feature of this showcase, one click away.</p>
+
+  <div class="card-grid" data-testid="card-grid">
+    @for (card of cards; track card.routerLink) { @if (isVisible(card)) {
+    <a class="card" data-testid="dashboard-card" [routerLink]="card.routerLink">
+      <h3>{{ card.title }}</h3>
+      <p>{{ card.description }}</p>
+    </a>
+    } }
+  </div>
+</div>

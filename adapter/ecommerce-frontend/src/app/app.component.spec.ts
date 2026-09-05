@@ -100,4 +100,36 @@ describe('AppComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeFalsy();
   });
+
+  it('always shows the dashboard, cart and reviews nav links', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/dashboard"]')).toBeTruthy();
+    expect(compiled.querySelector('a[routerLink="/cart"]')).toBeTruthy();
+    expect(compiled.querySelector('a[routerLink="/reviews"]')).toBeTruthy();
+  });
+
+  it('shows the order history nav link when the user has ORDER_READ', () => {
+    setup(true, 'admin', ['ORDER_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/orders"]')).toBeTruthy();
+  });
+
+  it('hides the order history nav link when the user lacks ORDER_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/orders"]')).toBeFalsy();
+  });
+
+  it('shows the inventory nav link when the user has INVENTORY_READ', () => {
+    setup(true, 'admin', ['INVENTORY_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/inventory"]')).toBeTruthy();
+  });
+
+  it('hides the inventory nav link when the user lacks INVENTORY_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/inventory"]')).toBeFalsy();
+  });
 });

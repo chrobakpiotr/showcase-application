@@ -8,9 +8,25 @@ export const routes: Routes = [
       import('./auth/login.component').then((m) => m.LoginComponent),
   },
   {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./dashboard/dashboard.component').then(
+        (m) => m.DashboardComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'order',
     loadComponent: () =>
       import('./order/order.component').then((m) => m.OrderComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'orders',
+    loadComponent: () =>
+      import('./order-list/order-list.component').then(
+        (m) => m.OrderListComponent
+      ),
     canActivate: [authGuard],
   },
   {
@@ -27,7 +43,27 @@ export const routes: Routes = [
       import('./catalog/catalog.component').then((m) => m.CatalogComponent),
     canActivate: [authGuard],
   },
-  { path: '', redirectTo: 'order', pathMatch: 'full' },
+  {
+    path: 'cart',
+    loadComponent: () =>
+      import('./cart/cart.component').then((m) => m.CartComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'inventory',
+    loadComponent: () =>
+      import('./inventory/inventory.component').then(
+        (m) => m.InventoryComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'reviews',
+    loadComponent: () =>
+      import('./reviews/reviews.component').then((m) => m.ReviewsComponent),
+    canActivate: [authGuard],
+  },
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
     path: '**',
     loadComponent: () =>

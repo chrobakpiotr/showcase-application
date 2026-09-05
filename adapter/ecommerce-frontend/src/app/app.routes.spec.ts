@@ -29,9 +29,44 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
-  it('redirects empty path to order', () => {
+  it('defines guarded dashboard route', async () => {
+    const dashboardRoute = routes.find((route) => route.path === 'dashboard');
+    expect(dashboardRoute?.canActivate?.length).toBe(1);
+    const component = await dashboardRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded orders route', async () => {
+    const ordersRoute = routes.find((route) => route.path === 'orders');
+    expect(ordersRoute?.canActivate?.length).toBe(1);
+    const component = await ordersRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded cart route', async () => {
+    const cartRoute = routes.find((route) => route.path === 'cart');
+    expect(cartRoute?.canActivate?.length).toBe(1);
+    const component = await cartRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded inventory route', async () => {
+    const inventoryRoute = routes.find((route) => route.path === 'inventory');
+    expect(inventoryRoute?.canActivate?.length).toBe(1);
+    const component = await inventoryRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded reviews route', async () => {
+    const reviewsRoute = routes.find((route) => route.path === 'reviews');
+    expect(reviewsRoute?.canActivate?.length).toBe(1);
+    const component = await reviewsRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('redirects empty path to dashboard', () => {
     const defaultRoute = routes.find((route) => route.path === '');
-    expect(defaultRoute?.redirectTo).toBe('order');
+    expect(defaultRoute?.redirectTo).toBe('dashboard');
     expect(defaultRoute?.pathMatch).toBe('full');
   });
 

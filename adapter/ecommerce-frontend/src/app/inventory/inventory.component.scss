@@ -1,0 +1,74 @@
+.inventory-container {
+  max-width: 640px;
+  margin: 3rem auto;
+  padding: 2rem;
+
+  h2 {
+    margin-bottom: 1.5rem;
+  }
+
+  .lookup-form,
+  .adjustment-form {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+
+    .field {
+      label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+      }
+
+      input {
+        padding: 0.6rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    }
+
+    button {
+      padding: 0.65rem 1.25rem;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+
+      &:disabled {
+        background-color: #b0bec5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .adjustment-form .actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .stock-level {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+
+    p {
+      margin: 0.4rem 0;
+    }
+  }
+
+  .error-message {
+    color: #d32f2f;
+    border: 1px solid #d32f2f;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+
+  .loading {
+    color: #455a64;
+  }
+}

@@ -4,6 +4,10 @@ import { Observable } from 'rxjs';
 
 import { environment } from '@environments/environment';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
+import {
+  OrderDetailsModel,
+  OrderPageModel,
+} from '@app/order/order-details.model';
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
 import { OrderRequestModel } from '@app/order/order-request.model';
 import { OrderResponseModel } from '@app/order/order-response.model';
@@ -36,6 +40,26 @@ export class OrderService {
       `${environment.apiPrefix}/order`,
       body,
       this.httpOptions
+    );
+  }
+
+  listOrders(page: number, size: number): Observable<OrderPageModel> {
+    return this.httpClient.get<OrderPageModel>(
+      `${environment.apiPrefix}/order`,
+      { params: { page, size } }
+    );
+  }
+
+  findOrder(orderNumber: string): Observable<OrderDetailsModel> {
+    return this.httpClient.get<OrderDetailsModel>(
+      `${environment.apiPrefix}/order/${orderNumber}`
+    );
+  }
+
+  cancelOrder(orderNumber: string): Observable<OrderDetailsModel> {
+    return this.httpClient.post<OrderDetailsModel>(
+      `${environment.apiPrefix}/order/${orderNumber}/cancel`,
+      {}
     );
   }
 }

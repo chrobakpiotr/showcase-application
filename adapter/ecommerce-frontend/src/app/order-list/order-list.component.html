@@ -1,0 +1,129 @@
+<div class="order-list-container">
+  <h2>Orders</h2>
+
+  @if (loading()) {
+  <p class="loading">Loading orders…</p>
+  } @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <table class="order-table" data-testid="order-table">
+    <thead>
+      <tr>
+        <th>Order number</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (order of orders(); track order.orderNumber) {
+      <tr data-testid="order-row">
+        <td>{{ order.orderNumber }}</td>
+        <td>{{ order.status }}</td>
+        <td>{{ order.created | date : 'medium' }}</td>
+        <td>{{ order.total | currency }}</td>
+        <td>
+          <button
+            type="button"
+            data-testid="view-order"
+            (click)="selectOrder(order.orderNumber)"
+          >
+            View
+          </button>
+        </td>
+      </tr>
+      } @empty {
+      <tr>
+        <td colspan="5" class="empty" data-testid="empty-orders">
+          No orders found.
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    <button
+      type="button"
+      data-testid="prev-page"
+      [disabled]="page() === 0"
+      (click)="previousPage()"
+    >
+      Previous
+    </button>
+    <span data-testid="page-indicator"
+      >Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span
+    >
+    <button
+      type="button"
+      data-testid="next-page"
+      [disabled]="page() + 1 >= totalPages()"
+      (click)="nextPage()"
+    >
+      Next
+    </button>
+  </div>
+
+  @if (selectedOrder(); as order) {
+  <div class="order-details" data-testid="order-details">
+    <h3>Order {{ order.orderNumber }}</h3>
+    <p>
+      Status: <strong>{{ order.status }}</strong>
+    </p>
+    <p>Created: {{ order.created | date : 'medium' }}</p>
+    <p>Remarks: {{ order.remarks }}</p>
+
+    <h4>Customer</h4>
+    <p>{{ order.customer.fullName }} - {{ order.customer.email }}</p>
+    <p>
+      {{ order.customer.street }}, {{ order.customer.postalCode }}
+      {{ order.customer.city }}, {{ order.customer.countryCode }}
+    </p>
+
+    <h4>Items</h4>
+    <ul>
+      @for (item of order.items; track item.sku) {
+      <li>
+        {{ item.productName }} ({{ item.sku }}) x {{ item.quantity }} =
+        {{ item.subtotal | currency }}
+      </li>
+      }
+    </ul>
+    <p class="total">Total: {{ order.total | currency }}</p>
+
+    <h4>Payment</h4>
+    @if (order.payment) {
+    <p data-testid="payment-info">
+      {{ order.paymentMethod }} - {{ order.payment.status }} -
+      {{ order.payment.amount | currency }}
+      @if (order.payment.gatewayReference) {
+      <span> ({{ order.payment.gatewayReference }})</span>
+      }
+    </p>
+    } @else {
+    <p data-testid="payment-pending">Payment not yet captured.</p>
+    }
+
+    <div class="actions">
+      @if (order._links?.cancel) {
+      <button
+        type="button"
+        data-testid="cancel-order"
+        (click)="cancelOrder(order.orderNumber)"
+      >
+        Cancel order
+      </button>
+      }
+      <button
+        type="button"
+        data-testid="close-details"
+        (click)="closeDetails()"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+  }
+</div>
