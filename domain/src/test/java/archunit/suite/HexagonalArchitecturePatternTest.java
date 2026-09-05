@@ -58,24 +58,22 @@ class HexagonalArchitecturePatternTest {
         final File[] domains = new File(domainPath).listFiles(File::isDirectory);
         if (domains != null) {
 
-            Arrays.stream(domains).forEach(domain -> {
-
-                ALL_BOUNDED_CONTEXTS.put(
-                        domain.getName(),
-                        Arrays.stream(Objects.requireNonNull(new File(domain.getAbsolutePath()).listFiles(File::isDirectory)))
-                                .map(File::getName)
-                                .collect(Collectors.toList()));
-            });
+            Arrays.stream(domains)
+                    .forEach(
+                            domain -> ALL_BOUNDED_CONTEXTS.put(
+                                    domain.getName(),
+                                    Arrays.stream(
+                                            Objects.requireNonNull(
+                                                    new File(domain.getAbsolutePath()).listFiles(File::isDirectory)))
+                                            .map(File::getName)
+                                            .collect(Collectors.toList())));
         }
     }
 
     static Stream<Arguments> allBoundedContexts() {
 
         final List<Arguments> arguments = new ArrayList<>();
-        ALL_BOUNDED_CONTEXTS.forEach((domain, subdomains) -> {
-
-            arguments.add(Arguments.of(domain, subdomains));
-        });
+        ALL_BOUNDED_CONTEXTS.forEach((domain, subdomains) -> arguments.add(Arguments.of(domain, subdomains)));
         return Stream.of(arguments.toArray(new Arguments[0]));
     }
 
