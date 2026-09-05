@@ -82,7 +82,8 @@ public class ValidationConstants {
 
     public final String INVALID_INVENTORY_QUANTITY = "Quantity must not be negative";
 
-    public final int CART_ID_MAX = 40;
+    /** {@code "CART-"} prefix (5 chars) + a random {@link java.util.UUID} (36 chars) = 41 chars. */
+    public final int CART_ID_MAX = 41;
 
     public final int CART_SKU_MAX = 40;
 
@@ -98,7 +99,8 @@ public class ValidationConstants {
 
     public final String INVALID_CART_QUANTITY = "Quantity must be at least 1";
 
-    public final int REVIEW_ID_MAX = 40;
+    /** {@code "REVIEW-"} prefix (7 chars) + a random {@link java.util.UUID} (36 chars) = 43 chars. */
+    public final int REVIEW_ID_MAX = 43;
 
     public final int REVIEW_SKU_MAX = 40;
 

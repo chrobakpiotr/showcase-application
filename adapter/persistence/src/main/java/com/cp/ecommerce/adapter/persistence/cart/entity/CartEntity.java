@@ -40,7 +40,7 @@ import lombok.Setter;
 public class CartEntity {
 
     @Id
-    @Column(name = "CART_ID", length = 40, nullable = false)
+    @Column(name = "CART_ID", length = 41, nullable = false)
     private String cartId;
 
     @ElementCollection(fetch = FetchType.EAGER)

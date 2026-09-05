@@ -130,6 +130,16 @@ class CartControllerTest {
     }
 
     @Test
+    void shouldReturnNotFoundWhenAddingItemWithUnknownSku() throws Exception {
+
+        given(manageProductInPort.findProduct(TEST_CART_SKU)).willReturn(null);
+
+        mockMvc.perform(post(ITEMS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(addItemJson(2)))
+                .andExpect(status().isNotFound());
+        verify(manageCartInPort, never()).addItem(anyString(), anyString(), anyString(), any(), anyInt());
+    }
+
+    @Test
     void shouldRejectAddItemWithMissingSku() throws Exception {
 
         mockMvc.perform(post(ITEMS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{\"quantity\":2}"))

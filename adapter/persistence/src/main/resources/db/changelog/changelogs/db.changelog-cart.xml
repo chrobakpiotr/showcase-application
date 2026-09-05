@@ -4,7 +4,7 @@
     <changeSet id="25" author="cp">
 
         <createTable schemaName="${schema_name_full}" tableName="CART">
-            <column name="CART_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(40)">
+            <column name="CART_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(41)">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_CART" />
             </column>
 
@@ -21,7 +21,7 @@
     <changeSet id="26" author="cp">
 
         <createTable schemaName="${schema_name_full}" tableName="CART_LINE_ITEM">
-            <column name="CART_ID" type="VARCHAR(40)">
+            <column name="CART_ID" type="VARCHAR(41)">
                 <constraints nullable="false" foreignKeyName="FK_CART_LINE_ITEM_CART_ID" referencedTableName="CART" referencedColumnNames="CART_ID" referencedTableSchemaName="${schema_name_full}" />
             </column>
             <column name="SKU" type="VARCHAR(40)">

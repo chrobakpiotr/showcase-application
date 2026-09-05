@@ -4,7 +4,7 @@
     <changeSet id="27" author="cp">
 
         <createTable schemaName="${schema_name_full}" tableName="REVIEW">
-            <column name="REVIEW_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(40)">
+            <column name="REVIEW_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(43)">
                 <constraints nullable="false" primaryKey="true" primaryKeyName="PK_REVIEW" />
             </column>
 

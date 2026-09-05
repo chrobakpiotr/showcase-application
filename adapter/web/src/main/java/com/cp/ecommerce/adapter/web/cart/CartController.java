@@ -130,7 +130,7 @@ public class CartController {
 
         final String sku = requireSku(item);
         final int quantity = requirePositiveQuantity(item.quantity());
-        final Product product = manageProductInPort.findProduct(sku);
+        final Product product = requireProduct(sku);
 
         return toResourceOrNotFound(manageCartInPort.addItem(cartId, sku, product.getName(), product.getUnitPrice(), quantity));
     }
@@ -221,6 +221,16 @@ public class CartController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, INVALID_QUANTITY_MESSAGE);
         }
         return quantity;
+    }
+
+    private Product requireProduct(final String sku) {
+
+        final Product product = manageProductInPort.findProduct(sku);
+        if (product == null) {
+
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No product exists for the given sku");
+        }
+        return product;
     }
 
     private CartResource toResourceOrNotFound(final Cart cart) {

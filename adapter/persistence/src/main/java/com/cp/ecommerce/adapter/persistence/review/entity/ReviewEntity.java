@@ -34,7 +34,7 @@ import lombok.Setter;
 public class ReviewEntity {
 
     @Id
-    @Column(name = "REVIEW_ID", length = 40, nullable = false)
+    @Column(name = "REVIEW_ID", length = 43, nullable = false)
     private String reviewId;
 
     @Column(name = "SKU", length = 40, nullable = false)
