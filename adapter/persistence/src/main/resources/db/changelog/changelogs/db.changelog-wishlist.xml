@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="34" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="WISHLIST">
+            <column name="WISHLIST_ID" remarks="Business/primary key, no separate surrogate id" type="VARCHAR(45)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_WISHLIST" />
+            </column>
+            <column name="UPDATED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="VERSION" defaultValueNumeric="0" remarks="Optimistic-locking token, see ADR 0032" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+    </changeSet>
+
+    <changeSet id="35" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="WISHLIST_ITEM">
+            <column name="WISHLIST_ID" type="VARCHAR(45)">
+                <constraints nullable="false" foreignKeyName="FK_WISHLIST_ITEM_WISHLIST_ID" referencedTableName="WISHLIST" referencedColumnNames="WISHLIST_ID" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="SKU" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="PRODUCT_NAME" type="VARCHAR(200)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ADDED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <addPrimaryKey schemaName="${schema_name_full}" tableName="WISHLIST_ITEM" columnNames="WISHLIST_ID, SKU" constraintName="PK_WISHLIST_ITEM" />
+
+        <createIndex indexName="IDX_WISHLIST_ITEM_WISHLIST_ID" schemaName="${schema_name_full}" tableName="WISHLIST_ITEM">
+            <column name="WISHLIST_ID" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

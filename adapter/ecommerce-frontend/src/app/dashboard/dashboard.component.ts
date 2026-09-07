@@ -52,6 +52,13 @@ export class DashboardComponent {
       requiredRole: null,
     },
     {
+      title: 'Wishlist',
+      description:
+        'Remember products for later and move them into a cart when ready.',
+      routerLink: '/wishlist',
+      requiredRole: null,
+    },
+    {
       title: 'Inventory',
       description:
         'Look up stock levels and receive/reserve/release/fulfill stock.',

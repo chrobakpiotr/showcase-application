@@ -101,11 +101,12 @@ describe('AppComponent', () => {
     expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeFalsy();
   });
 
-  it('always shows the dashboard, cart and reviews nav links', () => {
+  it('always shows the dashboard, cart, wishlist and reviews nav links', () => {
     setup(true, 'admin', []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/dashboard"]')).toBeTruthy();
     expect(compiled.querySelector('a[routerLink="/cart"]')).toBeTruthy();
+    expect(compiled.querySelector('a[routerLink="/wishlist"]')).toBeTruthy();
     expect(compiled.querySelector('a[routerLink="/reviews"]')).toBeTruthy();
   });
 

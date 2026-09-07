@@ -40,6 +40,7 @@ describe('DashboardComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[href="/order"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/cart"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/wishlist"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/reviews"]')).toBeTruthy();
   });
 

@@ -19,6 +19,8 @@ import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
+import com.cp.ecommerce.domain.wishlist.Wishlist;
+import com.cp.ecommerce.domain.wishlist.WishlistItem;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -40,6 +42,8 @@ public final class TestDomainObjectFactory {
     public static final String TEST_CART_ID = "CART-1001";
 
     public static final String TEST_REVIEW_ID = "REVIEW-1001";
+
+    public static final String TEST_WISHLIST_ID = "WISHLIST-1001";
 
     public static Order validOrder() {
 
@@ -127,6 +131,20 @@ public final class TestDomainObjectFactory {
     public static Cart validCart() {
 
         return Cart.builder().cartId(TEST_CART_ID).items(List.of(validCartLineItem())).updated(TEST_CREATED).build();
+    }
+
+    public static WishlistItem validWishlistItem() {
+
+        return WishlistItem.builder().sku(TEST_PRODUCT_SKU).productName("Wireless Headphones").addedDate(TEST_CREATED).build();
+    }
+
+    public static Wishlist validWishlist() {
+
+        return Wishlist.builder()
+                .wishlistId(TEST_WISHLIST_ID)
+                .items(List.of(validWishlistItem()))
+                .updated(TEST_CREATED)
+                .build();
     }
 
     public static Review validReview() {

@@ -38,6 +38,8 @@ class WebSecurityConfigurationTest {
 
     private static final String REVIEWS_ENDPOINT = "/api/reviews";
 
+    private static final String WISHLIST_ENDPOINT = "/api/wishlist";
+
     private static final String REVIEWS_MODERATION_PENDING_ENDPOINT = "/api/reviews/moderation/pending";
 
     @Autowired
@@ -230,6 +232,14 @@ class WebSecurityConfigurationTest {
         // Unlike Order/Catalog/Inventory, Cart is a genuinely public, unauthenticated API (see ADR 0027) - there is
         // no customer-account/login concept in this application to gate it behind.
         final int status = mockMvc.perform(post(CART_ENDPOINT)).andReturn().getResponse().getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldAllowUnauthenticatedAccessToWishlistApi() throws Exception {
+
+        final int status = mockMvc.perform(post(WISHLIST_ENDPOINT)).andReturn().getResponse().getStatus();
 
         assertThat(status).isNotIn(401, 403);
     }

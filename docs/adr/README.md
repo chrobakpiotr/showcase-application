@@ -37,6 +37,8 @@ than editing it in place.
 | [0028](0028-reviews-ratings-bounded-context.md) | Reviews & Ratings bounded context |
 | [0029](0029-order-line-items-and-stock-reservation.md) | Order line items and stock reservation |
 | [0030](0030-payment-bounded-context.md) | Payment bounded context |
+| [0031](0031-coupons-discounts-bounded-context.md) | Coupons & Discounts bounded context |
+| [0032](0032-wishlist-bounded-context.md) | Wishlist bounded context |
 
 ## Template for new ADRs
 

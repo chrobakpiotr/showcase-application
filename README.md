@@ -163,6 +163,8 @@ feature area in this showcase:
   [Payment](#payment))
 - **Shopping Cart** - anonymous, session-based cart backed by live catalog stock (see
   [Shopping Cart](#shopping-cart))
+- **Wishlist** - anonymous, session-based wishlist with move-to-cart flow (see
+  [Wishlist](#wishlist))
 - **Product Catalog** - browse categories/products (see [Product Catalog](#product-catalog))
 - **Inventory** - stock levels, with role-gated receive/adjust actions (see
   [Inventory](#inventory))
@@ -177,8 +179,18 @@ render their write affordances when the logged-in user actually holds the corres
 `order-viewer` to see the read-only experience, or `order-admin` for full access. This mirrors the
 role-based operator model described in
 [Authentication & authorization](#authentication--authorization): there is no per-customer "my account",
-just staff-facing tooling that happens to also expose a customer-facing storefront (Cart/Catalog/Reviews).
+just staff-facing tooling that happens to also expose a customer-facing storefront (Cart/Catalog/Reviews/Wishlist).
 
+## Wishlist
+
+Customers can keep a lightweight, anonymous wishlist of SKUs they may want later, then move an item into a shopping
+cart when they are ready to buy. The wishlist follows the same session-based, public API model as Cart but stays
+smaller on purpose: no quantity, no coupon preview and no checkout responsibility.
+
+- Public wishlist API under `/api/wishlist` for create/get/add/remove plus `POST /api/wishlist/{wishlistId}/items/{sku}/move-to-cart`.
+- Wishlist items snapshot product name and added date for standalone rendering, while move-to-cart re-resolves the current catalog product and price.
+- The Angular Dashboard includes a Wishlist card, and the top navigation includes a direct Wishlist entry next to Cart.
+- See [ADR 0032](docs/adr/0032-wishlist-bounded-context.md) for the bounded-context and integration decisions behind the feature.
 
 ## Coupons & Discounts
 

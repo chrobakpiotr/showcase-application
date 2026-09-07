@@ -126,6 +126,21 @@ public class ValidationConstants {
 
     public final String INVALID_REVIEW_STATUS = "Invalid Review Status";
 
+    /** {@code "WISHLIST-"} prefix (9 chars) + a random {@link java.util.UUID} (36 chars) = 45 chars. */
+    public final int WISHLIST_ID_MAX = 45;
+
+    public final int WISHLIST_SKU_MAX = 40;
+
+    public final int WISHLIST_PRODUCT_NAME_MAX = 200;
+
+    public final String INVALID_WISHLIST_ID = "Invalid Wishlist Id";
+
+    public final String INVALID_WISHLIST_SKU = INVALID_CART_SKU;
+
+    public final String INVALID_WISHLIST_PRODUCT_NAME = INVALID_CART_PRODUCT_NAME;
+
+    public final String INVALID_WISHLIST_ADDED_DATE = "Added date is required";
+
     public final String INVALID_COUPON_CODE = "Invalid Coupon Code";
 
     public final String INVALID_COUPON_DISCOUNT_TYPE = "Invalid Discount Type";

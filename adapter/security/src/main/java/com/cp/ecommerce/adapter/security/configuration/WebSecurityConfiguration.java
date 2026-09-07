@@ -42,6 +42,8 @@ public class WebSecurityConfiguration {
     // though it would already fall through to the anyRequest().permitAll() default below) purely for documentation.
     private static final String CART_API_PATH_MATCHER = "/api/cart/**";
 
+    private static final String WISHLIST_API_PATH_MATCHER = "/api/wishlist/**";
+
     // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
     // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
     // since the question is a free-text request body. Without this specific, narrower rule it would otherwise fall
@@ -136,6 +138,8 @@ public class WebSecurityConfiguration {
                         .requestMatchers(REVIEWS_API_PATH_MATCHER)
                         .permitAll()
                         .requestMatchers(CART_API_PATH_MATCHER)
+                        .permitAll()
+                        .requestMatchers(WISHLIST_API_PATH_MATCHER)
                         .permitAll()
                         .anyRequest()
                         .permitAll())
