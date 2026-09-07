@@ -18,6 +18,7 @@ import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
+import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
@@ -223,6 +224,13 @@ public class GlobalExceptionHandler {
                 TYPE_RETURN_REQUEST_NOT_REFUNDABLE,
                 "Return Request Not Refundable",
                 exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(ShipmentConflictException.class)
+    public ProblemDetail shipmentConflictException(final ShipmentConflictException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_BUSINESS_RULE_VIOLATION, "Shipment Conflict", exception.getMessage());
     }
 
     @ResponseStatus(INTERNAL_SERVER_ERROR)

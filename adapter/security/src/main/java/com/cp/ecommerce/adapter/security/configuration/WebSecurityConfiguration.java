@@ -66,6 +66,8 @@ public class WebSecurityConfiguration {
 
     private static final String NOTIFICATIONS_API_PATH_MATCHER = "/api/notifications/**";
 
+    private static final String SHIPMENTS_API_PATH_MATCHER = "/api/shipments/**";
+
     private static final String H2_PATH_MATCHER = "/h2-console/**";
 
     private static final String[] OPEN_API_PATH_MATCHERS = { "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**" };
@@ -95,6 +97,10 @@ public class WebSecurityConfiguration {
     private static final String RETURN_WRITE_ROLE = "RETURN_WRITE";
 
     private static final String NOTIFICATION_READ_ROLE = "NOTIFICATION_READ";
+
+    private static final String SHIPMENT_READ_ROLE = "SHIPMENT_READ";
+
+    private static final String SHIPMENT_WRITE_ROLE = "SHIPMENT_WRITE";
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
@@ -147,6 +153,10 @@ public class WebSecurityConfiguration {
                         .hasRole(RETURN_WRITE_ROLE)
                         .requestMatchers(HttpMethod.GET, NOTIFICATIONS_API_PATH_MATCHER)
                         .hasRole(NOTIFICATION_READ_ROLE)
+                        .requestMatchers(HttpMethod.GET, SHIPMENTS_API_PATH_MATCHER)
+                        .hasRole(SHIPMENT_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, SHIPMENTS_API_PATH_MATCHER)
+                        .hasRole(SHIPMENT_WRITE_ROLE)
                         .requestMatchers(HttpMethod.GET, REVIEWS_MODERATION_API_PATH_MATCHER)
                         .hasRole(REVIEWS_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, REVIEWS_MODERATION_API_PATH_MATCHER)

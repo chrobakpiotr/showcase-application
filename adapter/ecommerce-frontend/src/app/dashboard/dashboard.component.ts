@@ -87,6 +87,13 @@ export class DashboardComponent {
       requiredRole: 'NOTIFICATION_READ',
     },
     {
+      title: 'Shipping / Fulfillment Tracking',
+      description:
+        'Create shipments, follow tracking progress, and advance fulfillment status.',
+      routerLink: '/shipments',
+      requiredRole: 'SHIPMENT_READ',
+    },
+    {
       title: 'Coupons & Discounts',
       description:
         'Browse, create and activate discount coupons for cart and order flows.',

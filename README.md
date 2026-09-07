@@ -172,6 +172,8 @@ feature area in this showcase:
   [Reviews & Ratings](#reviews--ratings))
 - **Returns / RMA** - staff-facing return-request and moderation workflow with payment refunds (see
   [Returns / RMA](#returns--rma))
+- **Shipping / Fulfillment Tracking** - staff-facing shipment creation and tracking-status workflow (see
+  [Shipping / Fulfillment Tracking](#shipping--fulfillment-tracking))
 - **Notifications** - staff-facing notification log for order and returns customer communications (see
   [Notifications](#notifications))
 - **Support assistant** and **Analytics assistant** - the two Ollama-backed AI chat widgets (see
@@ -208,6 +210,25 @@ order-confirmation email infrastructure.
 - Returns moderation automatically creates `RETURN_REJECTED` and `RETURN_REFUNDED` notification log entries.
 - The Angular Dashboard and top navigation include a Notifications entry for users with the read role.
 - See [ADR 0034](docs/adr/0034-notifications-bounded-context.md) for the bounded-context and integration decisions behind the feature.
+
+## Shipping / Fulfillment Tracking
+
+Operators can create a fulfillment-tracking record for a confirmed order, advance it through dispatch and delivery,
+and inspect shipment progress in both a dedicated page and the order-detail view. The bounded context intentionally
+models one shipment per order in v1 to keep the showcase workflow crisp.
+
+- Back-office shipment API under `/api/shipments` for create/list/read plus status advancement, gated by
+  `SHIPMENT_READ` / `SHIPMENT_WRITE`.
+- Each shipment stores only a bare `orderNumber` reference plus a carrier, generated tracking number and lifecycle
+  dates (`dispatchedDate`, deterministic `estimatedDeliveryDate`, `deliveredDate`).
+- `ShipmentController` validates that the referenced order exists and is still `CONFIRMED`, mirroring Returns'
+  controller-level cross-context composition rather than introducing a domain dependency back to Order.
+- Advancing a shipment to `DISPATCHED` or `DELIVERED` emits `SHIPMENT_DISPATCHED` / `SHIPMENT_DELIVERED`
+  notifications through the existing notification bounded context.
+- The Angular Dashboard and top navigation include a Shipments entry for authorized operators, and the order-detail
+  view exposes a “Ship this order” / tracking action next to the existing returns flow.
+- See [ADR 0035](docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md) for the bounded-context and
+  workflow decisions behind the feature.
 
 ## Coupons & Discounts
 

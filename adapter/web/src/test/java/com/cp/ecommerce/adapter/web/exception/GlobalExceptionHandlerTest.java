@@ -15,6 +15,7 @@ import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.order.Order;
@@ -88,6 +89,16 @@ class GlobalExceptionHandlerTest {
                 handler.businessRuleException(new BusinessRuleException(EXCEPTION_MESSAGE)),
                 INTERNAL_SERVER_ERROR,
                 "Business Rule Violation",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleShipmentConflictException() {
+
+        assertProblem(
+                handler.shipmentConflictException(new ShipmentConflictException(EXCEPTION_MESSAGE)),
+                CONFLICT,
+                "Shipment Conflict",
                 EXCEPTION_MESSAGE);
     }
 

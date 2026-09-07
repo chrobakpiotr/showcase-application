@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="35" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="SHIPMENT">
+            <column name="SHIPMENT_NUMBER" remarks="Business/primary key, mirrors SHIP-&lt;uuid&gt; style identifiers" type="VARCHAR(41)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_SHIPMENT" />
+            </column>
+            <column name="ORDER_NUMBER" remarks="One shipment per confirmed order in v1 - see ADR 0035" type="VARCHAR(40)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_SHIPMENT_ORDER_NUMBER" />
+            </column>
+            <column name="CARRIER" type="VARCHAR(80)">
+                <constraints nullable="false" />
+            </column>
+            <column name="TRACKING_NUMBER" type="VARCHAR(60)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DISPATCHED_DATE" type="TIMESTAMP" />
+            <column name="ESTIMATED_DELIVERY_DATE" type="TIMESTAMP" />
+            <column name="DELIVERED_DATE" type="TIMESTAMP" />
+            <column name="CREATED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_SHIPMENT_STATUS" schemaName="${schema_name_full}" tableName="SHIPMENT">
+            <column name="STATUS" />
+            <column name="CREATED_DATE" />
+        </createIndex>
+
+        <createIndex indexName="IDX_SHIPMENT_CREATED" schemaName="${schema_name_full}" tableName="SHIPMENT">
+            <column name="CREATED_DATE" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

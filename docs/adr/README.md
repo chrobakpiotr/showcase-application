@@ -39,6 +39,9 @@ than editing it in place.
 | [0030](0030-payment-bounded-context.md) | Payment bounded context |
 | [0031](0031-coupons-discounts-bounded-context.md) | Coupons & Discounts bounded context |
 | [0032](0032-wishlist-bounded-context.md) | Wishlist bounded context |
+| [0033](0033-returns-rma-bounded-context.md) | Returns / RMA bounded context |
+| [0034](0034-notifications-bounded-context.md) | Notifications bounded context |
+| [0035](0035-shipping-fulfillment-tracking-bounded-context.md) | Shipping / Fulfillment Tracking bounded context |
 
 ## Template for new ADRs
 

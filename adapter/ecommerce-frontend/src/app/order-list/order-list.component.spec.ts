@@ -11,12 +11,18 @@ import { OrderService } from '@app/order/order.service';
 import { AuthService } from '@app/auth/auth.service';
 import { ReturnsService } from '@app/returns/returns.service';
 import { ReturnCollectionModel, ReturnModel } from '@app/returns/return.model';
+import {
+  ShipmentCollectionModel,
+  ShipmentModel,
+} from '@app/shipments/shipment.model';
+import { ShipmentsService } from '@app/shipments/shipments.service';
 
 describe('OrderListComponent', () => {
   let fixture: ComponentFixture<OrderListComponent>;
   let component: OrderListComponent;
   let orderServiceSpy: jasmine.SpyObj<OrderService>;
   let returnsServiceSpy: jasmine.SpyObj<ReturnsService>;
+  let shipmentsServiceSpy: jasmine.SpyObj<ShipmentsService>;
 
   const orderSummary: OrderDetailsModel = {
     orderNumber: 'ORDER-1',
@@ -100,6 +106,27 @@ describe('OrderListComponent', () => {
     },
   };
 
+  const shipmentsPage: ShipmentCollectionModel = {
+    _embedded: {
+      shipmentResourceList: [
+        {
+          shipmentNumber: 'SHIP-1',
+          orderNumber: 'ORDER-1',
+          carrier: 'DHL',
+          trackingNumber: 'DHL-TRACK-1',
+          status: 'PENDING',
+          dispatchedDate: null,
+          estimatedDeliveryDate: null,
+          deliveredDate: null,
+          createdDate: '2024-03-15T10:30:00.000Z',
+          _links: {
+            'advance-status': { href: '/api/shipments/SHIP-1/advance' },
+          },
+        },
+      ],
+    },
+  };
+
   function setup(roles: string[] = []): void {
     orderServiceSpy = jasmine.createSpyObj('OrderService', [
       'listOrders',
@@ -110,14 +137,23 @@ describe('OrderListComponent', () => {
       'listReturnsForOrder',
       'requestReturn',
     ]);
+    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
+      'listShipmentsForOrder',
+      'createShipment',
+      'advanceShipmentStatus',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(of(page));
     returnsServiceSpy.listReturnsForOrder.and.returnValue(of(returnsPage));
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      of(shipmentsPage)
+    );
 
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
       providers: [
         { provide: OrderService, useValue: orderServiceSpy },
         { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: ShipmentsService, useValue: shipmentsServiceSpy },
         { provide: AuthService, useValue: { roles: signal(roles) } },
       ],
     });
@@ -153,17 +189,26 @@ describe('OrderListComponent', () => {
       'listReturnsForOrder',
       'requestReturn',
     ]);
+    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
+      'listShipmentsForOrder',
+      'createShipment',
+      'advanceShipmentStatus',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(
       of({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } })
     );
     returnsServiceSpy.listReturnsForOrder.and.returnValue(
       of({ _embedded: { returnRequestResourceList: [] } })
     );
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      of({ _embedded: { shipmentResourceList: [] } })
+    );
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
       providers: [
         { provide: OrderService, useValue: orderServiceSpy },
         { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: ShipmentsService, useValue: shipmentsServiceSpy },
         { provide: AuthService, useValue: { roles: signal([]) } },
       ],
     });
@@ -184,6 +229,11 @@ describe('OrderListComponent', () => {
       'listReturnsForOrder',
       'requestReturn',
     ]);
+    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
+      'listShipmentsForOrder',
+      'createShipment',
+      'advanceShipmentStatus',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(
       throwError(() => new Error('failed'))
     );
@@ -192,6 +242,7 @@ describe('OrderListComponent', () => {
       providers: [
         { provide: OrderService, useValue: orderServiceSpy },
         { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: ShipmentsService, useValue: shipmentsServiceSpy },
         { provide: AuthService, useValue: { roles: signal([]) } },
       ],
     });
@@ -226,6 +277,20 @@ describe('OrderListComponent', () => {
     );
   });
 
+  it('loads shipments for a selected order when the user can read shipments', () => {
+    setup(['SHIPMENT_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+
+    component.selectOrder('ORDER-1');
+
+    expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledWith(
+      'ORDER-1'
+    );
+    expect(component.orderShipments()).toEqual(
+      shipmentsPage._embedded!.shipmentResourceList ?? []
+    );
+  });
+
   it('defaults order returns to an empty list when the embedded collection is missing', () => {
     setup(['RETURN_READ']);
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
@@ -234,6 +299,16 @@ describe('OrderListComponent', () => {
     component.selectOrder('ORDER-1');
 
     expect(component.orderReturns()).toEqual([]);
+  });
+
+  it('defaults order shipments to an empty list when the embedded collection is missing', () => {
+    setup(['SHIPMENT_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(of({}));
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.orderShipments()).toEqual([]);
   });
 
   it('sets an error message when loading order details fails', () => {
@@ -260,6 +335,18 @@ describe('OrderListComponent', () => {
     );
   });
 
+  it('sets an error message when loading shipments fails', () => {
+    setup(['SHIPMENT_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.shipmentErrorMessage()).toBe('Failed to load shipments.');
+  });
+
   it('closes the details view', () => {
     setup();
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
@@ -268,10 +355,11 @@ describe('OrderListComponent', () => {
 
     expect(component.selectedOrder()).toBeNull();
     expect(component.orderReturns()).toEqual([]);
+    expect(component.orderShipments()).toEqual([]);
   });
 
   it('cancels an order and refreshes the list', () => {
-    setup(['RETURN_READ']);
+    setup(['RETURN_READ', 'SHIPMENT_READ']);
     const cancelled = { ...orderSummary, status: 'CANCELLED', _links: {} };
     orderServiceSpy.cancelOrder.and.returnValue(of(cancelled));
     component.cancelOrder('ORDER-1');
@@ -280,6 +368,9 @@ describe('OrderListComponent', () => {
     expect(component.selectedOrder()).toEqual(cancelled);
     expect(orderServiceSpy.listOrders).toHaveBeenCalledTimes(2);
     expect(returnsServiceSpy.listReturnsForOrder).toHaveBeenCalledWith(
+      'ORDER-1'
+    );
+    expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledWith(
       'ORDER-1'
     );
   });
@@ -431,6 +522,16 @@ describe('OrderListComponent', () => {
     expect(component.orderReturns()).toEqual([]);
   });
 
+  it('keeps order shipments empty when the user cannot read shipments', () => {
+    setup();
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+
+    component.selectOrder('ORDER-1');
+
+    expect(shipmentsServiceSpy.listShipmentsForOrder).not.toHaveBeenCalled();
+    expect(component.orderShipments()).toEqual([]);
+  });
+
   it('initializes the return form with the first order item when no item is returnable yet', () => {
     setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
@@ -466,6 +567,110 @@ describe('OrderListComponent', () => {
     setup(['RETURN_READ', 'RETURN_WRITE']);
     expect(component.canReadReturns).toBeTrue();
     expect(component.canWriteReturns).toBeTrue();
+  });
+
+  it('reports whether the user can manage shipments', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    expect(component.canReadShipments).toBeTrue();
+    expect(component.canWriteShipments).toBeTrue();
+  });
+
+  it('creates a shipment', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.createShipment.and.returnValue(
+      of(shipmentsPage._embedded!.shipmentResourceList![0])
+    );
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      of({ _embedded: { shipmentResourceList: [] } })
+    );
+    component.selectOrder('ORDER-1');
+    component.shipmentForm.setValue({ carrier: 'DHL' });
+
+    component.createShipment();
+
+    expect(shipmentsServiceSpy.createShipment).toHaveBeenCalledWith({
+      orderNumber: 'ORDER-1',
+      carrier: 'DHL',
+    });
+    expect(component.shipmentSuccessMessage()).toBe('Shipment created.');
+  });
+
+  it('does not create a shipment when the form is invalid', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    component.shipmentForm.setValue({ carrier: '' });
+
+    component.createShipment();
+
+    expect(shipmentsServiceSpy.createShipment).not.toHaveBeenCalled();
+  });
+
+  it('does not create a shipment when no order is selected', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    component.shipmentForm.setValue({ carrier: 'DHL' });
+
+    component.createShipment();
+
+    expect(shipmentsServiceSpy.createShipment).not.toHaveBeenCalled();
+  });
+
+  it('sets an error message when creating a shipment fails', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.createShipment.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      of({ _embedded: { shipmentResourceList: [] } })
+    );
+    component.selectOrder('ORDER-1');
+    component.orderShipments.set([]);
+    component.shipmentForm.setValue({ carrier: 'DHL' });
+
+    component.createShipment();
+
+    expect(component.shipmentErrorMessage()).toBe('Failed to create shipment.');
+  });
+
+  it('advances a shipment status', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
+      of(shipmentsPage._embedded!.shipmentResourceList![0] as ShipmentModel)
+    );
+    component.selectOrder('ORDER-1');
+
+    component.advanceShipmentStatus('SHIP-1');
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledWith(
+      'SHIP-1'
+    );
+    expect(component.shipmentSuccessMessage()).toBe(
+      'Shipment status advanced.'
+    );
+  });
+
+  it('sets an error message when advancing a shipment fails', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+    component.selectOrder('ORDER-1');
+
+    component.advanceShipmentStatus('SHIP-1');
+
+    expect(component.shipmentErrorMessage()).toBe(
+      'Failed to advance shipment status.'
+    );
+  });
+
+  it('does not advance a shipment when no order is selected', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+
+    component.advanceShipmentStatus('SHIP-1');
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).not.toHaveBeenCalled();
   });
 
   it('reports no returnable items when no order is selected', () => {

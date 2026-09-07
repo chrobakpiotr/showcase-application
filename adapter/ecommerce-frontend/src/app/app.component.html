@@ -19,6 +19,8 @@
     <a routerLink="/returns">Returns</a>
     } @if (authService.roles().includes('NOTIFICATION_READ')) {
     <a routerLink="/notifications">Notifications</a>
+    } @if (authService.roles().includes('SHIPMENT_READ')) {
+    <a routerLink="/shipments">Shipments</a>
     } @if (authService.roles().includes('COUPON_READ')) {
     <a routerLink="/coupons">Coupons</a>
     }

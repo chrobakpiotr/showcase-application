@@ -25,6 +25,8 @@ import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
+import com.cp.ecommerce.domain.shipment.Shipment;
+import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.wishlist.Wishlist;
 import com.cp.ecommerce.domain.wishlist.WishlistItem;
 
@@ -54,6 +56,10 @@ public final class TestDomainObjectFactory {
     public static final String TEST_RETURN_NUMBER = "RETURN-1001";
 
     public static final String TEST_NOTIFICATION_ID = "NOTIF-1001";
+
+    public static final String TEST_SHIPMENT_NUMBER = "SHIP-1001";
+
+    public static final String TEST_TRACKING_NUMBER = "DHL-TRACK-1001";
 
     public static Order validOrder() {
 
@@ -241,6 +247,64 @@ public final class TestDomainObjectFactory {
                 .status(NotificationStatus.SENT)
                 .createdDate(TEST_CREATED)
                 .sentDate(new Date(TEST_CREATED.getTime() + 60000))
+                .build();
+    }
+
+    public static Shipment validShipment() {
+
+        return Shipment.builder()
+                .shipmentNumber(TEST_SHIPMENT_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .carrier("DHL")
+                .trackingNumber(TEST_TRACKING_NUMBER)
+                .status(ShipmentStatus.PENDING)
+                .createdDate(TEST_CREATED)
+                .build();
+    }
+
+    public static Shipment validDispatchedShipment() {
+
+        final Date dispatchedDate = new Date(TEST_CREATED.getTime() + 60000);
+        return Shipment.builder()
+                .shipmentNumber(TEST_SHIPMENT_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .carrier("DHL")
+                .trackingNumber(TEST_TRACKING_NUMBER)
+                .status(ShipmentStatus.DISPATCHED)
+                .dispatchedDate(dispatchedDate)
+                .estimatedDeliveryDate(new Date(dispatchedDate.getTime() + 5 * 24 * 60 * 60 * 1000L))
+                .createdDate(TEST_CREATED)
+                .build();
+    }
+
+    public static Shipment validInTransitShipment() {
+
+        final Shipment dispatchedShipment = validDispatchedShipment();
+        return Shipment.builder()
+                .shipmentNumber(dispatchedShipment.getShipmentNumber())
+                .orderNumber(dispatchedShipment.getOrderNumber())
+                .carrier(dispatchedShipment.getCarrier())
+                .trackingNumber(dispatchedShipment.getTrackingNumber())
+                .status(ShipmentStatus.IN_TRANSIT)
+                .dispatchedDate(dispatchedShipment.getDispatchedDate())
+                .estimatedDeliveryDate(dispatchedShipment.getEstimatedDeliveryDate())
+                .createdDate(dispatchedShipment.getCreatedDate())
+                .build();
+    }
+
+    public static Shipment validDeliveredShipment() {
+
+        final Shipment inTransitShipment = validInTransitShipment();
+        return Shipment.builder()
+                .shipmentNumber(inTransitShipment.getShipmentNumber())
+                .orderNumber(inTransitShipment.getOrderNumber())
+                .carrier(inTransitShipment.getCarrier())
+                .trackingNumber(inTransitShipment.getTrackingNumber())
+                .status(ShipmentStatus.DELIVERED)
+                .dispatchedDate(inTransitShipment.getDispatchedDate())
+                .estimatedDeliveryDate(inTransitShipment.getEstimatedDeliveryDate())
+                .deliveredDate(new Date(inTransitShipment.getEstimatedDeliveryDate().getTime()))
+                .createdDate(inTransitShipment.getCreatedDate())
                 .build();
     }
 

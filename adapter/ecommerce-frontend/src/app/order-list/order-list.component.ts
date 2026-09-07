@@ -19,6 +19,8 @@ import { OrderDetailsModel } from '@app/order/order-details.model';
 import { OrderService } from '@app/order/order.service';
 import { ReturnModel } from '@app/returns/return.model';
 import { ReturnsService } from '@app/returns/returns.service';
+import { ShipmentModel } from '@app/shipments/shipment.model';
+import { ShipmentsService } from '@app/shipments/shipments.service';
 
 const PAGE_SIZE = 10;
 
@@ -32,6 +34,7 @@ const PAGE_SIZE = 10;
 export class OrderListComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly returnsService = inject(ReturnsService);
+  private readonly shipmentsService = inject(ShipmentsService);
   private readonly authService = inject(AuthService);
 
   readonly orders = signal<OrderDetailsModel[]>([]);
@@ -41,8 +44,11 @@ export class OrderListComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly selectedOrder = signal<OrderDetailsModel | null>(null);
   readonly orderReturns = signal<ReturnModel[]>([]);
+  readonly orderShipments = signal<ShipmentModel[]>([]);
   readonly returnErrorMessage = signal<string | null>(null);
   readonly returnSuccessMessage = signal<string | null>(null);
+  readonly shipmentErrorMessage = signal<string | null>(null);
+  readonly shipmentSuccessMessage = signal<string | null>(null);
 
   readonly returnForm = new FormGroup({
     sku: new FormControl('', {
@@ -64,12 +70,27 @@ export class OrderListComponent implements OnInit {
     )
   );
 
+  readonly shipmentForm = new FormGroup({
+    carrier: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(80)],
+    }),
+  });
+
   get canReadReturns(): boolean {
     return this.authService.roles().includes('RETURN_READ');
   }
 
   get canWriteReturns(): boolean {
     return this.authService.roles().includes('RETURN_WRITE');
+  }
+
+  get canReadShipments(): boolean {
+    return this.authService.roles().includes('SHIPMENT_READ');
+  }
+
+  get canWriteShipments(): boolean {
+    return this.authService.roles().includes('SHIPMENT_WRITE');
   }
 
   ngOnInit(): void {
@@ -80,15 +101,24 @@ export class OrderListComponent implements OnInit {
     this.errorMessage.set(null);
     this.returnErrorMessage.set(null);
     this.returnSuccessMessage.set(null);
+    this.shipmentErrorMessage.set(null);
+    this.shipmentSuccessMessage.set(null);
     this.orderService.findOrder(orderNumber).subscribe({
       next: (order) => {
         this.selectedOrder.set(order);
         this.orderReturns.set([]);
+        this.orderShipments.set([]);
         this.initializeReturnForm(order);
+        this.initializeShipmentForm();
         if (this.canReadReturns) {
           this.loadReturnsForOrder(order.orderNumber);
         } else {
           this.orderReturns.set([]);
+        }
+        if (this.canReadShipments) {
+          this.loadShipmentsForOrder(order.orderNumber);
+        } else {
+          this.orderShipments.set([]);
         }
       },
       error: () => this.errorMessage.set('Failed to load order details.'),
@@ -98,8 +128,11 @@ export class OrderListComponent implements OnInit {
   closeDetails(): void {
     this.selectedOrder.set(null);
     this.orderReturns.set([]);
+    this.orderShipments.set([]);
     this.returnErrorMessage.set(null);
     this.returnSuccessMessage.set(null);
+    this.shipmentErrorMessage.set(null);
+    this.shipmentSuccessMessage.set(null);
   }
 
   cancelOrder(orderNumber: string): void {
@@ -111,8 +144,48 @@ export class OrderListComponent implements OnInit {
         if (this.canReadReturns) {
           this.loadReturnsForOrder(order.orderNumber);
         }
+        if (this.canReadShipments) {
+          this.loadShipmentsForOrder(order.orderNumber);
+        }
       },
       error: () => this.errorMessage.set('Failed to cancel order.'),
+    });
+  }
+
+  createShipment(): void {
+    const order = this.selectedOrder();
+    if (!order || this.shipmentForm.invalid) return;
+
+    this.shipmentErrorMessage.set(null);
+    this.shipmentSuccessMessage.set(null);
+    this.shipmentsService
+      .createShipment({
+        orderNumber: order.orderNumber,
+        carrier: this.shipmentForm.controls.carrier.getRawValue(),
+      })
+      .subscribe({
+        next: () => {
+          this.shipmentSuccessMessage.set('Shipment created.');
+          this.loadShipmentsForOrder(order.orderNumber);
+        },
+        error: () =>
+          this.shipmentErrorMessage.set('Failed to create shipment.'),
+      });
+  }
+
+  advanceShipmentStatus(shipmentNumber: string): void {
+    const orderNumber = this.selectedOrder()?.orderNumber;
+    if (!orderNumber) return;
+
+    this.shipmentErrorMessage.set(null);
+    this.shipmentSuccessMessage.set(null);
+    this.shipmentsService.advanceShipmentStatus(shipmentNumber).subscribe({
+      next: () => {
+        this.shipmentSuccessMessage.set('Shipment status advanced.');
+        this.loadShipmentsForOrder(orderNumber);
+      },
+      error: () =>
+        this.shipmentErrorMessage.set('Failed to advance shipment status.'),
     });
   }
 
@@ -200,6 +273,12 @@ export class OrderListComponent implements OnInit {
     });
   }
 
+  private initializeShipmentForm(): void {
+    this.shipmentForm.reset({
+      carrier: '',
+    });
+  }
+
   private loadReturnsForOrder(orderNumber: string): void {
     this.returnsService.listReturnsForOrder(orderNumber).subscribe({
       next: (page) => {
@@ -220,6 +299,15 @@ export class OrderListComponent implements OnInit {
       },
       error: () =>
         this.returnErrorMessage.set('Failed to load return requests.'),
+    });
+  }
+
+  private loadShipmentsForOrder(orderNumber: string): void {
+    this.shipmentsService.listShipmentsForOrder(orderNumber).subscribe({
+      next: (page) => {
+        this.orderShipments.set(page._embedded?.shipmentResourceList ?? []);
+      },
+      error: () => this.shipmentErrorMessage.set('Failed to load shipments.'),
     });
   }
 }

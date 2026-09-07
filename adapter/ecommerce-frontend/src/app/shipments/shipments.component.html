@@ -1,0 +1,74 @@
+<div class="shipments-container">
+  <h2>Shipping / Fulfillment Tracking</h2>
+
+  @if (!canRead) {
+  <p data-testid="shipments-no-access">You do not have access to shipments.</p>
+  } @else {
+  <div class="toolbar">
+    <label for="shipment-status">Status</label>
+    <select
+      id="shipment-status"
+      data-testid="shipment-status-filter"
+      [value]="selectedStatus()"
+      (change)="updateStatusFilter($any($event.target).value)"
+    >
+      <option value="ALL">All</option>
+      <option value="PENDING">PENDING</option>
+      <option value="DISPATCHED">DISPATCHED</option>
+      <option value="IN_TRANSIT">IN_TRANSIT</option>
+      <option value="DELIVERED">DELIVERED</option>
+    </select>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  } @if (actionErrorMessage()) {
+  <div class="error-message" role="alert">{{ actionErrorMessage() }}</div>
+  }
+
+  <table class="shipment-table" data-testid="shipment-table">
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Carrier</th>
+        <th>Tracking number</th>
+        <th>Status</th>
+        <th>Dispatched</th>
+        <th>ETA</th>
+        <th>Delivered</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (shipment of shipments(); track shipment.shipmentNumber) {
+      <tr data-testid="shipment-row">
+        <td>{{ shipment.orderNumber }}</td>
+        <td>{{ shipment.carrier }}</td>
+        <td>{{ shipment.trackingNumber }}</td>
+        <td>{{ shipment.status }}</td>
+        <td>{{ shipment.dispatchedDate | date : 'mediumDate' }}</td>
+        <td>{{ shipment.estimatedDeliveryDate | date : 'mediumDate' }}</td>
+        <td>{{ shipment.deliveredDate | date : 'mediumDate' }}</td>
+        <td>
+          @if (canWrite && shipment._links?.['advance-status']) {
+          <button
+            type="button"
+            data-testid="advance-shipment"
+            (click)="advance(shipment.shipmentNumber)"
+          >
+            Advance Status
+          </button>
+          }
+        </td>
+      </tr>
+      } @empty {
+      <tr>
+        <td class="empty" colspan="8" data-testid="empty-shipments">
+          No shipments yet.
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+</div>

@@ -209,6 +209,67 @@
       </p>
       }
     </section>
+    } @if (canReadShipments) {
+    <section class="returns-section">
+      <h4>Track Shipment</h4>
+      @if (shipmentErrorMessage()) {
+      <div class="error-message" role="alert">{{ shipmentErrorMessage() }}</div>
+      } @if (shipmentSuccessMessage()) {
+      <p class="success" data-testid="shipment-success">
+        {{ shipmentSuccessMessage() }}
+      </p>
+      }
+
+      <ul data-testid="order-shipments">
+        @for (shipment of orderShipments(); track shipment.shipmentNumber) {
+        <li data-testid="order-shipment-item">
+          {{ shipment.shipmentNumber }} - {{ shipment.carrier }} -
+          {{ shipment.trackingNumber }} - {{ shipment.status }}
+          @if (canWriteShipments && shipment._links?.['advance-status']) {
+          <button
+            type="button"
+            data-testid="advance-order-shipment"
+            (click)="advanceShipmentStatus(shipment.shipmentNumber)"
+          >
+            Advance Status
+          </button>
+          }
+        </li>
+        } @empty {
+        <li data-testid="empty-order-shipments">No shipments yet.</li>
+        }
+      </ul>
+
+      @if (canWriteShipments && order.status === 'CONFIRMED' &&
+      !orderShipments().length) {
+      <form
+        [formGroup]="shipmentForm"
+        (ngSubmit)="createShipment()"
+        data-testid="create-shipment-form"
+      >
+        <div class="field">
+          <label for="shipment-carrier">Carrier</label>
+          <input
+            id="shipment-carrier"
+            type="text"
+            formControlName="carrier"
+            data-testid="shipment-carrier"
+          />
+        </div>
+        <button
+          type="submit"
+          data-testid="create-shipment"
+          [disabled]="shipmentForm.invalid"
+        >
+          Ship this order
+        </button>
+      </form>
+      } @else if (canWriteShipments && order.status !== 'CONFIRMED') {
+      <p data-testid="shipment-unavailable">
+        Shipments can only be created for confirmed orders.
+      </p>
+      }
+    </section>
     }
   </div>
   }

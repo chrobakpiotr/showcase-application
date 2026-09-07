@@ -31,5 +31,6 @@
     <include file="changelogs/db.changelog-wishlist.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-return.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-notification.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-shipment.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>
