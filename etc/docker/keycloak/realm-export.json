@@ -12,7 +12,9 @@
       { "name": "INVENTORY_READ", "description": "Allows reading SKU stock levels" },
       { "name": "INVENTORY_WRITE", "description": "Allows adjusting SKU stock levels" },
       { "name": "REVIEWS_READ", "description": "Allows listing reviews pending moderation" },
-      { "name": "REVIEWS_WRITE", "description": "Allows approving or rejecting reviews" }
+      { "name": "REVIEWS_WRITE", "description": "Allows approving or rejecting reviews" },
+      { "name": "COUPON_READ", "description": "Allows reading coupons" },
+      { "name": "COUPON_WRITE", "description": "Allows managing coupons" }
     ]
   },
   "clients": [
@@ -53,7 +55,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE", "INVENTORY_READ", "INVENTORY_WRITE", "REVIEWS_READ", "REVIEWS_WRITE" ]
+      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE", "INVENTORY_READ", "INVENTORY_WRITE", "REVIEWS_READ", "REVIEWS_WRITE", "COUPON_READ", "COUPON_WRITE" ]
     },
     {
       "username": "order-viewer",
@@ -65,7 +67,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "CATALOG_READ", "INVENTORY_READ", "REVIEWS_READ" ]
+      "realmRoles": [ "ORDER_READ", "CATALOG_READ", "INVENTORY_READ", "REVIEWS_READ", "COUPON_READ" ]
     }
   ]
 }

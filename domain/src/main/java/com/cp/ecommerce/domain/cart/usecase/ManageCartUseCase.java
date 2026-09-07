@@ -78,7 +78,7 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
                                 .unitPrice(unitPrice)
                                 .quantity(quantity)
                                 .build()));
-        return persist(existing, items);
+        return persist(existing, items, items.equals(existing.getItems()));
     }
 
     @Override
@@ -103,7 +103,7 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
                         .unitPrice(currentItem.get().getUnitPrice())
                         .quantity(quantity)
                         .build());
-        return persist(existing, items);
+        return persist(existing, items, false);
     }
 
     @Override
@@ -115,8 +115,8 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
             return null;
         }
         final List<CartLineItem> items = new ArrayList<>(existing.getItems());
-        items.removeIf(item -> item.getSku().equals(sku));
-        return persist(existing, items);
+        final boolean changed = items.removeIf(item -> item.getSku().equals(sku));
+        return persist(existing, items, !changed);
     }
 
     @Override
@@ -127,7 +127,45 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
 
             return null;
         }
-        return persist(existing, List.of());
+        return persist(existing, List.of(), existing.getItems().isEmpty());
+    }
+
+    @Override
+    public Cart applyCoupon(final String cartId, final String couponCode, final BigDecimal discountAmount) {
+
+        final Cart existing = findCartOutPort.find(cartId);
+        if (existing == null) {
+
+            return null;
+        }
+        final Cart mutated = Cart.builder()
+                .cartId(existing.getCartId())
+                .items(existing.getItems())
+                .couponCode(couponCode)
+                .discountAmount(discountAmount)
+                .updated(new Date())
+                .version(existing.getVersion())
+                .build();
+        mutated.assertValidationsEmpty();
+        return saveCartOutPort.save(mutated);
+    }
+
+    @Override
+    public Cart removeCoupon(final String cartId) {
+
+        final Cart existing = findCartOutPort.find(cartId);
+        if (existing == null) {
+
+            return null;
+        }
+        final Cart mutated = Cart.builder()
+                .cartId(existing.getCartId())
+                .items(existing.getItems())
+                .updated(new Date())
+                .version(existing.getVersion())
+                .build();
+        mutated.assertValidationsEmpty();
+        return saveCartOutPort.save(mutated);
     }
 
     private Optional<CartLineItem> findItem(final List<CartLineItem> items, final String sku) {
@@ -135,11 +173,13 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
         return items.stream().filter(item -> item.getSku().equals(sku)).findFirst();
     }
 
-    private Cart persist(final Cart existing, final List<CartLineItem> items) {
+    private Cart persist(final Cart existing, final List<CartLineItem> items, final boolean preserveCoupon) {
 
         final Cart mutated = Cart.builder()
                 .cartId(existing.getCartId())
                 .items(items)
+                .couponCode(preserveCoupon ? existing.getCouponCode() : null)
+                .discountAmount(preserveCoupon ? existing.getDiscountAmount() : BigDecimal.ZERO)
                 .updated(new Date())
                 .version(existing.getVersion())
                 .build();

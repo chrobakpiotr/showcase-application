@@ -10,6 +10,7 @@ import com.cp.ecommerce.adapter.common.validation.ValidDomainObject;
 import com.cp.ecommerce.domain.customer.Customer;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -33,15 +34,10 @@ public class Order extends ValidDomainObject<Order> {
 
     Date created;
 
-    // @NotNull + @Valid: a request placing an order without customer/address data must fail validation cleanly
-    // (DomainObjectValidationException) rather than let PlaceOrderUseCase NPE on order.getCustomer().getContact()
-    // further downstream, and the cascade enforces the nested Contact/Address constraints too.
     @NotNull(message = ValidationConstants.INVALID_CUSTOMER)
     @Valid
     Customer customer;
 
-    // @NotEmpty + @Valid: an order with no line items isn't a real order (see ADR 0029) - the price/name snapshot
-    // taken per item mirrors cart.CartLineItem (ADR 0027), just carried through to the placed order.
     @NotEmpty(message = ValidationConstants.INVALID_ORDER_LINE_ITEMS)
     @Valid
     @Builder.Default
@@ -50,10 +46,15 @@ public class Order extends ValidDomainObject<Order> {
     @Builder.Default
     OrderStatus status = OrderStatus.CONFIRMED;
 
-    // @NotNull: the order-placement saga's payment-capture step (see ADR 0030) needs to know how to charge the
-    // customer, so this can't be left implicit/defaulted the way e.g. remarks can.
     @NotNull(message = ValidationConstants.INVALID_PAYMENT_METHOD)
     PaymentMethod paymentMethod;
+
+    @Size(max = ValidationConstants.COUPON_CODE_MAX, message = ValidationConstants.INVALID_ORDER_COUPON_CODE)
+    String couponCode;
+
+    @DecimalMin(value = "0.00", message = ValidationConstants.INVALID_ORDER_DISCOUNT_AMOUNT)
+    @Builder.Default
+    BigDecimal discountAmount = BigDecimal.ZERO;
 
     public static Order.OrderBuilder builder() {
 
@@ -67,23 +68,19 @@ public class Order extends ValidDomainObject<Order> {
         };
     }
 
-    /**
-     * Whether this order is still eligible for a customer-initiated cancellation request (see
-     * {@code RequestOrderCancellationUseCase}). Only {@link OrderStatus#CONFIRMED} orders qualify - once cancelled, an order
-     * stays cancelled; this keeps that one-way transition rule on the aggregate itself rather than duplicated/ re-derived by
-     * every caller that needs to check it.
-     */
     public boolean canBeCancelled() {
 
         return status == OrderStatus.CONFIRMED;
     }
 
-    /**
-     * Sum of every line item's {@link OrderLineItem#getSubtotal()}.
-     */
-    public BigDecimal getTotal() {
+    public BigDecimal getSubtotal() {
 
         return items.stream().map(OrderLineItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public BigDecimal getTotal() {
+
+        return getSubtotal().subtract(discountAmount == null ? BigDecimal.ZERO : discountAmount).max(BigDecimal.ZERO);
     }
 
 }

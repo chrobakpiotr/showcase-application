@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.mapper;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
@@ -65,6 +66,26 @@ class OrderPersistenceMapperTest {
         assertThat(result.get().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(result.get().getItems()).hasSize(1);
         assertThat(result.get().getItems().get(0).getSku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
+    }
+
+    @Test
+    void shouldDefaultNullDiscountAmountToZeroWhenMappingToEntity() {
+
+        final Order baseOrder = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(baseOrder.getRemarks())
+                .orderNumber(baseOrder.getOrderNumber())
+                .created(baseOrder.getCreated())
+                .customer(baseOrder.getCustomer())
+                .items(baseOrder.getItems())
+                .status(baseOrder.getStatus())
+                .paymentMethod(baseOrder.getPaymentMethod())
+                .discountAmount(null)
+                .build();
+        final Optional<OrderEntity> result = orderPersistenceMapper.mapToEntity(order);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getDiscountAmount()).isEqualTo(BigDecimal.ZERO);
     }
 
     @Test

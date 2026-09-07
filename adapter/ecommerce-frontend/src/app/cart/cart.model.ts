@@ -1,4 +1,3 @@
-// Mirrors the backend's CartLineItemResource/CartResource (adapter/web/.../cart/resource/*.java).
 export interface CartLineItemModel {
   sku: string;
   productName: string;
@@ -10,6 +9,9 @@ export interface CartLineItemModel {
 export interface CartModel {
   cartId: string;
   items: CartLineItemModel[];
+  subtotal: number;
+  couponCode: string | null;
+  discountAmount: number;
   total: number;
   itemCount: number;
 }

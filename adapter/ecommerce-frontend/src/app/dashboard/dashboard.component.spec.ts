@@ -50,15 +50,22 @@ describe('DashboardComponent', () => {
     expect(compiled.querySelector('a[href="/catalog"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/inventory"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/analytics"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/coupons"]')).toBeFalsy();
   });
 
   it('shows role-gated cards with the required role', () => {
-    setup('admin', ['ORDER_READ', 'CATALOG_READ', 'INVENTORY_READ']);
+    setup('admin', [
+      'ORDER_READ',
+      'CATALOG_READ',
+      'INVENTORY_READ',
+      'COUPON_READ',
+    ]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[href="/orders"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/catalog"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/inventory"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/analytics"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/coupons"]')).toBeTruthy();
   });
 
   it('reports isVisible correctly for role-agnostic cards', () => {

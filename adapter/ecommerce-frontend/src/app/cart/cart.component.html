@@ -35,6 +35,35 @@
     </button>
   </form>
 
+  <form
+    [formGroup]="couponForm"
+    (ngSubmit)="applyCoupon()"
+    data-testid="coupon-form"
+  >
+    <label for="coupon-code">Coupon code</label>
+    <input
+      id="coupon-code"
+      type="text"
+      formControlName="code"
+      data-testid="coupon-input"
+    />
+    <button
+      type="submit"
+      [disabled]="couponForm.invalid"
+      data-testid="coupon-apply"
+    >
+      Apply coupon
+    </button>
+    <button
+      type="button"
+      (click)="removeCoupon()"
+      [disabled]="!cart()!.couponCode"
+      data-testid="coupon-remove"
+    >
+      Remove coupon
+    </button>
+  </form>
+
   <table class="cart-table" data-testid="cart-table">
     <thead>
       <tr>
@@ -86,9 +115,18 @@
 
   <div class="cart-summary">
     <span data-testid="item-count">{{ cart()!.itemCount }} item(s)</span>
+    <span data-testid="cart-subtotal"
+      >Subtotal: {{ cart()!.subtotal | currency }}</span
+    >
+    <span data-testid="cart-discount"
+      >Discount: {{ cart()!.discountAmount | currency }}</span
+    >
     <span data-testid="cart-total" class="total"
       >Total: {{ cart()!.total | currency }}</span
     >
+    @if (cart()!.couponCode) {
+    <span data-testid="cart-coupon">Coupon: {{ cart()!.couponCode }}</span>
+    }
     <button
       type="button"
       data-testid="clear-cart"

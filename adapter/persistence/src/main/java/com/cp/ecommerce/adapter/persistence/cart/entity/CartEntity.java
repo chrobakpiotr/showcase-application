@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.cart.entity;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -23,12 +24,6 @@ import lombok.Setter;
 
 /**
  * Representation of {@link Cart} in database.
- *
- * <p>
- * Uses the cart id directly as its primary key rather than a surrogate id, mirroring {@code StockLevelEntity} (ADR 0026).
- * {@link #items} is a JPA {@code @ElementCollection}, not a full child entity/repository: line items have no identity or
- * lifecycle independent of their owning cart (see {@link CartLineItemEmbeddable}). {@link #version} backs optimistic locking,
- * exactly like {@code StockLevelEntity.version} - see {@code SaveCartAdapter}.
  */
 @Entity
 @Getter
@@ -47,6 +42,12 @@ public class CartEntity {
     @CollectionTable(name = "CART_LINE_ITEM", joinColumns = @JoinColumn(name = "CART_ID"))
     @Builder.Default
     private List<CartLineItemEmbeddable> items = new ArrayList<>();
+
+    @Column(name = "COUPON_CODE", length = 30)
+    private String couponCode;
+
+    @Column(name = "DISCOUNT_AMOUNT", nullable = false)
+    private BigDecimal discountAmount;
 
     @Column(name = "UPDATED_DATE", nullable = false)
     private Date updated;

@@ -8,4 +8,5 @@ export interface OrderRequestModel {
   customer: CustomerRequestModel;
   items: OrderLineItemRequestModel[];
   paymentMethod: PaymentMethod;
+  couponCode: string | null;
 }

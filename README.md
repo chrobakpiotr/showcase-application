@@ -179,6 +179,22 @@ role-based operator model described in
 [Authentication & authorization](#authentication--authorization): there is no per-customer "my account",
 just staff-facing tooling that happens to also expose a customer-facing storefront (Cart/Catalog/Reviews).
 
+
+## Coupons & Discounts
+
+Operators can define reusable coupon codes and customers can preview them against an in-flight cart without
+consuming a redemption until a real order is placed. Coupon administration follows the same hexagonal pattern as
+Cart and Reviews, while redemption-count concurrency follows Inventory's optimistic-locking retry model.
+
+- Back-office coupon API under `/api/coupons` for create/list/read/update plus activate/deactivate, gated by
+  `COUPON_READ` / `COUPON_WRITE`.
+- Cart endpoints support `POST /api/cart/{cartId}/coupon` and `DELETE /api/cart/{cartId}/coupon` so a shopper can
+  preview a discount before checkout.
+- Orders capture `couponCode` and `discountAmount`, and coupon redemptions increment only at real order-placement
+  time, not while a cart is merely being edited.
+- See [ADR 0031](docs/adr/0031-coupons-discounts-bounded-context.md) for the bounded-context, concurrency and
+  integration decisions behind the feature.
+
 ## Continuous Integration
 
 A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:

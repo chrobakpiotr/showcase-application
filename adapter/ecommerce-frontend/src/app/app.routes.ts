@@ -63,6 +63,12 @@ export const routes: Routes = [
       import('./reviews/reviews.component').then((m) => m.ReviewsComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'coupons',
+    loadComponent: () =>
+      import('./coupons/coupons.component').then((m) => m.CouponsComponent),
+    canActivate: [authGuard],
+  },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   {
     path: '**',

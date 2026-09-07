@@ -6,6 +6,9 @@ import java.util.UUID;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.CartConflictException;
+import com.cp.ecommerce.adapter.common.exception.CouponAlreadyExistsException;
+import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
+import com.cp.ecommerce.adapter.common.exception.CouponNotApplicableException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
@@ -61,6 +64,9 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_INSUFFICIENT_STOCK = URI.create(PROBLEM_TYPE_PREFIX + "insufficient-stock");
     private static final URI TYPE_STOCK_LEVEL_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "stock-level-conflict");
     private static final URI TYPE_CART_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "cart-conflict");
+    private static final URI TYPE_COUPON_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "coupon-conflict");
+    private static final URI TYPE_COUPON_NOT_APPLICABLE = URI.create(PROBLEM_TYPE_PREFIX + "coupon-not-applicable");
+    private static final URI TYPE_COUPON_ALREADY_EXISTS = URI.create(PROBLEM_TYPE_PREFIX + "coupon-already-exists");
     private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
@@ -138,6 +144,27 @@ public class GlobalExceptionHandler {
     public ProblemDetail cartConflictException(final CartConflictException exception) {
 
         return problemDetail(exception, CONFLICT, TYPE_CART_CONFLICT, "Cart Conflict", exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(CouponConflictException.class)
+    public ProblemDetail couponConflictException(final CouponConflictException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_COUPON_CONFLICT, "Coupon Conflict", exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(CouponNotApplicableException.class)
+    public ProblemDetail couponNotApplicableException(final CouponNotApplicableException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_COUPON_NOT_APPLICABLE, "Coupon Not Applicable", exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(CouponAlreadyExistsException.class)
+    public ProblemDetail couponAlreadyExistsException(final CouponAlreadyExistsException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_COUPON_ALREADY_EXISTS, "Coupon Already Exists", exception.getMessage());
     }
 
     @ResponseStatus(HttpStatus.PAYMENT_REQUIRED)

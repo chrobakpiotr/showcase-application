@@ -63,6 +63,7 @@ describe('OrderComponent', () => {
       customer: VALID_CUSTOMER,
       items: [VALID_ITEM],
       paymentMethod: 'CARD',
+      couponCode: '',
     });
   }
 
@@ -114,7 +115,8 @@ describe('OrderComponent', () => {
       'my remarks',
       VALID_CUSTOMER,
       [VALID_ITEM],
-      'CARD'
+      'CARD',
+      null
     );
   }));
 

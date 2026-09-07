@@ -18,6 +18,7 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
+import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
@@ -77,6 +78,7 @@ class OrderControllerTest {
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
     private static final String IDEMPOTENCY_KEY_VALUE = "client-key-1";
     private static final String SECOND_LINE_ITEM_SKU = "SKU-2";
+    private static final String TEST_COUPON_CODE = "SAVE10";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -107,6 +109,9 @@ class OrderControllerTest {
 
     @MockitoBean
     private transient ManageStockInPort manageStockInPort;
+
+    @MockitoBean
+    private transient ApplyCouponInPort applyCouponInPort;
 
     @MockitoBean
     private transient ManagePaymentInPort managePaymentInPort;
@@ -141,6 +146,52 @@ class OrderControllerTest {
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
         verify(manageStockInPort, atLeastOnce())
                 .reserveStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+    }
+
+    @Test
+    void shouldApplyCouponBeforePlacingOrder() throws Exception {
+
+        final Order baseOrder = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(baseOrder.getRemarks())
+                .orderNumber(baseOrder.getOrderNumber())
+                .created(baseOrder.getCreated())
+                .customer(baseOrder.getCustomer())
+                .items(baseOrder.getItems())
+                .status(baseOrder.getStatus())
+                .paymentMethod(baseOrder.getPaymentMethod())
+                .couponCode(TEST_COUPON_CODE)
+                .build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
+        given(applyCouponInPort.applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any()))
+                .willReturn(new com.cp.ecommerce.domain.coupon.CouponDiscount(TEST_COUPON_CODE, BigDecimal.TEN));
+        given(placeOrderUseCase.placeOrder(any(), isNull())).willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andExpect(status().isCreated());
+
+        verify(applyCouponInPort).applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any());
+    }
+
+    @Test
+    void shouldReturn404WhenCouponDoesNotExistDuringOrderPlacement() throws Exception {
+
+        final Order baseOrder = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(baseOrder.getRemarks())
+                .orderNumber(baseOrder.getOrderNumber())
+                .created(baseOrder.getCreated())
+                .customer(baseOrder.getCustomer())
+                .items(baseOrder.getItems())
+                .status(baseOrder.getStatus())
+                .paymentMethod(baseOrder.getPaymentMethod())
+                .couponCode(TEST_COUPON_CODE)
+                .build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
+        given(applyCouponInPort.applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any())).willReturn(null);
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andExpect(status().isNotFound());
     }
 
     @Test

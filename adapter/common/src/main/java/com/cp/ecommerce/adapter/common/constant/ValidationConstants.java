@@ -89,6 +89,8 @@ public class ValidationConstants {
 
     public final int CART_PRODUCT_NAME_MAX = 200;
 
+    public final int COUPON_CODE_MAX = 30;
+
     public final String INVALID_CART_ID = "Invalid Cart Id";
 
     public final String INVALID_CART_SKU = "Invalid SKU";
@@ -98,6 +100,10 @@ public class ValidationConstants {
     public final String INVALID_CART_UNIT_PRICE = "Invalid Unit Price";
 
     public final String INVALID_CART_QUANTITY = "Quantity must be at least 1";
+
+    public final String INVALID_CART_COUPON_CODE = "Invalid Coupon Code";
+
+    public final String INVALID_CART_DISCOUNT_AMOUNT = "Invalid Discount Amount";
 
     /** {@code "REVIEW-"} prefix (7 chars) + a random {@link java.util.UUID} (36 chars) = 43 chars. */
     public final int REVIEW_ID_MAX = 43;
@@ -120,6 +126,18 @@ public class ValidationConstants {
 
     public final String INVALID_REVIEW_STATUS = "Invalid Review Status";
 
+    public final String INVALID_COUPON_CODE = "Invalid Coupon Code";
+
+    public final String INVALID_COUPON_DISCOUNT_TYPE = "Invalid Discount Type";
+
+    public final String INVALID_COUPON_DISCOUNT_VALUE = "Invalid Discount Value";
+
+    public final String INVALID_COUPON_MINIMUM_ORDER_AMOUNT = "Invalid Minimum Order Amount";
+
+    public final String INVALID_COUPON_MAX_REDEMPTIONS = "Invalid Maximum Redemptions";
+
+    public final String INVALID_COUPON_REDEMPTION_COUNT = "Invalid Redemption Count";
+
     public final int ORDER_LINE_ITEM_SKU_MAX = 40;
 
     public final int ORDER_LINE_ITEM_PRODUCT_NAME_MAX = 200;
@@ -133,6 +151,10 @@ public class ValidationConstants {
     public final String INVALID_ORDER_LINE_ITEM_QUANTITY = "Quantity must be at least 1";
 
     public final String INVALID_ORDER_LINE_ITEMS = "At least one line item is required";
+
+    public final String INVALID_ORDER_COUPON_CODE = INVALID_COUPON_CODE;
+
+    public final String INVALID_ORDER_DISCOUNT_AMOUNT = "Invalid Discount Amount";
 
     public final String INVALID_PAYMENT_METHOD = "Invalid Payment Method";
 

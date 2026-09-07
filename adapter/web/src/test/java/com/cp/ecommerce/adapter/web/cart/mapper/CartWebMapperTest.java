@@ -24,6 +24,9 @@ class CartWebMapperTest {
 
         assertTrue(result.isPresent());
         assertEquals(cart.getCartId(), result.get().cartId());
+        assertEquals(cart.getSubtotal(), result.get().subtotal());
+        assertEquals(cart.getCouponCode(), result.get().couponCode());
+        assertEquals(cart.getDiscountAmount(), result.get().discountAmount());
         assertEquals(cart.getTotal(), result.get().total());
         assertEquals(cart.getItemCount(), result.get().itemCount());
         assertEquals(cart.getItems().size(), result.get().items().size());

@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.entity;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -64,8 +65,6 @@ public class OrderEntity {
     @JoinColumn(name = "CUSTOMER_ID")
     private CustomerEntity customer;
 
-    // @ElementCollection, not a full child entity/repository, mirroring CartEntity.items (ADR 0027): a line item has
-    // no identity or lifecycle independent of its owning order (see ADR 0029).
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "ORDER_LINE_ITEM", joinColumns = @JoinColumn(name = "ORDER_ID"))
     @Builder.Default
@@ -78,5 +77,11 @@ public class OrderEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "PAYMENT_METHOD", length = 20, nullable = false)
     private PaymentMethod paymentMethod;
+
+    @Column(name = "COUPON_CODE", length = 30)
+    private String couponCode;
+
+    @Column(name = "DISCOUNT_AMOUNT", nullable = false)
+    private BigDecimal discountAmount;
 
 }

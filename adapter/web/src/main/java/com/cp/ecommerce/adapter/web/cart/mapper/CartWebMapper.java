@@ -24,6 +24,9 @@ public class CartWebMapper implements WebResponseMapper<Cart, CartResource> {
                         domain -> CartResource.builder()
                                 .cartId(domain.getCartId())
                                 .items(domain.getItems().stream().map(this::mapItemToResource).toList())
+                                .subtotal(domain.getSubtotal())
+                                .couponCode(domain.getCouponCode())
+                                .discountAmount(domain.getDiscountAmount())
                                 .total(domain.getTotal())
                                 .itemCount(domain.getItemCount())
                                 .build());

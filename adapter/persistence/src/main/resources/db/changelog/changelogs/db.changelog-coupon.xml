@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="31" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="COUPON">
+            <column name="CODE" remarks="Business key chosen by operators, see ADR 0031" type="VARCHAR(30)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_COUPON" />
+            </column>
+            <column name="DISCOUNT_TYPE" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DISCOUNT_VALUE" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="MINIMUM_ORDER_AMOUNT" type="${numeric_type}(19, 2)" />
+            <column name="MAX_REDEMPTIONS" type="INT" />
+            <column name="REDEMPTION_COUNT" defaultValueNumeric="0" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="EXPIRES_AT" type="TIMESTAMP" />
+            <column name="ACTIVE" defaultValueBoolean="true" type="BOOLEAN">
+                <constraints nullable="false" />
+            </column>
+            <column name="VERSION" defaultValueNumeric="0" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_COUPON_ACTIVE_CODE" schemaName="${schema_name_full}" tableName="COUPON">
+            <column name="ACTIVE" />
+            <column name="CODE" />
+        </createIndex>
+
+    </changeSet>
+
+    <changeSet id="32" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="CART">
+            <column name="COUPON_CODE" type="VARCHAR(30)" remarks="Preview-only attached coupon code, see ADR 0031" />
+            <column name="DISCOUNT_AMOUNT" defaultValueNumeric="0" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+    </changeSet>
+
+    <changeSet id="33" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="COUPON_CODE" type="VARCHAR(30)" remarks="Coupon code captured at placement time, see ADR 0031" />
+            <column name="DISCOUNT_AMOUNT" defaultValueNumeric="0" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -66,6 +66,13 @@ export class DashboardComponent {
       requiredRole: null,
     },
     {
+      title: 'Coupons & Discounts',
+      description:
+        'Browse, create and activate discount coupons for cart and order flows.',
+      routerLink: '/coupons',
+      requiredRole: 'COUPON_READ',
+    },
+    {
       title: 'Analytics Assistant',
       description:
         'Ask an AI assistant natural-language questions about order data.',

@@ -37,6 +37,8 @@ public class ManageOrderUseCase implements ManageOrderInPort {
                         .remarks(order.getRemarks())
                         .items(order.getItems())
                         .paymentMethod(order.getPaymentMethod())
+                        .couponCode(order.getCouponCode())
+                        .discountAmount(order.getDiscountAmount())
                         .build());
     }
 

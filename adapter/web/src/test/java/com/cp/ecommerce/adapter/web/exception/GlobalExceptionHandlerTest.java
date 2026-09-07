@@ -6,6 +6,9 @@ import java.util.Set;
 
 import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.adapter.common.exception.CartConflictException;
+import com.cp.ecommerce.adapter.common.exception.CouponAlreadyExistsException;
+import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
+import com.cp.ecommerce.adapter.common.exception.CouponNotApplicableException;
 import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
@@ -156,6 +159,36 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Cart Conflict",
                 "Concurrent cart modification detected for cart CART-1, please retry");
+    }
+
+    @Test
+    void shouldHandleCouponConflictException() {
+
+        assertProblem(
+                handler.couponConflictException(new CouponConflictException("SAVE10", new IllegalStateException())),
+                CONFLICT,
+                "Coupon Conflict",
+                "Concurrent coupon modification detected for code SAVE10, please retry");
+    }
+
+    @Test
+    void shouldHandleCouponNotApplicableException() {
+
+        assertProblem(
+                handler.couponNotApplicableException(new CouponNotApplicableException("SAVE10", "expired")),
+                CONFLICT,
+                "Coupon Not Applicable",
+                "Coupon SAVE10 cannot be applied: expired");
+    }
+
+    @Test
+    void shouldHandleCouponAlreadyExistsException() {
+
+        assertProblem(
+                handler.couponAlreadyExistsException(new CouponAlreadyExistsException("SAVE10")),
+                CONFLICT,
+                "Coupon Already Exists",
+                "Coupon SAVE10 already exists");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.cart.mapper;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,8 @@ public class CartPersistenceMapper implements PersistenceMapper<Cart, CartEntity
                 domain -> CartEntity.builder()
                         .cartId(domain.getCartId())
                         .items(domain.getItems().stream().map(this::mapItemToEmbeddable).toList())
+                        .couponCode(domain.getCouponCode())
+                        .discountAmount(domain.getDiscountAmount() == null ? BigDecimal.ZERO : domain.getDiscountAmount())
                         .updated(domain.getUpdated())
                         .version(domain.getVersion())
                         .build());
@@ -38,6 +41,8 @@ public class CartPersistenceMapper implements PersistenceMapper<Cart, CartEntity
                 cartEntity -> Cart.builder()
                         .cartId(cartEntity.getCartId())
                         .items(mapItemsToDomainObjects(cartEntity.getItems()))
+                        .couponCode(cartEntity.getCouponCode())
+                        .discountAmount(cartEntity.getDiscountAmount())
                         .updated(cartEntity.getUpdated())
                         .version(cartEntity.getVersion())
                         .build());

@@ -36,6 +36,9 @@ describe('OrderListComponent', () => {
         subtotal: 59.98,
       },
     ],
+    subtotal: 59.98,
+    couponCode: null,
+    discountAmount: 0,
     total: 59.98,
     paymentMethod: 'CARD',
     payment: {

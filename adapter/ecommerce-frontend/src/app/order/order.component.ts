@@ -108,6 +108,7 @@ export class OrderComponent {
       nonNullable: true,
       validators: [Validators.required],
     }),
+    couponCode: new FormControl('', { nonNullable: true }),
   });
 
   get remarksControl() {
@@ -141,14 +142,15 @@ export class OrderComponent {
     this.submitting.set(true);
     this.orderNumber.set(null);
     this.errorMessage.set(null);
-    const { remarks, customer, items, paymentMethod } =
+    const { remarks, customer, items, paymentMethod, couponCode } =
       this.orderForm.getRawValue();
     this.orderService
       .placeOrder(
         remarks,
         customer,
         items as OrderLineItemRequestModel[],
-        paymentMethod
+        paymentMethod,
+        couponCode || null
       )
       .subscribe({
         next: (response) => {

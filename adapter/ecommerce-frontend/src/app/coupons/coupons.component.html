@@ -1,0 +1,133 @@
+<div class="coupons-container">
+  <h2>Coupons & Discounts</h2>
+
+  @if (!canRead) {
+  <p data-testid="coupons-no-access">
+    You do not have permission to view coupons.
+  </p>
+  } @else { @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  } @if (canWrite) {
+  <form
+    [formGroup]="createForm"
+    (ngSubmit)="createCoupon()"
+    data-testid="coupon-create-form"
+  >
+    <div class="field">
+      <label for="coupon-code">Code</label>
+      <input
+        id="coupon-code"
+        formControlName="code"
+        data-testid="coupon-code"
+      />
+    </div>
+    <div class="field">
+      <label for="coupon-discountType">Discount type</label>
+      <select
+        id="coupon-discountType"
+        formControlName="discountType"
+        data-testid="coupon-discountType"
+      >
+        <option value="PERCENTAGE">PERCENTAGE</option>
+        <option value="FIXED_AMOUNT">FIXED_AMOUNT</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="coupon-discountValue">Discount value</label>
+      <input
+        id="coupon-discountValue"
+        type="number"
+        formControlName="discountValue"
+        data-testid="coupon-discountValue"
+      />
+    </div>
+    <div class="field">
+      <label for="coupon-minimumOrderAmount">Minimum order amount</label>
+      <input
+        id="coupon-minimumOrderAmount"
+        type="number"
+        formControlName="minimumOrderAmount"
+      />
+    </div>
+    <div class="field">
+      <label for="coupon-maxRedemptions">Max redemptions</label>
+      <input
+        id="coupon-maxRedemptions"
+        type="number"
+        formControlName="maxRedemptions"
+      />
+    </div>
+    <div class="field">
+      <label for="coupon-expiresAt">Expires at</label>
+      <input
+        id="coupon-expiresAt"
+        type="datetime-local"
+        formControlName="expiresAt"
+      />
+    </div>
+    <button
+      type="submit"
+      [disabled]="createForm.invalid"
+      data-testid="coupon-create-submit"
+    >
+      Create coupon
+    </button>
+  </form>
+  @if (createSuccess()) {
+  <p role="status">Coupon created.</p>
+  } }
+
+  <table data-testid="coupon-table">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Type</th>
+        <th>Value</th>
+        <th>Minimum</th>
+        <th>Redemptions</th>
+        <th>Expires</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (coupon of coupons(); track coupon.code) {
+      <tr>
+        <td>{{ coupon.code }}</td>
+        <td>{{ coupon.discountType }}</td>
+        <td>{{ coupon.discountValue | currency }}</td>
+        <td>
+          {{
+            coupon.minimumOrderAmount === null
+              ? '—'
+              : (coupon.minimumOrderAmount | currency)
+          }}
+        </td>
+        <td>
+          {{ coupon.redemptionCount }} / {{ coupon.maxRedemptions ?? '∞' }}
+        </td>
+        <td>
+          {{ coupon.expiresAt ? (coupon.expiresAt | date : 'short') : 'Never' }}
+        </td>
+        <td>{{ coupon.active ? 'Active' : 'Inactive' }}</td>
+        <td>
+          @if (canWrite) {
+          <button
+            type="button"
+            (click)="toggleActive(coupon)"
+            [attr.data-testid]="'coupon-toggle-' + coupon.code"
+          >
+            {{ coupon.active ? 'Deactivate' : 'Activate' }}
+          </button>
+          }
+        </td>
+      </tr>
+      } @empty {
+      <tr>
+        <td colspan="8">No coupons found.</td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+</div>

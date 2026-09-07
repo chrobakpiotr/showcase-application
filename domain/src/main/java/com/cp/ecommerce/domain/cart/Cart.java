@@ -9,6 +9,7 @@ import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
 import com.cp.ecommerce.adapter.common.validation.ValidDomainObject;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
@@ -36,6 +37,13 @@ public class Cart extends ValidDomainObject<Cart> {
     @Builder.Default
     List<CartLineItem> items = List.of();
 
+    @Size(max = ValidationConstants.COUPON_CODE_MAX, message = ValidationConstants.INVALID_CART_COUPON_CODE)
+    String couponCode;
+
+    @DecimalMin(value = "0.00", message = ValidationConstants.INVALID_CART_DISCOUNT_AMOUNT)
+    @Builder.Default
+    BigDecimal discountAmount = BigDecimal.ZERO;
+
     Date updated;
 
     @Builder.Default
@@ -54,11 +62,19 @@ public class Cart extends ValidDomainObject<Cart> {
     }
 
     /**
-     * Sum of every line item's {@link CartLineItem#getSubtotal()}.
+     * Sum of every line item's {@link CartLineItem#getSubtotal()} before any coupon preview is subtracted.
+     */
+    public BigDecimal getSubtotal() {
+
+        return items.stream().map(CartLineItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Discounted total currently shown to the customer.
      */
     public BigDecimal getTotal() {
 
-        return items.stream().map(CartLineItem::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return getSubtotal().subtract(discountAmount == null ? BigDecimal.ZERO : discountAmount).max(BigDecimal.ZERO);
     }
 
     /**

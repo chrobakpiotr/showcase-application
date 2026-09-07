@@ -8,10 +8,24 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines guarded dashboard route', async () => {
+    const dashboardRoute = routes.find((route) => route.path === 'dashboard');
+    expect(dashboardRoute?.canActivate?.length).toBe(1);
+    const component = await dashboardRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('defines guarded order route', async () => {
     const orderRoute = routes.find((route) => route.path === 'order');
     expect(orderRoute?.canActivate?.length).toBe(1);
     const component = await orderRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded orders route', async () => {
+    const ordersRoute = routes.find((route) => route.path === 'orders');
+    expect(ordersRoute?.canActivate?.length).toBe(1);
+    const component = await ordersRoute?.loadComponent?.();
     expect(component).toBeDefined();
   });
 
@@ -26,20 +40,6 @@ describe('app routes', () => {
     const catalogRoute = routes.find((route) => route.path === 'catalog');
     expect(catalogRoute?.canActivate?.length).toBe(1);
     const component = await catalogRoute?.loadComponent?.();
-    expect(component).toBeDefined();
-  });
-
-  it('defines guarded dashboard route', async () => {
-    const dashboardRoute = routes.find((route) => route.path === 'dashboard');
-    expect(dashboardRoute?.canActivate?.length).toBe(1);
-    const component = await dashboardRoute?.loadComponent?.();
-    expect(component).toBeDefined();
-  });
-
-  it('defines guarded orders route', async () => {
-    const ordersRoute = routes.find((route) => route.path === 'orders');
-    expect(ordersRoute?.canActivate?.length).toBe(1);
-    const component = await ordersRoute?.loadComponent?.();
     expect(component).toBeDefined();
   });
 
@@ -61,6 +61,13 @@ describe('app routes', () => {
     const reviewsRoute = routes.find((route) => route.path === 'reviews');
     expect(reviewsRoute?.canActivate?.length).toBe(1);
     const component = await reviewsRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
+  it('defines guarded coupons route', async () => {
+    const couponsRoute = routes.find((route) => route.path === 'coupons');
+    expect(couponsRoute?.canActivate?.length).toBe(1);
+    const component = await couponsRoute?.loadComponent?.();
     expect(component).toBeDefined();
   });
 

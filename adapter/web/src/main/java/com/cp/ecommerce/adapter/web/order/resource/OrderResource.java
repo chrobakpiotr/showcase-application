@@ -14,6 +14,7 @@ import lombok.Builder;
 @Builder
 public record OrderResource(@Schema(example = "Please leave the package with the concierge.") String remarks,
         @Schema(example = "2024-03-15T10:30:00.000Z") Date created, CustomerResource customer,
-        List<OrderLineItemResource> items, @Schema(example = "CARD") PaymentMethod paymentMethod) {
+        List<OrderLineItemResource> items, @Schema(example = "CARD") PaymentMethod paymentMethod,
+        @Schema(example = "SAVE10") String couponCode) {
 
 }

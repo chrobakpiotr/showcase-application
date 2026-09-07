@@ -13,6 +13,8 @@ import com.cp.ecommerce.domain.cart.port.incoming.GetCartInPort;
 import com.cp.ecommerce.domain.cart.port.incoming.ManageCartInPort;
 import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
+import com.cp.ecommerce.domain.coupon.CouponDiscount;
+import com.cp.ecommerce.domain.coupon.port.incoming.PreviewCouponInPort;
 
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +54,13 @@ class CartControllerTest {
 
     private static final String ITEM_BY_SKU_ENDPOINT = ITEMS_ENDPOINT + "/" + TEST_CART_SKU;
 
+    private static final String CART_COUPON_ENDPOINT = CART_BY_ID_ENDPOINT + "/coupon";
+
+    private static final String TEST_COUPON_CODE = "SAVE10";
+    private static final String CART_ID_JSON_PATH = "$.cartId";
+    private static final String COUPON_CODE_JSON_PATH = "$.couponCode";
+    private static final String APPLY_COUPON_JSON = "{\"code\":\"SAVE10\"}";
+
     @Autowired
     private transient MockMvc mockMvc;
 
@@ -68,6 +77,9 @@ class CartControllerTest {
     private transient ManageProductInPort manageProductInPort;
 
     @MockitoBean
+    private transient PreviewCouponInPort previewCouponInPort;
+
+    @MockitoBean
     private transient CartWebMapper cartWebMapper;
 
     @Test
@@ -79,7 +91,7 @@ class CartControllerTest {
 
         mockMvc.perform(post(CART_ENDPOINT))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.cartId").value(TEST_CART_ID));
+                .andExpect(jsonPath(CART_ID_JSON_PATH).value(TEST_CART_ID));
     }
 
     @Test
@@ -91,7 +103,7 @@ class CartControllerTest {
 
         mockMvc.perform(get(CART_BY_ID_ENDPOINT))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cartId").value(TEST_CART_ID));
+                .andExpect(jsonPath(CART_ID_JSON_PATH).value(TEST_CART_ID));
     }
 
     @Test
@@ -114,7 +126,87 @@ class CartControllerTest {
 
         mockMvc.perform(post(ITEMS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(addItemJson(2)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cartId").value(TEST_CART_ID));
+                .andExpect(jsonPath(CART_ID_JSON_PATH).value(TEST_CART_ID));
+    }
+
+    @Test
+    void shouldApplyCoupon() throws Exception {
+
+        final Cart cart = CartBuilder.mockCart();
+        final Cart discountedCart = Cart.builder()
+                .cartId(cart.getCartId())
+                .items(cart.getItems())
+                .couponCode(TEST_COUPON_CODE)
+                .discountAmount(java.math.BigDecimal.TEN)
+                .updated(cart.getUpdated())
+                .version(cart.getVersion())
+                .build();
+        given(getCartInPort.getCart(TEST_CART_ID)).willReturn(cart);
+        given(
+                previewCouponInPort.previewCoupon(
+                        org.mockito.ArgumentMatchers.eq(TEST_COUPON_CODE),
+                        org.mockito.ArgumentMatchers.eq(cart.getSubtotal()),
+                        any()))
+                .willReturn(new CouponDiscount(TEST_COUPON_CODE, java.math.BigDecimal.TEN));
+        given(manageCartInPort.applyCoupon(TEST_CART_ID, TEST_COUPON_CODE, java.math.BigDecimal.TEN))
+                .willReturn(discountedCart);
+        given(cartWebMapper.mapToResource(discountedCart)).willReturn(Optional.of(mockDiscountedCartResource()));
+
+        mockMvc.perform(post(CART_COUPON_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(APPLY_COUPON_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(COUPON_CODE_JSON_PATH).value(TEST_COUPON_CODE));
+    }
+
+    @Test
+    void shouldRejectApplyCouponWithMissingCode() throws Exception {
+
+        given(getCartInPort.getCart(TEST_CART_ID)).willReturn(CartBuilder.mockCart());
+
+        mockMvc.perform(post(CART_COUPON_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldRemoveCoupon() throws Exception {
+
+        final Cart cart = CartBuilder.mockCart();
+        given(manageCartInPort.removeCoupon(TEST_CART_ID)).willReturn(cart);
+        given(cartWebMapper.mapToResource(cart)).willReturn(Optional.of(mockCartResource()));
+
+        mockMvc.perform(delete(CART_COUPON_ENDPOINT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(CART_ID_JSON_PATH).value(TEST_CART_ID));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCouponDoesNotExist() throws Exception {
+
+        final Cart cart = CartBuilder.mockCart();
+        given(getCartInPort.getCart(TEST_CART_ID)).willReturn(cart);
+        given(
+                previewCouponInPort.previewCoupon(
+                        org.mockito.ArgumentMatchers.eq(TEST_COUPON_CODE),
+                        org.mockito.ArgumentMatchers.eq(cart.getSubtotal()),
+                        any()))
+                .willReturn(null);
+
+        mockMvc.perform(post(CART_COUPON_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(APPLY_COUPON_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenApplyingCouponToUnknownCart() throws Exception {
+
+        mockMvc.perform(post(CART_COUPON_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(APPLY_COUPON_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenRemovingCouponFromUnknownCart() throws Exception {
+
+        given(manageCartInPort.removeCoupon(TEST_CART_ID)).willReturn(null);
+
+        mockMvc.perform(delete(CART_COUPON_ENDPOINT)).andExpect(status().isNotFound());
     }
 
     @Test
@@ -240,6 +332,29 @@ class CartControllerTest {
     private static String addItemJson(final int quantity) {
 
         return "{\"sku\":\"" + TEST_CART_SKU + "\",\"quantity\":" + quantity + "}";
+    }
+
+    private static CartResource mockDiscountedCartResource() {
+
+        return CartResource.builder()
+                .cartId(TEST_CART_ID)
+                .items(
+                        java.util.List.of(
+                                CartLineItemResource.builder()
+                                        .sku(TEST_CART_SKU)
+                                        .productName(CartBuilder.TEST_CART_PRODUCT_NAME)
+                                        .unitPrice(CartBuilder.TEST_CART_UNIT_PRICE)
+                                        .quantity(CartBuilder.TEST_CART_QUANTITY)
+                                        .subtotal(CartBuilder.TEST_CART_UNIT_PRICE.multiply(java.math.BigDecimal.valueOf(2)))
+                                        .build()))
+                .subtotal(CartBuilder.TEST_CART_UNIT_PRICE.multiply(java.math.BigDecimal.valueOf(2)))
+                .couponCode(TEST_COUPON_CODE)
+                .discountAmount(java.math.BigDecimal.TEN)
+                .total(
+                        CartBuilder.TEST_CART_UNIT_PRICE.multiply(java.math.BigDecimal.valueOf(2))
+                                .subtract(java.math.BigDecimal.TEN))
+                .itemCount(CartBuilder.TEST_CART_QUANTITY)
+                .build();
     }
 
     private static CartResource mockCartResource() {

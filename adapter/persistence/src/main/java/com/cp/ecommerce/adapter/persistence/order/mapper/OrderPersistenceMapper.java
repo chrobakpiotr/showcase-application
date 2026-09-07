@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.mapper;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +38,8 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .items(domain.getItems().stream().map(this::mapItemToEmbeddable).toList())
                         .status(domain.getStatus())
                         .paymentMethod(domain.getPaymentMethod())
+                        .couponCode(domain.getCouponCode())
+                        .discountAmount(domain.getDiscountAmount() == null ? BigDecimal.ZERO : domain.getDiscountAmount())
                         .build());
     }
 
@@ -52,6 +55,8 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                         .items(mapItemsToDomainObjects(entity.getItems()))
                         .status(entity.getStatus())
                         .paymentMethod(entity.getPaymentMethod())
+                        .couponCode(entity.getCouponCode())
+                        .discountAmount(entity.getDiscountAmount())
                         .build());
     }
 

@@ -71,7 +71,7 @@ describe('OrderService', () => {
 
     //when
     orderService
-      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD')
+      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD', 'SAVE10')
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     //then
@@ -82,6 +82,25 @@ describe('OrderService', () => {
     expect(req.request.body.customer).toEqual(CUSTOMER);
     expect(req.request.body.items).toEqual(ITEMS);
     expect(req.request.body.paymentMethod).toBe('CARD');
+    expect(req.request.body.couponCode).toBe('SAVE10');
+
+    req.flush(orderResponse);
+  });
+
+  it('omits coupon code when not provided', () => {
+    const orderResponse = {
+      orderNumber: '20220915123015',
+    } as OrderResponseModel;
+
+    orderService
+      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD')
+      .subscribe((data) => expect(data).toBe(orderResponse));
+
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/order`
+    );
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.couponCode).toBeNull();
 
     req.flush(orderResponse);
   });

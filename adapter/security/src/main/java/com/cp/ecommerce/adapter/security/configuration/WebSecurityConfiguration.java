@@ -58,6 +58,8 @@ public class WebSecurityConfiguration {
 
     private static final String REVIEWS_API_PATH_MATCHER = "/api/reviews/**";
 
+    private static final String COUPON_API_PATH_MATCHER = "/api/coupons/**";
+
     private static final String H2_PATH_MATCHER = "/h2-console/**";
 
     private static final String[] OPEN_API_PATH_MATCHERS = { "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**" };
@@ -77,6 +79,10 @@ public class WebSecurityConfiguration {
     private static final String REVIEWS_READ_ROLE = "REVIEWS_READ";
 
     private static final String REVIEWS_WRITE_ROLE = "REVIEWS_WRITE";
+
+    private static final String COUPON_READ_ROLE = "COUPON_READ";
+
+    private static final String COUPON_WRITE_ROLE = "COUPON_WRITE";
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
@@ -117,6 +123,12 @@ public class WebSecurityConfiguration {
                         .hasRole(INVENTORY_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, INVENTORY_API_PATH_MATCHER)
                         .hasRole(INVENTORY_WRITE_ROLE)
+                        .requestMatchers(HttpMethod.GET, COUPON_API_PATH_MATCHER)
+                        .hasRole(COUPON_READ_ROLE)
+                        .requestMatchers(HttpMethod.POST, COUPON_API_PATH_MATCHER)
+                        .hasRole(COUPON_WRITE_ROLE)
+                        .requestMatchers(HttpMethod.PUT, COUPON_API_PATH_MATCHER)
+                        .hasRole(COUPON_WRITE_ROLE)
                         .requestMatchers(HttpMethod.GET, REVIEWS_MODERATION_API_PATH_MATCHER)
                         .hasRole(REVIEWS_READ_ROLE)
                         .requestMatchers(HttpMethod.POST, REVIEWS_MODERATION_API_PATH_MATCHER)

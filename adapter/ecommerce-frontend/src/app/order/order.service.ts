@@ -27,7 +27,8 @@ export class OrderService {
     remarks: string,
     customer: CustomerRequestModel,
     items: OrderLineItemRequestModel[],
-    paymentMethod: PaymentMethod
+    paymentMethod: PaymentMethod,
+    couponCode: string | null = null
   ): Observable<OrderResponseModel> {
     const body: OrderRequestModel = {
       remarks,
@@ -35,6 +36,7 @@ export class OrderService {
       customer,
       items,
       paymentMethod,
+      couponCode,
     };
     return this.httpClient.post<OrderResponseModel>(
       `${environment.apiPrefix}/order`,

@@ -11,6 +11,8 @@ import lombok.Builder;
  */
 @Builder
 public record CartResource(@Schema(example = "CART-3f2504e0-4f89-11d3-9a0c-0305e82c3301") String cartId,
-        List<CartLineItemResource> items, @Schema(example = "59.98") BigDecimal total, @Schema(example = "2") int itemCount) {
+        List<CartLineItemResource> items, @Schema(example = "59.98") BigDecimal subtotal,
+        @Schema(example = "SAVE10") String couponCode, @Schema(example = "6.00") BigDecimal discountAmount,
+        @Schema(example = "53.98") BigDecimal total, @Schema(example = "2") int itemCount) {
 
 }

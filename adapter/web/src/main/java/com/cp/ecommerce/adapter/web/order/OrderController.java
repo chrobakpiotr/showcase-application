@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.web.order;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,8 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.domain.coupon.CouponDiscount;
+import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
@@ -33,6 +36,7 @@ import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -59,22 +63,6 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
  * Controller serving the functionality of {@link Order} API.
- * <p>
- * {@code ORDER_READ}/{@code ORDER_WRITE} grant access to every order in the system rather than only the caller's own - this is
- * a back-office/operator authorization model, not per-customer ownership scoping (see ADR 0017). Accountability is instead
- * provided by logging the acting operator's identity on every mutating action.
- * <p>
- * {@link #placeOrder} reserves stock for every line item via {@link ManageStockInPort#reserveStock} before the order is ever
- * saved, composed here rather than in the domain layer so that {@code order.Order} carries no dependency on
- * {@code inventory.StockLevel} (see ADR 0029) - the same "cross-context composition happens in the web layer, not the domain"
- * stance already taken by {@code CartController} (ADR 0027). {@link #cancelOrder} releases that same reservation on a
- * customer-initiated cancellation; the order-placement saga's own internal compensation path releases it separately (see
- * {@code OrderPlacementSagaOrchestrator}), since that path never goes through this controller.
- * <p>
- * Payment capture happens asynchronously as a saga step, not synchronously in {@link #placeOrder} (see ADR 0030) - unlike
- * stock, which must be reserved up front to prevent overselling, whether a charge succeeds has no bearing on whether the order
- * can be durably recorded. {@link #cancelOrder} refunds via {@link ManagePaymentInPort#refundPayment}, unconditionally and
- * symmetric with {@code releaseStockFor}, since that method is itself an idempotent no-op if payment was never captured.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -108,11 +96,14 @@ public class OrderController {
 
     private final ManageStockInPort manageStockInPort;
 
+    private final ApplyCouponInPort applyCouponInPort;
+
     private final ManagePaymentInPort managePaymentInPort;
 
     private final GetPaymentInPort getPaymentInPort;
 
     @PostMapping
+    @Transactional
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Place a new order",
@@ -153,8 +144,9 @@ public class OrderController {
             @RequestBody final OrderResource orderResource,
             @RequestHeader(value = IDEMPOTENCY_KEY_HEADER, required = false) final String idempotencyKey) {
 
-        final Order order = orderWebMapper.mapToDomainObject(orderResource)
+        final Order orderDraft = orderWebMapper.mapToDomainObject(orderResource)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
+        final Order order = applyCouponIfPresent(orderDraft);
         order.assertValidationsEmpty();
         reserveStockFor(order);
         final PlaceOrderResult result = rateLimitedExecutor
@@ -247,36 +239,7 @@ public class OrderController {
     }
 
     @PostMapping("/{orderNumber}/cancel")
-    @Operation(
-            summary = "Cancel an order",
-            description = "Cancels an order on the customer's behalf. Only an order still in CONFIRMED status can be "
-                    + "cancelled this way; this is the same underlying mechanism the order-placement saga itself uses to "
-                    + "compensate a failed order, exposed here under an explicit state-machine guard instead of being "
-                    + "unconditional.")
-    @ApiResponse(
-            responseCode = "200",
-            description = "Order cancelled",
-            content = @Content(
-                    mediaType = "application/hal+json",
-                    schema = @Schema(implementation = OrderDetailsResource.class)))
-    @ApiResponse(
-            responseCode = "404",
-            description = "Order not found",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
-    @ApiResponse(
-            responseCode = "409",
-            description = "Order is no longer in a cancellable state (e.g. already cancelled)",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
-    @ApiResponse(
-            responseCode = "429",
-            description = "Too many order cancellation requests; retry after a short delay",
-            content = @Content(
-                    mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
-                    schema = @Schema(implementation = ProblemDetail.class)))
+    @Operation(summary = "Cancel an order")
     public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
 
         final Order order = rateLimitedExecutor.callRateLimited(
@@ -293,10 +256,30 @@ public class OrderController {
         return toResourceWithLinks(order, orderNumber);
     }
 
-    // Reserves stock for every line item before the order is ever saved, so an order can never be placed for a SKU
-    // that does not actually have enough available stock. If a later item in the list cannot be reserved, every
-    // earlier reservation made by this same call is released first, so a rejected order placement never leaves a
-    // partial reservation behind.
+    private Order applyCouponIfPresent(final Order order) {
+
+        if (order.getCouponCode() == null || order.getCouponCode().isBlank()) {
+
+            return order;
+        }
+        final CouponDiscount discount = applyCouponInPort.applyCoupon(order.getCouponCode(), order.getSubtotal(), new Date());
+        if (discount == null) {
+
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");
+        }
+        return Order.builder()
+                .remarks(order.getRemarks())
+                .orderNumber(order.getOrderNumber())
+                .created(order.getCreated())
+                .customer(order.getCustomer())
+                .items(order.getItems())
+                .status(order.getStatus())
+                .paymentMethod(order.getPaymentMethod())
+                .couponCode(discount.code())
+                .discountAmount(discount.discountAmount())
+                .build();
+    }
+
     private void reserveStockFor(final Order order) {
 
         final List<OrderLineItem> reserved = new ArrayList<>();
@@ -313,26 +296,16 @@ public class OrderController {
         }
     }
 
-    // Releases a cancelled order's stock reservation. Safe to call unconditionally: ManageStockInPort#releaseStock
-    // clamps reserved quantity at zero rather than going negative, so this is a no-op for any SKU that was never
-    // actually reserved (e.g. a legacy order placed before this reservation step existed).
     private void releaseStockFor(final Order order) {
 
         order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
     }
 
-    // Refunds a cancelled order's payment. Safe to call unconditionally: ManagePaymentInPort#refundPayment is an
-    // idempotent no-op if the saga hasn't captured payment for this order yet (e.g. cancelling before the payment-
-    // capture saga step has even run), matching releaseStockFor's convention above (see ADR 0030).
     private void refundPaymentFor(final Order order) {
 
         managePaymentInPort.refundPayment(order.getOrderNumber());
     }
 
-    // Affordance-driven HATEOAS: the "cancel" link is only advertised while the order is actually cancellable, so a client
-    // can rely on the link's mere presence rather than duplicating the CONFIRMED-only business rule enforced server-side by
-    // RequestOrderCancellationUseCase. Also composes in the order's payment transaction (a separate bounded context, see
-    // ADR 0030) so a client can see its status without a second round-trip.
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {
 
         final OrderDetailsResource resource = orderWebMapper.mapToResource(order, getPaymentInPort.getPayment(orderNumber))

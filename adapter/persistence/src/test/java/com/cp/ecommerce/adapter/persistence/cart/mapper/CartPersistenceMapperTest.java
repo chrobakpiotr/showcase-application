@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.cart.mapper;
 
+import java.math.BigDecimal;
+
 import com.cp.ecommerce.adapter.common.utils.CartBuilder;
 import com.cp.ecommerce.adapter.persistence.utils.CartEntityBuilder;
 import com.cp.ecommerce.domain.cart.Cart;
@@ -25,6 +27,8 @@ class CartPersistenceMapperTest {
 
         assertTrue(result.isPresent());
         assertEquals(cart.getCartId(), result.get().getCartId());
+        assertEquals(cart.getCouponCode(), result.get().getCouponCode());
+        assertEquals(cart.getDiscountAmount(), result.get().getDiscountAmount());
         assertEquals(cart.getUpdated(), result.get().getUpdated());
         assertEquals(cart.getVersion(), result.get().getVersion());
         assertEquals(cart.getItems().size(), result.get().getItems().size());
@@ -43,6 +47,8 @@ class CartPersistenceMapperTest {
 
         assertTrue(result.isPresent());
         assertEquals(entity.getCartId(), result.get().getCartId());
+        assertEquals(entity.getCouponCode(), result.get().getCouponCode());
+        assertEquals(entity.getDiscountAmount(), result.get().getDiscountAmount());
         assertEquals(entity.getUpdated(), result.get().getUpdated());
         assertEquals(entity.getVersion(), result.get().getVersion());
         assertEquals(entity.getItems().size(), result.get().getItems().size());
@@ -56,6 +62,22 @@ class CartPersistenceMapperTest {
     void shouldReturnEmptyWhenMappingNullToEntity() {
 
         assertTrue(cartPersistenceMapper.mapToEntity(null).isEmpty());
+    }
+
+    @Test
+    void shouldDefaultNullDiscountAmountToZeroWhenMappingToEntity() {
+
+        final Cart result = com.cp.ecommerce.adapter.common.utils.CartBuilder.mockCart();
+        final var mapped = cartPersistenceMapper.mapToEntity(
+                Cart.builder()
+                        .cartId(result.getCartId())
+                        .items(result.getItems())
+                        .discountAmount(null)
+                        .updated(result.getUpdated())
+                        .build());
+
+        assertTrue(mapped.isPresent());
+        assertEquals(BigDecimal.ZERO, mapped.get().getDiscountAmount());
     }
 
     @Test

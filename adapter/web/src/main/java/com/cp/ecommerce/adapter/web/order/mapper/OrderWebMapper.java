@@ -35,6 +35,7 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .customer(mapToCustomer(resource.customer()))
                                 .items(mapToLineItems(resource.items()))
                                 .paymentMethod(resource.paymentMethod())
+                                .couponCode(resource.couponCode())
                                 .build());
     }
 
@@ -43,13 +44,6 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
         return mapToResource(domainObject, null);
     }
 
-    /**
-     * Same as {@link #mapToResource(Order)}, additionally embedding {@code payment}'s status/method/gateway reference as a
-     * nested {@link PaymentResource} - composed here rather than in the domain layer so that {@code Order} carries no
-     * dependency on {@code domain.payment.PaymentTransaction} (see ADR 0030), the same "cross-context composition happens in
-     * the web layer" stance already taken for stock reservation (ADR 0029). {@code payment} may be {@code null} (e.g. when the
-     * caller has no payment lookup available), in which case the resource simply omits it.
-     */
     public Optional<OrderDetailsResource> mapToResource(final Order domainObject, final PaymentTransaction payment) {
         return Optional.ofNullable(domainObject)
                 .map(
@@ -60,6 +54,9 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                                 .remarks(order.getRemarks())
                                 .customer(mapCustomer(order.getCustomer()))
                                 .items(mapLineItemsToResources(order.getItems()))
+                                .subtotal(order.getSubtotal())
+                                .couponCode(order.getCouponCode())
+                                .discountAmount(order.getDiscountAmount())
                                 .total(order.getTotal())
                                 .paymentMethod(order.getPaymentMethod())
                                 .payment(mapPayment(payment))

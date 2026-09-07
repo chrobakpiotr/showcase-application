@@ -52,4 +52,17 @@ export class CartService {
       `${environment.apiPrefix}/cart/${cartId}`
     );
   }
+
+  applyCoupon(cartId: string, code: string): Observable<CartModel> {
+    return this.httpClient.post<CartModel>(
+      `${environment.apiPrefix}/cart/${cartId}/coupon`,
+      { code }
+    );
+  }
+
+  removeCoupon(cartId: string): Observable<CartModel> {
+    return this.httpClient.delete<CartModel>(
+      `${environment.apiPrefix}/cart/${cartId}/coupon`
+    );
+  }
 }

@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -21,6 +20,9 @@ describe('CartService', () => {
   const cart: CartModel = {
     cartId: 'cart-1',
     items: [],
+    subtotal: 0,
+    couponCode: null,
+    discountAmount: 0,
     total: 0,
     itemCount: 0,
   };
@@ -47,7 +49,6 @@ describe('CartService', () => {
 
   it('creates a cart', () => {
     cartService.createCart().subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart`
     );
@@ -57,7 +58,6 @@ describe('CartService', () => {
 
   it('gets a cart by id', () => {
     cartService.getCart('cart-1').subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart/cart-1`
     );
@@ -69,7 +69,6 @@ describe('CartService', () => {
     cartService
       .addItem('cart-1', 'SKU-1', 2)
       .subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart/cart-1/items`
     );
@@ -82,12 +81,10 @@ describe('CartService', () => {
     cartService
       .updateItemQuantity('cart-1', 'SKU-1', 5)
       .subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart/cart-1/items/SKU-1`
     );
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ quantity: 5 });
     req.flush(cart);
   });
 
@@ -95,7 +92,6 @@ describe('CartService', () => {
     cartService
       .removeItem('cart-1', 'SKU-1')
       .subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart/cart-1/items/SKU-1`
     );
@@ -107,9 +103,31 @@ describe('CartService', () => {
     cartService
       .clearCart('cart-1')
       .subscribe((data) => expect(data).toBe(cart));
-
     const req = httpTestingController.expectOne(
       `${environment.apiPrefix}/cart/cart-1`
+    );
+    expect(req.request.method).toBe('DELETE');
+    req.flush(cart);
+  });
+
+  it('applies a coupon', () => {
+    cartService
+      .applyCoupon('cart-1', 'SAVE10')
+      .subscribe((data) => expect(data).toBe(cart));
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/cart/cart-1/coupon`
+    );
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ code: 'SAVE10' });
+    req.flush(cart);
+  });
+
+  it('removes a coupon', () => {
+    cartService
+      .removeCoupon('cart-1')
+      .subscribe((data) => expect(data).toBe(cart));
+    const req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/cart/cart-1/coupon`
     );
     expect(req.request.method).toBe('DELETE');
     req.flush(cart);

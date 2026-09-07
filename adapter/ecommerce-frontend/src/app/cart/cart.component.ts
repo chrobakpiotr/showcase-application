@@ -16,8 +16,6 @@ import {
 import { CartModel } from '@app/cart/cart.model';
 import { CartService } from '@app/cart/cart.service';
 
-// A cart is anonymous/session-based server-side (no persisted customer account - see ADR 0027), so the frontend
-// holds onto the generated cartId across page reloads via sessionStorage, mirroring AuthService's own token storage.
 const CART_ID_STORAGE_KEY = 'ecommerce_cart_id';
 
 @Component({
@@ -41,6 +39,13 @@ export class CartComponent implements OnInit {
     }),
     quantity: new FormControl<number | null>(1, {
       validators: [Validators.required, Validators.min(1)],
+    }),
+  });
+
+  readonly couponForm = new FormGroup({
+    code: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required],
     }),
   });
 
@@ -109,6 +114,25 @@ export class CartComponent implements OnInit {
     });
   }
 
+  applyCoupon(): void {
+    if (!this.cart() || this.couponForm.invalid) return;
+    const { code } = this.couponForm.getRawValue();
+    this.errorMessage.set(null);
+    this.cartService.applyCoupon(this.cart()!.cartId, code).subscribe({
+      next: (cart) => this.cart.set(cart),
+      error: () => this.errorMessage.set('Failed to apply coupon.'),
+    });
+  }
+
+  removeCoupon(): void {
+    if (!this.cart()) return;
+    this.errorMessage.set(null);
+    this.cartService.removeCoupon(this.cart()!.cartId).subscribe({
+      next: (cart) => this.cart.set(cart),
+      error: () => this.errorMessage.set('Failed to remove coupon.'),
+    });
+  }
+
   private loadCart(cartId: string): void {
     this.loading.set(true);
     this.errorMessage.set(null);
@@ -117,8 +141,6 @@ export class CartComponent implements OnInit {
         this.loading.set(false);
         this.cart.set(cart);
       },
-      // The stored cartId no longer exists server-side (e.g. a fresh backend/DB) - transparently start a new one
-      // rather than surfacing an error for something the customer never did themselves.
       error: () => {
         this.loading.set(false);
         this.startNewCart();
