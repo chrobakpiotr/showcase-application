@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { of, throwError } from 'rxjs';
 
 import {
@@ -7,11 +8,15 @@ import {
 } from '@app/order/order-details.model';
 import { OrderListComponent } from '@app/order-list/order-list.component';
 import { OrderService } from '@app/order/order.service';
+import { AuthService } from '@app/auth/auth.service';
+import { ReturnsService } from '@app/returns/returns.service';
+import { ReturnCollectionModel, ReturnModel } from '@app/returns/return.model';
 
 describe('OrderListComponent', () => {
   let fixture: ComponentFixture<OrderListComponent>;
   let component: OrderListComponent;
   let orderServiceSpy: jasmine.SpyObj<OrderService>;
+  let returnsServiceSpy: jasmine.SpyObj<ReturnsService>;
 
   const orderSummary: OrderDetailsModel = {
     orderNumber: 'ORDER-1',
@@ -50,22 +55,71 @@ describe('OrderListComponent', () => {
     _links: { cancel: { href: '/api/order/ORDER-1/cancel' } },
   };
 
+  const multiItemOrderSummary: OrderDetailsModel = {
+    ...orderSummary,
+    items: [
+      orderSummary.items[0],
+      {
+        sku: 'SKU-2',
+        productName: 'Keyboard',
+        unitPrice: 49.99,
+        quantity: 1,
+        subtotal: 49.99,
+      },
+    ],
+    subtotal: 109.97,
+    total: 109.97,
+    payment: {
+      status: 'CAPTURED',
+      method: 'CARD',
+      amount: 109.97,
+      gatewayReference: 'mock-gw-2',
+    },
+  };
+
   const page: OrderPageModel = {
     _embedded: { orderDetailsResourceList: [orderSummary] },
     page: { size: 10, totalElements: 1, totalPages: 1, number: 0 },
   };
 
-  function setup(): void {
+  const returnsPage: ReturnCollectionModel = {
+    _embedded: {
+      returnRequestResourceList: [
+        {
+          returnNumber: 'RETURN-1',
+          orderNumber: 'ORDER-1',
+          sku: 'SKU-1',
+          quantity: 1,
+          reason: 'Damaged',
+          status: 'REQUESTED',
+          requestedDate: '2024-03-15T10:30:00.000Z',
+          decidedDate: null,
+          refundAmount: 29.99,
+        },
+      ],
+    },
+  };
+
+  function setup(roles: string[] = []): void {
     orderServiceSpy = jasmine.createSpyObj('OrderService', [
       'listOrders',
       'findOrder',
       'cancelOrder',
     ]);
+    returnsServiceSpy = jasmine.createSpyObj('ReturnsService', [
+      'listReturnsForOrder',
+      'requestReturn',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(of(page));
+    returnsServiceSpy.listReturnsForOrder.and.returnValue(of(returnsPage));
 
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
-      providers: [{ provide: OrderService, useValue: orderServiceSpy }],
+      providers: [
+        { provide: OrderService, useValue: orderServiceSpy },
+        { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: AuthService, useValue: { roles: signal(roles) } },
+      ],
     });
 
     fixture = TestBed.createComponent(OrderListComponent);
@@ -95,12 +149,23 @@ describe('OrderListComponent', () => {
       'findOrder',
       'cancelOrder',
     ]);
+    returnsServiceSpy = jasmine.createSpyObj('ReturnsService', [
+      'listReturnsForOrder',
+      'requestReturn',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(
       of({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } })
     );
+    returnsServiceSpy.listReturnsForOrder.and.returnValue(
+      of({ _embedded: { returnRequestResourceList: [] } })
+    );
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
-      providers: [{ provide: OrderService, useValue: orderServiceSpy }],
+      providers: [
+        { provide: OrderService, useValue: orderServiceSpy },
+        { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: AuthService, useValue: { roles: signal([]) } },
+      ],
     });
     fixture = TestBed.createComponent(OrderListComponent);
     component = fixture.componentInstance;
@@ -115,12 +180,20 @@ describe('OrderListComponent', () => {
       'findOrder',
       'cancelOrder',
     ]);
+    returnsServiceSpy = jasmine.createSpyObj('ReturnsService', [
+      'listReturnsForOrder',
+      'requestReturn',
+    ]);
     orderServiceSpy.listOrders.and.returnValue(
       throwError(() => new Error('failed'))
     );
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
-      providers: [{ provide: OrderService, useValue: orderServiceSpy }],
+      providers: [
+        { provide: OrderService, useValue: orderServiceSpy },
+        { provide: ReturnsService, useValue: returnsServiceSpy },
+        { provide: AuthService, useValue: { roles: signal([]) } },
+      ],
     });
     fixture = TestBed.createComponent(OrderListComponent);
     component = fixture.componentInstance;
@@ -139,6 +212,30 @@ describe('OrderListComponent', () => {
     expect(component.selectedOrder()).toEqual(orderSummary);
   });
 
+  it('loads returns for a selected order when the user can read returns', () => {
+    setup(['RETURN_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+
+    component.selectOrder('ORDER-1');
+
+    expect(returnsServiceSpy.listReturnsForOrder).toHaveBeenCalledWith(
+      'ORDER-1'
+    );
+    expect(component.orderReturns()).toEqual(
+      returnsPage._embedded!.returnRequestResourceList
+    );
+  });
+
+  it('defaults order returns to an empty list when the embedded collection is missing', () => {
+    setup(['RETURN_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    returnsServiceSpy.listReturnsForOrder.and.returnValue(of({}));
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.orderReturns()).toEqual([]);
+  });
+
   it('sets an error message when loading order details fails', () => {
     setup();
     orderServiceSpy.findOrder.and.returnValue(
@@ -149,6 +246,20 @@ describe('OrderListComponent', () => {
     expect(component.errorMessage()).toBe('Failed to load order details.');
   });
 
+  it('sets an error message when loading order returns fails', () => {
+    setup(['RETURN_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    returnsServiceSpy.listReturnsForOrder.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.returnErrorMessage()).toBe(
+      'Failed to load return requests.'
+    );
+  });
+
   it('closes the details view', () => {
     setup();
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
@@ -156,10 +267,11 @@ describe('OrderListComponent', () => {
     component.closeDetails();
 
     expect(component.selectedOrder()).toBeNull();
+    expect(component.orderReturns()).toEqual([]);
   });
 
   it('cancels an order and refreshes the list', () => {
-    setup();
+    setup(['RETURN_READ']);
     const cancelled = { ...orderSummary, status: 'CANCELLED', _links: {} };
     orderServiceSpy.cancelOrder.and.returnValue(of(cancelled));
     component.cancelOrder('ORDER-1');
@@ -167,6 +279,9 @@ describe('OrderListComponent', () => {
     expect(orderServiceSpy.cancelOrder).toHaveBeenCalledWith('ORDER-1');
     expect(component.selectedOrder()).toEqual(cancelled);
     expect(orderServiceSpy.listOrders).toHaveBeenCalledTimes(2);
+    expect(returnsServiceSpy.listReturnsForOrder).toHaveBeenCalledWith(
+      'ORDER-1'
+    );
   });
 
   it('sets an error message when cancelling fails', () => {
@@ -177,6 +292,199 @@ describe('OrderListComponent', () => {
     component.cancelOrder('ORDER-1');
 
     expect(component.errorMessage()).toBe('Failed to cancel order.');
+  });
+
+  it('creates a return request', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    returnsServiceSpy.requestReturn.and.returnValue(
+      of(returnsPage._embedded!.returnRequestResourceList[0])
+    );
+    component.selectOrder('ORDER-1');
+    component.returnForm.setValue({
+      sku: 'SKU-1',
+      quantity: 1,
+      reason: 'Damaged',
+    });
+
+    component.requestReturn();
+
+    expect(returnsServiceSpy.requestReturn).toHaveBeenCalledWith({
+      orderNumber: 'ORDER-1',
+      sku: 'SKU-1',
+      quantity: 1,
+      reason: 'Damaged',
+    });
+    expect(component.returnSuccessMessage()).toBe('Return request created.');
+  });
+
+  it('creates a return request with a defaulted quantity when the control value is null', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    returnsServiceSpy.requestReturn.and.returnValue(
+      of(returnsPage._embedded!.returnRequestResourceList[0])
+    );
+    component.selectOrder('ORDER-1');
+    component.returnForm.controls.quantity.setValue(null);
+    component.returnForm.controls.reason.setValue('Damaged');
+    component.returnForm.controls.sku.setValue('SKU-1');
+    component.returnForm.controls.quantity.clearValidators();
+    component.returnForm.controls.quantity.updateValueAndValidity();
+
+    component.requestReturn();
+
+    expect(returnsServiceSpy.requestReturn).toHaveBeenCalledWith({
+      orderNumber: 'ORDER-1',
+      sku: 'SKU-1',
+      quantity: 0,
+      reason: 'Damaged',
+    });
+  });
+
+  it('does not create a return request when the form is invalid', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    component.returnForm.setValue({ sku: '', quantity: null, reason: '' });
+
+    component.requestReturn();
+
+    expect(returnsServiceSpy.requestReturn).not.toHaveBeenCalled();
+  });
+
+  it('does not create a return request when no order is selected', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    component.returnForm.setValue({
+      sku: 'SKU-1',
+      quantity: 1,
+      reason: 'Damaged',
+    });
+
+    component.requestReturn();
+
+    expect(returnsServiceSpy.requestReturn).not.toHaveBeenCalled();
+  });
+
+  it('sets an error message when requested quantity exceeds remaining returnable quantity', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    component.selectOrder('ORDER-1');
+    component.returnForm.setValue({
+      sku: 'SKU-1',
+      quantity: 2,
+      reason: 'Damaged',
+    });
+
+    component.requestReturn();
+
+    expect(component.returnErrorMessage()).toBe(
+      'Requested quantity exceeds remaining returnable quantity.'
+    );
+  });
+
+  it('sets an error message when creating a return request fails', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    returnsServiceSpy.requestReturn.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+    component.selectOrder('ORDER-1');
+    component.orderReturns.set([]);
+    component.returnForm.setValue({
+      sku: 'SKU-1',
+      quantity: 1,
+      reason: 'Damaged',
+    });
+
+    component.requestReturn();
+
+    expect(component.returnErrorMessage()).toBe(
+      'Failed to create return request.'
+    );
+  });
+
+  it('calculates remaining quantity excluding rejected returns', () => {
+    setup(['RETURN_READ']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    component.selectOrder('ORDER-1');
+    component.orderReturns.set([
+      {
+        ...(returnsPage._embedded!.returnRequestResourceList[0] as ReturnModel),
+        quantity: 1,
+        status: 'REJECTED',
+      },
+    ]);
+
+    expect(component.remainingQuantity('SKU-1')).toBe(2);
+  });
+
+  it('reports zero remaining quantity for an unknown sku', () => {
+    setup(['RETURN_READ']);
+    expect(component.remainingQuantity('UNKNOWN')).toBe(0);
+  });
+
+  it('keeps order returns empty when the user cannot read returns', () => {
+    setup();
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+
+    component.selectOrder('ORDER-1');
+
+    expect(returnsServiceSpy.listReturnsForOrder).not.toHaveBeenCalled();
+    expect(component.orderReturns()).toEqual([]);
+  });
+
+  it('initializes the return form with the first order item when no item is returnable yet', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.returnForm.controls.sku.value).toBe('SKU-1');
+  });
+
+  it('switches the selected sku to another returnable item after loading returns', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(multiItemOrderSummary));
+    returnsServiceSpy.listReturnsForOrder.and.returnValue(
+      of({
+        _embedded: {
+          returnRequestResourceList: [
+            {
+              ...returnsPage._embedded!.returnRequestResourceList[0],
+              quantity: 2,
+            },
+          ],
+        },
+      })
+    );
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.hasReturnableItems()).toBeTrue();
+    expect(component.returnForm.controls.sku.value).toBe('SKU-2');
+  });
+
+  it('reports whether the user can manage returns', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    expect(component.canReadReturns).toBeTrue();
+    expect(component.canWriteReturns).toBeTrue();
+  });
+
+  it('reports no returnable items when no order is selected', () => {
+    setup(['RETURN_READ']);
+    expect(component.hasReturnableItems()).toBeFalse();
+  });
+
+  it('initializes the return form with an empty sku when the selected order has no items', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(
+      of({
+        ...orderSummary,
+        items: [],
+      })
+    );
+
+    component.selectOrder('ORDER-1');
+
+    expect(component.returnForm.controls.sku.value).toBe('');
   });
 
   it('advances to the next page', () => {

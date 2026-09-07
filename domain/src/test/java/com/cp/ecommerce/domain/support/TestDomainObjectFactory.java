@@ -17,6 +17,8 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
+import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
 import com.cp.ecommerce.domain.wishlist.Wishlist;
@@ -44,6 +46,8 @@ public final class TestDomainObjectFactory {
     public static final String TEST_REVIEW_ID = "REVIEW-1001";
 
     public static final String TEST_WISHLIST_ID = "WISHLIST-1001";
+
+    public static final String TEST_RETURN_NUMBER = "RETURN-1001";
 
     public static Order validOrder() {
 
@@ -157,6 +161,65 @@ public final class TestDomainObjectFactory {
                 .comment("Great product, works as expected.")
                 .status(ReviewStatus.PENDING)
                 .created(TEST_CREATED)
+                .build();
+    }
+
+    public static ReturnRequest validReturnRequest() {
+
+        return ReturnRequest.builder()
+                .returnNumber(TEST_RETURN_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .sku(TEST_PRODUCT_SKU)
+                .quantity(1)
+                .reason("Damaged on arrival.")
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(TEST_CREATED)
+                .refundAmount(new BigDecimal("29.99"))
+                .build();
+    }
+
+    public static ReturnRequest validApprovedReturnRequest() {
+
+        return ReturnRequest.builder()
+                .returnNumber(TEST_RETURN_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .sku(TEST_PRODUCT_SKU)
+                .quantity(1)
+                .reason("Damaged on arrival.")
+                .status(ReturnStatus.APPROVED)
+                .requestedDate(TEST_CREATED)
+                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .refundAmount(new BigDecimal("29.99"))
+                .build();
+    }
+
+    public static ReturnRequest validRejectedReturnRequest() {
+
+        return ReturnRequest.builder()
+                .returnNumber(TEST_RETURN_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .sku(TEST_PRODUCT_SKU)
+                .quantity(1)
+                .reason("Damaged on arrival.")
+                .status(ReturnStatus.REJECTED)
+                .requestedDate(TEST_CREATED)
+                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .refundAmount(new BigDecimal("29.99"))
+                .build();
+    }
+
+    public static ReturnRequest validRefundedReturnRequest() {
+
+        return ReturnRequest.builder()
+                .returnNumber(TEST_RETURN_NUMBER)
+                .orderNumber(TEST_ORDER_NUMBER)
+                .sku(TEST_PRODUCT_SKU)
+                .quantity(1)
+                .reason("Damaged on arrival.")
+                .status(ReturnStatus.REFUNDED)
+                .requestedDate(TEST_CREATED)
+                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .refundAmount(new BigDecimal("29.99"))
                 .build();
     }
 

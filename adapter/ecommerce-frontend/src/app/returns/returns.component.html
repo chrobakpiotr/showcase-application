@@ -1,0 +1,68 @@
+<div class="returns-container">
+  <h2>Returns / RMA</h2>
+
+  @if (!canRead) {
+  <p data-testid="returns-no-access">You do not have access to returns.</p>
+  } @else { @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <section>
+    <h3>All return requests</h3>
+    <ul class="return-list" data-testid="return-list">
+      @for (returnRequest of returns(); track returnRequest.returnNumber) {
+      <li data-testid="return-item">
+        <strong>{{ returnRequest.returnNumber }}</strong> -
+        {{ returnRequest.orderNumber }} / {{ returnRequest.sku }} x
+        {{ returnRequest.quantity }} - {{ returnRequest.status }} -
+        {{ returnRequest.refundAmount | currency }}
+      </li>
+      } @empty {
+      <li class="empty" data-testid="empty-returns">No return requests yet.</li>
+      }
+    </ul>
+  </section>
+
+  <section>
+    <h3>Moderation queue</h3>
+    @if (moderationErrorMessage()) {
+    <div class="error-message" role="alert">
+      {{ moderationErrorMessage() }}
+    </div>
+    }
+    <ul class="return-list" data-testid="pending-return-list">
+      @for (returnRequest of pendingReturns(); track returnRequest.returnNumber)
+      {
+      <li data-testid="pending-return-item">
+        <strong>{{ returnRequest.returnNumber }}</strong> -
+        {{ returnRequest.orderNumber }} / {{ returnRequest.sku }} x
+        {{ returnRequest.quantity }}
+        <p>{{ returnRequest.reason }}</p>
+        @if (canWrite) {
+        <div class="actions">
+          <button
+            type="button"
+            data-testid="approve-return"
+            (click)="approve(returnRequest.returnNumber)"
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            data-testid="reject-return"
+            (click)="reject(returnRequest.returnNumber)"
+          >
+            Reject
+          </button>
+        </div>
+        }
+      </li>
+      } @empty {
+      <li class="empty" data-testid="empty-pending-returns">
+        No return requests pending moderation.
+      </li>
+      }
+    </ul>
+  </section>
+  }
+</div>

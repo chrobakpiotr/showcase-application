@@ -73,6 +73,13 @@ export class DashboardComponent {
       requiredRole: null,
     },
     {
+      title: 'Returns / RMA',
+      description:
+        'Request and moderate order returns, then trigger payment refunds.',
+      routerLink: '/returns',
+      requiredRole: 'RETURN_READ',
+    },
+    {
       title: 'Coupons & Discounts',
       description:
         'Browse, create and activate discount coupons for cart and order flows.',

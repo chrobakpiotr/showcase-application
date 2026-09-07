@@ -129,6 +129,13 @@ public class ValidationConstants {
     /** {@code "WISHLIST-"} prefix (9 chars) + a random {@link java.util.UUID} (36 chars) = 45 chars. */
     public final int WISHLIST_ID_MAX = 45;
 
+    /** {@code "RETURN-"} prefix (7 chars) + a random {@link java.util.UUID} (36 chars) = 43 chars. */
+    public final int RETURN_NUMBER_MAX = 43;
+
+    public final int RETURN_SKU_MAX = 40;
+
+    public final int RETURN_REASON_MAX = 2000;
+
     public final int WISHLIST_SKU_MAX = 40;
 
     public final int WISHLIST_PRODUCT_NAME_MAX = 200;
@@ -140,6 +147,22 @@ public class ValidationConstants {
     public final String INVALID_WISHLIST_PRODUCT_NAME = INVALID_CART_PRODUCT_NAME;
 
     public final String INVALID_WISHLIST_ADDED_DATE = "Added date is required";
+
+    public final String INVALID_RETURN_NUMBER = "Invalid Return Number";
+
+    public final String INVALID_RETURN_ORDER_NUMBER = "Invalid Order Number";
+
+    public final String INVALID_RETURN_SKU = INVALID_CART_SKU;
+
+    public final String INVALID_RETURN_QUANTITY = "Quantity must be at least 1";
+
+    public final String INVALID_RETURN_REASON = "Invalid Return Reason";
+
+    public final String INVALID_RETURN_STATUS = "Invalid Return Status";
+
+    public final String INVALID_RETURN_REQUESTED_DATE = "Requested date is required";
+
+    public final String INVALID_RETURN_REFUND_AMOUNT = "Invalid Refund Amount";
 
     public final String INVALID_COUPON_CODE = "Invalid Coupon Code";
 

@@ -15,7 +15,9 @@
     <a routerLink="/inventory">Inventory</a>
     }
     <a routerLink="/reviews">Reviews</a>
-    @if (authService.roles().includes('COUPON_READ')) {
+    @if (authService.roles().includes('RETURN_READ')) {
+    <a routerLink="/returns">Returns</a>
+    } @if (authService.roles().includes('COUPON_READ')) {
     <a routerLink="/coupons">Coupons</a>
     }
     <span>Welcome, {{ authService.username() }}</span>

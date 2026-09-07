@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="33" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="RETURN_REQUEST">
+            <column name="RETURN_NUMBER" remarks="Business/primary key, mirrors REVIEW-&lt;uuid&gt; style identifiers" type="VARCHAR(43)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_RETURN_REQUEST" />
+            </column>
+            <column name="ORDER_NUMBER" remarks="Bare order-number reference only, no FK to ORDER_ - see ADR 0033" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="SKU" remarks="Bare SKU reference only, no FK to PRODUCT - see ADR 0033" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="QUANTITY" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="REASON" type="VARCHAR(2000)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="REQUESTED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="DECIDED_DATE" type="TIMESTAMP" />
+            <column name="REFUND_AMOUNT" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_RETURN_REQUEST_ORDER" schemaName="${schema_name_full}" tableName="RETURN_REQUEST">
+            <column name="ORDER_NUMBER" />
+            <column name="REQUESTED_DATE" />
+        </createIndex>
+
+        <createIndex indexName="IDX_RETURN_REQUEST_STATUS" schemaName="${schema_name_full}" tableName="RETURN_REQUEST">
+            <column name="STATUS" />
+            <column name="REQUESTED_DATE" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

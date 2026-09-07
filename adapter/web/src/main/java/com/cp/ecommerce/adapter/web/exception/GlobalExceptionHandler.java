@@ -15,6 +15,9 @@ import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
+import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
+import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
@@ -49,6 +52,7 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
  */
 @RestControllerAdvice(annotations = Component.class)
 @Slf4j
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class GlobalExceptionHandler {
 
     public static final String RUNTIME_EXCEPTION_ERROR_MESSAGE = "Could not process your request";
@@ -68,6 +72,12 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_COUPON_NOT_APPLICABLE = URI.create(PROBLEM_TYPE_PREFIX + "coupon-not-applicable");
     private static final URI TYPE_COUPON_ALREADY_EXISTS = URI.create(PROBLEM_TYPE_PREFIX + "coupon-already-exists");
     private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
+    private static final URI TYPE_RETURN_REQUEST_NOT_APPROVABLE = URI
+            .create(PROBLEM_TYPE_PREFIX + "return-request-not-approvable");
+    private static final URI TYPE_RETURN_REQUEST_NOT_REJECTABLE = URI
+            .create(PROBLEM_TYPE_PREFIX + "return-request-not-rejectable");
+    private static final URI TYPE_RETURN_REQUEST_NOT_REFUNDABLE = URI
+            .create(PROBLEM_TYPE_PREFIX + "return-request-not-refundable");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
@@ -176,6 +186,42 @@ public class GlobalExceptionHandler {
                 HttpStatus.PAYMENT_REQUIRED,
                 TYPE_PAYMENT_DECLINED,
                 "Payment Declined",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(ReturnRequestNotApprovableException.class)
+    public ProblemDetail returnRequestNotApprovableException(final ReturnRequestNotApprovableException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_RETURN_REQUEST_NOT_APPROVABLE,
+                "Return Request Not Approvable",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(ReturnRequestNotRejectableException.class)
+    public ProblemDetail returnRequestNotRejectableException(final ReturnRequestNotRejectableException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_RETURN_REQUEST_NOT_REJECTABLE,
+                "Return Request Not Rejectable",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(ReturnRequestNotRefundableException.class)
+    public ProblemDetail returnRequestNotRefundableException(final ReturnRequestNotRefundableException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_RETURN_REQUEST_NOT_REFUNDABLE,
+                "Return Request Not Refundable",
                 exception.getMessage());
     }
 

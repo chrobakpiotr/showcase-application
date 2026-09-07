@@ -1,14 +1,24 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   OnInit,
   inject,
   signal,
 } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import {
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 
+import { AuthService } from '@app/auth/auth.service';
 import { OrderDetailsModel } from '@app/order/order-details.model';
 import { OrderService } from '@app/order/order.service';
+import { ReturnModel } from '@app/returns/return.model';
+import { ReturnsService } from '@app/returns/returns.service';
 
 const PAGE_SIZE = 10;
 
@@ -17,10 +27,12 @@ const PAGE_SIZE = 10;
   templateUrl: './order-list.component.html',
   styleUrls: ['./order-list.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe, DatePipe, ReactiveFormsModule],
 })
 export class OrderListComponent implements OnInit {
   private readonly orderService = inject(OrderService);
+  private readonly returnsService = inject(ReturnsService);
+  private readonly authService = inject(AuthService);
 
   readonly orders = signal<OrderDetailsModel[]>([]);
   readonly page = signal(0);
@@ -28,6 +40,37 @@ export class OrderListComponent implements OnInit {
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly selectedOrder = signal<OrderDetailsModel | null>(null);
+  readonly orderReturns = signal<ReturnModel[]>([]);
+  readonly returnErrorMessage = signal<string | null>(null);
+  readonly returnSuccessMessage = signal<string | null>(null);
+
+  readonly returnForm = new FormGroup({
+    sku: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    quantity: new FormControl<number | null>(1, {
+      validators: [Validators.required, Validators.min(1)],
+    }),
+    reason: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(2000)],
+    }),
+  });
+
+  readonly hasReturnableItems = computed(() =>
+    (this.selectedOrder()?.items ?? []).some(
+      (item) => this.remainingQuantity(item.sku) > 0
+    )
+  );
+
+  get canReadReturns(): boolean {
+    return this.authService.roles().includes('RETURN_READ');
+  }
+
+  get canWriteReturns(): boolean {
+    return this.authService.roles().includes('RETURN_WRITE');
+  }
 
   ngOnInit(): void {
     this.loadOrders();
@@ -35,14 +78,28 @@ export class OrderListComponent implements OnInit {
 
   selectOrder(orderNumber: string): void {
     this.errorMessage.set(null);
+    this.returnErrorMessage.set(null);
+    this.returnSuccessMessage.set(null);
     this.orderService.findOrder(orderNumber).subscribe({
-      next: (order) => this.selectedOrder.set(order),
+      next: (order) => {
+        this.selectedOrder.set(order);
+        this.orderReturns.set([]);
+        this.initializeReturnForm(order);
+        if (this.canReadReturns) {
+          this.loadReturnsForOrder(order.orderNumber);
+        } else {
+          this.orderReturns.set([]);
+        }
+      },
       error: () => this.errorMessage.set('Failed to load order details.'),
     });
   }
 
   closeDetails(): void {
     this.selectedOrder.set(null);
+    this.orderReturns.set([]);
+    this.returnErrorMessage.set(null);
+    this.returnSuccessMessage.set(null);
   }
 
   cancelOrder(orderNumber: string): void {
@@ -51,9 +108,57 @@ export class OrderListComponent implements OnInit {
       next: (order) => {
         this.selectedOrder.set(order);
         this.loadOrders();
+        if (this.canReadReturns) {
+          this.loadReturnsForOrder(order.orderNumber);
+        }
       },
       error: () => this.errorMessage.set('Failed to cancel order.'),
     });
+  }
+
+  requestReturn(): void {
+    const order = this.selectedOrder();
+    if (!order || this.returnForm.invalid) return;
+
+    const { sku, quantity, reason } = this.returnForm.getRawValue();
+    const requestedQuantity = quantity ?? 0;
+    if (requestedQuantity > this.remainingQuantity(sku)) {
+      this.returnErrorMessage.set(
+        'Requested quantity exceeds remaining returnable quantity.'
+      );
+      return;
+    }
+
+    this.returnErrorMessage.set(null);
+    this.returnSuccessMessage.set(null);
+    this.returnsService
+      .requestReturn({
+        orderNumber: order.orderNumber,
+        sku,
+        quantity: requestedQuantity,
+        reason,
+      })
+      .subscribe({
+        next: () => {
+          this.returnSuccessMessage.set('Return request created.');
+          this.returnForm.controls.reason.setValue('');
+          this.returnForm.controls.quantity.setValue(1);
+          this.loadReturnsForOrder(order.orderNumber);
+        },
+        error: () =>
+          this.returnErrorMessage.set('Failed to create return request.'),
+      });
+  }
+
+  remainingQuantity(sku: string): number {
+    const orderedQuantity =
+      this.selectedOrder()?.items.find((item) => item.sku === sku)?.quantity ??
+      0;
+    const alreadyRequested = this.orderReturns()
+      .filter((returnRequest) => returnRequest.sku === sku)
+      .filter((returnRequest) => returnRequest.status !== 'REJECTED')
+      .reduce((sum, returnRequest) => sum + returnRequest.quantity, 0);
+    return Math.max(orderedQuantity - alreadyRequested, 0);
   }
 
   nextPage(): void {
@@ -81,6 +186,40 @@ export class OrderListComponent implements OnInit {
         this.loading.set(false);
         this.errorMessage.set('Failed to load orders.');
       },
+    });
+  }
+
+  private initializeReturnForm(order: OrderDetailsModel): void {
+    const firstReturnableItem = order.items.find(
+      (item) => this.remainingQuantity(item.sku) > 0
+    );
+    this.returnForm.reset({
+      sku: firstReturnableItem?.sku ?? order.items[0]?.sku ?? '',
+      quantity: 1,
+      reason: '',
+    });
+  }
+
+  private loadReturnsForOrder(orderNumber: string): void {
+    this.returnsService.listReturnsForOrder(orderNumber).subscribe({
+      next: (page) => {
+        this.orderReturns.set(page._embedded?.returnRequestResourceList ?? []);
+        const selectedSku = this.returnForm.controls.sku.value;
+        if (
+          selectedSku &&
+          this.remainingQuantity(selectedSku) === 0 &&
+          this.hasReturnableItems()
+        ) {
+          const fallback = this.selectedOrder()?.items.find(
+            (item) => this.remainingQuantity(item.sku) > 0
+          );
+          if (fallback) {
+            this.returnForm.controls.sku.setValue(fallback.sku);
+          }
+        }
+      },
+      error: () =>
+        this.returnErrorMessage.set('Failed to load return requests.'),
     });
   }
 }

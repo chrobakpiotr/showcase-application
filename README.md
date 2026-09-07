@@ -170,6 +170,8 @@ feature area in this showcase:
   [Inventory](#inventory))
 - **Reviews & Ratings** - public browse/submit plus a moderation panel (see
   [Reviews & Ratings](#reviews--ratings))
+- **Returns / RMA** - staff-facing return-request and moderation workflow with payment refunds (see
+  [Returns / RMA](#returns--rma))
 - **Support assistant** and **Analytics assistant** - the two Ollama-backed AI chat widgets (see
   [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) and
   [AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama))
@@ -691,6 +693,23 @@ order and actually paying for it.
 - `GET /api/order/{orderNumber}` embeds the order's current payment status/method/amount/gateway reference in
   the response once captured (`PENDING`/absent beforehand, reflecting the async capture window).
 
+## Returns / RMA
+
+Staff operators can request and moderate product returns on a customer's behalf, then trigger the reverse side of the
+payment flow once a return is approved. The feature intentionally follows the same operator-authorization model as
+Order: there is no customer self-service login anywhere in this showcase, so the workflow is entirely back-office.
+
+- Back-office returns API under `/api/returns` for create/list/read plus approve/reject, gated by `RETURN_READ` /
+  `RETURN_WRITE`.
+- Each return request covers one ordered SKU at a time, storing only bare `orderNumber` and `sku` references plus an
+  authoritative `refundAmount` snapshot calculated from the original order line item rather than trusting client input.
+- Approval composes the existing payment refund operation in the web layer, mirroring order cancellation, then
+  finalizes the return as `REFUNDED`.
+- The Angular Dashboard includes a Returns / RMA card, the top navigation includes a Returns entry for authorized
+  operators, and the order-detail view lets staff initiate a return directly from a confirmed order.
+- See [ADR 0033](docs/adr/0033-returns-rma-bounded-context.md) for the bounded-context and refund-orchestration
+  decisions behind the feature.
+
 ## Order placement saga
 
 Placing an order triggers a chain of side effects - notify fulfillment, e-mail the customer, export an audit
@@ -1137,4 +1156,3 @@ how to point the chart at externally-hosted dependencies instead.
 ## License
 
 Released under the [MIT License](LICENSE).
-

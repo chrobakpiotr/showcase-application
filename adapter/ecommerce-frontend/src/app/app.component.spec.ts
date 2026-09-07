@@ -110,6 +110,18 @@ describe('AppComponent', () => {
     expect(compiled.querySelector('a[routerLink="/reviews"]')).toBeTruthy();
   });
 
+  it('shows the returns nav link when the user has RETURN_READ', () => {
+    setup(true, 'admin', ['RETURN_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/returns"]')).toBeTruthy();
+  });
+
+  it('hides the returns nav link when the user lacks RETURN_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerLink="/returns"]')).toBeFalsy();
+  });
+
   it('shows the order history nav link when the user has ORDER_READ', () => {
     setup(true, 'admin', ['ORDER_READ']);
     const compiled = fixture.nativeElement as HTMLElement;

@@ -70,6 +70,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'returns',
+    loadComponent: () =>
+      import('./returns/returns.component').then((m) => m.ReturnsComponent),
+    canActivate: [authGuard],
+  },
+  {
     path: 'coupons',
     loadComponent: () =>
       import('./coupons/coupons.component').then((m) => m.CouponsComponent),

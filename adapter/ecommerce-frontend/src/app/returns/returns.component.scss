@@ -1,0 +1,28 @@
+.returns-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 0 1rem 2rem;
+
+  .error-message {
+    margin-bottom: 1rem;
+    color: #b00020;
+  }
+
+  .return-list {
+    list-style: none;
+    padding: 0;
+
+    li {
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      background: #fff;
+    }
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+}

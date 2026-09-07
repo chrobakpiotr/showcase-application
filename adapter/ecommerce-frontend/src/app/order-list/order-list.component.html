@@ -124,6 +124,92 @@
         Close
       </button>
     </div>
+
+    @if (canReadReturns) {
+    <section class="returns-section">
+      <h4>Returns / RMA</h4>
+      @if (returnErrorMessage()) {
+      <div class="error-message" role="alert">{{ returnErrorMessage() }}</div>
+      } @if (returnSuccessMessage()) {
+      <p class="success" data-testid="return-success">
+        {{ returnSuccessMessage() }}
+      </p>
+      }
+
+      <ul data-testid="order-returns">
+        @for (returnRequest of orderReturns(); track returnRequest.returnNumber)
+        {
+        <li data-testid="order-return-item">
+          {{ returnRequest.returnNumber }} - {{ returnRequest.sku }} x
+          {{ returnRequest.quantity }} - {{ returnRequest.status }} -
+          {{ returnRequest.refundAmount | currency }}
+        </li>
+        } @empty {
+        <li data-testid="empty-order-returns">No return requests yet.</li>
+        }
+      </ul>
+
+      @if (canWriteReturns && order.status === 'CONFIRMED' &&
+      hasReturnableItems()) {
+      <form
+        [formGroup]="returnForm"
+        (ngSubmit)="requestReturn()"
+        data-testid="request-return-form"
+      >
+        <div class="field">
+          <label for="return-sku">Line item</label>
+          <select
+            id="return-sku"
+            formControlName="sku"
+            data-testid="return-sku"
+          >
+            @for (item of order.items; track item.sku) { @if
+            (remainingQuantity(item.sku) > 0) {
+            <option [value]="item.sku">
+              {{ item.productName }} ({{ item.sku }}) -
+              {{ remainingQuantity(item.sku) }}
+              remaining
+            </option>
+            } }
+          </select>
+        </div>
+        <div class="field">
+          <label for="return-quantity">Quantity</label>
+          <input
+            id="return-quantity"
+            type="number"
+            min="1"
+            formControlName="quantity"
+            data-testid="return-quantity"
+          />
+        </div>
+        <div class="field">
+          <label for="return-reason">Reason</label>
+          <textarea
+            id="return-reason"
+            formControlName="reason"
+            data-testid="return-reason"
+          ></textarea>
+        </div>
+        <button
+          type="submit"
+          data-testid="request-return"
+          [disabled]="returnForm.invalid"
+        >
+          Request return
+        </button>
+      </form>
+      } @else if (canWriteReturns && order.status !== 'CONFIRMED') {
+      <p data-testid="return-unavailable">
+        Returns are only available for confirmed orders.
+      </p>
+      } @else if (canWriteReturns && !hasReturnableItems()) {
+      <p data-testid="return-fully-requested">
+        Every ordered quantity is already covered by a return request.
+      </p>
+      }
+    </section>
+    }
   </div>
   }
 </div>
