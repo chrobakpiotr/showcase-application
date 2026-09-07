@@ -1,0 +1,57 @@
+<section
+  class="recommendations-page"
+  aria-label="AI personalized recommendations"
+>
+  <header>
+    <h2>Recommended for you</h2>
+    <p class="subtitle">
+      Enter your e-mail to get AI-picked products based on your purchases,
+      reviews and the current catalog.
+    </p>
+  </header>
+
+  <form class="lookup-form">
+    <label for="recommendations-email">Customer e-mail</label>
+    <input
+      id="recommendations-email"
+      type="email"
+      [formControl]="emailControl"
+      data-testid="recommendations-email"
+      placeholder="jane.doe@example.com"
+      (keydown.enter)="$event.preventDefault(); loadRecommendations()"
+    />
+    <button
+      type="button"
+      data-testid="recommendations-load"
+      [disabled]="emailControl.invalid || loading()"
+      (click)="loadRecommendations()"
+    >
+      {{ loading() ? 'Loading…' : 'Get recommendations' }}
+    </button>
+  </form>
+
+  @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  } @if (!assistantAvailable()) {
+  <p class="unavailable-hint">
+    The recommendation assistant is currently unavailable.
+  </p>
+  }
+
+  <div class="results" data-testid="recommendations-results">
+    @if (recommendations().length === 0 && !loading() && !errorMessage()) {
+    <p class="hint">
+      No recommendations yet. Try an e-mail that has previous orders in the
+      demo.
+    </p>
+    } @for (recommendation of recommendations(); track recommendation.sku) {
+    <article class="recommendation-card" data-testid="recommendation-card">
+      <h3>{{ recommendation.productName }}</h3>
+      <p class="sku">{{ recommendation.sku }}</p>
+      <p>{{ recommendation.reason }}</p>
+    </article>
+    } @if (loading()) {
+    <p class="loading">Thinking…</p>
+    }
+  </div>
+</section>

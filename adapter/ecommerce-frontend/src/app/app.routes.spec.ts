@@ -57,6 +57,15 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines guarded recommendations route', async () => {
+    const recommendationsRoute = routes.find(
+      (route) => route.path === 'recommendations'
+    );
+    expect(recommendationsRoute?.canActivate?.length).toBe(1);
+    const component = await recommendationsRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('defines guarded inventory route', async () => {
     const inventoryRoute = routes.find((route) => route.path === 'inventory');
     expect(inventoryRoute?.canActivate?.length).toBe(1);

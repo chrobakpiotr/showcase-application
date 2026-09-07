@@ -56,6 +56,14 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'recommendations',
+    loadComponent: () =>
+      import('./recommendations/recommendations.component').then(
+        (m) => m.RecommendationsComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
     path: 'inventory',
     loadComponent: () =>
       import('./inventory/inventory.component').then(

@@ -41,6 +41,7 @@ describe('DashboardComponent', () => {
     expect(compiled.querySelector('a[href="/order"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/cart"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/wishlist"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/recommendations"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/reviews"]')).toBeTruthy();
   });
 

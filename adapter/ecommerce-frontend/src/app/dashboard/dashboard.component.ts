@@ -59,6 +59,13 @@ export class DashboardComponent {
       requiredRole: null,
     },
     {
+      title: 'Personalized Recommendations',
+      description:
+        "Get AI-picked products based on a customer e-mail's orders, reviews and catalog matches.",
+      routerLink: '/recommendations',
+      requiredRole: null,
+    },
+    {
       title: 'Inventory',
       description:
         'Look up stock levels and receive/reserve/release/fulfill stock.',

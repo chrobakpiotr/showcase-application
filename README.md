@@ -120,6 +120,7 @@ Compose profiles - see the [AWS LocalStack & Terraform](#aws-localstack--terrafo
 [AI-assisted order-remarks triage](#ai-assisted-order-remarks-triage-ollama),
 [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama),
 [AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama),
+[AI personalized product recommendations](#ai-personalized-product-recommendations-ollama),
 [AI ops digest](#ai-ops-digest-scheduled-ollama),
 [AI language detection for order confirmations](#ai-language-detection-for-order-confirmations-ollama) and
 [AI-assisted duplicate-order detection](#ai-assisted-duplicate-order-detection-ollama)
@@ -165,6 +166,8 @@ feature area in this showcase:
   [Shopping Cart](#shopping-cart))
 - **Wishlist** - anonymous, session-based wishlist with move-to-cart flow (see
   [Wishlist](#wishlist))
+- **Personalized Recommendations** - AI-picked products based on customer orders, reviews and the
+  current catalog (see [AI personalized product recommendations](#ai-personalized-product-recommendations-ollama))
 - **Product Catalog** - browse categories/products (see [Product Catalog](#product-catalog))
 - **Inventory** - stock levels, with role-gated receive/adjust actions (see
   [Inventory](#inventory))
@@ -1098,6 +1101,23 @@ SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
 # 4. Open http://localhost:9080/home/analytics, log in, and ask e.g.
 #    "How many orders were placed between 2024-01-01 and 2024-01-31?" or
 #    "What's the remarks classification breakdown?"
+```
+
+## AI personalized product recommendations (Ollama)
+
+A seventh AI feature (see [ADR 0036](docs/adr/0036-ai-personalized-product-recommendations.md)) that adds a
+customer-facing discovery surface instead of another operator or back-office workflow. A shopper enters an e-mail
+address on the `/recommendations` page and the backend combines that customer's recent order history, correlated
+review history and a shortlist of active catalog products, then asks the existing Ollama chat model to choose 3-5
+structured recommendations (`sku`, `productName`, `reason`). Unlike the support assistant, this is **not** RAG or
+tool-calling: the prompt is grounded directly by small in-process business data. It reuses the same `service.ai.enabled`
+flag and `llama3.2:1b` model, and degrades gracefully with `assistantAvailable: false` plus an empty list if AI is
+disabled or unreachable.
+
+```bash
+# Same 3-step setup as the other Ollama-backed features above (Postgres/RabbitMQ/Keycloak, Ollama, ai-ollama
+# profile), then open http://localhost:9080/home/recommendations and enter a customer e-mail used in prior demo
+# orders.
 ```
 
 ## AI ops digest (scheduled, Ollama)

@@ -33,6 +33,8 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
             Date createdAfter,
             String orderNumber);
 
+    List<OrderEntity> findTop10ByCustomerEmailOrderByCreatedDesc(String customerEmail);
+
     /**
      * Overridden to keep the cache entry for the saved entity's order number in sync on save. Without this, a cached entry
      * could go stale if an order number gets reused once {@code SEQ_ORDER_NUMBER} cycles back to its starting value.

@@ -42,6 +42,7 @@ than editing it in place.
 | [0033](0033-returns-rma-bounded-context.md) | Returns / RMA bounded context |
 | [0034](0034-notifications-bounded-context.md) | Notifications bounded context |
 | [0035](0035-shipping-fulfillment-tracking-bounded-context.md) | Shipping / Fulfillment Tracking bounded context |
+| [0036](0036-ai-personalized-product-recommendations.md) | AI personalized product recommendations |
 
 ## Template for new ADRs
 

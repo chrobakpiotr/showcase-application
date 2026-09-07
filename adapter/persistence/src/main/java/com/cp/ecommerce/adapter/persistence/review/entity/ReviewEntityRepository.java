@@ -18,6 +18,10 @@ public interface ReviewEntityRepository extends JpaRepository<ReviewEntity, Stri
 
     List<ReviewEntity> findByStatusOrderByCreatedDateAsc(ReviewStatus status);
 
+    List<ReviewEntity> findByAuthorNameInAndStatusOrderByCreatedDateDesc(
+            java.util.Collection<String> authorNames,
+            ReviewStatus status);
+
     long countBySkuAndStatus(String sku, ReviewStatus status);
 
     /**

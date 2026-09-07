@@ -44,6 +44,12 @@ public class WebSecurityConfiguration {
 
     private static final String WISHLIST_API_PATH_MATCHER = "/api/wishlist/**";
 
+    // Like Cart and Wishlist, personalized recommendations are intentionally customer-facing/public: the only
+    // input is a shopper's own e-mail address, and there is no persisted customer-account system in this showcase
+    // that could sensibly gate the feature behind operator roles. Declared explicitly for documentation, even though
+    // it would otherwise fall through to anyRequest().permitAll().
+    private static final String RECOMMENDATIONS_API_PATH_MATCHER = "/api/recommendations";
+
     // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
     // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
     // since the question is a free-text request body. Without this specific, narrower rule it would otherwise fall
@@ -166,6 +172,8 @@ public class WebSecurityConfiguration {
                         .requestMatchers(CART_API_PATH_MATCHER)
                         .permitAll()
                         .requestMatchers(WISHLIST_API_PATH_MATCHER)
+                        .permitAll()
+                        .requestMatchers(RECOMMENDATIONS_API_PATH_MATCHER)
                         .permitAll()
                         .anyRequest()
                         .permitAll())
