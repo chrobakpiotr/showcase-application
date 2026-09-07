@@ -17,6 +17,8 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationType;
+import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -102,6 +104,8 @@ public class OrderController {
 
     private final GetPaymentInPort getPaymentInPort;
 
+    private final SendNotificationInPort sendNotificationInPort;
+
     @PostMapping
     @Transactional
     @ResponseStatus(HttpStatus.CREATED)
@@ -153,6 +157,7 @@ public class OrderController {
                 .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
         if (result.newlyPlaced()) {
 
+            sendOrderConfirmedNotification(order, result.orderNumber());
             orderMetrics.recordOrderPlaced();
             log.info(
                     "Order {} placed by operator {}",
@@ -251,6 +256,7 @@ public class OrderController {
         }
         releaseStockFor(order);
         refundPaymentFor(order);
+        sendOrderCancelledNotification(order);
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
@@ -304,6 +310,24 @@ public class OrderController {
     private void refundPaymentFor(final Order order) {
 
         managePaymentInPort.refundPayment(order.getOrderNumber());
+    }
+
+    private void sendOrderConfirmedNotification(final Order order, final String orderNumber) {
+
+        sendNotificationInPort.sendNotification(
+                order.getCustomer().getContact().getEmail(),
+                NotificationType.ORDER_CONFIRMED,
+                "Order " + orderNumber + " confirmed",
+                "Your order " + orderNumber + " was confirmed.");
+    }
+
+    private void sendOrderCancelledNotification(final Order order) {
+
+        sendNotificationInPort.sendNotification(
+                order.getCustomer().getContact().getEmail(),
+                NotificationType.ORDER_CANCELLED,
+                "Order " + order.getOrderNumber() + " cancelled",
+                "Your order " + order.getOrderNumber() + " was cancelled.");
     }
 
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {

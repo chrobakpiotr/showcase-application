@@ -78,6 +78,15 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines guarded notifications route', async () => {
+    const notificationsRoute = routes.find(
+      (route) => route.path === 'notifications'
+    );
+    expect(notificationsRoute?.canActivate?.length).toBe(1);
+    const component = await notificationsRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('defines guarded coupons route', async () => {
     const couponsRoute = routes.find((route) => route.path === 'coupons');
     expect(couponsRoute?.canActivate?.length).toBe(1);

@@ -1,0 +1,60 @@
+<div class="notifications-container">
+  <h2>Notifications</h2>
+
+  @if (!canRead) {
+  <p data-testid="notifications-no-access">
+    You do not have access to notifications.
+  </p>
+  } @else {
+  <div class="toolbar">
+    <label for="notification-status">Status</label>
+    <select
+      id="notification-status"
+      data-testid="notification-status-filter"
+      [value]="selectedStatus()"
+      (change)="updateStatusFilter($any($event.target).value)"
+    >
+      <option value="ALL">All</option>
+      <option value="PENDING">PENDING</option>
+      <option value="SENT">SENT</option>
+      <option value="FAILED">FAILED</option>
+    </select>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <table class="notification-table" data-testid="notification-table">
+    <thead>
+      <tr>
+        <th>Recipient</th>
+        <th>Type</th>
+        <th>Subject</th>
+        <th>Channel</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (notification of notifications(); track notification.notificationId)
+      {
+      <tr data-testid="notification-row">
+        <td>{{ notification.recipientEmail }}</td>
+        <td>{{ notification.type }}</td>
+        <td>{{ notification.subject }}</td>
+        <td>{{ notification.channel }}</td>
+        <td>{{ notification.status }}</td>
+        <td>{{ notification.createdDate | date : 'medium' }}</td>
+      </tr>
+      } @empty {
+      <tr>
+        <td class="empty" colspan="6" data-testid="empty-notifications">
+          No notifications yet.
+        </td>
+      </tr>
+      }
+    </tbody>
+  </table>
+  }
+</div>

@@ -122,6 +122,22 @@ describe('AppComponent', () => {
     expect(compiled.querySelector('a[routerLink="/returns"]')).toBeFalsy();
   });
 
+  it('shows the notifications nav link when the user has NOTIFICATION_READ', () => {
+    setup(true, 'admin', ['NOTIFICATION_READ']);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('a[routerLink="/notifications"]')
+    ).toBeTruthy();
+  });
+
+  it('hides the notifications nav link when the user lacks NOTIFICATION_READ', () => {
+    setup(true, 'admin', []);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('a[routerLink="/notifications"]')
+    ).toBeFalsy();
+  });
+
   it('shows the order history nav link when the user has ORDER_READ', () => {
     setup(true, 'admin', ['ORDER_READ']);
     const compiled = fixture.nativeElement as HTMLElement;

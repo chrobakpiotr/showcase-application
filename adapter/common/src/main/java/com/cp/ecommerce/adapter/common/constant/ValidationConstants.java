@@ -132,9 +132,16 @@ public class ValidationConstants {
     /** {@code "RETURN-"} prefix (7 chars) + a random {@link java.util.UUID} (36 chars) = 43 chars. */
     public final int RETURN_NUMBER_MAX = 43;
 
+    /** {@code "NOTIF-"} prefix (6 chars) + a random {@link java.util.UUID} (36 chars) = 42 chars. */
+    public final int NOTIFICATION_ID_MAX = 42;
+
     public final int RETURN_SKU_MAX = 40;
 
     public final int RETURN_REASON_MAX = 2000;
+
+    public final int NOTIFICATION_SUBJECT_MAX = 255;
+
+    public final int NOTIFICATION_BODY_MAX = 2000;
 
     public final int WISHLIST_SKU_MAX = 40;
 
@@ -163,6 +170,22 @@ public class ValidationConstants {
     public final String INVALID_RETURN_REQUESTED_DATE = "Requested date is required";
 
     public final String INVALID_RETURN_REFUND_AMOUNT = "Invalid Refund Amount";
+
+    public final String INVALID_NOTIFICATION_ID = "Invalid Notification Id";
+
+    public final String INVALID_NOTIFICATION_RECIPIENT_EMAIL = "Invalid Recipient Email";
+
+    public final String INVALID_NOTIFICATION_CHANNEL = "Invalid Notification Channel";
+
+    public final String INVALID_NOTIFICATION_TYPE = "Invalid Notification Type";
+
+    public final String INVALID_NOTIFICATION_SUBJECT = "Invalid Notification Subject";
+
+    public final String INVALID_NOTIFICATION_BODY = "Invalid Notification Body";
+
+    public final String INVALID_NOTIFICATION_STATUS = "Invalid Notification Status";
+
+    public final String INVALID_NOTIFICATION_CREATED_DATE = "Created date is required";
 
     public final String INVALID_COUPON_CODE = "Invalid Coupon Code";
 

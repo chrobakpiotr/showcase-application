@@ -172,6 +172,8 @@ feature area in this showcase:
   [Reviews & Ratings](#reviews--ratings))
 - **Returns / RMA** - staff-facing return-request and moderation workflow with payment refunds (see
   [Returns / RMA](#returns--rma))
+- **Notifications** - staff-facing notification log for order and returns customer communications (see
+  [Notifications](#notifications))
 - **Support assistant** and **Analytics assistant** - the two Ollama-backed AI chat widgets (see
   [AI customer-support assistant](#ai-customer-support-assistant-rag--tool-calling-ollama) and
   [AI ops-analytics assistant](#ai-ops-analytics-assistant-tool-calling-ollama))
@@ -193,6 +195,19 @@ smaller on purpose: no quantity, no coupon preview and no checkout responsibilit
 - Wishlist items snapshot product name and added date for standalone rendering, while move-to-cart re-resolves the current catalog product and price.
 - The Angular Dashboard includes a Wishlist card, and the top navigation includes a direct Wishlist entry next to Cart.
 - See [ADR 0032](docs/adr/0032-wishlist-bounded-context.md) for the bounded-context and integration decisions behind the feature.
+
+## Notifications
+
+Operators can inspect a persisted log of customer-facing notification events emitted by the Order and Returns workflows.
+This bounded context intentionally records short plain-text summaries rather than reusing the richer HTML/PDF
+order-confirmation email infrastructure.
+
+- Back-office notification API under `/api/notifications` for list/read plus recipient/status filtering, gated by
+  `NOTIFICATION_READ`.
+- Order placement and cancellation automatically create `ORDER_CONFIRMED` / `ORDER_CANCELLED` notification log entries.
+- Returns moderation automatically creates `RETURN_REJECTED` and `RETURN_REFUNDED` notification log entries.
+- The Angular Dashboard and top navigation include a Notifications entry for users with the read role.
+- See [ADR 0034](docs/adr/0034-notifications-bounded-context.md) for the bounded-context and integration decisions behind the feature.
 
 ## Coupons & Discounts
 

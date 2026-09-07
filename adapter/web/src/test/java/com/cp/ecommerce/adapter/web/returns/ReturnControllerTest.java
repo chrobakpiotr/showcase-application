@@ -12,6 +12,8 @@ import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
+import com.cp.ecommerce.domain.notification.NotificationType;
+import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -56,6 +58,7 @@ class ReturnControllerTest {
     private static final String RETURNS_ENDPOINT = "/api/returns";
     private static final String APPROVE_ENDPOINT = "/approve";
     private static final String REJECT_ENDPOINT = "/reject";
+    private static final String STATUS_JSON_PATH = "$.status";
 
     @Autowired
     private transient MockMvc mockMvc;
@@ -77,6 +80,9 @@ class ReturnControllerTest {
 
     @MockitoBean
     private transient ManagePaymentInPort managePaymentInPort;
+
+    @MockitoBean
+    private transient SendNotificationInPort sendNotificationInPort;
 
     @MockitoBean
     private transient ReturnWebMapper returnWebMapper;
@@ -220,6 +226,7 @@ class ReturnControllerTest {
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
+                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -243,6 +250,7 @@ class ReturnControllerTest {
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
+                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(() -> controller.requestReturn(null)).isInstanceOf(ResponseStatusException.class);
@@ -258,6 +266,7 @@ class ReturnControllerTest {
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
+                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -281,6 +290,7 @@ class ReturnControllerTest {
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
+                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -415,42 +425,77 @@ class ReturnControllerTest {
 
         final ReturnRequest approved = TestReturnRequests.approved();
         final ReturnRequest refunded = TestReturnRequests.refunded();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
         given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("REFUNDED"));
+                .andExpect(jsonPath(STATUS_JSON_PATH).value("REFUNDED"));
 
         verify(managePaymentInPort).refundPayment(ReturnRequestBuilder.TEST_ORDER_NUMBER);
+        verify(sendNotificationInPort).sendNotification(
+                "test@test.com",
+                NotificationType.RETURN_REFUNDED,
+                "Return " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
+                "Your return request " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
     }
 
     @Test
     void shouldApproveAlreadyRefundedReturnWithoutRefundingPaymentAgain() throws Exception {
 
         final ReturnRequest refunded = TestReturnRequests.refunded();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("REFUNDED"));
+                .andExpect(jsonPath(STATUS_JSON_PATH).value("REFUNDED"));
 
         verify(managePaymentInPort, never()).refundPayment(any());
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
     }
 
     @Test
     void shouldRejectReturn() throws Exception {
 
         final ReturnRequest rejected = TestReturnRequests.rejected();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER))
+                .willReturn(ReturnRequestBuilder.mockReturnRequest());
+        given(returnModerationInPort.rejectReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+        given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REJECTED)));
+
+        mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + REJECT_ENDPOINT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
+
+        verify(sendNotificationInPort).sendNotification(
+                "test@test.com",
+                NotificationType.RETURN_REJECTED,
+                "Return " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
+                "Your return request " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
+    }
+
+    @Test
+    void shouldRejectAlreadyRejectedReturnWithoutSendingNotificationAgain() throws Exception {
+
+        final ReturnRequest rejected = TestReturnRequests.rejected();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
         given(returnModerationInPort.rejectReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
         given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REJECTED)));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + REJECT_ENDPOINT))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("REJECTED"));
+                .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
+
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
     }
 
     @Test
@@ -474,6 +519,20 @@ class ReturnControllerTest {
     }
 
     @Test
+    void shouldReturnNotFoundWhenOrderCannotBeLoadedForRefundNotification() throws Exception {
+
+        final ReturnRequest approved = TestReturnRequests.approved();
+        final ReturnRequest refunded = TestReturnRequests.refunded();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
+        given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
+        given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(null);
+
+        mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void shouldThrowWhenRefundedReturnCannotBeReloadedInDirectInvocation() {
 
         final ReturnController controller = new ReturnController(
@@ -483,10 +542,13 @@ class ReturnControllerTest {
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
+                sendNotificationInPort,
                 returnWebMapper);
         final ReturnRequest approved = TestReturnRequests.approved();
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(null);
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
 
         assertThatThrownBy(() -> controller.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER))
                 .isInstanceOf(ResponseStatusException.class);

@@ -16,7 +16,8 @@
       { "name": "COUPON_READ", "description": "Allows reading coupons" },
       { "name": "COUPON_WRITE", "description": "Allows managing coupons" },
       { "name": "RETURN_READ", "description": "Allows reading return requests" },
-      { "name": "RETURN_WRITE", "description": "Allows requesting and moderating return requests" }
+      { "name": "RETURN_WRITE", "description": "Allows requesting and moderating return requests" },
+      { "name": "NOTIFICATION_READ", "description": "Allows reading notification log entries" }
     ]
   },
   "clients": [
@@ -57,7 +58,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE", "INVENTORY_READ", "INVENTORY_WRITE", "REVIEWS_READ", "REVIEWS_WRITE", "COUPON_READ", "COUPON_WRITE", "RETURN_READ", "RETURN_WRITE" ]
+      "realmRoles": [ "ORDER_READ", "ORDER_WRITE", "CATALOG_READ", "CATALOG_WRITE", "INVENTORY_READ", "INVENTORY_WRITE", "REVIEWS_READ", "REVIEWS_WRITE", "COUPON_READ", "COUPON_WRITE", "RETURN_READ", "RETURN_WRITE", "NOTIFICATION_READ" ]
     },
     {
       "username": "order-viewer",
@@ -69,7 +70,7 @@
       "credentials": [
         { "type": "password", "value": "password", "temporary": false }
       ],
-      "realmRoles": [ "ORDER_READ", "CATALOG_READ", "INVENTORY_READ", "REVIEWS_READ", "COUPON_READ", "RETURN_READ" ]
+      "realmRoles": [ "ORDER_READ", "CATALOG_READ", "INVENTORY_READ", "REVIEWS_READ", "COUPON_READ", "RETURN_READ", "NOTIFICATION_READ" ]
     }
   ]
 }

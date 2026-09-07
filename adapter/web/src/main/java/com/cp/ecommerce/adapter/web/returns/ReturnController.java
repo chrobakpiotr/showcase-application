@@ -8,6 +8,8 @@ import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
+import com.cp.ecommerce.domain.notification.NotificationType;
+import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -50,7 +52,8 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * <p>
  * Cross-bounded-context composition stays here, not in {@code domain.returns}: the controller validates the referenced
  * {@link Order}, computes the authoritative refund amount from the order line-item snapshot, and composes
- * {@link ManagePaymentInPort#refundPayment(String)} after moderation, matching {@code OrderController#cancelOrder}.
+ * {@link ManagePaymentInPort#refundPayment(String)} and notification logging after moderation, matching
+ * {@code OrderController#cancelOrder}.
  */
 @RequiredArgsConstructor
 @RestController
@@ -71,6 +74,8 @@ public class ReturnController {
     private final ManageOrderUseCase manageOrderUseCase;
 
     private final ManagePaymentInPort managePaymentInPort;
+
+    private final SendNotificationInPort sendNotificationInPort;
 
     private final ReturnWebMapper returnWebMapper;
 
@@ -176,6 +181,7 @@ public class ReturnController {
     @Operation(summary = "Approve a return request and trigger payment refund")
     public EntityModel<ReturnRequestResource> approveReturn(@PathVariable("returnNumber") final String returnNumber) {
 
+        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
         final ReturnRequest approved = returnModerationInPort.approveReturn(returnNumber);
         if (approved == null) {
 
@@ -190,6 +196,10 @@ public class ReturnController {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND_MESSAGE);
         }
+        if (existing == null || existing.getStatus() != ReturnStatus.REFUNDED) {
+
+            sendReturnRefundedNotification(refunded);
+        }
         return toResourceModel(refunded);
     }
 
@@ -197,10 +207,15 @@ public class ReturnController {
     @Operation(summary = "Reject a return request")
     public EntityModel<ReturnRequestResource> rejectReturn(@PathVariable("returnNumber") final String returnNumber) {
 
+        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
         final ReturnRequest rejected = returnModerationInPort.rejectReturn(returnNumber);
         if (rejected == null) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND_MESSAGE);
+        }
+        if (existing == null || existing.getStatus() != ReturnStatus.REJECTED) {
+
+            sendReturnRejectedNotification(rejected);
         }
         return toResourceModel(rejected);
     }
@@ -246,6 +261,34 @@ public class ReturnController {
             model.add(linkTo(methodOn(ReturnController.class).rejectReturn(returnNumber)).withRel("reject"));
         }
         return model;
+    }
+
+    private void sendReturnRejectedNotification(final ReturnRequest rejected) {
+
+        sendNotificationInPort.sendNotification(
+                findCustomerEmail(rejected.getOrderNumber()),
+                NotificationType.RETURN_REJECTED,
+                "Return " + rejected.getReturnNumber() + " rejected",
+                "Your return request " + rejected.getReturnNumber() + " was rejected.");
+    }
+
+    private void sendReturnRefundedNotification(final ReturnRequest refunded) {
+
+        sendNotificationInPort.sendNotification(
+                findCustomerEmail(refunded.getOrderNumber()),
+                NotificationType.RETURN_REFUNDED,
+                "Return " + refunded.getReturnNumber() + " refunded",
+                "Your return request " + refunded.getReturnNumber() + " was refunded.");
+    }
+
+    private String findCustomerEmail(final String orderNumber) {
+
+        final Order order = manageOrderUseCase.findOrder(orderNumber);
+        if (order == null) {
+
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
+        }
+        return order.getCustomer().getContact().getEmail();
     }
 
 }

@@ -53,6 +53,7 @@ describe('DashboardComponent', () => {
     expect(compiled.querySelector('a[href="/analytics"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/coupons"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/returns"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/notifications"]')).toBeFalsy();
   });
 
   it('shows role-gated cards with the required role', () => {
@@ -60,6 +61,7 @@ describe('DashboardComponent', () => {
       'ORDER_READ',
       'CATALOG_READ',
       'INVENTORY_READ',
+      'NOTIFICATION_READ',
       'COUPON_READ',
       'RETURN_READ',
     ]);
@@ -70,6 +72,7 @@ describe('DashboardComponent', () => {
     expect(compiled.querySelector('a[href="/analytics"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/coupons"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/returns"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/notifications"]')).toBeTruthy();
   });
 
   it('reports isVisible correctly for role-agnostic cards', () => {

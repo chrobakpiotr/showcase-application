@@ -12,6 +12,10 @@ import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.inventory.StockLevel;
+import com.cp.ecommerce.domain.notification.Notification;
+import com.cp.ecommerce.domain.notification.NotificationChannel;
+import com.cp.ecommerce.domain.notification.NotificationStatus;
+import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.PaymentMethod;
@@ -48,6 +52,8 @@ public final class TestDomainObjectFactory {
     public static final String TEST_WISHLIST_ID = "WISHLIST-1001";
 
     public static final String TEST_RETURN_NUMBER = "RETURN-1001";
+
+    public static final String TEST_NOTIFICATION_ID = "NOTIF-1001";
 
     public static Order validOrder() {
 
@@ -220,6 +226,21 @@ public final class TestDomainObjectFactory {
                 .requestedDate(TEST_CREATED)
                 .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
                 .refundAmount(new BigDecimal("29.99"))
+                .build();
+    }
+
+    public static Notification validNotification() {
+
+        return Notification.builder()
+                .notificationId(TEST_NOTIFICATION_ID)
+                .recipientEmail("john.doe@test.com")
+                .channel(NotificationChannel.EMAIL)
+                .type(NotificationType.ORDER_CONFIRMED)
+                .subject("Order confirmed")
+                .body("Your order was confirmed.")
+                .status(NotificationStatus.SENT)
+                .createdDate(TEST_CREATED)
+                .sentDate(new Date(TEST_CREATED.getTime() + 60000))
                 .build();
     }
 

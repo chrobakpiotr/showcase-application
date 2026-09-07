@@ -40,6 +40,8 @@ class WebSecurityConfigurationTest {
 
     private static final String WISHLIST_ENDPOINT = "/api/wishlist";
 
+    private static final String NOTIFICATIONS_ENDPOINT = "/api/notifications";
+
     private static final String REVIEWS_MODERATION_PENDING_ENDPOINT = "/api/reviews/moderation/pending";
 
     @Autowired
@@ -240,6 +242,30 @@ class WebSecurityConfigurationTest {
     void shouldAllowUnauthenticatedAccessToWishlistApi() throws Exception {
 
         final int status = mockMvc.perform(post(WISHLIST_ENDPOINT)).andReturn().getResponse().getStatus();
+
+        assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldRejectUnauthenticatedAccessToNotificationsApi() throws Exception {
+
+        mockMvc.perform(get(NOTIFICATIONS_ENDPOINT)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldRejectReadingNotificationsWithoutNotificationReadRole() throws Exception {
+
+        mockMvc.perform(get(NOTIFICATIONS_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_READ")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAllowReadingNotificationsWithNotificationReadRole() throws Exception {
+
+        final int status = mockMvc.perform(get(NOTIFICATIONS_ENDPOINT).with(jwt().authorities(() -> "ROLE_NOTIFICATION_READ")))
+                .andReturn()
+                .getResponse()
+                .getStatus();
 
         assertThat(status).isNotIn(401, 403);
     }

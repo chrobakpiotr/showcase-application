@@ -80,6 +80,13 @@ export class DashboardComponent {
       requiredRole: 'RETURN_READ',
     },
     {
+      title: 'Notifications',
+      description:
+        'Inspect the persisted notification log for order and returns flows.',
+      routerLink: '/notifications',
+      requiredRole: 'NOTIFICATION_READ',
+    },
+    {
       title: 'Coupons & Discounts',
       description:
         'Browse, create and activate discount coupons for cart and order flows.',

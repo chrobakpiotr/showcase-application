@@ -20,6 +20,8 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationType;
+import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -71,6 +73,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
  * Test class checking order page controller's behavior and order page API response.
  */
 @WebMvcTest(OrderController.class)
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 class OrderControllerTest {
 
     private static final String ORDER_ENDPOINT = "/api/order";
@@ -119,6 +122,9 @@ class OrderControllerTest {
     @MockitoBean
     private transient GetPaymentInPort getPaymentInPort;
 
+    @MockitoBean
+    private transient SendNotificationInPort sendNotificationInPort;
+
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
 
@@ -146,6 +152,11 @@ class OrderControllerTest {
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
         verify(manageStockInPort, atLeastOnce())
                 .reserveStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+        verify(sendNotificationInPort).sendNotification(
+                CustomerBuilder.TEST_EMAIL,
+                NotificationType.ORDER_CONFIRMED,
+                "Order " + TEST_ORDER_NUMBER + " confirmed",
+                "Your order " + TEST_ORDER_NUMBER + " was confirmed.");
     }
 
     @Test
@@ -264,6 +275,7 @@ class OrderControllerTest {
 
         verify(orderMetrics, never()).recordOrderPlaced();
         verify(currentOperatorProvider, never()).currentOperator();
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
     }
 
     @Test
@@ -394,6 +406,11 @@ class OrderControllerTest {
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
         verify(manageStockInPort)
                 .releaseStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+        verify(sendNotificationInPort).sendNotification(
+                CustomerBuilder.TEST_EMAIL,
+                NotificationType.ORDER_CANCELLED,
+                "Order " + TEST_ORDER_NUMBER + " cancelled",
+                "Your order " + TEST_ORDER_NUMBER + " was cancelled.");
     }
 
     @Test
@@ -406,6 +423,7 @@ class OrderControllerTest {
 
         verify(orderMetrics, never()).recordOrderCancelled();
         verify(currentOperatorProvider, never()).currentOperator();
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
     }
 
     @Test
