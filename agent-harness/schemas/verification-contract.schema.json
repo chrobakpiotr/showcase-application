@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic SDD independent verification contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "criteria", "exemptions", "assumptions"],
+  "properties": {
+    "status": {"type": "string", "enum": ["pass", "fail", "needs-human"]},
+    "summary": {"type": "string", "minLength": 1},
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "statement", "origin", "source_type", "sources", "verification_hint"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^VC-[0-9]{3}$"},
+          "statement": {"type": "string", "minLength": 1},
+          "origin": {"type": "string", "enum": ["spec-derived", "independent"]},
+          "source_type": {"type": "string", "enum": ["spec", "adr", "architecture-invariant", "existing-behavior", "security", "performance", "external-standard", "human"]},
+          "sources": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "verification_hint": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "exemptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "scope", "reason", "status", "approved_by"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^VX-[0-9]{3}$"},
+          "scope": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "enum": ["accepted", "rejected", "proposed"]},
+          "approved_by": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "assumptions": {"type": "array", "items": {"type": "string"}}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": "pass",
+  "summary": "Describe what was verified and why the task satisfies its assigned acceptance criteria.",
+  "changed_paths": [],
+  "commands": [],
+  "assumptions": [],
+  "residual_risks": [],
+  "findings": [],
+  "rework_tasks": []
+}

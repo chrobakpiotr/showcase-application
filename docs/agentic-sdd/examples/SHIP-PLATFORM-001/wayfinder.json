@@ -1,0 +1,276 @@
+{
+  "schema_version": 2,
+  "epic": "SHIP-PLATFORM-001",
+  "destination": "Produce an implementation-ready specification for evolving the existing operator-driven shipment tracking bounded context into a multi-carrier, near-real-time tracking platform without breaking current order/shipment contracts or bypassing existing bounded-context boundaries.",
+  "claim_ttl_seconds": 1800,
+  "out_of_scope": [
+    "Choosing or integrating a real production courier account/credential in the discovery demo.",
+    "Production deployment or remote infrastructure mutation.",
+    "Replacing the entire order-placement saga or payment flow.",
+    "Implementing split-shipment fulfillment unless the decision map proves it is required by the destination."
+  ],
+  "fog": [
+    {
+      "id": "F-001",
+      "description": "Carrier capabilities differ: some may push webhooks, some may require polling, and delivery guarantees are unknown.",
+      "status": "open"
+    },
+    {
+      "id": "F-002",
+      "description": "The authoritative source of shipment state when operator state and carrier state disagree is not yet defined.",
+      "status": "open"
+    },
+    {
+      "id": "F-003",
+      "description": "Duplicate, delayed, reordered and replayed carrier events may violate the current linear shipment transition model.",
+      "status": "open"
+    },
+    {
+      "id": "F-004",
+      "description": "The meaning of near-real-time for operator/customer UX and the delivery mechanism to browsers are not yet fixed.",
+      "status": "open"
+    },
+    {
+      "id": "F-005",
+      "description": "History/replay/backfill requirements and the shape of any tracking read model are unclear.",
+      "status": "open"
+    },
+    {
+      "id": "F-006",
+      "description": "Authorization and data-isolation rules for exposing tracking beyond the current back-office API are unclear.",
+      "status": "open"
+    },
+    {
+      "id": "F-007",
+      "description": "Migration from the current one-shipment-per-order, operator-advanced model to carrier-fed updates must preserve compatibility and rollback options.",
+      "status": "open"
+    },
+    {
+      "id": "F-008",
+      "description": "Operational behavior during carrier outages, webhook loss, polling lag, poison events and replay storms is not yet defined.",
+      "status": "open"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D-001",
+      "name": "Shipment truth and carrier boundary",
+      "question": "What owns authoritative shipment tracking state, and what stable carrier abstraction lets webhook- and polling-based carriers coexist without leaking provider models into the shipment domain?",
+      "type": "architecture",
+      "status": "open",
+      "depends_on": [],
+      "fog_refs": [
+        "F-001",
+        "F-002"
+      ],
+      "leverage": 10,
+      "context_refs": [
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
+        "domain/src/main/java/com/cp/ecommerce/domain/shipment/",
+        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+      ]
+    },
+    {
+      "id": "D-002",
+      "name": "Carrier ingestion semantics",
+      "question": "How should carrier updates enter the system across webhook and polling sources, including acknowledgement, retries, deduplication, idempotency and reconciliation after gaps?",
+      "type": "contract",
+      "status": "open",
+      "depends_on": [
+        "D-001"
+      ],
+      "fog_refs": [
+        "F-001",
+        "F-003",
+        "F-008"
+      ],
+      "leverage": 9,
+      "context_refs": [
+        "docs/adr/0009-order-placement-saga.md",
+        "etc/asyncapi/asyncapi.yml",
+        "adapter/kafka/",
+        "adapter/amqp/"
+      ]
+    },
+    {
+      "id": "D-003",
+      "name": "Tracking state normalization and ordering",
+      "question": "How should heterogeneous carrier statuses map into a canonical shipment timeline when updates are duplicated, delayed or arrive out of order, and which transitions remain valid?",
+      "type": "domain",
+      "status": "open",
+      "depends_on": [
+        "D-001",
+        "D-002"
+      ],
+      "fog_refs": [
+        "F-002",
+        "F-003"
+      ],
+      "leverage": 10,
+      "context_refs": [
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
+        "domain/src/main/java/com/cp/ecommerce/domain/shipment/"
+      ]
+    },
+    {
+      "id": "D-004",
+      "name": "Near-real-time UX contract",
+      "question": "What freshness/SLO does near-real-time mean for operators and customers, and should browser delivery use polling, SSE or another mechanism given the existing Spring Boot/Angular architecture?",
+      "type": "prototype",
+      "status": "open",
+      "depends_on": [
+        "D-001"
+      ],
+      "fog_refs": [
+        "F-004"
+      ],
+      "leverage": 7,
+      "context_refs": [
+        "adapter/ecommerce-frontend/",
+        "adapter/web/",
+        "docs/architecture/README.md"
+      ]
+    },
+    {
+      "id": "D-005",
+      "name": "Timeline persistence and replay model",
+      "question": "What durable model is needed for current state plus tracking history/replay/backfill, and can it fit the existing PostgreSQL persistence model without adding event sourcing unnecessarily?",
+      "type": "architecture",
+      "status": "open",
+      "depends_on": [
+        "D-003"
+      ],
+      "fog_refs": [
+        "F-005"
+      ],
+      "leverage": 8,
+      "context_refs": [
+        "adapter/persistence/",
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md"
+      ]
+    },
+    {
+      "id": "D-006",
+      "name": "Tracking access and privacy boundary",
+      "question": "Who may read shipment tracking data, how does customer-facing access relate to existing operator roles, and what identifiers/data must never be exposed?",
+      "type": "security",
+      "status": "open",
+      "depends_on": [
+        "D-001"
+      ],
+      "fog_refs": [
+        "F-006"
+      ],
+      "leverage": 6,
+      "context_refs": [
+        "adapter/security/",
+        "docs/adr/0017-order-api-operator-authorization-model.md",
+        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+      ]
+    },
+    {
+      "id": "D-007",
+      "name": "Carrier failure and recovery model",
+      "question": "What operational recovery model handles carrier downtime, webhook loss, poll failures, poison payloads, replay storms and prolonged lag while keeping tracking convergent and observable?",
+      "type": "operability",
+      "status": "open",
+      "depends_on": [
+        "D-002",
+        "D-003",
+        "D-005"
+      ],
+      "fog_refs": [
+        "F-008"
+      ],
+      "leverage": 8,
+      "context_refs": [
+        "docs/architecture/README.md",
+        "docker-compose.yml",
+        "application/ecommerce/"
+      ]
+    },
+    {
+      "id": "D-008",
+      "name": "Compatibility and migration path",
+      "question": "How do we migrate from the current operator-driven one-shipment-per-order flow to carrier-fed tracking incrementally, preserving API/data compatibility and a safe rollback/forward-fix path?",
+      "type": "migration",
+      "status": "open",
+      "depends_on": [
+        "D-003",
+        "D-004",
+        "D-005",
+        "D-006",
+        "D-007",
+        "D-009"
+      ],
+      "fog_refs": [
+        "F-007"
+      ],
+      "leverage": 9,
+      "context_refs": [
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
+        "adapter/persistence/src/main/resources/",
+        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+      ]
+    },
+    {
+      "id": "D-009",
+      "name": "Existing compatibility baseline",
+      "question": "Which current shipment API, persistence, authorization, notification and frontend behaviors are already relied on by tests/contracts and therefore form the migration compatibility baseline?",
+      "type": "research",
+      "status": "open",
+      "depends_on": [],
+      "fog_refs": [
+        "F-007"
+      ],
+      "leverage": 5,
+      "context_refs": [
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
+        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/",
+        "adapter/security/",
+        "adapter/persistence/",
+        "adapter/ecommerce-frontend/"
+      ]
+    }
+  ],
+  "ledger": [
+    {
+      "id": "K-001",
+      "type": "fact",
+      "status": "active",
+      "statement": "ADR 0035 models shipment tracking as operator-driven linear status advancement and explicitly has no real carrier webhook or polling integration.",
+      "source_decision": "destination",
+      "evidence": [
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md"
+      ],
+      "blocking": false,
+      "supersedes": []
+    },
+    {
+      "id": "K-002",
+      "type": "constraint",
+      "status": "active",
+      "statement": "The evolution must preserve current order/shipment API and persistence compatibility during incremental migration unless an explicit later decision supersedes that constraint.",
+      "source_decision": "destination",
+      "evidence": [
+        "demo destination",
+        "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md"
+      ],
+      "blocking": false,
+      "supersedes": []
+    },
+    {
+      "id": "K-003",
+      "type": "constraint",
+      "status": "active",
+      "statement": "Discovery and prototypes must not use production carrier credentials, deploy, push, merge, or mutate remote systems.",
+      "source_decision": "destination",
+      "evidence": [
+        "demo out-of-scope boundary",
+        "docs/agentic-sdd/constitution.md"
+      ],
+      "blocking": false,
+      "supersedes": []
+    }
+  ]
+}

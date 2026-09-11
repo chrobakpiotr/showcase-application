@@ -1,0 +1,46 @@
+{
+  "schema_version": 2,
+  "epic": "<EPIC-ID>",
+  "destination": "Describe what must be true when the discovery map is cleared.",
+  "claim_ttl_seconds": 1800,
+  "out_of_scope": [],
+  "fog": [
+    {
+      "id": "F-001",
+      "description": "A known unknown that is not yet sharp enough to become a decision question.",
+      "status": "open"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D-001",
+      "name": "First load-bearing decision",
+      "question": "What must be decided first to clear the largest amount of fog?",
+      "type": "architecture",
+      "status": "open",
+      "depends_on": [],
+      "fog_refs": [
+        "F-001"
+      ],
+      "leverage": 10,
+      "context_refs": [
+        "docs/architecture/README.md",
+        "docs/adr/"
+      ]
+    }
+  ],
+  "ledger": [
+    {
+      "id": "K-001",
+      "type": "constraint",
+      "status": "active",
+      "statement": "No production/remote mutation is allowed during discovery.",
+      "source_decision": "destination",
+      "evidence": [
+        "human destination boundary"
+      ],
+      "blocking": false,
+      "supersedes": []
+    }
+  ]
+}

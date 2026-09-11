@@ -1,0 +1,353 @@
+{
+  "feature": "SDD-001",
+  "max_parallel": 3,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define repo-native SDD operating model",
+      "objective": "Create the concise repository map, constitution, role contracts, templates, Wayfinder/grill/prototype documentation and maintained examples without changing application runtime behavior.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/agents/**",
+        "docs/agentic-sdd/**"
+      ],
+      "risk_tags": [
+        "architecture"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-005",
+        "AC-009",
+        "AC-011",
+        "AC-012",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-021",
+        "AC-025",
+        "AC-026",
+        "AC-027",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "AC-032"
+      ],
+      "verification": [
+        "python3 agent-harness/harness.py validate docs/specs/SDD-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Protocol documentation, templates and agent profiles must remain machine-consistent with validators, maintained examples and doctor/CI checks."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement deterministic orchestration core and crash recovery",
+      "objective": "Implement validation, DAG scheduling, atomic renewable leases/heartbeat/stale recovery, stale-state detection, immutable packets, bounded retries, evidence checks and worktree management.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "agent-harness/harness.py",
+        "agent-harness/orchestrate.py",
+        "agent-harness/tests/test_harness.py",
+        "agent-harness/tests/test_orchestrate.py",
+        ".gitignore",
+        "agent-harness/design.py",
+        "agent-harness/tests/test_design.py",
+        "agent-harness/wayfinder.py",
+        "agent-harness/tests/test_wayfinder.py",
+        "agent-harness/trust.py",
+        "agent-harness/verification_contract.py",
+        "agent-harness/eval.py",
+        "agent-harness/tests/test_trust.py",
+        "agent-harness/tests/test_verification_contract.py",
+        "agent-harness/tests/test_eval.py"
+      ],
+      "risk_tags": [
+        "orchestration",
+        "concurrency"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-018",
+        "AC-019",
+        "AC-021",
+        "AC-022",
+        "AC-023",
+        "AC-024",
+        "AC-026",
+        "AC-027",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "AC-032"
+      ],
+      "verification": [
+        "python3 -m unittest agent-harness/tests/test_harness.py agent-harness/tests/test_orchestrate.py agent-harness/tests/test_design.py -v",
+        "python3 -m unittest agent-harness/tests/test_wayfinder.py -v",
+        "python3 -m unittest agent-harness/tests/test_trust.py agent-harness/tests/test_verification_contract.py agent-harness/tests/test_eval.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Unit tests exercise deterministic Wayfinder ledger/reconciliation, DAG validation, stale gates and task-packet protocol behavior before implementation changes."
+    },
+    {
+      "id": "T-003",
+      "title": "Harden provider execution, verification sandbox and telemetry",
+      "objective": "Add bounded Codex/Claude execution, independent deterministic verification, OS sandbox policy and terminal provenance/usage/known-cost telemetry.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "agent-harness/runner.py",
+        "agent-harness/verification_sandbox.py",
+        "agent-harness/telemetry.py",
+        "agent-harness/schemas/**",
+        "agent-harness/tests/test_runner.py",
+        "agent-harness/tests/test_verification_sandbox.py",
+        "agent-harness/tests/test_telemetry.py"
+      ],
+      "risk_tags": [
+        "security",
+        "ai"
+      ],
+      "acceptance_criteria": [
+        "AC-008",
+        "AC-010",
+        "AC-011",
+        "AC-014",
+        "AC-015",
+        "AC-019",
+        "AC-023",
+        "AC-024",
+        "AC-028",
+        "AC-029",
+        "AC-030"
+      ],
+      "verification": [
+        "python3 -m unittest agent-harness/tests/test_runner.py agent-harness/tests/test_verification_sandbox.py agent-harness/tests/test_telemetry.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Runner contract tests prove protocol-v4 trust tamper rejection and RED/GREEN/REFACTOR evidence requirements before provider execution is accepted."
+    },
+    {
+      "id": "T-005",
+      "title": "Add read-only tracker control plane",
+      "objective": "Normalize GitHub/Jira issue data into local untrusted intent snapshots without exposing any remote mutation operation.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "agent-harness/control_plane.py",
+        "agent-harness/tests/test_control_plane.py"
+      ],
+      "risk_tags": [
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-016",
+        "AC-029"
+      ],
+      "verification": [
+        "python3 -m unittest agent-harness/tests/test_control_plane.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Control-plane normalization tests prove tracker snapshots remain read-only and are labeled untrusted before integration with provider prompts."
+    },
+    {
+      "id": "T-004",
+      "title": "Make the SDD layer self-validating",
+      "objective": "Describe the Agentic SDD layer with its own accepted spec/plan/DAG and CI workflow that compiles/tests the full protocol and previews maintained implementation/design/Wayfinder examples.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-005"
+      ],
+      "allowed_paths": [
+        ".github/workflows/agentic-sdd.yml",
+        "docs/specs/SDD-001/**"
+      ],
+      "risk_tags": [
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-009",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-021",
+        "AC-022",
+        "AC-023",
+        "AC-024",
+        "AC-025",
+        "AC-026",
+        "AC-027",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "AC-032"
+      ],
+      "verification": [
+        "python3 -m py_compile agent-harness/harness.py agent-harness/orchestrate.py agent-harness/runner.py agent-harness/verification_sandbox.py agent-harness/telemetry.py agent-harness/control_plane.py agent-harness/design.py agent-harness/wayfinder.py agent-harness/trust.py agent-harness/verification_contract.py agent-harness/eval.py",
+        "python3 -m unittest discover -s agent-harness/tests -v",
+        "python3 agent-harness/harness.py validate-all docs/specs",
+        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
+        "python3 agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
+        "python3 agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 agent-harness/verification_contract.py validate docs/specs/SDD-001",
+        "python3 agent-harness/eval.py run --suite baseline --repeat 1",
+        "python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Self-hosting CI/install/example checks compile and execute the complete Agentic SDD protocol, including verification contract and eval suites."
+    },
+    {
+      "id": "T-900",
+      "title": "Independent protocol evaluation",
+      "objective": "Try to falsify the Agentic SDD baseline against every accepted spec criterion and independent verification criterion, including typed Decision Ledger reconciliation, verification-contract freshness/independence, context trust, risk-driven TDD evidence, eval safety, Wayfinder handoffs, design gates, recovery, provenance and verification isolation.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-005",
+        "T-004"
+      ],
+      "allowed_paths": [
+        "agent-harness/tests/**",
+        "docs/specs/SDD-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-021",
+        "AC-022",
+        "AC-023",
+        "AC-024",
+        "AC-025",
+        "AC-026",
+        "AC-027",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-005",
+        "VC-006",
+        "AC-032",
+        "VC-007"
+      ],
+      "verification": [
+        "python3 -m unittest discover -s agent-harness/tests -v",
+        "python3 agent-harness/harness.py validate-all docs/specs",
+        "python3 agent-harness/harness.py doctor",
+        "python3 agent-harness/orchestrate.py docs/specs/SDD-001 --plan",
+        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
+        "python3 agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
+        "python3 -m unittest agent-harness/tests/test_wayfinder.py -v",
+        "python3 agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 agent-harness/verification_contract.py validate docs/specs/SDD-001",
+        "python3 agent-harness/eval.py run --suite baseline --repeat 1",
+        "python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1"
+      ]
+    },
+    {
+      "id": "T-990",
+      "title": "Integration and human-ready gate",
+      "objective": "Confirm independent evaluation evidence and hand the local patch to the human without commit, push, merge, deployment or remote tracker mutation.",
+      "role": "integration",
+      "depends_on": [
+        "T-900"
+      ],
+      "allowed_paths": [
+        "docs/specs/SDD-001/evidence/**"
+      ],
+      "risk_tags": [
+        "integration"
+      ],
+      "acceptance_criteria": [
+        "AC-009",
+        "AC-010",
+        "AC-015",
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019",
+        "AC-020",
+        "AC-026",
+        "AC-027",
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-005",
+        "VC-006",
+        "AC-032",
+        "VC-007"
+      ],
+      "verification": [
+        "python3 -m unittest discover -s agent-harness/tests -v",
+        "python3 agent-harness/harness.py validate-all docs/specs"
+      ]
+    }
+  ],
+  "test_policy": "risk-driven"
+}

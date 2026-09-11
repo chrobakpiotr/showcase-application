@@ -1,0 +1,79 @@
+{
+  "feature": "<FEATURE-ID>",
+  "max_parallel": 4,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define domain behaviour",
+      "objective": "Implement the accepted domain behaviour only.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "domain/**"
+      ],
+      "risk_tags": [
+        "domain"
+      ],
+      "acceptance_criteria": [
+        "AC-001"
+      ],
+      "verification": [
+        "./gradlew :domain:test"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Define the smallest observable behavior seam before implementation; switch to existing-suite/not-applicable only with an explicit rationale."
+    },
+    {
+      "id": "T-002",
+      "title": "Integrate adapter",
+      "objective": "Implement the required adapter against existing ports/contracts.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "adapter/<adapter>/**"
+      ],
+      "risk_tags": [
+        "api"
+      ],
+      "acceptance_criteria": [
+        "AC-001"
+      ],
+      "verification": [
+        "./gradlew :adapter:<adapter>:test"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Define the smallest observable behavior seam before implementation; switch to existing-suite/not-applicable only with an explicit rationale."
+    },
+    {
+      "id": "T-900",
+      "title": "Independent evaluation",
+      "objective": "Try to falsify the implementation against the accepted spec, independent verification contract, and runtime evidence.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "**/src/test/**",
+        "docs/specs/<FEATURE-ID>/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "VC-001"
+      ],
+      "verification": [
+        "./gradlew build --continue"
+      ]
+    }
+  ],
+  "authoring_note": "Create this executable DAG only after any required design preflight has a current PASS gate.",
+  "test_policy": "risk-driven"
+}

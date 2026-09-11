@@ -1,0 +1,39 @@
+{
+  "required_for_orchestration": false,
+  "grill": "always",
+  "prototype": "always",
+  "architecture_grill": "always",
+  "prototype_max_parallel": 3,
+  "prototype_questions": [
+    {
+      "id": "P-001",
+      "question": "Which persistence strategy best preserves inventory reservation correctness under high contention while remaining operationally reasonable for this codebase?",
+      "rationale": "The current optimistic-locking design is correct, but a future hotspot should be changed only if reproducible evidence shows a material advantage.",
+      "decision_criteria": [
+        "correctness/no over-reservation",
+        "failure and retry semantics",
+        "contention behavior",
+        "p95/throughput directional evidence",
+        "implementation complexity",
+        "database coupling",
+        "operability/observability",
+        "fit with existing hexagonal architecture"
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Keep the existing optimistic @Version + bounded business-aware retry strategy and build a contention test/benchmark around it."
+        },
+        {
+          "id": "B",
+          "approach": "Prototype a pessimistic database write-lock strategy for the stock row and compare contention/failure behavior."
+        },
+        {
+          "id": "C",
+          "approach": "Prototype an atomic conditional SQL update/reservation operation that fails when available quantity is insufficient, while preserving the domain boundary."
+        }
+      ]
+    }
+  ],
+  "verification_contract": "optional"
+}

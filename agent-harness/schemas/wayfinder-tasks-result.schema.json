@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status","summary","tasks_json","assumptions"],
+  "properties": {
+    "status": {"enum":["pass","fail","needs-human"]},
+    "summary": {"type":"string","minLength":1},
+    "tasks_json": {"type":"object"},
+    "assumptions": {"type":"array","items":{"type":"string"}}
+  }
+}

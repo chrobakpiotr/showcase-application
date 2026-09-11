@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "summary",
+    "decision",
+    "rationale",
+    "evidence",
+    "new_decisions",
+    "fog_resolved",
+    "fog_added",
+    "out_of_scope_added",
+    "spec_inputs",
+    "changed_paths",
+    "commands",
+    "assumptions",
+    "residual_risks",
+    "ledger_entries"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "pass",
+        "fail",
+        "needs-human"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "new_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "question",
+          "type"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "grill",
+              "research",
+              "prototype",
+              "architecture",
+              "domain",
+              "contract",
+              "security",
+              "operability",
+              "performance",
+              "migration",
+              "human"
+            ]
+          },
+          "leverage": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "context_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fog_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "fog_resolved": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fog_added": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "out_of_scope_added": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "spec_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changed_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "residual_risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ledger_entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "statement"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "fact",
+              "decision",
+              "assumption",
+              "constraint",
+              "evidence"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "supersedes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^K-[0-9]{3}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

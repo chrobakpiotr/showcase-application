@@ -1,0 +1,145 @@
+{
+  "feature": "INV-LOW-001",
+  "max_parallel": 2,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define low-stock domain query",
+      "objective": "Add the inventory-domain query object, incoming/outgoing ports, use case and focused tests without changing StockLevel mutation semantics.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "domain/src/main/java/com/cp/ecommerce/domain/inventory/**",
+        "domain/src/test/java/com/cp/ecommerce/domain/inventory/**"
+      ],
+      "risk_tags": [
+        "domain"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-006",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :domain:test"
+      ]
+    },
+    {
+      "id": "T-002",
+      "title": "Implement bounded low-stock persistence query",
+      "objective": "Implement DB-side threshold filtering, deterministic ordering and hard limiting using the existing inventory persistence mapper/repository conventions.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "adapter/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "adapter/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**"
+      ],
+      "risk_tags": [
+        "persistence",
+        "performance"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-006",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test"
+      ]
+    },
+    {
+      "id": "T-003",
+      "title": "Expose low-stock operator endpoint",
+      "objective": "Add the additive GET endpoint, parameter defaults/validation, OpenAPI description and MVC/security regression coverage using existing inventory web conventions.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/inventory/**",
+        "adapter/web/src/test/java/com/cp/ecommerce/adapter/web/inventory/**",
+        "adapter/security/src/test/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfigurationTest.java"
+      ],
+      "risk_tags": [
+        "api",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :adapter:web:test :adapter:security:test"
+      ]
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate low-stock behavior",
+      "objective": "Try to falsify the implementation against all accepted criteria, especially boundary inputs, database-side filtering/limit, authorization reuse and inventory regressions.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "domain/src/test/java/com/cp/ecommerce/domain/inventory/**",
+        "adapter/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "adapter/web/src/test/java/com/cp/ecommerce/adapter/web/inventory/**",
+        "adapter/security/src/test/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfigurationTest.java",
+        "docs/specs/INV-LOW-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :domain:test :adapter:persistence:test :adapter:web:test :adapter:security:test --continue"
+      ]
+    },
+    {
+      "id": "T-990",
+      "title": "Prepare human-ready local integration",
+      "objective": "Confirm evaluator evidence and produce a locally inspectable integration checkpoint without commit/push/PR/deploy on the user's primary branch or remotes.",
+      "role": "integration",
+      "depends_on": [
+        "T-900"
+      ],
+      "allowed_paths": [
+        "docs/specs/INV-LOW-001/evidence/**"
+      ],
+      "risk_tags": [
+        "integration"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :domain:test :adapter:persistence:test :adapter:web:test :adapter:security:test --continue"
+      ]
+    }
+  ]
+}

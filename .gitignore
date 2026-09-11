@@ -15,3 +15,11 @@ etc/terraform/.terraform/
 etc/terraform/*.tfstate
 etc/terraform/*.tfstate.backup
 etc/terraform/.terraform.lock.hcl
+
+# Agent harness local runtime state
+.agent-state/
+.agent-runs/
+.agent-cache/
+docs/specs/*/packets/
+__pycache__/
+*.py[cod]

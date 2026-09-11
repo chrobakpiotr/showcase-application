@@ -1,0 +1,51 @@
+{
+  "feature": "SHOP-EXAMPLE",
+  "max_parallel": 3,
+  "max_rework_attempts": 2,
+  "tasks": [
+    {
+      "id": "T-010",
+      "title": "Domain capability",
+      "objective": "Add the domain rule and port contract.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": ["domain/**"],
+      "risk_tags": ["domain"],
+      "acceptance_criteria": ["AC-001", "AC-002"],
+      "verification": ["./gradlew :domain:test"]
+    },
+    {
+      "id": "T-020",
+      "title": "Persistence adapter",
+      "objective": "Implement the outbound port using the existing persistence conventions.",
+      "role": "builder",
+      "depends_on": ["T-010"],
+      "allowed_paths": ["adapter/persistence/**"],
+      "risk_tags": ["persistence", "concurrency"],
+      "acceptance_criteria": ["AC-001"],
+      "verification": ["./gradlew :adapter:persistence:test"]
+    },
+    {
+      "id": "T-030",
+      "title": "Web adapter",
+      "objective": "Expose the accepted behaviour through the existing web adapter conventions.",
+      "role": "builder",
+      "depends_on": ["T-010"],
+      "allowed_paths": ["adapter/web/**"],
+      "risk_tags": ["api", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002"],
+      "verification": ["./gradlew :adapter:web:test"]
+    },
+    {
+      "id": "T-900",
+      "title": "Independent evaluation",
+      "objective": "Falsify the feature against all accepted criteria and failure modes.",
+      "role": "evaluator",
+      "depends_on": ["T-020", "T-030"],
+      "allowed_paths": ["**/src/test/**", "docs/specs/SHOP-EXAMPLE/evidence/**"],
+      "risk_tags": ["evaluation", "persistence", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002"],
+      "verification": ["./gradlew build --continue"]
+    }
+  ]
+}

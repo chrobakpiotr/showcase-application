@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agentic SDD design-loop result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "status",
+    "summary",
+    "blocking_questions",
+    "non_blocking_risks",
+    "prototype_recommendations",
+    "findings",
+    "changed_paths",
+    "commands",
+    "assumptions",
+    "residual_risks"
+  ],
+  "properties": {
+    "status": {"type": "string", "enum": ["pass", "fail", "needs-human"]},
+    "summary": {"type": "string", "minLength": 1},
+    "blocking_questions": {"type": "array", "items": {"type": "string"}},
+    "non_blocking_risks": {"type": "array", "items": {"type": "string"}},
+    "findings": {"type": "array", "items": {"type": "string"}},
+    "changed_paths": {"type": "array", "items": {"type": "string"}},
+    "commands": {"type": "array", "items": {"type": "string"}},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "residual_risks": {"type": "array", "items": {"type": "string"}},
+    "recommendation": {"type": ["string", "null"]},
+    "prototype_recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["question"],
+        "properties": {
+          "id": {"type": "string"},
+          "question": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string"},
+          "decision_criteria": {"type": "array", "items": {"type": "string"}},
+          "candidates": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {"type": "string"},
+                {
+                  "type": "object",
+                  "required": ["approach"],
+                  "properties": {
+                    "id": {"type": "string"},
+                    "approach": {"type": "string"}
+                  },
+                  "additionalProperties": true
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

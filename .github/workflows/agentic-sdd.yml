@@ -1,0 +1,172 @@
+name: Agentic SDD CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agentic-sdd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protocol-validation:
+    name: Agentic SDD protocol validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Compile protocol modules
+        run: >-
+          python3 -m py_compile
+          agent-harness/harness.py
+          agent-harness/orchestrate.py
+          agent-harness/runner.py
+          agent-harness/verification_sandbox.py
+          agent-harness/telemetry.py
+          agent-harness/control_plane.py
+          agent-harness/design.py
+          agent-harness/wayfinder.py
+          agent-harness/trust.py
+          agent-harness/verification_contract.py
+          agent-harness/eval.py
+
+      - name: Validate installed protocol profiles and local toolchain
+        run: python3 agent-harness/harness.py doctor
+
+      - name: Validate all committed feature specifications
+        run: python3 agent-harness/harness.py validate-all docs/specs
+
+      - name: Validate independent self verification contract
+        run: python3 agent-harness/verification_contract.py validate docs/specs/SDD-001
+
+      - name: Validate self-hosting orchestration plan
+        run: python3 agent-harness/orchestrate.py docs/specs/SDD-001 --plan
+
+      - name: Smoke-test trust and telemetry CLIs
+        run: |
+          python3 agent-harness/trust.py classify .agent-state/control-plane/example.md
+          python3 agent-harness/telemetry.py --feature SDD-001
+
+  harness-tests:
+    name: Agentic SDD harness tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Run Agentic SDD unit and regression tests
+        run: python3 -m unittest discover -s agent-harness/tests -v
+
+  examples-validation:
+    name: Agentic SDD examples validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Validate maintained runnable example
+        run: |
+          python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan
+          python3 agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001
+          python3 agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan
+
+      - name: Validate design-only prototype bake-off example
+        run: python3 agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan
+
+      - name: Validate Wayfinder-style discovery example
+        run: |
+          python3 agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 agent-harness/wayfinder.py frontier docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 agent-harness/wayfinder.py reconcile docs/agentic-sdd/examples/SHIP-PLATFORM-001 || test $? -eq 2
+
+  behavioral-evaluations:
+    name: Agentic SDD behavioral evaluations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Run safe behavioral harness eval baselines
+        run: |
+          python3 agent-harness/eval.py run --suite baseline --repeat 1
+          python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1
+
+      - name: Publish Agentic SDD evaluation reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: agentic-sdd-evaluation-reports
+          path: .agent-runs/evals/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  agentic-sdd-gate:
+    name: Agentic SDD quality gate
+    if: always()
+    needs:
+      - protocol-validation
+      - harness-tests
+      - examples-validation
+      - behavioral-evaluations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify Agentic SDD checks
+        env:
+          PROTOCOL_VALIDATION_RESULT: ${{ needs['protocol-validation'].result }}
+          HARNESS_TESTS_RESULT: ${{ needs['harness-tests'].result }}
+          EXAMPLES_VALIDATION_RESULT: ${{ needs['examples-validation'].result }}
+          BEHAVIORAL_EVALUATIONS_RESULT: ${{ needs['behavioral-evaluations'].result }}
+        run: |
+          printf '%-28s %s\n' 'Protocol validation' "$PROTOCOL_VALIDATION_RESULT"
+          printf '%-28s %s\n' 'Harness tests' "$HARNESS_TESTS_RESULT"
+          printf '%-28s %s\n' 'Examples validation' "$EXAMPLES_VALIDATION_RESULT"
+          printf '%-28s %s\n' 'Behavioral evaluations' "$BEHAVIORAL_EVALUATIONS_RESULT"
+
+          for result in \
+            "$PROTOCOL_VALIDATION_RESULT" \
+            "$HARNESS_TESTS_RESULT" \
+            "$EXAMPLES_VALIDATION_RESULT" \
+            "$BEHAVIORAL_EVALUATIONS_RESULT"; do
+            if [[ "$result" != 'success' ]]; then
+              echo '::error::One or more Agentic SDD checks did not succeed.'
+              exit 1
+            fi
+          done

@@ -1,0 +1,100 @@
+{
+  "assumptions": [],
+  "authored_by": {
+    "profile": "verification-author",
+    "provider": "human-bootstrap",
+    "run_id": "self-contract"
+  },
+  "criteria": [
+    {
+      "id": "VC-001",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md",
+        "AGENTS.md",
+        "existing safety behavior"
+      ],
+      "statement": "No Agentic SDD path may grant autonomous commit, push, merge, PR, deployment, destructive infrastructure, or remote tracker mutation authority.",
+      "verification_hint": "Inspect provider prompts/control-plane APIs and run safe-command/eval tests; verify no remote-write action exists in harness paths."
+    },
+    {
+      "id": "VC-002",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md",
+        "existing read-only control-plane boundary"
+      ],
+      "statement": "Untrusted tracker/tool/runtime text must remain evidence-only and cannot alter accepted policy, write surfaces, verification commands, sandbox/network authority, or AC/VC criteria.",
+      "verification_hint": "Classify representative paths, tamper protocol-v4 context_trust and assert runner rejects the packet."
+    },
+    {
+      "id": "VC-003",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md",
+        "Wayfinder progressive-discovery invariant"
+      ],
+      "statement": "Discovery history must remain auditable: research may produce fact/evidence without a fake decision, superseded knowledge is preserved, and map clearance cannot occur with open fog or active blocking assumptions.",
+      "verification_hint": "Run Wayfinder unit tests for research ledger entries, supersession, blocking assumptions and reconciliation."
+    },
+    {
+      "id": "VC-004",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md",
+        "verification-contract role separation"
+      ],
+      "statement": "A required verification contract cannot be silently weakened by its author: at least one independent criterion is required and any accepted exemption requires explicit human approval.",
+      "verification_hint": "Run verification-contract tests for missing/stale contracts and agent self-approval rejection."
+    },
+    {
+      "id": "VC-005",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/agentic-sdd/tdd-and-test-seams.md",
+        "outer deterministic verification invariant"
+      ],
+      "statement": "Risk-driven red-green builder completion is rejected unless the agreed test seam is declared before execution and RED/GREEN/REFACTOR evidence is present, while final commands are still rerun independently.",
+      "verification_hint": "Validate risk-driven task fixtures and runner rejection of missing TDD evidence; keep verification sandbox tests green."
+    },
+    {
+      "id": "VC-006",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/evals.md",
+        "docs/agentic-sdd/constitution.md"
+      ],
+      "statement": "Future harness refinements remain measurable and safe: checked-in eval manifests reject destructive/remote commands and preserve environment/provider provenance so regressions are visible.",
+      "verification_hint": "Run eval unit tests plus baseline/shipping-preflight suites and inspect result provenance."
+    },
+    {
+      "id": "VC-007",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/runtime-choice.md",
+        "docs/agentic-sdd/constitution.md",
+        "existing bounded-retry behavior"
+      ],
+      "statement": "Human-in-the-loop escalation is resumable only by an explicit auditable human resolution; resume preserves attempt history, grants no reusable retry authority, and cannot silently weaken accepted task/spec/security boundaries.",
+      "verification_hint": "Run harness/orchestrator HITL resume tests; inspect the human-resolution artifact, one-shot grant consumption, trusted feedback classification and rejection of non-escalated resolution."
+    }
+  ],
+  "exemptions": [],
+  "feature": "SDD-001",
+  "generated_at": "2026-09-10T00:00:00Z",
+  "inputs": {
+    "constitution_sha256": "123bcebb866cbb365cafcebd1e0e60a1b52e0d6905a31e04803edcdaf9fbde0e",
+    "plan_sha256": "e32d632b0d3073b81eccd62a3e032a762f9d7fd86b49843e68c4868bc5ec5d32",
+    "spec_sha256": "7022178b8a59f0a750df7073d7b3be8df855d7b9d99c70635eb0665c7d01fd56"
+  },
+  "schema_version": 1,
+  "status": "accepted",
+  "summary": "Independent self-verification criteria for the consolidated Agentic SDD protocol, derived from safety, architecture and existing harness behavior rather than only restating SDD-001 acceptance criteria."
+}
