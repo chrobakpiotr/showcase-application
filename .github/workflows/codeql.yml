@@ -58,7 +58,8 @@ jobs:
 
       - name: Build backend for analysis
         if: matrix.build-mode == 'manual'
-        run: ./gradlew clean compileJava compileTestJava
+        # CodeQL manual tracing must observe real javac invocations; Gradle cache hits can skip compilation.
+        run: ./gradlew clean compileJava compileTestJava --no-build-cache --rerun-tasks
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
