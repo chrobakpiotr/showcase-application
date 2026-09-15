@@ -249,9 +249,13 @@ describe('OrderComponent', () => {
 
   it('fills a complete seeded demo order', () => {
     setup();
+    component.addItem();
+    component.orderNumber.set('ORD-OLD');
+    component.errorMessage.set('old error');
     component.fillDemoOrder();
 
     expect(component.orderForm.valid).toBeTrue();
+    expect(component.itemGroups.length).toBe(1);
     expect(component.itemGroups[0].getRawValue()).toEqual({
       sku: 'DEMO-MOUSE-001',
       productName: 'Wireless Mouse',
@@ -261,6 +265,8 @@ describe('OrderComponent', () => {
     expect(component.customerForm.controls.email.value).toContain(
       'demo.buyer+'
     );
+    expect(component.orderNumber()).toBeNull();
+    expect(component.errorMessage()).toBeNull();
   });
 
   it('surfaces RFC 9457 detail when order placement fails', fakeAsync(() => {
@@ -287,4 +293,52 @@ describe('OrderComponent', () => {
       'Insufficient Stock: Not enough stock for DEMO-MOUSE-001 (error id: error-123)'
     );
   }));
+
+  [
+    {
+      description: 'a non-HTTP error',
+      error: new Error('network failure'),
+      expected: 'Failed to place order. Please try again.',
+    },
+    {
+      description: 'a plain-text HTTP error body',
+      error: new HttpErrorResponse({
+        status: 400,
+        error: '  Invalid order request  ',
+      }),
+      expected: 'Invalid order request',
+    },
+    {
+      description: 'an empty problem object',
+      error: new HttpErrorResponse({ status: 500, error: {} }),
+      expected: 'Failed to place order. Please try again.',
+    },
+    {
+      description: 'a problem with only a title',
+      error: new HttpErrorResponse({
+        status: 409,
+        error: { title: 'Order conflict' },
+      }),
+      expected: 'Order conflict',
+    },
+    {
+      description: 'a problem with only detail',
+      error: new HttpErrorResponse({
+        status: 422,
+        error: { detail: 'Quantity must be positive' },
+      }),
+      expected: 'Quantity must be positive',
+    },
+  ].forEach(({ description, error, expected }) => {
+    it(`uses the right fallback for ${description}`, fakeAsync(() => {
+      setup();
+      placeOrderSpy.and.returnValue(throwError(() => error));
+      fillValidForm('test');
+
+      component.placeOrder();
+      tick();
+
+      expect(component.errorMessage()).toBe(expected);
+    }));
+  });
 });

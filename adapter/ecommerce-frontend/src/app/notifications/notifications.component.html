@@ -25,36 +25,38 @@
   <div class="error-message" role="alert">{{ errorMessage() }}</div>
   }
 
-  <table class="notification-table" data-testid="notification-table">
-    <thead>
-      <tr>
-        <th>Recipient</th>
-        <th>Type</th>
-        <th>Subject</th>
-        <th>Channel</th>
-        <th>Status</th>
-        <th>Created</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (notification of notifications(); track notification.notificationId)
-      {
-      <tr data-testid="notification-row">
-        <td>{{ notification.recipientEmail }}</td>
-        <td>{{ notification.type }}</td>
-        <td>{{ notification.subject }}</td>
-        <td>{{ notification.channel }}</td>
-        <td>{{ notification.status }}</td>
-        <td>{{ notification.createdDate | date : 'medium' }}</td>
-      </tr>
-      } @empty {
-      <tr>
-        <td class="empty" colspan="6" data-testid="empty-notifications">
-          No notifications yet.
-        </td>
-      </tr>
-      }
-    </tbody>
-  </table>
+  <div class="notification-table-scroll">
+    <table class="notification-table" data-testid="notification-table">
+      <thead>
+        <tr>
+          <th>Recipient</th>
+          <th>Type</th>
+          <th>Subject</th>
+          <th>Channel</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (notification of notifications(); track
+        notification.notificationId) {
+        <tr data-testid="notification-row">
+          <td>{{ notification.recipientEmail }}</td>
+          <td>{{ notification.type }}</td>
+          <td>{{ notification.subject }}</td>
+          <td>{{ notification.channel }}</td>
+          <td>{{ notification.status }}</td>
+          <td>{{ notification.createdDate | date : 'medium' }}</td>
+        </tr>
+        } @empty {
+        <tr>
+          <td class="empty" colspan="6" data-testid="empty-notifications">
+            No notifications yet.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
   }
 </div>

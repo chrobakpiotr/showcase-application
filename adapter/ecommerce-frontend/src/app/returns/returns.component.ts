@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 
 import { AuthService } from '@app/auth/auth.service';
 import { ReturnModel } from '@app/returns/return.model';
@@ -16,7 +16,7 @@ import { ReturnsService } from '@app/returns/returns.service';
   templateUrl: './returns.component.html',
   styleUrls: ['./returns.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe],
+  imports: [CurrencyPipe],
 })
 export class ReturnsComponent implements OnInit {
   private readonly returnsService = inject(ReturnsService);
