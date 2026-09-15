@@ -1,4 +1,4 @@
-# INV-LOW-001 — List low-stock inventory for operators
+# INV-LOW-001 - List low-stock inventory for operators
 
 Status: ACCEPTED
 Owner: showcase application maintainer
@@ -62,11 +62,11 @@ Add a bounded, read-only inventory query that returns low-stock rows without cha
 
 ## Failure modes and edge cases
 
-- FM-001: Concurrent inventory mutation occurs during the query — return a normal read snapshot; do not lock rows or retry because the operation is advisory/read-only.
-- FM-002: No rows match — return HTTP 200 with an empty JSON collection.
-- FM-003: Several rows have the same available quantity — order by SKU ascending as the stable tie-breaker.
-- FM-004: Negative/oversized query parameters — reject with HTTP 400 before invoking the domain use case.
-- FM-005: An inventory row references a SKU absent from Catalog — return it normally; Inventory remains independent of Catalog.
+- FM-001: Concurrent inventory mutation occurs during the query - return a normal read snapshot; do not lock rows or retry because the operation is advisory/read-only.
+- FM-002: No rows match - return HTTP 200 with an empty JSON collection.
+- FM-003: Several rows have the same available quantity - order by SKU ascending as the stable tie-breaker.
+- FM-004: Negative/oversized query parameters - reject with HTTP 400 before invoking the domain use case.
+- FM-005: An inventory row references a SKU absent from Catalog - return it normally; Inventory remains independent of Catalog.
 
 ## Contracts
 
@@ -121,8 +121,8 @@ Add a bounded, read-only inventory query that returns low-stock rows without cha
 
 ## Assumptions / open questions
 
-- Q-001: Resolved — this pilot intentionally uses a request-level threshold, not persisted per-SKU configuration.
-- Q-002: Resolved — no pagination token is needed because the hard upper limit is 200 and this endpoint is an operator diagnostic view.
+- Q-001: Resolved - this pilot intentionally uses a request-level threshold, not persisted per-SKU configuration.
+- Q-002: Resolved - no pagination token is needed because the hard upper limit is 200 and this endpoint is an operator diagnostic view.
 
 ## Definition of done
 

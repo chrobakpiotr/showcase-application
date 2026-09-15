@@ -116,7 +116,7 @@ A Wayfinder ticket asks one precise question whose output is a durable decision.
 
 ## 20. Grow the map progressively
 
-Do not pre-plan dozens of speculative decisions. Keep known-but-unphraseable unknowns as fog. Resolving a decision may clear fog and expose fresh precise decisions. Frontier ordering is by leverage — prefer the decision that clears/unlocks the most uncertainty — with creation/id order only as a tiebreaker.
+Do not pre-plan dozens of speculative decisions. Keep known-but-unphraseable unknowns as fog. Resolving a decision may clear fog and expose fresh precise decisions. Frontier ordering is by leverage - prefer the decision that clears/unlocks the most uncertainty - with creation/id order only as a tiebreaker.
 
 ## 21. Handoffs are one-way gates
 

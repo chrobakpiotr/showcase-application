@@ -1,4 +1,4 @@
-# INV-CONTENTION-001 — Draft Technical Study Plan
+# INV-CONTENTION-001 - Draft Technical Study Plan
 
 Status: DRAFT
 Spec: `./spec.md`

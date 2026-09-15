@@ -2,8 +2,8 @@
 
 Agentic systems need two different controls:
 
-1. **Capability containment** — what the process is allowed to read/write/execute/network-access.
-2. **Instruction trust** — which content is allowed to change the agent's behavior.
+1. **Capability containment** - what the process is allowed to read/write/execute/network-access.
+2. **Instruction trust** - which content is allowed to change the agent's behavior.
 
 The harness already provides sandbox/worktree/path containment. The harness adds an explicit trust model so content retrieved from a tracker, tool, website, dependency documentation or runtime log cannot masquerade as a higher-priority instruction.
 

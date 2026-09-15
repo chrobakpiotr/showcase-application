@@ -1,4 +1,4 @@
-# INV-LOW-001 — Technical Plan
+# INV-LOW-001 - Technical Plan
 
 Status: ACCEPTED
 Spec: `./spec.md`

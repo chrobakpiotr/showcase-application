@@ -1,4 +1,4 @@
-# Runnable example: INV-LOW-001 — List low-stock inventory
+# Runnable example: INV-LOW-001 - List low-stock inventory
 
 This is a **realistic local pilot feature** for Showcase Application. It is not a toy calculator and it is not already present
 in the repository: it extends the existing Inventory bounded context with a small, additive operator query.
@@ -41,7 +41,7 @@ filtering, the reviewers/evaluator should challenge it.
 
 > **Why this example does not require `verification-contract.json`:** `INV-LOW-001` is intentionally the lean medium-feature example. Its `design.json` sets `verification_contract=optional` and its existing static DAG uses the legacy test policy. Use `SHIP-PLATFORM-001` to exercise the full independent verification + risk-driven TDD path.
 
-## 1. Safe preview — no model and no code changes
+## 1. Safe preview - no model and no code changes
 
 From repository root:
 

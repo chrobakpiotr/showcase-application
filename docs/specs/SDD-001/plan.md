@@ -1,4 +1,4 @@
-# SDD-001 — Technical Plan
+# SDD-001 - Technical Plan
 
 Status: ACCEPTED
 Spec: `./spec.md`

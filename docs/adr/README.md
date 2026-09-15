@@ -2,7 +2,7 @@
 
 This directory captures the significant architectural decisions made in this showcase, using the
 lightweight [ADR](https://adr.github.io/) format (Context / Decision / Consequences). ADRs are
-immutable once accepted — if a decision is later reversed, a new ADR supersedes the old one rather
+immutable once accepted - if a decision is later reversed, a new ADR supersedes the old one rather
 than editing it in place.
 
 | # | Title |

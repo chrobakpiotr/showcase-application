@@ -1,4 +1,4 @@
-# Showcase Application — Claude Code entrypoint
+# Showcase Application - Claude Code entrypoint
 
 Use `AGENTS.md` as the repository map and `docs/agentic-sdd/constitution.md` as the non-negotiable operating policy.
 For large/foggy work, resolve the active `docs/wayfinder/<epic>/` decision map before creating a feature spec. For feature work, read the active `docs/specs/<feature-id>/` contract plus relevant ADRs/contracts and source paths. If `design.json` is present, the pre-implementation grill/prototype gate runs before normal task orchestration. When `verification_contract=required`, independently author/validate `verification-contract.json` after design PASS and before task generation.

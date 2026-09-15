@@ -1,29 +1,29 @@
-# Showcase Application — Agent Operating Guide
+# Showcase Application - Agent Operating Guide
 
 This repository is an agent-friendly Java 25 / Spring Boot modular monolith built around hexagonal architecture.
 This file is intentionally a **map**, not a manual. Follow links and load only the context required by the task.
 
 ## Read order
 
-1. `docs/agentic-sdd/constitution.md` — non-negotiable engineering rules.
+1. `docs/agentic-sdd/constitution.md` - non-negotiable engineering rules.
 2. For a large/foggy effort, the active decision map under `docs/wayfinder/<epic>/` until it is cleared.
-3. The active feature folder under `docs/specs/<feature-id>/` — product and technical source of truth; read `design/gate.json`, `verification-contract.json`, and prototype findings when present.
-4. Relevant ADRs under `docs/adr/` — architectural decisions already made by the project.
+3. The active feature folder under `docs/specs/<feature-id>/` - product and technical source of truth; read `design/gate.json`, `verification-contract.json`, and prototype findings when present.
+4. Relevant ADRs under `docs/adr/` - architectural decisions already made by the project.
 5. Relevant contract(s), especially `etc/asyncapi/asyncapi.yml` for messaging changes.
 6. Only the source modules listed in the task packet.
 
 ## Architecture map
 
-- `domain/` — domain model, ports, and architecture tests. Must remain framework-independent.
-- `application/ecommerce/` — application composition/use-case orchestration.
-- `adapter/web/` — inbound HTTP adapter.
-- `adapter/persistence/` — persistence adapter.
-- `adapter/kafka/`, `adapter/amqp/` — messaging adapters.
-- `adapter/security/` — security boundary.
-- `adapter/ai/` — AI integrations behind ports.
-- `adapter/aws/`, `adapter/camel/`, `adapter/mail/` — infrastructure adapters.
-- `etc/` — deploy/runtime/config contracts (AsyncAPI, Docker, Kubernetes/Helm, Terraform, etc.).
-- `docs/adr/` — architecture decision log.
+- `domain/` - domain model, ports, and architecture tests. Must remain framework-independent.
+- `application/ecommerce/` - application composition/use-case orchestration.
+- `adapter/web/` - inbound HTTP adapter.
+- `adapter/persistence/` - persistence adapter.
+- `adapter/kafka/`, `adapter/amqp/` - messaging adapters.
+- `adapter/security/` - security boundary.
+- `adapter/ai/` - AI integrations behind ports.
+- `adapter/aws/`, `adapter/camel/`, `adapter/mail/` - infrastructure adapters.
+- `etc/` - deploy/runtime/config contracts (AsyncAPI, Docker, Kubernetes/Helm, Terraform, etc.).
+- `docs/adr/` - architecture decision log.
 
 ## Mandatory invariants
 
@@ -81,14 +81,14 @@ Large/foggy epics may first live under `docs/wayfinder/<epic>/` as a decision ma
 
 Each executable feature lives under `docs/specs/<feature-id>/` and should contain:
 
-- `spec.md` — what/why, requirements, acceptance criteria, risks, NFRs.
-- `plan.md` — architecture and implementation strategy.
-- `design.json` — optional pre-implementation grill/prototype policy.
-- `design/` — durable grill/prototype findings and hash-bound PASS gate when design preflight is required.
-- `verification-contract.json` — independently authored, hash-bound criteria (`VC-*`) when required; it does not replace the spec.
-- `tasks.json` — dependency DAG; machine-readable by `agent-harness/harness.py`; risk-driven builders declare test mode/seam.
-- `packets/` — optional immutable task packets generated from the DAG.
-- `evidence/` — evaluator/integration evidence plus auditable `human-resolutions/` when a paused task is explicitly resumed.
+- `spec.md` - what/why, requirements, acceptance criteria, risks, NFRs.
+- `plan.md` - architecture and implementation strategy.
+- `design.json` - optional pre-implementation grill/prototype policy.
+- `design/` - durable grill/prototype findings and hash-bound PASS gate when design preflight is required.
+- `verification-contract.json` - independently authored, hash-bound criteria (`VC-*`) when required; it does not replace the spec.
+- `tasks.json` - dependency DAG; machine-readable by `agent-harness/harness.py`; risk-driven builders declare test mode/seam.
+- `packets/` - optional immutable task packets generated from the DAG.
+- `evidence/` - evaluator/integration evidence plus auditable `human-resolutions/` when a paused task is explicitly resumed.
 
 Lifecycle for a large/foggy epic:
 

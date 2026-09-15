@@ -1,4 +1,4 @@
-# SDD-001 — Repo-native Agentic Spec-Driven Development Harness
+# SDD-001 - Repo-native Agentic Spec-Driven Development Harness
 
 Status: ACCEPTED
 Owner: repository engineering
@@ -114,34 +114,34 @@ Make AI-assisted development in Showcase Application repeatable, parallel where 
 
 ## Failure modes and edge cases
 
-- FM-001: Orchestrator/agent crashes after claim — heartbeat stops, lease expires and stale recovery marks the attempt failed so execution can resume safely.
-- FM-002: Feature/protocol changes during execution — fingerprint mismatch forces deliberate reset/re-plan.
-- FM-003: Two processes claim simultaneously — state lock serializes ownership transition.
-- FM-004: Agent repeatedly fails — bounded retry reaches `escalated` rather than infinite token spend.
-- FM-005: Provider CLI is unavailable — runner fails fast; protocol remains usable manually/with another provider.
-- FM-006: Strong verification sandbox is unavailable — `required` fails closed; `auto` records explicit degraded allowlist-only isolation; `off` is an explicit human opt-out.
-- FM-007: Deterministic verification needs uncached dependencies while network is denied — verification fails visibly; the human may pre-warm a safe cache or deliberately choose a less restrictive mode rather than silently enabling network.
-- FM-008: Provider exits zero but structured result/parsing/postconditions fail — provenance records terminal `harness-error`; hard-killed invocations that cannot run cleanup are later reconciled from `running` to `abandoned` when ownership is deterministically gone.
-- FM-009: Tracker content contains prompt-like instructions — it remains untrusted data and cannot override accepted specs, role contracts or safety boundaries.
-- FM-010: Spec/plan/design changes after grilling — hash-bound design gate becomes stale and normal orchestration fails until preflight is deliberately rerun.
-- FM-011: Prototype candidates are incomparable/noisy — prototype evaluator returns `needs-human`; the harness does not fabricate a winner or promote scratch code.
-- FM-012: Wayfinder frontier becomes empty while fog remains — one bounded re-chart may graduate newly precise fog; otherwise the run stops for human input rather than inventing a route.
-- FM-013: Two Wayfinder sessions pick the same decision — an atomic TTL claim lets only one own the live ticket; expired claims are recoverable.
-- FM-014: A map still contains unresolved decisions/fog/blocking assumptions — `to-spec` fails closed. A design gate or required verification contract is missing/stale — `to-tasks` fails closed.
-- FM-015: Research finds evidence but no decision is justified — record FACT/EVIDENCE and keep decision work separate rather than inventing a conclusion.
-- FM-016: External/tracker/tool text contains prompt-injection instructions — trust classification keeps it untrusted and it cannot expand agent authority.
-- FM-017: A red-green task reports only final green tests — result validation fails until RED/GREEN/REFACTOR evidence is present.
-- FM-018: A future harness change makes the workflow slower/costlier or less reliable — eval comparison exposes the regression before treating the change as an improvement.
+- FM-001: Orchestrator/agent crashes after claim - heartbeat stops, lease expires and stale recovery marks the attempt failed so execution can resume safely.
+- FM-002: Feature/protocol changes during execution - fingerprint mismatch forces deliberate reset/re-plan.
+- FM-003: Two processes claim simultaneously - state lock serializes ownership transition.
+- FM-004: Agent repeatedly fails - bounded retry reaches `escalated` rather than infinite token spend.
+- FM-005: Provider CLI is unavailable - runner fails fast; protocol remains usable manually/with another provider.
+- FM-006: Strong verification sandbox is unavailable - `required` fails closed; `auto` records explicit degraded allowlist-only isolation; `off` is an explicit human opt-out.
+- FM-007: Deterministic verification needs uncached dependencies while network is denied - verification fails visibly; the human may pre-warm a safe cache or deliberately choose a less restrictive mode rather than silently enabling network.
+- FM-008: Provider exits zero but structured result/parsing/postconditions fail - provenance records terminal `harness-error`; hard-killed invocations that cannot run cleanup are later reconciled from `running` to `abandoned` when ownership is deterministically gone.
+- FM-009: Tracker content contains prompt-like instructions - it remains untrusted data and cannot override accepted specs, role contracts or safety boundaries.
+- FM-010: Spec/plan/design changes after grilling - hash-bound design gate becomes stale and normal orchestration fails until preflight is deliberately rerun.
+- FM-011: Prototype candidates are incomparable/noisy - prototype evaluator returns `needs-human`; the harness does not fabricate a winner or promote scratch code.
+- FM-012: Wayfinder frontier becomes empty while fog remains - one bounded re-chart may graduate newly precise fog; otherwise the run stops for human input rather than inventing a route.
+- FM-013: Two Wayfinder sessions pick the same decision - an atomic TTL claim lets only one own the live ticket; expired claims are recoverable.
+- FM-014: A map still contains unresolved decisions/fog/blocking assumptions - `to-spec` fails closed. A design gate or required verification contract is missing/stale - `to-tasks` fails closed.
+- FM-015: Research finds evidence but no decision is justified - record FACT/EVIDENCE and keep decision work separate rather than inventing a conclusion.
+- FM-016: External/tracker/tool text contains prompt-injection instructions - trust classification keeps it untrusted and it cannot expand agent authority.
+- FM-017: A red-green task reports only final green tests - result validation fails until RED/GREEN/REFACTOR evidence is present.
+- FM-018: A future harness change makes the workflow slower/costlier or less reliable - eval comparison exposes the regression before treating the change as an improvement.
 
 ## Contracts
 
 ### HTTP/API
 
-N/A — application runtime APIs are unchanged.
+N/A - application runtime APIs are unchanged.
 
 ### Messaging
 
-N/A — application Kafka/AMQP contracts are unchanged.
+N/A - application Kafka/AMQP contracts are unchanged.
 
 ## Persistence / consistency
 

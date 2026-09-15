@@ -1,4 +1,4 @@
-# SHIP-PLATFORM-001 — full Agentic SDD expedition demo
+# SHIP-PLATFORM-001 - full Agentic SDD expedition demo
 
 This is the **large/foggy, system-design-heavy** demo for the complete Agentic SDD workflow. It starts from the repository's existing Shipment bounded context and asks how to evolve it into a multi-carrier, near-real-time tracking platform without assuming the architecture up front.
 
@@ -45,7 +45,7 @@ The initial ledger also records two **CONSTRAINTS**: preserve compatibility duri
 
 ---
 
-# Track A — safe protocol preview (no model, no application-code writes)
+# Track A - safe protocol preview (no model, no application-code writes)
 
 From repository root:
 
@@ -100,7 +100,7 @@ python3 agent-harness/eval.py compare \
 
 ---
 
-# Track B — live Wayfinder expedition
+# Track B - live Wayfinder expedition
 
 ## 1. Activate a working map
 
@@ -179,7 +179,7 @@ Do **not** treat `needs-human` as failure. It means the model reached a contract
 
 ## 5. Resolve a human decision explicitly
 
-Example only — use this if that is actually the decision you want:
+Example only - use this if that is actually the decision you want:
 
 ```bash
 python3 agent-harness/wayfinder.py manual-resolve \
@@ -245,7 +245,7 @@ python3 agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
 
 ---
 
-# Track C — handoff from discovery to executable SDD
+# Track C - handoff from discovery to executable SDD
 
 ## 8. Collapse the cleared map into spec/plan/design
 
@@ -296,7 +296,7 @@ If the grill causes you to edit `spec.md`, `plan.md`, or `design.json`, the old 
 
 ---
 
-# Track D — independent verification before task generation
+# Track D - independent verification before task generation
 
 ## 10. Author a Verification Contract
 
@@ -325,7 +325,7 @@ python3 agent-harness/verification_contract.py show docs/specs/SHIP-PLATFORM-001
 python3 agent-harness/verification_contract.py validate docs/specs/SHIP-PLATFORM-001
 ```
 
-A strong contract should contain at least one `origin=independent` criterion derived from accepted ADRs, architecture/security invariants or existing behavior — not merely paraphrase `AC-*`.
+A strong contract should contain at least one `origin=independent` criterion derived from accepted ADRs, architecture/security invariants or existing behavior - not merely paraphrase `AC-*`.
 
 For this demo, useful independent falsification targets include:
 
@@ -342,7 +342,7 @@ Editing a bound spec/plan/constitution/design gate later makes this contract sta
 
 ---
 
-# Track E — implementation DAG with test seams
+# Track E - implementation DAG with test seams
 
 ## 11. Generate the final implementation tasks
 
@@ -400,7 +400,7 @@ The harness still reruns declared verification independently. TDD evidence is pr
 
 ---
 
-# Track F — real multi-agent implementation
+# Track F - real multi-agent implementation
 
 ## 13. Recommended mixed-provider run
 
@@ -483,7 +483,7 @@ Task-packet protocol v4 recomputes trust classification; a tampered packet is re
 
 ---
 
-# Track G — post-handoff/eval evidence
+# Track G - post-handoff/eval evidence
 
 ## 15. Run the post-handoff harness eval
 

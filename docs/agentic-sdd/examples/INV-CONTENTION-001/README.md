@@ -1,4 +1,4 @@
-# Design-only example: INV-CONTENTION-001 — Prototype bake-off
+# Design-only example: INV-CONTENTION-001 - Prototype bake-off
 
 This example exists to exercise the **Grill → Prototype/Bake-off → Architecture Grill** path against a real hotspot already present in Showcase Application: concurrent inventory reservation.
 

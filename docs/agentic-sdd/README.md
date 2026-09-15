@@ -4,11 +4,11 @@ This repository layer adapts spec-driven, multi-agent development to the applica
 
 **This is the consolidated Agentic SDD baseline.** It combines Wayfinder-style discovery, adversarial design review, independent verification and bounded multi-agent execution into one repository-native workflow:
 
-1. **Decision Ledger 2.0** — facts, decisions, assumptions, constraints and evidence are different durable knowledge types; supersession preserves history; terminal fog reconciliation is mandatory.
-2. **Independent Verification Contract** — the feature spec no longer writes its own exam; a separate read-only author derives additional `VC-*` criteria from ADRs, invariants, existing behavior and other trusted evidence.
-3. **Risk-driven TDD / test seams** — builder tasks declare the observable seam and test mode before implementation; red-green tasks must produce RED/GREEN/REFACTOR evidence.
-4. **Context Trust Boundary** — trusted/project/untrusted/secret context is explicit; prompt-like text in tracker/tool/runtime data cannot expand authority.
-5. **Harness Evals** — checked-in safe suites make future harness changes measurable. Future framework changes should come from reproduced failures, provider changes, security needs or measured improvements — not feature accumulation.
+1. **Decision Ledger 2.0** - facts, decisions, assumptions, constraints and evidence are different durable knowledge types; supersession preserves history; terminal fog reconciliation is mandatory.
+2. **Independent Verification Contract** - the feature spec no longer writes its own exam; a separate read-only author derives additional `VC-*` criteria from ADRs, invariants, existing behavior and other trusted evidence.
+3. **Risk-driven TDD / test seams** - builder tasks declare the observable seam and test mode before implementation; red-green tasks must produce RED/GREEN/REFACTOR evidence.
+4. **Context Trust Boundary** - trusted/project/untrusted/secret context is explicit; prompt-like text in tracker/tool/runtime data cannot expand authority.
+5. **Harness Evals** - checked-in safe suites make future harness changes measurable. Future framework changes should come from reproduced failures, provider changes, security needs or measured improvements - not feature accumulation.
 
 ## Pick the lightest flow that fits
 
@@ -22,7 +22,7 @@ Do not run the heaviest workflow by default:
 
 A useful rule: **if you can already write a credible implementation spec in one sitting, do not start with Wayfinder.**
 
-## Mental model — discovery, verification design and execution are separate systems
+## Mental model - discovery, verification design and execution are separate systems
 
 ```text
                            LARGE / FOGGY EPIC
@@ -89,11 +89,11 @@ A useful rule: **if you can already write a credible implementation spec in one 
 
 A discovery result is not automatically a decision. Wayfinder schema v2 uses durable entries:
 
-- `fact` — something established by evidence;
-- `decision` — a chosen direction/contract;
-- `assumption` — something provisionally believed; `blocking=true` prevents convergence;
-- `constraint` — a boundary that the solution must preserve;
-- `evidence` — an observation/measurement useful to a later decision.
+- `fact` - something established by evidence;
+- `decision` - a chosen direction/contract;
+- `assumption` - something provisionally believed; `blocking=true` prevents convergence;
+- `constraint` - a boundary that the solution must preserve;
+- `evidence` - an observation/measurement useful to a later decision.
 
 Research/prototype tickets may close with FACT/EVIDENCE and `decision: null`. Architecture/domain/contract tickets still need an actual decision. When later evidence invalidates old knowledge, use explicit supersession; never erase the audit trail.
 
@@ -143,7 +143,7 @@ Typical precedence:
 TRUSTED    constitution, AGENTS.md, accepted spec/plan/design/verification contract, ADRs
 PROJECT    normal source/tests/build/config
 UNTRUSTED  tracker snapshots, tool/web/provider/runtime output
-SECRET     credentials/.env/secret material — never context
+SECRET     credentials/.env/secret material - never context
 ```
 
 Untrusted content may provide evidence. It cannot change role policy, allowed paths, sandbox/network authority, verification commands, `AC-*`/`VC-*`, or the no-remote-mutation boundary. `trust.py` exposes the deterministic classifier and runner protocol v4 rejects a packet whose trust classification was tampered with.
@@ -186,7 +186,7 @@ The first four jobs run in parallel. `Agentic SDD quality gate` uses `if: always
 
 The workflow is intentionally deterministic and does **not** invoke Codex/Claude or mutate any remote. Model-driven discovery/implementation remains a local/developer action; CI judges the committed protocol, examples, contracts and evals.
 
-## Strong full-stack demo — SHIP-PLATFORM-001
+## Strong full-stack demo - SHIP-PLATFORM-001
 
 The maintained `SHIP-PLATFORM-001` demo evolves the existing operator-driven Shipment bounded context toward a multi-carrier near-real-time tracking platform. It is intentionally foggy enough to exercise the whole pipeline rather than rewarding immediate technology selection.
 
@@ -225,13 +225,13 @@ python3 agent-harness/wayfinder.py to-tasks docs/specs/SHIP-PLATFORM-001 \
 python3 agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
 ```
 
-Then optionally run the real implementation with Codex builders and independent Claude review/evaluation. The complete walkthrough — including research-without-decision, supersession, fog disposition, trust attack exercise, verification-contract expectations, TDD evidence and pre/post evals — is in:
+Then optionally run the real implementation with Codex builders and independent Claude review/evaluation. The complete walkthrough - including research-without-decision, supersession, fog disposition, trust attack exercise, verification-contract expectations, TDD evidence and pre/post evals - is in:
 
 `docs/agentic-sdd/examples/SHIP-PLATFORM-001/README.md`.
 
-## Quick Start — first real medium-sized feature
+## Quick Start - first real medium-sized feature
 
-The package includes a maintained example: **`INV-LOW-001 — List low-stock inventory for operators`**. It extends the real
+The package includes a maintained example: **`INV-LOW-001 - List low-stock inventory for operators`**. It extends the real
 Inventory bounded context with an additive read-only endpoint and deliberately exercises domain work, parallel persistence/API
 builders, specialist reviews, an independent evaluator and the final integration gate.
 
@@ -267,7 +267,7 @@ codex --version    # if using Codex
 claude --version   # if using Claude Code
 ```
 
-### 2. Preview the included example — safe/no model
+### 2. Preview the included example - safe/no model
 
 ```bash
 ./docs/agentic-sdd/examples/INV-LOW-001/preview.sh
@@ -542,13 +542,13 @@ python3 agent-harness/design.py docs/specs/SHOP-001 \
   --provider claude
 ```
 
-### Stage 1 — Spec Grill
+### Stage 1 - Spec Grill
 
 The grill attacks requirement completeness, not implementation style. It looks for missing actors, invariants, edge cases,
 compatibility, security/privacy decisions, concurrency semantics, failure behavior and measurable NFRs. A blocker is a question
 whose answer can materially change a contract, invariant or architecture. The correct outcome can be `needs-human`.
 
-### Stage 2 — Conditional Prototype / Spike
+### Stage 2 - Conditional Prototype / Spike
 
 Prototype is **not** automatic just because a feature is hard. In `auto`, it runs when `design.json` already contains a
 prototype question or when Spec Grill recommends a concrete falsifiable experiment. Good triggers include:
@@ -592,7 +592,7 @@ Fix evaluation criteria **before** running candidates. Example:
 The independent Prototype Evaluator compares evidence using those fixed criteria. If the experiments are incomparable or too
 noisy, `needs-human` is preferable to inventing a winner.
 
-### Stage 3 — Architecture Grill
+### Stage 3 - Architecture Grill
 
 After prototype findings exist, Architecture Grill attacks the draft `plan.md`: bounded-context ownership, dependency direction,
 contracts, data ownership, transaction/consistency boundaries, retries/idempotency, security, observability, migration/rollback,
@@ -827,9 +827,9 @@ python3 agent-harness/orchestrate.py docs/specs/SHOP-001 \
 
 Modes:
 
-- `required` — fail closed if strong local isolation is unavailable.
-- `auto` — prefer strong isolation; record explicit `allowlist-only` degradation if unavailable.
-- `off` — deliberate human opt-out; command allowlist still applies.
+- `required` - fail closed if strong local isolation is unavailable.
+- `auto` - prefer strong isolation; record explicit `allowlist-only` degradation if unavailable.
+- `off` - deliberate human opt-out; command allowlist still applies.
 
 Strong isolation denies network. A cold Gradle/npm dependency cache can therefore fail rather than silently reaching the
 network. Pre-warm dependencies deliberately or use a less restrictive mode consciously.

@@ -104,7 +104,7 @@ normal spec/plan/task updates and deliberate state reset/re-planning.
 The native engine was executed and benchmarked directly. The external graph runtime was evaluated from its current documented
 execution model/API and a reference integration spike; the evaluation environment did not permit installing the external package,
 so this was **not** presented as a runtime performance benchmark of LangGraph itself. The decision therefore rests on measured
-native bottlenecks, architecture/ownership analysis and expected replacement scope—not on a claim that the native scheduler is
+native bottlenecks, architecture/ownership analysis and expected replacement scope-not on a claim that the native scheduler is
 faster than LangGraph.
 
 ## Revisit triggers

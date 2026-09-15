@@ -42,12 +42,12 @@ default, so pointing the application at a cluster or external database does not 
 
 ## Documentation map
 
-- [Demo guide](docs/demo-guide.md) — seeded data and repeatable manual scenarios.
-- [Documentation index](docs/README.md) — map of the repo's documentation.
-- [Architecture diagrams](docs/architecture/README.md) — C4-style context/container/module views and saga dynamics.
-- [Architecture Decision Records](docs/adr/README.md) — accepted decisions and their original context.
-- [Agentic SDD](docs/agentic-sdd/README.md) — specification/orchestration/evaluation harness.
-- [Kubernetes / Helm](etc/k8s/README.md) and [Terraform / LocalStack](etc/terraform/README.md) — deployment tooling.
+- [Demo guide](docs/demo-guide.md) - seeded data and repeatable manual scenarios.
+- [Documentation index](docs/README.md) - map of the repo's documentation.
+- [Architecture diagrams](docs/architecture/README.md) - C4-style context/container/module views and saga dynamics.
+- [Architecture Decision Records](docs/adr/README.md) - accepted decisions and their original context.
+- [Agentic SDD](docs/agentic-sdd/README.md) - specification/orchestration/evaluation harness.
+- [Kubernetes / Helm](etc/k8s/README.md) and [Terraform / LocalStack](etc/terraform/README.md) - deployment tooling.
 
 ## Starting the application
 
@@ -555,10 +555,10 @@ JWT bearer tokens issued by Keycloak. Two realm roles gate access, matched by HT
 `/api/order/**` path rather than per literal endpoint - so every endpoint added under this path is covered
 automatically:
 
-- `ORDER_READ` – required for every `GET`, e.g. `GET /api/order` (paginated listing), `GET
+- `ORDER_READ` - required for every `GET`, e.g. `GET /api/order` (paginated listing), `GET
   /api/order/{orderNumber}` (single order) and `GET /api/order/analytics/recent` (the Kafka-backed
   analytics read model, see [Order analytics read model](#order-analytics-read-model-kafka-consumer))
-- `ORDER_WRITE` – required for every `POST`, e.g. `POST /api/order` (place an order) and `POST
+- `ORDER_WRITE` - required for every `POST`, e.g. `POST /api/order` (place an order) and `POST
   /api/order/{orderNumber}/cancel` (customer-initiated cancellation, see
   [Order placement saga](#order-placement-saga))
 
@@ -1225,29 +1225,29 @@ Among many frameworks, libraries and tools, the most important being used are as
 The following plugins are used during building of the application (all configuration files can be found in *"/etc"*
 dir):
 
-1. [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) – plugin that is used for
+1. [Spotless](https://github.com/diffplug/spotless/tree/main/plugin-gradle) - plugin that is used for
    formatting. Executing the following command on the root of the project `./gradlew spotlessApply` will start it. During *gradle
    build* step formatting will be checked.
-2. [JaCoCo](https://www.eclemma.org/jacoco/) – code coverage library for Java. The default limit is set to 100%.
-3. [SpotBugs](https://spotbugs.github.io/) – program which uses static analysis to look for bugs in Java code.
-4. [PMD](https://pmd.github.io/) – PMD is a source code analyzer.
+2. [JaCoCo](https://www.eclemma.org/jacoco/) - code coverage library for Java. The default limit is set to 100%.
+3. [SpotBugs](https://spotbugs.github.io/) - program which uses static analysis to look for bugs in Java code.
+4. [PMD](https://pmd.github.io/) - PMD is a source code analyzer.
    It finds common programming flaws like unused variables, empty catch blocks, unnecessary object creation, etc. It
    supports Java, JavaScript, Salesforce.com, PLSQL, Apache Velocity, XML, XSL, etc.
-5. [DependencyCheck](https://jeremylong.github.io/DependencyCheck/dependency-check-gradle/index.html) – a
+5. [DependencyCheck](https://jeremylong.github.io/DependencyCheck/dependency-check-gradle/index.html) - a
    software composition analysis plugin that identifies known vulnerable dependencies used by the project.
-6. [GitProperties](https://github.com/n0mer/gradle-git-properties) – plugin that produces git.properties for
+6. [GitProperties](https://github.com/n0mer/gradle-git-properties) - plugin that produces git.properties for
    spring-boot-actuator.
-7. [Checkstyle](https://docs.gradle.org/current/userguide/checkstyle_plugin.html) – performs quality checks
+7. [Checkstyle](https://docs.gradle.org/current/userguide/checkstyle_plugin.html) - performs quality checks
    on Java source files using [Checkstyle](https://checkstyle.org/index.html) tool and generates reports from these
    checks.
-8. [Gradle node](https://github.com/node-gradle/gradle-node-plugin) – plugin that is used for building the
+8. [Gradle node](https://github.com/node-gradle/gradle-node-plugin) - plugin that is used for building the
    client app.
-9. [Gradle Versions Plugin](https://github.com/ben-manes/gradle-versions-plugin) – this plugin provides a
+9. [Gradle Versions Plugin](https://github.com/ben-manes/gradle-versions-plugin) - this plugin provides a
     task to determine which dependencies have updates. Additionally, the plugin checks for updates to Gradle itself.
-10. [Pitest](https://pitest.org/) – mutation testing for the
+10. [Pitest](https://pitest.org/) - mutation testing for the
     `domain` module, configured in `etc/pitest/pitest.gradle`. Not part of the default build/check lifecycle; run
     explicitly with `./gradlew :domain:pitest` (see [Testing depth](#testing-depth)).
-11. [CycloneDX Gradle plugin](https://github.com/CycloneDX/cyclonedx-gradle-plugin) – generates a
+11. [CycloneDX Gradle plugin](https://github.com/CycloneDX/cyclonedx-gradle-plugin) - generates a
     CycloneDX Software Bill of Materials (SBOM) from the resolved dependency graph of every module. Not part of the
     default build/check lifecycle; run explicitly with `./gradlew cyclonedxBom` (output at
     `build/reports/cyclonedx/bom.json`), or see the `sbom` CI job which publishes it as a build artifact on every push.

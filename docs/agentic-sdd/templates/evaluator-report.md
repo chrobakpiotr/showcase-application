@@ -1,4 +1,4 @@
-# Evaluation Report — <TASK-ID>
+# Evaluation Report - <TASK-ID>
 
 Verdict: PASS | FAIL | ESCALATE
 Evaluator: <agent/session>

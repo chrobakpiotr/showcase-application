@@ -1,4 +1,4 @@
-# INV-CONTENTION-001 — Evaluate high-contention stock reservation strategy
+# INV-CONTENTION-001 - Evaluate high-contention stock reservation strategy
 
 Status: DRAFT DESIGN STUDY
 Owner: showcase application maintainer
@@ -47,9 +47,9 @@ This is a **design study**, not an approved production feature. No application b
 
 ## Failure modes and edge cases
 
-- FM-001: Candidate benchmark is not comparable — evaluator must reject the bake-off rather than rank incomparable results.
-- FM-002: Local environment is too noisy to distinguish latency — correctness/complexity evidence may still be useful, but performance winner must remain unresolved.
-- FM-003: A candidate requires production-only infrastructure — mark the experiment inconclusive instead of reaching remote systems.
+- FM-001: Candidate benchmark is not comparable - evaluator must reject the bake-off rather than rank incomparable results.
+- FM-002: Local environment is too noisy to distinguish latency - correctness/complexity evidence may still be useful, but performance winner must remain unresolved.
+- FM-003: A candidate requires production-only infrastructure - mark the experiment inconclusive instead of reaching remote systems.
 
 ## Security / privacy
 

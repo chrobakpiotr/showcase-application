@@ -1,4 +1,4 @@
-# <FEATURE-ID> — Technical Plan
+# <FEATURE-ID> - Technical Plan
 
 Status: DRAFT
 Spec: `./spec.md`

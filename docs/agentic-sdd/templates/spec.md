@@ -1,4 +1,4 @@
-# <FEATURE-ID> — <Feature name>
+# <FEATURE-ID> - <Feature name>
 
 Status: DRAFT
 Owner: <human owner>
