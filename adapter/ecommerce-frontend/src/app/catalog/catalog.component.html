@@ -1,61 +1,92 @@
 <div class="catalog-container">
-  <h2>Product Catalog</h2>
+  <section class="catalog-hero">
+    <div>
+      <p class="eyebrow">Storefront data</p>
+      <h1>Product Catalog</h1>
+      <p>
+        Browse the products that drive cart, inventory, recommendations and order scenarios. Stable demo SKUs are
+        shown on every card so they can be reused directly in Swagger or operator screens.
+      </p>
+    </div>
+    <div class="catalog-hero__badge">
+      <strong>{{ products().length }}</strong>
+      <span>products on this page</span>
+    </div>
+  </section>
 
-  <div class="filters">
-    <label for="category-filter">Category</label>
-    <select
-      id="category-filter"
-      data-testid="category-filter"
-      (change)="selectCategory($any($event.target).value)"
-    >
-      <option value="">All categories</option>
-      @for (category of categories(); track category.slug) {
-      <option [value]="category.slug">{{ category.name }}</option>
-      }
-    </select>
+  <div class="catalog-toolbar">
+    <div class="filters">
+      <label for="category-filter">Category</label>
+      <select
+        id="category-filter"
+        data-testid="category-filter"
+        (change)="selectCategory($any($event.target).value)"
+      >
+        <option value="">All categories</option>
+        @for (category of categories(); track category.slug) {
+        <option [value]="category.slug">{{ category.name }}</option>
+        }
+      </select>
+    </div>
+    <div class="catalog-toolbar__hint">Tip: copy a <code>DEMO-*</code> SKU into Inventory or Orders.</div>
   </div>
 
   @if (loading()) {
-  <p class="loading">Loading products…</p>
+  <div class="status-panel loading" role="status">Loading products…</div>
   } @if (errorMessage()) {
-  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  <div class="status-panel error-message" role="alert">{{ errorMessage() }}</div>
   }
 
   <div class="product-grid" data-testid="product-grid">
     @for (product of products(); track product.sku) {
     <article class="product-card" data-testid="product-card">
-      @if (product.imageUrl) {
-      <img [src]="product.imageUrl" [alt]="product.name" />
-      }
-      <h3>{{ product.name }}</h3>
-      <p class="category">{{ product.categoryName }}</p>
-      <p class="description">{{ product.description }}</p>
-      <p class="price">{{ product.unitPrice | currency }}</p>
+      <div class="product-media">
+        @if (product.imageUrl) {
+        <img [src]="product.imageUrl" [alt]="product.name" />
+        } @else {
+        <div class="product-placeholder" aria-hidden="true">{{ product.categoryName.slice(0, 1) }}</div>
+        }
+      </div>
+      <div class="product-body">
+        <div class="product-meta">
+          <span class="category">{{ product.categoryName }}</span>
+          <code>{{ product.sku }}</code>
+        </div>
+        <h2>{{ product.name }}</h2>
+        <p class="description">{{ product.description }}</p>
+        <div class="product-footer">
+          <span class="price">{{ product.unitPrice | currency }}</span>
+          <span class="availability" [class.availability--inactive]="!product.active">
+            {{ product.active ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
     </article>
     } @empty {
-    <p class="empty" data-testid="empty-products">No products found.</p>
+    <div class="empty" data-testid="empty-products">
+      <strong>No products found.</strong>
+      <span>Try another category or start the app with a local/demo profile to load the seed catalog.</span>
+    </div>
     }
   </div>
 
-  <div class="pagination">
+  <div class="pagination" aria-label="Catalog pagination">
     <button
       type="button"
       data-testid="prev-page"
       [disabled]="page() === 0"
       (click)="previousPage()"
     >
-      Previous
+      ← Previous
     </button>
-    <span data-testid="page-indicator"
-      >Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span
-    >
+    <span data-testid="page-indicator">Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span>
     <button
       type="button"
       data-testid="next-page"
       [disabled]="page() + 1 >= totalPages()"
       (click)="nextPage()"
     >
-      Next
+      Next →
     </button>
   </div>
 </div>

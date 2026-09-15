@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!--
+        Deterministic data for developer/demo profiles only. The @demo context makes these changesets
+        ineligible unless the caller explicitly enables the dedicated demo Liquibase context.
+        Local IDE profiles and the Docker Compose application profile opt in; Kubernetes deliberately
+        does not. Stable SKUs make the UI, Swagger and manual API testing useful immediately after
+        startup without creating catalog data by hand.
+    -->
+    <changeSet id="demo-001-categories" author="cp" context="@demo">
+        <insert schemaName="${schema_name_full}" tableName="CATEGORY">
+            <column name="ID" valueNumeric="9000001" />
+            <column name="NAME" value="Electronics" />
+            <column name="SLUG" value="demo-electronics" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="CATEGORY">
+            <column name="ID" valueNumeric="9000002" />
+            <column name="NAME" value="Desk &amp; Office" />
+            <column name="SLUG" value="demo-desk-office" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="CATEGORY">
+            <column name="ID" valueNumeric="9000003" />
+            <column name="NAME" value="Developer Gear" />
+            <column name="SLUG" value="demo-developer-gear" />
+        </insert>
+    </changeSet>
+
+    <changeSet id="demo-002-products" author="cp" context="@demo">
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100001" /><column name="SKU" value="DEMO-MOUSE-001" />
+            <column name="NAME" value="Wireless Mouse" /><column name="DESCRIPTION" value="Ergonomic wireless mouse with quiet switches and multi-device pairing." />
+            <column name="UNIT_PRICE" valueNumeric="39.90" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:00:00" /><column name="CATEGORY_ID" valueNumeric="9000001" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100002" /><column name="SKU" value="DEMO-KEYBOARD-001" />
+            <column name="NAME" value="Mechanical Keyboard" /><column name="DESCRIPTION" value="Compact hot-swappable mechanical keyboard for a clean developer desk." />
+            <column name="UNIT_PRICE" valueNumeric="119.00" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:01:00" /><column name="CATEGORY_ID" valueNumeric="9000001" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100003" /><column name="SKU" value="DEMO-USB-HUB-001" />
+            <column name="NAME" value="USB-C Hub" /><column name="DESCRIPTION" value="Seven-port USB-C hub with HDMI, Ethernet and SD card connectivity." />
+            <column name="UNIT_PRICE" valueNumeric="69.50" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:02:00" /><column name="CATEGORY_ID" valueNumeric="9000001" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100004" /><column name="SKU" value="DEMO-HEADPHONES-001" />
+            <column name="NAME" value="Noise-Canceling Headphones" /><column name="DESCRIPTION" value="Over-ear headphones with active noise cancellation for focus sessions." />
+            <column name="UNIT_PRICE" valueNumeric="189.00" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:03:00" /><column name="CATEGORY_ID" valueNumeric="9000001" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100005" /><column name="SKU" value="DEMO-WEBCAM-001" />
+            <column name="NAME" value="4K Webcam" /><column name="DESCRIPTION" value="Sharp 4K webcam with privacy shutter and automatic light correction." />
+            <column name="UNIT_PRICE" valueNumeric="129.00" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:04:00" /><column name="CATEGORY_ID" valueNumeric="9000001" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100006" /><column name="SKU" value="DEMO-LAMP-001" />
+            <column name="NAME" value="Adjustable Desk Lamp" /><column name="DESCRIPTION" value="Dimmable desk lamp with warm and cool light modes." />
+            <column name="UNIT_PRICE" valueNumeric="54.90" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:05:00" /><column name="CATEGORY_ID" valueNumeric="9000002" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100007" /><column name="SKU" value="DEMO-NOTEBOOK-001" />
+            <column name="NAME" value="Developer Notebook" /><column name="DESCRIPTION" value="A5 dotted notebook for architecture sketches, incident notes and ideas." />
+            <column name="UNIT_PRICE" valueNumeric="14.90" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:06:00" /><column name="CATEGORY_ID" valueNumeric="9000002" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100008" /><column name="SKU" value="DEMO-BOTTLE-001" />
+            <column name="NAME" value="Insulated Bottle" /><column name="DESCRIPTION" value="Leak-proof insulated bottle that keeps drinks cold through long coding sessions." />
+            <column name="UNIT_PRICE" valueNumeric="24.50" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:07:00" /><column name="CATEGORY_ID" valueNumeric="9000002" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100009" /><column name="SKU" value="DEMO-STAND-001" />
+            <column name="NAME" value="Aluminum Laptop Stand" /><column name="DESCRIPTION" value="Stable aluminum stand that raises a laptop to a comfortable eye level." />
+            <column name="UNIT_PRICE" valueNumeric="49.00" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:08:00" /><column name="CATEGORY_ID" valueNumeric="9000003" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100010" /><column name="SKU" value="DEMO-CABLE-001" />
+            <column name="NAME" value="Braided USB-C Cable" /><column name="DESCRIPTION" value="Two-meter braided USB-C cable rated for charging and high-speed data." />
+            <column name="UNIT_PRICE" valueNumeric="18.90" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:09:00" /><column name="CATEGORY_ID" valueNumeric="9000003" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100011" /><column name="SKU" value="DEMO-BACKPACK-001" />
+            <column name="NAME" value="Commuter Backpack" /><column name="DESCRIPTION" value="Minimal water-resistant backpack with a padded laptop compartment." />
+            <column name="UNIT_PRICE" valueNumeric="79.00" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:10:00" /><column name="CATEGORY_ID" valueNumeric="9000003" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" valueNumeric="9100012" /><column name="SKU" value="DEMO-MUG-001" />
+            <column name="NAME" value="Ceramic Debug Mug" /><column name="DESCRIPTION" value="Large ceramic mug labelled 'works on my machine' for reproducible coffee breaks." />
+            <column name="UNIT_PRICE" valueNumeric="16.50" /><column name="ACTIVE" valueBoolean="true" />
+            <column name="CREATED_DATE" valueDate="2026-01-01T10:11:00" /><column name="CATEGORY_ID" valueNumeric="9000003" />
+        </insert>
+    </changeSet>
+
+    <changeSet id="demo-003-stock" author="cp" context="@demo">
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-MOUSE-001" /><column name="QUANTITY_ON_HAND" valueNumeric="25" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-KEYBOARD-001" /><column name="QUANTITY_ON_HAND" valueNumeric="12" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-USB-HUB-001" /><column name="QUANTITY_ON_HAND" valueNumeric="40" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-HEADPHONES-001" /><column name="QUANTITY_ON_HAND" valueNumeric="6" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-WEBCAM-001" /><column name="QUANTITY_ON_HAND" valueNumeric="8" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-LAMP-001" /><column name="QUANTITY_ON_HAND" valueNumeric="18" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-NOTEBOOK-001" /><column name="QUANTITY_ON_HAND" valueNumeric="50" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-BOTTLE-001" /><column name="QUANTITY_ON_HAND" valueNumeric="30" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-STAND-001" /><column name="QUANTITY_ON_HAND" valueNumeric="10" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-CABLE-001" /><column name="QUANTITY_ON_HAND" valueNumeric="75" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-BACKPACK-001" /><column name="QUANTITY_ON_HAND" valueNumeric="4" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+        <insert schemaName="${schema_name_full}" tableName="STOCK_LEVEL"><column name="SKU" value="DEMO-MUG-001" /><column name="QUANTITY_ON_HAND" valueNumeric="20" /><column name="QUANTITY_RESERVED" valueNumeric="0" /><column name="VERSION" valueNumeric="0" /></insert>
+    </changeSet>
+
+    <changeSet id="demo-004-coupons" author="cp" context="@demo">
+        <insert schemaName="${schema_name_full}" tableName="COUPON">
+            <column name="CODE" value="SAVE10" /><column name="DISCOUNT_TYPE" value="PERCENTAGE" />
+            <column name="DISCOUNT_VALUE" valueNumeric="10.00" /><column name="MINIMUM_ORDER_AMOUNT" valueNumeric="50.00" />
+            <column name="MAX_REDEMPTIONS" valueNumeric="1000" /><column name="REDEMPTION_COUNT" valueNumeric="0" />
+            <column name="ACTIVE" valueBoolean="true" /><column name="VERSION" valueNumeric="0" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="COUPON">
+            <column name="CODE" value="WELCOME20" /><column name="DISCOUNT_TYPE" value="PERCENTAGE" />
+            <column name="DISCOUNT_VALUE" valueNumeric="20.00" /><column name="MINIMUM_ORDER_AMOUNT" valueNumeric="100.00" />
+            <column name="MAX_REDEMPTIONS" valueNumeric="250" /><column name="REDEMPTION_COUNT" valueNumeric="0" />
+            <column name="ACTIVE" valueBoolean="true" /><column name="VERSION" valueNumeric="0" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="COUPON">
+            <column name="CODE" value="FLAT15" /><column name="DISCOUNT_TYPE" value="FIXED_AMOUNT" />
+            <column name="DISCOUNT_VALUE" valueNumeric="15.00" /><column name="MINIMUM_ORDER_AMOUNT" valueNumeric="75.00" />
+            <column name="MAX_REDEMPTIONS" valueNumeric="500" /><column name="REDEMPTION_COUNT" valueNumeric="0" />
+            <column name="ACTIVE" valueBoolean="true" /><column name="VERSION" valueNumeric="0" />
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,54 +1,84 @@
-<div class="login-container">
-  <h1>Sign In</h1>
-  <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-    <div class="field">
-      <label for="username">Username</label>
-      <input
-        id="username"
-        type="text"
-        formControlName="username"
-        data-testid="login-username"
-        autocomplete="username"
-      />
-      @if (usernameControl.invalid && usernameControl.touched) {
-      <span class="error">Username is required.</span>
-      }
+<div class="login-shell">
+  <section class="login-story" aria-label="Showcase overview">
+    <div class="story-mark" aria-hidden="true">S</div>
+    <p class="eyebrow">Showcase commerce lab</p>
+    <h1>Explore the whole platform from one local stack.</h1>
+    <p class="story-copy">
+      Catalog, inventory, orders, payments, returns, shipping, messaging, observability and AI-assisted workflows are
+      wired into one production-shaped demo application.
+    </p>
+    <div class="story-points">
+      <span>Java 25 + Spring Boot</span>
+      <span>Angular operator UI</span>
+      <span>Seeded local demo data</span>
     </div>
-    <div class="field">
-      <label for="password">Password</label>
-      <input
-        id="password"
-        type="password"
-        formControlName="password"
-        data-testid="login-password"
-        autocomplete="current-password"
-      />
-      @if (passwordControl.invalid && passwordControl.touched) {
-      <span class="error">Password is required.</span>
-      }
+  </section>
+
+  <section class="login-container">
+    <div class="login-heading">
+      <p class="eyebrow">Operator access</p>
+      <h2>Sign in</h2>
+      <p>Use the seeded Keycloak users to explore role-aware workflows.</p>
     </div>
-    @if (errorMessage()) {
-    <div class="error-message" role="alert">{{ errorMessage() }}</div>
-    }
-    <button
-      type="submit"
-      [disabled]="loginForm.invalid || submitting()"
-      data-testid="login-submit"
-    >
-      {{ submitting() ? 'Signing in…' : 'Sign In' }}
-    </button>
-  </form>
-  <div class="demo-hint">
-    <strong>Demo credentials:</strong>
-    <ul>
-      <li>
-        <code>order-admin</code> / <code>password</code> - full access
-        (ORDER_READ + ORDER_WRITE)
-      </li>
-      <li>
-        <code>order-viewer</code> / <code>password</code> - read-only
-        (ORDER_READ)
-      </li>
-    </ul>
-  </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          data-testid="login-username"
+          autocomplete="username"
+          placeholder="order-admin"
+        />
+        @if (usernameControl.invalid && usernameControl.touched) {
+        <span class="error">Username is required.</span>
+        }
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          data-testid="login-password"
+          autocomplete="current-password"
+          placeholder="password"
+        />
+        @if (passwordControl.invalid && passwordControl.touched) {
+        <span class="error">Password is required.</span>
+        }
+      </div>
+      @if (errorMessage()) {
+      <div class="error-message" role="alert">{{ errorMessage() }}</div>
+      }
+      <button
+        type="submit"
+        [disabled]="loginForm.invalid || submitting()"
+        data-testid="login-submit"
+      >
+        {{ submitting() ? 'Signing in…' : 'Sign In' }}
+      </button>
+    </form>
+
+    <div class="demo-hint">
+      <div class="demo-hint__title">
+        <strong>Demo credentials</strong>
+        <span>password: <code>password</code></span>
+      </div>
+      <div class="credential-grid">
+        <div>
+          <span class="role role--admin">Full access</span>
+          <code>order-admin</code>
+          <small>All showcase operator roles, including catalog and inventory writes.</small>
+        </div>
+        <div>
+          <span class="role">Read only</span>
+          <code>order-viewer</code>
+          <small>Read-oriented operator experience where the feature exposes it.</small>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>

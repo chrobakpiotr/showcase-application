@@ -1,35 +1,52 @@
 @if (authService.isAuthenticated()) {
-<header>
-  <nav>
-    <a routerLink="/dashboard">Dashboard</a>
-    <a routerLink="/order">Orders</a>
-    @if (authService.roles().includes('ORDER_READ')) {
-    <a routerLink="/orders">Order History</a>
-    <a routerLink="/analytics">Analytics Assistant</a>
-    } @if (authService.roles().includes('CATALOG_READ')) {
-    <a routerLink="/catalog">Catalog</a>
-    }
-    <a routerLink="/cart">Cart</a>
-    <a routerLink="/wishlist">Wishlist</a>
-    <a routerLink="/recommendations">Recommendations</a>
-    @if (authService.roles().includes('INVENTORY_READ')) {
-    <a routerLink="/inventory">Inventory</a>
-    }
-    <a routerLink="/reviews">Reviews</a>
-    @if (authService.roles().includes('RETURN_READ')) {
-    <a routerLink="/returns">Returns</a>
-    } @if (authService.roles().includes('NOTIFICATION_READ')) {
-    <a routerLink="/notifications">Notifications</a>
-    } @if (authService.roles().includes('SHIPMENT_READ')) {
-    <a routerLink="/shipments">Shipments</a>
-    } @if (authService.roles().includes('COUPON_READ')) {
-    <a routerLink="/coupons">Coupons</a>
-    }
-    <span>Welcome, {{ authService.username() }}</span>
-    <button type="button" (click)="logout()">Logout</button>
-  </nav>
+<header class="app-header">
+  <div class="app-header__inner">
+    <a class="brand" routerLink="/dashboard" aria-label="Showcase dashboard">
+      <span class="brand__mark" aria-hidden="true">S</span>
+      <span class="brand__copy">
+        <strong>Showcase</strong>
+        <small>commerce lab</small>
+      </span>
+    </a>
+
+    <nav class="primary-nav" aria-label="Primary navigation">
+      <a routerLink="/dashboard">Dashboard</a>
+      <a routerLink="/order">Orders</a>
+      @if (authService.roles().includes('ORDER_READ')) {
+      <a routerLink="/orders">Order History</a>
+      <a routerLink="/analytics">Analytics Assistant</a>
+      } @if (authService.roles().includes('CATALOG_READ')) {
+      <a routerLink="/catalog">Catalog</a>
+      }
+      <a routerLink="/cart">Cart</a>
+      <a routerLink="/wishlist">Wishlist</a>
+      <a routerLink="/recommendations">Recommendations</a>
+      @if (authService.roles().includes('INVENTORY_READ')) {
+      <a routerLink="/inventory">Inventory</a>
+      }
+      <a routerLink="/reviews">Reviews</a>
+      @if (authService.roles().includes('RETURN_READ')) {
+      <a routerLink="/returns">Returns</a>
+      } @if (authService.roles().includes('NOTIFICATION_READ')) {
+      <a routerLink="/notifications">Notifications</a>
+      } @if (authService.roles().includes('SHIPMENT_READ')) {
+      <a routerLink="/shipments">Shipments</a>
+      } @if (authService.roles().includes('COUPON_READ')) {
+      <a routerLink="/coupons">Coupons</a>
+      }
+    </nav>
+
+    <div class="session">
+      <span class="session__avatar" aria-hidden="true">{{ authService.username().slice(0, 1).toUpperCase() }}</span>
+      <span class="session__copy">
+        <small>Signed in as</small>
+        <strong>{{ authService.username() }}</strong>
+      </span>
+      <button class="session__logout" type="button" (click)="logout()">Logout</button>
+    </div>
+  </div>
 </header>
 }
-<main>
+<main class="app-main">
   <router-outlet />
 </main>

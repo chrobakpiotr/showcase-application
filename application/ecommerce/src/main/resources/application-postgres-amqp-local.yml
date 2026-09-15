@@ -3,7 +3,7 @@ spring:
     import:
       classpath:application.yml,classpath:application-persistence-postgres-local.yml,classpath:application-amqp-local.yml
   liquibase:
-    contexts: local
+    contexts: local,demo
 
 service:
   mail:

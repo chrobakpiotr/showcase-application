@@ -8,7 +8,7 @@
 
 .toggle-button {
   padding: 0.75rem 1.25rem;
-  background-color: #1976d2;
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 999px;
@@ -26,14 +26,14 @@
   display: flex;
   flex-direction: column;
   background: white;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 
   header {
     padding: 0.75rem 1rem;
-    background-color: #1976d2;
+    background-color: var(--color-primary);
     color: white;
 
     h3 {
@@ -49,14 +49,14 @@
     min-height: 120px;
 
     .hint {
-      color: #607d8b;
+      color: var(--color-muted);
       font-size: 0.85rem;
     }
 
     .message {
       margin-bottom: 0.6rem;
       padding: 0.5rem 0.75rem;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       font-size: 0.85rem;
       max-width: 90%;
 
@@ -74,13 +74,13 @@
       .unavailable-hint {
         display: block;
         margin-top: 0.25rem;
-        color: #d32f2f;
+        color: var(--color-danger);
         font-size: 0.75rem;
       }
     }
 
     .loading {
-      color: #607d8b;
+      color: var(--color-muted);
       font-size: 0.8rem;
     }
   }
@@ -95,22 +95,22 @@
       flex: 1;
       resize: none;
       padding: 0.5rem;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius-sm);
       box-sizing: border-box;
       font-family: inherit;
     }
 
     button[type='submit'] {
       padding: 0.5rem 1rem;
-      background-color: #1976d2;
+      background-color: var(--color-primary);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
 
       &:disabled {
-        background-color: #b0bec5;
+        background-color: var(--color-disabled);
         cursor: not-allowed;
       }
     }

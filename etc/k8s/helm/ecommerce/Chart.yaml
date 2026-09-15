@@ -12,6 +12,6 @@ keywords:
   - spring-boot
   - hexagonal-architecture
   - showcase
-home: https://github.com/user99987/showcase-application
+home: https://github.com/chrobakpiotr/showcase-application
 maintainers:
-  - name: user99987
+  - name: chrobakpiotr

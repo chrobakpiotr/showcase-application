@@ -24,21 +24,21 @@
 
       input {
         padding: 0.6rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-sm);
       }
     }
 
     button {
       padding: 0.65rem 1.25rem;
-      background-color: #1976d2;
+      background-color: var(--color-primary);
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
 
       &:disabled {
-        background-color: #b0bec5;
+        background-color: var(--color-disabled);
         cursor: not-allowed;
       }
     }
@@ -50,8 +50,8 @@
   }
 
   .stock-level {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
     padding: 1rem 1.5rem;
     margin-bottom: 1.5rem;
 
@@ -61,14 +61,14 @@
   }
 
   .error-message {
-    color: #d32f2f;
-    border: 1px solid #d32f2f;
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger);
     padding: 0.75rem;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     margin-bottom: 1rem;
   }
 
   .loading {
-    color: #455a64;
+    color: var(--color-muted);
   }
 }

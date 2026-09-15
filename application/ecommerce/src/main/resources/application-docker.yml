@@ -11,7 +11,9 @@ spring:
     import:
       classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml,classpath:application-cache-redis-docker.yml,classpath:application-json-logging.yml
   liquibase:
-    contexts: local
+    # Docker Compose is a local showcase environment, so it explicitly opts into deterministic
+    # demo fixtures. Production-like profiles such as k8s do not include the demo context.
+    contexts: local,demo
 
 service:
   mail:
