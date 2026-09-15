@@ -4,8 +4,9 @@
       <p class="eyebrow">Storefront data</p>
       <h1>Product Catalog</h1>
       <p>
-        Browse the products that drive cart, inventory, recommendations and order scenarios. Stable demo SKUs are
-        shown on every card so they can be reused directly in Swagger or operator screens.
+        Browse the products that drive cart, inventory, recommendations and
+        order scenarios. Stable demo SKUs are shown on every card so they can be
+        reused directly in Swagger or operator screens.
       </p>
     </div>
     <div class="catalog-hero__badge">
@@ -28,13 +29,17 @@
         }
       </select>
     </div>
-    <div class="catalog-toolbar__hint">Tip: copy a <code>DEMO-*</code> SKU into Inventory or Orders.</div>
+    <div class="catalog-toolbar__hint">
+      Tip: copy a <code>DEMO-*</code> SKU into Inventory or Orders.
+    </div>
   </div>
 
   @if (loading()) {
   <div class="status-panel loading" role="status">Loading products…</div>
   } @if (errorMessage()) {
-  <div class="status-panel error-message" role="alert">{{ errorMessage() }}</div>
+  <div class="status-panel error-message" role="alert">
+    {{ errorMessage() }}
+  </div>
   }
 
   <div class="product-grid" data-testid="product-grid">
@@ -44,7 +49,9 @@
         @if (product.imageUrl) {
         <img [src]="product.imageUrl" [alt]="product.name" />
         } @else {
-        <div class="product-placeholder" aria-hidden="true">{{ product.categoryName.slice(0, 1) }}</div>
+        <div class="product-placeholder" aria-hidden="true">
+          {{ product.categoryName.slice(0, 1) }}
+        </div>
         }
       </div>
       <div class="product-body">
@@ -56,7 +63,10 @@
         <p class="description">{{ product.description }}</p>
         <div class="product-footer">
           <span class="price">{{ product.unitPrice | currency }}</span>
-          <span class="availability" [class.availability--inactive]="!product.active">
+          <span
+            class="availability"
+            [class.availability--inactive]="!product.active"
+          >
             {{ product.active ? 'Active' : 'Inactive' }}
           </span>
         </div>
@@ -65,7 +75,10 @@
     } @empty {
     <div class="empty" data-testid="empty-products">
       <strong>No products found.</strong>
-      <span>Try another category or start the app with a local/demo profile to load the seed catalog.</span>
+      <span
+        >Try another category or start the app with a local/demo profile to load
+        the seed catalog.</span
+      >
     </div>
     }
   </div>
@@ -79,7 +92,9 @@
     >
       ← Previous
     </button>
-    <span data-testid="page-indicator">Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span>
+    <span data-testid="page-indicator"
+      >Page {{ page() + 1 }} of {{ totalPages() || 1 }}</span
+    >
     <button
       type="button"
       data-testid="next-page"

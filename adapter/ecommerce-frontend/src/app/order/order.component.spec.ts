@@ -246,4 +246,45 @@ describe('OrderComponent', () => {
     component.customerForm.controls.phone.setValue('not-a-phone-number!!');
     expect(component.customerForm.controls.phone.invalid).toBeTrue();
   });
+
+  it('fills a complete seeded demo order', () => {
+    setup();
+    component.fillDemoOrder();
+
+    expect(component.orderForm.valid).toBeTrue();
+    expect(component.itemGroups[0].getRawValue()).toEqual({
+      sku: 'DEMO-MOUSE-001',
+      productName: 'Wireless Mouse',
+      unitPrice: 39.9,
+      quantity: 1,
+    });
+    expect(component.customerForm.controls.email.value).toContain(
+      'demo.buyer+'
+    );
+  });
+
+  it('surfaces RFC 9457 detail when order placement fails', fakeAsync(() => {
+    setup();
+    placeOrderSpy.and.returnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              title: 'Insufficient Stock',
+              detail: 'Not enough stock for DEMO-MOUSE-001',
+              errorId: 'error-123',
+            },
+          })
+      )
+    );
+    fillValidForm('test');
+
+    component.placeOrder();
+    tick();
+
+    expect(component.errorMessage()).toBe(
+      'Insufficient Stock: Not enough stock for DEMO-MOUSE-001 (error id: error-123)'
+    );
+  }));
 });

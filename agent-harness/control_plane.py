@@ -180,7 +180,7 @@ def save_snapshot(item: dict[str, Any]) -> pathlib.Path:
 def render_intent(item: dict[str, Any]) -> str:
     labels = ', '.join(item.get('labels', [])) or '-'
     return (
-        f'# Tracker intent — {item.get("key")}\n\n'
+        f'# Tracker intent - {item.get("key")}\n\n'
         f'- Source: {item.get("source")}\n'
         f'- State: {item.get("state")}\n'
         f'- URL: {item.get("url") or "-"}\n'

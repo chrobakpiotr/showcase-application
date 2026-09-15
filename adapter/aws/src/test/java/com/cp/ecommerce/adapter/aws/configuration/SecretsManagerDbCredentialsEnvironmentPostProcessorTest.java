@@ -98,7 +98,7 @@ class SecretsManagerDbCredentialsEnvironmentPostProcessorTest {
                 .willThrow(new RuntimeException("LocalStack unavailable"));
         final SecretsManagerDbCredentialsEnvironmentPostProcessor processor = processorWithMockClient(secretsManagerClient);
 
-        // Must not rethrow – just logs a warning and continues
+        // Must not rethrow - just logs a warning and continues
         processor.postProcessEnvironment(environment, springApplication);
 
         assertThat(environment.getPropertySources().contains("aws-secretsmanager-db-credentials")).isFalse();

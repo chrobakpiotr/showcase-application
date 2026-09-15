@@ -454,9 +454,9 @@ def run_prototype_candidate(
     try:
         body = f"""STAGE: DISPOSABLE PROTOTYPE
 Feature: {feature}
-Prototype question: {question['id']} — {question['question']}
+Prototype question: {question['id']} - {question['question']}
 Rationale: {question['rationale']}
-Candidate: {candidate['id']} — {candidate['approach']}
+Candidate: {candidate['id']} - {candidate['approach']}
 Decision criteria: {json.dumps(question['decision_criteria'])}
 
 SPEC
@@ -504,13 +504,13 @@ def run_prototype_evaluator(
             if patch_path.exists():
                 patch_text = patch_path.read_text(encoding='utf-8', errors='replace')[:16000]
             evidence_parts.append(
-                f"CANDIDATE {result.get('candidate_id')} — {result.get('approach')}\n"
+                f"CANDIDATE {result.get('candidate_id')} - {result.get('approach')}\n"
                 f"RESULT: {json.dumps(result, indent=2, sort_keys=True)[:18000]}\n"
                 f"PATCH (truncated):\n{patch_text or '<no code diff>'}"
             )
         body = f"""STAGE: PROTOTYPE BAKE-OFF EVALUATION
 Feature: {feature}
-Question: {question['id']} — {question['question']}
+Question: {question['id']} - {question['question']}
 Decision criteria: {json.dumps(question['decision_criteria'])}
 
 CANDIDATE EVIDENCE

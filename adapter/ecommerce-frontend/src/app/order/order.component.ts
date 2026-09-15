@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,12 +21,16 @@ import {
 } from '@app/order/payment-method.model';
 import { SupportAssistantComponent } from '@app/support-assistant/support-assistant.component';
 
-// Phone pattern mirrors the backend's Contact.PHONE_PATTERN ("^$|[- +()0-9]+"): either blank, or digits with
-// optional spaces/parentheses/dashes/plus sign.
 const PHONE_PATTERN = /^$|^[- +()0-9]+$/;
 
+const DEMO_ITEM: OrderLineItemRequestModel = {
+  sku: 'DEMO-MOUSE-001',
+  productName: 'Wireless Mouse',
+  unitPrice: 39.9,
+  quantity: 1,
+};
+
 function createLineItemGroup(): FormGroup {
-  // Field lengths/bounds mirror OrderLineItem's Bean Validation constraints (ValidationConstants).
   return new FormGroup({
     sku: new FormControl('', {
       nonNullable: true,
@@ -59,8 +64,6 @@ export class OrderComponent {
   readonly errorMessage = signal<string | null>(null);
   readonly paymentMethods = PAYMENT_METHODS;
 
-  // Remarks max length mirrors the REMARK column in OrderEntity (length = 800). Customer/address field lengths
-  // mirror the domain's Contact/Address validation constraints (ValidationConstants).
   readonly orderForm = new FormGroup({
     remarks: new FormControl('', {
       nonNullable: true,
@@ -137,6 +140,28 @@ export class OrderComponent {
     }
   }
 
+  fillDemoOrder(): void {
+    while (this.itemsFormArray.length > 1) {
+      this.itemsFormArray.removeAt(this.itemsFormArray.length - 1);
+    }
+
+    this.customerForm.setValue({
+      fullName: 'Demo Buyer',
+      email: `demo.buyer+${Date.now()}@example.com`,
+      phone: '+48 600 123 456',
+      street: 'Demo Street 1',
+      postalCode: '00-001',
+      city: 'Warsaw',
+      countryCode: 'PL',
+    });
+    this.itemGroups[0].setValue(DEMO_ITEM);
+    this.orderForm.controls.paymentMethod.setValue('CARD');
+    this.orderForm.controls.couponCode.setValue('');
+    this.remarksControl.setValue('Demo order created from the Showcase UI');
+    this.orderNumber.set(null);
+    this.errorMessage.set(null);
+  }
+
   placeOrder(): void {
     if (this.orderForm.invalid || this.submitting()) return;
     this.submitting.set(true);
@@ -161,10 +186,34 @@ export class OrderComponent {
             this.orderNumber.set(response.orderNumber);
           }
         },
-        error: () => {
+        error: (error: unknown) => {
           this.submitting.set(false);
-          this.errorMessage.set('Failed to place order. Please try again.');
+          this.errorMessage.set(this.toUserFacingError(error));
         },
       });
+  }
+
+  private toUserFacingError(error: unknown): string {
+    const fallback = 'Failed to place order. Please try again.';
+    if (!(error instanceof HttpErrorResponse)) return fallback;
+
+    const body: unknown = error.error;
+    if (typeof body === 'string' && body.trim()) {
+      return body.trim();
+    }
+    if (!body || typeof body !== 'object') return fallback;
+
+    const problem = body as Record<string, unknown>;
+    const title =
+      typeof problem['title'] === 'string' ? problem['title'].trim() : '';
+    const detail =
+      typeof problem['detail'] === 'string' ? problem['detail'].trim() : '';
+    const errorId =
+      typeof problem['errorId'] === 'string' ? problem['errorId'].trim() : '';
+
+    if (!title && !detail) return fallback;
+
+    const message = title && detail ? `${title}: ${detail}` : title || detail;
+    return errorId ? `${message} (error id: ${errorId})` : message;
   }
 }

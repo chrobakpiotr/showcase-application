@@ -121,9 +121,7 @@
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
-  transition:
-    transform 150ms ease,
-    box-shadow 150ms ease,
+  transition: transform 150ms ease, box-shadow 150ms ease,
     border-color 150ms ease;
 }
 
@@ -138,8 +136,11 @@
   height: 148px;
   place-items: center;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 25% 20%, rgb(255 255 255 / 0.7), transparent 7rem),
+  background: radial-gradient(
+      circle at 25% 20%,
+      rgb(255 255 255 / 0.7),
+      transparent 7rem
+    ),
     linear-gradient(135deg, #e0e7ff, #f5f3ff 55%, #ecfeff);
 }
 

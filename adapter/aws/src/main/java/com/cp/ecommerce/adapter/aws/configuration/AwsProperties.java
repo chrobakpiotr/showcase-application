@@ -57,7 +57,7 @@ public class AwsProperties {
     }
 
     /**
-     * Secrets Manager–specific properties.
+     * Secrets Manager-specific properties.
      */
     @Getter
     @Setter

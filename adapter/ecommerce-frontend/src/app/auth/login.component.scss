@@ -19,8 +19,11 @@
 .login-story {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 90% 8%, rgb(129 140 248 / 0.34), transparent 17rem),
+  background: radial-gradient(
+      circle at 90% 8%,
+      rgb(129 140 248 / 0.34),
+      transparent 17rem
+    ),
     linear-gradient(145deg, #1e1b4b, #312e81 58%, #3730a3);
   padding: clamp(2.5rem, 6vw, 5rem);
   color: white;

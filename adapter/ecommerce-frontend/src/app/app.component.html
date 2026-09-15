@@ -37,12 +37,16 @@
     </nav>
 
     <div class="session">
-      <span class="session__avatar" aria-hidden="true">{{ authService.username().slice(0, 1).toUpperCase() }}</span>
+      <span class="session__avatar" aria-hidden="true">{{
+        authService.username().slice(0, 1).toUpperCase()
+      }}</span>
       <span class="session__copy">
         <small>Signed in as</small>
         <strong>{{ authService.username() }}</strong>
       </span>
-      <button class="session__logout" type="button" (click)="logout()">Logout</button>
+      <button class="session__logout" type="button" (click)="logout()">
+        Logout
+      </button>
     </div>
   </div>
 </header>

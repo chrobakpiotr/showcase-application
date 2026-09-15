@@ -935,7 +935,7 @@ def print_status(doc: dict[str, Any]) -> None:
     for item in items:
         claim = active_claim(doc, str(item['id']))
         suffix = f" claimed={claim.get('owner')}" if claim else ''
-        print(f"  {item['id']} score={leverage_score(doc, item)} type={item['type']} — {item['name']}{suffix}")
+        print(f"  {item['id']} score={leverage_score(doc, item)} type={item['type']} - {item['name']}{suffix}")
 
 
 def cmd_manual_resolve(map_dir: pathlib.Path, decision_id: str, decision: str, rationale: str) -> None:
