@@ -25,7 +25,17 @@
 
   <section>
     <h3>Moderation queue</h3>
-    @if (moderationErrorMessage()) {
+    <button
+      type="button"
+      data-testid="refresh-queue"
+      [disabled]="moderating() || loadingPending()"
+      (click)="refreshQueue()"
+    >
+      Refresh queue
+    </button>
+    @if (moderating() || loadingPending()) {
+    <p role="status">Updating moderation queue...</p>
+    } @if (moderationErrorMessage()) {
     <div class="error-message" role="alert">
       {{ moderationErrorMessage() }}
     </div>
@@ -42,6 +52,7 @@
         <div class="actions">
           <button
             type="button"
+            [disabled]="moderating() || loadingPending()"
             data-testid="approve-return"
             (click)="approve(returnRequest.returnNumber)"
           >
@@ -49,6 +60,7 @@
           </button>
           <button
             type="button"
+            [disabled]="moderating() || loadingPending()"
             data-testid="reject-return"
             (click)="reject(returnRequest.returnNumber)"
           >

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
 import { ReturnModel } from '@app/returns/return.model';
@@ -24,19 +24,21 @@ describe('ReturnsComponent', () => {
     refundAmount: 29.99,
   };
 
-  function setup(roles: string[] = []): void {
+  function setup(
+    roles: string[] = [],
+    pendingResponse: ReturnType<ReturnsService['listPendingReturns']> = of(
+      pendingPage()
+    ),
+    listResponse: ReturnType<ReturnsService['listReturns']> = of(pendingPage())
+  ): void {
     returnsServiceSpy = jasmine.createSpyObj('ReturnsService', [
       'listReturns',
       'listPendingReturns',
       'approveReturn',
       'rejectReturn',
     ]);
-    returnsServiceSpy.listReturns.and.returnValue(
-      of({ _embedded: { returnRequestResourceList: [returnRequest] } })
-    );
-    returnsServiceSpy.listPendingReturns.and.returnValue(
-      of({ _embedded: { returnRequestResourceList: [returnRequest] } })
-    );
+    returnsServiceSpy.listReturns.and.returnValue(listResponse);
+    returnsServiceSpy.listPendingReturns.and.returnValue(pendingResponse);
 
     TestBed.configureTestingModule({
       imports: [ReturnsComponent],
@@ -206,5 +208,129 @@ describe('ReturnsComponent', () => {
     expect(component.moderationErrorMessage()).toBe(
       'Failed to reject return request.'
     );
+  });
+  it('blocks conflicting actions until the mutation and queue refresh finish', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    const response = new Subject<ReturnModel>();
+    const queue = new Subject<ReturnType<typeof pendingPage>>();
+    returnsServiceSpy.approveReturn.and.returnValue(response);
+    returnsServiceSpy.listPendingReturns.and.returnValue(queue);
+    component.approve('RETURN-1');
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[role="status"]')
+    ).not.toBeNull();
+    const buttons: NodeListOf<HTMLButtonElement> =
+      fixture.nativeElement.querySelectorAll('.actions button');
+    buttons.forEach((button) => expect(button.disabled).toBeTrue());
+    component.approve('RETURN-1');
+    component.reject('RETURN-1');
+    expect(returnsServiceSpy.approveReturn).toHaveBeenCalledTimes(1);
+    expect(returnsServiceSpy.rejectReturn).not.toHaveBeenCalled();
+    response.next(returnRequest);
+    response.complete();
+    component.reject('RETURN-1');
+    expect(returnsServiceSpy.rejectReturn).not.toHaveBeenCalled();
+    queue.next(pendingPage());
+    queue.complete();
+    returnsServiceSpy.rejectReturn.and.returnValue(of(returnRequest));
+    component.reject('RETURN-1');
+    expect(returnsServiceSpy.rejectReturn).toHaveBeenCalledTimes(1);
+  });
+
+  function pendingPage() {
+    return { _embedded: { returnRequestResourceList: [returnRequest] } };
+  }
+  it('blocks approve while the refreshed queue is loading and clears stale rows on failure', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    const queue = new Subject<ReturnType<typeof pendingPage>>();
+    returnsServiceSpy.rejectReturn.and.returnValue(of(returnRequest));
+    returnsServiceSpy.listPendingReturns.and.returnValue(queue);
+    component.reject('RETURN-1');
+    component.approve('RETURN-1');
+    expect(returnsServiceSpy.approveReturn).not.toHaveBeenCalled();
+    queue.error(new Error('unavailable'));
+    expect(component.loadingPending()).toBeFalse();
+    expect(component.pendingReturns()).toEqual([]);
+    expect(component.moderationErrorMessage()).toBe(
+      'Failed to load pending return requests.'
+    );
+  });
+
+  it('does not retry failed moderation and releases the controls', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    const response = new Subject<ReturnModel>();
+    returnsServiceSpy.rejectReturn.and.returnValue(response);
+    component.reject('RETURN-1');
+    response.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(component.moderating()).toBeFalse();
+    expect(returnsServiceSpy.rejectReturn).toHaveBeenCalledTimes(1);
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="approve-return"]')
+        .disabled
+    ).toBeFalse();
+    returnsServiceSpy.approveReturn.and.returnValue(
+      throwError(() => new Error('unavailable'))
+    );
+    component.approve('RETURN-1');
+    expect(component.moderating()).toBeFalse();
+  });
+
+  it('cancels a superseded list read so it cannot overwrite the refreshed list', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    const older = new Subject<ReturnType<typeof pendingPage>>();
+    returnsServiceSpy.listReturns.and.returnValues(older, of({}));
+    returnsServiceSpy.approveReturn.and.returnValue(of(returnRequest));
+    returnsServiceSpy.rejectReturn.and.returnValue(of(returnRequest));
+    component.approve('RETURN-1');
+    component.reject('RETURN-1');
+    older.next(pendingPage());
+    expect(component.returns()).toEqual([]);
+    expect(older.observed).toBeFalse();
+  });
+
+  it('cancels pending moderation when the view is destroyed', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    const response = new Subject<ReturnModel>();
+    returnsServiceSpy.approveReturn.and.returnValue(response);
+    component.approve('RETURN-1');
+    fixture.destroy();
+    expect(response.observed).toBeFalse();
+    response.next(returnRequest);
+    expect(returnsServiceSpy.listReturns).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks actions during initial loading, then allows an explicit read-only recovery', () => {
+    const queue = new Subject<ReturnType<typeof pendingPage>>();
+    setup(['RETURN_READ', 'RETURN_WRITE'], queue);
+    component.approve('RETURN-1');
+    component.reject('RETURN-1');
+    component.refreshQueue();
+    expect(returnsServiceSpy.approveReturn).not.toHaveBeenCalled();
+    expect(returnsServiceSpy.rejectReturn).not.toHaveBeenCalled();
+    expect(returnsServiceSpy.listPendingReturns).toHaveBeenCalledTimes(1);
+    queue.error(new Error('unavailable'));
+    returnsServiceSpy.listPendingReturns.and.returnValue(of(pendingPage()));
+    fixture.detectChanges();
+    fixture.nativeElement
+      .querySelector('[data-testid="refresh-queue"]')
+      .click();
+    expect(component.pendingReturns()).toEqual([returnRequest]);
+    expect(component.moderationErrorMessage()).toBeNull();
+    const mutation = new Subject<ReturnModel>();
+    returnsServiceSpy.rejectReturn.and.returnValue(mutation);
+    component.reject('RETURN-1');
+    component.refreshQueue();
+    expect(returnsServiceSpy.listPendingReturns).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels both pending list reads when destroyed', () => {
+    const queue = new Subject<ReturnType<typeof pendingPage>>();
+    const history = new Subject<ReturnType<typeof pendingPage>>();
+    setup(['RETURN_READ'], queue, history);
+    fixture.destroy();
+    expect(queue.observed).toBeFalse();
+    expect(history.observed).toBeFalse();
   });
 });
