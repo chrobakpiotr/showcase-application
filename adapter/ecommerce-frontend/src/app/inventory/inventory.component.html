@@ -9,15 +9,36 @@
   >
     <div class="field">
       <label for="sku">SKU</label>
-      <input id="sku" type="text" formControlName="sku" data-testid="sku" />
+      <input
+        id="sku"
+        type="text"
+        formControlName="sku"
+        data-testid="sku"
+        list="demo-inventory-skus"
+        placeholder="e.g. DEMO-MOUSE-001"
+        [readOnly]="loading()"
+        aria-describedby="inventory-hint"
+      />
+      <datalist id="demo-inventory-skus">
+        <option value="DEMO-MOUSE-001">Wireless Mouse</option>
+        <option value="DEMO-KEYBOARD-001">Mechanical Keyboard</option>
+        <option value="DEMO-HEADPHONES-001">Noise-Canceling Headphones</option>
+      </datalist>
     </div>
-    <button type="submit" data-testid="lookup" [disabled]="lookupForm.invalid">
+    <button
+      type="submit"
+      data-testid="lookup"
+      [disabled]="lookupForm.invalid || loading()"
+    >
       Look up
     </button>
   </form>
+  <p id="inventory-hint">
+    Choose a demo SKU or paste one from Catalog, then look up its current stock.
+  </p>
 
   @if (loading()) {
-  <p class="loading">Loading stock level…</p>
+  <p class="loading" role="status">Updating inventory view...</p>
   } @if (errorMessage()) {
   <div class="error-message" role="alert">{{ errorMessage() }}</div>
   } @if (stockLevel()) {
@@ -59,13 +80,14 @@
         min="1"
         formControlName="quantity"
         data-testid="adjustment-quantity"
+        [readOnly]="loading()"
       />
     </div>
     <div class="actions">
       <button
         type="button"
         data-testid="receive"
-        [disabled]="adjustmentForm.invalid"
+        [disabled]="adjustmentForm.invalid || loading()"
         (click)="adjust('receive')"
       >
         Receive
@@ -73,7 +95,7 @@
       <button
         type="button"
         data-testid="reserve"
-        [disabled]="adjustmentForm.invalid"
+        [disabled]="adjustmentForm.invalid || loading()"
         (click)="adjust('reserve')"
       >
         Reserve
@@ -81,7 +103,7 @@
       <button
         type="button"
         data-testid="release"
-        [disabled]="adjustmentForm.invalid"
+        [disabled]="adjustmentForm.invalid || loading()"
         (click)="adjust('release')"
       >
         Release
@@ -89,7 +111,7 @@
       <button
         type="button"
         data-testid="fulfill"
-        [disabled]="adjustmentForm.invalid"
+        [disabled]="adjustmentForm.invalid || loading()"
         (click)="adjust('fulfill')"
       >
         Fulfill

@@ -11,7 +11,8 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }]],
   use: {
     baseURL: process.env['E2E_BASE_URL'] ?? 'http://localhost:9080/home',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {

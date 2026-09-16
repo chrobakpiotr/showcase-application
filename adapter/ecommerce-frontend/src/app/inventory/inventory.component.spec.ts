@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { Subject, of, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
 import { InventoryComponent } from '@app/inventory/inventory.component';
@@ -108,6 +108,82 @@ describe('InventoryComponent', () => {
     component.adjust('receive');
 
     expect(inventoryServiceSpy.receiveStock).not.toHaveBeenCalled();
+  });
+
+  it('serializes lookups and clears old stock even when the next lookup fails', () => {
+    setup(['INVENTORY_WRITE']);
+    component.stockLevel.set(stockLevel);
+    const response = new Subject<StockLevelModel>();
+    inventoryServiceSpy.getStockLevel.and.returnValue(response);
+    component.lookupForm.setValue({ sku: 'SKU-2' });
+    component.lookup();
+    expect(component.stockLevel()).toBeNull();
+    component.lookup();
+    component.adjust('receive');
+    expect(inventoryServiceSpy.getStockLevel).toHaveBeenCalledTimes(1);
+    expect(inventoryServiceSpy.receiveStock).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="lookup"]').disabled
+    ).toBeTrue();
+    response.error(new Error('missing SKU'));
+    expect(component.loading()).toBeFalse();
+    expect(component.stockLevel()).toBeNull();
+    inventoryServiceSpy.getStockLevel.and.returnValue(of(stockLevel));
+    component.lookup();
+    expect(component.stockLevel()).toEqual(stockLevel);
+  });
+
+  it('blocks duplicate adjustments and lookups until the adjustment succeeds', () => {
+    setup(['INVENTORY_WRITE']);
+    component.stockLevel.set(stockLevel);
+    component.lookupForm.setValue({ sku: 'SKU-2' });
+    const response = new Subject<StockLevelModel>();
+    inventoryServiceSpy.receiveStock.and.returnValue(response);
+    component.adjust('receive');
+    component.adjust('receive');
+    component.lookup();
+    expect(inventoryServiceSpy.receiveStock).toHaveBeenCalledTimes(1);
+    expect(inventoryServiceSpy.getStockLevel).not.toHaveBeenCalled();
+    expect(inventoryServiceSpy.reserveStock).not.toHaveBeenCalled();
+    expect(inventoryServiceSpy.releaseStock).not.toHaveBeenCalled();
+    expect(inventoryServiceSpy.fulfillStock).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    for (const action of [
+      'receive',
+      'reserve',
+      'release',
+      'fulfill',
+      'lookup',
+    ]) {
+      expect(
+        fixture.nativeElement.querySelector(`[data-testid="${action}"]`)
+          .disabled
+      ).toBeTrue();
+    }
+    response.next(stockLevel);
+    response.complete();
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-testid="receive"]').disabled
+    ).toBeFalse();
+    inventoryServiceSpy.receiveStock.and.returnValue(of(stockLevel));
+    component.adjust('receive');
+    expect(inventoryServiceSpy.receiveStock).toHaveBeenCalledTimes(2);
+  });
+
+  it('unlocks adjustments after a failure without retrying automatically', () => {
+    setup(['INVENTORY_WRITE']);
+    component.stockLevel.set(stockLevel);
+    const response = new Subject<StockLevelModel>();
+    inventoryServiceSpy.receiveStock.and.returnValue(response);
+    component.adjust('receive');
+    response.error(new Error('failed'));
+    expect(inventoryServiceSpy.receiveStock).toHaveBeenCalledTimes(1);
+    inventoryServiceSpy.receiveStock.and.returnValue(of(stockLevel));
+    component.adjust('receive');
+    expect(inventoryServiceSpy.receiveStock).toHaveBeenCalledTimes(2);
+    expect(component.errorMessage()).toBeNull();
   });
 
   it('receives stock', () => {

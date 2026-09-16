@@ -50,9 +50,10 @@ export class InventoryComponent {
   }
 
   lookup(): void {
-    if (this.lookupForm.invalid) return;
+    if (this.lookupForm.invalid || this.loading()) return;
     const { sku } = this.lookupForm.getRawValue();
     this.loading.set(true);
+    this.stockLevel.set(null);
     this.errorMessage.set(null);
     this.inventoryService.getStockLevel(sku).subscribe({
       next: (level) => {
@@ -67,22 +68,30 @@ export class InventoryComponent {
   }
 
   adjust(action: StockAction): void {
-    if (this.adjustmentForm.invalid || !this.stockLevel()) return;
+    if (this.adjustmentForm.invalid || !this.stockLevel() || this.loading())
+      return;
     const { quantity } = this.adjustmentForm.getRawValue();
     const sku = this.stockLevel()!.sku;
     this.errorMessage.set(null);
+    this.loading.set(true);
 
-    const request$ = {
-      receive: this.inventoryService.receiveStock(sku, quantity!),
-      reserve: this.inventoryService.reserveStock(sku, quantity!),
-      release: this.inventoryService.releaseStock(sku, quantity!),
-      fulfill: this.inventoryService.fulfillStock(sku, quantity!),
-    }[action];
+    const method = {
+      receive: 'receiveStock',
+      reserve: 'reserveStock',
+      release: 'releaseStock',
+      fulfill: 'fulfillStock',
+    } as const;
+    const request$ = this.inventoryService[method[action]](sku, quantity!);
 
     request$.subscribe({
-      next: (level) => this.stockLevel.set(level),
-      error: () =>
-        this.errorMessage.set(`Failed to ${action} stock for ${sku}.`),
+      next: (level) => {
+        this.loading.set(false);
+        this.stockLevel.set(level);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.errorMessage.set(`Failed to ${action} stock for ${sku}.`);
+      },
     });
   }
 }
