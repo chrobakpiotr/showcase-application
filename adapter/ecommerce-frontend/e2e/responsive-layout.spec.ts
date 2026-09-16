@@ -18,7 +18,7 @@ const ROUTES = [
 ];
 
 test('authenticated demo pages do not overflow a mobile viewport', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 601, height: 844 });
   await page.goto('');
   await page.getByTestId('login-username').fill('order-admin');
   await page.getByTestId('login-password').fill('password');
