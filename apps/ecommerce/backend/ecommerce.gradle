@@ -66,6 +66,7 @@ dependencies {
     testImplementation project(':adapter:persistence')
     testImplementation project(':domain')
     testImplementation project(':adapter:web')
+    testImplementation project(':application:orchestration')
     testImplementation 'org.liquibase:liquibase-core'
 }
 
