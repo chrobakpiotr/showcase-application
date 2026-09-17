@@ -21,7 +21,7 @@ shared `ResilientExecutor` helper in `adapter:common`
 (`com.cp.ecommerce.adapter.common.resilience`), used explicitly by both `SendOrderMessageAdapter`
 and `SendEmailAdapter`:
 
-- Retry: up to 3 attempts, 500ms wait between attempts.
+- Retry: up to 3 attempts with exponential backoff starting at 500ms (2x multiplier), ±25% jitter to avoid synchronized retry storms, and a 5s cap.
 - Circuit breaker: opens once 50% of the last 10 calls fail, stays open for 10s, then allows 3
   trial calls in half-open state.
 

@@ -3,7 +3,9 @@ package com.cp.ecommerce.adapter.common.resilience;
 import org.junit.jupiter.api.Test;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
@@ -30,12 +32,20 @@ class ResilienceConfigurationTest {
     }
 
     @Test
-    void shouldCreateRetryRegistry() {
+    void shouldCreateRetryRegistryWithExponentialJitteredBackoff() {
 
         final RetryRegistry registry = configuration.retryRegistry();
+        final RetryConfig retryConfig = registry.retry(INSTANCE_NAME).getRetryConfig();
 
-        assertThat(registry).isNotNull();
-        assertThat(registry.retry(INSTANCE_NAME)).isNotNull();
+        assertThat(retryConfig.getMaxAttempts()).isEqualTo(3);
+
+        final Either<Throwable, Object> failure = Either.left(new IllegalStateException("transient failure"));
+        final long firstRetryDelay = retryConfig.<Object> getIntervalBiFunction().apply(1, failure);
+        final long secondRetryDelay = retryConfig.<Object> getIntervalBiFunction().apply(2, failure);
+
+        assertThat(firstRetryDelay).isBetween(375L, 625L);
+        assertThat(secondRetryDelay).isBetween(750L, 1_250L);
+        assertThat(secondRetryDelay).isGreaterThan(firstRetryDelay);
     }
 
     @Test

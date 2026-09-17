@@ -514,7 +514,7 @@ are wrapped with a circuit breaker and retry, implemented with
 [resilience4j](https://resilience4j.readme.io/). The registries and the reusable `ResilientExecutor` helper live in
 `adapter:common` (`com.cp.ecommerce.adapter.common.resilience`), so all adapters share the same defaults:
 
-- Retry: up to 3 attempts, 500ms wait between attempts.
+- Retry: up to 3 attempts with exponential backoff starting at 500ms (2x multiplier), ±25% jitter to avoid synchronized retry storms, and a 5s cap.
 - Circuit breaker: opens once 50% of the last 10 calls fail, stays open for 10s, then allows 3 trial calls in
   half-open state.
 

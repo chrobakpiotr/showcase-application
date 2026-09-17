@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
 import io.github.resilience4j.micrometer.tagged.TaggedRateLimiterMetrics;
 import io.github.resilience4j.micrometer.tagged.TaggedRetryMetrics;
@@ -37,7 +38,10 @@ public class ResilienceConfiguration {
     private static final int PERMITTED_CALLS_IN_HALF_OPEN_STATE = 3;
 
     private static final int MAX_RETRY_ATTEMPTS = 3;
-    private static final Duration RETRY_WAIT_DURATION = Duration.ofMillis(500);
+    private static final Duration RETRY_INITIAL_INTERVAL = Duration.ofMillis(500);
+    private static final double RETRY_BACKOFF_MULTIPLIER = 2.0d;
+    private static final double RETRY_RANDOMIZATION_FACTOR = 0.25d;
+    private static final Duration RETRY_MAX_INTERVAL = Duration.ofSeconds(5);
 
     private static final int RATE_LIMIT_FOR_PERIOD = 20;
     private static final Duration RATE_LIMIT_REFRESH_PERIOD = Duration.ofSeconds(1);
@@ -60,9 +64,14 @@ public class ResilienceConfiguration {
     @Bean
     public RetryRegistry retryRegistry() {
 
+        final IntervalFunction retryIntervalFunction = IntervalFunction.ofExponentialRandomBackoff(
+                RETRY_INITIAL_INTERVAL,
+                RETRY_BACKOFF_MULTIPLIER,
+                RETRY_RANDOMIZATION_FACTOR,
+                RETRY_MAX_INTERVAL);
         final RetryConfig defaultConfig = RetryConfig.custom()
                 .maxAttempts(MAX_RETRY_ATTEMPTS)
-                .waitDuration(RETRY_WAIT_DURATION)
+                .intervalFunction(retryIntervalFunction)
                 .build();
         return RetryRegistry.of(defaultConfig);
     }
