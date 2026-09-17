@@ -4,7 +4,7 @@ This Compose file is intentionally smaller than the root developer/demo stack.
 It starts only the application and runtime dependencies required by the
 Playwright suite: Postgres, RabbitMQ, Kafka, Redis, Keycloak and Tempo.
 
-Prometheus, Grafana, Loki and Promtail are excluded from E2E because they do not
+Prometheus, Grafana, Loki and Alloy are excluded from E2E because they do not
 participate in the tested browser flows and only add startup/failure surface.
 
 Run it in an isolated project:

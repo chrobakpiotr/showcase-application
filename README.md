@@ -56,7 +56,7 @@ starting the second while the first is still up will fail with port conflicts.
 
 The root [`docker-compose.yml`](docker-compose.yml) builds the app image and starts the whole stack -
 Postgres, RabbitMQ, Kafka, Redis, Keycloak and the observability stack
-(Prometheus/Tempo/Grafana/Loki/Promtail) - on one Docker network:
+(Prometheus/Tempo/Grafana/Loki/Alloy) - on one Docker network:
 
 ```
 docker compose up -d --build
@@ -477,7 +477,7 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   container's stdout is the only sane place to collect logs from in either environment. It can also be activated
   standalone (e.g. for `local`) via `--spring.profiles.active=local,json-logging`.
 
-A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Promtail, with pre-provisioned datasources
+A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
 and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:
 
 ```
@@ -486,7 +486,7 @@ docker compose -f infra/docker/observability/docker-compose.yml up -d
 
 Grafana will be available at `http://localhost:3000` (admin/admin, or anonymous access is enabled for
 convenience). Prometheus scrapes the running application's actuator endpoint directly on the host, so start the
-Spring Boot application separately before/after bringing up the stack. Promtail ships every container's stdout to
+Spring Boot application separately before/after bringing up the stack. Alloy ships every container's stdout to
 Loki (parsing out `log.level` as a Loki label for severity filtering, without promoting high-cardinality fields
 like `traceId` to labels), completing the metrics/traces/logs observability triad:
 
@@ -497,7 +497,7 @@ like `traceId` to labels), completing the metrics/traces/logs observability tria
 
 Running the full stack instead via the root `docker-compose.yml` (which also builds and starts the application
 itself, with the `docker`+`json-logging` profiles active) exercises this end-to-end: every application log line is
-ECS-formatted JSON, correctly parsed by Promtail, and searchable/cross-linkable in Grafana.
+ECS-formatted JSON, correctly parsed by Alloy, and searchable/cross-linkable in Grafana.
 
 ## Resilience
 

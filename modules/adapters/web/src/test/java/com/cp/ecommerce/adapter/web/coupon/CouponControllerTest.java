@@ -14,7 +14,6 @@ import com.cp.ecommerce.domain.coupon.port.incoming.CreateCouponInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.GetCouponInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ListCouponsInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ManageCouponInPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +22,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;

@@ -58,14 +58,14 @@ class ActuatorSecurityConfigurationTest {
     @ValueSource(strings = { "/actuator/info", "/actuator/health", "/actuator/metrics" })
     void shouldHaveUnsecuredEndpoint(final String endpoint) {
 
-        final TestRestTemplate testRestTemplate = new TestRestTemplate(createRootUri());
+        final TestRestTemplate testRestTemplate = new TestRestTemplate(createBaseUri());
         final ResponseEntity<String> result = testRestTemplate.getForEntity(endpoint, String.class);
         then(result.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
-    private RestTemplateBuilder createRootUri() {
+    private RestTemplateBuilder createBaseUri() {
 
-        return restTemplateBuilder.rootUri(LOCALHOST_URL + localManagementPort);
+        return restTemplateBuilder.baseUri(LOCALHOST_URL + localManagementPort);
     }
 
 }

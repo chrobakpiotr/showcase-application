@@ -1,15 +1,15 @@
 package com.cp.ecommerce.adapter.web.order;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectWriter;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -23,7 +23,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 @ExtendWith(MockitoExtension.class)
 class LogOrderAdapterTest {
 
-    @Spy
+    @Mock
     private transient ObjectMapper objectMapper;
 
     @InjectMocks
@@ -40,11 +40,11 @@ class LogOrderAdapterTest {
     }
 
     @Test
-    void shouldThrowErrorWhileWriteOrderInJson() throws JsonProcessingException {
+    void shouldThrowErrorWhileWriteOrderInJson() throws JacksonException {
 
         final ObjectWriter objectWriter = Mockito.mock(ObjectWriter.class);
         given(objectMapper.writerWithDefaultPrettyPrinter()).willReturn(objectWriter);
-        given(objectWriter.writeValueAsString(any())).willThrow(new JsonProcessingException("test") {
+        given(objectWriter.writeValueAsString(any())).willThrow(new JacksonException("test") {
         });
 
         logOrderAdapter.log(null);

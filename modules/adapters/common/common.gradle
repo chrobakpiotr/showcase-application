@@ -7,7 +7,7 @@ apply from: rootProject.file('tooling/quality/pmd/pmd.gradle')
 dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
+    api 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.google.code.gson:gson'
     implementation 'io.github.resilience4j:resilience4j-circuitbreaker'
     implementation 'io.github.resilience4j:resilience4j-micrometer'
@@ -30,7 +30,7 @@ dependencies {
 }
 
 configurations {
-    testArtifacts.extendsFrom testCompile
+    testArtifacts.extendsFrom testImplementation
 }
 tasks.register('testJar', Jar) {
     archiveClassifier = 'tests'

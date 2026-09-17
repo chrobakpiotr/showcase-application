@@ -4,7 +4,6 @@ import { ErrorHandler, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Title } from '@angular/platform-browser';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { GlobalErrorHandler } from '@app/core/global-error-handler';
 import { appConfig } from './app.config';
@@ -12,7 +11,7 @@ import { appConfig } from './app.config';
 describe('appConfig', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideNoopAnimations(), ...appConfig.providers],
+      providers: [...appConfig.providers],
     });
   });
 

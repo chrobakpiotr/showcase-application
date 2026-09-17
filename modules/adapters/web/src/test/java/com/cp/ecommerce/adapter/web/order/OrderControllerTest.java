@@ -36,8 +36,6 @@ import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +46,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
@@ -556,8 +557,7 @@ class OrderControllerTest {
 
     private String createJsonResource() throws Exception {
 
-        final ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
+        final ObjectMapper mapper = JsonMapper.builder().build();
         return mapper.writeValueAsString(OrderResourceBuilder.mockOrderResource());
     }
 

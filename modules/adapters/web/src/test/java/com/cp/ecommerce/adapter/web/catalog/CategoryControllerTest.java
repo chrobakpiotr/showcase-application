@@ -9,7 +9,6 @@ import com.cp.ecommerce.adapter.web.utils.CategoryResourceBuilder;
 import com.cp.ecommerce.domain.catalog.Category;
 import com.cp.ecommerce.domain.catalog.usecase.CreateCategoryUseCase;
 import com.cp.ecommerce.domain.catalog.usecase.ListCategoriesUseCase;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +17,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -138,7 +140,7 @@ class CategoryControllerTest {
 
     private String createJsonResource() throws Exception {
 
-        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectMapper mapper = JsonMapper.builder().build();
         return mapper.writeValueAsString(CategoryResourceBuilder.mockCategoryResource());
     }
 

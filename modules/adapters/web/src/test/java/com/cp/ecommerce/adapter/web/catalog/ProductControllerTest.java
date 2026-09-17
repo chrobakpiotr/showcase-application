@@ -15,7 +15,6 @@ import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.ProductPageQuery;
 import com.cp.ecommerce.domain.catalog.usecase.ListProductsUseCase;
 import com.cp.ecommerce.domain.catalog.usecase.ManageProductUseCase;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +23,9 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
@@ -291,7 +293,7 @@ class ProductControllerTest {
 
     private String createJsonProductResource() throws Exception {
 
-        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectMapper mapper = JsonMapper.builder().build();
         return mapper.writeValueAsString(ProductResourceBuilder.mockProductResource());
     }
 

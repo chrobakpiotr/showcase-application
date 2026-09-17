@@ -30,15 +30,9 @@ backend* rather than an on/off toggle:
   equivalent and is intentionally not carried over - Redis capacity is a server-side concern
   (`maxmemory` + eviction policy), not a per-cache client setting.
 - Cache values are serialized as JSON (`OrderEntity` is a plain JPA entity, not `Serializable`), bound to
-  each cache's own value type via the type-safe, non-polymorphic `Jackson2JsonRedisSerializer`, not the
-  untyped `GenericJackson2JsonRedisSerializer` - the latter's default/no-arg form was deprecated upstream
-  specifically over the security risk of embedding polymorphic type metadata in cached JSON. Both
-  Jackson-2-based serializers are additionally deprecated in favor of a Jackson-3-based replacement, which
-  this project does not otherwise use anywhere (it depends on Jackson 2 throughout); adopting Jackson 3 for
-  this one serializer would add a second, incompatible major Jackson version to the classpath purely for
-  this feature, which is out of proportion to the goal here. The deprecated-for-removal API is used
-  deliberately (`@SuppressWarnings("removal")`, with a comment), accepting that it must be revisited if a
-  future Spring Data Redis release actually removes it.
+  each cache's own value type via the type-safe, non-polymorphic `JacksonJsonRedisSerializer`. The
+  application uses Spring Boot 4's default Jackson 3 stack, so Redis cache serialization and HTTP JSON
+  mapping use the same supported major version without polymorphic type metadata.
 - Adding `spring-boot-starter-data-redis` to the classpath makes Spring Boot's `RedisAutoConfiguration`
   fire unconditionally (it is triggered by class presence, not by `cache.provider`), which would register a
   Redis health indicator regardless of whether Redis is actually the active provider. Since the Helm
@@ -77,6 +71,4 @@ backend* rather than an on/off toggle:
   `adapter:persistence` classpath, even for deployments that never enable it - consistent with how the
   amqp/kafka/aws adapters are already always on the classpath but only activated via a property.
 - Not addressed here (left as future work, same spirit as ADR 0009's "deliberately out of scope" list):
-  Redis authentication/TLS for anything beyond local experimentation, Redis Sentinel/Cluster topologies,
-  and revisiting the serializer choice if Jackson-2-based Spring Data Redis serializers are actually
-  removed in a future release.
+  Redis authentication/TLS for anything beyond local experimentation and Redis Sentinel/Cluster topologies.

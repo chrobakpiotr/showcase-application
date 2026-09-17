@@ -8,7 +8,6 @@ import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.order.resource.AnalyticsQuestionResource;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
 import com.cp.ecommerce.domain.order.usecase.AskAnalyticsQuestionUseCase;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +18,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -42,7 +44,7 @@ class OrderAnalyticsAssistantControllerTest {
 
     private static final String ASK_ENDPOINT = "/api/order/analytics/ask";
 
-    private final transient ObjectMapper objectMapper = new ObjectMapper();
+    private final transient ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @Autowired
     private transient MockMvc mockMvc;

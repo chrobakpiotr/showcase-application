@@ -27,7 +27,7 @@ deployment or autonomous commit/push behavior is introduced.
 - AC-004: Playwright CI and the local pre-push E2E path use the same disposable
   Compose topology and isolated project name. The topology contains the app plus
   required runtime dependencies, but excludes Prometheus, Grafana, Loki and
-  Promtail; teardown removes volumes and orphans.
+  Alloy; teardown removes volumes and orphans.
 - AC-005: a browser E2E proves the difficult retry seam: the server accepts an
   order, the browser loses that response, the page reloads, and retry sends the
   same Idempotency-Key and obtains the same order number with one history row.

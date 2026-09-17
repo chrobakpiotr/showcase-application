@@ -2,8 +2,8 @@
 # Start with: docker compose -f infra/docker/observability/docker-compose.yml up -d
 # Prometheus scrapes the app's /actuator/prometheus endpoint on the management port (9081).
 # The app exports traces via OTLP/HTTP to Tempo on port 4318 (see application-security.yml).
-# Promtail ships every container's stdout on this Docker host to Loki (see
-# promtail/promtail-config.yaml) - since the app itself runs on the host in this standalone
+# Alloy ships every container's stdout on this Docker host to Loki (see
+# alloy/config.alloy) - since the app itself runs on the host in this standalone
 # topology (see the root README's "Option 2"), only the observability containers' own logs are
 # collected here; run the root docker-compose.yml instead for the app's logs too.
 # Grafana (http://localhost:3000, admin/admin) comes pre-provisioned with all three datasources
@@ -49,24 +49,23 @@ services:
       - ./loki/loki-config.yaml:/config/loki.yaml:ro
     restart: unless-stopped
 
-  promtail:
-    # Promtail is end-of-life (EOL since March 2026, per Grafana's official announcement) - 3.6.11
-    # is its final release, no further versions will ever be published. Grafana's replacement log
-    # shipper is Alloy; migrating is a reasonable future step but out of scope for this bump.
-    image: grafana/promtail:3.6.11
-    container_name: ecommerce-promtail
-    command: [ "-config.file=/config/promtail.yaml" ]
+  alloy:
+    image: grafana/alloy:v1.19.2
+    container_name: ecommerce-alloy
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /config/config.alloy
+    ports:
+      - "12345:12345"
     volumes:
-      - ./promtail/promtail-config.yaml:/config/promtail.yaml:ro
-      # Read-only access to the Docker daemon's own API (service discovery) and the container log
-      # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
-      # stops, or otherwise controls containers through this socket, only reads.
+      - ./alloy/config.alloy:/config/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy-data:/var/lib/alloy/data
     depends_on:
       - loki
     restart: unless-stopped
-
   grafana:
     image: grafana/grafana:13.2.0
     container_name: ecommerce-grafana
@@ -85,3 +84,6 @@ services:
       - tempo
       - loki
     restart: unless-stopped
+
+volumes:
+  alloy-data:

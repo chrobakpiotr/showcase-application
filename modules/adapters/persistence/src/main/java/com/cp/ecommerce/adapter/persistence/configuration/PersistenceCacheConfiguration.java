@@ -24,7 +24,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -133,12 +133,6 @@ public class PersistenceCacheConfiguration {
                     .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()));
         }
 
-        // Jackson2JsonRedisSerializer is deprecated for removal in favor of the Jackson-3-based
-        // JacksonJsonRedisSerializer, but this project still depends on Jackson 2 (com.fasterxml.jackson)
-        // throughout, so migrating just this serializer to Jackson 3 would add an incompatible, second Jackson
-        // major version to the classpath. Bound to each cache's own value type, it also avoids the default
-        // polymorphic typing security concern of its untyped sibling, GenericJackson2JsonRedisSerializer.
-        @SuppressWarnings("removal")
         private Map<String, RedisCacheConfiguration> createCacheConfigurations() {
 
             final Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
@@ -149,7 +143,7 @@ public class PersistenceCacheConfiguration {
                                     baseCacheConfiguration().entryTtl(cache.getDuration())
                                             .serializeValuesWith(
                                                     RedisSerializationContext.SerializationPair.fromSerializer(
-                                                            new Jackson2JsonRedisSerializer<>(cache.getValueType())))));
+                                                            new JacksonJsonRedisSerializer<>(cache.getValueType())))));
             return cacheConfigurations;
         }
 

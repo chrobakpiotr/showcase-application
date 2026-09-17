@@ -81,7 +81,7 @@ subprojects {
 		version = dependencyManagement.managedVersions['org.projectlombok:lombok']
 	}
 
-	task sourceJar(type: Jar) {
+	tasks.register('sourceJar', Jar) {
 		from sourceSets.main.allJava
 	}
 
@@ -117,10 +117,6 @@ def configureDependencyManagement(subproject) {
 			dependencies {
 				dependency 'ch.qos.logback:logback-classic:1.6.3'
 				dependency 'ch.qos.logback:logback-core:1.6.3'
-				dependency 'com.fasterxml.jackson.core:jackson-annotations:2.22'
-				dependency 'com.fasterxml.jackson.core:jackson-core:2.22.2'
-				dependency 'com.fasterxml.jackson.core:jackson-databind:2.22.2'
-				dependency 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.2'
                 dependency 'com.google.code.gson:gson:2.14.0'
                 dependency 'com.google.guava:guava:33.7.1-jre'
                 dependency 'com.icegreen:greenmail-junit5:2.1.13'

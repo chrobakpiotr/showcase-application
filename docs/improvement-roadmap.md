@@ -8,6 +8,7 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 
 ## Implemented in the hardening patches
 
+- Deprecated-stack migration: Angular legacy animations removed, Jackson 3 adopted end-to-end (including Redis serialization), Boot 4.1/Gradle deprecated APIs migrated, CodeQL moved to v4, and Promtail replaced by Grafana Alloy.
 - Repository cleanup removed the dependency-only backend composition module, folded application assembly into the boot app, removed redundant runtime configuration-processor wiring, made Agentic SDD tooling paths relocation-safe, and standardized container config mounts under `/config`.
 - README and `docs/**/*.md` now have an offline local-link/anchor checker with regression tests, wired into pre-push verification and a dedicated CI documentation gate.
 - Gradle quality scripts use consistent tool-specific folders under `tooling/`, including `tooling/quality/jacoco/jacoco.gradle` and `tooling/quality/spotbugs/spotbugs.gradle`.

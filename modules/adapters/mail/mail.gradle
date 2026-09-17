@@ -12,7 +12,6 @@ dependencies {
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    runtimeOnly 'org.springframework.boot:spring-boot-configuration-processor'
     implementation 'com.google.guava:guava'
     implementation 'com.sun.activation:jakarta.activation'
     implementation 'com.sun.mail:jakarta.mail'

@@ -17,7 +17,7 @@ dependencies {
     runtimeOnly 'org.liquibase:liquibase-core'
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.springframework.boot:spring-boot-liquibase'
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'tools.jackson.core:jackson-databind'
     implementation 'com.sun.istack:istack-commons-runtime'
     implementation 'jakarta.persistence:jakarta.persistence-api'
     implementation 'jakarta.transaction:jakarta.transaction-api'
