@@ -20,3 +20,19 @@
 R02 and R03 must be considered in the design, but their larger persistence models remain
 separate follow-up changes unless R01 cannot be made correct without a minimal shared
 primitive.
+
+## T-002 decision checkpoint
+
+The R01 implementation must follow ADR 0037:
+
+1. add locked lookup of the placement outbox row by order / id;
+2. re-check `PENDING` under `PESSIMISTIC_WRITE` in the poll transaction before payment capture;
+3. arbitrate customer cancellation on the same row;
+4. introduce `CANCELLING` / `CANCELLED` process states and fence placement work once cancellation wins;
+5. make `REFUNDED` non-capturable as defense-in-depth;
+6. add deterministic PostgreSQL tests for:
+   - cancel before first poll,
+   - capture + fulfillment retry + cancel/refund + later poll,
+   - simultaneous poll/cancel with barriers/latches and an asserted winner;
+7. keep crash-safe per-item stock recovery coordinated with R02 and general durable retry mechanics
+   coordinated with R07 rather than hiding either behind unsafe repeated SKU release.

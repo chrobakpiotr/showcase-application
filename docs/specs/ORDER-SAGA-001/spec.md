@@ -80,3 +80,37 @@ changed in the same red-reproducer step.
 - R03 multi-worker claiming/leases.
 - R04 partial refund semantics.
 - R07 notification retry implementation.
+
+## Arbitration decision
+
+ADR 0037 defines `OUTBOX_EVENT` as the single PostgreSQL arbiter for placement-versus-cancellation.
+
+The required state machine is:
+
+```text
+PENDING -> SENT
+PENDING -> COMPENSATED
+PENDING -> CANCELLING -> CANCELLED
+```
+
+Both saga polling and customer cancellation must lock the same outbox row with a pessimistic write
+lock inside a transaction and re-check its status under that lock before starting a new placement
+pivot side effect.
+
+Winner rules:
+
+- cancellation locks `PENDING` first -> persist `CANCELLING` plus `OrderStatus.CANCELLED`; no later
+  capture or fulfillment is allowed;
+- poll locks `PENDING` first and commits `PENDING` after a retryable fulfillment failure ->
+  cancellation may win next and refund the captured payment;
+- poll locks first and commits `SENT` -> cancellation loses and is rejected as too late;
+- `COMPENSATED` / `CANCELLED` -> repeated customer cancellation is idempotent and must not duplicate
+  compensation effects.
+
+`REFUNDED` is terminal for payment capture as a defense-in-depth rule, but payment state alone is not
+the race arbiter.
+
+R02 remains responsible for reservation-scoped/idempotent stock release needed for fully crash-safe
+replay of partial stock compensation. R07 remains responsible for the general durable
+compensation/notification retry mechanism. R01 must nevertheless persist cancellation intent before
+placement work can continue.

@@ -41,7 +41,12 @@
       ],
       "allowed_paths": [
         "docs/specs/ORDER-SAGA-001/**",
-        "docs/adr/**"
+        "docs/adr/**",
+        "docs/adr/0037-order-cancellation-saga-arbitration.md",
+        "docs/adr/README.md",
+        "docs/specs/ORDER-SAGA-001/spec.md",
+        "docs/specs/ORDER-SAGA-001/plan.md",
+        "docs/specs/ORDER-SAGA-001/tasks.json"
       ],
       "risk_tags": [
         "concurrency",
@@ -56,8 +61,8 @@
       "verification": [
         "python3 tooling/agent-harness/harness.py validate docs/specs/ORDER-SAGA-001"
       ],
-      "test_mode": "design-before-code",
-      "test_seam": "State-transition table covers cancel-before-capture, cancel-after-capture, retry, restart and concurrent poll/cancel."
+      "test_mode": "not-applicable",
+      "test_seam": "Architecture/specification-only task: correctness is observed through feature-artifact validation, ADR/spec consistency, and the PostgreSQL acceptance tests implemented by T-003; no production behavior changes in T-002."
     },
     {
       "id": "T-003",
@@ -105,6 +110,8 @@
       "objective": "Verify the state machine, PostgreSQL evidence and repository gates independently from the builder.",
       "role": "evaluator",
       "depends_on": [
+        "T-001",
+        "T-002",
         "T-003"
       ],
       "allowed_paths": [

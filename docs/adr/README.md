@@ -43,6 +43,7 @@ than editing it in place.
 | [0034](0034-notifications-bounded-context.md) | Notifications bounded context |
 | [0035](0035-shipping-fulfillment-tracking-bounded-context.md) | Shipping / Fulfillment Tracking bounded context |
 | [0036](0036-ai-personalized-product-recommendations.md) | AI personalized product recommendations |
+| [0037](0037-order-cancellation-saga-arbitration.md) | Order cancellation and placement saga share one PostgreSQL arbiter |
 
 ## Template for new ADRs
 
