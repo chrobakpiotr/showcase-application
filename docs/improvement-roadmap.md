@@ -5,11 +5,11 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 
 | Priority | Finding or opportunity | Next change and acceptance |
 |---|---|---|
-| P2 | Error rendering varies by component. | Introduce one tested display adapter for safe problem details, fallback messages and correlation IDs. Preserve the distinction between rejected and unknown mutation outcomes. |
 | P3 | README is now technical, but documentation links can drift. | Add a local Markdown-link checker covering README and docs without requiring external network access. |
 
 ## Implemented in the hardening patches
 
+- Frontend RFC 9457 rendering is centralized in a tested `ProblemDetailsAdapter`; order retry semantics still classify deterministic rejection separately from unknown outcomes.
 - Inventory blocks duplicate/overlapping requests, clears stale lookup results and
   dispatches only the selected stock operation.
 - Demo SKU suggestions, accessible pending status and wrapping action buttons.

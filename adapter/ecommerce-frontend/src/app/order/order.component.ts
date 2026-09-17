@@ -29,6 +29,7 @@ import {
   PAYMENT_METHODS,
   PaymentMethod,
 } from '@app/order/payment-method.model';
+import { ProblemDetailsAdapter } from '@app/http/problem-details.adapter';
 import { SupportAssistantComponent } from '@app/support-assistant/support-assistant.component';
 
 const PHONE_PATTERN = /^$|^[- +()0-9]+$/;
@@ -69,6 +70,7 @@ function createLineItemGroup(): FormGroup {
 export class OrderComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly attemptStore = inject(OrderAttemptStore);
+  private readonly problemDetails = inject(ProblemDetailsAdapter);
 
   private readonly destroyRef = inject(DestroyRef);
   private attempt: OrderAttempt | null = null;
@@ -253,22 +255,29 @@ export class OrderComponent implements OnInit {
         },
         error: (error: unknown) => {
           this.submitting.set(false);
+          const problemType = this.problemDetails.type(error);
           if (
             !this.uncertain() &&
             error instanceof HttpErrorResponse &&
             ([400, 401, 403, 404, 422, 429].includes(error.status) ||
               (error.status === 409 &&
+                problemType !== null &&
                 [
                   'urn:problem-type:insufficient-stock',
                   'urn:problem-type:stock-level-conflict',
-                ].includes(error.error?.type)))
+                ].includes(problemType)))
           ) {
             this.attempt = null;
             this.attemptStore.clear();
           } else {
             this.uncertain.set(true);
           }
-          this.errorMessage.set(this.toUserFacingError(error));
+          this.errorMessage.set(
+            this.problemDetails.toMessage(
+              error,
+              'Failed to place order. Please try again.'
+            )
+          );
         },
       });
   }
@@ -284,29 +293,5 @@ export class OrderComponent implements OnInit {
     this.orderForm.controls.paymentMethod.setValue(payload.paymentMethod);
     this.orderForm.controls.couponCode.setValue(payload.couponCode ?? '');
     this.remarksControl.setValue(payload.remarks);
-  }
-
-  private toUserFacingError(error: unknown): string {
-    const fallback = 'Failed to place order. Please try again.';
-    if (!(error instanceof HttpErrorResponse)) return fallback;
-
-    const body: unknown = error.error;
-    if (typeof body === 'string' && body.trim()) {
-      return body.trim();
-    }
-    if (!body || typeof body !== 'object') return fallback;
-
-    const problem = body as Record<string, unknown>;
-    const title =
-      typeof problem['title'] === 'string' ? problem['title'].trim() : '';
-    const detail =
-      typeof problem['detail'] === 'string' ? problem['detail'].trim() : '';
-    const errorId =
-      typeof problem['errorId'] === 'string' ? problem['errorId'].trim() : '';
-
-    if (!title && !detail) return fallback;
-
-    const message = title && detail ? `${title}: ${detail}` : title || detail;
-    return errorId ? `${message} (error id: ${errorId})` : message;
   }
 }
