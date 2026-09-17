@@ -51,7 +51,7 @@ Then open `http://localhost:9080/home` (Swagger UI at `/home/swagger-ui/index.ht
 
 All connection details (Postgres, RabbitMQ, Redis, Keycloak issuer/JWK-set URIs, OTLP tracing
 endpoint) are plain `values.yaml` entries, consumed by a dedicated `k8s` Spring profile
-(`application/ecommerce/src/main/resources/application-k8s.yml`) via environment variables - see
+(`apps/ecommerce/backend/src/main/resources/application-k8s.yml`) via environment variables - see
 that file for the full list and defaults. Point them at externally-hosted services instead of the
 in-cluster dev dependencies by overriding the relevant `env.*` values, e.g.:
 

@@ -70,7 +70,7 @@ rather than hides.
   `POST /api/order/analytics/ask` → `ORDER_READ`, declared *before* the general `POST /api/order/**` rule
   (Spring Security's `authorizeHttpRequests` matches in declaration order, first match wins), with a
   comment explaining exactly why the narrower rule must come first.
-- **New endpoint** `POST /api/order/analytics/ask` (`OrderAnalyticsAssistantController`, adapter/web,
+- **New endpoint** `POST /api/order/analytics/ask` (`OrderAnalyticsAssistantController`, modules/adapters/web,
   alongside the existing `OrderAnalyticsController`), reusing the same RFC 9457 `ProblemDetail` error
   conventions, named-rate-limiter pattern (`RateLimitedExecutor`, key `askAnalyticsQuestion`), and
   bean-validation-via-domain-object pattern as `SupportAssistantController`.

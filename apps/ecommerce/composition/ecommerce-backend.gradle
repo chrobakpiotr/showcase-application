@@ -1,0 +1,27 @@
+apply from: rootProject.file('etc/dependencycheck/dependencycheck.gradle')
+evaluationDependsOn(':adapter:ecommerce-frontend')
+
+sourceSets.main {
+    // prepend resources from dependent sub projects to enable resource reloading
+    resources {
+        srcDirs = [
+            // client projects are not added as project dependency, only per resource folder
+            project(':adapter:ecommerce-frontend').sourceSets.generated.resources
+        ] + srcDirs
+    }
+}
+
+dependencies {
+    implementation project(':adapter:security')
+    implementation project(':adapter:mail')
+    implementation project(':adapter:persistence')
+    implementation project(':adapter:web')
+    implementation project(':domain')
+    implementation project(':adapter:amqp')
+    implementation project(':adapter:aws')
+    implementation project(':adapter:kafka')
+    implementation project(':adapter:camel')
+    implementation project(':adapter:ai')
+}
+
+processResources.dependsOn(':adapter:ecommerce-frontend:processGeneratedResources')

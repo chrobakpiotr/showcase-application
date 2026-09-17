@@ -18,9 +18,8 @@ COPY gradle ./gradle
 RUN ./gradlew --version --no-daemon
 
 COPY etc ./etc
-COPY domain ./domain
-COPY adapter ./adapter
-COPY application ./application
+COPY modules ./modules
+COPY apps ./apps
 
 RUN ./gradlew :application:ecommerce:bootJar --no-daemon -x test -x check
 
@@ -28,7 +27,7 @@ FROM eclipse-temurin:25-jre-alpine@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a343
 
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
-COPY --from=builder /workspace/application/ecommerce/build/libs/*.jar app.jar
+COPY --from=builder /workspace/apps/ecommerce/backend/build/libs/*.jar app.jar
 RUN chown app:app app.jar
 USER app
 

@@ -248,7 +248,7 @@ buildTimeTracker {
 
 // Aggregate CycloneDX Software Bill of Materials (SBOM) covering every module's resolved
 // dependency graph - see https://cyclonedx.org/. Applying the plugin to the root project also
-// registers a per-module `cyclonedxDirectBom` task (see application/ecommerce/ecommerce.gradle
+// registers a per-module `cyclonedxDirectBom` task (see apps/ecommerce/backend/ecommerce.gradle
 // for the deployable jar's own component-type override). Run explicitly with
 // `./gradlew cyclonedxBom`; output at build/reports/cyclonedx/bom.json, also published as a CI
 // artifact (see .github/workflows/ci.yml).

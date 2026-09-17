@@ -1,28 +1,32 @@
 rootProject.name = 'showcase-application'
 
-addSubproject('adapter:ecommerce-backend')
-addSubproject('adapter:ecommerce-frontend')
-addSubproject('adapter:security')
-addSubproject('adapter:common')
-addSubproject('adapter:mail')
-addSubproject('adapter:persistence')
-addSubproject('adapter:web')
-addSubproject('adapter:amqp')
-addSubproject('adapter:aws')
-addSubproject('adapter:kafka')
-addSubproject('adapter:camel')
-addSubproject('adapter:ai')
-addSubproject('application:ecommerce')
-addSubproject('domain')
+addSubproject('adapter:ecommerce-backend', 'apps/ecommerce/composition')
+addSubproject('adapter:ecommerce-frontend', 'apps/ecommerce/frontend')
+addSubproject('adapter:security', 'modules/adapters/security')
+addSubproject('adapter:common', 'modules/adapters/common')
+addSubproject('adapter:mail', 'modules/adapters/mail')
+addSubproject('adapter:persistence', 'modules/adapters/persistence')
+addSubproject('adapter:web', 'modules/adapters/web')
+addSubproject('adapter:amqp', 'modules/adapters/amqp')
+addSubproject('adapter:aws', 'modules/adapters/aws')
+addSubproject('adapter:kafka', 'modules/adapters/kafka')
+addSubproject('adapter:camel', 'modules/adapters/camel')
+addSubproject('adapter:ai', 'modules/adapters/ai')
+addSubproject('application:ecommerce', 'apps/ecommerce/backend')
+addSubproject('domain', 'modules/domain')
 
-void addSubproject(String name) {
-	include name
-	project(":" + name).buildFileName = buildFileName(name) + ".gradle"
+project(':adapter').projectDir = file('modules/adapters')
+project(':application').projectDir = file('apps/ecommerce')
+
+void addSubproject(String name, String directory) {
+    include name
+    project(':' + name).projectDir = file(directory)
+    project(':' + name).buildFileName = buildFileName(name) + '.gradle'
 }
 
 String buildFileName(String name) {
-	if (name.contains(':')) {
-		return name.substring(name.lastIndexOf(':') + 1, name.length())
-	}
-	return name
+    if (name.contains(':')) {
+        return name.substring(name.lastIndexOf(':') + 1, name.length())
+    }
+    return name
 }

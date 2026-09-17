@@ -14,14 +14,14 @@ This file is intentionally a **map**, not a manual. Follow links and load only t
 
 ## Architecture map
 
-- `domain/` - domain model, ports, and architecture tests. Must remain framework-independent.
-- `application/ecommerce/` - application composition/use-case orchestration.
-- `adapter/web/` - inbound HTTP adapter.
-- `adapter/persistence/` - persistence adapter.
-- `adapter/kafka/`, `adapter/amqp/` - messaging adapters.
-- `adapter/security/` - security boundary.
-- `adapter/ai/` - AI integrations behind ports.
-- `adapter/aws/`, `adapter/camel/`, `adapter/mail/` - infrastructure adapters.
+- `modules/domain/` - domain model, ports, and architecture tests. Must remain framework-independent.
+- `apps/ecommerce/backend/` - application composition/use-case orchestration.
+- `modules/adapters/web/` - inbound HTTP adapter.
+- `modules/adapters/persistence/` - persistence adapter.
+- `modules/adapters/kafka/`, `modules/adapters/amqp/` - messaging adapters.
+- `modules/adapters/security/` - security boundary.
+- `modules/adapters/ai/` - AI integrations behind ports.
+- `modules/adapters/aws/`, `modules/adapters/camel/`, `modules/adapters/mail/` - infrastructure adapters.
 - `etc/` - deploy/runtime/config contracts (AsyncAPI, Docker, Kubernetes/Helm, Terraform, etc.).
 - `docs/adr/` - architecture decision log.
 

@@ -18,11 +18,11 @@
       "objective": "Atomic order attempts and complete fingerprint",
       "depends_on": [],
       "allowed_paths": [
-        "domain/src/**/order/**",
-        "adapter/web/src/**/order/**",
-        "adapter/persistence/src/**/order/idempotency/**",
-        "adapter/persistence/src/main/resources/db/changelog/**",
-        "application/ecommerce/**"
+        "modules/domain/src/**/order/**",
+        "modules/adapters/web/src/**/order/**",
+        "modules/adapters/persistence/src/**/order/idempotency/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**",
+        "apps/ecommerce/backend/**"
       ],
       "acceptance_criteria": [
         "AC-001",
@@ -48,15 +48,15 @@
         "T-001"
       ],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/src/app/auth/**",
-        "adapter/ecommerce-frontend/src/app/order/**"
+        "apps/ecommerce/frontend/src/app/auth/**",
+        "apps/ecommerce/frontend/src/app/order/**"
       ],
       "acceptance_criteria": [
         "AC-004",
         "AC-005"
       ],
       "verification": [
-        "npm --prefix adapter/ecommerce-frontend test"
+        "npm --prefix apps/ecommerce/frontend test"
       ]
     },
     {
@@ -73,9 +73,9 @@
         "T-002"
       ],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/src/app/catalog/**",
-        "adapter/ecommerce-frontend/src/app/inventory/**",
-        "adapter/ecommerce-frontend/e2e/**",
+        "apps/ecommerce/frontend/src/app/catalog/**",
+        "apps/ecommerce/frontend/src/app/inventory/**",
+        "apps/ecommerce/frontend/e2e/**",
         "docs/specs/DEMO-002/**",
         "docs/demo-guide.md",
         "docs/improvement-roadmap.md"
@@ -84,7 +84,7 @@
         "AC-006"
       ],
       "verification": [
-        "npm --prefix adapter/ecommerce-frontend run e2e"
+        "npm --prefix apps/ecommerce/frontend run e2e"
       ]
     },
     {

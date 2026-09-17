@@ -51,7 +51,7 @@ class OrchestrateTest(unittest.TestCase):
             'feature': 'TST-002', 'max_parallel': 2, 'max_rework_attempts': 2,
             'tasks': [
                 {'id': 'T-001', 'title': 'Build', 'objective': 'Build', 'role': 'builder', 'depends_on': [],
-                 'allowed_paths': ['domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+                 'allowed_paths': ['modules/domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
                 {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator', 'depends_on': ['T-001'],
                  'allowed_paths': ['tests/**'], 'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
             ],

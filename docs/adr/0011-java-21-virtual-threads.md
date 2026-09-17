@@ -33,7 +33,7 @@ that benefit from them, having first checked for known virtual-thread pitfalls i
   and exit - no blocking I/O happens while the monitor is held in the steady state, so there is no
   meaningful pinning risk. No other `synchronized` usage exists in `domain`/`adapter`/`application` main
   source, so this was the only case to review.
-- `spring.threads.virtual.enabled: true` added to `application/ecommerce/src/main/resources/application.yml`
+- `spring.threads.virtual.enabled: true` added to `apps/ecommerce/backend/src/main/resources/application.yml`
   (the bootable app's base config - unlike `cache.enabled`/`cache.provider`, there's no profile-import-chain
   gap to duplicate this across, since this is the one config file every runtime profile combination shares).
   This is a single Spring Boot-native switch: Tomcat's request-handling executor and Boot's

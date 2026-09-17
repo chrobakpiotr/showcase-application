@@ -17,7 +17,7 @@ tested individually elsewhere.
 
 ## Decision
 
-Add a Playwright end-to-end suite (`adapter/ecommerce-frontend/e2e/`) that drives a real Chromium
+Add a Playwright end-to-end suite (`apps/ecommerce/frontend/e2e/`) that drives a real Chromium
 browser through the actual login → order-placement flow, and wire it into CI as a dedicated `e2e`
 job (`.github/workflows/ci.yml`) that:
 

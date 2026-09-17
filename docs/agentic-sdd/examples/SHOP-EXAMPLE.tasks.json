@@ -9,7 +9,7 @@
       "objective": "Add the domain rule and port contract.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["domain/**"],
+      "allowed_paths": ["modules/domain/**"],
       "risk_tags": ["domain"],
       "acceptance_criteria": ["AC-001", "AC-002"],
       "verification": ["./gradlew :domain:test"]
@@ -20,7 +20,7 @@
       "objective": "Implement the outbound port using the existing persistence conventions.",
       "role": "builder",
       "depends_on": ["T-010"],
-      "allowed_paths": ["adapter/persistence/**"],
+      "allowed_paths": ["modules/adapters/persistence/**"],
       "risk_tags": ["persistence", "concurrency"],
       "acceptance_criteria": ["AC-001"],
       "verification": ["./gradlew :adapter:persistence:test"]
@@ -31,7 +31,7 @@
       "objective": "Expose the accepted behaviour through the existing web adapter conventions.",
       "role": "builder",
       "depends_on": ["T-010"],
-      "allowed_paths": ["adapter/web/**"],
+      "allowed_paths": ["modules/adapters/web/**"],
       "risk_tags": ["api", "security"],
       "acceptance_criteria": ["AC-001", "AC-002"],
       "verification": ["./gradlew :adapter:web:test"]

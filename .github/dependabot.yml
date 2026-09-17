@@ -16,7 +16,7 @@ updates:
 
   # Frontend: Angular application
   - package-ecosystem: "npm"
-    directory: "/adapter/ecommerce-frontend"
+    directory: "/apps/ecommerce/frontend"
     schedule:
       interval: "weekly"
     groups:

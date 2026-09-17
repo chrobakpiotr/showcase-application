@@ -23,11 +23,11 @@ class TrustTest(unittest.TestCase):
         self.assertEqual('untrusted', trust.classify_path('.agent-runs/F/T/run/stdout.log'))
 
     def test_secret_like_paths_are_secret(self):
-        self.assertEqual('secret', trust.classify_path('adapter/web/.env'))
+        self.assertEqual('secret', trust.classify_path('modules/adapters/web/.env'))
         self.assertEqual('secret', trust.classify_path('etc/my-credentials.json'))
 
     def test_default_source_is_project(self):
-        self.assertEqual('project', trust.classify_path('domain/src/main/java/example/Foo.java'))
+        self.assertEqual('project', trust.classify_path('modules/domain/src/main/java/example/Foo.java'))
 
     def test_policy_states_untrusted_cannot_override_instructions(self):
         text = trust.policy_text().lower()

@@ -24,4 +24,4 @@
    and local: it executes regression test files and protocol validation only.
 
 All changes remain within frontend, E2E/CI, local tooling/docs and Agentic SDD
-surfaces. No production backend domain/persistence behavior is modified.
+surfaces. No production backend modules/domain/persistence behavior is modified.

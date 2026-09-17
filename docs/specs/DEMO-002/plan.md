@@ -40,7 +40,7 @@ Dependency discovered: the key sequence cycles at 999. The additive migration
 must remove cycling and increase its maximum within NUMERIC(13), restarting at 1000 beyond every old legal ID.
 CI failure investigation also permits scoped Playwright config/workflow changes.
 
-Integration dependency: application/ecommerce test sources and its Gradle test
+Integration dependency: apps/ecommerce/backend test sources and its Gradle test
 dependency on adapter:web are added to exercise the real transactional controller
 on H2 and PostgreSQL. No production dependency direction changes.
 

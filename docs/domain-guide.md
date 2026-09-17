@@ -67,7 +67,7 @@ Angular frontend.
 - **Two-phase category resolution**: creating/updating a product only takes a `categorySlug` in the request body;
   the web mapper builds a category-less "draft" `Product`, and the use case resolves the slug to a real `Category`
   before the object is ever asserted valid - keeping the mapping and domain-resolution concerns cleanly separated.
-- **Independent pagination types**: `PagedResult`/`ProductPageQuery` are defined locally in `domain/catalog`
+- **Independent pagination types**: `PagedResult`/`ProductPageQuery` are defined locally in `modules/domain/catalog`
   rather than reusing the `order` module's structurally similar types - each bounded context owns its own
   contracts rather than being coupled through a shared "common paging" abstraction.
 - `GET /api/catalog/products` supports `category`/`activeOnly` filters and pagination (same `PagedModel`

@@ -523,7 +523,7 @@ Context refs:
 
 RULES
 -----
-1. Produce knowledge that reduces uncertainty, not a production implementation slice. Architecture/domain/contract/security tickets normally produce a DECISION. Research/prototype tickets may instead produce FACT/EVIDENCE ledger entries without inventing a decision.
+1. Produce knowledge that reduces uncertainty, not a production implementation slice. Architecture/modules/domain/contract/security tickets normally produce a DECISION. Research/prototype tickets may instead produce FACT/EVIDENCE ledger entries without inventing a decision.
 2. Inspect current code/ADRs/contracts before inventing architecture.
 3. New questions discovered may be emitted as `new_decisions`; only emit questions that are now precise enough to answer. Attach relevant `fog_refs` and any already-closed `depends_on` decisions when they improve map ordering.
 4. `fog_added` is for known-unknowns that cannot yet be phrased precisely; `fog_resolved` lists F-* ids actually cleared by this decision.

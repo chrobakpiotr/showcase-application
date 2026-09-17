@@ -10,7 +10,7 @@ side, the natural next step is to give `Order` real line items and tie them into
 last remaining gap between Cart and Order lifecycles.
 
 There is deliberately no persisted cart-to-order "checkout" endpoint yet: no cart UI exists in the
-frontend (`adapter/ecommerce-frontend/src/app` has `order`, `catalog`, `support-assistant`, etc. but no
+frontend (`apps/ecommerce/frontend/src/app` has `order`, `catalog`, `support-assistant`, etc. but no
 `cart` route), so line items are added directly onto `OrderResource`/`Order` as a required field, populated
 by the frontend order form or any API caller. Wiring an actual Cart -> Order checkout flow is left as a
 future extension once a cart UI exists; this ADR only closes the "Order has no line items" and "Order

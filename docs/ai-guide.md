@@ -88,7 +88,7 @@ automatically acts on the order.
 A second, differently-shaped AI feature (see
 [ADR 0020](adr/0020-ai-support-assistant-rag-tool-calling.md)): a customer-facing chat widget, backed
 by Retrieval-Augmented Generation over a small bundled knowledge base
-(`adapter/ai/src/main/resources/support-knowledge-base/*.md` - order lifecycle, cancellation, shipping,
+(`modules/adapters/ai/src/main/resources/support-knowledge-base/*.md` - order lifecycle, cancellation, shipping,
 returns) plus a tool-calling lookup against real order data. Unlike the remarks-triage saga step above, this
 is a synchronous, user-facing endpoint, not a background best-effort step - it lives in its own bounded
 context (`assistant`) entirely outside the order-placement saga. It runs fully locally via the same Ollama

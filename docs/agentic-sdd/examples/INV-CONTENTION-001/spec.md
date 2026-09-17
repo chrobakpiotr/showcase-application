@@ -20,7 +20,7 @@ This is a **design study**, not an approved production feature. No application b
 
 - Preserve the stock invariant `quantityReserved <= quantityOnHand` under concurrent reservations.
 - Compare three candidate persistence strategies in disposable worktrees.
-- Use the existing Inventory domain/persistence code and tests as the baseline.
+- Use the existing Inventory modules/domain/persistence code and tests as the baseline.
 - Record correctness, contention behavior, operational complexity and fit with the current hexagonal architecture.
 - Produce a recommendation or explicitly conclude that evidence is insufficient.
 

@@ -13,7 +13,7 @@ Run it in an isolated project:
 COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f etc/docker/e2e/docker-compose.yml up -d --build
 ```
 
-Then run Playwright from `adapter/ecommerce-frontend`, and always tear the
+Then run Playwright from `apps/ecommerce/frontend`, and always tear the
 project down with volumes:
 
 ```bash

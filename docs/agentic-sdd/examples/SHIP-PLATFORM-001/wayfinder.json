@@ -66,8 +66,8 @@
       "leverage": 10,
       "context_refs": [
         "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
-        "domain/src/main/java/com/cp/ecommerce/domain/shipment/",
-        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/shipment/",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
       ]
     },
     {
@@ -88,8 +88,8 @@
       "context_refs": [
         "docs/adr/0009-order-placement-saga.md",
         "etc/asyncapi/asyncapi.yml",
-        "adapter/kafka/",
-        "adapter/amqp/"
+        "modules/adapters/kafka/",
+        "modules/adapters/amqp/"
       ]
     },
     {
@@ -109,7 +109,7 @@
       "leverage": 10,
       "context_refs": [
         "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
-        "domain/src/main/java/com/cp/ecommerce/domain/shipment/"
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/shipment/"
       ]
     },
     {
@@ -126,8 +126,8 @@
       ],
       "leverage": 7,
       "context_refs": [
-        "adapter/ecommerce-frontend/",
-        "adapter/web/",
+        "apps/ecommerce/frontend/",
+        "modules/adapters/web/",
         "docs/architecture/README.md"
       ]
     },
@@ -145,7 +145,7 @@
       ],
       "leverage": 8,
       "context_refs": [
-        "adapter/persistence/",
+        "modules/adapters/persistence/",
         "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md"
       ]
     },
@@ -163,9 +163,9 @@
       ],
       "leverage": 6,
       "context_refs": [
-        "adapter/security/",
+        "modules/adapters/security/",
         "docs/adr/0017-order-api-operator-authorization-model.md",
-        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
       ]
     },
     {
@@ -186,7 +186,7 @@
       "context_refs": [
         "docs/architecture/README.md",
         "docker-compose.yml",
-        "application/ecommerce/"
+        "apps/ecommerce/backend/"
       ]
     },
     {
@@ -209,8 +209,8 @@
       "leverage": 9,
       "context_refs": [
         "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
-        "adapter/persistence/src/main/resources/",
-        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
+        "modules/adapters/persistence/src/main/resources/",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/"
       ]
     },
     {
@@ -226,10 +226,10 @@
       "leverage": 5,
       "context_refs": [
         "docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md",
-        "adapter/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/",
-        "adapter/security/",
-        "adapter/persistence/",
-        "adapter/ecommerce-frontend/"
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipment/",
+        "modules/adapters/security/",
+        "modules/adapters/persistence/",
+        "apps/ecommerce/frontend/"
       ]
     }
   ],

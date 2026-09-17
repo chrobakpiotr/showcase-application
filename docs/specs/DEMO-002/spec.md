@@ -39,7 +39,7 @@ Authorization remains server-enforced; no new reset endpoint or privilege.
 
 ## Test seams
 
-Use domain/mock controller tests for ordering, real database transaction tests for
+Use modules/domain/mock controller tests for ordering, real database transaction tests for
 reservation arbitration and rollback, delayed Angular HTTP tests for token and
 attempt behavior, and Playwright for demo fixtures/navigation/rendered states.
 Run available tests; record unavailable Java/Docker gates explicitly. Do not claim

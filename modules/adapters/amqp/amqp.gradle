@@ -1,0 +1,20 @@
+apply from: rootProject.file('etc/spotbugs/spotbugs.gradle')
+apply from: rootProject.file('etc/checkstyle/checkstyle.gradle')
+apply from: rootProject.file('etc/jacoco/jacoco.gradle')
+apply from: rootProject.file('etc/spotless/spotless-java.gradle')
+apply from: rootProject.file('etc/dependencycheck/dependencycheck.gradle')
+apply from: rootProject.file('etc/pmd/pmd.gradle')
+dependencies {
+
+
+    implementation project(':adapter:common')
+    implementation project(':domain')
+
+    implementation 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations'
+    implementation 'com.google.code.gson:gson'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    testImplementation project(path: ":adapter:common", configuration: 'testArtifacts')
+}
+
+rootProject.configureTestDependencies(project)

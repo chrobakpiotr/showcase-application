@@ -276,7 +276,7 @@ serialized as `application/problem+json` with the standard `type`/`title`/`statu
   request has an active Micrometer trace, the same response also carries its `traceId`; both identifiers are logged,
   so a client-visible failure can be correlated first to the exact log event and then to the distributed trace
   without leaking a stack trace or internal details in the response body itself.
-- Validation failures (`ConstraintViolationException`), domain/business rule violations
+- Validation failures (`ConstraintViolationException`), modules/domain/business rule violations
   (`DomainObjectValidationException`, `BusinessRuleException`), and anything unmapped (`RuntimeException`
   fallback, never leaking the original message) each get their own `type`/`title`/HTTP status - documented
   per-endpoint in Swagger UI via the `@ApiResponse` annotations on `OrderController`.
@@ -610,7 +610,7 @@ to the existing standalone infrastructure compose files under `etc/docker/*`.
   actuator-based `HEALTHCHECK`.
 - `.dockerignore`: excludes `.git`, `.gradle`/`**/.gradle`, `build`/`**/build`, `node_modules`, etc. Note that
   excluding `.git` disables the `gradle-git-properties` plugin's git metadata lookup; this is handled by setting
-  `gitProperties { failOnNoGitDirectory = false }` in `application/ecommerce/ecommerce.gradle`.
+  `gitProperties { failOnNoGitDirectory = false }` in `apps/ecommerce/backend/ecommerce.gradle`.
 - `docker-compose.yml` (repo root): brings up the full stack in one command - `app`, `postgres` (official
   `postgres:18-alpine` image), `rabbitmq` (`rabbitmq:4-management-alpine`), `redis` (`redis:8-alpine`),
   `keycloak` (`quay.io/keycloak/keycloak:26.7`, importing the same realm used by the JWT security section),
@@ -620,7 +620,7 @@ to the existing standalone infrastructure compose files under `etc/docker/*`.
   `prometheus-docker.yml` scrape config (`app:9081` instead of `host.docker.internal:9081`), and the app's OTLP
   traces go straight to `tempo:4318` instead of via `host.docker.internal`.
 - A new `docker` Spring profile ties this together:
-  - `application/ecommerce/src/main/resources/application-docker.yml` imports sub-profiles
+  - `apps/ecommerce/backend/src/main/resources/application-docker.yml` imports sub-profiles
     (`amqp-docker`, `persistence-postgres-docker`, `kafka-docker`, `cache-redis-docker`) that point at the
     in-network service names (`rabbitmq`, `postgres`, `kafka`, `redis`) instead of `localhost`.
   - The OAuth2 `issuer-uri` is kept as the browser-facing `http://localhost:8081/realms/ecommerce` (it must match
@@ -725,7 +725,7 @@ PIT is configured for the `domain` module through `etc/pitest/pitest.gradle`. Ru
 ./gradlew :domain:pitest
 ```
 
-The report is generated under `domain/build/reports/pitest/`, and the task fails below a 90% mutation-kill
+The report is generated under `modules/domain/build/reports/pitest/`, and the task fails below a 90% mutation-kill
 threshold (`mutationThreshold` in `etc/pitest/pitest.gradle`) - a small safety margin below the 100% mutation
 score the suite currently achieves, so a single marginal future mutant doesn't immediately fail the task before
 it can be triaged.

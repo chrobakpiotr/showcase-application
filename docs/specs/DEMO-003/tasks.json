@@ -10,7 +10,7 @@
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/src/app/order/**"
+        "apps/ecommerce/frontend/src/app/order/**"
       ],
       "risk_tags": [
         "frontend",
@@ -20,7 +20,7 @@
         "AC-001"
       ],
       "verification": [
-        "npm --prefix adapter/ecommerce-frontend test"
+        "npm --prefix apps/ecommerce/frontend test"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Angular storage/component regressions prove TTL, malformed state and same-key restore."
@@ -34,8 +34,8 @@
         "T-001"
       ],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/src/app/cart/**",
-        "adapter/ecommerce-frontend/src/app/wishlist/**"
+        "apps/ecommerce/frontend/src/app/cart/**",
+        "apps/ecommerce/frontend/src/app/wishlist/**"
       ],
       "risk_tags": [
         "frontend"
@@ -44,7 +44,7 @@
         "AC-002"
       ],
       "verification": [
-        "npm --prefix adapter/ecommerce-frontend test"
+        "npm --prefix apps/ecommerce/frontend test"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Angular component/service tests distinguish 404/410 from 5xx/network recovery."
@@ -58,8 +58,8 @@
         "T-002"
       ],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/src/app/shipments/**",
-        "adapter/ecommerce-frontend/src/app/reviews/**"
+        "apps/ecommerce/frontend/src/app/shipments/**",
+        "apps/ecommerce/frontend/src/app/reviews/**"
       ],
       "risk_tags": [
         "frontend",
@@ -69,7 +69,7 @@
         "AC-003"
       ],
       "verification": [
-        "npm --prefix adapter/ecommerce-frontend test"
+        "npm --prefix apps/ecommerce/frontend test"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Delayed RxJS Subjects prove latest-request-wins and mutation guards."
@@ -83,7 +83,7 @@
         "T-003"
       ],
       "allowed_paths": [
-        "adapter/ecommerce-frontend/e2e/**",
+        "apps/ecommerce/frontend/e2e/**",
         "etc/docker/e2e/**",
         ".github/workflows/ci.yml",
         "etc/scripts/verify-before-push.sh",

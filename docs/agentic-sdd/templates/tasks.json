@@ -12,7 +12,7 @@
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
-        "domain/**"
+        "modules/domain/**"
       ],
       "risk_tags": [
         "domain"
@@ -35,7 +35,7 @@
         "T-001"
       ],
       "allowed_paths": [
-        "adapter/<adapter>/**"
+        "modules/adapters/<adapter>/**"
       ],
       "risk_tags": [
         "api"

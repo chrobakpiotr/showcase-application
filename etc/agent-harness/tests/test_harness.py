@@ -50,7 +50,7 @@ class HarnessTest(unittest.TestCase):
             'tasks': tasks or [
                 {
                     'id': 'T-001', 'title': 'Build', 'objective': 'Implement it', 'role': 'builder',
-                    'depends_on': [], 'allowed_paths': ['domain/**'], 'risk_tags': ['domain'],
+                    'depends_on': [], 'allowed_paths': ['modules/domain/**'], 'risk_tags': ['domain'],
                     'acceptance_criteria': ['AC-001'], 'verification': ['./gradlew :domain:test'],
                 },
                 {
@@ -164,9 +164,9 @@ class HarnessTest(unittest.TestCase):
     def test_parallel_builder_write_collision_is_rejected(self):
         tasks = [
             {'id': 'T-001', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
-             'allowed_paths': ['domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+             'allowed_paths': ['modules/domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
             {'id': 'T-002', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': [],
-             'allowed_paths': ['domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+             'allowed_paths': ['modules/domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
             {'id': 'T-900', 'title': 'E', 'objective': 'E', 'role': 'evaluator', 'depends_on': ['T-001', 'T-002'],
              'allowed_paths': ['e/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
         ]
@@ -175,9 +175,9 @@ class HarnessTest(unittest.TestCase):
     def test_nested_parallel_builder_write_collision_is_rejected(self):
         tasks = [
             {'id': 'T-001', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
-             'allowed_paths': ['domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+             'allowed_paths': ['modules/domain/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
             {'id': 'T-002', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': [],
-             'allowed_paths': ['domain/order/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+             'allowed_paths': ['modules/domain/order/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
             {'id': 'T-900', 'title': 'E', 'objective': 'E', 'role': 'evaluator', 'depends_on': ['T-001', 'T-002'],
              'allowed_paths': ['e/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
         ]

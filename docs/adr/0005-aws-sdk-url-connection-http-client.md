@@ -20,7 +20,7 @@ unrelated `RestTemplate` bean used elsewhere in the app.
 ## Decision
 
 Exclude `software.amazon.awssdk:apache5-client` from the `s3`, `sqs`, and `secretsmanager`
-dependencies in `adapter/aws/aws.gradle`, and depend on the lightweight
+dependencies in `modules/adapters/aws/aws.gradle`, and depend on the lightweight
 `software.amazon.awssdk:url-connection-client` instead, wired explicitly via
 `.httpClient(UrlConnectionHttpClient.create())` on each client builder in
 `AwsClientConfiguration`. The JDK URL-connection client has no third-party HTTP library

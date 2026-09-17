@@ -160,7 +160,7 @@ Existing application CI remains authoritative for application behavior.
 
 ### Decision Ledger 2.0
 
-Wayfinder schema v2 stores durable typed knowledge separately from decision-ticket lifecycle. Research/prototype tickets may close by producing facts/evidence; architecture/domain/contract tickets still require a decision. Ledger entries are append-oriented, may explicitly supersede prior knowledge, and blocking assumptions prevent convergence. `reconcile` is the terminal pass that proves every fog item has a disposition before `to-spec`.
+Wayfinder schema v2 stores durable typed knowledge separately from decision-ticket lifecycle. Research/prototype tickets may close by producing facts/evidence; architecture/modules/domain/contract tickets still require a decision. Ledger entries are append-oriented, may explicitly supersede prior knowledge, and blocking assumptions prevent convergence. `reconcile` is the terminal pass that proves every fog item has a disposition before `to-spec`.
 
 ### Independent verification contract
 

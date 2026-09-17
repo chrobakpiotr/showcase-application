@@ -277,7 +277,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: adapter/ecommerce-frontend
+        working-directory: apps/ecommerce/frontend
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -287,7 +287,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: adapter/ecommerce-frontend/package-lock.json
+          cache-dependency-path: apps/ecommerce/frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -306,7 +306,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-coverage-report
-          path: adapter/ecommerce-frontend/coverage/
+          path: apps/ecommerce/frontend/coverage/
           retention-days: 14
           if-no-files-found: ignore
 
@@ -348,18 +348,18 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: adapter/ecommerce-frontend/package-lock.json
+          cache-dependency-path: apps/ecommerce/frontend/package-lock.json
 
       - name: Install dependencies
-        working-directory: adapter/ecommerce-frontend
+        working-directory: apps/ecommerce/frontend
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: adapter/ecommerce-frontend
+        working-directory: apps/ecommerce/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright e2e tests
-        working-directory: adapter/ecommerce-frontend
+        working-directory: apps/ecommerce/frontend
         run: npm run e2e
 
       - name: Publish Playwright report
@@ -367,7 +367,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report
-          path: adapter/ecommerce-frontend/playwright-report/
+          path: apps/ecommerce/frontend/playwright-report/
           retention-days: 14
           if-no-files-found: ignore
 

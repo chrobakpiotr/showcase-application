@@ -95,7 +95,7 @@ A discovery result is not automatically a decision. Wayfinder schema v2 uses dur
 - `constraint` - a boundary that the solution must preserve;
 - `evidence` - an observation/measurement useful to a later decision.
 
-Research/prototype tickets may close with FACT/EVIDENCE and `decision: null`. Architecture/domain/contract tickets still need an actual decision. When later evidence invalidates old knowledge, use explicit supersession; never erase the audit trail.
+Research/prototype tickets may close with FACT/EVIDENCE and `decision: null`. Architecture/modules/domain/contract tickets still need an actual decision. When later evidence invalidates old knowledge, use explicit supersession; never erase the audit trail.
 
 `wayfinder.py reconcile` is the terminal proof step. `0 open tickets` does **not** mean complete if fog or a blocking assumption remains. Every fog item must be `resolved`, `out-of-scope`, or explicitly `deferred` before `to-spec`.
 

@@ -88,7 +88,7 @@ run_backend_ci_gate() {
 }
 
 run_frontend_ci_gate() {
-  local frontend_dir="adapter/ecommerce-frontend"
+  local frontend_dir="apps/ecommerce/frontend"
   if [[ ! -f "$frontend_dir/package-lock.json" ]]; then
     echo "ERROR: $frontend_dir/package-lock.json is missing." >&2
     exit 2
@@ -105,7 +105,7 @@ run_frontend_ci_gate() {
 }
 
 run_e2e_gate() {
-  local frontend_dir="adapter/ecommerce-frontend"
+  local frontend_dir="apps/ecommerce/frontend"
   local compose_file="etc/docker/e2e/docker-compose.yml"
   local project_name="showcase-e2e-local-$$"
 

@@ -64,7 +64,7 @@ narrative, on a schedule, and persisting the result so it survives until the nex
   queryable with plain SQL, at the cost of needing a migration if a fifth category is ever added. Only the
   single latest row is ever read back (`findFirstByOrderByGeneratedDateDesc()`); older rows are kept as a
   historical log but nothing in this feature queries them yet.
-- **New read-only endpoint** `GET /api/order/analytics/digest` (`OrderOpsDigestController`, adapter/web,
+- **New read-only endpoint** `GET /api/order/analytics/digest` (`OrderOpsDigestController`, modules/adapters/web,
   alongside `OrderAnalyticsController`/`OrderAnalyticsAssistantController`): returns `200` with the latest
   digest, or `204` if none has been generated yet (expected to be rare, given the eager start-up run).
   **Zero security-config changes** - this is a plain `GET` under `/api/order/**`, already covered by the

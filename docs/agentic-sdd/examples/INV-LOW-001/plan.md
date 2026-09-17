@@ -50,12 +50,12 @@ than introduce a generic reporting framework or a new bounded context.
 
 Files expected to change or be added:
 
-- `domain/src/main/java/com/cp/ecommerce/domain/inventory/**`
-- `domain/src/test/java/com/cp/ecommerce/domain/inventory/**`
-- `adapter/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/inventory/**`
-- `adapter/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**`
-- `adapter/web/src/main/java/com/cp/ecommerce/adapter/web/inventory/**`
-- `adapter/web/src/test/java/com/cp/ecommerce/adapter/web/inventory/**`
+- `modules/domain/src/main/java/com/cp/ecommerce/domain/inventory/**`
+- `modules/domain/src/test/java/com/cp/ecommerce/domain/inventory/**`
+- `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/inventory/**`
+- `modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**`
+- `modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/inventory/**`
+- `modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/inventory/**`
 
 No AsyncAPI, Kafka, AMQP, Liquibase, frontend or security configuration contract should need to change.
 

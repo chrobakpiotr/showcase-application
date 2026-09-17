@@ -1,0 +1,37 @@
+apply from: rootProject.file('etc/spotbugs/spotbugs.gradle')
+apply from: rootProject.file('etc/checkstyle/checkstyle.gradle')
+apply from: rootProject.file('etc/jacoco/jacoco.gradle')
+apply from: rootProject.file('etc/spotless/spotless-java.gradle')
+apply from: rootProject.file('etc/dependencycheck/dependencycheck.gradle')
+apply from: rootProject.file('etc/pmd/pmd.gradle')
+dependencies {
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+    implementation project(':adapter:common')
+    implementation project(':domain')
+
+    implementation 'com.google.code.gson:gson'
+    implementation 'org.springframework.boot:spring-boot-autoconfigure'
+    // Exclude the default Apache HttpClient5 sync client: it leaks org.apache.httpcomponents.client5 onto the
+    // classpath of every module depending on adapter:aws, which changes Spring Boot's auto-selected
+    // ClientHttpRequestFactory for unrelated RestTemplate beans elsewhere in the app. The lightweight JDK
+    // URLConnection client below is used explicitly instead (see AwsClientConfiguration).
+    implementation('software.amazon.awssdk:s3') {
+        exclude group: 'software.amazon.awssdk', module: 'apache5-client'
+    }
+    implementation('software.amazon.awssdk:sqs') {
+        exclude group: 'software.amazon.awssdk', module: 'apache5-client'
+    }
+    implementation('software.amazon.awssdk:secretsmanager') {
+        exclude group: 'software.amazon.awssdk', module: 'apache5-client'
+    }
+    implementation 'software.amazon.awssdk:url-connection-client'
+    // Needed only for the hand-rolled S3/SQS/SecretsManagerHealthIndicators: the AWS SDK v2 has no
+    // Spring Boot auto-configured health indicators of its own (unlike RabbitMQ/Redis/DB). Boot 4 moved the
+    // HealthIndicator/Health API out of spring-boot-actuator into its own dedicated module.
+    implementation 'org.springframework.boot:spring-boot-health'
+    testImplementation project(path: ':adapter:common', configuration: 'testArtifacts')
+}
+
+rootProject.configureTestDependencies(project)

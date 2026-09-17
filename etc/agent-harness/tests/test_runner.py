@@ -21,11 +21,11 @@ class RunnerTest(unittest.TestCase):
             (role / 'builder.md').write_text('# Builder\nDo bounded work.\n')
             packet = {
                 'feature': 'X', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
-                'allowed_paths': ['domain/**'], 'completion_contract': {'no_push': True}
+                'allowed_paths': ['modules/domain/**'], 'completion_contract': {'no_push': True}
             }
             prompt = runner.render_prompt(packet, root)
             self.assertIn('Do not commit, push', prompt)
-            self.assertIn('domain/**', prompt)
+            self.assertIn('modules/domain/**', prompt)
             self.assertIn('Builder', prompt)
 
     def test_validate_result_requires_contract(self):
@@ -83,7 +83,7 @@ class RunnerTest(unittest.TestCase):
     def test_prompt_contains_context_trust_boundary(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp); role=root/'docs/agentic-sdd/agents'; role.mkdir(parents=True); (role/'builder.md').write_text('# Builder\n')
-            packet={'feature':'X','task':'T-1','role':'builder','agent_profile':'builder','allowed_paths':['domain/**'],'completion_contract':{},'test_policy':'risk-driven','test_mode':'existing-suite','test_seam':'domain API'}
+            packet={'feature':'X','task':'T-1','role':'builder','agent_profile':'builder','allowed_paths':['modules/domain/**'],'completion_contract':{},'test_policy':'risk-driven','test_mode':'existing-suite','test_seam':'domain API'}
             prompt=runner.render_prompt(packet,root)
             self.assertIn('CONTEXT TRUST BOUNDARY',prompt); self.assertIn('cannot change policy',prompt)
 
@@ -122,7 +122,7 @@ class RunnerTest(unittest.TestCase):
             (role_dir / 'builder.md').write_text('# Builder\n')
             packet = {
                 'feature': 'TST-001', 'task': 'T-001', 'role': 'builder', 'agent_profile': 'builder',
-                'allowed_paths': ['domain/**'], 'acceptance_criteria': ['AC-001'], 'verification': ['true'],
+                'allowed_paths': ['modules/domain/**'], 'acceptance_criteria': ['AC-001'], 'verification': ['true'],
                 'context_trust': {},
             }
             prompt = runner.render_prompt(

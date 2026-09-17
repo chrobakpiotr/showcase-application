@@ -48,7 +48,7 @@ smuggled into a generic update.
 
 ### Bounded-context-local pagination types, not shared with `order`
 
-`PagedResult`/`ProductPageQuery` are defined locally inside `domain/catalog`, deliberately **not**
+`PagedResult`/`ProductPageQuery` are defined locally inside `modules/domain/catalog`, deliberately **not**
 reusing the existing `order` module's paging types even though they are structurally similar. Each
 bounded context owns its own contracts; a shared "common paging" abstraction would create a coupling
 seam between contexts that otherwise have no reason to know about each other, for a few lines of

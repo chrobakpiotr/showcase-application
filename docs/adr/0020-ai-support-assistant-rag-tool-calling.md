@@ -24,13 +24,13 @@ bounded context, `assistant`, with its own hexagonal slice, not a saga step wedg
   `customer`: `domain.assistant` (`SupportQuestion`, `SupportAnswer`, `AskSupportQuestionInPort`/`OutPort`,
   `AskSupportQuestionUseCase`), `adapter.ai.support` (the two out-port adapters + supporting Spring AI
   config), `adapter.web.assistant` (the REST entrypoint). The pre-existing ArchUnit hexagonal-boundary test
-  (`domain/src/test/java/archunit/`) parameterizes over bounded contexts and adapter packages, so this new
+  (`modules/domain/src/test/java/archunit/`) parameterizes over bounded contexts and adapter packages, so this new
   context is automatically checked for the same layering rules as every other one - no test changes needed
   to *add* the coverage (though, see Consequences, adding this context did expose and fix a genuine latent
   bug in that shared test harness for the case of a context whose first-checked adapter package happens to
   be empty).
 - **RAG via `QuestionAnswerAdvisor` over a `SimpleVectorStore`**, not a hosted vector database. The knowledge
-  base is a handful of bundled Markdown documents (`adapter/ai/src/main/resources/support-knowledge-base/*.md`
+  base is a handful of bundled Markdown documents (`modules/adapters/ai/src/main/resources/support-knowledge-base/*.md`
   - order lifecycle, cancellation policy, shipping/delivery, returns) loaded once at startup by
   `SupportKnowledgeBaseConfiguration`, split via Spring AI's `TokenTextSplitter`, embedded via an
   `EmbeddingModel` bean (`spring-ai-starter-model-ollama`'s embedding autoconfiguration, model
@@ -55,7 +55,7 @@ bounded context, `assistant`, with its own hexagonal slice, not a saga step wedg
   every question asked in that session. The backend adapter still generates a fresh fallback UUID if a caller
   omits it entirely (e.g. ad-hoc Swagger UI testing) - such calls simply won't have real continuity, an
   accepted, deliberate tradeoff rather than an oversight.
-- **New, public, unauthenticated endpoint** `POST /api/support-assistant/questions` (adapter/web), reusing
+- **New, public, unauthenticated endpoint** `POST /api/support-assistant/questions` (modules/adapters/web), reusing
   the existing RFC 9457 `ProblemDetail` error conventions, the existing named-rate-limiter pattern
   (`RateLimitedExecutor`, key `askSupportQuestion`), and the existing bean-validation-via-domain-object
   pattern (`SupportQuestion.builder().build().assertValidationsEmpty()`). Unauthenticated is intentional: a
@@ -90,7 +90,7 @@ bounded context, `assistant`, with its own hexagonal slice, not a saga step wedg
   `ResilientExecutor` resilience wrapper.
 - Adding a bounded context whose *only* populated adapter package is `web` (not `persistence`, unlike every
   prior context) surfaced a genuine bug in the shared ArchUnit test harness
-  (`domain/src/test/java/archunit/ArchitectureElement.java`): its empty-adapter-package check threw an
+  (`modules/domain/src/test/java/archunit/ArchitectureElement.java`): its empty-adapter-package check threw an
   uncaught `AssertionError` (ArchUnit's `failOnEmptyShould` default) instead of gracefully registering a
   violation, whenever a candidate package was *entirely* empty rather than merely under some class-count
   threshold - previously masked because `order`/`customer` both happen to have a non-empty `persistence.*`
