@@ -121,9 +121,12 @@ class OrderCancellationSagaPostgresIntegrationTest {
         assertThat(manageOrderInPort.findOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
 
         assertThat(cancelOrderWorkflow.cancelOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.CANCELLED))
                 .extracting(event -> event.getOrderNumber())
                 .contains(orderNumber);
+        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .extracting(event -> event.getOrderNumber())
+                .doesNotContain(orderNumber);
         assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);
 
         final SendMessageInPort fulfillment = mock(SendMessageInPort.class);

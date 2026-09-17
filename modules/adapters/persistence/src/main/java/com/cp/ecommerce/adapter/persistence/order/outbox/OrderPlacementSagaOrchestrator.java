@@ -23,6 +23,8 @@ import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -101,7 +103,10 @@ public class OrderPlacementSagaOrchestrator {
     private void publishPendingEvent(final OutboxEventEntity outboxEventEntity) {
 
         try {
-            transactionOperations.executeWithoutResult(status -> processPendingEvent(outboxEventEntity));
+            transactionOperations.executeWithoutResult(
+                    status -> outboxEventEntityRepository.findByIdForUpdate(outboxEventEntity.getId())
+                            .filter(lockedEvent -> lockedEvent.getStatus() == OutboxEventStatus.PENDING)
+                            .ifPresent(this::processPendingEvent));
         } catch (RuntimeException exception) {
             log.warn("Could not process saga step for order: {}", outboxEventEntity.getOrderNumber(), exception);
         }
@@ -165,7 +170,14 @@ public class OrderPlacementSagaOrchestrator {
 
         final long startNanos = System.nanoTime();
         try {
-            managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
+            final PaymentTransaction payment = managePaymentInPort
+                    .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
+            if (payment.getStatus() == PaymentStatus.REFUNDED) {
+
+                sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
+                log.warn("Refusing to continue placement saga for refunded order: {}", order.getOrderNumber());
+                return false;
+            }
             sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), true);
             return true;
         } catch (final PaymentDeclinedException exception) {

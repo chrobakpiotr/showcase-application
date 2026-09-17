@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CancelOrderService implements CancelOrderWorkflow {
 
-    private final RequestOrderCancellationInPort requestOrderCancellationInPort;
+    private final OrderCancellationArbitrator orderCancellationArbitrator;
 
     private final ManageStockInPort manageStockInPort;
 
@@ -28,12 +28,12 @@ public class CancelOrderService implements CancelOrderWorkflow {
     private final SendNotificationInPort sendNotificationInPort;
 
     public CancelOrderService(
-            final RequestOrderCancellationInPort requestOrderCancellationInPort,
+            final OrderCancellationArbitrator orderCancellationArbitrator,
             final ManageStockInPort manageStockInPort,
             final ManagePaymentInPort managePaymentInPort,
             final SendNotificationInPort sendNotificationInPort) {
 
-        this.requestOrderCancellationInPort = requestOrderCancellationInPort;
+        this.orderCancellationArbitrator = orderCancellationArbitrator;
         this.manageStockInPort = manageStockInPort;
         this.managePaymentInPort = managePaymentInPort;
         this.sendNotificationInPort = sendNotificationInPort;
@@ -42,10 +42,16 @@ public class CancelOrderService implements CancelOrderWorkflow {
     @Override
     public Order cancelOrder(final String orderNumber) {
 
-        final Order order = requestOrderCancellationInPort.requestCancellation(orderNumber);
+        final OrderCancellationArbitrator.CancellationStart cancellation = orderCancellationArbitrator
+                .beginCancellation(orderNumber);
+        final Order order = cancellation.order();
         if (order == null) {
 
             return null;
+        }
+        if (!cancellation.runSideEffects()) {
+
+            return order;
         }
         order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
         managePaymentInPort.refundPayment(order.getOrderNumber());
@@ -54,6 +60,7 @@ public class CancelOrderService implements CancelOrderWorkflow {
                 NotificationType.ORDER_CANCELLED,
                 "Order " + order.getOrderNumber() + " cancelled",
                 "Your order " + order.getOrderNumber() + " was cancelled.");
+        orderCancellationArbitrator.completeCancellation(orderNumber);
         return order;
     }
 

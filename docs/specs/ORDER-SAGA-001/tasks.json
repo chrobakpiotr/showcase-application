@@ -80,7 +80,20 @@
         "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/**",
         "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/**",
         "docs/specs/ORDER-SAGA-001/**",
-        "docs/adr/**"
+        "docs/adr/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/order/port/outgoing/OrderPlacementSagaArbitrationOutPort.java",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCase.java",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseTest.java",
+        "modules/application/orchestration/orchestration.gradle",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/OrderCancellationArbitrator.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/CancelOrderService.java",
+        "modules/application/orchestration/src/test/java/com/cp/ecommerce/application/order/CancelOrderServiceTest.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OutboxEventStatus.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OutboxEventEntityRepository.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaArbitrationAdapter.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationSagaPostgresIntegrationTest.java",
+        "docs/specs/ORDER-SAGA-001/tasks.json"
       ],
       "risk_tags": [
         "concurrency",

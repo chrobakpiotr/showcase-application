@@ -112,6 +112,25 @@ class ManagePaymentUseCaseTest {
     }
 
     @Test
+    void shouldNotRecaptureRefundedPayment() {
+
+        final PaymentTransaction existing = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.REFUNDED)
+                .gatewayReference("mock-gw-1")
+                .build();
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
+
+        final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
+
+        assertThat(result).isSameAs(existing);
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any());
+        verify(savePaymentTransactionOutPort, never()).save(any());
+    }
+
+    @Test
     void shouldRecordDeclinedTransactionAndPropagateExceptionOnDecline() {
 
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);

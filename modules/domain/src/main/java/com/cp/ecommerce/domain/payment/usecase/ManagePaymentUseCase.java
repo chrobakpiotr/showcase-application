@@ -44,10 +44,11 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction capturePayment(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
 
         final PaymentTransaction current = getPayment(orderNumber);
-        if (current.getStatus() == PaymentStatus.CAPTURED) {
+        if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.REFUNDED) {
 
-            // Already captured by a previous invocation of this same method (e.g. an earlier poll of the
-            // order-placement saga) - return it unchanged instead of charging the customer a second time.
+            // CAPTURED is idempotent for repeated saga polls. REFUNDED is terminal for capture: a
+            // cancelled/refunded order must never be charged again even if a future caller bypasses
+            // the placement-saga arbitration boundary.
             return current;
         }
         try {

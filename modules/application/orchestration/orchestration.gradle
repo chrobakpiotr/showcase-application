@@ -8,6 +8,7 @@ apply from: rootProject.file('tooling/quality/pmd/pmd.gradle')
 dependencies {
     api project(':domain')
     implementation 'org.springframework:spring-context'
+    implementation 'org.springframework:spring-tx'
 }
 
 rootProject.configureTestDependencies(project)

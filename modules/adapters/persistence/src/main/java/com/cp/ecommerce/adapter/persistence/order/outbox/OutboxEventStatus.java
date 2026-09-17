@@ -7,6 +7,8 @@ public enum OutboxEventStatus {
 
     PENDING,
     SENT,
-    COMPENSATED
+    COMPENSATED,
+    CANCELLING,
+    CANCELLED
 
 }
