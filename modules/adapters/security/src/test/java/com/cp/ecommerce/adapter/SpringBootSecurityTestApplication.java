@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Import;
 @SpringBootApplication
 @ComponentScan(
         basePackages = {
+                "com.cp.ecommerce.application.order",
                 "com.cp.ecommerce.adapter.web",
                 "com.cp.ecommerce.adapter.mail",
                 "com.cp.ecommerce.adapter.persistence",

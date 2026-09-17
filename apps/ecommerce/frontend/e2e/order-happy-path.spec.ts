@@ -54,7 +54,7 @@ test('order happy path: login, prepare isolated stock and place order', async ({
   );
   await page.getByTestId('order-submit').click();
   const response = await placement;
-  expect(response.status(), await response.text()).toBe(201);
+  expect(response.status()).toBe(201);
   expect(response.request().headers()['idempotency-key']).toBeTruthy();
   await expect(page.getByTestId('order-number')).toBeVisible({
     timeout: 10_000,
