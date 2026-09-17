@@ -31,7 +31,12 @@ class SandboxPlan:
 def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, str]:
     sandbox_home.mkdir(parents=True, exist_ok=True)
     (sandbox_home / 'tmp').mkdir(exist_ok=True)
-    env = os.environ.copy()
+    passthrough = (
+        'PATH', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'COLORTERM', 'CI',
+        'JAVA_HOME', 'JDK_HOME', 'SDKROOT', 'DEVELOPER_DIR',
+        'SYSTEMROOT', 'WINDIR', 'PATHEXT', 'COMSPEC',
+    )
+    env = {key: os.environ[key] for key in passthrough if key in os.environ}
     env.update({
         'HOME': str(sandbox_home),
         'TMPDIR': str(sandbox_home / 'tmp'),

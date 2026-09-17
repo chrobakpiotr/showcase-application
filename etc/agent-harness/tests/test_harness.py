@@ -310,8 +310,8 @@ class HarnessTest(unittest.TestCase):
         (self.root / 'AGENTS.md').write_text('# agents\n')
         (self.root / 'docs' / 'agentic-sdd').mkdir(parents=True, exist_ok=True)
         (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
-        (self.root / 'agent-harness').mkdir(exist_ok=True)
-        (self.root / 'agent-harness' / 'harness.py').write_text('# stub in worktree\n')
+        (self.root / 'etc' / 'agent-harness').mkdir(parents=True, exist_ok=True)
+        (self.root / 'etc' / 'agent-harness' / 'harness.py').write_text('# stub in worktree\n')
         (self.root / '.gitignore').write_text('.agent-state/\ndocs/specs/*/packets/\n')
         subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
         subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
@@ -395,6 +395,76 @@ class HarnessTest(unittest.TestCase):
         harness.restore_attempt_authorization(entry)
         self.assertEqual(1, entry['human_resume_grants'])
         self.assertNotIn('active_human_resume', entry)
+
+
+    def test_reopen_refuses_running_descendant_before_pruning_workspace(self):
+        from unittest import mock
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 1})
+        state['tasks']['T-900'].update({
+            'status': 'running',
+            'attempts': 1,
+            'owner': 'live-worker',
+            'heartbeat_at': harness.utc_now().isoformat(),
+            'lease_expires_at': (harness.utc_now() + harness.dt.timedelta(minutes=5)).isoformat(),
+        })
+        harness.save_state(feature, state)
+
+        with mock.patch.object(harness, 'prune_task_workspace') as prune:
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-001',
+                    reason='evaluation failed',
+                    evidence=None,
+                ))
+            prune.assert_not_called()
+
+        updated = harness.load_state(feature, doc)
+        self.assertEqual('completed', updated['tasks']['T-001']['status'])
+        self.assertEqual('running', updated['tasks']['T-900']['status'])
+        self.assertEqual('live-worker', updated['tasks']['T-900']['owner'])
+
+    def test_reopen_archives_invalidated_descendant_attempt_history(self):
+        from unittest import mock
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 2})
+        state['tasks']['T-900'].update({
+            'status': 'completed',
+            'attempts': 3,
+            'last_attempt_commit': 'deadbeef',
+            'completion_evidence': 'evidence/result.json',
+        })
+        harness.save_state(feature, state)
+
+        with mock.patch.object(harness, 'prune_task_workspace') as prune:
+            harness.cmd_reopen(argparse.Namespace(
+                feature_dir=feature,
+                task_id='T-001',
+                reason='evaluation failed',
+                evidence='evidence/evaluator.json',
+            ))
+            prune.assert_called_once_with('TST-001', 'T-900')
+
+        updated = harness.load_state(feature, doc)
+        target = updated['tasks']['T-001']
+        descendant = updated['tasks']['T-900']
+        self.assertEqual('failed', target['status'])
+        self.assertEqual(2, target['attempts'])
+        self.assertEqual('pending', descendant['status'])
+        self.assertEqual(0, descendant['attempts'])
+        self.assertEqual('T-001', descendant['invalidated_by'])
+        self.assertEqual(1, len(descendant['attempt_history']))
+        archived = descendant['attempt_history'][0]
+        self.assertEqual('completed', archived['prior_status'])
+        self.assertEqual(3, archived['attempts'])
+        self.assertEqual('deadbeef', archived['last_attempt_commit'])
+        self.assertEqual('evidence/result.json', archived['completion_evidence'])
+
 
     def test_evidence_contract(self):
         evidence = self.root / 'result.json'

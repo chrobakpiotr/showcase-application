@@ -27,7 +27,7 @@ import harness as h  # noqa: E402
 import telemetry  # noqa: E402
 
 RUNNER = HERE / 'runner.py'
-REPO = HERE.parent
+REPO = HERE.parents[1]
 
 
 @dataclass(frozen=True)

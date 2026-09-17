@@ -100,11 +100,11 @@ class DesignTest(unittest.TestCase):
 
 
     def test_full_design_loop_with_fake_codex_produces_gate_and_cleans_worktrees(self):
-        source_root = pathlib.Path(__file__).resolve().parents[2]
+        source_root = pathlib.Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'
             root.mkdir()
-            shutil.copytree(source_root / 'agent-harness', root / 'agent-harness')
+            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'AGENTS.md').write_text('# map\n')
@@ -155,7 +155,7 @@ class DesignTest(unittest.TestCase):
             env = os.environ.copy()
             env['PATH'] = str(fake_bin) + os.pathsep + env.get('PATH', '')
             proc = subprocess.run(
-                ['python3', 'agent-harness/design.py', 'docs/specs/TST-DESIGN', '--provider', 'codex', '--run-id', 'test-run'],
+                ['python3', 'etc/agent-harness/design.py', 'docs/specs/TST-DESIGN', '--provider', 'codex', '--run-id', 'test-run'],
                 cwd=root, env=env, text=True, capture_output=True, check=False,
             )
             self.assertEqual(0, proc.returncode, msg=proc.stdout + '\n' + proc.stderr)

@@ -10,4 +10,4 @@ fi
 mkdir -p "$DST/decisions"
 cp "$SRC/wayfinder.json" "$DST/wayfinder.json"
 echo "Activated Wayfinder map at $DST"
-python3 "$ROOT/agent-harness/wayfinder.py" validate "$DST"
+python3 "$ROOT/etc/agent-harness/wayfinder.py" validate "$DST"

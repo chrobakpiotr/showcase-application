@@ -19,9 +19,9 @@ The harness already provides sandbox/worktree/path containment. The harness adds
 The checked-in policy is inspectable with:
 
 ```bash
-python3 agent-harness/trust.py policy
-python3 agent-harness/trust.py classify docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md
-python3 agent-harness/trust.py classify .agent-state/control-plane/github-GH-123.json
+python3 etc/agent-harness/trust.py policy
+python3 etc/agent-harness/trust.py classify docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md
+python3 etc/agent-harness/trust.py classify .agent-state/control-plane/github-GH-123.json
 ```
 
 Task packets v4 carry `context_trust`, and the runner validates that the classification was not tampered with before rendering the prompt.

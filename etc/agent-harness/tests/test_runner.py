@@ -132,6 +132,32 @@ class RunnerTest(unittest.TestCase):
             self.assertIn('Use SKU as stable key', prompt)
 
 
+    def test_verification_rejects_content_mutation_when_changed_paths_are_unchanged(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'a.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'a.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+
+            (root / 'a.txt').write_text('implementation\n', encoding='utf-8')
+            packet = {
+                'verification': [
+                    "python3 -c \"from pathlib import Path; Path('a.txt').write_text('tampered\\\\n')\""
+                ]
+            }
+            out = root / 'verification'
+            out.mkdir()
+            ok, results = runner.run_verification(packet, root, out, 30, sandbox_mode='off')
+
+            self.assertFalse(ok)
+            self.assertTrue(results[-1].get('worktree_mutated'))
+            self.assertEqual(['a.txt'], runner.git_changed_paths(root))
+
+
 
 if __name__ == '__main__':
     unittest.main()

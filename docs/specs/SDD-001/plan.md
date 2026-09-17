@@ -17,23 +17,23 @@ Canonical product architecture/decisions remain in `docs/architecture/` and `doc
 
 ### 2. Deterministic orchestration core
 
-`agent-harness/harness.py` owns validation, scheduling, feature/protocol fingerprints, immutable task packets, atomic task state, bounded rework/escalation, risk-to-reviewer routing and isolated Git worktrees.
+`etc/agent-harness/harness.py` owns validation, scheduling, feature/protocol fingerprints, immutable task packets, atomic task state, bounded rework/escalation, risk-to-reviewer routing and isolated Git worktrees.
 
 Task ownership is a renewable lease. `claim/start` record `heartbeat_at` and `lease_expires_at`; a correct-owner heartbeat renews the lease. `recover-stale` converts only expired running tasks to failed attempts, optionally checkpointing dirty failed-attempt worktree state locally for diagnostics. Fresh leases cannot be stolen.
 
 ### 3. Outer DAG orchestrator
 
-`agent-harness/orchestrate.py` creates an orchestration UUID, starts only ready nodes up to remaining `max_parallel` capacity, renews leases in a background heartbeat while provider/reviewer work runs, performs bounded rework, escalates `needs-human`, and persists an orchestration manifest. Restarting orchestration recovers expired leases before scheduling new work. An escalated task is resumed only through `harness.py human-resolve`, which writes `docs/specs/<feature>/evidence/human-resolutions/<task>/<timestamp>.json`, preserves the historical attempts counter, grants one consumable resume authorization, and exposes the accepted decision as trusted rework feedback. Contract-changing human decisions still require normal spec/plan/task edits plus deliberate reset/re-planning.
+`etc/agent-harness/orchestrate.py` creates an orchestration UUID, starts only ready nodes up to remaining `max_parallel` capacity, renews leases in a background heartbeat while provider/reviewer work runs, performs bounded rework, escalates `needs-human`, and persists an orchestration manifest. Restarting orchestration recovers expired leases before scheduling new work. An escalated task is resumed only through `harness.py human-resolve`, which writes `docs/specs/<feature>/evidence/human-resolutions/<task>/<timestamp>.json`, preserves the historical attempts counter, grants one consumable resume authorization, and exposes the accepted decision as trusted rework feedback. Contract-changing human decisions still require normal spec/plan/task edits plus deliberate reset/re-planning.
 
 ### 4. Provider runner
 
-`agent-harness/runner.py` translates one immutable packet into one provider invocation. Codex and Claude Code remain adapters, not protocol dependencies. Provider processes cannot commit/push/merge and reviewers run read-only against an existing diff.
+`etc/agent-harness/runner.py` translates one immutable packet into one provider invocation. Codex and Claude Code remain adapters, not protocol dependencies. Provider processes cannot commit/push/merge and reviewers run read-only against an existing diff.
 
 After a builder reports pass, the **outer runner independently re-runs** every declared verification command. Provider claims are therefore not accepted as evidence by themselves.
 
 ### 5. Verification sandbox
 
-`agent-harness/verification_sandbox.py` adds isolation around deterministic verification after runner allowlisting:
+`etc/agent-harness/verification_sandbox.py` adds isolation around deterministic verification after runner allowlisting:
 
 - `required`: strong OS sandbox must exist or execution fails closed.
 - `auto`: prefer Codex local sandbox/native platform sandbox; if unavailable, explicitly record allowlist-only degradation.
@@ -43,7 +43,7 @@ Strong isolation denies network and limits writes to the task worktree/isolated 
 
 ### 6. Provenance and cost/usage telemetry
 
-`agent-harness/telemetry.py` persists/aggregates local provenance. Each provider run records invocation/orchestration ids, packet/spec/protocol fingerprints, prompt hash, base commit, provider CLI version, timestamps/duration, provider-exposed token usage/known cost, sandbox evidence, changed paths, result/evidence hashes and terminal status.
+`etc/agent-harness/telemetry.py` persists/aggregates local provenance. Each provider run records invocation/orchestration ids, packet/spec/protocol fingerprints, prompt hash, base commit, provider CLI version, timestamps/duration, provider-exposed token usage/known cost, sandbox evidence, changed paths, result/evidence hashes and terminal status.
 
 Codex JSONL usage is parsed when exposed. Claude JSON envelope usage and `total_cost_usd` are captured when exposed. Unknown price/cost remains `null` rather than being guessed from a pricing table that can drift.
 
@@ -51,7 +51,7 @@ Provenance is finalized on provider errors **and** harness-side parse/postcondit
 
 ### 7. Read-only control plane
 
-`agent-harness/control_plane.py` provides optional GitHub/Jira intake. It may perform HTTPS GETs and normalize/save/render local snapshots, but exposes no remote-write action. Tracker text is labeled untrusted intent context and must pass through normal specification/clarification before it can become an accepted spec.
+`etc/agent-harness/control_plane.py` provides optional GitHub/Jira intake. It may perform HTTPS GETs and normalize/save/render local snapshots, but exposes no remote-write action. Tracker text is labeled untrusted intent context and must pass through normal specification/clarification before it can become an accepted spec.
 
 The adapter is deliberately outside core orchestration so Jira/GitHub are not runtime dependencies of local SDD.
 
@@ -105,7 +105,7 @@ The harness may create local checkpoint commits after successful evidence valida
 
 ## Pre-implementation design loop
 
-`agent-harness/design.py` is a separate phase before executable task orchestration. Features opt in through `design.json`. For medium/high risk, `auto` runs a read-only Spec Grill and Architecture Grill. Prototype `auto` remains conditional on a concrete falsifiable question, either predeclared or recommended by the Spec Grill.
+`etc/agent-harness/design.py` is a separate phase before executable task orchestration. Features opt in through `design.json`. For medium/high risk, `auto` runs a read-only Spec Grill and Architecture Grill. Prototype `auto` remains conditional on a concrete falsifiable question, either predeclared or recommended by the Spec Grill.
 
 Prototype candidates use disposable detached worktrees and may write scratch code, but cannot commit/push/merge or become dependency checkpoints. Durable JSON findings live under the feature's `design/`; runtime logs/patches stay under ignored `.agent-runs/`. A prototype evaluator compares candidates against criteria fixed before experimentation.
 
@@ -113,7 +113,7 @@ For active features requiring preflight, `harness.validate` verifies a PASS `des
 
 ## Wayfinder-style discovery layer
 
-`agent-harness/wayfinder.py` sits before the normal feature spec for efforts whose destination is known but route is genuinely foggy/multi-session. A durable `docs/wayfinder/<epic>/wayfinder.json` stores the destination, out-of-scope boundary, known fog and decision tickets; detailed closed-decision evidence lives under `decisions/`. Runtime claims/logs remain ignored under `.agent-state/.agent-runs`.
+`etc/agent-harness/wayfinder.py` sits before the normal feature spec for efforts whose destination is known but route is genuinely foggy/multi-session. A durable `docs/wayfinder/<epic>/wayfinder.json` stores the destination, out-of-scope boundary, known fog and decision tickets; detailed closed-decision evidence lives under `decisions/`. Runtime claims/logs remain ignored under `.agent-state/.agent-runs`.
 
 The frontier contains only open, dependency-unblocked, unclaimed decisions. Selection is leverage-based (explicit importance + unresolved fog references + downstream unlocks), not FIFO. Decision resolution may clear fog and add newly precise downstream decisions. If no frontier remains while fog exists, one bounded re-chart can graduate newly precise fog; otherwise the workflow escalates to human input.
 
@@ -125,19 +125,19 @@ Once every decision is closed and no fog remains, `wayfinder.py to-spec` uses th
 
 | Area | Verification |
 |---|---|
-| DAG/schema/AC/profile/path/lease rules | `python3 -m unittest agent-harness/tests/test_harness.py -v` |
-| Provider boundary + terminal provenance behavior | `python3 -m unittest agent-harness/tests/test_runner.py -v` |
-| Parallel orchestration/heartbeat/run-scoped ownership | `python3 -m unittest agent-harness/tests/test_orchestrate.py -v` |
-| Verification sandbox modes | `python3 -m unittest agent-harness/tests/test_verification_sandbox.py -v` |
-| Provenance/usage/known-cost aggregation | `python3 -m unittest agent-harness/tests/test_telemetry.py -v` |
-| Read-only tracker normalization/intake | `python3 -m unittest agent-harness/tests/test_control_plane.py -v` |
-| Grill/prototype design loop and hash-bound gate | `python3 -m unittest agent-harness/tests/test_design.py agent-harness/tests/test_harness.py -v` |
-| Wayfinder map/frontier/claims/handoff | `python3 -m unittest agent-harness/tests/test_wayfinder.py -v` |
-| Whole protocol | `python3 -m unittest discover -s agent-harness/tests -v` |
-| All committed specs/profiles | `python3 agent-harness/harness.py validate-all docs/specs` |
-| Local environment | `python3 agent-harness/harness.py doctor` |
-| Orchestration plan | `python3 agent-harness/orchestrate.py docs/specs/SDD-001 --plan` |
-| Maintained design previews | `python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan` and `.../INV-CONTENTION-001 --plan` |
+| DAG/schema/AC/profile/path/lease rules | `python3 -m unittest etc/agent-harness/tests/test_harness.py -v` |
+| Provider boundary + terminal provenance behavior | `python3 -m unittest etc/agent-harness/tests/test_runner.py -v` |
+| Parallel orchestration/heartbeat/run-scoped ownership | `python3 -m unittest etc/agent-harness/tests/test_orchestrate.py -v` |
+| Verification sandbox modes | `python3 -m unittest etc/agent-harness/tests/test_verification_sandbox.py -v` |
+| Provenance/usage/known-cost aggregation | `python3 -m unittest etc/agent-harness/tests/test_telemetry.py -v` |
+| Read-only tracker normalization/intake | `python3 -m unittest etc/agent-harness/tests/test_control_plane.py -v` |
+| Grill/prototype design loop and hash-bound gate | `python3 -m unittest etc/agent-harness/tests/test_design.py etc/agent-harness/tests/test_harness.py -v` |
+| Wayfinder map/frontier/claims/handoff | `python3 -m unittest etc/agent-harness/tests/test_wayfinder.py -v` |
+| Whole protocol | `python3 -m unittest discover -s etc/agent-harness/tests -v` |
+| All committed specs/profiles | `python3 etc/agent-harness/harness.py validate-all docs/specs` |
+| Local environment | `python3 etc/agent-harness/harness.py doctor` |
+| Orchestration plan | `python3 etc/agent-harness/orchestrate.py docs/specs/SDD-001 --plan` |
+| Maintained design previews | `python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan` and `.../INV-CONTENTION-001 --plan` |
 
 Existing application CI remains authoritative for application behavior.
 

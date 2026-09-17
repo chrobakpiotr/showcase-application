@@ -134,29 +134,29 @@ def protocol_files(feature_dir: pathlib.Path) -> list[pathlib.Path]:
     candidates = [
         root / 'AGENTS.md',
         root / 'CLAUDE.md',
-        root / 'agent-harness' / 'harness.py',
-        root / 'agent-harness' / 'runner.py',
-        root / 'agent-harness' / 'orchestrate.py',
-        root / 'agent-harness' / 'verification_sandbox.py',
-        root / 'agent-harness' / 'telemetry.py',
-        root / 'agent-harness' / 'control_plane.py',
-        root / 'agent-harness' / 'design.py',
-        root / 'agent-harness' / 'wayfinder.py',
-        root / 'agent-harness' / 'verification_contract.py',
-        root / 'agent-harness' / 'trust.py',
-        root / 'agent-harness' / 'eval.py',
-        root / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json',
-        root / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json',
-        root / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json',
-        root / 'agent-harness' / 'schemas' / 'task-result.schema.json',
-        root / 'agent-harness' / 'schemas' / 'design-result.schema.json',
-        root / 'agent-harness' / 'schemas' / 'verification-contract.schema.json',
+        root / 'etc' / 'agent-harness' / 'harness.py',
+        root / 'etc' / 'agent-harness' / 'runner.py',
+        root / 'etc' / 'agent-harness' / 'orchestrate.py',
+        root / 'etc' / 'agent-harness' / 'verification_sandbox.py',
+        root / 'etc' / 'agent-harness' / 'telemetry.py',
+        root / 'etc' / 'agent-harness' / 'control_plane.py',
+        root / 'etc' / 'agent-harness' / 'design.py',
+        root / 'etc' / 'agent-harness' / 'wayfinder.py',
+        root / 'etc' / 'agent-harness' / 'verification_contract.py',
+        root / 'etc' / 'agent-harness' / 'trust.py',
+        root / 'etc' / 'agent-harness' / 'eval.py',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'task-result.schema.json',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'design-result.schema.json',
+        root / 'etc' / 'agent-harness' / 'schemas' / 'verification-contract.schema.json',
         root / '.github' / 'workflows' / 'agentic-sdd.yml',
     ]
     for directory in (root / 'docs' / 'agentic-sdd', root / '.claude' / 'agents'):
         if directory.exists():
             candidates.extend(sorted(p for p in directory.rglob('*.md') if p.is_file()))
-    eval_dir = root / 'agent-harness' / 'evals'
+    eval_dir = root / 'etc' / 'agent-harness' / 'evals'
     if eval_dir.exists():
         candidates.extend(sorted(p for p in eval_dir.glob('*.json') if p.is_file()))
     # Deduplicate while retaining deterministic path order.
@@ -273,7 +273,7 @@ def design_gate_errors(feature_dir: pathlib.Path, spec: pathlib.Path, plan: path
         return errors
     gate_path = feature_dir / 'design' / 'gate.json'
     if not gate_path.exists():
-        errors.append('design preflight gate is required before orchestration; run agent-harness/design.py')
+        errors.append('design preflight gate is required before orchestration; run etc/agent-harness/design.py')
         return errors
     try:
         gate = json.loads(gate_path.read_text(encoding='utf-8'))
@@ -1226,33 +1226,64 @@ def cmd_reopen(args: argparse.Namespace) -> None:
     idx = task_index(doc)
     if args.task_id not in idx:
         die(f'unknown task {args.task_id}')
-    preliminary = load_state(args.feature_dir, doc)
-    if preliminary['tasks'][args.task_id].get('status') != 'completed':
-        die(f'{args.task_id} must be completed before it can be reopened')
     feature = str(doc.get('feature', args.feature_dir.name))
     stale = sorted(descendants(idx, args.task_id))
-    # Validate before touching worktrees, then prune only clean descendants. The target workspace
-    # is deliberately preserved as the base for the next rework attempt.
-    for tid in stale:
-        prune_task_workspace(feature, tid)
+
+    # Reopen and descendant invalidation are one state transition. Validate every lease/status under
+    # the state lock before deleting any task-local workspace, otherwise a racing worker can lose a
+    # live worktree even though the reopen itself is rejected.
     with locked_state(args.feature_dir, doc) as state:
         target = state['tasks'][args.task_id]
         if target.get('status') != 'completed':
-            die(f'{args.task_id} changed state while reopening; retry deliberately')
+            die(f'{args.task_id} must be completed before it can be reopened')
+
+        running_descendants = [tid for tid in stale if state['tasks'][tid].get('status') == 'running']
+        if running_descendants:
+            die(
+                f'cannot reopen {args.task_id} while descendants are running: '
+                f'{running_descendants}; release or recover them first'
+            )
+
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
         if int(target.get('attempts', 0)) >= max_attempts:
             target['status'] = 'escalated'
             target['last_failure'] = args.reason
             print(f'ESCALATED {args.task_id}: rework budget exhausted')
             return
-        target.update({'status': 'failed', 'last_failure': args.reason, 'reopened_at': dt.datetime.now(dt.timezone.utc).isoformat()})
+
+        for tid in stale:
+            prune_task_workspace(feature, tid)
+
+        reopened_at = utc_now().isoformat()
+        target.update({'status': 'failed', 'last_failure': args.reason, 'reopened_at': reopened_at})
         if args.evidence:
             target['rework_evidence'] = str(pathlib.Path(args.evidence))
-        target.pop('owner', None)
+        for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
+            target.pop(key, None)
+
         for tid in stale:
             entry = state['tasks'][tid]
+            history = entry.get('attempt_history')
+            if not isinstance(history, list):
+                history = []
+            history.append({
+                'invalidated_at': reopened_at,
+                'invalidated_by': args.task_id,
+                'prior_status': entry.get('status'),
+                'attempts': int(entry.get('attempts', 0)),
+                'last_attempt_commit': entry.get('last_attempt_commit'),
+                'checkpoint_commit': entry.get('checkpoint_commit'),
+                'completion_evidence': entry.get('completion_evidence'),
+                'last_failure': entry.get('last_failure'),
+            })
             entry.clear()
-            entry.update({'status': 'pending', 'attempts': 0, 'invalidated_by': args.task_id})
+            entry.update({
+                'status': 'pending',
+                'attempts': 0,
+                'invalidated_by': args.task_id,
+                'invalidated_at': reopened_at,
+                'attempt_history': history,
+            })
     print(f'REOPENED {args.task_id}; invalidated descendants: {", ".join(stale) if stale else "none"}')
 
 
@@ -1312,7 +1343,7 @@ def bootstrap_path_allowed(path: str, feature_rel: pathlib.Path) -> bool:
     return (
         normalized in {'AGENTS.md', 'CLAUDE.md', '.gitignore', '.github/workflows/agentic-sdd.yml'}
         or normalized.startswith('.claude/agents/')
-        or normalized.startswith('agent-harness/')
+        or normalized.startswith('etc/agent-harness/')
         or normalized.startswith('docs/agentic-sdd/')
         or normalized.startswith('docs/specs/SDD-001/')
         or normalized.startswith(wayfinder_prefix)
@@ -1453,7 +1484,7 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         target / rel_feature / 'tasks.json',
         target / 'AGENTS.md',
         target / 'docs' / 'agentic-sdd' / 'constitution.md',
-        target / 'agent-harness' / 'harness.py',
+        target / 'etc' / 'agent-harness' / 'harness.py',
     ]
     missing = [str(p.relative_to(target)) for p in required if not p.exists()]
     if missing:
@@ -1564,19 +1595,19 @@ def cmd_doctor(_: argparse.Namespace) -> None:
         'gradle-wrapper': (root / 'gradlew') if (root / 'gradlew').exists() else None,
         'codex(optional)': shutil.which('codex'),
         'claude(optional)': shutil.which('claude'),
-        'verification-sandbox-module': (root / 'agent-harness' / 'verification_sandbox.py') if (root / 'agent-harness' / 'verification_sandbox.py').exists() else None,
-        'telemetry-module': (root / 'agent-harness' / 'telemetry.py') if (root / 'agent-harness' / 'telemetry.py').exists() else None,
-        'control-plane-module': (root / 'agent-harness' / 'control_plane.py') if (root / 'agent-harness' / 'control_plane.py').exists() else None,
-        'design-module': (root / 'agent-harness' / 'design.py') if (root / 'agent-harness' / 'design.py').exists() else None,
-        'design-result-schema': (root / 'agent-harness' / 'schemas' / 'design-result.schema.json') if (root / 'agent-harness' / 'schemas' / 'design-result.schema.json').exists() else None,
-        'wayfinder-module': (root / 'agent-harness' / 'wayfinder.py') if (root / 'agent-harness' / 'wayfinder.py').exists() else None,
-        'wayfinder-result-schema': (root / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json') if (root / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json').exists() else None,
-        'wayfinder-handoff-schema': (root / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json') if (root / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json').exists() else None,
-        'wayfinder-tasks-schema': (root / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json') if (root / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json').exists() else None,
-        'verification-contract-module': (root / 'agent-harness' / 'verification_contract.py') if (root / 'agent-harness' / 'verification_contract.py').exists() else None,
-        'verification-contract-schema': (root / 'agent-harness' / 'schemas' / 'verification-contract.schema.json') if (root / 'agent-harness' / 'schemas' / 'verification-contract.schema.json').exists() else None,
-        'trust-module': (root / 'agent-harness' / 'trust.py') if (root / 'agent-harness' / 'trust.py').exists() else None,
-        'eval-module': (root / 'agent-harness' / 'eval.py') if (root / 'agent-harness' / 'eval.py').exists() else None,
+        'verification-sandbox-module': (root / 'etc' / 'agent-harness' / 'verification_sandbox.py') if (root / 'etc' / 'agent-harness' / 'verification_sandbox.py').exists() else None,
+        'telemetry-module': (root / 'etc' / 'agent-harness' / 'telemetry.py') if (root / 'etc' / 'agent-harness' / 'telemetry.py').exists() else None,
+        'control-plane-module': (root / 'etc' / 'agent-harness' / 'control_plane.py') if (root / 'etc' / 'agent-harness' / 'control_plane.py').exists() else None,
+        'design-module': (root / 'etc' / 'agent-harness' / 'design.py') if (root / 'etc' / 'agent-harness' / 'design.py').exists() else None,
+        'design-result-schema': (root / 'etc' / 'agent-harness' / 'schemas' / 'design-result.schema.json') if (root / 'etc' / 'agent-harness' / 'schemas' / 'design-result.schema.json').exists() else None,
+        'wayfinder-module': (root / 'etc' / 'agent-harness' / 'wayfinder.py') if (root / 'etc' / 'agent-harness' / 'wayfinder.py').exists() else None,
+        'wayfinder-result-schema': (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json') if (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json').exists() else None,
+        'wayfinder-handoff-schema': (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json') if (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json').exists() else None,
+        'wayfinder-tasks-schema': (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json') if (root / 'etc' / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json').exists() else None,
+        'verification-contract-module': (root / 'etc' / 'agent-harness' / 'verification_contract.py') if (root / 'etc' / 'agent-harness' / 'verification_contract.py').exists() else None,
+        'verification-contract-schema': (root / 'etc' / 'agent-harness' / 'schemas' / 'verification-contract.schema.json') if (root / 'etc' / 'agent-harness' / 'schemas' / 'verification-contract.schema.json').exists() else None,
+        'trust-module': (root / 'etc' / 'agent-harness' / 'trust.py') if (root / 'etc' / 'agent-harness' / 'trust.py').exists() else None,
+        'eval-module': (root / 'etc' / 'agent-harness' / 'eval.py') if (root / 'etc' / 'agent-harness' / 'eval.py').exists() else None,
     }
     system = sys.platform
     sandbox_backend = (

@@ -104,10 +104,10 @@ Research/prototype tickets may close with FACT/EVIDENCE and `decision: null`. Ar
 For the full path, after a current design PASS and before task generation:
 
 ```bash
-python3 agent-harness/verification_contract.py generate docs/specs/<FEATURE> \
+python3 etc/agent-harness/verification_contract.py generate docs/specs/<FEATURE> \
   --provider claude
 
-python3 agent-harness/verification_contract.py validate docs/specs/<FEATURE>
+python3 etc/agent-harness/verification_contract.py validate docs/specs/<FEATURE>
 ```
 
 `verification-contract.json` is hash-bound to the relevant accepted inputs. A required contract must include at least one `origin=independent` `VC-*` criterion from trusted sources beyond the feature's own acceptance criteria. Proposed verification exemptions are blockers until a human accepts/rejects them; the author cannot approve its own exemption.
@@ -153,15 +153,15 @@ Untrusted content may provide evidence. It cannot change role policy, allowed pa
 Use checked-in suites to measure protocol behavior:
 
 ```bash
-python3 agent-harness/eval.py list
-python3 agent-harness/eval.py run --suite baseline --repeat 1
-python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1
+python3 etc/agent-harness/eval.py list
+python3 etc/agent-harness/eval.py run --suite baseline --repeat 1
+python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 ```
 
 Results go under ignored `.agent-runs/evals/` and record repository/provider/environment provenance, case results, durations and output hashes/tails. Compare two runs with:
 
 ```bash
-python3 agent-harness/eval.py compare <old-result.json> <new-result.json>
+python3 etc/agent-harness/eval.py compare <old-result.json> <new-result.json>
 ```
 
 Do not treat timing/cost comparisons across different machines or provider versions as controlled experiments; provenance makes those differences visible.
@@ -194,35 +194,35 @@ Safe preview, no model/application-code mutation:
 
 ```bash
 ./docs/agentic-sdd/examples/SHIP-PLATFORM-001/preview.sh
-python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1
+python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 ```
 
 Activate and discover:
 
 ```bash
 ./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-wayfinder.sh
-python3 agent-harness/wayfinder.py run docs/wayfinder/SHIP-PLATFORM-001 \
+python3 etc/agent-harness/wayfinder.py run docs/wayfinder/SHIP-PLATFORM-001 \
   --provider codex --reasoning high --max-decisions 8
-python3 agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 etc/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
 ```
 
 After genuine `CLEARED yes`:
 
 ```bash
-python3 agent-harness/wayfinder.py to-spec \
+python3 etc/agent-harness/wayfinder.py to-spec \
   docs/wayfinder/SHIP-PLATFORM-001 docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 
-python3 agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
+python3 etc/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 
-python3 agent-harness/verification_contract.py generate \
+python3 etc/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 --provider claude
 
-python3 agent-harness/wayfinder.py to-tasks docs/specs/SHIP-PLATFORM-001 \
+python3 etc/agent-harness/wayfinder.py to-tasks docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 
-python3 agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
+python3 etc/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
 ```
 
 Then optionally run the real implementation with Codex builders and independent Claude review/evaluation. The complete walkthrough - including research-without-decision, supersession, fog disposition, trust attack exercise, verification-contract expectations, TDD evidence and pre/post evals - is in:
@@ -255,9 +255,9 @@ The installer does not commit, push, open a PR, merge or deploy.
 ### 1. Check the local harness
 
 ```bash
-python3 agent-harness/harness.py doctor
-python3 -m unittest discover -s agent-harness/tests -v
-python3 agent-harness/harness.py validate-all docs/specs
+python3 etc/agent-harness/harness.py doctor
+python3 -m unittest discover -s etc/agent-harness/tests -v
+python3 etc/agent-harness/harness.py validate-all docs/specs
 ```
 
 Provider CLIs are optional for validation/planning. They are required only for a live orchestration run.
@@ -313,13 +313,13 @@ Read the contract and preview the pre-implementation stages:
 cat docs/specs/INV-LOW-001/spec.md
 cat docs/specs/INV-LOW-001/plan.md
 cat docs/specs/INV-LOW-001/design.json
-python3 agent-harness/design.py docs/specs/INV-LOW-001 --plan
+python3 etc/agent-harness/design.py docs/specs/INV-LOW-001 --plan
 ```
 
 Run the live design loop before implementation:
 
 ```bash
-python3 agent-harness/design.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/design.py docs/specs/INV-LOW-001 \
   --provider codex \
   --reasoning high
 ```
@@ -332,8 +332,8 @@ any old gate.
 Now validate the executable feature and preview the DAG:
 
 ```bash
-python3 agent-harness/harness.py validate docs/specs/INV-LOW-001
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
+python3 etc/agent-harness/harness.py validate docs/specs/INV-LOW-001
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
 ```
 
 ### 4. Run implementation orchestration
@@ -341,7 +341,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
 Codex-only run:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider codex \
   --reasoning high \
   --verification-sandbox auto
@@ -350,7 +350,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
 Claude-only run:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider claude \
   --verification-sandbox auto
 ```
@@ -358,7 +358,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
 Recommended mixed run if both CLIs are installed:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude \
@@ -374,8 +374,8 @@ is an additional defense, not the source of correctness.
 In another terminal or after completion:
 
 ```bash
-python3 agent-harness/harness.py status docs/specs/INV-LOW-001
-python3 agent-harness/telemetry.py --feature INV-LOW-001
+python3 etc/agent-harness/harness.py status docs/specs/INV-LOW-001
+python3 etc/agent-harness/telemetry.py --feature INV-LOW-001
 git worktree list
 ```
 
@@ -405,7 +405,7 @@ Nothing reaches GitHub until **you** explicitly push it.
 ### 7. Reset the pilot
 
 ```bash
-python3 agent-harness/harness.py reset docs/specs/INV-LOW-001 --full
+python3 etc/agent-harness/harness.py reset docs/specs/INV-LOW-001 --full
 ```
 
 If the feature was only a demonstration, remove the active copy afterwards:
@@ -499,9 +499,9 @@ Recommended authoring sequence:
 After the design gate passes, author the independent contract when `design.json.verification_contract=required`:
 
 ```bash
-python3 agent-harness/verification_contract.py generate "docs/specs/$FEATURE" \
+python3 etc/agent-harness/verification_contract.py generate "docs/specs/$FEATURE" \
   --provider claude
-python3 agent-harness/verification_contract.py validate "docs/specs/$FEATURE"
+python3 etc/agent-harness/verification_contract.py validate "docs/specs/$FEATURE"
 ```
 
 Only then create/finalize the task DAG. For manually-authored tasks start from:
@@ -518,19 +518,19 @@ convention over adding a new abstraction.
 
 ## Pre-implementation Design Loop: Grill + Prototype + Architecture Grill
 
-`agent-harness/design.py` is deliberately separate from task orchestration. It requires only `spec.md`, `plan.md`, and optionally
+`etc/agent-harness/design.py` is deliberately separate from task orchestration. It requires only `spec.md`, `plan.md`, and optionally
 `design.json`; `tasks.json` is not required because the design loop is meant to happen **before** executable decomposition.
 
 Preview without a model or mutations:
 
 ```bash
-python3 agent-harness/design.py docs/specs/SHOP-001 --plan
+python3 etc/agent-harness/design.py docs/specs/SHOP-001 --plan
 ```
 
 Run with Codex:
 
 ```bash
-python3 agent-harness/design.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/design.py docs/specs/SHOP-001 \
   --provider codex \
   --reasoning high
 ```
@@ -538,7 +538,7 @@ python3 agent-harness/design.py docs/specs/SHOP-001 \
 Run with Claude Code:
 
 ```bash
-python3 agent-harness/design.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/design.py docs/specs/SHOP-001 \
   --provider claude
 ```
 
@@ -606,7 +606,7 @@ the final design gate is hash-bound to `spec.md`, `plan.md`, and `design.json`, 
 Each stage supports `auto|always|off` in `design.json` and as CLI overrides:
 
 ```bash
-python3 agent-harness/design.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/design.py docs/specs/SHOP-001 \
   --grill always \
   --prototype auto \
   --architecture-grill always \
@@ -643,7 +643,7 @@ Use `INV-CONTENTION-001` to exercise all three stages without authorizing a prod
 ```bash
 ./docs/agentic-sdd/examples/INV-CONTENTION-001/preview.sh
 ./docs/agentic-sdd/examples/INV-CONTENTION-001/activate-design.sh
-python3 agent-harness/design.py docs/specs/INV-CONTENTION-001 --provider codex --reasoning high
+python3 etc/agent-harness/design.py docs/specs/INV-CONTENTION-001 --provider codex --reasoning high
 ```
 
 It compares the existing optimistic-locking inventory strategy with pessimistic locking and an atomic conditional SQL approach.
@@ -655,31 +655,31 @@ receive an executable DAG.
 Validate a feature:
 
 ```bash
-python3 agent-harness/harness.py validate docs/specs/SHOP-001
+python3 etc/agent-harness/harness.py validate docs/specs/SHOP-001
 ```
 
 Show tasks whose dependencies are satisfied:
 
 ```bash
-python3 agent-harness/harness.py ready docs/specs/SHOP-001
+python3 etc/agent-harness/harness.py ready docs/specs/SHOP-001
 ```
 
 Show specialist reviewers selected for one task:
 
 ```bash
-python3 agent-harness/harness.py reviewers docs/specs/SHOP-001 T-002
+python3 etc/agent-harness/harness.py reviewers docs/specs/SHOP-001 T-002
 ```
 
 Preview full scheduling/provider routing without changing state:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/SHOP-001 --plan
+python3 etc/agent-harness/orchestrate.py docs/specs/SHOP-001 --plan
 ```
 
 Execute the DAG:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/SHOP-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude \
@@ -689,8 +689,8 @@ python3 agent-harness/orchestrate.py docs/specs/SHOP-001 \
 Inspect state and telemetry:
 
 ```bash
-python3 agent-harness/harness.py status docs/specs/SHOP-001
-python3 agent-harness/telemetry.py --feature SHOP-001
+python3 etc/agent-harness/harness.py status docs/specs/SHOP-001
+python3 etc/agent-harness/telemetry.py --feature SHOP-001
 ```
 
 ## Manual/debug workflow
@@ -699,16 +699,16 @@ Normal multi-agent work should use `orchestrate.py`. The lower-level commands ar
 single task:
 
 ```bash
-python3 agent-harness/harness.py packet docs/specs/SHOP-001 T-002
-python3 agent-harness/harness.py claim docs/specs/SHOP-001 T-002 --owner codex-1
-python3 agent-harness/harness.py heartbeat docs/specs/SHOP-001 T-002 --owner codex-1
-python3 agent-harness/harness.py complete docs/specs/SHOP-001 T-002 \
+python3 etc/agent-harness/harness.py packet docs/specs/SHOP-001 T-002
+python3 etc/agent-harness/harness.py claim docs/specs/SHOP-001 T-002 --owner codex-1
+python3 etc/agent-harness/harness.py heartbeat docs/specs/SHOP-001 T-002 --owner codex-1
+python3 etc/agent-harness/harness.py complete docs/specs/SHOP-001 T-002 \
   --owner codex-1 \
   --evidence docs/specs/SHOP-001/evidence/T-002.json
-python3 agent-harness/harness.py status docs/specs/SHOP-001
+python3 etc/agent-harness/harness.py status docs/specs/SHOP-001
 ```
 
-Manual completion evidence must be JSON conforming to `agent-harness/schemas/task-result.schema.json`. Start from
+Manual completion evidence must be JSON conforming to `etc/agent-harness/schemas/task-result.schema.json`. Start from
 `docs/agentic-sdd/templates/task-result.json`.
 
 ## Orchestration policy
@@ -763,8 +763,8 @@ These branches are local orchestration artifacts until you explicitly choose to 
 running. For manual execution:
 
 ```bash
-python3 agent-harness/harness.py heartbeat docs/specs/SHOP-001 T-002 --owner codex-1
-python3 agent-harness/harness.py recover-stale docs/specs/SHOP-001
+python3 etc/agent-harness/harness.py heartbeat docs/specs/SHOP-001 T-002 --owner codex-1
+python3 etc/agent-harness/harness.py recover-stale docs/specs/SHOP-001
 ```
 
 Only expired running leases are recovered automatically. Dirty stale worktrees may be checkpointed as failed-attempt evidence
@@ -786,13 +786,13 @@ new work and preserves the completed siblings, failed-attempt checkpoint and evi
 or operational blocker, resume that exact task explicitly:
 
 ```bash
-python3 agent-harness/harness.py status docs/specs/SHOP-001
+python3 etc/agent-harness/harness.py status docs/specs/SHOP-001
 
-python3 agent-harness/harness.py human-resolve docs/specs/SHOP-001 T-002 \
+python3 etc/agent-harness/harness.py human-resolve docs/specs/SHOP-001 T-002 \
   --decision "Keep the existing SKU contract; do not introduce a catalog dependency." \
   --by "$USER"
 
-python3 agent-harness/orchestrate.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/SHOP-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude
@@ -817,10 +817,10 @@ accepted artifacts and deliberately `reset`/re-plan instead of using `human-reso
 ## Independent deterministic verification
 
 A builder reporting `pass` is not enough. The outer harness re-runs every task's declared `verification` command after model
-execution. Commands must pass the allowlist and then run through `agent-harness/verification_sandbox.py`.
+execution. Commands must pass the allowlist and then run through `etc/agent-harness/verification_sandbox.py`.
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/SHOP-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/SHOP-001 \
   --provider codex \
   --verification-sandbox required
 ```
@@ -848,9 +848,9 @@ Every provider invocation writes terminal provenance below ignored `.agent-runs/
 manifest. Provider-reported usage and known cost are captured when available; unknown cost is never invented.
 
 ```bash
-python3 agent-harness/telemetry.py
-python3 agent-harness/telemetry.py --feature SHOP-001
-python3 agent-harness/telemetry.py --feature SHOP-001 --orchestration-id <run-id>
+python3 etc/agent-harness/telemetry.py
+python3 etc/agent-harness/telemetry.py --feature SHOP-001
+python3 etc/agent-harness/telemetry.py --feature SHOP-001 --orchestration-id <run-id>
 ```
 
 If a process is hard-killed and cannot execute cleanup, stale/orphan provenance is reconciled to `abandoned` when deterministic
@@ -862,10 +862,10 @@ Tracker integration remains outside orchestration. It can fetch/normalize intent
 remote mutation operation.
 
 ```bash
-python3 agent-harness/control_plane.py github \
+python3 etc/agent-harness/control_plane.py github \
   --repo chrobakpiotr/showcase-application --issue 123 --intent
 
-python3 agent-harness/control_plane.py jira \
+python3 etc/agent-harness/control_plane.py jira \
   --base-url https://example.atlassian.net --key SHOP-123 --intent
 ```
 
@@ -903,7 +903,7 @@ Normally commit:
 AGENTS.md
 CLAUDE.md
 .claude/agents/**
-agent-harness/**
+etc/agent-harness/**
 docs/agentic-sdd/**
 docs/specs/<real-feature>/{spec.md,plan.md,design.json,verification-contract.json,tasks.json}
 docs/wayfinder/<epic>/wayfinder.json and durable decision records while discovery is active/valuable

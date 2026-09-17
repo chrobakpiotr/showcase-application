@@ -20,7 +20,7 @@ import urllib.request
 from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parent
+REPO = HERE.parents[1]
 STATE = REPO / '.agent-state' / 'control-plane'
 SAFE_ID_RE = re.compile(r'^[A-Za-z0-9._-]+$')
 

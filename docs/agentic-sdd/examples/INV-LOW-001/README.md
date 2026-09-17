@@ -62,8 +62,8 @@ This copies `spec.md`, `plan.md`, `design.json`, and `tasks.json` into `docs/spe
 Preview and then run the design loop:
 
 ```bash
-python3 agent-harness/design.py docs/specs/INV-LOW-001 --plan
-python3 agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --reasoning high
+python3 etc/agent-harness/design.py docs/specs/INV-LOW-001 --plan
+python3 etc/agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --reasoning high
 ```
 
 For this medium-risk feature, `grill=auto` and `architecture_grill=auto` run. `prototype=auto` only runs when there is a concrete question: either predeclared in `design.json` or recommended by Spec Grill. Routine prototyping is intentionally skipped.
@@ -73,8 +73,8 @@ If either grill blocks, update `spec.md` or `plan.md` and rerun. A later edit to
 After `design/gate.json` is PASS:
 
 ```bash
-python3 agent-harness/harness.py validate docs/specs/INV-LOW-001
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
+python3 etc/agent-harness/harness.py validate docs/specs/INV-LOW-001
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
 ```
 
 ## 3. Run implementation with one provider
@@ -82,7 +82,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan
 Codex only:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider codex \
   --reasoning high \
   --verification-sandbox auto
@@ -91,7 +91,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
 Claude only:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider claude \
   --verification-sandbox auto
 ```
@@ -101,7 +101,7 @@ python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
 Use Codex for implementation and a separately invoked Claude context for specialist/evaluator work:
 
 ```bash
-python3 agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
+python3 etc/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude \
@@ -115,8 +115,8 @@ source of diversity, not a substitute for deterministic verification.
 ## 5. Observe while/after it runs
 
 ```bash
-python3 agent-harness/harness.py status docs/specs/INV-LOW-001
-python3 agent-harness/telemetry.py --feature INV-LOW-001
+python3 etc/agent-harness/harness.py status docs/specs/INV-LOW-001
+python3 etc/agent-harness/telemetry.py --feature INV-LOW-001
 git worktree list
 ```
 
@@ -148,7 +148,7 @@ Nothing is pushed unless you later run `git push` yourself.
 To remove harness runtime state, clean task worktrees/branches, and generated packets:
 
 ```bash
-python3 agent-harness/harness.py reset docs/specs/INV-LOW-001 --full
+python3 etc/agent-harness/harness.py reset docs/specs/INV-LOW-001 --full
 ```
 
 If this was only a demo and you do not want to keep the feature specification:

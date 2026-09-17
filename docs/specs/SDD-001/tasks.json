@@ -41,7 +41,7 @@
         "AC-032"
       ],
       "verification": [
-        "python3 agent-harness/harness.py validate docs/specs/SDD-001"
+        "python3 etc/agent-harness/harness.py validate docs/specs/SDD-001"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Protocol documentation, templates and agent profiles must remain machine-consistent with validators, maintained examples and doctor/CI checks."
@@ -53,21 +53,21 @@
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
-        "agent-harness/harness.py",
-        "agent-harness/orchestrate.py",
-        "agent-harness/tests/test_harness.py",
-        "agent-harness/tests/test_orchestrate.py",
+        "etc/agent-harness/harness.py",
+        "etc/agent-harness/orchestrate.py",
+        "etc/agent-harness/tests/test_harness.py",
+        "etc/agent-harness/tests/test_orchestrate.py",
         ".gitignore",
-        "agent-harness/design.py",
-        "agent-harness/tests/test_design.py",
-        "agent-harness/wayfinder.py",
-        "agent-harness/tests/test_wayfinder.py",
-        "agent-harness/trust.py",
-        "agent-harness/verification_contract.py",
-        "agent-harness/eval.py",
-        "agent-harness/tests/test_trust.py",
-        "agent-harness/tests/test_verification_contract.py",
-        "agent-harness/tests/test_eval.py"
+        "etc/agent-harness/design.py",
+        "etc/agent-harness/tests/test_design.py",
+        "etc/agent-harness/wayfinder.py",
+        "etc/agent-harness/tests/test_wayfinder.py",
+        "etc/agent-harness/trust.py",
+        "etc/agent-harness/verification_contract.py",
+        "etc/agent-harness/eval.py",
+        "etc/agent-harness/tests/test_trust.py",
+        "etc/agent-harness/tests/test_verification_contract.py",
+        "etc/agent-harness/tests/test_eval.py"
       ],
       "risk_tags": [
         "orchestration",
@@ -100,9 +100,9 @@
         "AC-032"
       ],
       "verification": [
-        "python3 -m unittest agent-harness/tests/test_harness.py agent-harness/tests/test_orchestrate.py agent-harness/tests/test_design.py -v",
-        "python3 -m unittest agent-harness/tests/test_wayfinder.py -v",
-        "python3 -m unittest agent-harness/tests/test_trust.py agent-harness/tests/test_verification_contract.py agent-harness/tests/test_eval.py -v"
+        "python3 -m unittest etc/agent-harness/tests/test_harness.py etc/agent-harness/tests/test_orchestrate.py etc/agent-harness/tests/test_design.py -v",
+        "python3 -m unittest etc/agent-harness/tests/test_wayfinder.py -v",
+        "python3 -m unittest etc/agent-harness/tests/test_trust.py etc/agent-harness/tests/test_verification_contract.py etc/agent-harness/tests/test_eval.py -v"
       ],
       "test_mode": "red-green-refactor",
       "test_seam": "Unit tests exercise deterministic Wayfinder ledger/reconciliation, DAG validation, stale gates and task-packet protocol behavior before implementation changes."
@@ -114,13 +114,13 @@
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
-        "agent-harness/runner.py",
-        "agent-harness/verification_sandbox.py",
-        "agent-harness/telemetry.py",
-        "agent-harness/schemas/**",
-        "agent-harness/tests/test_runner.py",
-        "agent-harness/tests/test_verification_sandbox.py",
-        "agent-harness/tests/test_telemetry.py"
+        "etc/agent-harness/runner.py",
+        "etc/agent-harness/verification_sandbox.py",
+        "etc/agent-harness/telemetry.py",
+        "etc/agent-harness/schemas/**",
+        "etc/agent-harness/tests/test_runner.py",
+        "etc/agent-harness/tests/test_verification_sandbox.py",
+        "etc/agent-harness/tests/test_telemetry.py"
       ],
       "risk_tags": [
         "security",
@@ -140,7 +140,7 @@
         "AC-030"
       ],
       "verification": [
-        "python3 -m unittest agent-harness/tests/test_runner.py agent-harness/tests/test_verification_sandbox.py agent-harness/tests/test_telemetry.py -v"
+        "python3 -m unittest etc/agent-harness/tests/test_runner.py etc/agent-harness/tests/test_verification_sandbox.py etc/agent-harness/tests/test_telemetry.py -v"
       ],
       "test_mode": "red-green-refactor",
       "test_seam": "Runner contract tests prove protocol-v4 trust tamper rejection and RED/GREEN/REFACTOR evidence requirements before provider execution is accepted."
@@ -152,8 +152,8 @@
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
-        "agent-harness/control_plane.py",
-        "agent-harness/tests/test_control_plane.py"
+        "etc/agent-harness/control_plane.py",
+        "etc/agent-harness/tests/test_control_plane.py"
       ],
       "risk_tags": [
         "security"
@@ -163,7 +163,7 @@
         "AC-029"
       ],
       "verification": [
-        "python3 -m unittest agent-harness/tests/test_control_plane.py -v"
+        "python3 -m unittest etc/agent-harness/tests/test_control_plane.py -v"
       ],
       "test_mode": "red-green-refactor",
       "test_seam": "Control-plane normalization tests prove tracker snapshots remain read-only and are labeled untrusted before integration with provider prompts."
@@ -212,18 +212,18 @@
         "AC-032"
       ],
       "verification": [
-        "python3 -m py_compile agent-harness/harness.py agent-harness/orchestrate.py agent-harness/runner.py agent-harness/verification_sandbox.py agent-harness/telemetry.py agent-harness/control_plane.py agent-harness/design.py agent-harness/wayfinder.py agent-harness/trust.py agent-harness/verification_contract.py agent-harness/eval.py",
-        "python3 -m unittest discover -s agent-harness/tests -v",
-        "python3 agent-harness/harness.py validate-all docs/specs",
-        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
-        "python3 agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
-        "python3 agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
-        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
-        "python3 agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 agent-harness/verification_contract.py validate docs/specs/SDD-001",
-        "python3 agent-harness/eval.py run --suite baseline --repeat 1",
-        "python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1"
+        "python3 -m py_compile etc/agent-harness/harness.py etc/agent-harness/orchestrate.py etc/agent-harness/runner.py etc/agent-harness/verification_sandbox.py etc/agent-harness/telemetry.py etc/agent-harness/control_plane.py etc/agent-harness/design.py etc/agent-harness/wayfinder.py etc/agent-harness/trust.py etc/agent-harness/verification_contract.py etc/agent-harness/eval.py",
+        "python3 -m unittest discover -s etc/agent-harness/tests -v",
+        "python3 etc/agent-harness/harness.py validate-all docs/specs",
+        "python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 etc/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
+        "python3 etc/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
+        "python3 etc/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 etc/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 etc/agent-harness/verification_contract.py validate docs/specs/SDD-001",
+        "python3 etc/agent-harness/eval.py run --suite baseline --repeat 1",
+        "python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Self-hosting CI/install/example checks compile and execute the complete Agentic SDD protocol, including verification contract and eval suites."
@@ -241,7 +241,7 @@
         "T-004"
       ],
       "allowed_paths": [
-        "agent-harness/tests/**",
+        "etc/agent-harness/tests/**",
         "docs/specs/SDD-001/evidence/**"
       ],
       "risk_tags": [
@@ -289,20 +289,20 @@
         "VC-007"
       ],
       "verification": [
-        "python3 -m unittest discover -s agent-harness/tests -v",
-        "python3 agent-harness/harness.py validate-all docs/specs",
-        "python3 agent-harness/harness.py doctor",
-        "python3 agent-harness/orchestrate.py docs/specs/SDD-001 --plan",
-        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
-        "python3 agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
-        "python3 agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
-        "python3 agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
-        "python3 -m unittest agent-harness/tests/test_wayfinder.py -v",
-        "python3 agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 agent-harness/verification_contract.py validate docs/specs/SDD-001",
-        "python3 agent-harness/eval.py run --suite baseline --repeat 1",
-        "python3 agent-harness/eval.py run --suite shipping-preflight --repeat 1"
+        "python3 -m unittest discover -s etc/agent-harness/tests -v",
+        "python3 etc/agent-harness/harness.py validate-all docs/specs",
+        "python3 etc/agent-harness/harness.py doctor",
+        "python3 etc/agent-harness/orchestrate.py docs/specs/SDD-001 --plan",
+        "python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 etc/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
+        "python3 etc/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
+        "python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
+        "python3 -m unittest etc/agent-harness/tests/test_wayfinder.py -v",
+        "python3 etc/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 etc/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 etc/agent-harness/verification_contract.py validate docs/specs/SDD-001",
+        "python3 etc/agent-harness/eval.py run --suite baseline --repeat 1",
+        "python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1"
       ]
     },
     {
@@ -344,8 +344,8 @@
         "VC-007"
       ],
       "verification": [
-        "python3 -m unittest discover -s agent-harness/tests -v",
-        "python3 agent-harness/harness.py validate-all docs/specs"
+        "python3 -m unittest discover -s etc/agent-harness/tests -v",
+        "python3 etc/agent-harness/harness.py validate-all docs/specs"
       ]
     }
   ],

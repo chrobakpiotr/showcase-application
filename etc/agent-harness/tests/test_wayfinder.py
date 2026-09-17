@@ -122,10 +122,10 @@ class WayfinderTest(unittest.TestCase):
                 os.chdir(old)
 
     def test_full_resolve_with_fake_codex_closes_ticket_and_cleans_worktree(self):
-        source_root = pathlib.Path(__file__).resolve().parents[2]
+        source_root = pathlib.Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
-            shutil.copytree(source_root / 'agent-harness', root / 'agent-harness')
+            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
@@ -148,7 +148,7 @@ out.parent.mkdir(parents=True, exist_ok=True); out.write_text(json.dumps(result)
 print(json.dumps({'type':'result','usage':{'input_tokens':1,'output_tokens':1}}))
 """); fake.chmod(0o755)
             env=os.environ.copy(); env['PATH']=str(fake_bin)+os.pathsep+env.get('PATH','')
-            proc=subprocess.run(['python3','agent-harness/wayfinder.py','resolve','docs/wayfinder/EPIC-001','D-001','--provider','codex','--run-id','wf-test'], cwd=root, env=env, text=True, capture_output=True)
+            proc=subprocess.run(['python3','etc/agent-harness/wayfinder.py','resolve','docs/wayfinder/EPIC-001','D-001','--provider','codex','--run-id','wf-test'], cwd=root, env=env, text=True, capture_output=True)
             self.assertEqual(0, proc.returncode, msg=proc.stdout+'\n'+proc.stderr)
             updated=json.loads((map_dir/'wayfinder.json').read_text())
             self.assertEqual('closed', updated['decisions'][0]['status'])
@@ -156,10 +156,10 @@ print(json.dumps({'type':'result','usage':{'input_tokens':1,'output_tokens':1}})
             self.assertNotIn('_design', worktrees)
 
     def test_full_handoff_wayfinder_to_spec_design_to_tasks_with_fake_codex(self):
-        source_root = pathlib.Path(__file__).resolve().parents[2]
+        source_root = pathlib.Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
-            shutil.copytree(source_root / 'agent-harness', root / 'agent-harness')
+            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
@@ -198,12 +198,12 @@ out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(result))
 """); fake.chmod(0o755)
             env = os.environ.copy(); env['PATH'] = str(fake_bin) + os.pathsep + env.get('PATH', '')
             commands = [
-                ['python3', 'agent-harness/wayfinder.py', 'run', 'docs/wayfinder/WF-001', '--provider', 'codex', '--run-id', 'wf-map'],
-                ['python3', 'agent-harness/wayfinder.py', 'to-spec', 'docs/wayfinder/WF-001', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-spec'],
-                ['python3', 'agent-harness/design.py', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-design'],
-                ['python3', 'agent-harness/verification_contract.py', 'generate', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-vc'],
-                ['python3', 'agent-harness/wayfinder.py', 'to-tasks', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-tasks'],
-                ['python3', 'agent-harness/harness.py', 'validate', 'docs/specs/WF-001'],
+                ['python3', 'etc/agent-harness/wayfinder.py', 'run', 'docs/wayfinder/WF-001', '--provider', 'codex', '--run-id', 'wf-map'],
+                ['python3', 'etc/agent-harness/wayfinder.py', 'to-spec', 'docs/wayfinder/WF-001', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-spec'],
+                ['python3', 'etc/agent-harness/design.py', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-design'],
+                ['python3', 'etc/agent-harness/verification_contract.py', 'generate', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-vc'],
+                ['python3', 'etc/agent-harness/wayfinder.py', 'to-tasks', 'docs/specs/WF-001', '--provider', 'codex', '--run-id', 'wf-tasks'],
+                ['python3', 'etc/agent-harness/harness.py', 'validate', 'docs/specs/WF-001'],
             ]
             for command in commands:
                 proc = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)

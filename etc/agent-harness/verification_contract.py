@@ -20,7 +20,7 @@ import uuid
 from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parent
+REPO = HERE.parents[1]
 SCHEMA = HERE / 'schemas' / 'verification-contract.schema.json'
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
@@ -214,7 +214,7 @@ Do not invent product behavior. Independent criteria should protect already-acce
 operability or existing behavior. Exemptions must remain status=proposed unless a pre-existing human approval is explicitly
 present in trusted repository artifacts.
 
-Return ONLY JSON conforming to agent-harness/schemas/verification-contract.schema.json.
+Return ONLY JSON conforming to etc/agent-harness/schemas/verification-contract.schema.json.
 """
 
 

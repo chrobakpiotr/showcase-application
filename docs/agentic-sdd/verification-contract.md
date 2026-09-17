@@ -5,11 +5,11 @@
 For medium/high-risk work, the harness supports a separately-authored `verification-contract.json` after the design gate and before task generation. The author reads the spec, but also accepted ADRs, architecture invariants, current contracts/tests and existing behavior.
 
 ```bash
-python3 agent-harness/verification_contract.py generate \
+python3 etc/agent-harness/verification_contract.py generate \
   docs/specs/FEATURE-001 \
   --provider codex --reasoning high
 
-python3 agent-harness/verification_contract.py validate docs/specs/FEATURE-001
+python3 etc/agent-harness/verification_contract.py validate docs/specs/FEATURE-001
 ```
 
 A criterion looks like:

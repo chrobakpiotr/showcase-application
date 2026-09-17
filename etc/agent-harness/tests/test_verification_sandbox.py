@@ -63,5 +63,29 @@ class VerificationSandboxTest(unittest.TestCase):
             )
 
 
+    def test_safe_env_does_not_inherit_provider_or_ci_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            vs.os.environ,
+            {
+                'PATH': '/usr/bin:/bin',
+                'CI': 'true',
+                'GITHUB_TOKEN': 'github-secret',
+                'OPENAI_API_KEY': 'openai-secret',
+                'ANTHROPIC_API_KEY': 'anthropic-secret',
+                'AWS_SECRET_ACCESS_KEY': 'aws-secret',
+            },
+            clear=True,
+        ):
+            root = pathlib.Path(tmp)
+            env = vs._safe_env(root, root / 'home')
+            self.assertEqual('/usr/bin:/bin', env['PATH'])
+            self.assertEqual('true', env['CI'])
+            self.assertNotIn('GITHUB_TOKEN', env)
+            self.assertNotIn('OPENAI_API_KEY', env)
+            self.assertNotIn('ANTHROPIC_API_KEY', env)
+            self.assertNotIn('AWS_SECRET_ACCESS_KEY', env)
+            self.assertEqual(str(root / 'home'), env['HOME'])
+
+
 if __name__ == '__main__':
     unittest.main()

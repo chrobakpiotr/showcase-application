@@ -23,7 +23,7 @@ import uuid
 from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parent
+REPO = HERE.parents[1]
 DEFAULT_SUITES = HERE / 'evals'
 FORBIDDEN_FRAGMENTS = (
     'git push', 'git commit', 'git merge', 'git rebase', 'git reset --hard',
