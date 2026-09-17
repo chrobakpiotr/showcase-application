@@ -1,0 +1,92 @@
+{
+  "feature": "ORDER-APP-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Create neutral application orchestration module",
+      "objective": "Establish an inward-only application module without changing runtime behavior.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "settings.gradle",
+        "modules/application/**",
+        "apps/ecommerce/backend/src/main/java/com/cp/ecommerce/application/EcommerceApplication.java"
+      ],
+      "risk_tags": [
+        "architecture"
+      ],
+      "acceptance_criteria": [
+        "AC-005",
+        "AC-006"
+      ],
+      "verification": [
+        "./gradlew :application:orchestration:test :application:orchestration:check --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Application cancellation workflow unit tests exercise domain-port orchestration without MVC or persistence."
+    },
+    {
+      "id": "T-002",
+      "title": "Delegate cancellation workflow from web adapter",
+      "objective": "Make OrderController transport-only for cancellation while preserving the HTTP contract.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "modules/adapters/web/web.gradle",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/OrderController.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/order/OrderControllerTest.java"
+      ],
+      "risk_tags": [
+        "architecture",
+        "integration"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :adapter:web:test --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "OrderControllerTest proves unchanged HTTP behavior while mocking the application workflow."
+    },
+    {
+      "id": "T-003",
+      "title": "Architecture and integration verification",
+      "objective": "Prove the new dependency direction and behavior-preserving scope.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "docs/specs/ORDER-APP-001/evidence/**"
+      ],
+      "risk_tags": [
+        "architecture"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007"
+      ],
+      "verification": [
+        "./gradlew :application:orchestration:check :adapter:web:test :application:ecommerce:test --no-configuration-cache --no-parallel",
+        "python3 tooling/agent-harness/harness.py validate docs/specs/ORDER-APP-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh focused module/web/application tests plus deterministic protocol validation."
+    }
+  ]
+}
