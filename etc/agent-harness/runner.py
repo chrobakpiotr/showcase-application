@@ -12,8 +12,10 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import shlex
+import stat
 import shutil
 import subprocess
 import sys
@@ -297,6 +299,68 @@ def path_allowed(path: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(path, pattern) for pattern in patterns)
 
 
+def _hash_untracked_entry(digest: Any, worktree: pathlib.Path, raw: bytes) -> None:
+    # Never dereference an untracked symlink while fingerprinting a task worktree.
+    # Besides preventing reads outside the worktree, hashing the link target itself
+    # also makes broken symlink retargeting visible to reviewer-mutation checks.
+    path = worktree / raw.decode('utf-8', errors='surrogateescape')
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        # A concurrent delete is still a meaningful state. A later snapshot will
+        # differ rather than causing us to follow a replacement path.
+        digest.update(b'missing\0')
+        return
+
+    if stat.S_ISLNK(metadata.st_mode):
+        digest.update(b'symlink\0')
+        try:
+            target = os.readlink(path)
+        except OSError as exc:
+            raise RuntimeError(f'cannot safely fingerprint untracked symlink {path}: {exc}') from exc
+        digest.update(os.fsencode(target))
+        digest.update(b'\0')
+        return
+
+    if not stat.S_ISREG(metadata.st_mode):
+        # Do not open FIFOs/devices/sockets. Their type is sufficient for mutation
+        # detection and, critically, avoids blocking or reading outside the worktree.
+        digest.update(b'special\0')
+        digest.update(str(stat.S_IFMT(metadata.st_mode)).encode('ascii'))
+        digest.update(b'\0')
+        return
+
+    digest.update(b'file\0')
+    flags = os.O_RDONLY | getattr(os, 'O_BINARY', 0)
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+
+    try:
+        fd = os.open(path, flags)
+    except OSError as exc:
+        raise RuntimeError(f'cannot safely open untracked file {path}: {exc}') from exc
+
+    try:
+        opened = os.fstat(fd)
+        current = path.lstat()
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or not stat.S_ISREG(current.st_mode)
+            or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+        ):
+            raise RuntimeError(f'untracked file changed type or identity while fingerprinting: {path}')
+
+        content_digest = hashlib.sha256()
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            content_digest.update(chunk)
+        digest.update(content_digest.digest())
+    finally:
+        os.close(fd)
+
+
 def worktree_content_fingerprint(worktree: pathlib.Path) -> str:
     digest = hashlib.sha256()
     diff = subprocess.run(
@@ -308,9 +372,7 @@ def worktree_content_fingerprint(worktree: pathlib.Path) -> str:
     ).stdout.split(b'\0')
     for raw in sorted(p for p in untracked if p):
         digest.update(raw + b'\0')
-        path = worktree / raw.decode('utf-8', errors='surrogateescape')
-        if path.is_file():
-            digest.update(path.read_bytes())
+        _hash_untracked_entry(digest, worktree, raw)
     return digest.hexdigest()
 
 

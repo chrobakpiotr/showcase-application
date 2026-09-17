@@ -161,5 +161,66 @@ class RunnerTest(unittest.TestCase):
 
 
 
+    def test_fingerprint_does_not_follow_untracked_symlink(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_tmp:
+            root = pathlib.Path(tmp)
+            outside = pathlib.Path(outside_tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'tracked.txt').write_text('base\\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'tracked.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+
+            first_target = outside / 'first.txt'
+            second_target = outside / 'second.txt'
+            first_target.write_text('same-content\\n', encoding='utf-8')
+            second_target.write_text('same-content\\n', encoding='utf-8')
+            link = root / 'untracked-link'
+
+            try:
+                link.symlink_to(first_target)
+            except OSError as exc:
+                self.skipTest(f'symlink creation is unavailable: {exc}')
+
+            original = runner.worktree_content_fingerprint(root)
+
+            # External target contents are not part of the worktree fingerprint.
+            first_target.write_text('changed-secret\\n', encoding='utf-8')
+            self.assertEqual(original, runner.worktree_content_fingerprint(root))
+
+            # The symlink object itself is part of the worktree, so retargeting it
+            # must change the fingerprint even when both targets have equal content.
+            first_target.write_text('same-content\\n', encoding='utf-8')
+            link.unlink()
+            link.symlink_to(second_target)
+            self.assertNotEqual(original, runner.worktree_content_fingerprint(root))
+
+    def test_fingerprint_tracks_broken_symlink_target_without_dereference(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'tracked.txt').write_text('base\\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'tracked.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+
+            link = root / 'broken-link'
+            try:
+                link.symlink_to('missing-a')
+            except OSError as exc:
+                self.skipTest(f'symlink creation is unavailable: {exc}')
+
+            first = runner.worktree_content_fingerprint(root)
+            link.unlink()
+            link.symlink_to('missing-b')
+            second = runner.worktree_content_fingerprint(root)
+
+            self.assertNotEqual(first, second)
+
+
 if __name__ == '__main__':
     unittest.main()
