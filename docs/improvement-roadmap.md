@@ -5,10 +5,11 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 
 | Priority | Finding or opportunity | Next change and acceptance |
 |---|---|---|
-| P3 | README is now technical, but documentation links can drift. | Add a local Markdown-link checker covering README and docs without requiring external network access. |
 
 ## Implemented in the hardening patches
 
+- README and `docs/**/*.md` now have an offline local-link/anchor checker with regression tests, wired into pre-push verification and a dedicated CI documentation gate.
+- Gradle quality scripts use consistent tool-specific folders under `etc/`, including `etc/jacoco/jacoco.gradle` and `etc/spotbugs/spotbugs.gradle`.
 - Frontend RFC 9457 rendering is centralized in a tested `ProblemDetailsAdapter`; order retry semantics still classify deterministic rejection separately from unknown outcomes.
 - Inventory blocks duplicate/overlapping requests, clears stale lookup results and
   dispatches only the selected stock operation.

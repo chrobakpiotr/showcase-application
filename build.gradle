@@ -42,7 +42,7 @@ idea {
 
 // Typed SpotBugs enum constants, resolved here since the root script is the only one with a
 // compile-time-visible classpath to the plugin (declared with 'apply false' above). Consumed by
-// etc/spotbugs.gradle via rootProject.ext to avoid the deprecated String-to-enum coercion that
+// etc/spotbugs/spotbugs.gradle via rootProject.ext to avoid the deprecated String-to-enum coercion that
 // Gradle 10 will reject - see upgrading_version_8.html#deprecated_string_to_enum_coercion_for_rich_properties
 ext.spotbugsEffort = Effort.DEFAULT
 ext.spotbugsReportLevel = Confidence.valueOf('HIGH')

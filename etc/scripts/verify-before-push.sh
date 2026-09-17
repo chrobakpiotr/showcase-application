@@ -12,9 +12,9 @@ case "${1:-}" in
   --e2e) MODE="e2e" ;;
   -h|--help)
     cat <<'USAGE'
-Usage: etc/etc/scripts/verify-before-push.sh [--backend|--full|--e2e]
+Usage: etc/scripts/verify-before-push.sh [--backend|--full|--e2e]
 
-  --backend  Documentation punctuation, persistence XML formatting and the exact backend CI build. Default.
+  --backend  Documentation links/punctuation, persistence XML formatting and the exact backend CI build. Default.
   --full     Backend checks plus Angular install, lint, unit tests and production build.
   --e2e      Full checks plus the Docker Compose Playwright end-to-end suite.
 USAGE
@@ -59,6 +59,14 @@ if violations:
 
 print(f"ASCII punctuation check: PASS ({len(paths)} tracked Markdown files)")
 PY
+}
+
+run_documentation_gate() {
+  echo "==> Running Markdown link checker tests"
+  python3 -m unittest discover -s etc/scripts/tests -p 'test_check_markdown_links.py' -v
+
+  echo "==> Checking repository-local Markdown links"
+  python3 etc/scripts/check_markdown_links.py
 }
 
 run_backend_ci_gate() {
@@ -134,8 +142,9 @@ run_e2e_gate() {
   trap - EXIT
 }
 
-echo "==> Checking repository punctuation policy"
+echo "==> Checking repository documentation policy"
 check_ascii_markdown_punctuation
+run_documentation_gate
 run_backend_ci_gate
 
 if [[ "$MODE" == "full" || "$MODE" == "e2e" ]]; then
