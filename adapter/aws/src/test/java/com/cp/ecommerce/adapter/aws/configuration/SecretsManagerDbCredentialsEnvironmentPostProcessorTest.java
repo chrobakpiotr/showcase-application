@@ -1,5 +1,11 @@
 package com.cp.ecommerce.adapter.aws.configuration;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Enumeration;
+import java.util.Properties;
+
 import com.google.gson.Gson;
 
 import org.junit.jupiter.api.Test;
@@ -7,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.boot.EnvironmentPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.core.Ordered;
 import org.springframework.mock.env.MockEnvironment;
@@ -102,6 +109,34 @@ class SecretsManagerDbCredentialsEnvironmentPostProcessorTest {
         processor.postProcessEnvironment(environment, springApplication);
 
         assertThat(environment.getPropertySources().contains("aws-secretsmanager-db-credentials")).isFalse();
+    }
+
+    @Test
+    void shouldImplementCurrentSpringBootEnvironmentPostProcessor() {
+
+        assertThat(EnvironmentPostProcessor.class).isAssignableFrom(SecretsManagerDbCredentialsEnvironmentPostProcessor.class);
+    }
+
+    @Test
+    void shouldBeRegisteredUnderCurrentSpringBootEnvironmentPostProcessorKey() throws IOException {
+
+        final String expected = SecretsManagerDbCredentialsEnvironmentPostProcessor.class.getName();
+        final Enumeration<URL> resources = getClass().getClassLoader().getResources("META-INF/spring.factories");
+
+        boolean registered = false;
+        while (resources.hasMoreElements() && !registered) {
+            final Properties factories = new Properties();
+            try (InputStream input = resources.nextElement().openStream()) {
+                factories.load(input);
+            }
+            final String implementations = factories.getProperty(EnvironmentPostProcessor.class.getName(), "");
+            registered = implementations.lines()
+                    .flatMap(line -> java.util.Arrays.stream(line.split(",")))
+                    .map(String::trim)
+                    .anyMatch(expected::equals);
+        }
+
+        assertThat(registered).isTrue();
     }
 
     @Test

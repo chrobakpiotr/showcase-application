@@ -1,0 +1,1 @@
+org.springframework.boot.EnvironmentPostProcessor=com.cp.ecommerce.adapter.aws.configuration.SecretsManagerDbCredentialsEnvironmentPostProcessor
