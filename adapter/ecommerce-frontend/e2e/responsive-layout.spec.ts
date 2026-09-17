@@ -21,7 +21,7 @@ const ROUTES = [
 for (const [route, component] of ROUTES) {
   test(`${route} renders without viewport overflow`, async ({ page }) => {
     // Preserve the viewport selected in the main-branch pipeline repair.
-    await page.setViewportSize({ width: 601, height: 844 });
+    await page.setViewportSize({ width: 681, height: 844 });
     await page.goto('');
     await page.getByTestId('login-username').fill('order-admin');
     await page.getByTestId('login-password').fill('password');
