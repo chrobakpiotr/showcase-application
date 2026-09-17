@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>
  * Mirrors the AMQP {@code OrderMessageContractTest}: instead of introducing the full operational footprint of Spring Cloud
  * Contract or Pact, this asserts the wire-level JSON schema that analytics consumers depend on directly. The expected field set
- * comes from {@code contracts/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than a duplicated {@code Set.of(...)}, so
- * the spec and the actual wire format cannot silently drift apart.
+ * comes from {@code contracts/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than a duplicated {@code Set.of(...)},
+ * so the spec and the actual wire format cannot silently drift apart.
  * </p>
  */
 class OrderAnalyticsEventContractTest {
