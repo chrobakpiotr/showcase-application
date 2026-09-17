@@ -1,11 +1,22 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  Subject,
+  catchError,
+  finalize,
+  of,
+  startWith,
+  switchMap,
+  tap,
+} from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
 import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
@@ -21,8 +32,12 @@ import { ShipmentsService } from '@app/shipments/shipments.service';
 export class ShipmentsComponent implements OnInit {
   private readonly shipmentsService = inject(ShipmentsService);
   private readonly authService = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly filterChanges = new Subject<'ALL' | ShipmentStatus>();
 
   readonly shipments = signal<ShipmentModel[]>([]);
+  readonly loading = signal(false);
+  readonly advancingShipmentId = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
   readonly actionErrorMessage = signal<string | null>(null);
   readonly selectedStatus = signal<'ALL' | ShipmentStatus>('ALL');
@@ -36,36 +51,56 @@ export class ShipmentsComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (this.canRead) {
-      this.loadShipments();
-    }
+    if (!this.canRead) return;
+
+    this.filterChanges
+      .pipe(
+        startWith(this.selectedStatus()),
+        tap(() => {
+          this.loading.set(true);
+          this.errorMessage.set(null);
+        }),
+        switchMap((status) => {
+          const request =
+            status === 'ALL'
+              ? this.shipmentsService.listShipments()
+              : this.shipmentsService.listShipmentsByStatus(status);
+          return request.pipe(
+            catchError(() => {
+              this.errorMessage.set('Failed to load shipments.');
+              return of(null);
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((page) => {
+        this.loading.set(false);
+        if (page === null) return;
+        this.shipments.set(page._embedded?.shipmentResourceList ?? []);
+      });
   }
 
   updateStatusFilter(status: 'ALL' | ShipmentStatus): void {
     this.selectedStatus.set(status);
-    this.loadShipments();
+    this.filterChanges.next(status);
   }
 
   advance(shipmentNumber: string): void {
-    this.actionErrorMessage.set(null);
-    this.shipmentsService.advanceShipmentStatus(shipmentNumber).subscribe({
-      next: () => this.loadShipments(),
-      error: () =>
-        this.actionErrorMessage.set('Failed to advance shipment status.'),
-    });
-  }
+    if (this.advancingShipmentId()) return;
 
-  private loadShipments(): void {
-    this.errorMessage.set(null);
-    const selectedStatus = this.selectedStatus();
-    const request =
-      selectedStatus === 'ALL'
-        ? this.shipmentsService.listShipments()
-        : this.shipmentsService.listShipmentsByStatus(selectedStatus);
-    request.subscribe({
-      next: (page) =>
-        this.shipments.set(page._embedded?.shipmentResourceList ?? []),
-      error: () => this.errorMessage.set('Failed to load shipments.'),
-    });
+    this.actionErrorMessage.set(null);
+    this.advancingShipmentId.set(shipmentNumber);
+    this.shipmentsService
+      .advanceShipmentStatus(shipmentNumber)
+      .pipe(
+        finalize(() => this.advancingShipmentId.set(null)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: () => this.filterChanges.next(this.selectedStatus()),
+        error: () =>
+          this.actionErrorMessage.set('Failed to advance shipment status.'),
+      });
   }
 }

@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,7 +6,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import {
   FormControl,
   FormGroup,
@@ -13,12 +13,11 @@ import {
   Validators,
 } from '@angular/forms';
 
-import { CartService } from '@app/cart/cart.service';
+import { CartSessionService } from '@app/cart/cart-session.service';
 import { WishlistModel } from '@app/wishlist/wishlist.model';
 import { WishlistService } from '@app/wishlist/wishlist.service';
 
 const WISHLIST_ID_STORAGE_KEY = 'ecommerce_wishlist_id';
-const CART_ID_STORAGE_KEY = 'ecommerce_cart_id';
 
 @Component({
   selector: 'app-wishlist',
@@ -29,7 +28,7 @@ const CART_ID_STORAGE_KEY = 'ecommerce_cart_id';
 })
 export class WishlistComponent implements OnInit {
   private readonly wishlistService = inject(WishlistService);
-  private readonly cartService = inject(CartService);
+  private readonly cartSession = inject(CartSessionService);
 
   readonly wishlist = signal<WishlistModel | null>(null);
   readonly loading = signal(false);
@@ -101,16 +100,20 @@ export class WishlistComponent implements OnInit {
     if (!this.wishlist()) return;
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.ensureCartId((cartId) => {
-      this.wishlistService
-        .moveToCart(this.wishlist()!.wishlistId, sku, cartId)
-        .subscribe({
-          next: (wishlist) => {
-            this.wishlist.set(wishlist);
-            this.successMessage.set('Item moved to cart.');
-          },
-          error: () => this.errorMessage.set('Failed to move item to cart.'),
-        });
+    this.cartSession.ensureCartId().subscribe({
+      next: (cartId) => {
+        this.wishlistService
+          .moveToCart(this.wishlist()!.wishlistId, sku, cartId)
+          .subscribe({
+            next: (wishlist) => {
+              this.wishlist.set(wishlist);
+              this.successMessage.set('Item moved to cart.');
+            },
+            error: () => this.errorMessage.set('Failed to move item to cart.'),
+          });
+      },
+      error: () =>
+        this.errorMessage.set('Failed to start a cart for moving the item.'),
     });
   }
 
@@ -127,22 +130,6 @@ export class WishlistComponent implements OnInit {
         this.loading.set(false);
         this.startNewWishlist();
       },
-    });
-  }
-
-  private ensureCartId(consumer: (cartId: string) => void): void {
-    const storedCartId = sessionStorage.getItem(CART_ID_STORAGE_KEY);
-    if (storedCartId) {
-      consumer(storedCartId);
-      return;
-    }
-    this.cartService.createCart().subscribe({
-      next: (cart) => {
-        sessionStorage.setItem(CART_ID_STORAGE_KEY, cart.cartId);
-        consumer(cart.cartId);
-      },
-      error: () =>
-        this.errorMessage.set('Failed to start a cart for moving the item.'),
     });
   }
 

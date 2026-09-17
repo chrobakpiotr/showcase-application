@@ -20,7 +20,9 @@
     </select>
   </div>
 
-  @if (errorMessage()) {
+  @if (loading()) {
+  <p class="loading" data-testid="shipments-loading">Loading shipments...</p>
+  } @if (errorMessage()) {
   <div class="error-message" role="alert">{{ errorMessage() }}</div>
   } @if (actionErrorMessage()) {
   <div class="error-message" role="alert">{{ actionErrorMessage() }}</div>
@@ -54,9 +56,14 @@
           <button
             type="button"
             data-testid="advance-shipment"
+            [disabled]="advancingShipmentId() !== null"
             (click)="advance(shipment.shipmentNumber)"
           >
-            Advance Status
+            {{
+              advancingShipmentId() === shipment.shipmentNumber
+                ? 'Updating...'
+                : 'Advance Status'
+            }}
           </button>
           }
         </td>

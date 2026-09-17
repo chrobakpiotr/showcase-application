@@ -125,6 +125,7 @@ jobs:
       - name: Run safe behavioral harness eval baselines
         run: |
           python3 etc/agent-harness/eval.py run --suite baseline --repeat 1
+          python3 etc/agent-harness/eval.py run --suite adversarial --repeat 1
           python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 
       - name: Publish Agentic SDD evaluation reports

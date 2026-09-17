@@ -304,7 +304,8 @@
     @if (uncertain()) {
     <p role="status" data-testid="order-unknown">
       The server may have accepted this order. Retry the same attempt to
-      retrieve its result. Keep this page open; reloading loses the retry key.
+      retrieve its result. Reloading is safe in this browser tab: the unresolved
+      attempt is retained for up to 30 minutes.
     </p>
     } @if (submitting()) {
     <p class="loading">Processing your order...</p>

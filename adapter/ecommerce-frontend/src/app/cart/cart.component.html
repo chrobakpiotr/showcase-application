@@ -5,7 +5,11 @@
   <p class="loading">Loading cart…</p>
   } @if (errorMessage()) {
   <div class="error-message" role="alert">{{ errorMessage() }}</div>
-  } @if (cart()) {
+  @if (!cart() && !loading()) {
+  <button type="button" data-testid="cart-retry" (click)="retryLoad()">
+    Retry cart
+  </button>
+  } } @if (cart()) {
   <form
     class="add-item-form"
     [formGroup]="addItemForm"

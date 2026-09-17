@@ -33,6 +33,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
+      - name: Verify Java formatting
+        run: ./gradlew spotlessJavaCheck --no-configuration-cache --no-parallel
+
       - name: Build, verify quality gates and run tests
         run: >
           ./gradlew clean build
@@ -288,29 +291,32 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      E2E_COMPOSE_FILE: etc/docker/e2e/docker-compose.yml
+      COMPOSE_PROJECT_NAME: showcase-e2e-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Builds the app image itself (via the app service's own `build:` block) plus every infra
-      # dependency (Postgres, RabbitMQ, Kafka, Redis, Keycloak, Tempo), mirroring exactly what a
-      # developer runs locally - so the e2e suite exercises the real container image, not a
-      # test-only shortcut.
-      - name: Start full application stack
-        run: docker compose up -d --build
+      # Builds the real app image but uses a disposable, E2E-only dependency topology.
+      # Observability UIs/log shipping are intentionally excluded because they do not
+      # participate in the browser contract under test.
+      - name: Start disposable E2E application stack
+        run: docker compose -f "$E2E_COMPOSE_FILE" up -d --build
 
       - name: Wait for app to become healthy
         run: |
           for _ in $(seq 1 30); do
-            status=$(docker inspect --format='{{.State.Health.Status}}' ecommerce-app 2>/dev/null || echo starting)
+            app_id=$(docker compose -f "$E2E_COMPOSE_FILE" ps -q app)
+            status=$(docker inspect --format='{{.State.Health.Status}}' "$app_id" 2>/dev/null || echo starting)
             echo "app health: $status"
             if [ "$status" = "healthy" ]; then
               exit 0
             fi
             sleep 10
           done
-          echo "::error::ecommerce-app did not become healthy in time"
-          docker compose logs app
+          echo "::error::E2E app did not become healthy in time"
+          docker compose -f "$E2E_COMPOSE_FILE" logs app
           exit 1
 
       - name: Set up Node.js
@@ -343,8 +349,8 @@ jobs:
 
       - name: Dump application logs on failure
         if: failure()
-        run: docker compose logs app
+        run: docker compose -f "$E2E_COMPOSE_FILE" logs app
 
-      - name: Tear down application stack
+      - name: Tear down disposable E2E stack
         if: always()
-        run: docker compose down
+        run: docker compose -f "$E2E_COMPOSE_FILE" down -v --remove-orphans

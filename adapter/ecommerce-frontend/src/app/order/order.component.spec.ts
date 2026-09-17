@@ -9,6 +9,7 @@ import {
 import { of, Subject, throwError } from 'rxjs';
 
 import { OrderComponent } from '@app/order/order.component';
+import { ORDER_ATTEMPT_STORAGE_KEY } from '@app/order/order-attempt.store';
 import { OrderService } from '@app/order/order.service';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
@@ -68,12 +69,14 @@ describe('OrderComponent', () => {
     });
   }
 
-  beforeEach(() =>
-    TestBed.configureTestingModule({ providers: [provideRouter([])] })
-  );
+  beforeEach(() => {
+    sessionStorage.removeItem(ORDER_ATTEMPT_STORAGE_KEY);
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  });
 
   afterEach(() => {
     TestBed.resetTestingModule();
+    sessionStorage.removeItem(ORDER_ATTEMPT_STORAGE_KEY);
   });
 
   it('should create the component', () => {
@@ -478,5 +481,79 @@ describe('OrderComponent', () => {
       expect(component.uncertain()).toBeTrue();
       expect(component.orderNumber()).toBeNull();
     }
+  });
+
+  it('restores an unresolved attempt after a component reload and reuses the same key', () => {
+    setup();
+    fillValidForm('survive reload');
+    const pending = new Subject<{ orderNumber: string }>();
+    placeOrderSpy.and.returnValue(pending);
+
+    component.placeOrder();
+    const firstKey = placeOrderSpy.calls.mostRecent().args[1] as string;
+    pending.error(new HttpErrorResponse({ status: 0 }));
+
+    expect(component.uncertain()).toBeTrue();
+    expect(sessionStorage.getItem(ORDER_ATTEMPT_STORAGE_KEY)).toBeTruthy();
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(OrderComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(component.uncertain()).toBeTrue();
+    expect(component.remarksControl.value).toBe('survive reload');
+    expect(component.itemGroups[0].getRawValue()).toEqual(VALID_ITEM);
+
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-restored' }));
+    component.placeOrder();
+
+    expect(placeOrderSpy.calls.mostRecent().args[1]).toBe(firstKey);
+    expect(component.orderNumber()).toBe('ORD-restored');
+    expect(sessionStorage.getItem(ORDER_ATTEMPT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('clears a structurally corrupt recovered payload instead of locking checkout', () => {
+    sessionStorage.setItem(
+      ORDER_ATTEMPT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        key: 'corrupt-attempt',
+        payload: {
+          created: '2026-09-17T10:00:00.000Z',
+        },
+        expiresAt: Date.now() + 60_000,
+      })
+    );
+
+    setup();
+
+    expect(component.uncertain()).toBeFalse();
+    expect(component.editingLocked()).toBeFalse();
+    expect(sessionStorage.getItem(ORDER_ATTEMPT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('restores a non-empty coupon code with the unresolved attempt', () => {
+    sessionStorage.setItem(
+      ORDER_ATTEMPT_STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        key: 'coupon-attempt',
+        payload: {
+          remarks: 'coupon retry',
+          created: '2026-09-17T10:00:00.000Z',
+          customer: VALID_CUSTOMER,
+          items: [VALID_ITEM],
+          paymentMethod: 'CARD',
+          couponCode: 'SAVE10',
+        },
+        expiresAt: Date.now() + 60_000,
+      })
+    );
+
+    setup();
+
+    expect(component.uncertain()).toBeTrue();
+    expect(component.orderForm.controls.couponCode.value).toBe('SAVE10');
   });
 });

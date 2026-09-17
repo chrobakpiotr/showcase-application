@@ -1,0 +1,171 @@
+{
+  "feature": "DEMO-003",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Persist and restore unresolved order attempts",
+      "objective": "Make DEMO-002 retry attempts survive a browser reload without changing backend idempotency.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/src/app/order/**"
+      ],
+      "risk_tags": [
+        "frontend",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-001"
+      ],
+      "verification": [
+        "npm --prefix adapter/ecommerce-frontend test"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Angular storage/component regressions prove TTL, malformed state and same-key restore."
+    },
+    {
+      "id": "T-002",
+      "title": "Centralize cart session recovery",
+      "objective": "Preserve valid cart identity across transient failures and share it with Wishlist.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/src/app/cart/**",
+        "adapter/ecommerce-frontend/src/app/wishlist/**"
+      ],
+      "risk_tags": [
+        "frontend"
+      ],
+      "acceptance_criteria": [
+        "AC-002"
+      ],
+      "verification": [
+        "npm --prefix adapter/ecommerce-frontend test"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Angular component/service tests distinguish 404/410 from 5xx/network recovery."
+    },
+    {
+      "id": "T-003",
+      "title": "Make shipment and review async behavior deterministic",
+      "objective": "Prevent stale reads and duplicate mutations in the remaining operator screens.",
+      "role": "builder",
+      "depends_on": [
+        "T-002"
+      ],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/src/app/shipments/**",
+        "adapter/ecommerce-frontend/src/app/reviews/**"
+      ],
+      "risk_tags": [
+        "frontend",
+        "concurrency"
+      ],
+      "acceptance_criteria": [
+        "AC-003"
+      ],
+      "verification": [
+        "npm --prefix adapter/ecommerce-frontend test"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Delayed RxJS Subjects prove latest-request-wins and mutation guards."
+    },
+    {
+      "id": "T-004",
+      "title": "Isolate the Playwright runtime and recovery scenario",
+      "objective": "Use one disposable E2E topology locally and in CI and prove reload recovery end to end.",
+      "role": "builder",
+      "depends_on": [
+        "T-003"
+      ],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/e2e/**",
+        "etc/docker/e2e/**",
+        ".github/workflows/ci.yml",
+        "etc/scripts/verify-before-push.sh",
+        "README.md"
+      ],
+      "risk_tags": [
+        "frontend",
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "docker compose -f etc/docker/e2e/docker-compose.yml config -q"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Playwright exercises server-accepted/browser-unknown replay against the real app stack."
+    },
+    {
+      "id": "T-005",
+      "title": "Dogfood Agentic SDD and adversarial evals",
+      "objective": "Make the harness validate the real change and retain the recently fixed fail-closed behaviors.",
+      "role": "builder",
+      "depends_on": [
+        "T-004"
+      ],
+      "allowed_paths": [
+        "docs/specs/DEMO-003/**",
+        "docs/improvement-roadmap.md",
+        "docs/agentic-sdd/evals.md",
+        "etc/agent-harness/evals/**",
+        ".github/workflows/agentic-sdd.yml"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-006"
+      ],
+      "verification": [
+        "python3 etc/agent-harness/harness.py validate docs/specs/DEMO-003",
+        "python3 etc/agent-harness/eval.py run --suite adversarial --repeat 1"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Checked-in deterministic eval commands exercise regression suites and feature validation."
+    },
+    {
+      "id": "T-006",
+      "title": "Independent integration gate",
+      "objective": "Verify all DEMO-003 acceptance criteria without claiming unexecuted Docker/browser gates.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005"
+      ],
+      "allowed_paths": [
+        "docs/specs/DEMO-003/evidence/**"
+      ],
+      "risk_tags": [
+        "frontend",
+        "security",
+        "concurrency",
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "verification": [
+        "python3 etc/agent-harness/harness.py validate docs/specs/DEMO-003"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh deterministic protocol validation plus separately executed frontend/E2E evidence."
+    }
+  ]
+}

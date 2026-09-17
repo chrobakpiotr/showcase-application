@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -102,13 +103,33 @@ describe('CartComponent', () => {
     sessionStorage.setItem(CART_ID_STORAGE_KEY, 'stale');
     setup();
     cartServiceSpy.getCart.and.returnValue(
-      throwError(() => new Error('not found'))
+      throwError(() => new HttpErrorResponse({ status: 404 }))
     );
     cartServiceSpy.createCart.and.returnValue(of(cart));
 
     fixture.detectChanges();
 
     expect(cartServiceSpy.createCart).toHaveBeenCalled();
+  });
+
+  it('preserves the stored cart on transient load failures and retries it', () => {
+    sessionStorage.setItem(CART_ID_STORAGE_KEY, 'cart-1');
+    setup();
+    cartServiceSpy.getCart.and.returnValue(
+      throwError(() => new HttpErrorResponse({ status: 503 }))
+    );
+
+    fixture.detectChanges();
+
+    expect(cartServiceSpy.createCart).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
+    expect(component.errorMessage()).toContain('Retry without replacing');
+
+    cartServiceSpy.getCart.and.returnValue(of(cart));
+    component.retryLoad();
+
+    expect(cartServiceSpy.getCart).toHaveBeenCalledTimes(2);
+    expect(component.cart()).toEqual(cart);
   });
 
   it('does not add an item when the form is invalid', () => {
@@ -351,5 +372,33 @@ describe('CartComponent', () => {
     component.removeCoupon();
 
     expect(component.errorMessage()).toBe('Failed to remove coupon.');
+  });
+
+  it('preserves the stored cart when loading fails with a non-HTTP error', () => {
+    sessionStorage.setItem(CART_ID_STORAGE_KEY, 'cart-1');
+    setup();
+    cartServiceSpy.getCart.and.returnValue(
+      throwError(() => new Error('offline'))
+    );
+
+    fixture.detectChanges();
+
+    expect(cartServiceSpy.createCart).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
+    expect(component.errorMessage()).toContain('Retry without replacing');
+  });
+
+  it('replaces the stored cart when the server reports it gone', () => {
+    sessionStorage.setItem(CART_ID_STORAGE_KEY, 'gone');
+    setup();
+    cartServiceSpy.getCart.and.returnValue(
+      throwError(() => new HttpErrorResponse({ status: 410 }))
+    );
+    cartServiceSpy.createCart.and.returnValue(of(cart));
+
+    fixture.detectChanges();
+
+    expect(cartServiceSpy.createCart).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
   });
 });

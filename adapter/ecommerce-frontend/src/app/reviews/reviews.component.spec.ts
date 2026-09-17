@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
-import { ReviewModel } from '@app/reviews/review.model';
+import { ReviewModel, ReviewSummaryModel } from '@app/reviews/review.model';
 import { ReviewsComponent } from '@app/reviews/reviews.component';
 import { ReviewsService } from '@app/reviews/reviews.service';
 
@@ -238,5 +238,124 @@ describe('ReviewsComponent', () => {
     component.reject('REVIEW-1');
 
     expect(component.moderationErrorMessage()).toBe('Failed to reject review.');
+  });
+
+  it('keeps browse results atomic and ignores a stale earlier request', () => {
+    setup();
+    const firstReviews = new Subject<ReviewModel[]>();
+    const firstSummary = new Subject<ReviewSummaryModel>();
+    const latestReviews = new Subject<ReviewModel[]>();
+    const latestSummary = new Subject<ReviewSummaryModel>();
+    reviewsServiceSpy.listApprovedReviews.and.returnValues(
+      firstReviews,
+      latestReviews
+    );
+    reviewsServiceSpy.getSummary.and.returnValues(firstSummary, latestSummary);
+
+    component.browseForm.setValue({ sku: 'SKU-1' });
+    component.browse();
+    component.browseForm.setValue({ sku: 'SKU-2' });
+    component.browse();
+
+    firstReviews.next([review]);
+    firstReviews.complete();
+    firstSummary.next({ sku: 'SKU-1', averageRating: 5, reviewCount: 1 });
+    firstSummary.complete();
+
+    expect(component.reviews()).toEqual([]);
+    expect(component.summary()).toBeNull();
+
+    const latest = { ...review, reviewId: 'REVIEW-2', sku: 'SKU-2' };
+    latestReviews.next([latest]);
+    latestReviews.complete();
+    latestSummary.next({ sku: 'SKU-2', averageRating: 4, reviewCount: 3 });
+    latestSummary.complete();
+
+    expect(component.reviews()).toEqual([latest]);
+    expect(component.summary()?.sku).toBe('SKU-2');
+    expect(component.loadingReviews()).toBeFalse();
+  });
+
+  it('blocks duplicate moderation mutations while one review is being updated', () => {
+    setup(['REVIEWS_READ', 'REVIEWS_WRITE']);
+    const pending = new Subject<ReviewModel>();
+    reviewsServiceSpy.approveReview.and.returnValue(pending);
+
+    component.approve('REVIEW-1');
+    component.approve('REVIEW-1');
+
+    expect(reviewsServiceSpy.approveReview).toHaveBeenCalledTimes(1);
+    expect(component.moderatingReviewId()).toBe('REVIEW-1');
+
+    pending.next(review);
+    pending.complete();
+
+    expect(component.moderatingReviewId()).toBeNull();
+  });
+
+  it('blocks duplicate review submissions while the first request is in flight', () => {
+    setup();
+    const pending = new Subject<ReviewModel>();
+    reviewsServiceSpy.submitReview.and.returnValue(pending);
+    component.submitForm.setValue({
+      sku: 'SKU-1',
+      authorName: 'Jane Smith',
+      rating: 5,
+      comment: 'Great!',
+    });
+
+    component.submit();
+    component.submit();
+
+    expect(reviewsServiceSpy.submitReview).toHaveBeenCalledTimes(1);
+    expect(component.submittingReview()).toBeTrue();
+
+    pending.next(review);
+    pending.complete();
+
+    expect(component.submittingReview()).toBeFalse();
+  });
+
+  it('blocks reject while another moderation mutation is in flight', () => {
+    setup(['REVIEWS_READ', 'REVIEWS_WRITE']);
+    const pending = new Subject<ReviewModel>();
+    reviewsServiceSpy.approveReview.and.returnValue(pending);
+
+    component.approve('REVIEW-1');
+    component.reject('REVIEW-2');
+
+    expect(reviewsServiceSpy.rejectReview).not.toHaveBeenCalled();
+
+    pending.next(review);
+    pending.complete();
+  });
+
+  it('clears stale browse data while the latest request is pending', () => {
+    setup();
+    reviewsServiceSpy.listApprovedReviews.and.returnValue(of([review]));
+    reviewsServiceSpy.getSummary.and.returnValue(
+      of({ sku: 'SKU-1', averageRating: 5, reviewCount: 1 })
+    );
+    component.browseForm.setValue({ sku: 'SKU-1' });
+    component.browse();
+    expect(component.reviews()).toEqual([review]);
+
+    const pendingReviews = new Subject<ReviewModel[]>();
+    const pendingSummary = new Subject<ReviewSummaryModel>();
+    reviewsServiceSpy.listApprovedReviews.and.returnValue(pendingReviews);
+    reviewsServiceSpy.getSummary.and.returnValue(pendingSummary);
+    component.browseForm.setValue({ sku: 'SKU-2' });
+    component.browse();
+
+    expect(component.loadingReviews()).toBeTrue();
+    expect(component.reviews()).toEqual([]);
+    expect(component.summary()).toBeNull();
+
+    pendingReviews.next([]);
+    pendingReviews.complete();
+    pendingSummary.next({ sku: 'SKU-2', averageRating: 0, reviewCount: 0 });
+    pendingSummary.complete();
+
+    expect(component.loadingReviews()).toBeFalse();
   });
 });

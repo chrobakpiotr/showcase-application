@@ -47,6 +47,19 @@ idea {
 ext.spotbugsEffort = Effort.DEFAULT
 ext.spotbugsReportLevel = Confidence.valueOf('HIGH')
 
+// Spotless multi-module clean ordering workaround (diffplug/spotless#2850).
+// One project's clean can clear a daemon-global formatter feature loader while
+// another project's Spotless task is using it. Spotless never causes clean;
+// when both are requested, all cleans finish first.
+allprojects {
+    def everyClean = rootProject.allprojects.collect { p ->
+        p.tasks.matching { it.name == 'clean' }
+    }
+    tasks.matching { it.name.startsWith('spotless') }.configureEach {
+        mustRunAfter everyClean
+    }
+}
+
 subprojects {
 	apply plugin: 'java-library'
 	apply plugin: 'io.github.ben-manes.versions'

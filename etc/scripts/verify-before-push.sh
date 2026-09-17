@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 MODE="backend"
@@ -12,7 +12,7 @@ case "${1:-}" in
   --e2e) MODE="e2e" ;;
   -h|--help)
     cat <<'USAGE'
-Usage: scripts/verify-before-push.sh [--backend|--full|--e2e]
+Usage: etc/etc/scripts/verify-before-push.sh [--backend|--full|--e2e]
 
   --backend  Documentation punctuation, persistence XML formatting and the exact backend CI build. Default.
   --full     Backend checks plus Angular install, lint, unit tests and production build.
@@ -62,6 +62,9 @@ PY
 }
 
 run_backend_ci_gate() {
+  echo "==> Checking Java formatting"
+  ./gradlew spotlessJavaCheck --no-configuration-cache --no-parallel
+
   echo "==> Checking persistence XML formatting"
   ./gradlew :adapter:persistence:spotlessXmlCheck
 
@@ -95,14 +98,19 @@ run_frontend_ci_gate() {
 
 run_e2e_gate() {
   local frontend_dir="adapter/ecommerce-frontend"
-  echo "==> Starting Docker Compose stack for Playwright"
-  docker compose up -d --build
-  trap 'docker compose down' EXIT
+  local compose_file="etc/docker/e2e/docker-compose.yml"
+  local project_name="showcase-e2e-local-$$"
 
-  echo "==> Waiting for ecommerce-app health"
+  echo "==> Starting disposable Docker Compose stack for Playwright"
+  docker compose -p "$project_name" -f "$compose_file" up -d --build
+  trap "docker compose -p '$project_name' -f '$compose_file' down -v --remove-orphans" EXIT
+
+  echo "==> Waiting for E2E app health"
   local status="starting"
+  local app_id=""
   for _ in $(seq 1 30); do
-    status=$(docker inspect --format='{{.State.Health.Status}}' ecommerce-app 2>/dev/null || echo starting)
+    app_id=$(docker compose -p "$project_name" -f "$compose_file" ps -q app)
+    status=$(docker inspect --format='{{.State.Health.Status}}' "$app_id" 2>/dev/null || echo starting)
     echo "app health: $status"
     if [[ "$status" == "healthy" ]]; then
       break
@@ -110,8 +118,8 @@ run_e2e_gate() {
     sleep 10
   done
   if [[ "$status" != "healthy" ]]; then
-    echo "ERROR: ecommerce-app did not become healthy in time" >&2
-    docker compose logs app >&2 || true
+    echo "ERROR: E2E app did not become healthy in time" >&2
+    docker compose -p "$project_name" -f "$compose_file" logs app >&2 || true
     exit 1
   fi
 
@@ -121,6 +129,9 @@ run_e2e_gate() {
     npx playwright install --with-deps chromium
     npm run e2e
   )
+
+  docker compose -p "$project_name" -f "$compose_file" down -v --remove-orphans
+  trap - EXIT
 }
 
 echo "==> Checking repository punctuation policy"

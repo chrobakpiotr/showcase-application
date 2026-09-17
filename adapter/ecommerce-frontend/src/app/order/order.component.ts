@@ -5,6 +5,7 @@ import {
   computed,
   DestroyRef,
   inject,
+  OnInit,
   signal,
 } from '@angular/core';
 import {
@@ -16,6 +17,10 @@ import {
 } from '@angular/forms';
 
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
+import {
+  OrderAttempt,
+  OrderAttemptStore,
+} from '@app/order/order-attempt.store';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { OrderRequestModel } from '@app/order/order-request.model';
@@ -61,11 +66,12 @@ function createLineItemGroup(): FormGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, SupportAssistantComponent, RouterLink],
 })
-export class OrderComponent {
+export class OrderComponent implements OnInit {
   private readonly orderService = inject(OrderService);
+  private readonly attemptStore = inject(OrderAttemptStore);
 
   private readonly destroyRef = inject(DestroyRef);
-  private attempt: { key: string; payload: OrderRequestModel } | null = null;
+  private attempt: OrderAttempt | null = null;
   readonly uncertain = signal(false);
   readonly editingLocked = computed(
     () => this.submitting() || this.uncertain() || !!this.orderNumber()
@@ -126,6 +132,24 @@ export class OrderComponent {
     couponCode: new FormControl('', { nonNullable: true }),
   });
 
+  ngOnInit(): void {
+    const restored = this.attemptStore.restore();
+    if (!restored) return;
+
+    try {
+      this.restoreAttemptForm(restored.payload);
+    } catch {
+      this.attemptStore.clear();
+      return;
+    }
+
+    this.attempt = restored;
+    this.uncertain.set(true);
+    this.errorMessage.set(
+      'Recovered an unresolved order attempt. Retry this same attempt.'
+    );
+  }
+
   get remarksControl() {
     return this.orderForm.controls.remarks;
   }
@@ -180,6 +204,7 @@ export class OrderComponent {
   newOrder(): void {
     if (this.submitting() || !this.orderNumber()) return;
     this.attempt = null;
+    this.attemptStore.clear();
     this.orderNumber.set(null);
     this.errorMessage.set(null);
     this.uncertain.set(false);
@@ -202,6 +227,7 @@ export class OrderComponent {
           created: new Date(),
         }),
       };
+      this.attemptStore.save(this.attempt);
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
@@ -222,6 +248,7 @@ export class OrderComponent {
           } else {
             this.uncertain.set(false);
             this.orderNumber.set(response.orderNumber);
+            this.attemptStore.clear();
           }
         },
         error: (error: unknown) => {
@@ -237,12 +264,26 @@ export class OrderComponent {
                 ].includes(error.error?.type)))
           ) {
             this.attempt = null;
+            this.attemptStore.clear();
           } else {
             this.uncertain.set(true);
           }
           this.errorMessage.set(this.toUserFacingError(error));
         },
       });
+  }
+
+  private restoreAttemptForm(payload: OrderRequestModel): void {
+    this.customerForm.setValue(payload.customer);
+    this.itemsFormArray.clear();
+    for (const item of payload.items) {
+      const group = createLineItemGroup();
+      group.setValue(item);
+      this.itemsFormArray.push(group);
+    }
+    this.orderForm.controls.paymentMethod.setValue(payload.paymentMethod);
+    this.orderForm.controls.couponCode.setValue(payload.couponCode ?? '');
+    this.remarksControl.setValue(payload.remarks);
   }
 
   private toUserFacingError(error: unknown): string {

@@ -1,11 +1,15 @@
 apply plugin: 'com.diffplug.spotless'
 
 spotless {
-	java {
-		importOrderFile rootProject.file("./etc/spotless/importorder")
-		removeUnusedImports()
-		eclipse().configFile rootProject.file("./etc/spotless/eclipse-formatter.xml")
-		target 'src/main/**/*.java', 'src/test/**/*.java'
-		endWithNewline()
-	}
+    // Java Spotless is an explicit formatting gate in CI/pre-push rather than an
+    // implicit child of `check`. This keeps formatter classloaders away from the
+    // multi-module `clean build` graph (diffplug/spotless#2850).
+    enforceCheck false
+
+    java {
+        importOrderFile rootProject.file("./etc/spotless/importorder")
+        eclipse().configFile rootProject.file("./etc/spotless/eclipse-formatter.xml")
+        target 'src/main/**/*.java', 'src/test/**/*.java'
+        endWithNewline()
+    }
 }

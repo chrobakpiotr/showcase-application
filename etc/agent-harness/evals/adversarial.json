@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "name": "adversarial",
+  "description": "Deterministic fail-closed regressions for harness trust, verification and rework boundaries.",
+  "cases": [
+    {
+      "id": "A001-content-sensitive-verification",
+      "command": [
+        "python3",
+        "etc/agent-harness/tests/test_runner.py"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 120
+    },
+    {
+      "id": "A002-secret-minimized-verification-env",
+      "command": [
+        "python3",
+        "etc/agent-harness/tests/test_verification_sandbox.py"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 120
+    },
+    {
+      "id": "A003-reopen-lease-and-history-safety",
+      "command": [
+        "python3",
+        "etc/agent-harness/tests/test_harness.py"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 120
+    },
+    {
+      "id": "A004-real-showcase-feature-validates",
+      "command": [
+        "python3",
+        "etc/agent-harness/harness.py",
+        "validate",
+        "docs/specs/DEMO-003"
+      ],
+      "expected_exit": 0,
+      "stdout_contains": [
+        "PASS"
+      ]
+    }
+  ]
+}

@@ -1,11 +1,22 @@
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   OnInit,
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  Subject,
+  catchError,
+  finalize,
+  forkJoin,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
 import {
   FormControl,
   FormGroup,
@@ -27,10 +38,16 @@ import { ReviewsService } from '@app/reviews/reviews.service';
 export class ReviewsComponent implements OnInit {
   private readonly reviewsService = inject(ReviewsService);
   private readonly authService = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly browseRequests = new Subject<string>();
 
   readonly reviews = signal<ReviewModel[]>([]);
   readonly summary = signal<ReviewSummaryModel | null>(null);
   readonly pendingReviews = signal<ReviewModel[]>([]);
+  readonly loadingReviews = signal(false);
+  readonly submittingReview = signal(false);
+  readonly moderationLoading = signal(false);
+  readonly moderatingReviewId = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
   readonly moderationErrorMessage = signal<string | null>(null);
   readonly submitted = signal(false);
@@ -69,6 +86,40 @@ export class ReviewsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.browseRequests
+      .pipe(
+        tap(() => {
+          this.loadingReviews.set(true);
+          this.errorMessage.set(null);
+          this.reviews.set([]);
+          this.summary.set(null);
+        }),
+        switchMap((sku) =>
+          forkJoin({
+            reviews: this.reviewsService
+              .listApprovedReviews(sku)
+              .pipe(catchError(() => of(null))),
+            summary: this.reviewsService
+              .getSummary(sku)
+              .pipe(catchError(() => of(null))),
+          })
+        ),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ reviews, summary }) => {
+        this.loadingReviews.set(false);
+        if (reviews === null) {
+          this.errorMessage.set('Failed to load reviews.');
+          return;
+        }
+        if (summary === null) {
+          this.errorMessage.set('Failed to load review summary.');
+          return;
+        }
+        this.reviews.set(reviews);
+        this.summary.set(summary);
+      });
+
     if (this.canModerate) {
       this.loadPendingReviews();
     }
@@ -76,25 +127,21 @@ export class ReviewsComponent implements OnInit {
 
   browse(): void {
     if (this.browseForm.invalid) return;
-    const { sku } = this.browseForm.getRawValue();
-    this.errorMessage.set(null);
-    this.reviewsService.listApprovedReviews(sku).subscribe({
-      next: (reviews) => this.reviews.set(reviews),
-      error: () => this.errorMessage.set('Failed to load reviews.'),
-    });
-    this.reviewsService.getSummary(sku).subscribe({
-      next: (summary) => this.summary.set(summary),
-      error: () => this.errorMessage.set('Failed to load review summary.'),
-    });
+    this.browseRequests.next(this.browseForm.getRawValue().sku);
   }
 
   submit(): void {
-    if (this.submitForm.invalid) return;
+    if (this.submitForm.invalid || this.submittingReview()) return;
     const { sku, authorName, rating, comment } = this.submitForm.getRawValue();
     this.errorMessage.set(null);
     this.submitted.set(false);
+    this.submittingReview.set(true);
     this.reviewsService
       .submitReview({ sku, authorName, rating: rating!, comment })
+      .pipe(
+        finalize(() => this.submittingReview.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
         next: () => {
           this.submitted.set(true);
@@ -110,26 +157,51 @@ export class ReviewsComponent implements OnInit {
   }
 
   approve(reviewId: string): void {
+    if (this.moderatingReviewId()) return;
     this.moderationErrorMessage.set(null);
-    this.reviewsService.approveReview(reviewId).subscribe({
-      next: () => this.loadPendingReviews(),
-      error: () => this.moderationErrorMessage.set('Failed to approve review.'),
-    });
+    this.moderatingReviewId.set(reviewId);
+    this.reviewsService
+      .approveReview(reviewId)
+      .pipe(
+        finalize(() => this.moderatingReviewId.set(null)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: () => this.loadPendingReviews(),
+        error: () =>
+          this.moderationErrorMessage.set('Failed to approve review.'),
+      });
   }
 
   reject(reviewId: string): void {
+    if (this.moderatingReviewId()) return;
     this.moderationErrorMessage.set(null);
-    this.reviewsService.rejectReview(reviewId).subscribe({
-      next: () => this.loadPendingReviews(),
-      error: () => this.moderationErrorMessage.set('Failed to reject review.'),
-    });
+    this.moderatingReviewId.set(reviewId);
+    this.reviewsService
+      .rejectReview(reviewId)
+      .pipe(
+        finalize(() => this.moderatingReviewId.set(null)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: () => this.loadPendingReviews(),
+        error: () =>
+          this.moderationErrorMessage.set('Failed to reject review.'),
+      });
   }
 
   private loadPendingReviews(): void {
-    this.reviewsService.listPendingReviews().subscribe({
-      next: (reviews) => this.pendingReviews.set(reviews),
-      error: () =>
-        this.moderationErrorMessage.set('Failed to load pending reviews.'),
-    });
+    this.moderationLoading.set(true);
+    this.reviewsService
+      .listPendingReviews()
+      .pipe(
+        finalize(() => this.moderationLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (reviews) => this.pendingReviews.set(reviews),
+        error: () =>
+          this.moderationErrorMessage.set('Failed to load pending reviews.'),
+      });
   }
 }

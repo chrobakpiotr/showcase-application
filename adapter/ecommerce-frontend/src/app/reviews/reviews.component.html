@@ -25,9 +25,9 @@
       <button
         type="submit"
         data-testid="browse"
-        [disabled]="browseForm.invalid"
+        [disabled]="browseForm.invalid || loadingReviews()"
       >
-        Browse
+        {{ loadingReviews() ? 'Loading...' : 'Browse' }}
       </button>
     </form>
 
@@ -49,7 +49,9 @@
       </li>
       } @empty {
       <li class="empty" data-testid="empty-reviews">
-        No approved reviews yet.
+        {{
+          loadingReviews() ? 'Loading reviews...' : 'No approved reviews yet.'
+        }}
       </li>
       }
     </ul>
@@ -102,9 +104,9 @@
       <button
         type="submit"
         data-testid="submit-review"
-        [disabled]="submitForm.invalid"
+        [disabled]="submitForm.invalid || submittingReview()"
       >
-        Submit review
+        {{ submittingReview() ? 'Submitting...' : 'Submit review' }}
       </button>
       @if (submitted()) {
       <p class="success" data-testid="submit-success">
@@ -117,7 +119,11 @@
   @if (canModerate) {
   <section class="moderation-section">
     <h3>Moderation queue</h3>
-    @if (moderationErrorMessage()) {
+    @if (moderationLoading()) {
+    <p class="loading" data-testid="moderation-loading">
+      Loading moderation queue...
+    </p>
+    } @if (moderationErrorMessage()) {
     <div class="error-message" role="alert">
       {{ moderationErrorMessage() }}
     </div>
@@ -133,16 +139,26 @@
           <button
             type="button"
             data-testid="approve"
+            [disabled]="moderatingReviewId() !== null"
             (click)="approve(review.reviewId)"
           >
-            Approve
+            {{
+              moderatingReviewId() === review.reviewId
+                ? 'Updating...'
+                : 'Approve'
+            }}
           </button>
           <button
             type="button"
             data-testid="reject"
+            [disabled]="moderatingReviewId() !== null"
             (click)="reject(review.reviewId)"
           >
-            Reject
+            {{
+              moderatingReviewId() === review.reviewId
+                ? 'Updating...'
+                : 'Reject'
+            }}
           </button>
         </div>
         }

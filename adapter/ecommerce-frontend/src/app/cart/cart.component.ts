@@ -1,3 +1,5 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,7 +7,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import {
   FormControl,
   FormGroup,
@@ -14,9 +15,8 @@ import {
 } from '@angular/forms';
 
 import { CartModel } from '@app/cart/cart.model';
+import { CartSessionService } from '@app/cart/cart-session.service';
 import { CartService } from '@app/cart/cart.service';
-
-const CART_ID_STORAGE_KEY = 'ecommerce_cart_id';
 
 @Component({
   selector: 'app-cart',
@@ -27,6 +27,7 @@ const CART_ID_STORAGE_KEY = 'ecommerce_cart_id';
 })
 export class CartComponent implements OnInit {
   private readonly cartService = inject(CartService);
+  private readonly cartSession = inject(CartSessionService);
 
   readonly cart = signal<CartModel | null>(null);
   readonly loading = signal(false);
@@ -50,12 +51,7 @@ export class CartComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    const storedCartId = sessionStorage.getItem(CART_ID_STORAGE_KEY);
-    if (storedCartId) {
-      this.loadCart(storedCartId);
-    } else {
-      this.startNewCart();
-    }
+    this.retryLoad();
   }
 
   startNewCart(): void {
@@ -71,6 +67,15 @@ export class CartComponent implements OnInit {
         this.errorMessage.set('Failed to start a new cart.');
       },
     });
+  }
+
+  retryLoad(): void {
+    const storedCartId = this.cartSession.getCartId();
+    if (storedCartId) {
+      this.loadCart(storedCartId);
+    } else {
+      this.startNewCart();
+    }
   }
 
   addItem(): void {
@@ -141,15 +146,26 @@ export class CartComponent implements OnInit {
         this.loading.set(false);
         this.cart.set(cart);
       },
-      error: () => {
+      error: (error: unknown) => {
         this.loading.set(false);
-        this.startNewCart();
+        if (
+          error instanceof HttpErrorResponse &&
+          [404, 410].includes(error.status)
+        ) {
+          this.cartSession.clear();
+          this.startNewCart();
+          return;
+        }
+
+        this.errorMessage.set(
+          'Failed to load cart. Retry without replacing the existing cart.'
+        );
       },
     });
   }
 
   private persistAndShow(cart: CartModel): void {
-    sessionStorage.setItem(CART_ID_STORAGE_KEY, cart.cartId);
+    this.cartSession.remember(cart.cartId);
     this.cart.set(cart);
   }
 }

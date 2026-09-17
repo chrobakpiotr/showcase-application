@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
 import { ShipmentModel } from '@app/shipments/shipment.model';
@@ -167,5 +167,69 @@ describe('ShipmentsComponent', () => {
     expect(component.actionErrorMessage()).toBe(
       'Failed to advance shipment status.'
     );
+  });
+
+  it('keeps the newest filter result when an older request finishes later', () => {
+    setup(['SHIPMENT_READ']);
+    const stale = new Subject<{
+      _embedded?: { shipmentResourceList?: ShipmentModel[] };
+    }>();
+    const latest = new Subject<{
+      _embedded?: { shipmentResourceList?: ShipmentModel[] };
+    }>();
+    shipmentsServiceSpy.listShipmentsByStatus.and.callFake((status) =>
+      status === 'DISPATCHED' ? stale : latest
+    );
+
+    component.updateStatusFilter('DISPATCHED');
+    component.updateStatusFilter('DELIVERED');
+
+    stale.next({
+      _embedded: {
+        shipmentResourceList: [{ ...shipment, status: 'DISPATCHED' }],
+      },
+    });
+    stale.complete();
+    expect(component.shipments()).toEqual([shipment]);
+
+    const delivered = {
+      ...shipment,
+      shipmentNumber: 'SHIP-2',
+      status: 'DELIVERED' as const,
+    };
+    latest.next({ _embedded: { shipmentResourceList: [delivered] } });
+    latest.complete();
+
+    expect(component.shipments()).toEqual([delivered]);
+    expect(component.loading()).toBeFalse();
+  });
+
+  it('blocks duplicate shipment advances until the first mutation completes', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    const pending = new Subject<ShipmentModel>();
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(pending);
+
+    component.advance('SHIP-1');
+    component.advance('SHIP-1');
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(1);
+    expect(component.advancingShipmentId()).toBe('SHIP-1');
+
+    pending.next(shipment);
+    pending.complete();
+
+    expect(component.advancingShipmentId()).toBeNull();
+  });
+
+  it('keeps loading false after a failed filtered request', () => {
+    setup(['SHIPMENT_READ']);
+    shipmentsServiceSpy.listShipmentsByStatus.and.returnValue(
+      throwError(() => new Error('failed'))
+    );
+
+    component.updateStatusFilter('DISPATCHED');
+
+    expect(component.errorMessage()).toBe('Failed to load shipments.');
+    expect(component.loading()).toBeFalse();
   });
 });

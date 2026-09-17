@@ -14,6 +14,12 @@ Run the offline baseline repeatedly:
 python3 etc/agent-harness/eval.py run --suite baseline --repeat 3
 ```
 
+Run the deterministic adversarial regressions that protect fail-closed behavior:
+
+```bash
+python3 etc/agent-harness/eval.py run --suite adversarial --repeat 1
+```
+
 Each run records repository SHA, Python/platform/CPU metadata, optional provider CLI version, per-case pass/fail, duration and output hashes under `.agent-runs/evals/`.
 
 Compare two captured runs:

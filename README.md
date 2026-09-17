@@ -691,7 +691,8 @@ A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
   full supply-chain security picture. Report-only (doesn't fail the build), since remediation of the base
   image's own CVE backlog isn't on this project's timeline.
 - A separate frontend build/lint/test job.
-- `e2e`: boots the full stack with `docker compose up -d --build` (the same command a developer runs locally),
+- `e2e`: boots an isolated disposable project from `etc/docker/e2e/docker-compose.yml`, using the real app image
+  plus only the runtime dependencies required by Playwright,
   polls the app container's own Docker `HEALTHCHECK` until healthy, then runs the
   [Playwright](https://playwright.dev/) suite (`npm run e2e`) against it end-to-end - login through Keycloak,
   submit a real order, and assert an order number is returned - so a regression that only manifests once every
