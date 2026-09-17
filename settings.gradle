@@ -12,6 +12,7 @@ addSubproject('adapter:kafka', 'modules/adapters/kafka')
 addSubproject('adapter:camel', 'modules/adapters/camel')
 addSubproject('adapter:ai', 'modules/adapters/ai')
 addSubproject('application:ecommerce', 'apps/ecommerce/backend')
+addSubproject('application:orchestration', 'modules/application/orchestration')
 addSubproject('domain', 'modules/domain')
 
 project(':adapter').projectDir = file('modules/adapters')

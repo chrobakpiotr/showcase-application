@@ -19,6 +19,7 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
+import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
@@ -33,9 +34,7 @@ import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
-import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
-import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -95,7 +94,7 @@ class OrderControllerTest {
     private transient ManageOrderUseCase manageOrderUseCase;
 
     @MockitoBean
-    private transient RequestOrderCancellationUseCase requestOrderCancellationUseCase;
+    private transient CancelOrderWorkflow cancelOrderWorkflow;
 
     @MockitoBean
     private transient ListOrdersUseCase listOrdersUseCase;
@@ -117,9 +116,6 @@ class OrderControllerTest {
 
     @MockitoBean
     private transient ApplyCouponInPort applyCouponInPort;
-
-    @MockitoBean
-    private transient ManagePaymentInPort managePaymentInPort;
 
     @MockitoBean
     private transient GetPaymentInPort getPaymentInPort;
@@ -397,7 +393,7 @@ class OrderControllerTest {
     void shouldCancelOrderSuccessfully() throws Exception {
 
         final Order order = cancelledOrder();
-        given(requestOrderCancellationUseCase.requestCancellation(TEST_ORDER_NUMBER)).willReturn(order);
+        given(cancelOrderWorkflow.cancelOrder(TEST_ORDER_NUMBER)).willReturn(order);
         given(orderWebMapper.mapToResource(eq(order), any()))
                 .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
 
@@ -408,28 +404,22 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$._links.cancel").doesNotExist());
 
+        verify(cancelOrderWorkflow).cancelOrder(TEST_ORDER_NUMBER);
         verify(orderMetrics).recordOrderCancelled();
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
-        verify(manageStockInPort)
-                .releaseStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
-        verify(sendNotificationInPort).sendNotification(
-                CustomerBuilder.TEST_EMAIL,
-                NotificationType.ORDER_CANCELLED,
-                "Order " + TEST_ORDER_NUMBER + " cancelled",
-                "Your order " + TEST_ORDER_NUMBER + " was cancelled.");
     }
 
     @Test
     void shouldResponseWith404WhenCancellingNonExistentOrder() throws Exception {
 
-        given(requestOrderCancellationUseCase.requestCancellation(TEST_ORDER_NUMBER)).willReturn(null);
+        given(cancelOrderWorkflow.cancelOrder(TEST_ORDER_NUMBER)).willReturn(null);
 
         this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
                 .andExpect(status().isNotFound());
 
+        verify(cancelOrderWorkflow).cancelOrder(TEST_ORDER_NUMBER);
         verify(orderMetrics, never()).recordOrderCancelled();
         verify(currentOperatorProvider, never()).currentOperator();
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
     }
 
     @Test
@@ -438,8 +428,8 @@ class OrderControllerTest {
         willThrow(
                 new OrderNotCancellableException(
                         "Order '" + TEST_ORDER_NUMBER + "' cannot be cancelled: it is already " + "CANCELLED"))
-                .given(requestOrderCancellationUseCase)
-                .requestCancellation(TEST_ORDER_NUMBER);
+                .given(cancelOrderWorkflow)
+                .cancelOrder(TEST_ORDER_NUMBER);
 
         this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
                 .andDo(print())

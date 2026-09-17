@@ -14,6 +14,7 @@ import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
@@ -28,9 +29,7 @@ import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
-import com.cp.ecommerce.domain.order.usecase.RequestOrderCancellationUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
-import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
@@ -85,7 +84,7 @@ public class OrderController {
 
     private final ManageOrderUseCase manageOrderUseCase;
 
-    private final RequestOrderCancellationUseCase requestOrderCancellationUseCase;
+    private final CancelOrderWorkflow cancelOrderWorkflow;
 
     private final ListOrdersUseCase listOrdersUseCase;
 
@@ -100,8 +99,6 @@ public class OrderController {
     private final ManageStockInPort manageStockInPort;
 
     private final ApplyCouponInPort applyCouponInPort;
-
-    private final ManagePaymentInPort managePaymentInPort;
 
     private final GetPaymentInPort getPaymentInPort;
 
@@ -247,16 +244,12 @@ public class OrderController {
     @Operation(summary = "Cancel an order")
     public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
 
-        final Order order = rateLimitedExecutor.callRateLimited(
-                CANCEL_ORDER_RATE_LIMITER,
-                () -> requestOrderCancellationUseCase.requestCancellation(orderNumber));
+        final Order order = rateLimitedExecutor
+                .callRateLimited(CANCEL_ORDER_RATE_LIMITER, () -> cancelOrderWorkflow.cancelOrder(orderNumber));
         if (Optional.ofNullable(order).isEmpty()) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        releaseStockFor(order);
-        refundPaymentFor(order);
-        sendOrderCancelledNotification(order);
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
@@ -310,16 +303,6 @@ public class OrderController {
         }
     }
 
-    private void releaseStockFor(final Order order) {
-
-        order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
-    }
-
-    private void refundPaymentFor(final Order order) {
-
-        managePaymentInPort.refundPayment(order.getOrderNumber());
-    }
-
     private void sendOrderConfirmedNotification(final Order order, final String orderNumber) {
 
         sendNotificationInPort.sendNotification(
@@ -327,15 +310,6 @@ public class OrderController {
                 NotificationType.ORDER_CONFIRMED,
                 "Order " + orderNumber + " confirmed",
                 "Your order " + orderNumber + " was confirmed.");
-    }
-
-    private void sendOrderCancelledNotification(final Order order) {
-
-        sendNotificationInPort.sendNotification(
-                order.getCustomer().getContact().getEmail(),
-                NotificationType.ORDER_CANCELLED,
-                "Order " + order.getOrderNumber() + " cancelled",
-                "Your order " + order.getOrderNumber() + " was cancelled.");
     }
 
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {

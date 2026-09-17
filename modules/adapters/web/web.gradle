@@ -9,6 +9,7 @@ dependencies {
     implementation project(':adapter:common')
     implementation project(':adapter:mail')
     implementation project(':adapter:persistence')
+    implementation project(':application:orchestration')
     implementation project(':domain')
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'

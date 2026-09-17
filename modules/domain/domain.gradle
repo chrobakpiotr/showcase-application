@@ -6,7 +6,7 @@ apply from: rootProject.file('tooling/quality/pitest/pitest.gradle')
 dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    implementation project(':adapter:common')
+    api project(':adapter:common')
     implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.security:spring-security-core'

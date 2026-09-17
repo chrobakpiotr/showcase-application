@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 @SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
 @ComponentScan(
         basePackages = {
+                "com.cp.ecommerce.application.order",
                 "com.cp.ecommerce.adapter.web",
                 "com.cp.ecommerce.adapter.mail",
                 "com.cp.ecommerce.adapter.persistence",
