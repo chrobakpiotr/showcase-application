@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
@@ -128,6 +129,12 @@ class OrderControllerTest {
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
 
+        org.mockito.Mockito.lenient().when(placeOrderUseCase.placeOrder(any(), any(), any())).thenAnswer(invocation -> {
+            final UnaryOperator<Order> prepare = invocation.getArgument(2);
+            prepare.apply(invocation.getArgument(0));
+            return new PlaceOrderResult(TEST_ORDER_NUMBER, true);
+        });
+
         given(rateLimitedExecutor.callRateLimited(anyString(), any())).willAnswer(invocation -> {
             final Supplier<?> action = invocation.getArgument(1);
             return action.get();
@@ -138,7 +145,6 @@ class OrderControllerTest {
     void shouldPlaceOrderSuccessfully() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        given(placeOrderUseCase.placeOrder(any(), isNull())).willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isCreated())
@@ -147,7 +153,7 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.orderNumber").value(TEST_ORDER_NUMBER));
 
-        verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull());
+        verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull(), any());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
         verify(manageStockInPort, atLeastOnce())
@@ -176,7 +182,6 @@ class OrderControllerTest {
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
         given(applyCouponInPort.applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any()))
                 .willReturn(new com.cp.ecommerce.domain.coupon.CouponDiscount(TEST_COUPON_CODE, BigDecimal.TEN));
-        given(placeOrderUseCase.placeOrder(any(), isNull())).willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
 
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andExpect(status().isCreated());
@@ -237,15 +242,13 @@ class OrderControllerTest {
         verify(manageStockInPort).reserveStock("SKU-1", 1);
         verify(manageStockInPort).reserveStock(SECOND_LINE_ITEM_SKU, 1);
         verify(manageStockInPort).releaseStock("SKU-1", 1);
-        verify(placeOrderUseCase, never()).placeOrder(any(), any());
+        verify(placeOrderUseCase).placeOrder(any(), any(), any());
     }
 
     @Test
     void shouldPassIdempotencyKeyHeaderToUseCase() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        given(placeOrderUseCase.placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE)))
-                .willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, true));
 
         this.mockMvc
                 .perform(
@@ -255,15 +258,16 @@ class OrderControllerTest {
                 .andDo(print())
                 .andExpect(status().isCreated());
 
-        verify(placeOrderUseCase).placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE));
+        verify(placeOrderUseCase).placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE), any());
     }
 
     @Test
     void shouldNotRecordMetricWhenOrderWasNotNewlyPlaced() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        given(placeOrderUseCase.placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE)))
-                .willReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, false));
+        org.mockito.Mockito.doReturn(new PlaceOrderResult(TEST_ORDER_NUMBER, false))
+                .when(placeOrderUseCase)
+                .placeOrder(any(), eq(IDEMPOTENCY_KEY_VALUE), any());
 
         this.mockMvc
                 .perform(
@@ -273,6 +277,7 @@ class OrderControllerTest {
                 .andDo(print())
                 .andExpect(status().isCreated());
 
+        org.mockito.Mockito.verifyNoInteractions(manageStockInPort, applyCouponInPort);
         verify(orderMetrics, never()).recordOrderPlaced();
         verify(currentOperatorProvider, never()).currentOperator();
         verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
@@ -293,7 +298,7 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Rate Limit Exceeded"));
 
-        verify(placeOrderUseCase, never()).placeOrder(any(), any());
+        verify(placeOrderUseCase, never()).placeOrder(any(), any(), any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
 
@@ -307,7 +312,7 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("Order data is missing"));
 
-        verify(placeOrderUseCase, never()).placeOrder(any(), any());
+        verify(placeOrderUseCase, never()).placeOrder(any(), any(), any());
         verify(orderWebMapper, atMostOnce()).mapToDomainObject(any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
@@ -326,7 +331,7 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Domain Validation Error"));
 
-        verify(placeOrderUseCase, never()).placeOrder(any(), any());
+        verify(placeOrderUseCase, never()).placeOrder(any(), any(), any());
         verify(orderMetrics, never()).recordOrderPlaced();
     }
 

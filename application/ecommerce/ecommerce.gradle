@@ -47,6 +47,8 @@ dependencies {
     testImplementation project(':adapter:common')
     testImplementation project(':adapter:persistence')
     testImplementation project(':domain')
+    testImplementation project(':adapter:web')
+    testImplementation 'org.liquibase:liquibase-core'
 }
 
 rootProject.configureBootTasks(project)

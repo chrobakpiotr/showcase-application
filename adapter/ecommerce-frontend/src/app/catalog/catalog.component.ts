@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -18,7 +19,7 @@ const PAGE_SIZE = 12;
   templateUrl: './catalog.component.html',
   styleUrls: ['./catalog.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, RouterLink],
 })
 export class CatalogComponent implements OnInit {
   private readonly catalogService = inject(CatalogService);

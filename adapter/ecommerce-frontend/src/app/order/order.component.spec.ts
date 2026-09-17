@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ComponentFixture,
@@ -5,7 +6,7 @@ import {
   fakeAsync,
   tick,
 } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 
 import { OrderComponent } from '@app/order/order.component';
 import { OrderService } from '@app/order/order.service';
@@ -67,6 +68,10 @@ describe('OrderComponent', () => {
     });
   }
 
+  beforeEach(() =>
+    TestBed.configureTestingModule({ providers: [provideRouter([])] })
+  );
+
   afterEach(() => {
     TestBed.resetTestingModule();
   });
@@ -112,11 +117,15 @@ describe('OrderComponent', () => {
     component.placeOrder();
     tick();
     expect(placeOrderSpy).toHaveBeenCalledWith(
-      'my remarks',
-      VALID_CUSTOMER,
-      [VALID_ITEM],
-      'CARD',
-      null
+      {
+        remarks: 'my remarks',
+        customer: VALID_CUSTOMER,
+        items: [VALID_ITEM],
+        paymentMethod: 'CARD',
+        couponCode: null,
+        created: jasmine.any(Date),
+      },
+      jasmine.any(String)
     );
   }));
 
@@ -149,17 +158,21 @@ describe('OrderComponent', () => {
     expect(orderNumberEl?.textContent).toContain('ORD-001');
   }));
 
-  it('on success with empty orderNumber: shows "You already have an order." message', fakeAsync(() => {
+  it('on success with empty orderNumber: shows "Order outcome is unknown. Retry this same attempt." message', fakeAsync(() => {
     setup();
     placeOrderSpy.and.returnValue(of({ orderNumber: '' }));
     fillValidForm('test');
     component.placeOrder();
     tick();
     fixture.detectChanges();
-    expect(component.errorMessage()).toBe('You already have an order.');
+    expect(component.errorMessage()).toBe(
+      'Order outcome is unknown. Retry this same attempt.'
+    );
     const compiled = fixture.nativeElement as HTMLElement;
     const alert = compiled.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('You already have an order.');
+    expect(alert?.textContent).toContain(
+      'Order outcome is unknown. Retry this same attempt.'
+    );
   }));
 
   it('on HTTP error: shows "Failed to place order." message', fakeAsync(() => {
@@ -252,6 +265,7 @@ describe('OrderComponent', () => {
     component.addItem();
     component.orderNumber.set('ORD-OLD');
     component.errorMessage.set('old error');
+    component.newOrder();
     component.fillDemoOrder();
 
     expect(component.orderForm.valid).toBeTrue();
@@ -340,5 +354,129 @@ describe('OrderComponent', () => {
 
       expect(component.errorMessage()).toBe(expected);
     }));
+  });
+  it('retains the complete attempt through unknown errors and blocks edits until replay succeeds', () => {
+    setup();
+    fillValidForm('original');
+    const pending = new Subject<{ orderNumber: string }>();
+    placeOrderSpy.and.returnValue(pending);
+    component.newOrder();
+    component.placeOrder();
+    const first = structuredClone(placeOrderSpy.calls.mostRecent().args);
+    component.placeOrder();
+    component.fillDemoOrder();
+    component.addItem();
+    component.removeItem(0);
+    component.newOrder();
+    expect(placeOrderSpy).toHaveBeenCalledTimes(1);
+    expect(component.remarksControl.value).toBe('original');
+    expect(component.itemGroups.length).toBe(1);
+    pending.error(new HttpErrorResponse({ status: 0 }));
+    expect(component.uncertain()).toBeTrue();
+    component.remarksControl.setValue(
+      'programmatic edit cannot alter snapshot'
+    );
+    component.customerForm.controls.email.setValue('edited@example.com');
+    component.itemGroups[0].get('quantity')!.setValue(99);
+    for (const status of [409, 401, 400, 500]) {
+      placeOrderSpy.and.returnValue(
+        throwError(() => new HttpErrorResponse({ status }))
+      );
+      component.placeOrder();
+      expect(placeOrderSpy.calls.mostRecent().args).toEqual(first);
+      expect(component.uncertain()).toBeTrue();
+      component.newOrder();
+    }
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-replayed' }));
+    component.placeOrder();
+    expect(component.orderNumber()).toBe('ORD-replayed');
+    expect(component.uncertain()).toBeFalse();
+    const count = placeOrderSpy.calls.count();
+    component.placeOrder();
+    component.fillDemoOrder();
+    expect(placeOrderSpy.calls.count()).toBe(count);
+    component.newOrder();
+    component.placeOrder();
+    expect(placeOrderSpy.calls.mostRecent().args[1]).not.toBe(first[1]);
+  });
+
+  it('permits a corrected new attempt after a definitive original rejection', () => {
+    setup();
+    fillValidForm('invalid business input');
+    component.orderForm.controls.couponCode.setValue('SAVE10');
+    placeOrderSpy.and.returnValue(
+      throwError(() => new HttpErrorResponse({ status: 400 }))
+    );
+    component.placeOrder();
+    const oldKey = placeOrderSpy.calls.mostRecent().args[1];
+    expect(component.uncertain()).toBeFalse();
+    component.remarksControl.setValue('corrected');
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-new' }));
+    component.placeOrder();
+    expect(placeOrderSpy.calls.mostRecent().args[0].remarks).toBe('corrected');
+    expect(placeOrderSpy.calls.mostRecent().args[0].couponCode).toBe('SAVE10');
+    expect(placeOrderSpy.calls.mostRecent().args[1]).not.toBe(oldKey);
+  });
+
+  for (const type of [
+    'urn:problem-type:insufficient-stock',
+    'urn:problem-type:stock-level-conflict',
+  ]) {
+    it(`allows correcting an initial ${type} but preserves a previously unknown attempt`, () => {
+      setup();
+      fillValidForm('stock rejection');
+      const rejected = new HttpErrorResponse({ status: 409, error: { type } });
+      placeOrderSpy.and.returnValue(throwError(() => rejected));
+      component.placeOrder();
+      const oldKey = placeOrderSpy.calls.mostRecent().args[1];
+      expect(component.editingLocked()).toBeFalse();
+      component.itemGroups[0].get('quantity')!.setValue(2);
+      placeOrderSpy.and.returnValue(
+        throwError(() => new HttpErrorResponse({ status: 0 }))
+      );
+      component.placeOrder();
+      const retry = structuredClone(placeOrderSpy.calls.mostRecent().args);
+      expect(retry[1]).not.toBe(oldKey);
+      expect(retry[0].items[0].quantity).toBe(2);
+      placeOrderSpy.and.returnValue(throwError(() => rejected));
+      component.placeOrder();
+      expect(component.editingLocked()).toBeTrue();
+      expect(placeOrderSpy.calls.mostRecent().args).toEqual(retry);
+    });
+  }
+
+  for (const error of [
+    null,
+    'conflict',
+    {},
+    { type: 'urn:problem-type:idempotency-key-conflict' },
+  ]) {
+    it(`keeps an unrecognized initial 409 locked: ${JSON.stringify(
+      error
+    )}`, () => {
+      setup();
+      fillValidForm('conflict');
+      placeOrderSpy.and.returnValue(
+        throwError(() => new HttpErrorResponse({ status: 409, error }))
+      );
+      component.placeOrder();
+      expect(component.uncertain()).toBeTrue();
+    });
+  }
+
+  it('treats malformed successful responses as an unresolved attempt', () => {
+    setup();
+    fillValidForm('test');
+    for (const response of [
+      null,
+      {},
+      { orderNumber: 123 },
+      { orderNumber: '  ' },
+    ]) {
+      placeOrderSpy.and.returnValue(of(response));
+      component.placeOrder();
+      expect(component.uncertain()).toBeTrue();
+      expect(component.orderNumber()).toBeNull();
+    }
   });
 });

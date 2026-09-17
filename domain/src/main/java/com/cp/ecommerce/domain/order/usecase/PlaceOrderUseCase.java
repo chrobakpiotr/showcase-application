@@ -1,13 +1,18 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.domain.customer.Address;
+import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
@@ -52,24 +57,29 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
     @Override
     public PlaceOrderResult placeOrder(final Order order, final String idempotencyKey) {
 
+        return placeOrder(order, idempotencyKey, UnaryOperator.identity());
+    }
+
+    @Override
+    public PlaceOrderResult placeOrder(final Order order, final String idempotencyKey, final UnaryOperator<Order> prepare) {
+
         if (!StringUtils.hasText(idempotencyKey)) {
 
-            return doPlaceOrder(order);
+            return doPlaceOrder(prepare.apply(order));
         }
 
         final IdempotencyReservation reservation = idempotencyKeyOutPort.reserve(idempotencyKey, fingerprint(order));
 
         return switch (reservation.outcome()) {
         case DUPLICATE -> {
-            log.info("Idempotency-Key '{}' already processed, replaying stored result.", idempotencyKey);
+            log.info("Replaying a completed order placement.");
             yield new PlaceOrderResult(reservation.existingOrderNumber(), false);
         }
         case CONFLICT -> throw new IdempotencyKeyConflictException(
-                "Idempotency-Key '" + idempotencyKey
-                        + "' cannot be reused for this request: it is still being processed, or was already used "
+                "Idempotency-Key cannot be reused for this request: it is still being processed, or was already used "
                         + "for a request with different content");
         case RESERVED -> {
-            final PlaceOrderResult result = doPlaceOrder(order);
+            final PlaceOrderResult result = doPlaceOrder(prepare.apply(order));
             idempotencyKeyOutPort.complete(idempotencyKey, result.orderNumber());
             yield result;
         }
@@ -98,15 +108,29 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
     @SneakyThrows(NoSuchAlgorithmException.class)
     private static String fingerprint(final Order order) {
 
-        final String canonical = String.join(
-                "|",
-                String.valueOf(order.getRemarks()),
-                String.valueOf(order.getCreated()),
-                String.valueOf(order.getCustomer().getId()),
-                String.valueOf(order.getCustomer().getContact().getEmail()),
+        final Optional<Contact> contact = Optional.ofNullable(order.getCustomer().getContact());
+        final Optional<Address> address = Optional.ofNullable(order.getCustomer().getAddress());
+        final String canonical = fields(
+                "order-request-v2",
+                order.getRemarks(),
+                Optional.ofNullable(order.getCreated()).map(java.util.Date::getTime).orElse(null),
+                contact.map(Contact::getFullName).orElse(null),
+                contact.map(Contact::getEmail).orElse(null),
+                contact.map(Contact::getPhone).orElse(null),
+                address.map(Address::getStreet).orElse(null),
+                address.map(Address::getPostalCode).orElse(null),
+                address.map(Address::getCity).orElse(null),
+                address.map(Address::getCountryCode).orElse(null),
+                order.getPaymentMethod(),
+                order.getCouponCode(),
+                order.getItems().size(),
                 lineItemsFingerprint(order));
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        // Preserve exact UTF-16 code units, including lone surrogates accepted by JSON parsers.
+        // UTF-8's replacement behavior would otherwise collapse a surrogate and a literal question mark.
+        final ByteBuffer encoded = ByteBuffer.allocate(canonical.length() * Character.BYTES);
+        encoded.asCharBuffer().put(canonical);
+        return HexFormat.of().formatHex(digest.digest(encoded.array()));
     }
 
     // Stable (order-preserving) representation of the order's line items, so an Idempotency-Key replay is only
@@ -115,8 +139,15 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
         return order.getItems()
                 .stream()
-                .map(item -> item.getSku() + ":" + item.getQuantity() + ":" + item.getUnitPrice())
-                .collect(Collectors.joining(","));
+                .map(item -> fields(item.getSku(), item.getProductName(), item.getQuantity(), item.getUnitPrice()))
+                .collect(Collectors.joining());
+    }
+
+    private static String fields(final Object... values) {
+
+        return Stream.of(values)
+                .map(value -> value == null ? "-1:" : value.toString().length() + ":" + value)
+                .collect(Collectors.joining());
     }
 
 }

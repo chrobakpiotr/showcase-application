@@ -1,21 +1,17 @@
 # Project improvement roadmap
 
 Source review baseline: `927b71e87bfea141d356733beba9cad0f7d83c34`.
-These are proposed next slices, not claims that the work is implemented.
+The remaining proposals below follow the DEMO-002 hardening patch based on `da6c5fc`.
 
 | Priority | Finding or opportunity | Next change and acceptance |
 |---|---|---|
-| P1 | `OrderController.placeOrder` calls `reserveStockFor` before the idempotency decision in `PlaceOrderUseCase`. A successful replay can reserve stock again. | Add a regression for same key and payload twice: same order number and exactly one stock reservation, including replay after stock exhaustion. Move the side-effect boundary behind the idempotency decision with explicit transaction/failure semantics. |
-| P1 | The frontend order service sends no idempotency key and creates a fresh `created` timestamp for every call; the backend fingerprint includes that timestamp. | After fixing the backend boundary, retain a key and immutable payload for a logical submission. Test response loss followed by retry, changed form values and a genuinely new order. Do not add automatic POST retries first. |
-| P1 | `auth.interceptor.ts` uses a substring match on `apiPrefix` to decide whether to attach a bearer token. | Restrict attachment to the configured API origin and path boundary. Test external origins containing the prefix, sibling paths and the Keycloak token endpoint. This deserves a security review. |
-| P2 | Returns moderation exposes approve/reject subscriptions without an in-flight guard; order history loaders can complete after selection or paging changes. | Extend delayed-response tests to other mutation screens. Serialize conflicting mutations and cancel or ignore stale reads. Keep backend authorization authoritative. |
-| P2 | Existing mobile E2E measures dimensions after DOMContentLoaded, which does not guarantee that lazy routes and API rows have rendered. | Wait for a route-specific visible landmark and representative loaded data before measuring; include empty, populated and error states. |
-| P2 | Useful demo scenarios require copying identifiers between Catalog, Inventory, Orders and related pages. | Add contextual navigation with prefilled SKU/order number, explicit read-only actions and a visible workflow trail. A link should never mutate stock. |
-| P2 | Demo reset currently uses `docker compose down -v`, clearing the entire local stack state. | Specify isolated test data namespaces or a separate Compose project for repeatable scenarios. Keep reset explicit and scoped; do not add an unrestricted public reset endpoint. |
-| P2 | Error rendering varies by component; order placement already understands RFC 9457 details. | Introduce one tested display adapter for safe problem details, fallback messages and correlation IDs. Cover network failure and unknown mutation outcome. |
-| P3 | Technical documentation is extensive even after business content is extracted. | Move detailed operations/integration runbooks under docs as they evolve, retaining a compact technical entry point and automated local-link checks. |
+| P2 | Order attempt state lasts only while its component is mounted. | Design recovery after reload using an authenticated order lookup, explicit expiry and minimal stored personal data. Preserve the same attempt key before enabling durable retries. |
+| P2 | Other mutation screens can still benefit from delayed-response regression tests. | Review Cart, Shipments and Reviews for duplicate actions and stale reads; add guards only where a reproducible gap exists. |
+| P2 | Demo reset uses `docker compose down -v`. Unique E2E stock fixtures avoid shared stock depletion but remain in the database. | Provide a dedicated disposable Compose project and documented fixture lifecycle, with no public reset endpoint. |
+| P2 | Error rendering varies by component. | Introduce one tested display adapter for safe problem details, fallback messages and correlation IDs. Preserve the distinction between rejected and unknown mutation outcomes. |
+| P3 | README is now technical, but documentation links can drift. | Add a local Markdown-link checker covering README and docs without requiring external network access. |
 
-## Completed in this slice
+## Implemented in the hardening patches
 
 - Inventory blocks duplicate/overlapping requests, clears stale lookup results and
   dispatches only the selected stock operation.
@@ -32,3 +28,10 @@ The browser smoke uses the production Angular bundle with mocked HTTP responses.
 It proves UI behavior and mobile layout, not database, Keycloak or saga behavior.
 Full-stack Docker E2E and backend gates remain required before integration of a
 backend change. Frontend coverage thresholds remain unchanged at 100%.
+
+DEMO-002 additionally moves coupon/stock preparation behind idempotency arbitration,
+adds transaction-held lock stripes and migration/concurrency regressions, fingerprints
+all submitted order fields, and keeps an immutable frontend retry attempt. API token
+attachment now matches origin and path boundaries. Catalog links prefill Inventory,
+confirmed orders link to history, and E2E stock fixtures use unique SKUs. Execution
+results and environment limitations are recorded in the feature evidence.

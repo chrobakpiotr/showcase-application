@@ -1,8 +1,21 @@
 package com.cp.ecommerce.domain.order.usecase;
 
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
+
 import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
+import com.cp.ecommerce.domain.customer.Address;
+import com.cp.ecommerce.domain.customer.Contact;
+import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderLineItem;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.IdempotencyKeyOutPort;
@@ -11,6 +24,8 @@ import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -45,6 +60,9 @@ class PlaceOrderUseCaseTest {
 
     @Mock
     private transient IdempotencyKeyOutPort idempotencyKeyOutPort;
+
+    @Mock
+    private transient UnaryOperator<Order> prepare;
 
     @InjectMocks
     private transient PlaceOrderUseCase placeOrderUseCase;
@@ -162,6 +180,166 @@ class PlaceOrderUseCaseTest {
         assertTrue(firstFingerprint.matches("[0-9a-f]{64}"), "fingerprint must be a 64-char SHA-256 hex digest");
         assertEquals(firstFingerprint, repeatedFingerprint, "fingerprint must be stable for identical content");
         assertNotEquals(firstFingerprint, differentFingerprint, "fingerprint must change when content changes");
+    }
+
+    @Test
+    void shouldSkipPreparationForReplayAndConflict() {
+
+        final Order order = TestDomainObjectFactory.validOrder();
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any()))
+                .thenReturn(IdempotencyReservation.duplicate("ORD-1"), IdempotencyReservation.conflict());
+        assertEquals("ORD-1", placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare).orderNumber());
+        assertThrows(
+                IdempotencyKeyConflictException.class,
+                () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare));
+        verifyNoInteractions(prepare, manageOrderInPort);
+    }
+
+    @Test
+    void shouldPrepareExactlyOnceBeforeSavingANewAttempt() {
+
+        final Order order = TestDomainObjectFactory.validOrder();
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(prepare.apply(order)).thenReturn(order);
+        when(manageOrderInPort.saveOrder(order)).thenReturn(order);
+        placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare);
+        final org.mockito.InOrder ordering = org.mockito.Mockito.inOrder(prepare, manageOrderInPort, idempotencyKeyOutPort);
+        ordering.verify(idempotencyKeyOutPort).reserve(eq(IDEMPOTENCY_KEY), any());
+        ordering.verify(prepare).apply(order);
+        ordering.verify(manageOrderInPort).saveOrder(order);
+        ordering.verify(idempotencyKeyOutPort).complete(IDEMPOTENCY_KEY, order.getOrderNumber());
+    }
+
+    @Test
+    void shouldNotPersistOrCompleteWhenPreparationFails() {
+
+        final Order order = TestDomainObjectFactory.validOrder();
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(prepare.apply(order)).thenThrow(new IllegalStateException("stock unavailable"));
+        assertThrows(IllegalStateException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare));
+        verifyNoInteractions(manageOrderInPort);
+        verify(idempotencyKeyOutPort, never()).complete(any(), any());
+    }
+
+    @ParameterizedTest
+    @MethodSource("changedRequests")
+    void shouldFingerprintEveryAcceptedField(final Consumer<Order.OrderBuilder> change) {
+
+        final Order.OrderBuilder changed = request();
+        change.accept(changed);
+        assertNotEquals(fingerprintOf(request().build()), fingerprintOf(changed.build()));
+    }
+
+    private static Stream<Consumer<Order.OrderBuilder>> changedRequests() {
+
+        return Stream.of(
+                builder -> builder.remarks("different"),
+                builder -> builder.remarks(null),
+                builder -> builder.created(new Date(TestDomainObjectFactory.TEST_CREATED.getTime() + 1)),
+                builder -> builder.created(null),
+                builder -> builder.paymentMethod(PaymentMethod.PAYPAL),
+                builder -> builder.couponCode("SAVE10"),
+                builder -> builder.customer(
+                        customer("Other", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Warsaw", "PL")),
+                builder -> builder.customer(
+                        customer("John Doe", "other@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Warsaw", "PL")),
+                builder -> builder
+                        .customer(customer("John Doe", "john.doe@test.com", "123", "Main Street 1", "12-345", "Warsaw", "PL")),
+                builder -> builder.customer(
+                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Other", "12-345", "Warsaw", "PL")),
+                builder -> builder.customer(
+                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "other", "Warsaw", "PL")),
+                builder -> builder.customer(
+                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Other", "PL")),
+                builder -> builder.customer(
+                        customer(
+                                "John Doe",
+                                "john.doe@test.com",
+                                "+48 123 456 789",
+                                "Main Street 1",
+                                "12-345",
+                                "Warsaw",
+                                "DE")),
+                builder -> builder.customer(Customer.builder().build()),
+                builder -> builder.items(List.of(item("OTHER", "Wireless Mouse", "29.99", 2))),
+                builder -> builder.items(List.of(item("SKU-1001", "Other", "29.99", 2))),
+                builder -> builder.items(List.of(item("SKU-1001", "Wireless Mouse", "30.00", 2))),
+                builder -> builder.items(List.of(item("SKU-1001", "Wireless Mouse", "29.99", 3))),
+                builder -> builder.items(List.of()));
+    }
+
+    @Test
+    void shouldIgnoreDerivedValuesButPreserveNullsAndItemBoundaries() {
+
+        final String original = fingerprintOf(request().build());
+        assertEquals("7c2150b1fef773c64f247ff2287bc4f3978a55ee22044e4a6c96728037c2927f", original);
+        assertEquals(original, fingerprintOf(request().discountAmount(BigDecimal.TEN).orderNumber("server-generated").build()));
+        assertEquals(
+                original,
+                fingerprintOf(
+                        request()
+                                .customer(
+                                        customer(
+                                                "John Doe",
+                                                "john.doe@test.com",
+                                                "+48 123 456 789",
+                                                "Main Street 1",
+                                                "12-345",
+                                                "Warsaw",
+                                                "PL"))
+                                .build()));
+        assertNotEquals(fingerprintOf(request().remarks(null).build()), fingerprintOf(request().remarks("null").build()));
+        assertNotEquals(fingerprintOf(request().remarks("\uD800").build()), fingerprintOf(request().remarks("?").build()));
+        final OrderLineItem first = item("A", "B:C", "1.00", 1);
+        final OrderLineItem second = item("A:B", "C", "1.00", 1);
+        assertNotEquals(
+                fingerprintOf(request().items(List.of(first)).build()),
+                fingerprintOf(request().items(List.of(second)).build()));
+        assertNotEquals(
+                fingerprintOf(request().items(List.of(first, second)).build()),
+                fingerprintOf(request().items(List.of(second, first)).build()));
+    }
+
+    private String fingerprintOf(final Order order) {
+
+        final AtomicReference<String> captured = new AtomicReference<>();
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenAnswer(invocation -> {
+            captured.set(invocation.getArgument(1));
+            return IdempotencyReservation.conflict();
+        });
+        assertThrows(IdempotencyKeyConflictException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY));
+        return captured.get();
+    }
+
+    private static Order.OrderBuilder request() {
+
+        final Order original = TestDomainObjectFactory.validOrder();
+        return Order.builder()
+                .remarks(original.getRemarks())
+                .created(original.getCreated())
+                .customer(original.getCustomer())
+                .items(original.getItems())
+                .paymentMethod(original.getPaymentMethod());
+    }
+
+    private static Customer customer(
+            final String name,
+            final String email,
+            final String phone,
+            final String street,
+            final String postalCode,
+            final String city,
+            final String country) {
+
+        return Customer.builder()
+                .contact(Contact.builder().fullName(name).email(email).phone(phone).build())
+                .address(Address.builder().street(street).postalCode(postalCode).city(city).countryCode(country).build())
+                .build();
+    }
+
+    private static OrderLineItem item(final String sku, final String name, final String price, final int quantity) {
+
+        return OrderLineItem.builder().sku(sku).productName(name).unitPrice(new BigDecimal(price)).quantity(quantity).build();
     }
 
 }

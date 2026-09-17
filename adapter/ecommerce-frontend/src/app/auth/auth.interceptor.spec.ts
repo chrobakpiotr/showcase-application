@@ -75,4 +75,36 @@ describe('authInterceptor', () => {
     expect(req.request.headers.get('Authorization')).toBeNull();
     req.flush({});
   });
+  for (const url of [
+    'https://attacker.example/home/api/order',
+    '//attacker.example/home/api/order',
+    '/elsewhere?next=/home/api/order',
+    '/home/api-sibling/order',
+    '/home/api/../outside',
+    'data:text/plain,/home/api',
+    'http://[invalid',
+  ]) {
+    it(`does not attach a token outside the API boundary: ${url}`, () => {
+      setup('secret-token');
+      httpClient.get(url).subscribe();
+      const req = httpTesting.expectOne(url);
+      expect(req.request.headers.has('Authorization')).toBeFalse();
+      req.flush({});
+    });
+  }
+
+  it('attaches to the exact API path and its absolute same-origin descendants', () => {
+    setup('secret-token');
+    for (const url of [
+      environment.apiPrefix,
+      new URL(`${environment.apiPrefix}/order?x=1`, document.baseURI).href,
+    ]) {
+      httpClient.get(url).subscribe();
+      const req = httpTesting.expectOne(url);
+      expect(req.request.headers.get('Authorization')).toBe(
+        'Bearer secret-token'
+      );
+      req.flush({});
+    }
+  });
 });

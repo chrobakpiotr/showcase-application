@@ -38,6 +38,7 @@ import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -107,7 +108,7 @@ public class OrderController {
     private final SendNotificationInPort sendNotificationInPort;
 
     @PostMapping
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "Place a new order",
@@ -150,14 +151,13 @@ public class OrderController {
 
         final Order orderDraft = orderWebMapper.mapToDomainObject(orderResource)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
-        final Order order = applyCouponIfPresent(orderDraft);
-        order.assertValidationsEmpty();
-        reserveStockFor(order);
-        final PlaceOrderResult result = rateLimitedExecutor
-                .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderUseCase.placeOrder(order, idempotencyKey));
+        orderDraft.assertValidationsEmpty();
+        final PlaceOrderResult result = rateLimitedExecutor.callRateLimited(
+                PLACE_ORDER_RATE_LIMITER,
+                () -> placeOrderUseCase.placeOrder(orderDraft, idempotencyKey, this::prepareOrder));
         if (result.newlyPlaced()) {
 
-            sendOrderConfirmedNotification(order, result.orderNumber());
+            sendOrderConfirmedNotification(orderDraft, result.orderNumber());
             orderMetrics.recordOrderPlaced();
             log.info(
                     "Order {} placed by operator {}",
@@ -260,6 +260,14 @@ public class OrderController {
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
+    }
+
+    private Order prepareOrder(final Order draft) {
+
+        final Order prepared = applyCouponIfPresent(draft);
+        prepared.assertValidationsEmpty();
+        reserveStockFor(prepared);
+        return prepared;
     }
 
     private Order applyCouponIfPresent(final Order order) {

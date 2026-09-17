@@ -11,6 +11,7 @@ import {
   Validators,
 } from '@angular/forms';
 
+import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '@app/auth/auth.service';
 import { InventoryService } from '@app/inventory/inventory.service';
 import { StockLevelModel } from '@app/inventory/stock-level.model';
@@ -44,6 +45,12 @@ export class InventoryComponent {
       validators: [Validators.required, Validators.min(1)],
     }),
   });
+
+  constructor() {
+    this.lookupForm.controls.sku.setValue(
+      inject(ActivatedRoute).snapshot.queryParamMap.get('sku') ?? ''
+    );
+  }
 
   get canWrite(): boolean {
     return this.authService.roles().includes('INVENTORY_WRITE');

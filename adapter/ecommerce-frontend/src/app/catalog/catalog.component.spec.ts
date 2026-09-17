@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -51,6 +52,10 @@ describe('CatalogComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  beforeEach(() =>
+    TestBed.configureTestingModule({ providers: [provideRouter([])] })
+  );
 
   afterEach(() => {
     TestBed.resetTestingModule();

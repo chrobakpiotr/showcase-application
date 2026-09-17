@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  DestroyRef,
   inject,
   signal,
 } from '@angular/core';
@@ -14,6 +16,9 @@ import {
 } from '@angular/forms';
 
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
+import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { OrderRequestModel } from '@app/order/order-request.model';
 import { OrderService } from '@app/order/order.service';
 import {
   PAYMENT_METHODS,
@@ -54,10 +59,17 @@ function createLineItemGroup(): FormGroup {
   templateUrl: './order.component.html',
   styleUrls: ['./order.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, SupportAssistantComponent],
+  imports: [ReactiveFormsModule, SupportAssistantComponent, RouterLink],
 })
 export class OrderComponent {
   private readonly orderService = inject(OrderService);
+
+  private readonly destroyRef = inject(DestroyRef);
+  private attempt: { key: string; payload: OrderRequestModel } | null = null;
+  readonly uncertain = signal(false);
+  readonly editingLocked = computed(
+    () => this.submitting() || this.uncertain() || !!this.orderNumber()
+  );
 
   readonly submitting = signal(false);
   readonly orderNumber = signal<string | null>(null);
@@ -131,16 +143,19 @@ export class OrderComponent {
   }
 
   addItem(): void {
+    if (this.editingLocked()) return;
     this.itemsFormArray.push(createLineItemGroup());
   }
 
   removeItem(index: number): void {
+    if (this.editingLocked()) return;
     if (this.itemsFormArray.length > 1) {
       this.itemsFormArray.removeAt(index);
     }
   }
 
   fillDemoOrder(): void {
+    if (this.editingLocked()) return;
     while (this.itemsFormArray.length > 1) {
       this.itemsFormArray.removeAt(this.itemsFormArray.length - 1);
     }
@@ -162,32 +177,69 @@ export class OrderComponent {
     this.errorMessage.set(null);
   }
 
-  placeOrder(): void {
-    if (this.orderForm.invalid || this.submitting()) return;
-    this.submitting.set(true);
+  newOrder(): void {
+    if (this.submitting() || !this.orderNumber()) return;
+    this.attempt = null;
     this.orderNumber.set(null);
     this.errorMessage.set(null);
-    const { remarks, customer, items, paymentMethod, couponCode } =
-      this.orderForm.getRawValue();
+    this.uncertain.set(false);
+  }
+
+  placeOrder(): void {
+    if (this.submitting() || this.orderNumber()) return;
+    if (!this.attempt) {
+      if (this.orderForm.invalid) return;
+      const { remarks, customer, items, paymentMethod, couponCode } =
+        this.orderForm.getRawValue();
+      this.attempt = {
+        key: crypto.randomUUID(),
+        payload: structuredClone({
+          remarks,
+          customer,
+          items: items as OrderLineItemRequestModel[],
+          paymentMethod,
+          couponCode: couponCode || null,
+          created: new Date(),
+        }),
+      };
+    }
+    this.submitting.set(true);
+    this.errorMessage.set(null);
     this.orderService
-      .placeOrder(
-        remarks,
-        customer,
-        items as OrderLineItemRequestModel[],
-        paymentMethod,
-        couponCode || null
-      )
+      .placeOrder(this.attempt.payload, this.attempt.key)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
           this.submitting.set(false);
-          if (!response.orderNumber) {
-            this.errorMessage.set('You already have an order.');
+          if (
+            typeof response?.orderNumber !== 'string' ||
+            !response.orderNumber.trim()
+          ) {
+            this.uncertain.set(true);
+            this.errorMessage.set(
+              'Order outcome is unknown. Retry this same attempt.'
+            );
           } else {
+            this.uncertain.set(false);
             this.orderNumber.set(response.orderNumber);
           }
         },
         error: (error: unknown) => {
           this.submitting.set(false);
+          if (
+            !this.uncertain() &&
+            error instanceof HttpErrorResponse &&
+            ([400, 401, 403, 404, 422, 429].includes(error.status) ||
+              (error.status === 409 &&
+                [
+                  'urn:problem-type:insufficient-stock',
+                  'urn:problem-type:stock-level-conflict',
+                ].includes(error.error?.type)))
+          ) {
+            this.attempt = null;
+          } else {
+            this.uncertain.set(true);
+          }
           this.errorMessage.set(this.toUserFacingError(error));
         },
       });

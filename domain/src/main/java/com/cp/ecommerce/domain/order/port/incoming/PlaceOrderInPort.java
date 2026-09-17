@@ -1,5 +1,7 @@
 package com.cp.ecommerce.domain.order.port.incoming;
 
+import java.util.function.UnaryOperator;
+
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 
@@ -20,5 +22,11 @@ public interface PlaceOrderInPort {
      *         this call.
      */
     PlaceOrderResult placeOrder(final Order order, final String idempotencyKey);
+
+    /**
+     * Prepare a new placement after the idempotency decision, in the caller's transaction. Preparation is skipped for replays
+     * and conflicts; it must not change request identity.
+     */
+    PlaceOrderResult placeOrder(Order order, String idempotencyKey, UnaryOperator<Order> prepare);
 
 }

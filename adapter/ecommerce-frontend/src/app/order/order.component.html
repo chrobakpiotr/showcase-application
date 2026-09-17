@@ -13,6 +13,7 @@
       type="button"
       (click)="fillDemoOrder()"
       data-testid="order-fill-demo"
+      [disabled]="editingLocked()"
     >
       Fill demo order
     </button>
@@ -27,255 +28,270 @@
 
   <div class="order-container">
     <form [formGroup]="orderForm" (ngSubmit)="placeOrder()">
-      <fieldset [formGroup]="customerForm" class="customer-fieldset">
-        <legend>Shipping details</legend>
+      <fieldset class="attempt-fields" [disabled]="editingLocked()">
+        <fieldset [formGroup]="customerForm" class="customer-fieldset">
+          <legend>Shipping details</legend>
 
-        <div class="customer-grid">
-          <div class="field">
-            <label for="customer-fullName">Full name</label>
-            <input
-              id="customer-fullName"
-              type="text"
-              formControlName="fullName"
-              data-testid="customer-fullName"
-              placeholder="Jane Doe"
-            />
-            @if (customerForm.controls.fullName.invalid &&
-            customerForm.controls.fullName.touched) { @if
-            (customerForm.controls.fullName.errors?.['required']) {
-            <span class="error">Full name is required.</span> } @if
-            (customerForm.controls.fullName.errors?.['maxlength']) {
-            <span class="error">Full name must be at most 80 characters.</span>
-            } }
+          <div class="customer-grid">
+            <div class="field">
+              <label for="customer-fullName">Full name</label>
+              <input
+                id="customer-fullName"
+                type="text"
+                formControlName="fullName"
+                data-testid="customer-fullName"
+                placeholder="Jane Doe"
+              />
+              @if (customerForm.controls.fullName.invalid &&
+              customerForm.controls.fullName.touched) { @if
+              (customerForm.controls.fullName.errors?.['required']) {
+              <span class="error">Full name is required.</span> } @if
+              (customerForm.controls.fullName.errors?.['maxlength']) {
+              <span class="error"
+                >Full name must be at most 80 characters.</span
+              >
+              } }
+            </div>
+
+            <div class="field">
+              <label for="customer-email">Email</label>
+              <input
+                id="customer-email"
+                type="email"
+                formControlName="email"
+                data-testid="customer-email"
+                placeholder="jane.doe@example.com"
+              />
+              @if (customerForm.controls.email.invalid &&
+              customerForm.controls.email.touched) { @if
+              (customerForm.controls.email.errors?.['required']) {
+              <span class="error">Email is required.</span> } @if
+              (customerForm.controls.email.errors?.['email']) {
+              <span class="error">Email must be a valid address.</span> } @if
+              (customerForm.controls.email.errors?.['maxlength']) {
+              <span class="error">Email must be at most 255 characters.</span> }
+              }
+            </div>
+
+            <div class="field">
+              <label for="customer-phone">Phone</label>
+              <input
+                id="customer-phone"
+                type="tel"
+                formControlName="phone"
+                data-testid="customer-phone"
+                placeholder="+48 600 123 456"
+              />
+              @if (customerForm.controls.phone.invalid &&
+              customerForm.controls.phone.touched) {
+              <span class="error">Phone number is invalid.</span> }
+            </div>
+
+            <div class="field">
+              <label for="customer-street">Street</label>
+              <input
+                id="customer-street"
+                type="text"
+                formControlName="street"
+                data-testid="customer-street"
+                placeholder="Main Street 1"
+              />
+              @if (customerForm.controls.street.invalid &&
+              customerForm.controls.street.touched) {
+              <span class="error">Street address is required.</span> }
+            </div>
+
+            <div class="field">
+              <label for="customer-postalCode">Postal code</label>
+              <input
+                id="customer-postalCode"
+                type="text"
+                formControlName="postalCode"
+                data-testid="customer-postalCode"
+                placeholder="00-001"
+              />
+            </div>
+
+            <div class="field">
+              <label for="customer-city">City</label>
+              <input
+                id="customer-city"
+                type="text"
+                formControlName="city"
+                data-testid="customer-city"
+                placeholder="Warsaw"
+              />
+              @if (customerForm.controls.city.invalid &&
+              customerForm.controls.city.touched) {
+              <span class="error">City is required.</span> }
+            </div>
+
+            <div class="field">
+              <label for="customer-countryCode">Country code</label>
+              <input
+                id="customer-countryCode"
+                type="text"
+                formControlName="countryCode"
+                data-testid="customer-countryCode"
+                placeholder="PL"
+                maxlength="2"
+              />
+              @if (customerForm.controls.countryCode.invalid &&
+              customerForm.controls.countryCode.touched) {
+              <span class="error">Two-letter country code is required.</span> }
+            </div>
           </div>
+        </fieldset>
 
-          <div class="field">
-            <label for="customer-email">Email</label>
-            <input
-              id="customer-email"
-              type="email"
-              formControlName="email"
-              data-testid="customer-email"
-              placeholder="jane.doe@example.com"
-            />
-            @if (customerForm.controls.email.invalid &&
-            customerForm.controls.email.touched) { @if
-            (customerForm.controls.email.errors?.['required']) {
-            <span class="error">Email is required.</span> } @if
-            (customerForm.controls.email.errors?.['email']) {
-            <span class="error">Email must be a valid address.</span> } @if
-            (customerForm.controls.email.errors?.['maxlength']) {
-            <span class="error">Email must be at most 255 characters.</span> } }
+        <fieldset formArrayName="items" class="items-fieldset">
+          <legend>Line items</legend>
+
+          @for (item of itemGroups; track $index; let i = $index) {
+          <div [formGroup]="item" class="line-item">
+            <div class="field">
+              <label [attr.for]="'item-sku-' + i">SKU</label>
+              <input
+                [id]="'item-sku-' + i"
+                type="text"
+                formControlName="sku"
+                [attr.data-testid]="'item-sku-' + i"
+                placeholder="DEMO-MOUSE-001"
+              />
+              @if (item.controls['sku'].invalid && item.controls['sku'].touched)
+              {
+              <span class="error">SKU is required.</span> }
+            </div>
+
+            <div class="field">
+              <label [attr.for]="'item-productName-' + i">Product name</label>
+              <input
+                [id]="'item-productName-' + i"
+                type="text"
+                formControlName="productName"
+                [attr.data-testid]="'item-productName-' + i"
+                placeholder="Wireless Mouse"
+              />
+              @if (item.controls['productName'].invalid &&
+              item.controls['productName'].touched) {
+              <span class="error">Product name is required.</span> }
+            </div>
+
+            <div class="field">
+              <label [attr.for]="'item-unitPrice-' + i">Unit price</label>
+              <input
+                [id]="'item-unitPrice-' + i"
+                type="number"
+                step="0.01"
+                min="0.01"
+                formControlName="unitPrice"
+                [attr.data-testid]="'item-unitPrice-' + i"
+                placeholder="39.90"
+              />
+              @if (item.controls['unitPrice'].invalid &&
+              item.controls['unitPrice'].touched) {
+              <span class="error">Unit price must be greater than zero.</span> }
+            </div>
+
+            <div class="field">
+              <label [attr.for]="'item-quantity-' + i">Quantity</label>
+              <input
+                [id]="'item-quantity-' + i"
+                type="number"
+                step="1"
+                min="1"
+                formControlName="quantity"
+                [attr.data-testid]="'item-quantity-' + i"
+              />
+              @if (item.controls['quantity'].invalid &&
+              item.controls['quantity'].touched) {
+              <span class="error">Quantity must be at least 1.</span> }
+            </div>
+
+            <button
+              class="secondary-button remove-item"
+              type="button"
+              (click)="removeItem(i)"
+              [disabled]="itemGroups.length <= 1"
+              [attr.data-testid]="'item-remove-' + i"
+            >
+              Remove
+            </button>
           </div>
-
-          <div class="field">
-            <label for="customer-phone">Phone</label>
-            <input
-              id="customer-phone"
-              type="tel"
-              formControlName="phone"
-              data-testid="customer-phone"
-              placeholder="+48 600 123 456"
-            />
-            @if (customerForm.controls.phone.invalid &&
-            customerForm.controls.phone.touched) {
-            <span class="error">Phone number is invalid.</span> }
-          </div>
-
-          <div class="field">
-            <label for="customer-street">Street</label>
-            <input
-              id="customer-street"
-              type="text"
-              formControlName="street"
-              data-testid="customer-street"
-              placeholder="Main Street 1"
-            />
-            @if (customerForm.controls.street.invalid &&
-            customerForm.controls.street.touched) {
-            <span class="error">Street address is required.</span> }
-          </div>
-
-          <div class="field">
-            <label for="customer-postalCode">Postal code</label>
-            <input
-              id="customer-postalCode"
-              type="text"
-              formControlName="postalCode"
-              data-testid="customer-postalCode"
-              placeholder="00-001"
-            />
-          </div>
-
-          <div class="field">
-            <label for="customer-city">City</label>
-            <input
-              id="customer-city"
-              type="text"
-              formControlName="city"
-              data-testid="customer-city"
-              placeholder="Warsaw"
-            />
-            @if (customerForm.controls.city.invalid &&
-            customerForm.controls.city.touched) {
-            <span class="error">City is required.</span> }
-          </div>
-
-          <div class="field">
-            <label for="customer-countryCode">Country code</label>
-            <input
-              id="customer-countryCode"
-              type="text"
-              formControlName="countryCode"
-              data-testid="customer-countryCode"
-              placeholder="PL"
-              maxlength="2"
-            />
-            @if (customerForm.controls.countryCode.invalid &&
-            customerForm.controls.countryCode.touched) {
-            <span class="error">Two-letter country code is required.</span> }
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset formArrayName="items" class="items-fieldset">
-        <legend>Line items</legend>
-
-        @for (item of itemGroups; track $index; let i = $index) {
-        <div [formGroup]="item" class="line-item">
-          <div class="field">
-            <label [attr.for]="'item-sku-' + i">SKU</label>
-            <input
-              [id]="'item-sku-' + i"
-              type="text"
-              formControlName="sku"
-              [attr.data-testid]="'item-sku-' + i"
-              placeholder="DEMO-MOUSE-001"
-            />
-            @if (item.controls['sku'].invalid && item.controls['sku'].touched) {
-            <span class="error">SKU is required.</span> }
-          </div>
-
-          <div class="field">
-            <label [attr.for]="'item-productName-' + i">Product name</label>
-            <input
-              [id]="'item-productName-' + i"
-              type="text"
-              formControlName="productName"
-              [attr.data-testid]="'item-productName-' + i"
-              placeholder="Wireless Mouse"
-            />
-            @if (item.controls['productName'].invalid &&
-            item.controls['productName'].touched) {
-            <span class="error">Product name is required.</span> }
-          </div>
-
-          <div class="field">
-            <label [attr.for]="'item-unitPrice-' + i">Unit price</label>
-            <input
-              [id]="'item-unitPrice-' + i"
-              type="number"
-              step="0.01"
-              min="0.01"
-              formControlName="unitPrice"
-              [attr.data-testid]="'item-unitPrice-' + i"
-              placeholder="39.90"
-            />
-            @if (item.controls['unitPrice'].invalid &&
-            item.controls['unitPrice'].touched) {
-            <span class="error">Unit price must be greater than zero.</span> }
-          </div>
-
-          <div class="field">
-            <label [attr.for]="'item-quantity-' + i">Quantity</label>
-            <input
-              [id]="'item-quantity-' + i"
-              type="number"
-              step="1"
-              min="1"
-              formControlName="quantity"
-              [attr.data-testid]="'item-quantity-' + i"
-            />
-            @if (item.controls['quantity'].invalid &&
-            item.controls['quantity'].touched) {
-            <span class="error">Quantity must be at least 1.</span> }
-          </div>
+          }
 
           <button
-            class="secondary-button remove-item"
+            class="secondary-button"
             type="button"
-            (click)="removeItem(i)"
-            [disabled]="itemGroups.length <= 1"
-            [attr.data-testid]="'item-remove-' + i"
+            (click)="addItem()"
+            data-testid="item-add"
           >
-            Remove
+            Add item
           </button>
-        </div>
-        }
+        </fieldset>
 
-        <button
-          class="secondary-button"
-          type="button"
-          (click)="addItem()"
-          data-testid="item-add"
-        >
-          Add item
-        </button>
+        <div class="checkout-grid">
+          <div class="field">
+            <label for="couponCode">Coupon code</label>
+            <input
+              id="couponCode"
+              type="text"
+              formControlName="couponCode"
+              data-testid="order-couponCode"
+              placeholder="Optional, e.g. SAVE10"
+            />
+            <small class="field-hint"
+              >Demo coupons: SAVE10, WELCOME20 and FLAT15. Minimum order values
+              apply.</small
+            >
+          </div>
+
+          <div class="field">
+            <label for="paymentMethod">Payment method</label>
+            <select
+              id="paymentMethod"
+              formControlName="paymentMethod"
+              data-testid="order-paymentMethod"
+            >
+              @for (method of paymentMethods; track method) {
+              <option [value]="method">{{ method }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="remarks">Remarks</label>
+          <textarea
+            id="remarks"
+            formControlName="remarks"
+            rows="4"
+            data-testid="order-remarks"
+            placeholder="Enter your order remarks"
+          ></textarea>
+          @if (remarksControl.invalid && remarksControl.touched) { @if
+          (remarksControl.errors?.['required']) {
+          <span class="error">Remarks are required.</span> } @if
+          (remarksControl.errors?.['maxlength']) {
+          <span class="error">Remarks must be at most 800 characters.</span> } }
+        </div>
       </fieldset>
-
-      <div class="checkout-grid">
-        <div class="field">
-          <label for="couponCode">Coupon code</label>
-          <input
-            id="couponCode"
-            type="text"
-            formControlName="couponCode"
-            data-testid="order-couponCode"
-            placeholder="Optional, e.g. SAVE10"
-          />
-          <small class="field-hint"
-            >Demo coupons: SAVE10, WELCOME20 and FLAT15. Minimum order values
-            apply.</small
-          >
-        </div>
-
-        <div class="field">
-          <label for="paymentMethod">Payment method</label>
-          <select
-            id="paymentMethod"
-            formControlName="paymentMethod"
-            data-testid="order-paymentMethod"
-          >
-            @for (method of paymentMethods; track method) {
-            <option [value]="method">{{ method }}</option>
-            }
-          </select>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="remarks">Remarks</label>
-        <textarea
-          id="remarks"
-          formControlName="remarks"
-          rows="4"
-          data-testid="order-remarks"
-          placeholder="Enter your order remarks"
-        ></textarea>
-        @if (remarksControl.invalid && remarksControl.touched) { @if
-        (remarksControl.errors?.['required']) {
-        <span class="error">Remarks are required.</span> } @if
-        (remarksControl.errors?.['maxlength']) {
-        <span class="error">Remarks must be at most 800 characters.</span> } }
-      </div>
-
       <div class="form-actions">
         <button
           type="submit"
-          [disabled]="orderForm.invalid || submitting()"
+          [disabled]="
+            (!uncertain() && orderForm.invalid) ||
+            submitting() ||
+            !!orderNumber()
+          "
           data-testid="order-submit"
         >
-          {{ submitting() ? 'Placing order...' : 'Place Order' }}
+          {{
+            submitting()
+              ? 'Placing order...'
+              : uncertain()
+              ? 'Retry same attempt'
+              : 'Place Order'
+          }}
         </button>
         @if (orderForm.invalid) {
         <span class="form-hint"
@@ -285,12 +301,23 @@
       </div>
     </form>
 
-    @if (submitting()) {
+    @if (uncertain()) {
+    <p role="status" data-testid="order-unknown">
+      The server may have accepted this order. Retry the same attempt to
+      retrieve its result. Keep this page open; reloading loses the retry key.
+    </p>
+    } @if (submitting()) {
     <p class="loading">Processing your order...</p>
     } @if (orderNumber()) {
     <div class="success" role="status">
       Order placed successfully. Order number:
       <strong data-testid="order-number">{{ orderNumber() }}</strong>
+      <a routerLink="/orders" data-testid="order-history-link"
+        >View order history</a
+      >
+      <button type="button" (click)="newOrder()" data-testid="new-order">
+        New order
+      </button>
     </div>
     } @if (errorMessage()) {
     <div class="error-message" role="alert">{{ errorMessage() }}</div>

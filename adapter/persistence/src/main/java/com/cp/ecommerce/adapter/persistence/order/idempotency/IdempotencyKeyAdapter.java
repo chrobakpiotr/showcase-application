@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.idempotency;
 
+import java.sql.Connection;
 import java.time.Instant;
 import java.util.Date;
 
@@ -8,33 +9,27 @@ import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.port.outgoing.IdempotencyKeyOutPort;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Implementation of {@link IdempotencyKeyOutPort}.
- *
- * <p>
- * Concurrency safety comes from the database, not application-level locking: {@link #reserve(String, String)} always attempts
- * an INSERT first, relying on the unique constraint on {@code IDEMPOTENCY_KEY.IDEMPOTENCY_KEY} to arbitrate which of two
- * concurrent requests for the same key "wins" - the loser observes a {@link DataIntegrityViolationException} and re-reads the
- * winner's row instead. The insert and the follow-up read are deliberately two separate, independently-transactional repository
- * calls (Spring Data JPA opens one transaction per call when none is already active): on PostgreSQL, issuing a further
- * statement on the same transaction/connection after a constraint violation would fail with "current transaction is aborted,
- * commands ignored until end of transaction block".
- *
- * <p>
- * {@link #complete(String, String)} runs after order placement has already committed. If the process crashes between the two,
- * the record is left {@code IN_PROGRESS} forever; {@code order.idempotency.stale-after-ms} bounds how long such an orphaned
- * record blocks retries of the same key before a new attempt is allowed to take it over - an accepted, documented trade-off
- * (favoring availability over a fully saga-compensated three-table solution) rather than a defect.
+ * Transactional key arbitration using fixed database lock stripes on PostgreSQL and H2. The writable READ_COMMITTED caller owns
+ * key, stock, order and outbox writes together. Lock before looking up an absent key: never recover from a duplicate INSERT in
+ * an already-aborted transaction. All writers must use the same 64-stripe mapping.
  */
 @PersistenceAdapter
+@Transactional(propagation = Propagation.MANDATORY)
 @Slf4j
 @RequiredArgsConstructor
 public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
+
+    private static final int LOCK_STRIPES = 64;
+
+    private final IdempotencyLockRepository lockRepository;
 
     private final IdempotencyKeyEntityRepository idempotencyKeyEntityRepository;
 
@@ -44,27 +39,25 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
     @Override
     public IdempotencyReservation reserve(final String key, final String fingerprint) {
 
-        try {
-
-            idempotencyKeyEntityRepository.saveAndFlush(
-                    IdempotencyKeyEntity.builder()
-                            .key(key)
-                            .fingerprint(fingerprint)
-                            .status(IdempotencyKeyStatus.IN_PROGRESS)
-                            .createdDate(new Date())
-                            .build());
-            return IdempotencyReservation.reserved();
-        } catch (final DataIntegrityViolationException exception) {
-
-            return idempotencyKeyEntityRepository.findByKey(key)
-                    .map(existing -> toReservation(existing, fingerprint))
-                    .orElse(IdempotencyReservation.reserved());
-        }
+        lock(key);
+        return idempotencyKeyEntityRepository.findByKey(key)
+                .map(existing -> toReservation(existing, fingerprint))
+                .orElseGet(() -> {
+                    idempotencyKeyEntityRepository.saveAndFlush(
+                            IdempotencyKeyEntity.builder()
+                                    .key(key)
+                                    .fingerprint(fingerprint)
+                                    .status(IdempotencyKeyStatus.IN_PROGRESS)
+                                    .createdDate(new Date())
+                                    .build());
+                    return IdempotencyReservation.reserved();
+                });
     }
 
     @Override
     public void complete(final String key, final String orderNumber) {
 
+        lock(key);
         idempotencyKeyEntityRepository.findByKey(key).ifPresent(entity -> {
 
             entity.setStatus(IdempotencyKeyStatus.COMPLETED);
@@ -74,27 +67,22 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
         });
     }
 
-    // Staleness is checked before the fingerprint, on purpose: an abandoned IN_PROGRESS row must be freely
-    // reclaimable by a new attempt even if that new attempt's fingerprint differs from the abandoned one's - it is
-    // not "the same request", it is a fresh one that happens to reuse a key nobody ever finished using.
     private IdempotencyReservation toReservation(final IdempotencyKeyEntity existing, final String fingerprint) {
 
+        if (!existing.getFingerprint().equals(fingerprint)) {
+
+            return IdempotencyReservation.conflict();
+        }
         if (existing.getStatus() == IdempotencyKeyStatus.IN_PROGRESS) {
 
             if (isStale(existing)) {
 
-                log.warn(
-                        "Idempotency-Key '{}' was stuck IN_PROGRESS past the staleness window, allowing takeover.",
-                        existing.getKey());
+                log.warn("Reclaiming an abandoned identical order attempt.");
                 return takeOver(existing, fingerprint);
             }
             return IdempotencyReservation.conflict();
         }
-        if (existing.getFingerprint().equals(fingerprint)) {
-
-            return IdempotencyReservation.duplicate(existing.getOrderNumber());
-        }
-        return IdempotencyReservation.conflict();
+        return IdempotencyReservation.duplicate(existing.getOrderNumber());
     }
 
     private IdempotencyReservation takeOver(final IdempotencyKeyEntity existing, final String fingerprint) {
@@ -111,6 +99,17 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
     private boolean isStale(final IdempotencyKeyEntity existing) {
 
         return existing.getCreatedDate().toInstant().plusMillis(staleAfterMs).isBefore(Instant.now());
+    }
+
+    private void lock(final String key) {
+
+        if (TransactionSynchronizationManager.isCurrentTransactionReadOnly()
+                || !Integer.valueOf(Connection.TRANSACTION_READ_COMMITTED)
+                        .equals(TransactionSynchronizationManager.getCurrentTransactionIsolationLevel())) {
+            throw new IllegalStateException("Order idempotency requires a writable READ_COMMITTED transaction");
+        }
+        lockRepository.findById(Math.floorMod(key.hashCode(), LOCK_STRIPES))
+                .orElseThrow(() -> new IllegalStateException("Missing order idempotency lock stripe"));
     }
 
 }

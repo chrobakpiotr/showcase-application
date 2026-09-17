@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
-test('order happy path: login, use seeded demo fixture and place order', async ({
+test('order happy path: login, prepare isolated stock and place order', async ({
   page,
 }) => {
+  const fixtureSku = `E2E-${randomUUID().replaceAll('-', '')}`;
   await page.goto('');
   await expect(page).toHaveURL(/login/);
 
@@ -13,7 +15,7 @@ test('order happy path: login, use seeded demo fixture and place order', async (
 
   await page.getByRole('link', { name: 'Inventory', exact: true }).click();
   await expect(page).toHaveURL(/\/inventory(?:$|[?#])/);
-  await page.getByTestId('sku').fill('DEMO-MOUSE-001');
+  await page.getByTestId('sku').fill(fixtureSku);
   await page.getByTestId('lookup').click();
   await expect(page.getByTestId('stock-level')).toBeVisible();
 
@@ -29,13 +31,24 @@ test('order happy path: login, use seeded demo fixture and place order', async (
   await page.getByTestId('order-fill-demo').click();
   await expect(page.getByTestId('item-sku-0')).toHaveValue('DEMO-MOUSE-001');
   await expect(page.getByTestId('item-productName-0')).toHaveValue(
-    'Wireless Mouse'
+    'Wireless Mouse',
   );
   await expect(page.getByTestId('item-unitPrice-0')).toHaveValue('39.9');
+  await page.getByTestId('item-sku-0').fill(fixtureSku);
   await expect(page.getByTestId('order-submit')).toBeEnabled();
 
+  const placement = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/order') &&
+      response.request().method() === 'POST',
+  );
   await page.getByTestId('order-submit').click();
+  const response = await placement;
+  expect(response.status(), await response.text()).toBe(201);
+  expect(response.request().headers()['idempotency-key']).toBeTruthy();
   await expect(page.getByTestId('order-number')).toBeVisible({
     timeout: 10_000,
   });
+  await page.getByTestId('order-history-link').click();
+  await expect(page).toHaveURL(/\/orders(?:$|[?#])/);
 });

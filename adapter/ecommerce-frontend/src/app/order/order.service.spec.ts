@@ -71,7 +71,17 @@ describe('OrderService', () => {
 
     //when
     orderService
-      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD', 'SAVE10')
+      .placeOrder(
+        {
+          remarks: 'test remarks',
+          customer: CUSTOMER,
+          items: ITEMS,
+          paymentMethod: 'CARD',
+          couponCode: 'SAVE10',
+          created: new Date(0),
+        },
+        'attempt-1'
+      )
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     //then
@@ -79,6 +89,8 @@ describe('OrderService', () => {
       `${environment.apiPrefix}/order`
     );
     expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('Idempotency-Key')).toBe('attempt-1');
+    expect(req.request.body.created).toEqual(new Date(0));
     expect(req.request.body.customer).toEqual(CUSTOMER);
     expect(req.request.body.items).toEqual(ITEMS);
     expect(req.request.body.paymentMethod).toBe('CARD');
@@ -93,7 +105,17 @@ describe('OrderService', () => {
     } as OrderResponseModel;
 
     orderService
-      .placeOrder('test remarks', CUSTOMER, ITEMS, 'CARD')
+      .placeOrder(
+        {
+          remarks: 'test remarks',
+          customer: CUSTOMER,
+          items: ITEMS,
+          paymentMethod: 'CARD',
+          couponCode: null,
+          created: new Date(0),
+        },
+        'attempt-2'
+      )
       .subscribe((data) => expect(data).toBe(orderResponse));
 
     const req = httpTestingController.expectOne(

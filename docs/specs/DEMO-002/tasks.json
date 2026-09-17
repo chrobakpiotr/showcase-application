@@ -1,0 +1,123 @@
+{
+  "feature": "DEMO-002",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "role": "builder",
+      "risk_tags": [
+        "persistence",
+        "concurrency",
+        "security",
+        "architecture"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Regression tests at existing public ports; runtime evidence documented separately.",
+      "id": "T-001",
+      "title": "Atomic order attempts and complete fingerprint",
+      "objective": "Atomic order attempts and complete fingerprint",
+      "depends_on": [],
+      "allowed_paths": [
+        "domain/src/**/order/**",
+        "adapter/web/src/**/order/**",
+        "adapter/persistence/src/**/order/idempotency/**",
+        "adapter/persistence/src/main/resources/db/changelog/**",
+        "application/ecommerce/**"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew :domain:test :adapter:web:test :adapter:persistence:test :application:ecommerce:test"
+      ]
+    },
+    {
+      "role": "builder",
+      "risk_tags": [
+        "security",
+        "frontend"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Regression tests at existing public ports; runtime evidence documented separately.",
+      "id": "T-002",
+      "title": "Token boundary and immutable checkout attempt",
+      "objective": "Token boundary and immutable checkout attempt",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/src/app/auth/**",
+        "adapter/ecommerce-frontend/src/app/order/**"
+      ],
+      "acceptance_criteria": [
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "npm --prefix adapter/ecommerce-frontend test"
+      ]
+    },
+    {
+      "role": "builder",
+      "risk_tags": [
+        "frontend"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Regression tests at existing public ports; runtime evidence documented separately.",
+      "id": "T-003",
+      "title": "Read-only navigation and isolated rendered demo tests",
+      "objective": "Read-only navigation and isolated rendered demo tests",
+      "depends_on": [
+        "T-002"
+      ],
+      "allowed_paths": [
+        "adapter/ecommerce-frontend/src/app/catalog/**",
+        "adapter/ecommerce-frontend/src/app/inventory/**",
+        "adapter/ecommerce-frontend/e2e/**",
+        "docs/specs/DEMO-002/**",
+        "docs/demo-guide.md",
+        "docs/improvement-roadmap.md"
+      ],
+      "acceptance_criteria": [
+        "AC-006"
+      ],
+      "verification": [
+        "npm --prefix adapter/ecommerce-frontend run e2e"
+      ]
+    },
+    {
+      "id": "T-004",
+      "title": "Independent review and gate evidence",
+      "objective": "Review all acceptance criteria and distinguish executed from blocked checks.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "docs/specs/DEMO-002/evidence/**"
+      ],
+      "risk_tags": [
+        "security",
+        "persistence",
+        "concurrency"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "verification": [
+        "python3 agent-harness/harness.py validate docs/specs/DEMO-002"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh security and persistence reviews plus deterministic verification evidence."
+    }
+  ]
+}

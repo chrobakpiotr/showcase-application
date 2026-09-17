@@ -1,3 +1,8 @@
+import {
+  provideRouter,
+  ActivatedRoute,
+  convertToParamMap,
+} from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { Subject, of, throwError } from 'rxjs';
@@ -20,7 +25,7 @@ describe('InventoryComponent', () => {
     quantityAvailable: 85,
   };
 
-  function setup(roles: string[] = []): void {
+  function setup(roles: string[] = [], sku: string | null = null): void {
     inventoryServiceSpy = jasmine.createSpyObj('InventoryService', [
       'getStockLevel',
       'receiveStock',
@@ -35,6 +40,14 @@ describe('InventoryComponent', () => {
       providers: [
         { provide: InventoryService, useValue: inventoryServiceSpy },
         { provide: AuthService, useValue: authServiceStub },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              queryParamMap: convertToParamMap(sku === null ? {} : { sku }),
+            },
+          },
+        },
       ],
     });
 
@@ -42,6 +55,10 @@ describe('InventoryComponent', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  beforeEach(() =>
+    TestBed.configureTestingModule({ providers: [provideRouter([])] })
+  );
 
   afterEach(() => {
     TestBed.resetTestingModule();
@@ -248,5 +265,12 @@ describe('InventoryComponent', () => {
     component.adjust('receive');
 
     expect(component.errorMessage()).toBe('Failed to receive stock for SKU-1.');
+  });
+  it('prefills a linked SKU without performing any stock mutation or lookup', () => {
+    setup(['INVENTORY_WRITE'], 'DEMO-MOUSE-001');
+    expect(component.lookupForm.controls.sku.value).toBe('DEMO-MOUSE-001');
+    expect(inventoryServiceSpy.getStockLevel).not.toHaveBeenCalled();
+    expect(inventoryServiceSpy.receiveStock).not.toHaveBeenCalled();
+    expect(inventoryServiceSpy.reserveStock).not.toHaveBeenCalled();
   });
 });

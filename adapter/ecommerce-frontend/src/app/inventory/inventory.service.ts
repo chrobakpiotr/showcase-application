@@ -11,7 +11,7 @@ export class InventoryService {
 
   getStockLevel(sku: string): Observable<StockLevelModel> {
     return this.httpClient.get<StockLevelModel>(
-      `${environment.apiPrefix}/inventory/${sku}`
+      `${environment.apiPrefix}/inventory/${encodeURIComponent(sku)}`
     );
   }
 
@@ -37,7 +37,7 @@ export class InventoryService {
     quantity: number
   ): Observable<StockLevelModel> {
     return this.httpClient.post<StockLevelModel>(
-      `${environment.apiPrefix}/inventory/${sku}/${action}`,
+      `${environment.apiPrefix}/inventory/${encodeURIComponent(sku)}/${action}`,
       { quantity }
     );
   }

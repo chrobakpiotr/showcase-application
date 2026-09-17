@@ -57,8 +57,8 @@ keeps whatever redemption count previous runs produced.
 
 ### Catalog → Inventory
 
-1. Open **Catalog** and copy any `DEMO-*` SKU.
-2. Open **Inventory** and load that SKU.
+1. Open **Catalog** and choose **Check inventory** on a product.
+2. Inventory prefills its SKU. Choose **Look up** to read its current state; navigation alone does not query or change stock.
 3. Receive, reserve, release or fulfill stock as `order-admin`.
 4. Reload the same SKU and observe optimistic-lock-backed state changes.
 
@@ -114,3 +114,32 @@ The fixtures are tied to required `@demo` changesets. Kubernetes intentionally d
 default, so pointing the application at a cluster or external database does not silently populate showcase fixtures. See
 [seeded catalog and stock](#seeded-catalog-and-stock), [reset instructions](#resetting-demo-state)
 and [demo scenarios](#useful-demo-scenarios) for the complete walkthrough.
+
+## Retrying an order safely
+
+The first submission captures the form and an idempotency key. While submitting,
+the form is locked. After a network failure, server error or malformed success
+response, use the retry action to resend that same snapshot and key. A successful
+replay returns the original order number without another stock reservation or
+coupon validation. There is no automatic POST retry.
+
+An initial explicit insufficient-stock or stock-version conflict unlocks the form
+so the quantity can be corrected. An unknown result keeps the form locked even if a later retry is rejected. Keep
+the page open until the attempt is resolved: the snapshot is held only by the
+mounted order screen and is lost when navigating away or reloading. Check Order
+History before starting another order after losing that state. A confirmed success
+exposes a history link and an explicit new-order action.
+
+The version 2 request fingerprint includes submitted customer and item details,
+payment method and coupon. Replays of keys created by older versions fail closed
+with a conflict. Look up those orders manually; do not delete keys to force a retry.
+Quiesce order writes during deployment or rollback; mixed-version writers do not
+share the same arbitration contract.
+
+## Repeatable browser tests
+
+The order E2E creates a unique `E2E-*` SKU and receives one unit before placing its
+order. Repeated runs do not consume the shared `DEMO-*` stock. These fixtures remain
+in the test database; use a dedicated disposable Compose project for test runs.
+Responsive checks wait for mounted routes and loaded content. Catalog checks also
+exercise populated, empty and failed responses at a 390px viewport.

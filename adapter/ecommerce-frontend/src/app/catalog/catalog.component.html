@@ -30,7 +30,7 @@
       </select>
     </div>
     <div class="catalog-toolbar__hint">
-      Tip: copy a <code>DEMO-*</code> SKU into Inventory or Orders.
+      Tip: open Inventory directly from a product card.
     </div>
   </div>
 
@@ -60,6 +60,12 @@
           <code>{{ product.sku }}</code>
         </div>
         <h2>{{ product.name }}</h2>
+        <a
+          routerLink="/inventory"
+          [queryParams]="{ sku: product.sku }"
+          data-testid="product-inventory"
+          >Check inventory</a
+        >
         <p class="description">{{ product.description }}</p>
         <div class="product-footer">
           <span class="price">{{ product.unitPrice | currency }}</span>

@@ -1,11 +1,14 @@
 package com.cp.ecommerce.adapter.persistence.order.idempotency;
 
+import java.sql.Connection;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -13,11 +16,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,6 +41,22 @@ class IdempotencyKeyAdapterTest {
     @Mock
     private transient IdempotencyKeyEntityRepository idempotencyKeyEntityRepository;
 
+    @Mock
+    private transient IdempotencyLockRepository lockRepository;
+
+    @BeforeEach
+    void transactionContext() {
+
+        TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED);
+        lenient().when(lockRepository.findById(any())).thenReturn(Optional.of(new IdempotencyLockEntity()));
+    }
+
+    @AfterEach
+    void clearTransactionContext() {
+
+        TransactionSynchronizationManager.clear();
+    }
+
     @InjectMocks
     private transient IdempotencyKeyAdapter idempotencyKeyAdapter;
 
@@ -52,7 +72,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnDuplicateWhenCompletedRequestWithSameFingerprintExists() {
 
-        givenInsertLosesRaceAgainst(existingEntity(IdempotencyKeyStatus.COMPLETED, FINGERPRINT, Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, FINGERPRINT, Instant.now()));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -63,7 +83,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnConflictWhenExistingRequestHasDifferentFingerprint() {
 
-        givenInsertLosesRaceAgainst(existingEntity(IdempotencyKeyStatus.COMPLETED, "different-fingerprint", Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, "different-fingerprint", Instant.now()));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -73,7 +93,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnConflictWhenRequestIsStillInProgressAndNotStale() {
 
-        givenInsertLosesRaceAgainst(existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, Instant.now()));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -87,29 +107,44 @@ class IdempotencyKeyAdapterTest {
                 IdempotencyKeyStatus.IN_PROGRESS,
                 FINGERPRINT,
                 Instant.now().minusMillis(STALE_AFTER_MS + 1000));
-        givenInsertLosesRaceAgainst(stale);
+        givenExistingKey(stale);
 
-        final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, "new-fingerprint");
+        final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
         assertThat(reservation.outcome()).isEqualTo(IdempotencyReservation.Outcome.RESERVED);
         final ArgumentCaptor<IdempotencyKeyEntity> captor = ArgumentCaptor.forClass(IdempotencyKeyEntity.class);
         verify(idempotencyKeyEntityRepository).save(captor.capture());
         assertThat(captor.getValue().getStatus()).isEqualTo(IdempotencyKeyStatus.IN_PROGRESS);
-        assertThat(captor.getValue().getFingerprint()).isEqualTo("new-fingerprint");
+        assertThat(captor.getValue().getFingerprint()).isEqualTo(FINGERPRINT);
         assertThat(captor.getValue().getOrderNumber()).isNull();
         assertThat(captor.getValue().getCompletedDate()).isNull();
     }
 
     @Test
-    void shouldReserveWhenRaceLostButWinnerRowCanNoLongerBeFound() {
+    void shouldRejectChangedContentEvenWhenReservationIsStale() {
 
-        doThrow(new DataIntegrityViolationException("duplicate key")).when(idempotencyKeyEntityRepository)
-                .saveAndFlush(any(IdempotencyKeyEntity.class));
-        when(idempotencyKeyEntityRepository.findByKey(KEY)).thenReturn(Optional.empty());
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.IN_PROGRESS, "legacy-or-changed", Instant.EPOCH));
+        assertThat(idempotencyKeyAdapter.reserve(KEY, FINGERPRINT).outcome())
+                .isEqualTo(IdempotencyReservation.Outcome.CONFLICT);
+        verify(idempotencyKeyEntityRepository, never()).save(any());
+    }
 
-        final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
+    @Test
+    void shouldFailClosedWithoutRequiredIsolationOrOnReadOnlyTransaction() {
 
-        assertThat(reservation.outcome()).isEqualTo(IdempotencyReservation.Outcome.RESERVED);
+        TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(null);
+        assertThrows(IllegalStateException.class, () -> idempotencyKeyAdapter.reserve(KEY, FINGERPRINT));
+        TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED);
+        TransactionSynchronizationManager.setCurrentTransactionReadOnly(true);
+        assertThrows(IllegalStateException.class, () -> idempotencyKeyAdapter.reserve(KEY, FINGERPRINT));
+    }
+
+    @Test
+    void shouldFailClosedWhenLockStripeIsMissing() {
+
+        when(lockRepository.findById(any())).thenReturn(Optional.empty());
+        assertThrows(IllegalStateException.class, () -> idempotencyKeyAdapter.reserve(KEY, FINGERPRINT));
+        verify(idempotencyKeyEntityRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -136,10 +171,8 @@ class IdempotencyKeyAdapterTest {
         verify(idempotencyKeyEntityRepository, never()).save(any(IdempotencyKeyEntity.class));
     }
 
-    private void givenInsertLosesRaceAgainst(final IdempotencyKeyEntity winner) {
+    private void givenExistingKey(final IdempotencyKeyEntity winner) {
 
-        doThrow(new DataIntegrityViolationException("duplicate key")).when(idempotencyKeyEntityRepository)
-                .saveAndFlush(any(IdempotencyKeyEntity.class));
         when(idempotencyKeyEntityRepository.findByKey(KEY)).thenReturn(Optional.of(winner));
     }
 
