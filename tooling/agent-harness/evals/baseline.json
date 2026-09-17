@@ -7,7 +7,7 @@
       "id": "E001-self-validate",
       "command": [
         "python3",
-        "etc/agent-harness/harness.py",
+        "tooling/agent-harness/harness.py",
         "validate",
         "docs/specs/SDD-001"
       ],
@@ -20,7 +20,7 @@
       "id": "E002-wayfinder-map",
       "command": [
         "python3",
-        "etc/agent-harness/wayfinder.py",
+        "tooling/agent-harness/wayfinder.py",
         "validate",
         "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
       ],
@@ -33,7 +33,7 @@
       "id": "E003-wayfinder-reconciliation-blocks-fog",
       "command": [
         "python3",
-        "etc/agent-harness/wayfinder.py",
+        "tooling/agent-harness/wayfinder.py",
         "reconcile",
         "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
       ],
@@ -46,7 +46,7 @@
       "id": "E004-context-trust",
       "command": [
         "python3",
-        "etc/agent-harness/trust.py",
+        "tooling/agent-harness/trust.py",
         "classify",
         ".agent-state/control-plane/github-GH-1.json"
       ],
@@ -59,7 +59,7 @@
       "id": "E005-self-orchestration-plan",
       "command": [
         "python3",
-        "etc/agent-harness/orchestrate.py",
+        "tooling/agent-harness/orchestrate.py",
         "docs/specs/SDD-001",
         "--plan"
       ],
@@ -69,7 +69,7 @@
       "id": "E006-showcase-resilience-spec",
       "command": [
         "python3",
-        "etc/agent-harness/harness.py",
+        "tooling/agent-harness/harness.py",
         "validate",
         "docs/specs/DEMO-003"
       ],

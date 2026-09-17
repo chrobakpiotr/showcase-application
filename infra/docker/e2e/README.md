@@ -20,4 +20,4 @@ project down with volumes:
 COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f infra/docker/e2e/docker-compose.yml down -v --remove-orphans
 ```
 
-`etc/scripts/verify-before-push.sh --e2e` uses this topology automatically.
+`tooling/scripts/verify-before-push.sh --e2e` uses this topology automatically.

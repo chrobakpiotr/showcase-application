@@ -32,34 +32,34 @@ jobs:
       - name: Compile protocol modules
         run: >-
           python3 -m py_compile
-          etc/agent-harness/harness.py
-          etc/agent-harness/orchestrate.py
-          etc/agent-harness/runner.py
-          etc/agent-harness/verification_sandbox.py
-          etc/agent-harness/telemetry.py
-          etc/agent-harness/control_plane.py
-          etc/agent-harness/design.py
-          etc/agent-harness/wayfinder.py
-          etc/agent-harness/trust.py
-          etc/agent-harness/verification_contract.py
-          etc/agent-harness/eval.py
+          tooling/agent-harness/harness.py
+          tooling/agent-harness/orchestrate.py
+          tooling/agent-harness/runner.py
+          tooling/agent-harness/verification_sandbox.py
+          tooling/agent-harness/telemetry.py
+          tooling/agent-harness/control_plane.py
+          tooling/agent-harness/design.py
+          tooling/agent-harness/wayfinder.py
+          tooling/agent-harness/trust.py
+          tooling/agent-harness/verification_contract.py
+          tooling/agent-harness/eval.py
 
       - name: Validate installed protocol profiles and local toolchain
-        run: python3 etc/agent-harness/harness.py doctor
+        run: python3 tooling/agent-harness/harness.py doctor
 
       - name: Validate all committed feature specifications
-        run: python3 etc/agent-harness/harness.py validate-all docs/specs
+        run: python3 tooling/agent-harness/harness.py validate-all docs/specs
 
       - name: Validate independent self verification contract
-        run: python3 etc/agent-harness/verification_contract.py validate docs/specs/SDD-001
+        run: python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-001
 
       - name: Validate self-hosting orchestration plan
-        run: python3 etc/agent-harness/orchestrate.py docs/specs/SDD-001 --plan
+        run: python3 tooling/agent-harness/orchestrate.py docs/specs/SDD-001 --plan
 
       - name: Smoke-test trust and telemetry CLIs
         run: |
-          python3 etc/agent-harness/trust.py classify .agent-state/control-plane/example.md
-          python3 etc/agent-harness/telemetry.py --feature SDD-001
+          python3 tooling/agent-harness/trust.py classify .agent-state/control-plane/example.md
+          python3 tooling/agent-harness/telemetry.py --feature SDD-001
 
   harness-tests:
     name: Agentic SDD harness tests
@@ -76,7 +76,7 @@ jobs:
           python-version: '3.13'
 
       - name: Run Agentic SDD unit and regression tests
-        run: python3 -m unittest discover -s etc/agent-harness/tests -v
+        run: python3 -m unittest discover -s tooling/agent-harness/tests -v
 
   examples-validation:
     name: Agentic SDD examples validation
@@ -94,19 +94,19 @@ jobs:
 
       - name: Validate maintained runnable example
         run: |
-          python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan
-          python3 etc/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001
-          python3 etc/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan
+          python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan
+          python3 tooling/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001
+          python3 tooling/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan
 
       - name: Validate design-only prototype bake-off example
-        run: python3 etc/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan
+        run: python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan
 
       - name: Validate Wayfinder-style discovery example
         run: |
-          python3 etc/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 etc/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 etc/agent-harness/wayfinder.py frontier docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 etc/agent-harness/wayfinder.py reconcile docs/agentic-sdd/examples/SHIP-PLATFORM-001 || test $? -eq 2
+          python3 tooling/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/wayfinder.py frontier docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/wayfinder.py reconcile docs/agentic-sdd/examples/SHIP-PLATFORM-001 || test $? -eq 2
 
   behavioral-evaluations:
     name: Agentic SDD behavioral evaluations
@@ -124,9 +124,9 @@ jobs:
 
       - name: Run safe behavioral harness eval baselines
         run: |
-          python3 etc/agent-harness/eval.py run --suite baseline --repeat 1
-          python3 etc/agent-harness/eval.py run --suite adversarial --repeat 1
-          python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1
+          python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1
+          python3 tooling/agent-harness/eval.py run --suite adversarial --repeat 1
+          python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 
       - name: Publish Agentic SDD evaluation reports
         if: always()

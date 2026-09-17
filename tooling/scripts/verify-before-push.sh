@@ -12,7 +12,7 @@ case "${1:-}" in
   --e2e) MODE="e2e" ;;
   -h|--help)
     cat <<'USAGE'
-Usage: etc/scripts/verify-before-push.sh [--backend|--full|--e2e]
+Usage: tooling/scripts/verify-before-push.sh [--backend|--full|--e2e]
 
   --backend  Documentation links/punctuation, persistence XML formatting and the exact backend CI build. Default.
   --full     Backend checks plus Angular install, lint, unit tests and production build.
@@ -63,10 +63,10 @@ PY
 
 run_documentation_gate() {
   echo "==> Running Markdown link checker tests"
-  python3 -m unittest discover -s etc/scripts/tests -p 'test_check_markdown_links.py' -v
+  python3 -m unittest discover -s tooling/scripts/tests -p 'test_check_markdown_links.py' -v
 
   echo "==> Checking repository-local Markdown links"
-  python3 etc/scripts/check_markdown_links.py
+  python3 tooling/scripts/check_markdown_links.py
 }
 
 run_backend_ci_gate() {

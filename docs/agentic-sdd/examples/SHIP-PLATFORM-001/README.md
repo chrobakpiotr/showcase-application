@@ -73,9 +73,9 @@ The preview also runs terminal reconciliation as an **expected failure**. It sho
 You can inspect the context trust policy without creating anything:
 
 ```bash
-python3 etc/agent-harness/trust.py policy
-python3 etc/agent-harness/trust.py classify .agent-state/control-plane/SHIP-PLATFORM-001-intent.md
-python3 etc/agent-harness/trust.py classify docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md
+python3 tooling/agent-harness/trust.py policy
+python3 tooling/agent-harness/trust.py classify .agent-state/control-plane/SHIP-PLATFORM-001-intent.md
+python3 tooling/agent-harness/trust.py classify docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md
 ```
 
 The tracker snapshot path must classify as `untrusted`; the ADR as `trusted`.
@@ -85,15 +85,15 @@ The tracker snapshot path must classify as `untrusted`; the ADR as `trusted`.
 These write only ignored eval runtime results under `.agent-runs/evals/`; they do not call a model unless a suite explicitly marks a live case and you pass `--include-live`.
 
 ```bash
-python3 etc/agent-harness/eval.py list
-python3 etc/agent-harness/eval.py run --suite baseline --repeat 1
-python3 etc/agent-harness/eval.py run --suite shipping-preflight --repeat 1
+python3 tooling/agent-harness/eval.py list
+python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1
+python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 ```
 
 Keep the emitted `result.json` paths if you later want to compare harness revisions:
 
 ```bash
-python3 etc/agent-harness/eval.py compare \
+python3 tooling/agent-harness/eval.py compare \
   .agent-runs/evals/<suite>/<old-run>/result.json \
   .agent-runs/evals/<suite>/<new-run>/result.json
 ```
@@ -121,8 +121,8 @@ The script refuses to overwrite an existing map.
 Inspect it:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
-python3 etc/agent-harness/wayfinder.py frontier docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/wayfinder.py frontier docs/wayfinder/SHIP-PLATFORM-001
 ```
 
 ## 2. Resolve the highest-leverage decision
@@ -130,7 +130,7 @@ python3 etc/agent-harness/wayfinder.py frontier docs/wayfinder/SHIP-PLATFORM-001
 Codex:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py resolve \
+python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-001 \
   --provider codex --reasoning high
 ```
@@ -138,7 +138,7 @@ python3 etc/agent-harness/wayfinder.py resolve \
 Claude Code:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py resolve \
+python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-001 \
   --provider claude
 ```
@@ -156,7 +156,7 @@ A successful result may:
 `D-009` exists specifically to prove that **research is not automatically a decision**:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py resolve \
+python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-009 \
   --provider codex --reasoning high
 ```
@@ -166,7 +166,7 @@ A valid research result may return `decision: null` while adding FACT/EVIDENCE e
 ## 4. Let Wayfinder work progressively
 
 ```bash
-python3 etc/agent-harness/wayfinder.py run \
+python3 tooling/agent-harness/wayfinder.py run \
   docs/wayfinder/SHIP-PLATFORM-001 \
   --provider codex \
   --reasoning high \
@@ -182,7 +182,7 @@ Do **not** treat `needs-human` as failure. It means the model reached a contract
 Example only - use this if that is actually the decision you want:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py manual-resolve \
+python3 tooling/agent-harness/wayfinder.py manual-resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-006 \
   --decision "Customer tracking requires authenticated order ownership; operator APIs retain SHIPMENT_READ." \
   --rationale "Preserves the operator boundary while avoiding tracking-number-only data access."
@@ -197,7 +197,7 @@ Read `docs/wayfinder/SHIP-PLATFORM-001/wayfinder.json` and the per-decision reco
 If later evidence invalidates an earlier active ledger entry, do **not** edit/delete history manually. Supersede it:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py supersede \
+python3 tooling/agent-harness/wayfinder.py supersede \
   docs/wayfinder/SHIP-PLATFORM-001 K-004 \
   --statement "<new accepted decision/fact>" \
   --reason "<evidence explaining why K-004 is no longer current>"
@@ -210,13 +210,13 @@ The old entry remains `superseded` and points to the replacement.
 At any point:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
 ```
 
 Before convergence it should print blockers. A fog item that is intentionally outside this feature can be disposed explicitly rather than silently ignored:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py fog-disposition \
+python3 tooling/agent-harness/wayfinder.py fog-disposition \
   docs/wayfinder/SHIP-PLATFORM-001 F-007 \
   --status deferred \
   --reason "Deferred only if a human accepts a separate migration follow-up."
@@ -236,10 +236,10 @@ AND no active blocking assumption remains
 Then:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
 # CLEARED yes
 
-python3 etc/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
 # RECONCILIATION PASS
 ```
 
@@ -252,7 +252,7 @@ python3 etc/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-00
 Only after `CLEARED yes`:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py to-spec \
+python3 tooling/agent-harness/wayfinder.py to-spec \
   docs/wayfinder/SHIP-PLATFORM-001 \
   docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
@@ -277,9 +277,9 @@ The handoff preserves active Decision Ledger knowledge and terminal fog disposit
 ## 9. Run the normal post-discovery design gate
 
 ```bash
-python3 etc/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 --plan
+python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 --plan
 
-python3 etc/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 ```
 
@@ -305,7 +305,7 @@ This is an independent verification gate. The spec is not allowed to be the only
 After a fresh design PASS:
 
 ```bash
-python3 etc/agent-harness/verification_contract.py generate \
+python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 \
   --provider claude
 ```
@@ -313,7 +313,7 @@ python3 etc/agent-harness/verification_contract.py generate \
 or:
 
 ```bash
-python3 etc/agent-harness/verification_contract.py generate \
+python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 ```
@@ -321,8 +321,8 @@ python3 etc/agent-harness/verification_contract.py generate \
 Then inspect and validate:
 
 ```bash
-python3 etc/agent-harness/verification_contract.py show docs/specs/SHIP-PLATFORM-001
-python3 etc/agent-harness/verification_contract.py validate docs/specs/SHIP-PLATFORM-001
+python3 tooling/agent-harness/verification_contract.py show docs/specs/SHIP-PLATFORM-001
+python3 tooling/agent-harness/verification_contract.py validate docs/specs/SHIP-PLATFORM-001
 ```
 
 A strong contract should contain at least one `origin=independent` criterion derived from accepted ADRs, architecture/security invariants or existing behavior - not merely paraphrase `AC-*`.
@@ -349,7 +349,7 @@ Editing a bound spec/plan/constitution/design gate later makes this contract sta
 Only with fresh design + verification contract:
 
 ```bash
-python3 etc/agent-harness/wayfinder.py to-tasks \
+python3 tooling/agent-harness/wayfinder.py to-tasks \
   docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 ```
@@ -374,8 +374,8 @@ and the evaluator must cover **every `AC-*` plus every `VC-*`**.
 Validate before spending implementation tokens:
 
 ```bash
-python3 etc/agent-harness/harness.py validate docs/specs/SHIP-PLATFORM-001
-python3 etc/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
+python3 tooling/agent-harness/harness.py validate docs/specs/SHIP-PLATFORM-001
+python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
 ```
 
 Inspect `tasks.json`. Good task decomposition should isolate independent write surfaces and avoid one giant builder.
@@ -405,7 +405,7 @@ The harness still reruns declared verification independently. TDD evidence is pr
 ## 13. Recommended mixed-provider run
 
 ```bash
-python3 etc/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude \
@@ -418,8 +418,8 @@ One-provider mode also works. Cross-provider diversity is useful but not a corre
 Observe:
 
 ```bash
-python3 etc/agent-harness/harness.py status docs/specs/SHIP-PLATFORM-001
-python3 etc/agent-harness/telemetry.py --feature SHIP-PLATFORM-001
+python3 tooling/agent-harness/harness.py status docs/specs/SHIP-PLATFORM-001
+python3 tooling/agent-harness/telemetry.py --feature SHIP-PLATFORM-001
 git worktree list
 ```
 
@@ -430,13 +430,13 @@ The primary checkout should not be where builder implementation is performed. Th
 If a builder/reviewer/evaluator returns `needs-human`, the run stops with that task in `escalated` state. Do not reset the whole feature and do not mark the task completed by hand. Inspect the reason:
 
 ```bash
-python3 etc/agent-harness/harness.py status docs/specs/SHIP-PLATFORM-001 --json
+python3 tooling/agent-harness/harness.py status docs/specs/SHIP-PLATFORM-001 --json
 ```
 
 If the answer fits **inside the already accepted spec/plan/AC/VC/allowed-path contract**, record it explicitly:
 
 ```bash
-python3 etc/agent-harness/harness.py human-resolve \
+python3 tooling/agent-harness/harness.py human-resolve \
   docs/specs/SHIP-PLATFORM-001 T-00X \
   --decision "Use the canonical internal shipment state as source of truth; carrier payloads are observations only." \
   --by "$USER"
@@ -445,7 +445,7 @@ python3 etc/agent-harness/harness.py human-resolve \
 Then rerun orchestration with the same provider choices. Completed sibling tasks stay completed; only the newly retryable task and its downstream work continue:
 
 ```bash
-python3 etc/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
   --provider codex \
   --review-provider claude \
   --evaluator-provider claude \
@@ -476,7 +476,7 @@ If it came from `.agent-state/control-plane/...`, it is `untrusted`. It may be e
 Check classifier behavior:
 
 ```bash
-python3 etc/agent-harness/trust.py classify .agent-state/control-plane/SHIP-PLATFORM-001-intent.md
+python3 tooling/agent-harness/trust.py classify .agent-state/control-plane/SHIP-PLATFORM-001-intent.md
 ```
 
 Task-packet protocol v4 recomputes trust classification; a tampered packet is rejected by runner validation.
@@ -490,7 +490,7 @@ Task-packet protocol v4 recomputes trust classification; a tampered packet is re
 After `verification-contract.json` and `tasks.json` exist:
 
 ```bash
-python3 etc/agent-harness/eval.py run \
+python3 tooling/agent-harness/eval.py run \
   --suite shipping-post-handoff \
   --target docs/specs/SHIP-PLATFORM-001 \
   --repeat 1
@@ -499,7 +499,7 @@ python3 etc/agent-harness/eval.py run \
 This checks the protocol state without changing the application. For model-sensitive experiments, run multiple repetitions and keep environment/provider provenance:
 
 ```bash
-python3 etc/agent-harness/eval.py run \
+python3 tooling/agent-harness/eval.py run \
   --suite shipping-post-handoff \
   --target docs/specs/SHIP-PLATFORM-001 \
   --provider codex \

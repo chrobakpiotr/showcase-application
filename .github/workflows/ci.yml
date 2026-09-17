@@ -30,10 +30,10 @@ jobs:
           python-version: '3.13'
 
       - name: Test Markdown link checker
-        run: python3 -m unittest discover -s etc/scripts/tests -p 'test_check_markdown_links.py' -v
+        run: python3 -m unittest discover -s tooling/scripts/tests -p 'test_check_markdown_links.py' -v
 
       - name: Check README and docs links
-        run: python3 etc/scripts/check_markdown_links.py
+        run: python3 tooling/scripts/check_markdown_links.py
 
   backend:
     name: Backend build, quality gates & tests

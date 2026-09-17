@@ -1,6 +1,6 @@
 # Agent runner bindings
 
-The orchestration protocol is deliberately provider-neutral. `etc/agent-harness/runner.py` binds one immutable task packet to one isolated worktree and one coding-agent CLI. Runtime logs/results go to ignored `.agent-runs/`. The **agent process** never commits or pushes; after successful completion the outer harness may create a local-only checkpoint commit so dependency DAGs can be composed safely.
+The orchestration protocol is deliberately provider-neutral. `tooling/agent-harness/runner.py` binds one immutable task packet to one isolated worktree and one coding-agent CLI. Runtime logs/results go to ignored `.agent-runs/`. The **agent process** never commits or pushes; after successful completion the outer harness may create a local-only checkpoint commit so dependency DAGs can be composed safely.
 
 ## Codex
 
@@ -9,7 +9,7 @@ Current non-interactive Codex uses `codex exec`. The runner passes a workspace-w
 Example after creating/claiming a task:
 
 ```bash
-python3 etc/agent-harness/runner.py \
+python3 tooling/agent-harness/runner.py \
   docs/specs/SHOP-001/packets/T-002.json \
   --provider codex \
   --worktree ../showcase-application-agent-worktrees/SHOP-001/T-002 \
@@ -42,7 +42,7 @@ A different provider for the evaluator is optional. **Fresh context and independ
 The runner records structured provenance for every invocation and independently reruns task `verification` commands after a builder reports success. Verification can be required to run inside a strong local OS sandbox:
 
 ```bash
-python3 etc/agent-harness/runner.py <packet.json> \
+python3 tooling/agent-harness/runner.py <packet.json> \
   --provider codex \
   --worktree <task-worktree> \
   --verification-sandbox required
@@ -57,7 +57,7 @@ During orchestration, task leases are heartbeated by the outer process. If that 
 
 ## Design-loop runners
 
-`etc/agent-harness/design.py` reuses the same bounded local Codex/Claude CLI command builders but supplies a dedicated structured output schema. Spec/architecture grills and prototype evaluation are read-only; only `prototype-agent` receives a disposable workspace-write scratch worktree.
+`tooling/agent-harness/design.py` reuses the same bounded local Codex/Claude CLI command builders but supplies a dedicated structured output schema. Spec/architecture grills and prototype evaluation are read-only; only `prototype-agent` receives a disposable workspace-write scratch worktree.
 
 The design loop never commits or pushes prototype code and never creates a production dependency checkpoint from it. Candidate patches/logs stay under ignored `.agent-runs/`; only structured findings/evaluations may be copied into durable feature `design/` artifacts.
 

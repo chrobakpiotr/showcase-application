@@ -530,7 +530,7 @@ RULES
 5. `ledger_entries` are durable typed knowledge: fact | decision | assumption | constraint | evidence. Use `supersedes` to explicitly invalidate older K-* entries. Set blocking=true only for an assumption that must be resolved before map convergence. `spec_inputs` are concise durable facts/constraints that a later to-spec synthesis must preserve.
 6. For type=prototype you may modify only this disposable worktree to gather evidence; code is throwaway and must not be proposed for direct promotion.
 7. Do not commit, push, merge, rebase, reset HEAD, mutate remotes, open PRs, deploy or mutate trackers.
-8. Return ONLY one JSON object conforming to etc/agent-harness/schemas/wayfinder-result.schema.json.
+8. Return ONLY one JSON object conforming to tooling/agent-harness/schemas/wayfinder-result.schema.json.
 """
 
 
@@ -738,7 +738,7 @@ REMAINING FOG
 
 Convert only fog that is now precise enough into `new_decisions`. Do not invent implementation tasks. If the remaining fog
 cannot yet be turned into a precise decision question, return needs-human and explain the minimum human input required.
-Use decision=null. Return ONLY etc/agent-harness/schemas/wayfinder-result.schema.json.
+Use decision=null. Return ONLY tooling/agent-harness/schemas/wayfinder-result.schema.json.
 """
 
 
@@ -796,7 +796,7 @@ Detailed decision evidence is available in `docs/wayfinder/{doc['epic']}/decisio
 Produce a complete `spec.md` (WHAT/WHY/contracts/ACs/NFRs/out-of-scope) and `plan.md` (HOW/architecture/data/consistency/failure/
 security/observability/migration/rollback) using this repository's vocabulary and current ADRs. Do not reopen settled decisions.
 `design_config` must be a valid design.json object; medium/high-risk work should normally require preflight. Do not create tasks.
-Return ONLY etc/agent-harness/schemas/wayfinder-handoff.schema.json.
+Return ONLY tooling/agent-harness/schemas/wayfinder-handoff.schema.json.
 """
 
 
@@ -819,7 +819,7 @@ VERIFICATION CONTRACT:\n{(feature_dir / 'verification-contract.json').read_text(
 Create tracer-bullet implementation tasks with top-level test_policy=risk-driven: each builder should be independently reviewable, fit one context window, declare
 precise allowed_paths, test_mode and test_seam, explicit dependencies, relevant risk_tags, acceptance_criteria ids and the smallest deterministic
 verification commands. Parallelize only truly independent write surfaces. Include one independent evaluator task covering EVERY
-AC-* and VC-* and one final integration task depending on evaluator. Return ONLY etc/agent-harness/schemas/wayfinder-tasks-result.schema.json.
+AC-* and VC-* and one final integration task depending on evaluator. Return ONLY tooling/agent-harness/schemas/wayfinder-tasks-result.schema.json.
 """
 
 

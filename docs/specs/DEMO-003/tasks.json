@@ -86,7 +86,7 @@
         "apps/ecommerce/frontend/e2e/**",
         "infra/docker/e2e/**",
         ".github/workflows/ci.yml",
-        "etc/scripts/verify-before-push.sh",
+        "tooling/scripts/verify-before-push.sh",
         "README.md"
       ],
       "risk_tags": [
@@ -115,7 +115,7 @@
         "docs/specs/DEMO-003/**",
         "docs/improvement-roadmap.md",
         "docs/agentic-sdd/evals.md",
-        "etc/agent-harness/evals/**",
+        "tooling/agent-harness/evals/**",
         ".github/workflows/agentic-sdd.yml"
       ],
       "risk_tags": [
@@ -126,8 +126,8 @@
         "AC-006"
       ],
       "verification": [
-        "python3 etc/agent-harness/harness.py validate docs/specs/DEMO-003",
-        "python3 etc/agent-harness/eval.py run --suite adversarial --repeat 1"
+        "python3 tooling/agent-harness/harness.py validate docs/specs/DEMO-003",
+        "python3 tooling/agent-harness/eval.py run --suite adversarial --repeat 1"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Checked-in deterministic eval commands exercise regression suites and feature validation."
@@ -162,7 +162,7 @@
         "AC-006"
       ],
       "verification": [
-        "python3 etc/agent-harness/harness.py validate docs/specs/DEMO-003"
+        "python3 tooling/agent-harness/harness.py validate docs/specs/DEMO-003"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh deterministic protocol validation plus separately executed frontend/E2E evidence."

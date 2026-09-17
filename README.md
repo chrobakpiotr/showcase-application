@@ -570,16 +570,16 @@ failures), without touching any application code.
 
 ## Load testing
 
-A [k6](https://k6.io/) script under [`etc/load-testing/order-api.js`](etc/load-testing/order-api.js) exercises the
+A [k6](https://k6.io/) script under [`tooling/load-testing/order-api.js`](tooling/load-testing/order-api.js) exercises the
 secured order API (`POST /api/order`, `GET /api/order/{orderNumber}`) end-to-end, including fetching a real JWT
 from Keycloak for each virtual user session:
 
 ```bash
 # Main stack must be up first (docker compose up -d --build, or ./gradlew bootRun + infra/docker/*)
-k6 run etc/load-testing/order-api.js
+k6 run tooling/load-testing/order-api.js
 
 # Against different hosts/ports/credentials:
-k6 run -e BASE_URL=http://localhost:9080 -e KEYCLOAK_URL=http://localhost:8081 etc/load-testing/order-api.js
+k6 run -e BASE_URL=http://localhost:9080 -e KEYCLOAK_URL=http://localhost:8081 tooling/load-testing/order-api.js
 ```
 
 The default scenario ramps from 0 to 10 virtual users over 30s, holds for 2 minutes, then ramps back down, with
@@ -719,14 +719,14 @@ Mutation testing now complements the existing JaCoCo line coverage checks. Line 
 when tests only execute code without asserting behavior strongly enough; PIT mutates the production code and verifies
 that tests actually fail, which makes the signal much stronger for domain business logic.
 
-PIT is configured for the `domain` module through `etc/pitest/pitest.gradle`. Run it explicitly with:
+PIT is configured for the `domain` module through `tooling/quality/pitest/pitest.gradle`. Run it explicitly with:
 
 ```bash
 ./gradlew :domain:pitest
 ```
 
 The report is generated under `modules/domain/build/reports/pitest/`, and the task fails below a 90% mutation-kill
-threshold (`mutationThreshold` in `etc/pitest/pitest.gradle`) - a small safety margin below the 100% mutation
+threshold (`mutationThreshold` in `tooling/quality/pitest/pitest.gradle`) - a small safety margin below the 100% mutation
 score the suite currently achieves, so a single marginal future mutant doesn't immediately fail the task before
 it can be triaged.
 
@@ -806,7 +806,7 @@ dir):
 9. [Gradle Versions Plugin](https://github.com/ben-manes/gradle-versions-plugin) - this plugin provides a
     task to determine which dependencies have updates. Additionally, the plugin checks for updates to Gradle itself.
 10. [Pitest](https://pitest.org/) - mutation testing for the
-    `domain` module, configured in `etc/pitest/pitest.gradle`. Not part of the default build/check lifecycle; run
+    `domain` module, configured in `tooling/quality/pitest/pitest.gradle`. Not part of the default build/check lifecycle; run
     explicitly with `./gradlew :domain:pitest` (see [Testing depth](#testing-depth)).
 11. [CycloneDX Gradle plugin](https://github.com/CycloneDX/cyclonedx-gradle-plugin) - generates a
     CycloneDX Software Bill of Materials (SBOM) from the resolved dependency graph of every module. Not part of the

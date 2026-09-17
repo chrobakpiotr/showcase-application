@@ -3,7 +3,7 @@ plugins {
 }
 
 apply plugin: 'com.github.node-gradle.node'
-apply from: rootProject.file('etc/spotless/spotless-prettier.gradle')
+apply from: rootProject.file('tooling/quality/spotless/spotless-prettier.gradle')
 node {
   download = true
   version = "24.20.0"

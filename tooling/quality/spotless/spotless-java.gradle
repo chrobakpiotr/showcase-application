@@ -7,8 +7,8 @@ spotless {
     enforceCheck false
 
     java {
-        importOrderFile rootProject.file("./etc/spotless/importorder")
-        eclipse().configFile rootProject.file("./etc/spotless/eclipse-formatter.xml")
+        importOrderFile rootProject.file("./tooling/quality/spotless/importorder")
+        eclipse().configFile rootProject.file("./tooling/quality/spotless/eclipse-formatter.xml")
         target 'src/main/**/*.java', 'src/test/**/*.java'
         endWithNewline()
     }

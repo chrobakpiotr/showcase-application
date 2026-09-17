@@ -19,7 +19,7 @@ Activate a local design study:
 Then run the live design loop with a local provider CLI:
 
 ```bash
-python3 etc/agent-harness/design.py docs/specs/INV-CONTENTION-001 \
+python3 tooling/agent-harness/design.py docs/specs/INV-CONTENTION-001 \
   --provider codex \
   --reasoning high
 ```

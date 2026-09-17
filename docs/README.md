@@ -12,6 +12,7 @@ Use this page as the shortest route into the repository documentation.
 | Architecture | [Architecture diagrams](architecture/README.md) | C4-style context/container/module views and saga dynamics |
 | Decisions | [ADR index](adr/README.md) | accepted architectural decisions and their original context |
 | Agentic development | [Agentic SDD](agentic-sdd/README.md) | specification, orchestration, evaluation and verification harness |
+| Tooling | [Tooling index](../tooling/README.md) | quality gates, scripts, load testing and Agentic SDD runtime tooling |
 | Infrastructure | [Infrastructure index](../infra/README.md) | Docker, Kubernetes/Helm and Terraform entrypoints |
 | Kubernetes | [Kubernetes / Helm](../infra/k8s/README.md) | local-cluster deployment and chart configuration |
 | AWS / Terraform | [Terraform / LocalStack](../infra/terraform/README.md) | local S3, SQS and Secrets Manager provisioning |

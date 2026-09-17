@@ -17,7 +17,7 @@ COPY gradlew build.gradle settings.gradle gradle.properties ./
 COPY gradle ./gradle
 RUN ./gradlew --version --no-daemon
 
-COPY etc ./etc
+COPY tooling/quality ./tooling/quality
 COPY modules ./modules
 COPY apps ./apps
 

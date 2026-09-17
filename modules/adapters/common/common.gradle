@@ -1,9 +1,9 @@
-apply from: rootProject.file('etc/spotbugs/spotbugs.gradle')
-apply from: rootProject.file('etc/checkstyle/checkstyle.gradle')
-apply from: rootProject.file('etc/jacoco/jacoco.gradle')
-apply from: rootProject.file('etc/spotless/spotless-java.gradle')
-apply from: rootProject.file('etc/dependencycheck/dependencycheck.gradle')
-apply from: rootProject.file('etc/pmd/pmd.gradle')
+apply from: rootProject.file('tooling/quality/spotbugs/spotbugs.gradle')
+apply from: rootProject.file('tooling/quality/checkstyle/checkstyle.gradle')
+apply from: rootProject.file('tooling/quality/jacoco/jacoco.gradle')
+apply from: rootProject.file('tooling/quality/spotless/spotless-java.gradle')
+apply from: rootProject.file('tooling/quality/dependencycheck/dependencycheck.gradle')
+apply from: rootProject.file('tooling/quality/pmd/pmd.gradle')
 dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 

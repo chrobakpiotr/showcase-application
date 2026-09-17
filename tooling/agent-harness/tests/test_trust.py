@@ -24,7 +24,7 @@ class TrustTest(unittest.TestCase):
 
     def test_secret_like_paths_are_secret(self):
         self.assertEqual('secret', trust.classify_path('modules/adapters/web/.env'))
-        self.assertEqual('secret', trust.classify_path('etc/my-credentials.json'))
+        self.assertEqual('secret', trust.classify_path('tooling/my-credentials.json'))
 
     def test_default_source_is_project(self):
         self.assertEqual('project', trust.classify_path('modules/domain/src/main/java/example/Foo.java'))

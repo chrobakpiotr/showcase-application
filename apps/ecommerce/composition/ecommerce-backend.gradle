@@ -1,4 +1,4 @@
-apply from: rootProject.file('etc/dependencycheck/dependencycheck.gradle')
+apply from: rootProject.file('tooling/quality/dependencycheck/dependencycheck.gradle')
 evaluationDependsOn(':adapter:ecommerce-frontend')
 
 sourceSets.main {

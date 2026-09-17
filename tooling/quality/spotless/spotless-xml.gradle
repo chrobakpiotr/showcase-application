@@ -6,6 +6,6 @@ spotless {
             include '**/*.xml'
             exclude '**/build/**'
         }
-        eclipseWtp('xml').configFile(rootProject.file("./etc/spotless/xml.prefs"))
+        eclipseWtp('xml').configFile(rootProject.file("./tooling/quality/spotless/xml.prefs"))
 	}
 }

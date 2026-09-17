@@ -155,7 +155,7 @@ class DesignTest(unittest.TestCase):
             env = os.environ.copy()
             env['PATH'] = str(fake_bin) + os.pathsep + env.get('PATH', '')
             proc = subprocess.run(
-                ['python3', 'etc/agent-harness/design.py', 'docs/specs/TST-DESIGN', '--provider', 'codex', '--run-id', 'test-run'],
+                ['python3', 'tooling/agent-harness/design.py', 'docs/specs/TST-DESIGN', '--provider', 'codex', '--run-id', 'test-run'],
                 cwd=root, env=env, text=True, capture_output=True, check=False,
             )
             self.assertEqual(0, proc.returncode, msg=proc.stdout + '\n' + proc.stderr)

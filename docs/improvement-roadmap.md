@@ -9,7 +9,7 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 ## Implemented in the hardening patches
 
 - README and `docs/**/*.md` now have an offline local-link/anchor checker with regression tests, wired into pre-push verification and a dedicated CI documentation gate.
-- Gradle quality scripts use consistent tool-specific folders under `etc/`, including `etc/jacoco/jacoco.gradle` and `etc/spotbugs/spotbugs.gradle`.
+- Gradle quality scripts use consistent tool-specific folders under `tooling/`, including `tooling/quality/jacoco/jacoco.gradle` and `tooling/quality/spotbugs/spotbugs.gradle`.
 - Frontend RFC 9457 rendering is centralized in a tested `ProblemDetailsAdapter`; order retry semantics still classify deterministic rejection separately from unknown outcomes.
 - Inventory blocks duplicate/overlapping requests, clears stale lookup results and
   dispatches only the selected stock operation.

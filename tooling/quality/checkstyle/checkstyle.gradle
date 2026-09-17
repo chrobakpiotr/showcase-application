@@ -2,7 +2,7 @@ apply plugin: 'checkstyle'
 
 checkstyle {
 	toolVersion = "14.1.0"
-	configDirectory = rootProject.file("./etc/checkstyle")
+	configDirectory = rootProject.file("./tooling/quality/checkstyle")
 	ignoreFailures = false
 	maxWarnings = 0
 }

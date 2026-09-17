@@ -5,5 +5,5 @@ pmd {
 	toolVersion = '7.27.0'
 	incrementalAnalysis = false
 	rulesMinimumPriority = 5
-	ruleSetFiles = files(rootProject.file("./etc/pmd/java-ruleset.xml"))
+	ruleSetFiles = files(rootProject.file("./tooling/quality/pmd/java-ruleset.xml"))
 }

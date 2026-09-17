@@ -214,7 +214,7 @@ Do not invent product behavior. Independent criteria should protect already-acce
 operability or existing behavior. Exemptions must remain status=proposed unless a pre-existing human approval is explicitly
 present in trusted repository artifacts.
 
-Return ONLY JSON conforming to etc/agent-harness/schemas/verification-contract.schema.json.
+Return ONLY JSON conforming to tooling/agent-harness/schemas/verification-contract.schema.json.
 """
 
 

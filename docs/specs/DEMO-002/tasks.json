@@ -114,7 +114,7 @@
         "AC-006"
       ],
       "verification": [
-        "python3 etc/agent-harness/harness.py validate docs/specs/DEMO-002"
+        "python3 tooling/agent-harness/harness.py validate docs/specs/DEMO-002"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh security and persistence reviews plus deterministic verification evidence."

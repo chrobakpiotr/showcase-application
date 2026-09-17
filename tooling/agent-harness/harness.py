@@ -273,7 +273,7 @@ def design_gate_errors(feature_dir: pathlib.Path, spec: pathlib.Path, plan: path
         return errors
     gate_path = feature_dir / 'design' / 'gate.json'
     if not gate_path.exists():
-        errors.append('design preflight gate is required before orchestration; run etc/agent-harness/design.py')
+        errors.append('design preflight gate is required before orchestration; run tooling/agent-harness/design.py')
         return errors
     try:
         gate = json.loads(gate_path.read_text(encoding='utf-8'))
@@ -1343,7 +1343,7 @@ def bootstrap_path_allowed(path: str, feature_rel: pathlib.Path) -> bool:
     return (
         normalized in {'AGENTS.md', 'CLAUDE.md', '.gitignore', '.github/workflows/agentic-sdd.yml'}
         or normalized.startswith('.claude/agents/')
-        or normalized.startswith('etc/agent-harness/')
+        or normalized.startswith('tooling/agent-harness/')
         or normalized.startswith('docs/agentic-sdd/')
         or normalized.startswith('docs/specs/SDD-001/')
         or normalized.startswith(wayfinder_prefix)

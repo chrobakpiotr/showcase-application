@@ -4,12 +4,12 @@
 // docker compose up -d --build for the fully containerized stack).
 //
 // Run with:
-//   k6 run etc/load-testing/order-api.js
+//   k6 run tooling/load-testing/order-api.js
 //
 // Override defaults via environment variables, e.g. against the plain docker-compose stack
 // (app on 9080, Keycloak on 8081) vs. a different host/port:
 //   k6 run -e BASE_URL=http://localhost:9080 -e KEYCLOAK_URL=http://localhost:8081 \
-//       etc/load-testing/order-api.js
+//       tooling/load-testing/order-api.js
 //
 // Results (requests/sec, latency percentiles, error rate) print to stdout; pair this with the
 // Grafana dashboard (http://localhost:3000) to watch request rate/latency/circuit-breaker metrics
