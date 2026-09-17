@@ -4,7 +4,14 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestrator;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventStatus;
@@ -15,6 +22,7 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
@@ -50,12 +58,17 @@ import org.springframework.transaction.support.TransactionTemplate;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
- * PostgreSQL-backed R01 counterexample. The scheduled publisher is disabled so the test controls the exact sequence: place ->
- * cancel -> one manual poll.
+ * PostgreSQL-backed R01 acceptance tests for cancellation/placement-saga arbitration.
  */
 @SpringBootTest
 @ActiveProfiles("test-postgres")
@@ -110,27 +123,108 @@ class OrderCancellationSagaPostgresIntegrationTest {
     @Test
     void shouldNotCaptureOrFulfillWhenOrderWasCancelledBeforeFirstPoll() {
 
-        final String sku = "R01-" + UUID.randomUUID();
+        final String sku = "R01-A-" + UUID.randomUUID();
         manageStockInPort.receiveStock(sku, 1);
 
-        final String orderNumber = orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
-
-        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .extracting(event -> event.getOrderNumber())
-                .contains(orderNumber);
-        assertThat(manageOrderInPort.findOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        final String orderNumber = place(sku);
 
         assertThat(cancelOrderWorkflow.cancelOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.CANCELLED))
-                .extracting(event -> event.getOrderNumber())
-                .contains(orderNumber);
-        assertThat(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .extracting(event -> event.getOrderNumber())
-                .doesNotContain(orderNumber);
+        assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+        assertThat(statusContains(OutboxEventStatus.PENDING, orderNumber)).isFalse();
         assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);
 
         final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
-        final OrderPlacementSagaOrchestrator orchestrator = new OrderPlacementSagaOrchestrator(
+        newOrchestrator(fulfillment).publishPendingEvents();
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);
+        verifyNoInteractions(fulfillment);
+    }
+
+    @Test
+    void shouldNotRecaptureAfterFulfillmentRetryWasCancelledAndRefunded() {
+
+        final String sku = "R01-B-" + UUID.randomUUID();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        doThrow(new IllegalStateException("fulfillment unavailable")).when(fulfillment).sendMessage(any(Order.class));
+        final OrderPlacementSagaOrchestrator orchestrator = newOrchestrator(fulfillment);
+
+        orchestrator.publishPendingEvents();
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(statusContains(OutboxEventStatus.PENDING, orderNumber)).isTrue();
+
+        assertThat(cancelOrderWorkflow.cancelOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+
+        orchestrator.publishPendingEvents();
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(fulfillment, times(1)).sendMessage(any(Order.class));
+    }
+
+    @Test
+    void shouldLetPollWinnerFinishAndRejectConcurrentCancellation() throws Exception {
+
+        final String sku = "R01-RACE-" + UUID.randomUUID();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+
+        final CountDownLatch fulfillmentEntered = new CountDownLatch(1);
+        final CountDownLatch releaseFulfillment = new CountDownLatch(1);
+        final CountDownLatch cancellationStarted = new CountDownLatch(1);
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        doAnswer(invocation -> {
+            fulfillmentEntered.countDown();
+            if (!releaseFulfillment.await(10, TimeUnit.SECONDS)) {
+
+                throw new IllegalStateException("Timed out waiting to release fulfillment");
+            }
+            return null;
+        }).when(fulfillment).sendMessage(any(Order.class));
+
+        final OrderPlacementSagaOrchestrator orchestrator = newOrchestrator(fulfillment);
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
+            final Future<?> poll = executor.submit(orchestrator::publishPendingEvents);
+            assertThat(fulfillmentEntered.await(10, TimeUnit.SECONDS)).isTrue();
+
+            final Future<Order> cancellation = executor.submit(() -> {
+                cancellationStarted.countDown();
+                return cancelOrderWorkflow.cancelOrder(orderNumber);
+            });
+            assertThat(cancellationStarted.await(10, TimeUnit.SECONDS)).isTrue();
+
+            releaseFulfillment.countDown();
+            poll.get(10, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> cancellation.get(10, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(OrderNotCancellableException.class);
+        }
+
+        assertThat(statusContains(OutboxEventStatus.SENT, orderNumber)).isTrue();
+        assertThat(manageOrderInPort.findOrder(orderNumber).getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+    }
+
+    private String place(final String sku) {
+
+        return orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
+    }
+
+    private boolean statusContains(final OutboxEventStatus status, final String orderNumber) {
+
+        return outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(status)
+                .stream()
+                .anyMatch(event -> event.getOrderNumber().equals(orderNumber));
+    }
+
+    private OrderPlacementSagaOrchestrator newOrchestrator(final SendMessageInPort fulfillment) {
+
+        return new OrderPlacementSagaOrchestrator(
                 outboxEventEntityRepository,
                 manageOrderInPort,
                 fulfillment,
@@ -146,17 +240,12 @@ class OrderCancellationSagaPostgresIntegrationTest {
                 managePaymentInPort,
                 new TransactionTemplate(transactionManager),
                 new SagaMetrics(new SimpleMeterRegistry()));
-
-        orchestrator.publishPendingEvents();
-
-        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);
-        verifyNoInteractions(fulfillment);
     }
 
     private static OrderResource request(final String sku) {
 
         return new OrderResource(
-                "R01 cancel-before-first-poll",
+                "R01 cancellation arbitration",
                 new Date(),
                 new CustomerResource(
                         "R01 Buyer",

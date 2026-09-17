@@ -47,15 +47,20 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
 
     private CancellationClaim claim(final OutboxEventEntity event) {
 
-        return switch (event.getStatus()) {
-        case PENDING -> {
+        if (event.getStatus() == OutboxEventStatus.PENDING) {
+
             event.setStatus(OutboxEventStatus.CANCELLING);
             outboxEventEntityRepository.save(event);
-            yield CancellationClaim.ACQUIRED;
+            return CancellationClaim.ACQUIRED;
         }
-        case CANCELLING -> CancellationClaim.RESUME;
-        case CANCELLED, COMPENSATED -> CancellationClaim.ALREADY_TERMINAL;
-        case SENT -> CancellationClaim.TOO_LATE;
-        };
+        if (event.getStatus() == OutboxEventStatus.CANCELLING) {
+
+            return CancellationClaim.RESUME;
+        }
+        if (event.getStatus() == OutboxEventStatus.SENT) {
+
+            return CancellationClaim.TOO_LATE;
+        }
+        return CancellationClaim.ALREADY_TERMINAL;
     }
 }

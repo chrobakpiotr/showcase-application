@@ -36,3 +36,19 @@ The R01 implementation must follow ADR 0037:
    - simultaneous poll/cancel with barriers/latches and an asserted winner;
 7. keep crash-safe per-item stock recovery coordinated with R02 and general durable retry mechanics
    coordinated with R07 rather than hiding either behind unsafe repeated SKU release.
+
+## T-003 completion scope
+
+R01 is considered implementation-complete only when all of the following are green:
+
+- cancel before first poll leaves payment `PENDING` and fences fulfillment;
+- capture + retry-pending + cancel/refund + later poll leaves payment `REFUNDED`;
+- a deterministic latch-controlled poll/cancel race demonstrates the documented lock winner;
+- a failed first cancellation side effect leaves durable `CANCELLING` state and a later stateless retry completes `CANCELLED`;
+- `REFUNDED` is terminal for payment capture;
+- orchestration and persistence retain their 100% JaCoCo instruction gates;
+- Spotless, Checkstyle, focused PostgreSQL tests, feature validation, full `test`, and full `build --continue` pass.
+
+R02 remains responsible for reservation-scoped stock-release identity when a retry occurs after some,
+but not all, line-item releases. R07 remains responsible for a generalized durable per-side-effect
+notification/compensation retry ledger. R01 does not weaken either boundary.

@@ -4,7 +4,6 @@ import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.port.incoming.RequestOrderCancellationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.springframework.stereotype.Service;

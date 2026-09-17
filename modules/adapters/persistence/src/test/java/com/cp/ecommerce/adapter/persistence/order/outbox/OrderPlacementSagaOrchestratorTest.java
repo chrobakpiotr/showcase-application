@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
@@ -21,6 +22,8 @@ import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +44,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -115,6 +119,86 @@ class OrderPlacementSagaOrchestratorTest {
         lenient().when(classifyOrderRemarksInPort.classifyRemarks(any()))
                 .thenReturn(RemarksTriageResult.standard("No remarks to classify."));
         lenient().when(detectDuplicateOrderInPort.detectDuplicate(any())).thenReturn(DuplicateOrderCheckResult.none());
+        lenient().when(outboxEventEntityRepository.findByIdForUpdate(any())).thenAnswer(invocation -> {
+            final Long id = invocation.getArgument(0);
+            return outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
+                    .stream()
+                    .filter(event -> id.equals(event.getId()))
+                    .findFirst();
+        });
+        lenient().when(managePaymentInPort.capturePayment(any(), any(), any()))
+                .thenAnswer(
+                        invocation -> PaymentTransaction.builder()
+                                .orderNumber(invocation.getArgument(0))
+                                .status(PaymentStatus.CAPTURED)
+                                .build());
+    }
+
+    @Test
+    void shouldIgnoreCandidateThatIsNoLongerPendingUnderLock() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        final OutboxEventEntity locked = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.CANCELLING)
+                .createdDate(new Date())
+                .build();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(locked)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(manageOrderInPort, sendMessageInPort);
+    }
+
+    @Test
+    void shouldIgnoreCandidateThatDisappearedBeforeLock() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.empty()).when(outboxEventEntityRepository).findByIdForUpdate(1L);
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(manageOrderInPort, managePaymentInPort, sendMessageInPort);
+    }
+
+    @Test
+    void shouldStopPlacementWhenPaymentWasAlreadyRefunded() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder().orderNumber(order.getOrderNumber()).status(PaymentStatus.REFUNDED).build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(timerCountFor("payment-capture", OUTCOME_FAILURE)).isEqualTo(1);
     }
 
     @Test

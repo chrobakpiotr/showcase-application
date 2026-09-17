@@ -93,7 +93,12 @@
         "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaArbitrationAdapter.java",
         "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java",
         "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationSagaPostgresIntegrationTest.java",
-        "docs/specs/ORDER-SAGA-001/tasks.json"
+        "docs/specs/ORDER-SAGA-001/tasks.json",
+        "modules/application/orchestration/src/test/java/com/cp/ecommerce/application/order/OrderCancellationArbitratorTest.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaArbitrationAdapterTest.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationRecoveryPostgresIntegrationTest.java",
+        "docs/specs/ORDER-SAGA-001/plan.md"
       ],
       "risk_tags": [
         "concurrency",

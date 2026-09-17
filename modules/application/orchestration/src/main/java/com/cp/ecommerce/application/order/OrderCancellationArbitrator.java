@@ -50,14 +50,24 @@ class OrderCancellationArbitrator {
     private CancellationStart beginCancellationInTransaction(final String orderNumber) {
 
         final CancellationClaim claim = arbitrationOutPort.beginCancellation(orderNumber);
-        return switch (claim) {
-        case ACQUIRED -> newlyAcquiredCancellation(orderNumber);
-        case RESUME -> resumeCancellation(orderNumber);
-        case ALREADY_TERMINAL -> new CancellationStart(manageOrderInPort.findOrder(orderNumber), false);
-        case TOO_LATE -> throw new OrderNotCancellableException(
-                "Order '" + orderNumber + "' cannot be cancelled: placement saga is already SENT");
-        case NO_SAGA -> new CancellationStart(requestOrderCancellationInPort.requestCancellation(orderNumber), true);
-        };
+        if (claim == CancellationClaim.ACQUIRED) {
+
+            return newlyAcquiredCancellation(orderNumber);
+        }
+        if (claim == CancellationClaim.RESUME) {
+
+            return resumeCancellation(orderNumber);
+        }
+        if (claim == CancellationClaim.ALREADY_TERMINAL) {
+
+            return new CancellationStart(manageOrderInPort.findOrder(orderNumber), false);
+        }
+        if (claim == CancellationClaim.TOO_LATE) {
+
+            throw new OrderNotCancellableException(
+                    "Order '" + orderNumber + "' cannot be cancelled: placement saga is already SENT");
+        }
+        return new CancellationStart(requestOrderCancellationInPort.requestCancellation(orderNumber), true);
     }
 
     private CancellationStart newlyAcquiredCancellation(final String orderNumber) {
