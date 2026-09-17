@@ -272,9 +272,10 @@ serialized as `application/problem+json` with the standard `type`/`title`/`statu
   `urn:problem-type:business-rule-violation`); a `ResponseStatusException` raised without a dedicated handler
   (e.g. `404` from `GET /api/order/{orderNumber}`) falls back to a slug derived from its HTTP status
   (`urn:problem-type:not-found`), or `urn:problem-type:error` for a non-standard status code.
-- Every response also carries an `errorId` extension member (a random UUID), which is logged server-side
-  alongside the exception, so a failure reported by a client can be correlated to the exact log line that
-  explains it without leaking a stack trace or internal details in the response body itself.
+- Every response carries an `errorId` extension member (a random UUID), which is logged server-side. When the
+  request has an active Micrometer trace, the same response also carries its `traceId`; both identifiers are logged,
+  so a client-visible failure can be correlated first to the exact log event and then to the distributed trace
+  without leaking a stack trace or internal details in the response body itself.
 - Validation failures (`ConstraintViolationException`), domain/business rule violations
   (`DomainObjectValidationException`, `BusinessRuleException`), and anything unmapped (`RuntimeException`
   fallback, never leaking the original message) each get their own `type`/`title`/HTTP status - documented

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -31,6 +32,9 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.TraceContext;
+import io.micrometer.tracing.Tracer;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
@@ -38,6 +42,8 @@ import jakarta.validation.Validator;
 import jakarta.validation.groups.Default;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -54,7 +60,10 @@ class GlobalExceptionHandlerTest {
 
     private static final String EXCEPTION_MESSAGE = "message";
 
-    private final transient GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    @SuppressWarnings("unchecked")
+    private final transient ObjectProvider<Tracer> tracerProvider = mock(ObjectProvider.class);
+    private final transient Tracer tracer = mock(Tracer.class);
+    private final transient GlobalExceptionHandler handler = new GlobalExceptionHandler(tracerProvider);
 
     @Test
     void shouldHandleConstraintViolationException() {
@@ -266,6 +275,39 @@ class GlobalExceptionHandlerTest {
 
         assertThat(problemDetail.getProperties()).containsKey("errorId");
         assertThat(problemDetail.getProperties().get("errorId")).asString().isNotBlank();
+    }
+
+    @Test
+    void shouldAddCurrentTraceIdExtensionMember() {
+
+        final Span span = mock(Span.class);
+        final TraceContext traceContext = mock(TraceContext.class);
+        given(tracerProvider.getIfAvailable()).willReturn(tracer);
+        given(tracer.currentSpan()).willReturn(span);
+        given(span.context()).willReturn(traceContext);
+        given(traceContext.traceId()).willReturn("0123456789abcdef0123456789abcdef");
+
+        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException());
+
+        assertThat(problemDetail.getProperties()).containsEntry("traceId", "0123456789abcdef0123456789abcdef");
+    }
+
+    @Test
+    void shouldNotInventTraceIdWithoutCurrentSpan() {
+
+        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException());
+
+        assertThat(problemDetail.getProperties()).doesNotContainKey("traceId");
+    }
+
+    @Test
+    void shouldNotExposeTraceIdWhenTracerHasNoCurrentSpan() {
+
+        given(tracerProvider.getIfAvailable()).willReturn(tracer);
+
+        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException());
+
+        assertThat(problemDetail.getProperties()).doesNotContainKey("traceId");
     }
 
     private void assertProblem(

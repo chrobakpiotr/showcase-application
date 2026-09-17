@@ -26,7 +26,7 @@ describe('ProblemDetailsAdapter', () => {
     ).toBe(fallback);
   });
 
-  it('formats RFC 9457 title, detail and correlation id', () => {
+  it('formats RFC 9457 title, detail and correlation ids', () => {
     expect(
       adapter.toMessage(
         new HttpErrorResponse({
@@ -35,11 +35,44 @@ describe('ProblemDetailsAdapter', () => {
             title: '  Order conflict ',
             detail: ' Duplicate order ',
             errorId: ' err-123 ',
+            traceId: ' trace-456 ',
           },
         }),
         fallback
       )
-    ).toBe('Order conflict: Duplicate order (error id: err-123)');
+    ).toBe(
+      'Order conflict: Duplicate order (error id: err-123, trace id: trace-456)'
+    );
+  });
+
+  it('surfaces a trace id even when an error id is unavailable', () => {
+    expect(
+      adapter.toMessage(
+        new HttpErrorResponse({
+          status: 500,
+          error: {
+            title: 'Internal Server Error',
+            traceId: ' trace-only ',
+          },
+        }),
+        fallback
+      )
+    ).toBe('Internal Server Error (trace id: trace-only)');
+  });
+
+  it('preserves error-id-only responses for compatibility', () => {
+    expect(
+      adapter.toMessage(
+        new HttpErrorResponse({
+          status: 409,
+          error: {
+            detail: 'Conflict',
+            errorId: ' error-only ',
+          },
+        }),
+        fallback
+      )
+    ).toBe('Conflict (error id: error-only)');
   });
 
   it('supports title-only and detail-only problem responses', () => {

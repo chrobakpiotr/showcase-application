@@ -22,6 +22,7 @@ import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -33,6 +34,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +52,9 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
  * Spring serializes a returned {@link ProblemDetail} as {@code application/problem+json} with the standard
  * {@code type}/{@code title}/{@code status}/{@code detail} members, so clients get a machine-readable, self-describing error
  * shape instead of an ad-hoc one. An {@code errorId} extension member is added to every response and also written to the server
- * log, so a specific failure can be correlated between what the client saw and the corresponding log line.
+ * log. When an active Micrometer span exists, its {@code traceId} is exposed as a second extension member and logged alongside
+ * the error ID, linking the client-visible failure to the distributed trace without inventing a trace outside an observed
+ * request.
  */
 @RestControllerAdvice(annotations = Component.class)
 @Slf4j
@@ -59,6 +64,7 @@ public class GlobalExceptionHandler {
     public static final String RUNTIME_EXCEPTION_ERROR_MESSAGE = "Could not process your request";
 
     private static final String ERROR_ID_PROPERTY = "errorId";
+    private static final String TRACE_ID_PROPERTY = "traceId";
     private static final String PROBLEM_TYPE_PREFIX = "urn:problem-type:";
 
     private static final URI TYPE_CONSTRAINT_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "constraint-violation");
@@ -82,6 +88,13 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
+
+    private final ObjectProvider<Tracer> tracerProvider;
+
+    public GlobalExceptionHandler(final ObjectProvider<Tracer> tracerProvider) {
+
+        this.tracerProvider = tracerProvider;
+    }
 
     @ResponseStatus(BAD_REQUEST)
     @ExceptionHandler(ConstraintViolationException.class)
@@ -284,7 +297,13 @@ public class GlobalExceptionHandler {
             final String detail) {
 
         final String errorId = UUID.randomUUID().toString();
-        log.error("{} [{}]: {}", exception.getClass().getSimpleName(), errorId, exception.getMessage());
+        final String traceId = currentTraceId();
+        log.error(
+                "{} [errorId={}, traceId={}]: {}",
+                exception.getClass().getSimpleName(),
+                errorId,
+                traceId != null ? traceId : "none",
+                exception.getMessage());
 
         final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setType(type);
@@ -293,7 +312,22 @@ public class GlobalExceptionHandler {
             problemDetail.setTitle(title);
         }
         problemDetail.setProperty(ERROR_ID_PROPERTY, errorId);
+        if (traceId != null) {
+
+            problemDetail.setProperty(TRACE_ID_PROPERTY, traceId);
+        }
         return problemDetail;
+    }
+
+    private String currentTraceId() {
+
+        final Tracer tracer = tracerProvider.getIfAvailable();
+        if (tracer == null) {
+
+            return null;
+        }
+        final Span currentSpan = tracer.currentSpan();
+        return currentSpan != null ? currentSpan.context().traceId() : null;
     }
 
     private URI problemTypeFor(final HttpStatusCode status) {

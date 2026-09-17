@@ -181,9 +181,10 @@ sequenceDiagram
 Three behaviors apply across the order API without changing the topology shown above:
 
 - **Problem Details (RFC 9457)** - every error response (validation failure, business-rule
-  violation, idempotency-key conflict, not-found, ...) is a `application/problem+json` body with a
-  stable `type` URI and a correlatable `errorId`, handled centrally by `GlobalExceptionHandler` -
-  see [Error handling](../../README.md#error-handling).
+  violation, idempotency-key conflict, not-found, ...) is an `application/problem+json` body with a
+  stable `type` URI and a correlatable `errorId`; observed requests additionally expose the active
+  Micrometer `traceId`, all handled centrally by `GlobalExceptionHandler` - see
+  [Error handling](../../README.md#error-handling).
 - **Idempotency-Key** - `POST /api/order` accepts an optional client-generated key so a retried
   request (e.g. after a client-side timeout) safely replays the original result instead of placing
   a duplicate order, arbitrated by a database unique constraint rather than application-level

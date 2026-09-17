@@ -17,11 +17,18 @@ export class ProblemDetailsAdapter {
     const title = this.text(problem['title']);
     const detail = this.text(problem['detail']);
     const errorId = this.text(problem['errorId']);
+    const traceId = this.text(problem['traceId']);
 
     if (!title && !detail) return fallback;
 
     const message = title && detail ? `${title}: ${detail}` : title || detail;
-    return errorId ? `${message} (error id: ${errorId})` : message;
+    const correlationIds = [
+      errorId ? `error id: ${errorId}` : '',
+      traceId ? `trace id: ${traceId}` : '',
+    ].filter(Boolean);
+    return correlationIds.length
+      ? `${message} (${correlationIds.join(', ')})`
+      : message;
   }
 
   type(error: unknown): string | null {
