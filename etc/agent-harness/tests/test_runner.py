@@ -134,7 +134,7 @@ class RunnerTest(unittest.TestCase):
 
     def test_verification_rejects_content_mutation_when_changed_paths_are_unchanged(self):
         import subprocess
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as out_tmp:
             root = pathlib.Path(tmp)
             subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
             subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
@@ -149,13 +149,15 @@ class RunnerTest(unittest.TestCase):
                     "python3 -c \"from pathlib import Path; Path('a.txt').write_text('tampered\\\\n')\""
                 ]
             }
-            out = root / 'verification'
-            out.mkdir()
+            # Runtime verification evidence lives outside the task worktree in real runs.
+            out = pathlib.Path(out_tmp)
+            before_paths = runner.git_changed_paths(root)
             ok, results = runner.run_verification(packet, root, out, 30, sandbox_mode='off')
 
             self.assertFalse(ok)
             self.assertTrue(results[-1].get('worktree_mutated'))
-            self.assertEqual(['a.txt'], runner.git_changed_paths(root))
+            self.assertEqual(['a.txt'], before_paths)
+            self.assertEqual(before_paths, runner.git_changed_paths(root))
 
 
 

@@ -91,7 +91,7 @@
   "generated_at": "2026-09-10T00:00:00Z",
   "inputs": {
     "spec_sha256": "8bb1200962498f01520d86acde2011f584a97a851b1da0836a4b97eecd35a411",
-    "plan_sha256": "1f8fc43a42b320087fe077229275af7194f81cdc1c636bdf28c63a36707a2449",
+    "plan_sha256": "72d266d1b06e3af3aa32007a858cc944588d49c67e098d0210f7ad679d04671b",
     "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079"
   },
   "schema_version": 1,
