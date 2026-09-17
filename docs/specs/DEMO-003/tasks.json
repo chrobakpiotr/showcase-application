@@ -84,7 +84,7 @@
       ],
       "allowed_paths": [
         "apps/ecommerce/frontend/e2e/**",
-        "etc/docker/e2e/**",
+        "infra/docker/e2e/**",
         ".github/workflows/ci.yml",
         "etc/scripts/verify-before-push.sh",
         "README.md"
@@ -98,7 +98,7 @@
         "AC-005"
       ],
       "verification": [
-        "docker compose -f etc/docker/e2e/docker-compose.yml config -q"
+        "docker compose -f infra/docker/e2e/docker-compose.yml config -q"
       ],
       "test_mode": "existing-suite",
       "test_seam": "Playwright exercises server-accepted/browser-unknown replay against the real app stack."

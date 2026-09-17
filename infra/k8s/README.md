@@ -17,7 +17,7 @@ demonstrate a Helm-based deployment; it is not tuned for a production cluster.
   all).
 
 The observability stack (Prometheus/Tempo/Grafana) is not duplicated here; use
-`etc/docker/observability/docker-compose.yml` alongside a port-forwarded app, or extend
+`infra/docker/observability/docker-compose.yml` alongside a port-forwarded app, or extend
 `dev-dependencies.yaml` similarly if you want it fully in-cluster too.
 
 ## Quick start (kind)
@@ -32,12 +32,12 @@ kind load docker-image ecommerce-showcase:local --name ecommerce-showcase
 
 # 3. Deploy Postgres/RabbitMQ/Redis/Keycloak (dev-only, see caveats above)
 kubectl create configmap ecommerce-keycloak-realm \
-  --from-file=realm-export.json=etc/docker/keycloak/realm-export.json
-kubectl apply -f etc/k8s/dev-dependencies.yaml
+  --from-file=realm-export.json=infra/docker/keycloak/realm-export.json
+kubectl apply -f infra/k8s/dev-dependencies.yaml
 kubectl wait --for=condition=available deployment/ecommerce-postgres deployment/ecommerce-rabbitmq deployment/ecommerce-redis deployment/ecommerce-keycloak --timeout=180s
 
 # 4. Deploy the application with Helm
-helm install ecommerce etc/k8s/helm/ecommerce
+helm install ecommerce infra/k8s/helm/ecommerce
 
 # 5. Follow the printed NOTES, e.g.:
 kubectl rollout status deployment/ecommerce
@@ -56,7 +56,7 @@ that file for the full list and defaults. Point them at externally-hosted servic
 in-cluster dev dependencies by overriding the relevant `env.*` values, e.g.:
 
 ```bash
-helm install ecommerce etc/k8s/helm/ecommerce \
+helm install ecommerce infra/k8s/helm/ecommerce \
   --set env.dbHost=my-managed-postgres.example.com \
   --set env.oauth2JwkSetUri=https://auth.example.com/realms/ecommerce/protocol/openid-connect/certs
 ```
@@ -105,7 +105,7 @@ default) since they only make sense in specific deployment situations:
   `env.*` is pointed at externally-hosted dependencies instead of in-cluster ones.
 
 ```bash
-helm install ecommerce etc/k8s/helm/ecommerce \
+helm install ecommerce infra/k8s/helm/ecommerce \
   --set replicaCount=3 \
   --set podDisruptionBudget.enabled=true \
   --set networkPolicy.enabled=true
@@ -115,6 +115,6 @@ helm install ecommerce etc/k8s/helm/ecommerce \
 
 ```bash
 helm uninstall ecommerce
-kubectl delete -f etc/k8s/dev-dependencies.yaml
+kubectl delete -f infra/k8s/dev-dependencies.yaml
 kind delete cluster --name ecommerce-showcase
 ```

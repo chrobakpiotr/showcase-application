@@ -39,7 +39,7 @@ and teardown commands, continue with [Starting the application](#starting-the-ap
 - [Architecture diagrams](docs/architecture/README.md) - C4-style context/container/module views and saga dynamics.
 - [Architecture Decision Records](docs/adr/README.md) - accepted decisions and their original context.
 - [Agentic SDD](docs/agentic-sdd/README.md) - specification/orchestration/evaluation harness.
-- [Kubernetes / Helm](etc/k8s/README.md) and [Terraform / LocalStack](etc/terraform/README.md) - deployment tooling.
+- [Kubernetes / Helm](infra/k8s/README.md) and [Terraform / LocalStack](infra/terraform/README.md) - deployment tooling.
 
 ## Starting the application
 
@@ -93,13 +93,13 @@ pre-defined IntelliJ run configurations (under `.run/`):
 - `ECOMMERCE-postgres` - Postgres database, no RabbitMQ connection
 - `ECOMMERCE-postgres-amqp` - Postgres database with RabbitMQ connection
 
-Standalone Compose files for each dependency live under `etc/docker/{postgres,rabbitmq,kafka,keycloak,observability}`
+Standalone Compose files for each dependency live under `infra/docker/{postgres,rabbitmq,kafka,keycloak,observability}`
 and use `host.docker.internal` so containers can reach the app running on the host, e.g.:
 
 ```
-docker compose -f etc/docker/postgres/docker-compose.yml up -d
-docker compose -f etc/docker/rabbitmq/docker-compose.yml up -d
-docker compose -f etc/docker/kafka/docker-compose.yml up -d
+docker compose -f infra/docker/postgres/docker-compose.yml up -d
+docker compose -f infra/docker/rabbitmq/docker-compose.yml up -d
+docker compose -f infra/docker/kafka/docker-compose.yml up -d
 ```
 
 Then start the app with the matching run configuration (or `./gradlew bootRun -Dspring.profiles.active=<profile>`,
@@ -233,13 +233,13 @@ Beyond the standard signature/expiry/issuer checks, tokens are also validated ag
 (audience) claim (`spring.security.oauth2.resourceserver.jwt.audiences`, see `application-security.yml`), so a
 validly signed, unexpired token issued by the same Keycloak realm to a *different* client is still rejected.
 Keycloak is configured (see the `ecommerce-app-audience` protocol mapper in
-`etc/docker/keycloak/realm-export.json`) to stamp this API's tokens with a matching audience.
+`infra/docker/keycloak/realm-export.json`) to stamp this API's tokens with a matching audience.
 
 A ready-to-use local Keycloak instance (realm `ecommerce`, client `ecommerce-app`, roles and two demo users
-`order-admin`/`order-viewer`) is provided under `/etc/docker/keycloak`:
+`order-admin`/`order-viewer`) is provided under `/infra/docker/keycloak`:
 
 ```
-docker compose -f etc/docker/keycloak/docker-compose.yml up -d
+docker compose -f infra/docker/keycloak/docker-compose.yml up -d
 ```
 
 Keycloak will be available at `http://localhost:8081`. Configure the issuer/JWK-set URIs via
@@ -258,9 +258,9 @@ Both are publicly accessible (no authentication required) so the API can be expl
 
 The asynchronous side of the API (RabbitMQ order events, the optional AWS SQS order-audit event, and the Kafka
 order-analytics event) is documented separately with an [AsyncAPI](https://www.asyncapi.com/) spec:
-[`etc/asyncapi/asyncapi.yml`](etc/asyncapi/asyncapi.yml). View it rendered with the
+[`contracts/asyncapi/asyncapi.yml`](contracts/asyncapi/asyncapi.yml). View it rendered with the
 [AsyncAPI Studio](https://studio.asyncapi.com/) (paste the file contents in), or validate it
-locally with `npx @asyncapi/cli validate etc/asyncapi/asyncapi.yml`.
+locally with `npx @asyncapi/cli validate contracts/asyncapi/asyncapi.yml`.
 
 ## Error handling
 
@@ -338,7 +338,7 @@ platform, rather than driving a specific business transaction.
   For host-based `bootRun`, start the standalone broker and activate the `kafka-local` profile:
 
 ```bash
-docker compose -f etc/docker/kafka/docker-compose.yml up -d
+docker compose -f infra/docker/kafka/docker-compose.yml up -d
 SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun
 ```
 
@@ -413,7 +413,7 @@ docker exec ecommerce-localstack awslocal secretsmanager get-secret-value \
   --secret-id ecommerce/db-credentials
 ```
 
-For full Terraform details see [`etc/terraform/README.md`](etc/terraform/README.md).
+For full Terraform details see [`infra/terraform/README.md`](infra/terraform/README.md).
 
 ## Caching
 
@@ -443,7 +443,7 @@ repeated lookups of the same order, with a choice of two backends (see
   For host-based `bootRun`, start the standalone instance and activate the `cache-redis-local` profile:
 
 ```bash
-docker compose -f etc/docker/redis/docker-compose.yml up -d
+docker compose -f infra/docker/redis/docker-compose.yml up -d
 SPRING_PROFILES_ACTIVE=postgres-amqp-local,cache-redis-local ./gradlew bootRun
 ```
 
@@ -478,10 +478,10 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   standalone (e.g. for `local`) via `--spring.profiles.active=local,json-logging`.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Promtail, with pre-provisioned datasources
-and an "Showcase application - Overview" dashboard) is provided under `/etc/docker/observability`:
+and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:
 
 ```
-docker compose -f etc/docker/observability/docker-compose.yml up -d
+docker compose -f infra/docker/observability/docker-compose.yml up -d
 ```
 
 Grafana will be available at `http://localhost:3000` (admin/admin, or anonymous access is enabled for
@@ -575,7 +575,7 @@ secured order API (`POST /api/order`, `GET /api/order/{orderNumber}`) end-to-end
 from Keycloak for each virtual user session:
 
 ```bash
-# Main stack must be up first (docker compose up -d --build, or ./gradlew bootRun + etc/docker/*)
+# Main stack must be up first (docker compose up -d --build, or ./gradlew bootRun + infra/docker/*)
 k6 run etc/load-testing/order-api.js
 
 # Against different hosts/ports/credentials:
@@ -600,7 +600,7 @@ connection-pool one.
 ## App containerization
 
 The application itself (backend + built-in Angular frontend) can now be built and run as a container, in addition
-to the existing standalone infrastructure compose files under `etc/docker/*`.
+to the existing standalone infrastructure compose files under `infra/docker/*`.
 
 - `Dockerfile` (repo root): multi-stage build. The builder stage (`eclipse-temurin:25-jdk`, glibc-based) runs
   `./gradlew :application:ecommerce:bootJar`, which also triggers the Angular frontend build (the backend module
@@ -615,7 +615,7 @@ to the existing standalone infrastructure compose files under `etc/docker/*`.
   `postgres:18-alpine` image), `rabbitmq` (`rabbitmq:4-management-alpine`), `redis` (`redis:8-alpine`),
   `keycloak` (`quay.io/keycloak/keycloak:26.7`, importing the same realm used by the JWT security section),
   and the observability stack (`prometheus`, `tempo`, `grafana` - the same images/provisioning as
-  `etc/docker/observability`). The app container waits on postgres/rabbitmq/redis health checks, keycloak
+  `infra/docker/observability`). The app container waits on postgres/rabbitmq/redis health checks, keycloak
   and tempo starting. Since the app now shares the same network as Prometheus/Tempo, it uses a dedicated
   `prometheus-docker.yml` scrape config (`app:9081` instead of `host.docker.internal:9081`), and the app's OTLP
   traces go straight to `tempo:4318` instead of via `host.docker.internal`.
@@ -638,7 +638,7 @@ docker compose up --build
 
 The app will be available on `http://localhost:9080/home` (app) and `http://localhost:9081` (actuator), Grafana on
 `http://localhost:3000` (admin/admin), matching the existing port conventions. The standalone compose files under
-`etc/docker/*` remain useful for the "app on host, infra in Docker" workflow (e.g. running/debugging the app from
+`infra/docker/*` remain useful for the "app on host, infra in Docker" workflow (e.g. running/debugging the app from
 an IDE) - they're unchanged and still reach the app via `host.docker.internal`.
 
 > Note: `docker build` was verified to produce a working image end-to-end in the environment this feature was
@@ -649,7 +649,7 @@ an IDE) - they're unchanged and still reach the app via `host.docker.internal`.
 ## Kubernetes deployment (Helm)
 
 The containerized application can also be deployed to Kubernetes via a Helm chart under
-`etc/k8s/helm/ecommerce`, complementing the Docker Compose setup above. It reuses the same image
+`infra/k8s/helm/ecommerce`, complementing the Docker Compose setup above. It reuses the same image
 built by the root `Dockerfile` and a dedicated `k8s` Spring profile
 (`application-k8s.yml`) that resolves Postgres/RabbitMQ/Redis/Keycloak/Tempo connection details from
 environment variables, defaulting to in-cluster Service DNS names. `cache.provider` defaults to
@@ -661,17 +661,17 @@ being correct.
 kind create cluster --name ecommerce-showcase
 docker build -t ecommerce-showcase:local .
 kind load docker-image ecommerce-showcase:local --name ecommerce-showcase
-kubectl apply -f etc/k8s/dev-dependencies.yaml   # dev-only Postgres/RabbitMQ/Redis/Keycloak
-helm install ecommerce etc/k8s/helm/ecommerce
+kubectl apply -f infra/k8s/dev-dependencies.yaml   # dev-only Postgres/RabbitMQ/Redis/Keycloak
+helm install ecommerce infra/k8s/helm/ecommerce
 ```
 
 The Deployment's pod/container `securityContext` defaults follow the Kubernetes "restricted" Pod
 Security Standard (non-root, read-only root filesystem, all Linux capabilities dropped - see
-`etc/k8s/README.md#pod-security`). An opt-in `PodDisruptionBudget` and `NetworkPolicy` are also
+`infra/k8s/README.md#pod-security`). An opt-in `PodDisruptionBudget` and `NetworkPolicy` are also
 available (`podDisruptionBudget.enabled` / `networkPolicy.enabled`, both off by default - see
-`etc/k8s/README.md#availability-and-network-hardening`).
+`infra/k8s/README.md#availability-and-network-hardening`).
 
-See [`etc/k8s/README.md`](etc/k8s/README.md) for the full walkthrough, configuration options, and
+See [`infra/k8s/README.md`](infra/k8s/README.md) for the full walkthrough, configuration options, and
 how to point the chart at externally-hosted dependencies instead.
 
 ## Continuous Integration
@@ -692,7 +692,7 @@ A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
   full supply-chain security picture. Report-only (doesn't fail the build), since remediation of the base
   image's own CVE backlog isn't on this project's timeline.
 - A separate frontend build/lint/test job.
-- `e2e`: boots an isolated disposable project from `etc/docker/e2e/docker-compose.yml`, using the real app image
+- `e2e`: boots an isolated disposable project from `infra/docker/e2e/docker-compose.yml`, using the real app image
   plus only the runtime dependencies required by Playwright,
   polls the app container's own Docker `HEALTHCHECK` until healthy, then runs the
   [Playwright](https://playwright.dev/) suite (`npm run e2e`) against it end-to-end - login through Keycloak,

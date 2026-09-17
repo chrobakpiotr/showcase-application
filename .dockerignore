@@ -12,6 +12,6 @@ target
 **/node_modules
 **/coverage
 **/src/generated
-etc/docker
+infra/docker
 *.md
 *.log

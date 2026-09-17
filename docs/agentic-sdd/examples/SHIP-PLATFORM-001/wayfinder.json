@@ -87,7 +87,7 @@
       "leverage": 9,
       "context_refs": [
         "docs/adr/0009-order-placement-saga.md",
-        "etc/asyncapi/asyncapi.yml",
+        "contracts/asyncapi/asyncapi.yml",
         "modules/adapters/kafka/",
         "modules/adapters/amqp/"
       ]

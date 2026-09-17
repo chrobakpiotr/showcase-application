@@ -41,7 +41,7 @@ spec:
         - protocol: TCP
           port: 53
     # Same-namespace dependencies - Postgres/RabbitMQ/Redis/Keycloak/Tempo (see
-    # etc/k8s/dev-dependencies.yaml); adjust networkPolicy.egressPorts if env.* is pointed at
+    # infra/k8s/dev-dependencies.yaml); adjust networkPolicy.egressPorts if env.* is pointed at
     # externally-hosted services instead, which would need a separate rule keyed by IP/CIDR.
     - to:
         - podSelector: {}

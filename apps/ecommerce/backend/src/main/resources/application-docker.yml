@@ -4,7 +4,7 @@
 spring:
   config:
     # Structured JSON console output (see modules/adapters/security/application-json-logging.yml) so
-    # Promtail/Loki (etc/docker/observability) can parse fields directly instead of scraping raw
+    # Promtail/Loki (infra/docker/observability) can parse fields directly instead of scraping raw
     # text - a containerized deployment's stdout is the natural place log-shipping agents tail
     # from. Imported directly (rather than via spring.profiles.include, which Boot disallows in a
     # profile-specific document such as this one) alongside the rest of this profile's config.
@@ -30,5 +30,5 @@ security:
 
 observability:
   otlp:
-    # Tempo (see etc/docker/observability) is in the same Docker network in this topology.
+    # Tempo (see infra/docker/observability) is in the same Docker network in this topology.
     tracing-endpoint: http://tempo:4318/v1/traces

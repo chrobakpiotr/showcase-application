@@ -3,7 +3,7 @@
 # Intended for a local kind/k3d cluster to try out the Helm chart end-to-end - NOT meant for
 # production (no persistent volumes, no resource limits, single replica, plaintext secrets).
 #
-# Apply with: kubectl apply -f etc/k8s/dev-dependencies.yaml
+# Apply with: kubectl apply -f infra/k8s/dev-dependencies.yaml
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,9 +136,9 @@ spec:
               mountPath: /opt/keycloak/data/import
       volumes:
         - name: realm-export
-          # Created separately from the existing realm export file, see etc/k8s/README.md:
+          # Created separately from the existing realm export file, see infra/k8s/README.md:
           #   kubectl create configmap ecommerce-keycloak-realm \
-          #     --from-file=realm-export.json=etc/docker/keycloak/realm-export.json
+          #     --from-file=realm-export.json=infra/docker/keycloak/realm-export.json
           configMap:
             name: ecommerce-keycloak-realm
             items:

@@ -9,7 +9,7 @@ This file is intentionally a **map**, not a manual. Follow links and load only t
 2. For a large/foggy effort, the active decision map under `docs/wayfinder/<epic>/` until it is cleared.
 3. The active feature folder under `docs/specs/<feature-id>/` - product and technical source of truth; read `design/gate.json`, `verification-contract.json`, and prototype findings when present.
 4. Relevant ADRs under `docs/adr/` - architectural decisions already made by the project.
-5. Relevant contract(s), especially `etc/asyncapi/asyncapi.yml` for messaging changes.
+5. Relevant contract(s), especially `contracts/asyncapi/asyncapi.yml` for messaging changes.
 6. Only the source modules listed in the task packet.
 
 ## Architecture map

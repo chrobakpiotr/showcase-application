@@ -11,10 +11,10 @@ generated/
 *.db
 postgres-data/
 .angular/
-etc/terraform/.terraform/
-etc/terraform/*.tfstate
-etc/terraform/*.tfstate.backup
-etc/terraform/.terraform.lock.hcl
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
 
 # Agent harness local runtime state
 .agent-state/

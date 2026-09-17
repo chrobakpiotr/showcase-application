@@ -5,7 +5,7 @@
 Order lookups (`GET /api/order/{orderNumber}`) are cached via Ehcache (`PersistenceCacheConfiguration`,
 toggled by `cache.enabled`), an in-process, heap-based JCache provider. That is a good zero-dependency
 default for a single instance, but it is fundamentally local to each JVM: it holds no state shared across
-instances. The Helm chart (`etc/k8s/helm/ecommerce`) supports `replicaCount > 1` and a
+instances. The Helm chart (`infra/k8s/helm/ecommerce`) supports `replicaCount > 1` and a
 `HorizontalPodAutoscaler`, but with Ehcache, every pod keeps its own independent cache. Two pods can then
 observe different data for the same order number - most concretely, the existing `@CachePut` on
 `OrderEntityRepository.save` (added to avoid serving a stale cached order once `SEQ_ORDER_NUMBER` wraps
@@ -58,13 +58,13 @@ backend* rather than an on/off toggle:
 - New `application-cache-redis[.yml|-local.yml|-docker.yml]` profiles, following the established
   `application-<tech>` convention (e.g. `application-amqp*.yml`): the base file sets `cache.provider=redis`
   and re-enables the health indicator; `-local`/`-docker` add the host for running against the standalone
-  `etc/docker/redis/docker-compose.yml` or the full containerized stack, respectively.
+  `infra/docker/redis/docker-compose.yml` or the full containerized stack, respectively.
 - Redis joins the full stack in the root `docker-compose.yml` (always-on, like Postgres/RabbitMQ/Kafka, not
-  behind an opt-in `--profile` like the AWS/chaos add-ons) and `etc/k8s/dev-dependencies.yaml`/the Helm
+  behind an opt-in `--profile` like the AWS/chaos add-ons) and `infra/k8s/dev-dependencies.yaml`/the Helm
   chart, with `application-k8s.yml` defaulting `cache.provider=redis` - this is precisely the deployment
   target the multi-replica correctness gap applies to. No authentication is configured for the demo Redis
-  instance, matching the existing throwaway/dev nature of the other `etc/k8s/dev-dependencies.yaml` and
-  standalone `etc/docker/*` services.
+  instance, matching the existing throwaway/dev nature of the other `infra/k8s/dev-dependencies.yaml` and
+  standalone `infra/docker/*` services.
 
 ## Consequences
 

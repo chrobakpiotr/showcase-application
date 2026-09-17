@@ -11,7 +11,7 @@
 #
 #   SPRING_PROFILES_ACTIVE=postgres-amqp-local,aws-localstack ./gradlew bootRun
 #
-# Ensure LocalStack is running first (see etc/terraform/README.md):
+# Ensure LocalStack is running first (see infra/terraform/README.md):
 #   docker compose --profile aws up -d localstack
 #   docker compose --profile aws up terraform        # provisions S3 / SQS / Secrets Manager
 #

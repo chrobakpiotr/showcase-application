@@ -752,7 +752,7 @@ def packet_payload(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathl
             'verification_contract': str(feature_rel / 'verification-contract.json') if (feature_dir / 'verification-contract.json').exists() else None,
             'adrs': 'docs/adr/',
             'architecture': 'docs/architecture/README.md',
-            'messaging_contract': 'etc/asyncapi/asyncapi.yml' if 'messaging' in task.get('risk_tags', []) else None,
+            'messaging_contract': 'contracts/asyncapi/asyncapi.yml' if 'messaging' in task.get('risk_tags', []) else None,
         },
         'context_trust': {},
         'completion_contract': {

@@ -43,7 +43,7 @@ If you prefer to run Terraform directly (requires `terraform` CLI ≥ 1.5):
 docker compose --profile aws up -d localstack
 
 # Init and apply against the host-published endpoint
-cd etc/terraform
+cd infra/terraform
 terraform init
 terraform apply        # uses the default localstack_endpoint = http://localhost:4566
 ```

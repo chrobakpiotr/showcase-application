@@ -10,7 +10,7 @@
 # Grafana at http://localhost:3000 (admin/admin, anonymous access enabled).
 #
 # For infra-only setups (running the app from an IDE instead), see the standalone compose
-# files under etc/docker/{postgres,rabbitmq,redis,keycloak,observability} - those use
+# files under infra/docker/{postgres,rabbitmq,redis,keycloak,observability} - those use
 # host.docker.internal to reach the app running on the host rather than in this network.
 services:
   app:
@@ -118,7 +118,7 @@ services:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     volumes:
-      - ./etc/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./infra/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "8081:8080"
 
@@ -129,7 +129,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./etc/docker/observability/prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/docker/observability/prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
 
   tempo:
     # Pinned to the latest 2.x release, not 3.0: Tempo 3.0 replaces the monolithic
@@ -147,7 +147,7 @@ services:
       - "4317:4317"
       - "4318:4318"
     volumes:
-      - ./etc/docker/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - ./infra/docker/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
 
   loki:
     image: grafana/loki:3.7.7
@@ -157,7 +157,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./etc/docker/observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./infra/docker/observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
 
   promtail:
     # Promtail is end-of-life (EOL since March 2026, per Grafana's official announcement) - 3.6.11
@@ -168,7 +168,7 @@ services:
     restart: unless-stopped
     command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
     volumes:
-      - ./etc/docker/observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - ./infra/docker/observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
       # Read-only access to the Docker daemon's own API (service discovery) and the container log
       # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
       # stops, or otherwise controls containers through this socket, only reads. This is what
@@ -191,7 +191,7 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      - ./etc/docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
       - tempo
@@ -238,7 +238,7 @@ services:
     # Mount read-write so Terraform can write .terraform/ and state files.
     # State files and the .terraform lock file are git-ignored (see .gitignore).
     volumes:
-      - ./etc/terraform:/workspace
+      - ./infra/terraform:/workspace
     working_dir: /workspace
     environment:
       # Container-to-container endpoint: Terraform runs inside Docker, so it reaches
@@ -265,7 +265,7 @@ services:
     profiles: ["chaos"]
     command: ["-host=0.0.0.0", "-config=/etc/toxiproxy.json"]
     volumes:
-      - ./etc/docker/chaos/toxiproxy.json:/etc/toxiproxy.json:ro
+      - ./infra/docker/chaos/toxiproxy.json:/etc/toxiproxy.json:ro
     ports:
       - "8474:8474"
       - "25672:25672"

@@ -11,7 +11,7 @@ import java.util.Set;
 import org.yaml.snakeyaml.Yaml;
 
 /**
- * Loads {@code etc/asyncapi/asyncapi.yml} once per test JVM and exposes each message schema's declared property names, so
+ * Loads {@code contracts/asyncapi/asyncapi.yml} once per test JVM and exposes each message schema's declared property names, so
  * producer-side contract tests (e.g. {@code OrderMessageContractTest}, {@code OrderAnalyticsEventContractTest}) can assert the
  * actual wire payload against the spec itself instead of a hand-maintained {@code Set.of(...)} duplicating its field list.
  *

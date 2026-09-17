@@ -21,7 +21,7 @@ or a hand-rolled JWT issuer inside the application itself:
 - Everything else (frontend static assets, Swagger UI, actuator endpoints) is permitted without
   authentication.
 - A ready-to-use local Keycloak instance (realm `ecommerce`, client `ecommerce-app`, two demo
-  users) is provided via `etc/docker/keycloak/docker-compose.yml`, so the whole auth flow can be
+  users) is provided via `infra/docker/keycloak/docker-compose.yml`, so the whole auth flow can be
   exercised end-to-end locally without a manual Keycloak setup.
 - The resource server only validates tokens (issuer/JWK-set URIs); it never issues them - Keycloak
   remains the single source of truth for identity, matching how this would work in a real

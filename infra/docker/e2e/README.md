@@ -10,14 +10,14 @@ participate in the tested browser flows and only add startup/failure surface.
 Run it in an isolated project:
 
 ```bash
-COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f etc/docker/e2e/docker-compose.yml up -d --build
+COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f infra/docker/e2e/docker-compose.yml up -d --build
 ```
 
 Then run Playwright from `apps/ecommerce/frontend`, and always tear the
 project down with volumes:
 
 ```bash
-COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f etc/docker/e2e/docker-compose.yml down -v --remove-orphans
+COMPOSE_PROJECT_NAME=showcase-e2e-local   docker compose -f infra/docker/e2e/docker-compose.yml down -v --remove-orphans
 ```
 
 `etc/scripts/verify-before-push.sh --e2e` uses this topology automatically.

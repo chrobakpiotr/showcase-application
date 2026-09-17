@@ -13,7 +13,7 @@
    and guard status mutations while one is active. Convert Reviews browse to an
    atomic latest-request-wins list+summary pipeline and guard submit/moderation
    mutations with explicit in-flight signals.
-4. Add `etc/docker/e2e/docker-compose.yml` with app, Postgres, RabbitMQ, Kafka,
+4. Add `infra/docker/e2e/docker-compose.yml` with app, Postgres, RabbitMQ, Kafka,
    Redis, Keycloak and Tempo only. CI and `etc/scripts/verify-before-push.sh --e2e`
    use isolated Compose project names and `down -v --remove-orphans`.
 5. Extend Playwright with a real unknown-outcome recovery test. Let `route.fetch()`

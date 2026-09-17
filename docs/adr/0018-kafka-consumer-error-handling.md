@@ -59,7 +59,7 @@ constraint is visible to every writer regardless of which thread or pod it runs 
 
 - A record that permanently fails to process no longer disappears silently - it is inspectable (and
   manually replayable) on `com.cp.e.topic.order.analytics-dlt`, documented in
-  `etc/asyncapi/asyncapi.yml` alongside the source topic.
+  `contracts/asyncapi/asyncapi.yml` alongside the source topic.
 - Kafka-level redelivery of an already-recorded event is now a safe no-op instead of a duplicate
   row, at the cost of one extra unique-index lookup per insert - negligible next to the network I/O
   already involved in consuming from Kafka.

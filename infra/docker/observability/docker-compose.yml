@@ -1,5 +1,5 @@
 # Local observability stack for the e-commerce showcase application.
-# Start with: docker compose -f etc/docker/observability/docker-compose.yml up -d
+# Start with: docker compose -f infra/docker/observability/docker-compose.yml up -d
 # Prometheus scrapes the app's /actuator/prometheus endpoint on the management port (9081).
 # The app exports traces via OTLP/HTTP to Tempo on port 4318 (see application-security.yml).
 # Promtail ships every container's stdout on this Docker host to Loki (see

@@ -5,7 +5,7 @@ import java.util.Date;
 /**
  * Read-model projection built from the Kafka order-analytics event stream (see {@code OrderAnalyticsEventConsumer} in
  * adapter:kafka), completing the producer-only pipeline documented by {@code publishOrderAnalytics} in
- * {@code etc/asyncapi/asyncapi.yml} with an actual in-process consumer.
+ * {@code contracts/asyncapi/asyncapi.yml} with an actual in-process consumer.
  *
  * <p>
  * Deliberately an insert-only "recent orders" log rather than a per-day aggregated count: an aggregate would need an upsert

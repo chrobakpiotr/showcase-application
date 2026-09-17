@@ -17,19 +17,19 @@ servers:
   rabbitmq-local:
     host: localhost:5672
     protocol: amqp
-    description: Local RabbitMQ instance (see etc/docker/rabbitmq or docker-compose.yml).
+    description: Local RabbitMQ instance (see infra/docker/rabbitmq or docker-compose.yml).
   sqs-localstack:
     host: localhost:4566
     protocol: sqs
     description: >
-      LocalStack-emulated AWS SQS, provisioned by Terraform (etc/terraform). Only active when the
+      LocalStack-emulated AWS SQS, provisioned by Terraform (infra/terraform). Only active when the
       `aws-localstack` Spring profile and `service.aws.sqs.enabled=true` are set - see
       docs/adr/0007.
   kafka-local:
     host: localhost:9092
     protocol: kafka
     description: >
-      Local single-node Kafka broker (see etc/docker/kafka or docker-compose.yml). Only active
+      Local single-node Kafka broker (see infra/docker/kafka or docker-compose.yml). Only active
       when `service.kafka.enabled=true` is set (default in the containerized stack, opt-in via the
       `kafka-local` Spring profile for host-based bootRun).
 

@@ -29,21 +29,21 @@ updates:
       - "frontend"
 
   # Container base images: root Dockerfile/docker-compose.yml plus every legacy per-service
-  # compose file under etc/docker/*, which pin their own image versions independently and would
+  # compose file under infra/docker/*, which pin their own image versions independently and would
   # otherwise silently drift out of sync (this happened once already - see docs/adr and git log).
   - package-ecosystem: "docker"
     directories:
       - "/"
-      - "/etc/docker/*"
+      - "/infra/docker/*"
     schedule:
       interval: "weekly"
     labels:
       - "dependencies"
       - "docker"
 
-  # Terraform provider (AWS/LocalStack provisioning, see etc/terraform)
+  # Terraform provider (AWS/LocalStack provisioning, see infra/terraform)
   - package-ecosystem: "terraform"
-    directory: "/etc/terraform"
+    directory: "/infra/terraform"
     schedule:
       interval: "weekly"
     labels:

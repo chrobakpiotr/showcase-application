@@ -106,7 +106,7 @@ run_frontend_ci_gate() {
 
 run_e2e_gate() {
   local frontend_dir="apps/ecommerce/frontend"
-  local compose_file="etc/docker/e2e/docker-compose.yml"
+  local compose_file="infra/docker/e2e/docker-compose.yml"
   local project_name="showcase-e2e-local-$$"
 
   echo "==> Starting disposable Docker Compose stack for Playwright"

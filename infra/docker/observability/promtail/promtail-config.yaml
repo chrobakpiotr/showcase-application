@@ -1,7 +1,7 @@
 # Ships every container's stdout/stderr on this Docker host to Loki. Uses Docker service
 # discovery against the daemon directly (not scoped to a single compose project), so the same
 # config works whether Promtail is started from the root docker-compose.yml (full stack, app
-# included) or from this standalone etc/docker/observability/docker-compose.yml (app instead runs
+# included) or from this standalone infra/docker/observability/docker-compose.yml (app instead runs
 # on the host via an IDE - see the root README's "Option 2" - and therefore isn't picked up here,
 # only the observability containers themselves are).
 server:

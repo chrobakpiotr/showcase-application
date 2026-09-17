@@ -115,7 +115,7 @@ env:
 
   # Distributed cache (see ADR 0010) - required so every replica observes the same cached order
   # data once replicaCount > 1 or autoscaling is enabled. No credentials: this dev-oriented chart
-  # ships an unauthenticated Redis, matching etc/k8s/dev-dependencies.yaml.
+  # ships an unauthenticated Redis, matching infra/k8s/dev-dependencies.yaml.
   redisHost: ecommerce-redis
   redisPort: "6379"
 

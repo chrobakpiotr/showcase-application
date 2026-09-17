@@ -1,5 +1,5 @@
 # Overrides RabbitMQ connection details to route through the Toxiproxy proxy instead of talking
-# to RabbitMQ directly - see etc/docker/chaos/toxiproxy.json and the "Chaos testing" section of the
+# to RabbitMQ directly - see infra/docker/chaos/toxiproxy.json and the "Chaos testing" section of the
 # root README for how this is used to demonstrate the Resilience4j circuit breaker opening.
 #
 # Activate together with the "docker" profile: SPRING_PROFILES_ACTIVE=docker,chaos

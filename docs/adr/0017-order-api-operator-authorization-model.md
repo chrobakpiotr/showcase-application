@@ -13,7 +13,7 @@ Read cold, this looks exactly like a textbook IDOR (Insecure Direct Object Refer
 finding a security review should flag. Before "fixing" it, the actual intent behind the current
 system needed to be established:
 
-- The Keycloak realm (`etc/docker/keycloak/realm-export.json`) defines exactly **two** demo accounts,
+- The Keycloak realm (`infra/docker/keycloak/realm-export.json`) defines exactly **two** demo accounts,
   `order-admin` (`ORDER_READ` + `ORDER_WRITE`) and `order-viewer` (`ORDER_READ` only) - both generic
   staff/technical accounts. There is no per-customer identity anywhere in the realm.
 - The Angular frontend has no customer sign-up, customer login, or "my orders" flow - only a single

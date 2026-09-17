@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * This keeps the showcase self-contained by asserting the published JSON schema directly, without introducing stub brokers,
  * stub artifact publishing or other infrastructure required by a full contract-testing framework. The current listener
  * intentionally only logs raw payloads, so the contract remains focused on the producer's wire format. The expected field set
- * itself comes from {@code etc/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than being duplicated here, so the
+ * itself comes from {@code contracts/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than being duplicated here, so the
  * spec and the actual wire format cannot silently drift apart.
  * </p>
  */
