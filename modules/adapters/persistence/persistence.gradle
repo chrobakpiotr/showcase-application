@@ -13,7 +13,7 @@ dependencies {
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-    runtimeOnly 'com.h2database:h2'
+    testRuntimeOnly 'com.h2database:h2'
     runtimeOnly 'org.liquibase:liquibase-core'
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.springframework.boot:spring-boot-liquibase'

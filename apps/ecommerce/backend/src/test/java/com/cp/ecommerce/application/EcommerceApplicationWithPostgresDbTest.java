@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Test class that checks whether spring context of the app has started properly with Postgres database.
  */
-@ActiveProfiles("postgres-local")
+@ActiveProfiles("test-postgres")
 @ContextConfiguration(initializers = { EcommerceApplicationWithPostgresDbTest.Initializer.class })
 @Testcontainers(disabledWithoutDocker = true)
 class EcommerceApplicationWithPostgresDbTest extends AbstractEcommerceApplicationTest {

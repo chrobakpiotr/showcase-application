@@ -9,7 +9,8 @@ cache:
 # Redis' health indicator is auto-registered merely by spring-boot-starter-data-redis being on the
 # classpath, regardless of cache.provider - keep it off by default so an idle/unreachable Redis (the
 # common case, since ehcache is the default provider) never drags down the aggregate /actuator/health
-# result that Kubernetes liveness/readiness probes rely on. Re-enabled by the cache-redis profile.
+# result that Kubernetes liveness/readiness probes rely on. Environment profiles that import
+# application-cache-redis.yml re-enable it explicitly.
 management:
   health:
     redis:

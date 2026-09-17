@@ -1,8 +1,0 @@
-spring:
-  config:
-    import:
-      classpath:application-persistence.yml,classpath:application-persistence-postgres.yml,
-  datasource:
-    url: "jdbc:postgresql://localhost:5432/test_db"
-    username: sa
-    password: sa

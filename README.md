@@ -85,29 +85,35 @@ guides and sections linked above.
 
 ### Option 2: Run the app from an IDE, infra in Docker
 
-Start only the infra the app needs, then run/debug the Spring Boot app on the host using one of the 4
-pre-defined IntelliJ run configurations (under `.run/`):
+The repository has one host-local IntelliJ configuration: **`ECOMMERCE-local`**. It activates the `local`
+Spring profile, which represents the complete standard local topology: Postgres, RabbitMQ, Kafka and Redis on
+localhost, with Keycloak and OTLP using their localhost defaults.
 
-- `ECOMMERCE-h2` - in-memory H2 database, no RabbitMQ connection
-- `ECOMMERCE-h2-amqp` - in-memory H2 database with RabbitMQ connection
-- `ECOMMERCE-postgres` - Postgres database, no RabbitMQ connection
-- `ECOMMERCE-postgres-amqp` - Postgres database with RabbitMQ connection
+Start the infrastructure without the application container:
 
-Standalone Compose files for each dependency live under `infra/docker/{postgres,rabbitmq,kafka,keycloak,observability}`
-and use `host.docker.internal` so containers can reach the app running on the host, e.g.:
-
-```
-docker compose -f infra/docker/postgres/docker-compose.yml up -d
-docker compose -f infra/docker/rabbitmq/docker-compose.yml up -d
-docker compose -f infra/docker/kafka/docker-compose.yml up -d
+```bash
+docker compose up -d postgres rabbitmq kafka redis keycloak prometheus tempo loki alloy grafana
 ```
 
-Then start the app with the matching run configuration (or `./gradlew bootRun -Dspring.profiles.active=<profile>`,
-e.g. `postgres-amqp-local`). To also enable the Kafka order-analytics event stream, add the `kafka-local` profile,
-e.g. `SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun` (see
-[Event streaming (Kafka)](#event-streaming-kafka) below). If you need Keycloak too (for the secured order
-endpoints), see the standalone Keycloak Compose file referenced in
-[Authentication & authorization](#authentication--authorization) below.
+Then run `ECOMMERCE-local` from IntelliJ, or equivalently:
+
+```bash
+SPRING_PROFILES_ACTIVE=local ./gradlew :application:ecommerce:bootRun
+```
+
+The runtime environment profiles are intentionally limited to `local`, `docker` and `k8s`. Optional capabilities
+that require extra services or deliberately alter behavior remain additive profiles:
+
+- `aws-localstack` - LocalStack-backed AWS adapters;
+- `ai-ollama` - local AI features;
+- `chaos` - Toxiproxy fault injection.
+
+For example:
+
+```bash
+SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew :application:ecommerce:bootRun
+```
+
 
 ## Order placement saga
 
@@ -334,12 +340,12 @@ platform, rather than driving a specific business transaction.
   outbox row from being marked `SENT`.
 - Publishing goes through the same resilience4j-wrapped `ResilientExecutor` as the other channels (see
   [Resilience](#resilience)), under the `publishOrderAnalyticsEvent` circuit breaker/retry instance.
-- Enabled via `service.kafka.enabled` (`true` in the containerized stack - see `application-kafka-docker.yml`).
-  For host-based `bootRun`, start the standalone broker and activate the `kafka-local` profile:
+- Enabled via `service.kafka.enabled` (`true` in the containerized stack - see `application-docker.yml`).
+  For host-based `bootRun`, start the standalone broker and activate the `local` profile:
 
 ```bash
 docker compose -f infra/docker/kafka/docker-compose.yml up -d
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,kafka-local ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,local ./gradlew bootRun
 ```
 
 ### Order analytics read model (Kafka consumer)
@@ -396,7 +402,7 @@ docker compose --profile aws up -d localstack
 docker compose --profile aws up terraform
 
 # 4. Start the Spring Boot app with the aws-localstack profile
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,aws-localstack ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,aws-localstack ./gradlew bootRun
 
 # 5. Place an order (get a token from Keycloak first, then POST /api/order)
 
@@ -440,11 +446,11 @@ repeated lookups of the same order, with a choice of two backends (see
 - Redis is enabled in the containerized stack and Kubernetes deployment by default (`cache.provider: redis` in
   `application-docker.yml`'s import chain and in `application-k8s.yml` respectively) - see
   [App containerization](#app-containerization) / [Kubernetes deployment (Helm)](#kubernetes-deployment-helm).
-  For host-based `bootRun`, start the standalone instance and activate the `cache-redis-local` profile:
+  For host-based `bootRun`, start the standalone instance and activate the `local` profile:
 
 ```bash
 docker compose -f infra/docker/redis/docker-compose.yml up -d
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,cache-redis-local ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,local ./gradlew bootRun
 ```
 
 ## Frontend modernization
@@ -621,7 +627,7 @@ to the existing standalone infrastructure compose files under `infra/docker/*`.
   traces go straight to `tempo:4318` instead of via `host.docker.internal`.
 - A new `docker` Spring profile ties this together:
   - `apps/ecommerce/backend/src/main/resources/application-docker.yml` imports sub-profiles
-    (`amqp-docker`, `persistence-postgres-docker`, `kafka-docker`, `cache-redis-docker`) that point at the
+    (`docker`, `docker`, `docker`, `docker`) that point at the
     in-network service names (`rabbitmq`, `postgres`, `kafka`, `redis`) instead of `localhost`.
   - The OAuth2 `issuer-uri` is kept as the browser-facing `http://localhost:8081/realms/ecommerce` (it must match
     the `iss` claim of tokens issued to a browser client), while `jwk-set-uri` uses the in-network address

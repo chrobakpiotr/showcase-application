@@ -19,7 +19,7 @@ spring:
     timeout-per-shutdown-phase: 30s
   config:
     import:
-      classpath:application-security.yml,classpath:application-mail.yml,classpath:application-camel.yml
+      classpath:application-security.yml,classpath:application-mail.yml,classpath:application-camel.yml,classpath:application-persistence.yml
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration, org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration, org.springdoc.core.configuration.SpringDocHateoasConfiguration
   rabbitmq:
@@ -40,14 +40,3 @@ spring:
       enabled: true
   main:
     allow-bean-definition-overriding: true
-
-cache:
-  enabled: true
-  provider: ehcache
-
-# See modules/adapters/persistence's application-persistence.yml for why this is disabled by default (this
-# duplicate exists because the postgres/docker/k8s profiles don't import application-persistence.yml).
-management:
-  health:
-    redis:
-      enabled: false

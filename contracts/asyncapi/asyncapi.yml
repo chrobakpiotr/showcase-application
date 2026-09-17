@@ -25,13 +25,13 @@ servers:
       LocalStack-emulated AWS SQS, provisioned by Terraform (infra/terraform). Only active when the
       `aws-localstack` Spring profile and `service.aws.sqs.enabled=true` are set - see
       docs/adr/0007.
-  kafka-local:
+  local:
     host: localhost:9092
     protocol: kafka
     description: >
       Local single-node Kafka broker (see infra/docker/kafka or docker-compose.yml). Only active
       when `service.kafka.enabled=true` is set (default in the containerized stack, opt-in via the
-      `kafka-local` Spring profile for host-based bootRun).
+      `local` Spring profile for host-based bootRun).
 
 channels:
   order-topic:
@@ -70,7 +70,7 @@ channels:
       the producer. Best-effort: publish failures never block the order's outbox event from being
       marked SENT.
     servers:
-      - $ref: '#/servers/kafka-local'
+      - $ref: '#/servers/local'
     messages:
       orderAnalytics:
         $ref: '#/components/messages/OrderAnalyticsMessage'
@@ -86,7 +86,7 @@ channels:
       skipped, so it can be inspected or manually replayed - see
       [docs/adr/0018](../../docs/adr/0018-kafka-consumer-error-handling.md).
     servers:
-      - $ref: '#/servers/kafka-local'
+      - $ref: '#/servers/local'
     messages:
       orderAnalytics:
         $ref: '#/components/messages/OrderAnalyticsMessage'

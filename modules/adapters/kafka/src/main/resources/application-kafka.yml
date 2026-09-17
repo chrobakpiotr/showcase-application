@@ -4,12 +4,18 @@ service:
 
 spring:
   kafka:
-    # Off by default in Spring Boot: without these, each Kafka producer send / @KafkaListener
-    # consume starts its own disconnected trace instead of continuing the caller's, breaking the
-    # HTTP -> saga -> Kafka trace chain in Tempo. Enabling them makes Spring for Apache Kafka's
-    # built-in Micrometer Observation instrumentation inject/extract the W3C traceparent header on
-    # every record automatically - no manual OpenTelemetry API calls needed.
-    template:
-      observation-enabled: true
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    consumer:
+      group-id: ecommerce-order-analytics
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     listener:
+      # One consumer thread per topic partition.
+      concurrency: 3
+      # Continue the caller's trace across Kafka records.
+      observation-enabled: true
+    template:
       observation-enabled: true

@@ -64,7 +64,7 @@ docker exec ecommerce-localstack awslocal secretsmanager list-secrets
 ## Running the Spring Boot app with the aws-localstack profile
 
 ```bash
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,aws-localstack ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,aws-localstack ./gradlew bootRun
 ```
 
 This combines the existing Postgres+RabbitMQ local profile with the new AWS profile.

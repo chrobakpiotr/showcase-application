@@ -33,7 +33,7 @@ event created a second `ORDER_ANALYTICS_PROJECTION` row for the same order inste
   (`KafkaTopicConfiguration`, same partition count as the source topic, as the recoverer preserves
   the original partition number) instead of only logging it.
 - **Explicit concurrency, matching the topic's partition count.**
-  `spring.kafka.listener.concurrency: 3` (Boot property, both `kafka-docker` and `kafka-local`
+  `spring.kafka.listener.concurrency: 3` (Boot property, both `docker` and `local`
   profiles) gives the consumer group one thread per partition, so one slow/failing partition no
   longer starves the other two.
 - **Idempotent upsert via database constraint, not application-level deduplication.**

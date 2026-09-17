@@ -11,7 +11,7 @@
 # (i.e. via `./gradlew bootRun`), with Ollama running via the docker-composed "ai" profile:
 #
 #   docker compose --profile ai up -d ollama
-#   SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+#   SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 #
 # spring.ai.ollama.init.pull-model-strategy below makes the app itself pull the configured
 # models on startup if not already cached in Ollama's volume - no separate one-shot "pull"

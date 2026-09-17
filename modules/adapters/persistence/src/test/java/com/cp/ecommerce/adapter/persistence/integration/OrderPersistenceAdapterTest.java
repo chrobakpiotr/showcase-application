@@ -41,7 +41,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_REMARKS;
  * Integration test for order - save to db and create cache test.
  */
 @DataJpaTest
-@ActiveProfiles("persistence-h2-in-memory")
+@ActiveProfiles("test-h2")
 @ContextConfiguration(classes = PersistenceConfiguration.class)
 @TestPropertySource(properties = "outbox.publisher.enabled=false")
 class OrderPersistenceAdapterTest {

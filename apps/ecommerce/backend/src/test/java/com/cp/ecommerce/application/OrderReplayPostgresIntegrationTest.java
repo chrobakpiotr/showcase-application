@@ -9,7 +9,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /** Same transaction contract on PostgreSQL, including duplicate arbitration. */
-@ActiveProfiles("postgres-local")
+@ActiveProfiles("test-postgres")
 @Testcontainers(disabledWithoutDocker = true)
 class OrderReplayPostgresIntegrationTest extends AbstractOrderReplayIntegrationTest {
 

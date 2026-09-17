@@ -1,8 +1,0 @@
-spring:
-  config:
-    import: classpath:application-amqp.yml
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: sa
-    password: sa

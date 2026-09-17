@@ -20,7 +20,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_REMARKS;
 /**
  * Test class that checks the correct operation of saving order to the database.
  */
-@ActiveProfiles("local")
+@ActiveProfiles("test-h2")
 class ManageOrderIntegrationTest extends AbstractEcommerceApplicationTest {
 
     @Autowired

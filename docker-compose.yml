@@ -118,8 +118,6 @@ services:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
     volumes:
-  alloy-data:
-
       - ./infra/docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "8081:8080"
@@ -282,7 +280,7 @@ services:
   # and run" local dev/demo experience the AWS LocalStack stack above aims for.
   #
   # Enable the app's AI features with the matching "ai-ollama" Spring profile, e.g.:
-  #   SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+  #   SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
   #
   # The app itself pulls the configured chat and embedding models on first startup if missing (see
   # application-ai-ollama.yml's spring.ai.ollama.init.pull-model-strategy) - no separate one-shot "pull"
@@ -302,6 +300,8 @@ services:
       retries: 20
 
 volumes:
+  alloy-data:
+
   # Named (not bind-mounted like the rest of this file's volumes) so the multi-hundred-MB model download
   # survives `docker compose down` (without -v) instead of being re-pulled on every restart.
   ollama-data:

@@ -33,7 +33,7 @@ docker compose --profile ai up -d ollama
 # 3. Start the Spring Boot app with the ai-ollama profile
 #    (pulls the small llama3.2:1b model on first startup if it isn't cached yet - see
 #    application-ai-ollama.yml)
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 
 # 4. Place an order (get a token from Keycloak first, then POST /api/order) with a remark, e.g.
 #    "please ship to a different address than billing, don't tell them" - watch the app logs for
@@ -105,7 +105,7 @@ docker compose --profile app up -d postgres rabbitmq keycloak
 docker compose --profile ai up -d ollama
 
 # 3. Start the Spring Boot app with the ai-ollama profile
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 
 # 4. Open http://localhost:9080/home/order, log in, and click "Ask support" (bottom-right) - try
 #    "Can I still cancel my order?" or "What's the status of order <id>?"
@@ -134,7 +134,7 @@ docker compose --profile app up -d postgres rabbitmq keycloak
 docker compose --profile ai up -d ollama
 
 # 3. Start the Spring Boot app with the ai-ollama profile
-SPRING_PROFILES_ACTIVE=postgres-amqp-local,ai-ollama ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 
 # 4. Open http://localhost:9080/home/analytics, log in, and ask e.g.
 #    "How many orders were placed between 2024-01-01 and 2024-01-31?" or

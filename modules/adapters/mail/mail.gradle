@@ -40,6 +40,7 @@ dependencies {
     testImplementation 'org.hamcrest:hamcrest'
     testImplementation 'org.springframework.boot:spring-boot-test'
     testImplementation 'org.springframework.data:spring-data-jpa'
+    testRuntimeOnly 'com.h2database:h2'
     testImplementation 'org.springframework:spring-core'
     testImplementation 'org.springframework:spring-test'
     testImplementation 'xml-apis:xml-apis'

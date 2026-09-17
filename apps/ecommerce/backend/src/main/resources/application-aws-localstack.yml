@@ -9,7 +9,7 @@
 # (i.e. via `./gradlew bootRun`) against a docker-composed LocalStack that Terraform has
 # already provisioned:
 #
-#   SPRING_PROFILES_ACTIVE=postgres-amqp-local,aws-localstack ./gradlew bootRun
+#   SPRING_PROFILES_ACTIVE=local,aws-localstack ./gradlew bootRun
 #
 # Ensure LocalStack is running first (see infra/terraform/README.md):
 #   docker compose --profile aws up -d localstack

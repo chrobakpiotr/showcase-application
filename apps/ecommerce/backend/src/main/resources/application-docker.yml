@@ -1,18 +1,27 @@
-# Profile for running the fully containerized app (see root Dockerfile / docker-compose.yml)
-# against dockerized Postgres, RabbitMQ, Kafka, Redis, Keycloak and the observability stack, all
-# sharing the same Docker network.
+# Fully containerized profile used by the root docker-compose.yml.
+# Environment-specific service addresses live here; adapter resource files contain only
+# technology/capability configuration shared with other environments.
 spring:
   config:
-    # Structured JSON console output (see modules/adapters/security/application-json-logging.yml) so
-    # Alloy/Loki (infra/docker/observability) can parse fields directly instead of scraping raw
-    # text - a containerized deployment's stdout is the natural place log-shipping agents tail
-    # from. Imported directly (rather than via spring.profiles.include, which Boot disallows in a
-    # profile-specific document such as this one) alongside the rest of this profile's config.
     import:
-      classpath:application.yml,classpath:application-persistence-postgres-docker.yml,classpath:application-amqp-docker.yml,classpath:application-kafka-docker.yml,classpath:application-cache-redis-docker.yml,classpath:application-json-logging.yml
+      classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-kafka.yml,classpath:application-cache-redis.yml,classpath:application-json-logging.yml
+  datasource:
+    url: "jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:test_db}"
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:sa}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:sa}
+    password: ${RABBITMQ_PASSWORD:sa}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:19092}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
   liquibase:
-    # Docker Compose is a local showcase environment, so it explicitly opts into deterministic
-    # demo fixtures. Production-like profiles such as k8s do not include the demo context.
+    # Docker Compose is a local showcase environment, so it opts into deterministic demo fixtures.
     contexts: local,demo
 
 service:
@@ -21,14 +30,11 @@ service:
 
 security:
   oauth2:
-    # Must match the "iss" claim of tokens issued by Keycloak, i.e. whatever host:port the
-    # browser/API client used to obtain them (Keycloak is published on the host at 8081).
-    issuer-uri: http://localhost:8081/realms/ecommerce
-    # Used for the actual (server-to-server) JWK set fetch, so it uses the internal Docker
-    # network service name instead, which is reachable from within the app container.
-    jwk-set-uri: http://keycloak:8080/realms/ecommerce/protocol/openid-connect/certs
+    # Must match tokens issued through the host-published Keycloak endpoint.
+    issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:8081/realms/ecommerce}
+    # Server-to-server JWK fetch uses the internal Docker service address.
+    jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://keycloak:8080/realms/ecommerce/protocol/openid-connect/certs}
 
 observability:
   otlp:
-    # Tempo (see infra/docker/observability) is in the same Docker network in this topology.
-    tracing-endpoint: http://tempo:4318/v1/traces
+    tracing-endpoint: ${OTLP_TRACING_ENDPOINT:http://tempo:4318/v1/traces}

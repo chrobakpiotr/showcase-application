@@ -5,7 +5,7 @@
 spring:
   config:
     import:
-      classpath:application.yml,classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-cache-redis.yml,classpath:application-json-logging.yml
+      classpath:application-persistence-postgres.yml,classpath:application-amqp.yml,classpath:application-cache-redis.yml,classpath:application-json-logging.yml
   # See application-docker.yml for the rationale - a container's stdout is the only sane place to
   # collect logs from in Kubernetes (no writable filesystem to speak of, see
   # infra/k8s/README.md#pod-security), so it needs to already be machine-parseable JSON for whatever

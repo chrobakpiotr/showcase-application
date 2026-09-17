@@ -1,0 +1,27 @@
+spring:
+  config:
+    import:
+      classpath:application.yml
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    database: H2
+    database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate.default_schema: test_db
+  liquibase:
+    contexts: local,demo
+
+management:
+  health:
+    rabbit:
+      enabled: false
+
+service:
+  rabbitmq:
+    enabled: false
+  mail:
+    enabled: false

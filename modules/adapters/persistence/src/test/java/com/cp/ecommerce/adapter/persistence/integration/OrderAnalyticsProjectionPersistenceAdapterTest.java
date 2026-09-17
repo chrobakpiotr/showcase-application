@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * against the real (Liquibase-migrated) H2 schema rather than a mocked repository.
  */
 @DataJpaTest
-@ActiveProfiles("persistence-h2-in-memory")
+@ActiveProfiles("test-h2")
 @ContextConfiguration(classes = PersistenceConfiguration.class)
 @TestPropertySource(properties = "outbox.publisher.enabled=false")
 class OrderAnalyticsProjectionPersistenceAdapterTest {
