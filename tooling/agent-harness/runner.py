@@ -168,7 +168,7 @@ def codex_command(
         '--config', 'approval_policy="never"',
         '--config', 'web_search="disabled"',
         '--config', 'sandbox_workspace_write.network_access=false',
-        '--output-schema', str(schema_path or (worktree / 'etc' / 'agent-harness' / 'schemas' / 'task-result.schema.json')),
+        '--output-schema', str(schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')),
         '--output-last-message', str(result),
     ]
     if args.model:
@@ -203,7 +203,7 @@ def claude_command(
 ) -> list[str]:
     if not args.print_command and not shutil.which('claude'):
         die('claude CLI is not installed')
-    schema = (schema_path or (worktree / 'etc' / 'agent-harness' / 'schemas' / 'task-result.schema.json')).read_text(encoding='utf-8')
+    schema = (schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')).read_text(encoding='utf-8')
     read_only_profile = args.review_existing or bool(args.profile and args.profile.endswith('-reviewer'))
     tools = 'Read,Glob,Grep,Bash' if read_only_profile else 'Read,Edit,Write,Glob,Grep,Bash'
     allowed = ['Read', 'Glob', 'Grep'] if read_only_profile else ['Read', 'Edit', 'Write', 'Glob', 'Grep']

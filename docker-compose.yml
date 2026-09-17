@@ -126,10 +126,11 @@ services:
     image: prom/prometheus:v3.14.0
     container_name: ecommerce-prometheus
     restart: unless-stopped
+    command: [ "--config.file=/config/prometheus.yml" ]
     ports:
       - "9090:9090"
     volumes:
-      - ./infra/docker/observability/prometheus/prometheus-docker.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/docker/observability/prometheus/prometheus-docker.yml:/config/prometheus.yml:ro
 
   tempo:
     # Pinned to the latest 2.x release, not 3.0: Tempo 3.0 replaces the monolithic
@@ -141,23 +142,23 @@ services:
     image: grafana/tempo:2.10.8
     container_name: ecommerce-tempo
     restart: unless-stopped
-    command: [ "-config.file=/etc/tempo.yaml" ]
+    command: [ "-config.file=/config/tempo.yaml" ]
     ports:
       - "3200:3200"
       - "4317:4317"
       - "4318:4318"
     volumes:
-      - ./infra/docker/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - ./infra/docker/observability/tempo/tempo.yaml:/config/tempo.yaml:ro
 
   loki:
     image: grafana/loki:3.7.7
     container_name: ecommerce-loki
     restart: unless-stopped
-    command: [ "-config.file=/etc/loki/loki-config.yaml" ]
+    command: [ "-config.file=/config/loki.yaml" ]
     ports:
       - "3100:3100"
     volumes:
-      - ./infra/docker/observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./infra/docker/observability/loki/loki-config.yaml:/config/loki.yaml:ro
 
   promtail:
     # Promtail is end-of-life (EOL since March 2026, per Grafana's official announcement) - 3.6.11
@@ -166,9 +167,9 @@ services:
     image: grafana/promtail:3.6.11
     container_name: ecommerce-promtail
     restart: unless-stopped
-    command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
+    command: [ "-config.file=/config/promtail.yaml" ]
     volumes:
-      - ./infra/docker/observability/promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - ./infra/docker/observability/promtail/promtail-config.yaml:/config/promtail.yaml:ro
       # Read-only access to the Docker daemon's own API (service discovery) and the container log
       # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
       # stops, or otherwise controls containers through this socket, only reads. This is what
@@ -190,8 +191,9 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/config/grafana/provisioning
     volumes:
-      - ./infra/docker/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/docker/observability/grafana/provisioning:/config/grafana/provisioning:ro
     depends_on:
       - prometheus
       - tempo
@@ -263,9 +265,9 @@ services:
     image: ghcr.io/shopify/toxiproxy:2.12.0
     container_name: ecommerce-toxiproxy
     profiles: ["chaos"]
-    command: ["-host=0.0.0.0", "-config=/etc/toxiproxy.json"]
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
     volumes:
-      - ./infra/docker/chaos/toxiproxy.json:/etc/toxiproxy.json:ro
+      - ./infra/docker/chaos/toxiproxy.json:/config/toxiproxy.json:ro
     ports:
       - "8474:8474"
       - "25672:25672"

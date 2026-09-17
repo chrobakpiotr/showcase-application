@@ -125,7 +125,7 @@ class WayfinderTest(unittest.TestCase):
         source_root = pathlib.Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
-            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
+            shutil.copytree(source_root / 'tooling' / 'agent-harness', root / 'tooling' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
@@ -159,7 +159,7 @@ print(json.dumps({'type':'result','usage':{'input_tokens':1,'output_tokens':1}})
         source_root = pathlib.Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
-            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
+            shutil.copytree(source_root / 'tooling' / 'agent-harness', root / 'tooling' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')

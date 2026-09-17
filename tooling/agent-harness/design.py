@@ -284,7 +284,7 @@ def run_provider(
     runtime = REPO / '.agent-runs' / 'design' / feature / args.run_id / stage
     runtime.mkdir(parents=True, exist_ok=True)
     result_path = runtime / 'result.json'
-    schema = worktree / 'etc' / 'agent-harness' / 'schemas' / 'design-result.schema.json'
+    schema = worktree / 'tooling' / 'agent-harness' / 'schemas' / 'design-result.schema.json'
     before = r.git_snapshot(worktree)
     command = (
         r.codex_command(p_args, prompt, worktree, result_path, schema_path=schema)

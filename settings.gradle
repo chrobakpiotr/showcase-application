@@ -1,6 +1,5 @@
 rootProject.name = 'showcase-application'
 
-addSubproject('adapter:ecommerce-backend', 'apps/ecommerce/composition')
 addSubproject('adapter:ecommerce-frontend', 'apps/ecommerce/frontend')
 addSubproject('adapter:security', 'modules/adapters/security')
 addSubproject('adapter:common', 'modules/adapters/common')

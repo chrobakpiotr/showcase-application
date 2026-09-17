@@ -12,10 +12,11 @@ services:
   prometheus:
     image: prom/prometheus:v3.14.0
     container_name: ecommerce-prometheus
+    command: [ "--config.file=/config/prometheus.yml" ]
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/prometheus.yml:/config/prometheus.yml:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -29,23 +30,23 @@ services:
     # See https://grafana.com/docs/tempo/latest/setup/upgrade/#upgrade-to-tempo-30
     image: grafana/tempo:2.10.8
     container_name: ecommerce-tempo
-    command: [ "-config.file=/etc/tempo.yaml" ]
+    command: [ "-config.file=/config/tempo.yaml" ]
     ports:
       - "3200:3200"
       - "4317:4317"
       - "4318:4318"
     volumes:
-      - ./tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - ./tempo/tempo.yaml:/config/tempo.yaml:ro
     restart: unless-stopped
 
   loki:
     image: grafana/loki:3.7.7
     container_name: ecommerce-loki
-    command: [ "-config.file=/etc/loki/loki-config.yaml" ]
+    command: [ "-config.file=/config/loki.yaml" ]
     ports:
       - "3100:3100"
     volumes:
-      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - ./loki/loki-config.yaml:/config/loki.yaml:ro
     restart: unless-stopped
 
   promtail:
@@ -54,9 +55,9 @@ services:
     # shipper is Alloy; migrating is a reasonable future step but out of scope for this bump.
     image: grafana/promtail:3.6.11
     container_name: ecommerce-promtail
-    command: [ "-config.file=/etc/promtail/promtail-config.yaml" ]
+    command: [ "-config.file=/config/promtail.yaml" ]
     volumes:
-      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - ./promtail/promtail-config.yaml:/config/promtail.yaml:ro
       # Read-only access to the Docker daemon's own API (service discovery) and the container log
       # files it writes to disk (the actual log content Promtail tails) - Promtail never starts,
       # stops, or otherwise controls containers through this socket, only reads.
@@ -76,8 +77,9 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/config/grafana/provisioning
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning:/config/grafana/provisioning:ro
     depends_on:
       - prometheus
       - tempo

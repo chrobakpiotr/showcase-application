@@ -104,7 +104,7 @@ class DesignTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'
             root.mkdir()
-            shutil.copytree(source_root / 'etc' / 'agent-harness', root / 'etc' / 'agent-harness')
+            shutil.copytree(source_root / 'tooling' / 'agent-harness', root / 'tooling' / 'agent-harness')
             (root / 'docs' / 'agentic-sdd').mkdir(parents=True)
             shutil.copytree(source_root / 'docs' / 'agentic-sdd' / 'agents', root / 'docs' / 'agentic-sdd' / 'agents')
             (root / 'AGENTS.md').write_text('# map\n')
