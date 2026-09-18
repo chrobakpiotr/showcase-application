@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.util.Date;
+
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort;
 
@@ -49,9 +51,11 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
 
         if (event.getStatus() == OutboxEventStatus.PENDING) {
 
-            event.setStatus(OutboxEventStatus.CANCELLING);
-            outboxEventEntityRepository.save(event);
-            return CancellationClaim.ACQUIRED;
+            return claimForCancellation(event);
+        }
+        if (event.getStatus() == OutboxEventStatus.PROCESSING) {
+
+            return leaseExpired(event, new Date()) ? claimForCancellation(event) : CancellationClaim.TOO_LATE;
         }
         if (event.getStatus() == OutboxEventStatus.CANCELLING) {
 
@@ -62,5 +66,19 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
             return CancellationClaim.TOO_LATE;
         }
         return CancellationClaim.ALREADY_TERMINAL;
+    }
+
+    private CancellationClaim claimForCancellation(final OutboxEventEntity event) {
+
+        event.setStatus(OutboxEventStatus.CANCELLING);
+        event.setClaimId(null);
+        event.setClaimUntil(null);
+        outboxEventEntityRepository.save(event);
+        return CancellationClaim.ACQUIRED;
+    }
+
+    private static boolean leaseExpired(final OutboxEventEntity event, final Date now) {
+
+        return event.getClaimUntil() == null || !event.getClaimUntil().after(now);
     }
 }

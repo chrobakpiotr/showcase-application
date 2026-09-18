@@ -38,5 +38,6 @@
     <include file="changelogs/db.changelog-stock-reservation-identity.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-payment-refunds.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-durable-recovery.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-outbox-claims.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

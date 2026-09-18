@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +25,17 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
      * @return matching outbox events.
      */
     List<OutboxEventEntity> findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus status);
+
+    /**
+     * Find expired claims for one status ordered by creation date.
+     *
+     * @param status claimed status.
+     * @param claimUntil latest lease deadline that is considered expired.
+     * @return expired claimed events.
+     */
+    List<OutboxEventEntity> findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
+            OutboxEventStatus status,
+            Date claimUntil);
 
     /**
      * Reload one candidate while holding the shared saga/cancellation arbitration lock.

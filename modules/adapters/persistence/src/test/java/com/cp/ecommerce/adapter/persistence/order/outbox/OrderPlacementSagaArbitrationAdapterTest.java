@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim;
@@ -44,6 +45,47 @@ class OrderPlacementSagaArbitrationAdapterTest {
     void shouldClaimPendingSagaForCancellation() {
 
         final OutboxEventEntity event = event(OutboxEventStatus.PENDING);
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.CANCELLING);
+        verify(repository).save(event);
+    }
+
+    @Test
+    void shouldRejectCancellationWhilePlacementLeaseIsActive() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
+        event.setClaimId("worker-a");
+        event.setClaimUntil(new Date(Long.MAX_VALUE));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.TOO_LATE);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
+    void shouldStealExpiredPlacementLeaseForCancellation() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
+        event.setClaimId("dead-worker");
+        event.setClaimUntil(new Date(0L));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.CANCELLING);
+        assertThat(event.getClaimId()).isNull();
+        assertThat(event.getClaimUntil()).isNull();
+        verify(repository).save(event);
+    }
+
+    @Test
+    void shouldTreatProcessingWithoutLeaseAsExpiredForCancellation() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
+        event.setClaimId("legacy-or-corrupt-worker");
+        event.setClaimUntil(null);
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);

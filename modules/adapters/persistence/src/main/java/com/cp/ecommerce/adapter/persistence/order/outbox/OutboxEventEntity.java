@@ -63,4 +63,10 @@ public class OutboxEventEntity {
     @Column(name = "COMPENSATION_ATTEMPTS", nullable = false)
     private int compensationAttempts;
 
+    @Column(name = "CLAIM_ID", length = 36)
+    private String claimId;
+
+    @Column(name = "CLAIM_UNTIL")
+    private Date claimUntil;
+
 }

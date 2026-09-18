@@ -2,6 +2,9 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.time.Duration;
 import java.util.Date;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -90,43 +93,68 @@ public class OrderPlacementSagaOrchestrator {
     @Value("${outbox.publisher.max-fulfillment-attempts:5}")
     private int maxFulfillmentAttempts = 5;
 
+    @Value("${outbox.publisher.claim-lease-ms:60000}")
+    private long claimLeaseMs = 60_000L;
+
     /**
      * Publish all pending outbox events.
      */
     @Scheduled(fixedDelayString = "${outbox.publisher.poll-interval-ms:5000}")
     public void publishPendingEvents() {
 
+        final Date now = new Date();
         outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
-                .forEach(this::publishPendingEvent);
+                .forEach(this::publishPlacementCandidate);
+        outboxEventEntityRepository
+                .findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(OutboxEventStatus.PROCESSING, now)
+                .forEach(this::publishPlacementCandidate);
         outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING)
-                .forEach(this::publishCompensatingEvent);
+                .forEach(this::publishCompensatingCandidate);
     }
 
-    private void publishPendingEvent(final OutboxEventEntity outboxEventEntity) {
+    private void publishPlacementCandidate(final OutboxEventEntity candidate) {
 
         try {
-            transactionOperations.executeWithoutResult(
-                    status -> outboxEventEntityRepository.findByIdForUpdate(outboxEventEntity.getId())
-                            .filter(lockedEvent -> lockedEvent.getStatus() == OutboxEventStatus.PENDING)
-                            .ifPresent(this::processPendingEvent));
+            claimPlacementEvent(candidate).ifPresent(claim -> {
+                try {
+                    processPlacementClaim(claim);
+                } catch (final RuntimeException exception) {
+                    releasePlacementClaim(claim, exception.getMessage());
+                    throw exception;
+                }
+            });
         } catch (RuntimeException exception) {
-            log.warn("Could not process saga step for order: {}", outboxEventEntity.getOrderNumber(), exception);
+            log.warn("Could not process saga step for order: {}", candidate.getOrderNumber(), exception);
         }
     }
 
-    private void processPendingEvent(final OutboxEventEntity outboxEventEntity) {
+    private Optional<SagaClaim> claimPlacementEvent(final OutboxEventEntity candidate) {
 
-        final Order order = manageOrderInPort.findOrder(outboxEventEntity.getOrderNumber());
-        if (!ensurePaymentCaptured(order, outboxEventEntity)) {
+        return transactionOperations.execute(
+                status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
+                        .filter(
+                                event -> event.getStatus() == OutboxEventStatus.PENDING
+                                        || event.getStatus() == OutboxEventStatus.PROCESSING && leaseExpired(event, new Date()))
+                        .map(event -> {
+                            final String claimId = UUID.randomUUID().toString();
+                            event.setStatus(OutboxEventStatus.PROCESSING);
+                            event.setClaimId(claimId);
+                            event.setClaimUntil(claimUntil());
+                            return new SagaClaim(event.getId(), event.getOrderNumber(), claimId);
+                        }));
+    }
+
+    private void processPlacementClaim(final SagaClaim claim) {
+
+        final Order order = manageOrderInPort.findOrder(claim.orderNumber());
+        if (!ensurePaymentCaptured(order, claim)) {
 
             return;
         }
-        if (notifyFulfillment(order, outboxEventEntity)) {
+        if (notifyFulfillment(order, claim)) {
 
             runBestEffortStepsConcurrently(order);
-            outboxEventEntity.setStatus(OutboxEventStatus.SENT);
-            outboxEventEntity.setSentDate(new Date());
-            outboxEventEntityRepository.save(outboxEventEntity);
+            completePlacementClaim(claim);
         }
     }
 
@@ -168,7 +196,7 @@ public class OrderPlacementSagaOrchestrator {
     // and needs no attempts-counting of its own, unlike notifyFulfillment below. A decline is a genuine, deterministic
     // business outcome (see PaymentDeclinedException) that would never succeed on a later poll, so it compensates
     // immediately on the first attempt rather than being retried.
-    private boolean ensurePaymentCaptured(final Order order, final OutboxEventEntity outboxEventEntity) {
+    private boolean ensurePaymentCaptured(final Order order, final SagaClaim claim) {
 
         final long startNanos = System.nanoTime();
         try {
@@ -178,6 +206,7 @@ public class OrderPlacementSagaOrchestrator {
 
                 sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
                 log.warn("Refusing to continue placement saga for refunded order: {}", order.getOrderNumber());
+                releasePlacementClaim(claim, "Payment is already refunded");
                 return false;
             }
             sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), true);
@@ -189,13 +218,13 @@ public class OrderPlacementSagaOrchestrator {
                     "Payment capture declined for order: {}, compensating by cancelling the order.",
                     order.getOrderNumber(),
                     exception);
-            startCompensation(order, outboxEventEntity, exception.getMessage());
+            startCompensation(order, claim, exception.getMessage());
             return false;
         }
     }
 
     // Pivot/compensable saga step: bounded-retry, and once exhausted, compensates instead of retrying forever.
-    private boolean notifyFulfillment(final Order order, final OutboxEventEntity outboxEventEntity) {
+    private boolean notifyFulfillment(final Order order, final SagaClaim claim) {
 
         final long startNanos = System.nanoTime();
         try {
@@ -205,70 +234,140 @@ public class OrderPlacementSagaOrchestrator {
         } catch (RuntimeException exception) {
 
             sagaMetrics.recordStepDuration("fulfillment", elapsedSince(startNanos), false);
-            outboxEventEntity.setAttempts(outboxEventEntity.getAttempts() + 1);
-            outboxEventEntity.setLastError(exception.getMessage());
-            if (outboxEventEntity.getAttempts() >= maxFulfillmentAttempts) {
-
-                log.error(
-                        "Fulfillment notification failed for order: {} after {} attempts, compensating by cancelling the order.",
-                        order.getOrderNumber(),
-                        outboxEventEntity.getAttempts(),
-                        exception);
-                startCompensation(order, outboxEventEntity, exception.getMessage());
-            } else {
-
-                log.warn(
-                        "Fulfillment notification failed for order: {} (attempt {}/{}), will retry.",
-                        order.getOrderNumber(),
-                        outboxEventEntity.getAttempts(),
-                        maxFulfillmentAttempts,
-                        exception);
-                outboxEventEntityRepository.save(outboxEventEntity);
-            }
+            recordFulfillmentFailure(order, claim, exception);
             return false;
         }
     }
 
-    private void startCompensation(final Order order, final OutboxEventEntity outboxEventEntity, final String error) {
+    private void recordFulfillmentFailure(final Order order, final SagaClaim claim, final RuntimeException exception) {
 
-        cancelOrderInPort.cancelOrder(order.getOrderNumber());
-        outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATING);
-        outboxEventEntity.setLastError(error);
-        outboxEventEntityRepository.save(outboxEventEntity);
+        transactionOperations.executeWithoutResult(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .filter(event -> ownsPlacementClaim(event, claim))
+                        .ifPresent(event -> {
+                            event.setAttempts(event.getAttempts() + 1);
+                            event.setLastError(exception.getMessage());
+                            if (event.getAttempts() >= maxFulfillmentAttempts) {
+
+                                log.error(
+                                        "Fulfillment notification failed for order: {} after {} attempts, compensating by cancelling the order.",
+                                        order.getOrderNumber(),
+                                        event.getAttempts(),
+                                        exception);
+                                cancelOrderInPort.cancelOrder(order.getOrderNumber());
+                                event.setStatus(OutboxEventStatus.COMPENSATING);
+                            } else {
+
+                                log.warn(
+                                        "Fulfillment notification failed for order: {} (attempt {}/{}), will retry.",
+                                        order.getOrderNumber(),
+                                        event.getAttempts(),
+                                        maxFulfillmentAttempts,
+                                        exception);
+                                event.setStatus(OutboxEventStatus.PENDING);
+                            }
+                            clearClaim(event);
+                            outboxEventEntityRepository.save(event);
+                        }));
     }
 
-    private void publishCompensatingEvent(final OutboxEventEntity candidate) {
+    private void startCompensation(final Order order, final SagaClaim claim, final String error) {
+
+        transactionOperations.executeWithoutResult(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .filter(event -> ownsPlacementClaim(event, claim))
+                        .ifPresent(event -> {
+                            cancelOrderInPort.cancelOrder(order.getOrderNumber());
+                            event.setStatus(OutboxEventStatus.COMPENSATING);
+                            event.setLastError(error);
+                            clearClaim(event);
+                            outboxEventEntityRepository.save(event);
+                        }));
+    }
+
+    private void releasePlacementClaim(final SagaClaim claim, final String error) {
+
+        transactionOperations.executeWithoutResult(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .filter(event -> ownsPlacementClaim(event, claim))
+                        .ifPresent(event -> {
+                            event.setStatus(OutboxEventStatus.PENDING);
+                            event.setLastError(error);
+                            clearClaim(event);
+                        }));
+    }
+
+    private void completePlacementClaim(final SagaClaim claim) {
+
+        transactionOperations.executeWithoutResult(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .filter(event -> ownsPlacementClaim(event, claim))
+                        .ifPresent(event -> {
+                            event.setStatus(OutboxEventStatus.SENT);
+                            event.setSentDate(new Date());
+                            clearClaim(event);
+                            outboxEventEntityRepository.save(event);
+                        }));
+    }
+
+    private void publishCompensatingCandidate(final OutboxEventEntity candidate) {
 
         try {
-            final Order order = manageOrderInPort.findOrder(candidate.getOrderNumber());
-            releaseReservedStock(order);
-            refundCapturedPayment(order);
-            transactionOperations.executeWithoutResult(status -> completeCompensation(candidate.getId()));
+            claimCompensationEvent(candidate).ifPresent(this::processCompensationClaim);
         } catch (final RuntimeException exception) {
-            transactionOperations.executeWithoutResult(status -> recordCompensationFailure(candidate.getId(), exception));
+            log.warn("Could not claim compensation for order: {}", candidate.getOrderNumber(), exception);
         }
     }
 
-    private void completeCompensation(final Long eventId) {
+    private Optional<SagaClaim> claimCompensationEvent(final OutboxEventEntity candidate) {
 
-        outboxEventEntityRepository.findByIdForUpdate(eventId)
-                .filter(event -> event.getStatus() == OutboxEventStatus.COMPENSATING)
+        return transactionOperations.execute(
+                status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
+                        .filter(
+                                event -> event.getStatus() == OutboxEventStatus.COMPENSATING
+                                        && leaseAvailable(event, new Date()))
+                        .map(event -> {
+                            final String claimId = UUID.randomUUID().toString();
+                            event.setClaimId(claimId);
+                            event.setClaimUntil(claimUntil());
+                            return new SagaClaim(event.getId(), event.getOrderNumber(), claimId);
+                        }));
+    }
+
+    private void processCompensationClaim(final SagaClaim claim) {
+
+        try {
+            final Order order = manageOrderInPort.findOrder(claim.orderNumber());
+            releaseReservedStock(order);
+            refundCapturedPayment(order);
+            transactionOperations.executeWithoutResult(status -> completeCompensation(claim));
+        } catch (final RuntimeException exception) {
+            transactionOperations.executeWithoutResult(status -> recordCompensationFailure(claim, exception));
+        }
+    }
+
+    private void completeCompensation(final SagaClaim claim) {
+
+        outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                .filter(event -> ownsCompensationClaim(event, claim))
                 .ifPresent(event -> {
                     event.setStatus(OutboxEventStatus.COMPENSATED);
                     event.setCompensatedDate(new Date());
                     event.setLastError(null);
+                    clearClaim(event);
                     outboxEventEntityRepository.save(event);
                     sagaMetrics.recordCompensation();
                 });
     }
 
-    private void recordCompensationFailure(final Long eventId, final RuntimeException exception) {
+    private void recordCompensationFailure(final SagaClaim claim, final RuntimeException exception) {
 
-        outboxEventEntityRepository.findByIdForUpdate(eventId)
-                .filter(event -> event.getStatus() == OutboxEventStatus.COMPENSATING)
+        outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                .filter(event -> ownsCompensationClaim(event, claim))
                 .ifPresent(event -> {
                     event.setCompensationAttempts(event.getCompensationAttempts() + 1);
                     event.setLastError(exception.getMessage());
+                    clearClaim(event);
                     outboxEventEntityRepository.save(event);
                 });
     }
@@ -396,6 +495,40 @@ public class OrderPlacementSagaOrchestrator {
             sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), false);
             log.warn(failureLogMessage, order.getOrderNumber(), exception);
         }
+    }
+
+    private boolean ownsPlacementClaim(final OutboxEventEntity event, final SagaClaim claim) {
+
+        return event.getStatus() == OutboxEventStatus.PROCESSING && Objects.equals(event.getClaimId(), claim.claimId());
+    }
+
+    private boolean ownsCompensationClaim(final OutboxEventEntity event, final SagaClaim claim) {
+
+        return event.getStatus() == OutboxEventStatus.COMPENSATING && Objects.equals(event.getClaimId(), claim.claimId());
+    }
+
+    private static boolean leaseAvailable(final OutboxEventEntity event, final Date now) {
+
+        return event.getClaimUntil() == null || leaseExpired(event, now);
+    }
+
+    private static boolean leaseExpired(final OutboxEventEntity event, final Date now) {
+
+        return !event.getClaimUntil().after(now);
+    }
+
+    private Date claimUntil() {
+
+        return new Date(System.currentTimeMillis() + claimLeaseMs);
+    }
+
+    private static void clearClaim(final OutboxEventEntity event) {
+
+        event.setClaimId(null);
+        event.setClaimUntil(null);
+    }
+
+    private record SagaClaim(Long eventId, String orderNumber, String claimId) {
     }
 
     private static Duration elapsedSince(final long startNanos) {

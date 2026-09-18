@@ -6,6 +6,7 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 public enum OutboxEventStatus {
 
     PENDING,
+    PROCESSING,
     SENT,
     COMPENSATING,
     COMPENSATED,

@@ -1,0 +1,151 @@
+{
+  "feature": "OUTBOX-CLAIM-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define leased outbox ownership",
+      "objective": "Specify placement and compensation claim, lease, fencing and cancellation arbitration semantics.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/OUTBOX-CLAIM-001/**",
+        "docs/adr/0042-leased-outbox-claims.md",
+        "docs/adr/README.md"
+      ],
+      "risk_tags": [
+        "concurrency",
+        "transactions",
+        "saga",
+        "external-side-effects"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-005",
+        "AC-006",
+        "AC-009",
+        "AC-012"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/OUTBOX-CLAIM-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Specification and ADR."
+    },
+    {
+      "id": "T-002",
+      "title": "Add durable claim metadata and cancellation arbitration",
+      "objective": "Persist claim lease metadata and make cancellation respect active or expired placement ownership.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**"
+      ],
+      "risk_tags": [
+        "persistence",
+        "locking",
+        "cancellation",
+        "leases"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-009"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaArbitrationAdapterTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Persistence unit tests around claim state and cancellation arbitration."
+    },
+    {
+      "id": "T-003",
+      "title": "Claim and fence placement and compensation workers",
+      "objective": "Move external saga work outside the claim transaction and fence every durable completion by claim token.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java"
+      ],
+      "risk_tags": [
+        "concurrency",
+        "fencing",
+        "external-side-effects",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestratorTest --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Two orchestrator instances against one PostgreSQL database plus focused fencing tests."
+    },
+    {
+      "id": "T-004",
+      "title": "Independent R03 evaluation",
+      "objective": "Verify multi-worker exclusion, crash recovery, fencing and all previous hardening regressions independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "docs/specs/OUTBOX-CLAIM-001/evidence/**"
+      ],
+      "risk_tags": [
+        "concurrency",
+        "transactions",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/OUTBOX-CLAIM-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA and deterministic gate evidence."
+    }
+  ]
+}

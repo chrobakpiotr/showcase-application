@@ -48,6 +48,7 @@ than editing it in place.
 | [0039](0039-partial-payment-refunds.md) | Partial payment refunds use durable refund identities |
 | [0040](0040-stock-mutation-retry-transaction-boundary.md) | Generic stock optimistic retries own one transaction per attempt |
 | [0041](0041-durable-compensation-and-notification-retry.md) | Saga compensation and notification delivery are durably retryable |
+| [0042](0042-leased-outbox-claims.md) | Order outbox workers use leased claims with fencing tokens |
 
 ## Template for new ADRs
 
