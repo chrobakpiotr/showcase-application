@@ -95,7 +95,7 @@ subprojects {
 		doFirst {
 			def binaryDir = binaryResultsDirectory.get().asFile
 			if (binaryDir.exists()) {
-				project.delete(binaryDir)
+				binaryDir.deleteDir()
 			}
 		}
 		// Absolute path so adapter:amqp/adapter:kafka's contract tests can parse contracts/asyncapi/asyncapi.yml
