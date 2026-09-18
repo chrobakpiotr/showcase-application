@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -257,10 +258,33 @@ public class OrderController {
 
     private Order prepareOrder(final Order draft) {
 
-        final Order prepared = applyCouponIfPresent(draft);
+        final Order prepared = withStockReservationIdentity(applyCouponIfPresent(draft));
         prepared.assertValidationsEmpty();
         reserveStockFor(prepared);
         return prepared;
+    }
+
+    private Order withStockReservationIdentity(final Order order) {
+
+        if (order.getStockReservationId() != null && !order.getStockReservationId().isBlank()) {
+
+            return order;
+        }
+        final String reservationId = order.getOrderNumber() == null || order.getOrderNumber().isBlank()
+                ? UUID.randomUUID().toString()
+                : order.getOrderNumber();
+        return Order.builder()
+                .remarks(order.getRemarks())
+                .orderNumber(order.getOrderNumber())
+                .stockReservationId(reservationId)
+                .created(order.getCreated())
+                .customer(order.getCustomer())
+                .items(order.getItems())
+                .status(order.getStatus())
+                .paymentMethod(order.getPaymentMethod())
+                .couponCode(order.getCouponCode())
+                .discountAmount(order.getDiscountAmount())
+                .build();
     }
 
     private Order applyCouponIfPresent(final Order order) {
@@ -277,6 +301,7 @@ public class OrderController {
         return Order.builder()
                 .remarks(order.getRemarks())
                 .orderNumber(order.getOrderNumber())
+                .stockReservationId(order.getStockReservationId())
                 .created(order.getCreated())
                 .customer(order.getCustomer())
                 .items(order.getItems())
@@ -293,12 +318,12 @@ public class OrderController {
         try {
             for (final OrderLineItem item : order.getItems()) {
 
-                manageStockInPort.reserveStock(item.getSku(), item.getQuantity());
+                manageStockInPort.reserveStock(order.getStockReservationId(), item.getSku(), item.getQuantity());
                 reserved.add(item);
             }
         } catch (final InsufficientStockException exception) {
 
-            reserved.forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
+            reserved.forEach(item -> manageStockInPort.releaseStock(order.getStockReservationId(), item.getSku()));
             throw exception;
         }
     }

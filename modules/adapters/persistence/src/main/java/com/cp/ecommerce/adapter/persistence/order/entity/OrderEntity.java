@@ -58,6 +58,9 @@ public class OrderEntity {
     @Column(name = "ORDER_NUMBER", length = 40, nullable = false)
     private String orderNumber;
 
+    @Column(name = "STOCK_RESERVATION_ID", length = 40)
+    private String stockReservationId;
+
     @Column(name = "CREATION_DATE", length = 40, nullable = false)
     private Date created;
 

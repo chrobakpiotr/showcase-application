@@ -30,6 +30,16 @@ public interface ManageStockInPort {
     StockLevel releaseStock(String sku, int quantity);
 
     /**
+     * Reserves stock for a durable workflow identity. Replaying the same reservation identity and SKU is idempotent.
+     */
+    StockLevel reserveStock(String reservationId, String sku, int quantity);
+
+    /**
+     * Releases only the stock owned by the given durable reservation identity and SKU. Replays are idempotent.
+     */
+    StockLevel releaseStock(String reservationId, String sku);
+
+    /**
      * Fulfills a previously-made reservation: decreases both on-hand and reserved quantity by {@code quantity}, e.g. once an
      * order actually ships.
      *

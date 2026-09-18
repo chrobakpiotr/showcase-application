@@ -37,13 +37,26 @@ class OrderPersistenceMapperTest {
     @Test
     void shouldMapDomainToEntity() {
 
-        final Order order = OrderBuilder.mockOrder();
+        final Order baseOrder = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(baseOrder.getRemarks())
+                .orderNumber(baseOrder.getOrderNumber())
+                .stockReservationId("RESERVATION-MAPPER")
+                .created(baseOrder.getCreated())
+                .customer(baseOrder.getCustomer())
+                .items(baseOrder.getItems())
+                .status(baseOrder.getStatus())
+                .paymentMethod(baseOrder.getPaymentMethod())
+                .couponCode(baseOrder.getCouponCode())
+                .discountAmount(baseOrder.getDiscountAmount())
+                .build();
         final Optional<OrderEntity> result = orderPersistenceMapper.mapToEntity(order);
 
         assertThat(result).isPresent();
         assertThat(result.get().getId()).isNull();
         assertThat(result.get().getRemarks()).isEqualTo(TEST_REMARKS);
         assertThat(result.get().getOrderNumber()).isEqualTo(TEST_ORDER_NUMBER);
+        assertThat(result.get().getStockReservationId()).isEqualTo("RESERVATION-MAPPER");
         assertThat(result.get().getCreated()).isNotNull();
         assertThat(result.get().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(result.get().getItems()).hasSize(1);
@@ -57,6 +70,7 @@ class OrderPersistenceMapperTest {
     void shouldMapEntityToDomain() {
 
         final OrderEntity entity = OrderEntityBuilder.mockOrderEntity();
+        entity.setStockReservationId("RESERVATION-MAPPER");
         final Optional<Order> result = orderPersistenceMapper.mapToDomainObject(entity);
 
         assertThat(result).isPresent();
@@ -66,6 +80,17 @@ class OrderPersistenceMapperTest {
         assertThat(result.get().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(result.get().getItems()).hasSize(1);
         assertThat(result.get().getItems().get(0).getSku()).isEqualTo(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU);
+    }
+
+    @Test
+    void shouldFallbackToOrderNumberWhenReservationIdentityIsMissing() {
+
+        final Order order = OrderBuilder.mockOrder();
+
+        final Optional<OrderEntity> result = orderPersistenceMapper.mapToEntity(order);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getStockReservationId()).isEqualTo(TEST_ORDER_NUMBER);
     }
 
     @Test

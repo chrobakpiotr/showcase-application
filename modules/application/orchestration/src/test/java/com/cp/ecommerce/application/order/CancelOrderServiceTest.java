@@ -30,6 +30,12 @@ class CancelOrderServiceTest {
 
     private static final String EMAIL = "customer@example.com";
 
+    private static final String FIRST_SKU = "SKU-1";
+
+    private static final String SECOND_SKU = "SKU-2";
+
+    private static final String RESERVATION_ID = "RESERVATION-1";
+
     @Mock
     private transient OrderCancellationArbitrator orderCancellationArbitrator;
 
@@ -72,10 +78,8 @@ class CancelOrderServiceTest {
         final OrderLineItem firstItem = mock(OrderLineItem.class);
         final OrderLineItem secondItem = mock(OrderLineItem.class);
         final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
-        given(firstItem.getSku()).willReturn("SKU-1");
-        given(firstItem.getQuantity()).willReturn(2);
-        given(secondItem.getSku()).willReturn("SKU-2");
-        given(secondItem.getQuantity()).willReturn(1);
+        given(firstItem.getSku()).willReturn(FIRST_SKU);
+        given(secondItem.getSku()).willReturn(SECOND_SKU);
         given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
         given(order.getItems()).willReturn(List.of(firstItem, secondItem));
         given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
@@ -91,8 +95,41 @@ class CancelOrderServiceTest {
                 managePaymentInPort,
                 sendNotificationInPort);
         calls.verify(orderCancellationArbitrator).beginCancellation(ORDER_NUMBER);
-        calls.verify(manageStockInPort).releaseStock("SKU-1", 2);
-        calls.verify(manageStockInPort).releaseStock("SKU-2", 1);
+        calls.verify(manageStockInPort).releaseStock(ORDER_NUMBER, FIRST_SKU);
+        calls.verify(manageStockInPort).releaseStock(ORDER_NUMBER, SECOND_SKU);
+        calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
+        calls.verify(sendNotificationInPort)
+                .sendNotification(
+                        EMAIL,
+                        NotificationType.ORDER_CANCELLED,
+                        "Order " + ORDER_NUMBER + " cancelled",
+                        "Your order " + ORDER_NUMBER + " was cancelled.");
+        calls.verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
+    }
+
+    @Test
+    void shouldReleaseUsingPersistedReservationIdentity() {
+
+        final OrderLineItem item = mock(OrderLineItem.class);
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        given(item.getSku()).willReturn(FIRST_SKU);
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getStockReservationId()).willReturn(RESERVATION_ID);
+        given(order.getItems()).willReturn(List.of(item));
+        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+
+        final Order result = cancelOrderService.cancelOrder(ORDER_NUMBER);
+
+        assertThat(result).isSameAs(order);
+        final InOrder calls = inOrder(
+                orderCancellationArbitrator,
+                manageStockInPort,
+                managePaymentInPort,
+                sendNotificationInPort);
+        calls.verify(orderCancellationArbitrator).beginCancellation(ORDER_NUMBER);
+        calls.verify(manageStockInPort).releaseStock(RESERVATION_ID, FIRST_SKU);
         calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
         calls.verify(sendNotificationInPort)
                 .sendNotification(

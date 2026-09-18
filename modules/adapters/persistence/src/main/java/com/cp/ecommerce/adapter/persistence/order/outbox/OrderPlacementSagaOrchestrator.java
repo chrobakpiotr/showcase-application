@@ -265,7 +265,7 @@ public class OrderPlacementSagaOrchestrator {
 
         order.getItems().forEach(item -> {
             try {
-                manageStockInPort.releaseStock(item.getSku(), item.getQuantity());
+                manageStockInPort.releaseStock(stockReservationId(order), item.getSku());
             } catch (final RuntimeException exception) {
                 log.warn(
                         "Could not release reserved stock for order: {}, sku: {} (best-effort): {}",
@@ -274,6 +274,11 @@ public class OrderPlacementSagaOrchestrator {
                         exception.getMessage());
             }
         });
+    }
+
+    private static String stockReservationId(final Order order) {
+
+        return order.getStockReservationId() == null ? order.getOrderNumber() : order.getStockReservationId();
     }
 
     private void sendConfirmationEmail(final Order order) {

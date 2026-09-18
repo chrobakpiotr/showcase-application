@@ -1,0 +1,122 @@
+{
+  "feature": "INV-RES-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Reproduce retry release corruption",
+      "objective": "Prove on PostgreSQL that retrying order A cancellation can release order B stock when reservation identity is absent.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/INV-RES-001/**",
+        "docs/adr/0038-stock-reservation-identity.md",
+        "docs/adr/README.md",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockReservationIdentityPostgresIntegrationTest.java"
+      ],
+      "risk_tags": [
+        "persistence",
+        "concurrency",
+        "transactions"
+      ],
+      "acceptance_criteria": [
+        "AC-001"
+      ],
+      "verification": [
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest --no-configuration-cache --no-parallel",
+        "python3 tooling/agent-harness/harness.py validate docs/specs/INV-RES-001"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Real PostgreSQL order/inventory state; cancellation deliberately fails after the first stock release and is retried without sleeps."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement identity-safe order reservations",
+      "objective": "Persist reservation identity and make order reserve/release atomic and idempotent without breaking generic inventory APIs.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/INV-RES-001/**",
+        "docs/adr/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/inventory/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/order/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/inventory/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/OrderController.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/order/OrderControllerTest.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/CancelOrderService.java",
+        "modules/application/orchestration/src/test/java/com/cp/ecommerce/application/order/CancelOrderServiceTest.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockReservationIdentityPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationRecoveryPostgresIntegrationTest.java"
+      ],
+      "risk_tags": [
+        "persistence",
+        "concurrency",
+        "transactions",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "verification": [
+        "./gradlew :domain:test :domain:jacocoTestCoverageVerification --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test :adapter:persistence:jacocoTestCoverageVerification --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest --no-configuration-cache --no-parallel",
+        "./gradlew test --no-configuration-cache --no-parallel",
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "PostgreSQL retry and duplicate-release tests observe aggregate reserved quantity and durable order cancellation state."
+    },
+    {
+      "id": "T-003",
+      "title": "Independent R02 evaluation",
+      "objective": "Review reservation identity, migration, transaction boundaries and PostgreSQL evidence independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "docs/specs/INV-RES-001/evidence/**"
+      ],
+      "risk_tags": [
+        "persistence",
+        "concurrency"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/INV-RES-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Evaluator records SHA and independently rerun PostgreSQL/static-analysis/full-build evidence."
+    }
+  ]
+}

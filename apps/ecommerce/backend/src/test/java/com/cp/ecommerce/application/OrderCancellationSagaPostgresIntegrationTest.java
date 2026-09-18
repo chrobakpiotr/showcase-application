@@ -123,7 +123,7 @@ class OrderCancellationSagaPostgresIntegrationTest {
     @Test
     void shouldNotCaptureOrFulfillWhenOrderWasCancelledBeforeFirstPoll() {
 
-        final String sku = "R01-A-" + UUID.randomUUID();
+        final String sku = "R01A-" + compactUuid();
         manageStockInPort.receiveStock(sku, 1);
 
         final String orderNumber = place(sku);
@@ -143,7 +143,7 @@ class OrderCancellationSagaPostgresIntegrationTest {
     @Test
     void shouldNotRecaptureAfterFulfillmentRetryWasCancelledAndRefunded() {
 
-        final String sku = "R01-B-" + UUID.randomUUID();
+        final String sku = "R01B-" + compactUuid();
         manageStockInPort.receiveStock(sku, 1);
         final String orderNumber = place(sku);
 
@@ -169,7 +169,7 @@ class OrderCancellationSagaPostgresIntegrationTest {
     @Test
     void shouldLetPollWinnerFinishAndRejectConcurrentCancellation() throws Exception {
 
-        final String sku = "R01-RACE-" + UUID.randomUUID();
+        final String sku = "R01R-" + compactUuid();
         manageStockInPort.receiveStock(sku, 1);
         final String orderNumber = place(sku);
 
@@ -240,6 +240,11 @@ class OrderCancellationSagaPostgresIntegrationTest {
                 managePaymentInPort,
                 new TransactionTemplate(transactionManager),
                 new SagaMetrics(new SimpleMeterRegistry()));
+    }
+
+    private static String compactUuid() {
+
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     private static OrderResource request(final String sku) {

@@ -10,6 +10,7 @@ import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.incoming.GetStockLevelInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.FindStockLevelOutPort;
+import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.SaveStockLevelOutPort;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,8 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
     private final FindStockLevelOutPort findStockLevelOutPort;
 
     private final SaveStockLevelOutPort saveStockLevelOutPort;
+
+    private final ManageStockReservationOutPort manageStockReservationOutPort;
 
     @Override
     public StockLevel getStockLevel(final String sku) {
@@ -84,6 +87,18 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
                         .quantityReserved(Math.max(0, current.getQuantityReserved() - quantity))
                         .version(current.getVersion())
                         .build());
+    }
+
+    @Override
+    public StockLevel reserveStock(final String reservationId, final String sku, final int quantity) {
+
+        return manageStockReservationOutPort.reserveStock(reservationId, sku, quantity);
+    }
+
+    @Override
+    public StockLevel releaseStock(final String reservationId, final String sku) {
+
+        return manageStockReservationOutPort.releaseStock(reservationId, sku);
     }
 
     @Override

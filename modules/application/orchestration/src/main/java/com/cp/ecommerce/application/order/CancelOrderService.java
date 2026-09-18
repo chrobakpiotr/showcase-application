@@ -52,7 +52,8 @@ public class CancelOrderService implements CancelOrderWorkflow {
 
             return order;
         }
-        order.getItems().forEach(item -> manageStockInPort.releaseStock(item.getSku(), item.getQuantity()));
+        final String reservationId = stockReservationId(order);
+        order.getItems().forEach(item -> manageStockInPort.releaseStock(reservationId, item.getSku()));
         managePaymentInPort.refundPayment(order.getOrderNumber());
         sendNotificationInPort.sendNotification(
                 order.getCustomer().getContact().getEmail(),
@@ -61,6 +62,11 @@ public class CancelOrderService implements CancelOrderWorkflow {
                 "Your order " + order.getOrderNumber() + " was cancelled.");
         orderCancellationArbitrator.completeCancellation(orderNumber);
         return order;
+    }
+
+    private static String stockReservationId(final Order order) {
+
+        return order.getStockReservationId() == null ? order.getOrderNumber() : order.getStockReservationId();
     }
 
 }

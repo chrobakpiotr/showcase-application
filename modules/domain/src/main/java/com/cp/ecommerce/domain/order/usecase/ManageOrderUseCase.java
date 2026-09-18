@@ -33,6 +33,7 @@ public class ManageOrderUseCase implements ManageOrderInPort {
                 Order.builder()
                         .customer(order.getCustomer())
                         .orderNumber(orderNumber)
+                        .stockReservationId(order.getStockReservationId())
                         .created(order.getCreated())
                         .remarks(order.getRemarks())
                         .items(order.getItems())

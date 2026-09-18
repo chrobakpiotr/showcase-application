@@ -32,6 +32,8 @@ public class Order extends ValidDomainObject<Order> {
 
     String orderNumber;
 
+    String stockReservationId;
+
     Date created;
 
     @NotNull(message = ValidationConstants.INVALID_CUSTOMER)

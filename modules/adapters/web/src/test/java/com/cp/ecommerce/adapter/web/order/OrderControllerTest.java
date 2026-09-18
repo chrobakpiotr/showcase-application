@@ -38,6 +38,7 @@ import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -49,6 +50,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -153,13 +155,72 @@ class OrderControllerTest {
         verify(placeOrderUseCase, atLeastOnce()).placeOrder(any(), isNull(), any());
         verify(orderMetrics, atLeastOnce()).recordOrderPlaced();
         verify(currentOperatorProvider, atLeastOnce()).currentOperator();
-        verify(manageStockInPort, atLeastOnce())
-                .reserveStock(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU, OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+        verify(manageStockInPort, atLeastOnce()).reserveStock(
+                TEST_ORDER_NUMBER,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
         verify(sendNotificationInPort).sendNotification(
                 CustomerBuilder.TEST_EMAIL,
                 NotificationType.ORDER_CONFIRMED,
                 "Order " + TEST_ORDER_NUMBER + " confirmed",
                 "Your order " + TEST_ORDER_NUMBER + " was confirmed.");
+    }
+
+    @Test
+    void shouldReuseExistingStockReservationIdentity() throws Exception {
+
+        final Order base = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(base.getRemarks())
+                .orderNumber(base.getOrderNumber())
+                .stockReservationId("RESERVATION-EXISTING")
+                .created(base.getCreated())
+                .customer(base.getCustomer())
+                .items(base.getItems())
+                .status(base.getStatus())
+                .paymentMethod(base.getPaymentMethod())
+                .couponCode(base.getCouponCode())
+                .discountAmount(base.getDiscountAmount())
+                .build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andExpect(status().isCreated());
+
+        verify(manageStockInPort).reserveStock(
+                "RESERVATION-EXISTING",
+                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
+    }
+
+    @Test
+    void shouldGenerateStockReservationIdentityWhenDraftHasNoOrderNumber() throws Exception {
+
+        final Order base = OrderBuilder.mockOrder();
+        final Order order = Order.builder()
+                .remarks(base.getRemarks())
+                .orderNumber(null)
+                .stockReservationId(null)
+                .created(base.getCreated())
+                .customer(base.getCustomer())
+                .items(base.getItems())
+                .status(base.getStatus())
+                .paymentMethod(base.getPaymentMethod())
+                .couponCode(base.getCouponCode())
+                .discountAmount(base.getDiscountAmount())
+                .build();
+        given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
+
+        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+                .andExpect(status().isCreated());
+
+        final ArgumentCaptor<String> reservationId = ArgumentCaptor.forClass(String.class);
+        verify(manageStockInPort).reserveStock(
+                reservationId.capture(),
+                eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
+                eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY));
+        assertThat(reservationId.getValue()).isNotBlank();
+        assertThat(reservationId.getValue()).isNotEqualTo(TEST_ORDER_NUMBER);
     }
 
     @Test
@@ -229,16 +290,16 @@ class OrderControllerTest {
                 .paymentMethod(PaymentMethod.CARD)
                 .build();
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
-        given(manageStockInPort.reserveStock(SECOND_LINE_ITEM_SKU, 1))
+        given(manageStockInPort.reserveStock(anyString(), eq(SECOND_LINE_ITEM_SKU), eq(1)))
                 .willThrow(new InsufficientStockException(SECOND_LINE_ITEM_SKU));
 
         this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
                 .andDo(print())
                 .andExpect(status().isConflict());
 
-        verify(manageStockInPort).reserveStock("SKU-1", 1);
-        verify(manageStockInPort).reserveStock(SECOND_LINE_ITEM_SKU, 1);
-        verify(manageStockInPort).releaseStock("SKU-1", 1);
+        verify(manageStockInPort).reserveStock(anyString(), eq("SKU-1"), eq(1));
+        verify(manageStockInPort).reserveStock(anyString(), eq(SECOND_LINE_ITEM_SKU), eq(1));
+        verify(manageStockInPort).releaseStock(anyString(), eq("SKU-1"));
         verify(placeOrderUseCase).placeOrder(any(), any(), any());
     }
 

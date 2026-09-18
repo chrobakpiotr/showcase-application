@@ -33,6 +33,10 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                 domain -> OrderEntity.builder()
                         .remarks(domain.getRemarks())
                         .orderNumber(domain.getOrderNumber())
+                        .stockReservationId(
+                                domain.getStockReservationId() == null
+                                        ? domain.getOrderNumber()
+                                        : domain.getStockReservationId())
                         .created(domain.getCreated())
                         .customer(customerEntityMapper.mapToEntity(order.getCustomer()).orElse(null))
                         .items(domain.getItems().stream().map(this::mapItemToEmbeddable).toList())
@@ -50,6 +54,7 @@ public class OrderPersistenceMapper implements PersistenceMapper<Order, OrderEnt
                 entity -> Order.builder()
                         .remarks(entity.getRemarks())
                         .orderNumber(entity.getOrderNumber())
+                        .stockReservationId(entity.getStockReservationId())
                         .created(entity.getCreated())
                         .customer(customerEntityMapper.mapToDomainObject(entity.getCustomer()).orElse(null))
                         .items(mapItemsToDomainObjects(entity.getItems()))

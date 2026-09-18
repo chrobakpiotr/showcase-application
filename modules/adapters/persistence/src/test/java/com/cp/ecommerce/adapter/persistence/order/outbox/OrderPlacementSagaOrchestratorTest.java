@@ -295,7 +295,7 @@ class OrderPlacementSagaOrchestratorTest {
     @Test
     void shouldCompensateAndCancelOrderWhenFulfillmentAttemptsExhausted() {
 
-        final Order order = OrderBuilder.mockOrder();
+        final Order order = orderWithReservationIdentity();
         final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
@@ -312,8 +312,7 @@ class OrderPlacementSagaOrchestratorTest {
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
         verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        verify(manageStockInPort, times(1))
-                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+        verify(manageStockInPort, times(1)).releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
         verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
         verifyNoInteractions(
                 sendOrderConfirmationEmailInPort,
@@ -353,8 +352,7 @@ class OrderPlacementSagaOrchestratorTest {
 
         verifyNoInteractions(sendMessageInPort);
         verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        verify(manageStockInPort, times(1))
-                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+        verify(manageStockInPort, times(1)).releaseStock(order.getOrderNumber(), order.getItems().get(0).getSku());
         verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
         assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
         assertThat(timerCountFor("payment-capture", OUTCOME_FAILURE)).isEqualTo(1);
@@ -378,7 +376,7 @@ class OrderPlacementSagaOrchestratorTest {
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
         doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
-                .releaseStock(order.getItems().get(0).getSku(), order.getItems().get(0).getQuantity());
+                .releaseStock(order.getOrderNumber(), order.getItems().get(0).getSku());
 
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
@@ -659,6 +657,23 @@ class OrderPlacementSagaOrchestratorTest {
         verifyNoInteractions(cancelOrderInPort);
         assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(duplicateOrderDetectionCount(true)).isEqualTo(1);
+    }
+
+    private static Order orderWithReservationIdentity() {
+
+        final Order base = OrderBuilder.mockOrder();
+        return Order.builder()
+                .remarks(base.getRemarks())
+                .orderNumber(base.getOrderNumber())
+                .stockReservationId("RESERVATION-SAGA")
+                .created(base.getCreated())
+                .customer(base.getCustomer())
+                .items(base.getItems())
+                .status(base.getStatus())
+                .paymentMethod(base.getPaymentMethod())
+                .couponCode(base.getCouponCode())
+                .discountAmount(base.getDiscountAmount())
+                .build();
     }
 
     private OrderPlacementSagaOrchestrator newOrchestrator() {

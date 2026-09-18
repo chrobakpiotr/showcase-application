@@ -4,6 +4,7 @@ import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.outgoing.FindStockLevelOutPort;
+import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.SaveStockLevelOutPort;
 
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,9 @@ class ManageStockUseCaseTest {
 
     @Mock
     private transient SaveStockLevelOutPort saveStockLevelOutPort;
+
+    @Mock
+    private transient ManageStockReservationOutPort manageStockReservationOutPort;
 
     @InjectMocks
     private transient ManageStockUseCase manageStockUseCase;
@@ -182,6 +186,26 @@ class ManageStockUseCaseTest {
 
         assertThatThrownBy(() -> manageStockUseCase.receiveStock(SKU, 5)).isInstanceOf(StockLevelConflictException.class);
         verify(saveStockLevelOutPort, times(3)).save(any());
+    }
+
+    @Test
+    void shouldDelegateIdentityAwareReserve() {
+
+        final StockLevel expected = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(3).version(1).build();
+        given(manageStockReservationOutPort.reserveStock("RES-1", SKU, 3)).willReturn(expected);
+
+        assertThat(manageStockUseCase.reserveStock("RES-1", SKU, 3)).isSameAs(expected);
+        verify(manageStockReservationOutPort).reserveStock("RES-1", SKU, 3);
+    }
+
+    @Test
+    void shouldDelegateIdentityAwareRelease() {
+
+        final StockLevel expected = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(0).version(2).build();
+        given(manageStockReservationOutPort.releaseStock("RES-1", SKU)).willReturn(expected);
+
+        assertThat(manageStockUseCase.releaseStock("RES-1", SKU)).isSameAs(expected);
+        verify(manageStockReservationOutPort).releaseStock("RES-1", SKU);
     }
 
 }

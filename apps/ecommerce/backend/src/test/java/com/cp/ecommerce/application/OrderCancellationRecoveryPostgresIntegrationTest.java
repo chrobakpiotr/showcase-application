@@ -34,12 +34,13 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,10 +66,10 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
     @MockitoBean
     private GetRemarksClassificationSummaryOutPort remarksClassificationSummaryOutPort;
 
-    @MockitoBean
+    @MockitoSpyBean
     private ManageStockInPort manageStockInPort;
 
-    @MockitoBean
+    @MockitoSpyBean
     private SendNotificationInPort sendNotificationInPort;
 
     @Autowired
@@ -97,10 +98,13 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
     @Test
     void shouldResumeCancellationFromDurableIntentAfterFirstSideEffectFails() {
 
-        final String sku = "R01-RECOVERY-" + UUID.randomUUID();
+        final String sku = "R01X-" + compactUuid();
+        manageStockInPort.receiveStock(sku, 1);
         final String orderNumber = orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
 
-        doThrow(new IllegalStateException("inventory unavailable")).doReturn(null).when(manageStockInPort).releaseStock(sku, 1);
+        doThrow(new IllegalStateException("inventory unavailable")).doCallRealMethod()
+                .when(manageStockInPort)
+                .releaseStock(anyString(), eq(sku));
 
         assertThatThrownBy(() -> cancelOrderWorkflow.cancelOrder(orderNumber)).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("inventory unavailable");
@@ -113,7 +117,7 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
 
         assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
         assertThat(statusContains(OutboxEventStatus.CANCELLING, orderNumber)).isFalse();
-        verify(manageStockInPort, times(2)).releaseStock(sku, 1);
+        verify(manageStockInPort, times(2)).releaseStock(anyString(), eq(sku));
         verify(sendNotificationInPort, times(1)).sendNotification(
                 anyString(),
                 eq(NotificationType.ORDER_CANCELLED),
@@ -126,6 +130,11 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
         return outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(status)
                 .stream()
                 .anyMatch(event -> event.getOrderNumber().equals(orderNumber));
+    }
+
+    private static String compactUuid() {
+
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     private static OrderResource request(final String sku) {
