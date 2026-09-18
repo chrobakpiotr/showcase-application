@@ -16,6 +16,7 @@ import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
@@ -81,6 +82,7 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_COUPON_ALREADY_EXISTS = URI.create(PROBLEM_TYPE_PREFIX + "coupon-already-exists");
     private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
     private static final URI TYPE_PAYMENT_REFUND_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "payment-refund-conflict");
+    private static final URI TYPE_RETURN_QUANTITY_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "return-quantity-conflict");
     private static final URI TYPE_RETURN_REQUEST_NOT_APPROVABLE = URI
             .create(PROBLEM_TYPE_PREFIX + "return-request-not-approvable");
     private static final URI TYPE_RETURN_REQUEST_NOT_REJECTABLE = URI
@@ -214,6 +216,18 @@ public class GlobalExceptionHandler {
                 CONFLICT,
                 TYPE_PAYMENT_REFUND_CONFLICT,
                 "Payment Refund Conflict",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(ReturnQuantityConflictException.class)
+    public ProblemDetail returnQuantityConflictException(final ReturnQuantityConflictException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_RETURN_QUANTITY_CONFLICT,
+                "Return Quantity Conflict",
                 exception.getMessage());
     }
 

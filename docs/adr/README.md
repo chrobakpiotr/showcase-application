@@ -49,6 +49,7 @@ than editing it in place.
 | [0040](0040-stock-mutation-retry-transaction-boundary.md) | Generic stock optimistic retries own one transaction per attempt |
 | [0041](0041-durable-compensation-and-notification-retry.md) | Saga compensation and notification delivery are durably retryable |
 | [0042](0042-leased-outbox-claims.md) | Order outbox workers use leased claims with fencing tokens |
+| [0043](0043-concurrent-return-entitlement-and-moderation.md) | Return entitlement and moderation use database row locks |
 
 ## Template for new ADRs
 

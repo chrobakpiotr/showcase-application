@@ -9,6 +9,12 @@ import com.cp.ecommerce.domain.returns.ReturnRequest;
  */
 public interface RequestReturnInPort {
 
-    ReturnRequest requestReturn(String orderNumber, String sku, int quantity, String reason, BigDecimal refundAmount);
+    ReturnRequest requestReturn(
+            String orderNumber,
+            String sku,
+            int quantity,
+            int orderedQuantity,
+            String reason,
+            BigDecimal refundAmount);
 
 }

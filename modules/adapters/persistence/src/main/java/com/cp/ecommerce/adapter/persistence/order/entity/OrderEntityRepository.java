@@ -8,7 +8,12 @@ import com.cp.ecommerce.domain.order.Order;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import static com.cp.ecommerce.adapter.common.constant.CacheConstants.ORDER_CACHE_NAME;
 
@@ -20,6 +25,10 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
 
     @Cacheable(cacheNames = ORDER_CACHE_NAME, condition = "#p0 != null", unless = "#result == null")
     OrderEntity getOrderEntityByOrderNumber(String orderNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from OrderEntity o where o.orderNumber = :orderNumber")
+    OrderEntity findByOrderNumberForUpdate(@Param("orderNumber") String orderNumber);
 
     /**
      * Candidate set for the AI-assisted duplicate-order check (see {@code FindRecentOrdersByCustomerAdapter}): the same

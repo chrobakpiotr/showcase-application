@@ -12,6 +12,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -58,5 +59,9 @@ public class ReturnRequestEntity {
 
     @Column(name = "REFUND_AMOUNT", nullable = false)
     private BigDecimal refundAmount;
+
+    @Version
+    @Column(name = "VERSION", nullable = false)
+    private long version;
 
 }

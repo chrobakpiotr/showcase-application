@@ -950,6 +950,26 @@ class OrderPlacementSagaOrchestratorTest {
         verify(outboxEventEntityRepository, never()).save(newerOwner);
     }
 
+    @Test
+    void shouldContinuePollingWhenCompensationClaimFails() {
+
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(56L)
+                .orderNumber("ORDER-COMPENSATION-CLAIM-FAILURE")
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(new Date())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(candidate));
+        doThrow(new IllegalStateException("claim lock unavailable")).when(outboxEventEntityRepository).findByIdForUpdate(56L);
+
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+
+        verifyNoInteractions(manageOrderInPort, manageStockInPort);
+        verify(managePaymentInPort, never()).refundPayment(any());
+    }
+
     private static Order orderWithReservationIdentity() {
 
         final Order base = OrderBuilder.mockOrder();

@@ -1,0 +1,164 @@
+{
+  "feature": "RMA-CONCURRENCY-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define concurrent RMA contracts",
+      "objective": "Specify entitlement serialization, moderation lock ordering and the R04 payment boundary.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/RMA-CONCURRENCY-001/**",
+        "docs/adr/0043-concurrent-return-entitlement-and-moderation.md",
+        "docs/adr/README.md"
+      ],
+      "risk_tags": [
+        "concurrency",
+        "transactions",
+        "returns",
+        "payments"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-003",
+        "AC-008",
+        "AC-013"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/RMA-CONCURRENCY-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Specification and ADR."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement atomic return state persistence",
+      "objective": "Serialize entitlement creation and RMA moderation with PostgreSQL row locks and versioning.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "modules/adapters/common/src/main/java/com/cp/ecommerce/adapter/common/exception/**",
+        "modules/adapters/common/src/test/java/com/cp/ecommerce/adapter/common/exception/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/returns/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/returns/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/returns/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/entity/OrderEntityRepository.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/returns/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**"
+      ],
+      "risk_tags": [
+        "persistence",
+        "locking",
+        "lost-update",
+        "entitlement"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.returns.ManageReturnRequestStateAdapterTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Focused persistence unit tests plus PostgreSQL acceptance."
+    },
+    {
+      "id": "T-003",
+      "title": "Wire atomic RMA API and PostgreSQL acceptance",
+      "objective": "Remove the web read-then-create race, expose conflict semantics and prove concurrent behavior.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/returns/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/exception/**",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/returns/**",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/exception/**",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/ReturnConcurrencyPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentPartialRefundPostgresIntegrationTest.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java"
+      ],
+      "risk_tags": [
+        "http",
+        "concurrency",
+        "refund-regression",
+        "coverage"
+      ],
+      "acceptance_criteria": [
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-009",
+        "AC-011",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016"
+      ],
+      "verification": [
+        "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.returns.ReturnControllerTest --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "HTTP contract tests and real PostgreSQL concurrency."
+    },
+    {
+      "id": "T-004",
+      "title": "Independent R05 evaluation",
+      "objective": "Verify concurrency invariants, R04 compatibility, coverage and repository gates independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "docs/specs/RMA-CONCURRENCY-001/evidence/**"
+      ],
+      "risk_tags": [
+        "concurrency",
+        "returns",
+        "payments"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/RMA-CONCURRENCY-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA and deterministic gate evidence."
+    }
+  ]
+}

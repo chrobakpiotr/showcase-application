@@ -16,6 +16,7 @@ import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
 import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -170,6 +171,16 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Payment Refund Conflict",
                 EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandleReturnQuantityConflictException() {
+
+        assertProblem(
+                handler.returnQuantityConflictException(new ReturnQuantityConflictException(1)),
+                CONFLICT,
+                "Return Quantity Conflict",
+                "Requested quantity exceeds the remaining returnable quantity of 1");
     }
 
     @Test

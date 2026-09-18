@@ -164,16 +164,9 @@ public class ReturnController {
                 .filter(item -> item.getSku().equals(sku))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order line item not found"));
-        final int alreadyRequestedQuantity = alreadyRequestedQuantity(orderNumber, sku);
-        final int remainingQuantity = orderLineItem.getQuantity() - alreadyRequestedQuantity;
-        if (quantity > remainingQuantity) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Requested quantity exceeds the remaining returnable quantity of " + remainingQuantity);
-        }
         final BigDecimal refundAmount = orderLineItem.getUnitPrice().multiply(BigDecimal.valueOf(quantity));
-        final ReturnRequest created = requestReturnInPort.requestReturn(orderNumber, sku, quantity, reason, refundAmount);
+        final ReturnRequest created = requestReturnInPort
+                .requestReturn(orderNumber, sku, quantity, orderLineItem.getQuantity(), reason, refundAmount);
         return toResourceModel(created);
     }
 
@@ -219,16 +212,6 @@ public class ReturnController {
             sendReturnRejectedNotification(rejected);
         }
         return toResourceModel(rejected);
-    }
-
-    private int alreadyRequestedQuantity(final String orderNumber, final String sku) {
-
-        return listReturnsInPort.listReturnsForOrder(orderNumber)
-                .stream()
-                .filter(returnRequest -> returnRequest.getSku().equals(sku))
-                .filter(returnRequest -> returnRequest.getStatus() != ReturnStatus.REJECTED)
-                .mapToInt(ReturnRequest::getQuantity)
-                .sum();
     }
 
     private String requireNonBlank(final String value, final String message) {

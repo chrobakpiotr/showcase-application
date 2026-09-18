@@ -206,6 +206,7 @@ class PaymentPartialRefundPostgresIntegrationTest {
                 orderNumber,
                 sku,
                 quantity,
+                2,
                 "R04 partial return",
                 UNIT_PRICE.multiply(BigDecimal.valueOf(quantity)));
         return created.getReturnNumber();

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
@@ -157,12 +158,12 @@ class ReturnControllerTest {
         final Order order = OrderBuilder.mockOrder();
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(orderWithNumber(order));
-        given(listReturnsInPort.listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(List.of());
         given(
                 requestReturnInPort.requestReturn(
                         eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
                         eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
                         eq(1),
+                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
                         eq(ReturnRequestBuilder.TEST_REASON),
                         eq(OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE)))
                 .willReturn(created);
@@ -185,7 +186,7 @@ class ReturnControllerTest {
 
         mockMvc.perform(post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
-        verify(requestReturnInPort, never()).requestReturn(any(), any(), anyInt(), any(), any());
+        verify(requestReturnInPort, never()).requestReturn(any(), any(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
@@ -350,7 +351,6 @@ class ReturnControllerTest {
 
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(listReturnsInPort.listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(List.of());
 
         mockMvc.perform(
                 post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
@@ -364,21 +364,19 @@ class ReturnControllerTest {
     }
 
     @Test
-    void shouldRejectCreateWhenRequestedQuantityExceedsRemainingReturnableQuantity() throws Exception {
+    void shouldReturnConflictWhenAtomicEntitlementCheckFails() throws Exception {
 
-        final ReturnRequest existing = ReturnRequest.builder()
-                .returnNumber("RETURN-OLD")
-                .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                .sku(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU)
-                .quantity(2)
-                .reason("Already requested")
-                .status(ReturnStatus.REQUESTED)
-                .requestedDate(ReturnRequestBuilder.TEST_REQUESTED_DATE)
-                .refundAmount(BigDecimal.valueOf(59.98))
-                .build();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(listReturnsInPort.listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(List.of(existing));
+        given(
+                requestReturnInPort.requestReturn(
+                        eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
+                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
+                        eq(1),
+                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
+                        eq(ReturnRequestBuilder.TEST_REASON),
+                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE)))
+                .willThrow(new ReturnQuantityConflictException(0));
 
         mockMvc.perform(
                 post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
@@ -388,22 +386,22 @@ class ReturnControllerTest {
                                         OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
                                         1,
                                         ReturnRequestBuilder.TEST_REASON)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.title").value("Return Quantity Conflict"));
     }
 
     @Test
-    void shouldIgnoreRejectedReturnsWhenCreatingReturnRequest() throws Exception {
+    void shouldPassOrderedQuantityToAtomicReturnPort() throws Exception {
 
-        final ReturnRequest rejected = TestReturnRequests.rejected();
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(listReturnsInPort.listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(List.of(rejected));
         given(
                 requestReturnInPort.requestReturn(
                         eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
                         eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
                         eq(2),
+                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
                         eq(ReturnRequestBuilder.TEST_REASON),
                         eq(BigDecimal.valueOf(59.98))))
                 .willReturn(created);
