@@ -73,7 +73,7 @@ class MockPaymentGatewayAdapterTest {
 
         runResilientRunnableEagerly();
 
-        mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234");
+        mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00"));
 
         verify(resilientExecutor).runResilient(anyString(), any());
     }
@@ -83,7 +83,8 @@ class MockPaymentGatewayAdapterTest {
 
         doThrow(new RuntimeException("gateway timeout")).when(resilientExecutor).runResilient(anyString(), any());
 
-        assertThatThrownBy(() -> mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234"))
+        assertThatThrownBy(
+                () -> mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00")))
                 .isInstanceOf(TechnicalProblemException.class);
     }
 

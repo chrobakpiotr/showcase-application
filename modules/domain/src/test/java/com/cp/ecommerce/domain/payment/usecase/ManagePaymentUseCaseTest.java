@@ -4,10 +4,13 @@ import java.math.BigDecimal;
 
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
+import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.FindPaymentTransactionOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 
@@ -24,15 +27,14 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for {@link ManagePaymentUseCase}.
- */
 @ExtendWith(MockitoExtension.class)
 class ManagePaymentUseCaseTest {
 
     private static final String ORDER_NUMBER = "ORDER-1001";
-
+    private static final String GATEWAY_REFERENCE = "mock-gw-1";
+    private static final String REFUND_ID = "RETURN-1";
     private static final BigDecimal AMOUNT = new BigDecimal("59.98");
+    private static final BigDecimal PARTIAL = new BigDecimal("29.99");
 
     @Mock
     private transient FindPaymentTransactionOutPort findPaymentTransactionOutPort;
@@ -46,6 +48,9 @@ class ManagePaymentUseCaseTest {
     @Mock
     private transient RefundPaymentOutPort refundPaymentOutPort;
 
+    @Mock
+    private transient ManagePaymentRefundOutPort managePaymentRefundOutPort;
+
     @InjectMocks
     private transient ManagePaymentUseCase managePaymentUseCase;
 
@@ -56,82 +61,69 @@ class ManagePaymentUseCaseTest {
 
         final PaymentTransaction result = managePaymentUseCase.getPayment(ORDER_NUMBER);
 
-        assertThat(result.getOrderNumber()).isEqualTo(ORDER_NUMBER);
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(result.getRefundedAmount()).isZero();
+        assertThat(result.getRemainingRefundableAmount()).isZero();
     }
 
     @Test
     void shouldReturnPersistedTransactionWhenPresent() {
 
-        final PaymentTransaction existing = PaymentTransaction.builder()
-                .orderNumber(ORDER_NUMBER)
-                .amount(AMOUNT)
-                .method(PaymentMethod.CARD)
-                .status(PaymentStatus.CAPTURED)
-                .gatewayReference("mock-gw-1")
-                .build();
+        final PaymentTransaction existing = captured();
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
 
-        final PaymentTransaction result = managePaymentUseCase.getPayment(ORDER_NUMBER);
-
-        assertThat(result).isSameAs(existing);
+        assertThat(managePaymentUseCase.getPayment(ORDER_NUMBER)).isSameAs(existing);
     }
 
     @Test
-    void shouldCaptureNewPaymentAndPersistItAsCaptured() {
+    void shouldCaptureNewPayment() {
 
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
-        given(chargePaymentOutPort.charge(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).willReturn("mock-gw-1");
+        given(chargePaymentOutPort.charge(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).willReturn(GATEWAY_REFERENCE);
         given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
-        assertThat(result.getGatewayReference()).isEqualTo("mock-gw-1");
-        assertThat(result.getAmount()).isEqualTo(AMOUNT);
-        assertThat(result.getMethod()).isEqualTo(PaymentMethod.CARD);
+        assertThat(result.getRefundedAmount()).isZero();
     }
 
     @Test
-    void shouldNotChargeTwiceWhenAlreadyCaptured() {
+    void shouldNotChargeCapturedPaymentAgain() {
 
-        final PaymentTransaction existing = PaymentTransaction.builder()
-                .orderNumber(ORDER_NUMBER)
-                .amount(AMOUNT)
-                .method(PaymentMethod.CARD)
-                .status(PaymentStatus.CAPTURED)
-                .gatewayReference("mock-gw-1")
-                .build();
-        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
-
-        final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
-
-        assertThat(result).isSameAs(existing);
-        verify(chargePaymentOutPort, never()).charge(any(), any(), any());
-        verify(savePaymentTransactionOutPort, never()).save(any());
+        assertCaptureIsNoOp(captured());
     }
 
     @Test
-    void shouldNotRecaptureRefundedPayment() {
+    void shouldNotChargePartiallyRefundedPaymentAgain() {
 
-        final PaymentTransaction existing = PaymentTransaction.builder()
-                .orderNumber(ORDER_NUMBER)
-                .amount(AMOUNT)
-                .method(PaymentMethod.CARD)
-                .status(PaymentStatus.REFUNDED)
-                .gatewayReference("mock-gw-1")
-                .build();
-        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
-
-        final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
-
-        assertThat(result).isSameAs(existing);
-        verify(chargePaymentOutPort, never()).charge(any(), any(), any());
-        verify(savePaymentTransactionOutPort, never()).save(any());
+        assertCaptureIsNoOp(
+                PaymentTransaction.builder()
+                        .orderNumber(ORDER_NUMBER)
+                        .amount(AMOUNT)
+                        .refundedAmount(PARTIAL)
+                        .method(PaymentMethod.CARD)
+                        .status(PaymentStatus.PARTIALLY_REFUNDED)
+                        .gatewayReference(GATEWAY_REFERENCE)
+                        .build());
     }
 
     @Test
-    void shouldRecordDeclinedTransactionAndPropagateExceptionOnDecline() {
+    void shouldNotChargeRefundedPaymentAgain() {
+
+        assertCaptureIsNoOp(
+                PaymentTransaction.builder()
+                        .orderNumber(ORDER_NUMBER)
+                        .amount(AMOUNT)
+                        .refundedAmount(AMOUNT)
+                        .method(PaymentMethod.CARD)
+                        .status(PaymentStatus.REFUNDED)
+                        .gatewayReference(GATEWAY_REFERENCE)
+                        .build());
+    }
+
+    @Test
+    void shouldRecordDecline() {
 
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
         given(chargePaymentOutPort.charge(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
@@ -140,58 +132,129 @@ class ManagePaymentUseCaseTest {
 
         assertThatThrownBy(() -> managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
                 .isInstanceOf(PaymentDeclinedException.class);
-
         verify(savePaymentTransactionOutPort).save(any());
     }
 
     @Test
-    void shouldRefundCapturedPayment() {
+    void shouldRefundSpecificAmountAndCompleteClaim() {
 
-        final PaymentTransaction existing = PaymentTransaction.builder()
-                .orderNumber(ORDER_NUMBER)
-                .amount(AMOUNT)
-                .method(PaymentMethod.CARD)
-                .status(PaymentStatus.CAPTURED)
-                .gatewayReference("mock-gw-1")
-                .build();
-        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
-        given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        final PaymentTransaction completed = partiallyRefunded();
+        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+                .willReturn(claim(PaymentRefundOutcome.RESERVED, PARTIAL, captured()));
+        given(managePaymentRefundOutPort.complete(REFUND_ID)).willReturn(completed);
+
+        final PaymentTransaction result = managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL);
+
+        assertThat(result).isSameAs(completed);
+        verify(refundPaymentOutPort).refund(ORDER_NUMBER, GATEWAY_REFERENCE, REFUND_ID, PARTIAL);
+    }
+
+    @Test
+    void shouldRetryPendingRefundWithSameProviderIdentity() {
+
+        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+                .willReturn(claim(PaymentRefundOutcome.RETRY, PARTIAL, captured()));
+        given(managePaymentRefundOutPort.complete(REFUND_ID)).willReturn(partiallyRefunded());
+
+        managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL);
+
+        verify(refundPaymentOutPort).refund(ORDER_NUMBER, GATEWAY_REFERENCE, REFUND_ID, PARTIAL);
+    }
+
+    @Test
+    void shouldNotCallGatewayForCompletedRefund() {
+
+        final PaymentTransaction completed = partiallyRefunded();
+        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+                .willReturn(claim(PaymentRefundOutcome.COMPLETED, PARTIAL, completed));
+
+        assertThat(managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL)).isSameAs(completed);
+        verify(refundPaymentOutPort, never()).refund(any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldRefundRemainingAmountForWholeOrderRefund() {
+
+        final String fullRefundId = "ORDER-REFUND:" + ORDER_NUMBER;
+        given(managePaymentRefundOutPort.reserveRemaining(fullRefundId, ORDER_NUMBER)).willReturn(
+                new PaymentRefundClaim(
+                        PaymentRefundOutcome.RESERVED,
+                        fullRefundId,
+                        ORDER_NUMBER,
+                        PARTIAL,
+                        GATEWAY_REFERENCE,
+                        partiallyRefunded()));
+        given(managePaymentRefundOutPort.complete(fullRefundId)).willReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(ORDER_NUMBER)
+                        .amount(AMOUNT)
+                        .refundedAmount(AMOUNT)
+                        .method(PaymentMethod.CARD)
+                        .status(PaymentStatus.REFUNDED)
+                        .gatewayReference(GATEWAY_REFERENCE)
+                        .build());
 
         final PaymentTransaction result = managePaymentUseCase.refundPayment(ORDER_NUMBER);
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
-        verify(refundPaymentOutPort).refund(ORDER_NUMBER, "mock-gw-1");
+        verify(refundPaymentOutPort).refund(ORDER_NUMBER, GATEWAY_REFERENCE, fullRefundId, PARTIAL);
     }
 
     @Test
-    void shouldNoOpRefundWhenNeverCaptured() {
+    void shouldPreserveWholeOrderNoOpWhenNothingCanBeRefunded() {
 
-        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
+        final String fullRefundId = "ORDER-REFUND:" + ORDER_NUMBER;
+        given(managePaymentRefundOutPort.reserveRemaining(fullRefundId, ORDER_NUMBER)).willReturn(
+                new PaymentRefundClaim(
+                        PaymentRefundOutcome.NOTHING_TO_REFUND,
+                        fullRefundId,
+                        ORDER_NUMBER,
+                        BigDecimal.ZERO,
+                        null,
+                        null));
+        final PaymentTransaction pending = PaymentTransaction.builder().orderNumber(ORDER_NUMBER).build();
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(pending);
 
-        final PaymentTransaction result = managePaymentUseCase.refundPayment(ORDER_NUMBER);
-
-        assertThat(result.getStatus()).isEqualTo(PaymentStatus.PENDING);
-        verify(refundPaymentOutPort, never()).refund(any(), any());
-        verify(savePaymentTransactionOutPort, never()).save(any());
+        assertThat(managePaymentUseCase.refundPayment(ORDER_NUMBER)).isSameAs(pending);
+        verify(refundPaymentOutPort, never()).refund(any(), any(), any(), any());
     }
 
-    @Test
-    void shouldNoOpRefundWhenAlreadyRefunded() {
+    private void assertCaptureIsNoOp(final PaymentTransaction existing) {
 
-        final PaymentTransaction existing = PaymentTransaction.builder()
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
+
+        assertThat(managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).isSameAs(existing);
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any());
+    }
+
+    private static PaymentTransaction captured() {
+
+        return PaymentTransaction.builder()
                 .orderNumber(ORDER_NUMBER)
                 .amount(AMOUNT)
                 .method(PaymentMethod.CARD)
-                .status(PaymentStatus.REFUNDED)
-                .gatewayReference("mock-gw-1")
+                .status(PaymentStatus.CAPTURED)
+                .gatewayReference(GATEWAY_REFERENCE)
                 .build();
-        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
-
-        final PaymentTransaction result = managePaymentUseCase.refundPayment(ORDER_NUMBER);
-
-        assertThat(result).isSameAs(existing);
-        verify(refundPaymentOutPort, never()).refund(any(), any());
-        verify(savePaymentTransactionOutPort, never()).save(any());
     }
 
+    private static PaymentTransaction partiallyRefunded() {
+
+        return PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT)
+                .refundedAmount(PARTIAL)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.PARTIALLY_REFUNDED)
+                .gatewayReference(GATEWAY_REFERENCE)
+                .build();
+    }
+
+    private static PaymentRefundClaim claim(
+            final PaymentRefundOutcome outcome,
+            final BigDecimal amount,
+            final PaymentTransaction payment) {
+
+        return new PaymentRefundClaim(outcome, REFUND_ID, ORDER_NUMBER, amount, GATEWAY_REFERENCE, payment);
+    }
 }

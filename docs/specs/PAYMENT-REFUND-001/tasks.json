@@ -1,0 +1,130 @@
+{
+  "feature": "PAYMENT-REFUND-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Reproduce whole-order return refund",
+      "objective": "Prove return approval currently invokes the whole-order refund operation.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/PAYMENT-REFUND-001/**",
+        "docs/adr/0039-partial-payment-refunds.md",
+        "docs/adr/README.md",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/returns/ReturnControllerTest.java"
+      ],
+      "risk_tags": [
+        "payments",
+        "idempotency"
+      ],
+      "acceptance_criteria": [
+        "AC-001"
+      ],
+      "verification": [
+        "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.returns.ReturnControllerTest.shouldNotUseWholeOrderRefundForPartialReturn --no-configuration-cache --no-parallel",
+        "python3 tooling/agent-harness/harness.py validate docs/specs/PAYMENT-REFUND-001"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Return controller mock boundary observes the legacy whole-order refund call."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement partial refund protocol",
+      "objective": "Make partial/full refunds amount-safe, operation-idempotent and concurrency-safe.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/PAYMENT-REFUND-001/**",
+        "docs/adr/**",
+        "modules/adapters/common/src/main/java/com/cp/ecommerce/adapter/common/exception/**",
+        "modules/adapters/common/src/test/java/com/cp/ecommerce/adapter/common/exception/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/payment/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/payment/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/returns/ReturnController.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/exception/GlobalExceptionHandler.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/returns/ReturnControllerTest.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/order/**",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/exception/GlobalExceptionHandlerTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentPartialRefundPostgresIntegrationTest.java"
+      ],
+      "risk_tags": [
+        "payments",
+        "transactions",
+        "concurrency",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "./gradlew :domain:test :domain:jacocoTestCoverageVerification --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test :adapter:persistence:jacocoTestCoverageVerification --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:web:test :adapter:web:jacocoTestCoverageVerification --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest --no-configuration-cache --no-parallel",
+        "./gradlew test --no-configuration-cache --no-parallel",
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Short DB claim/complete transactions plus real PostgreSQL concurrency acceptance with latches."
+    },
+    {
+      "id": "T-003",
+      "title": "Independent R04 evaluation",
+      "objective": "Independently compare refund state, idempotency, concurrency and migration evidence with the accepted spec.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "docs/specs/PAYMENT-REFUND-001/evidence/**"
+      ],
+      "risk_tags": [
+        "payments",
+        "transactions",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/PAYMENT-REFUND-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA, PostgreSQL evidence and full repository gates."
+    }
+  ]
+}

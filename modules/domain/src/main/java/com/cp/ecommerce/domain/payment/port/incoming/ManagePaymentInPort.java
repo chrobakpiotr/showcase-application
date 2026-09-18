@@ -12,23 +12,19 @@ import com.cp.ecommerce.domain.payment.PaymentTransaction;
 public interface ManagePaymentInPort {
 
     /**
-     * Charges {@code amount} for {@code orderNumber} via {@code method}. Idempotent: if a
-     * {@link com.cp.ecommerce.domain.payment.PaymentStatus#CAPTURED} transaction already exists for this order, the existing
-     * transaction is returned unchanged instead of charging a second time - this is what lets the order-placement saga simply
-     * re-invoke this method on every poll (see {@code OrderPlacementSagaOrchestrator}) without needing its own
-     * already-attempted bookkeeping.
+     * Captures the order amount. CAPTURED, PARTIALLY_REFUNDED and REFUNDED transactions are never charged again.
      *
-     * @throws PaymentDeclinedException if the gateway declines the charge. The decline itself is still durably recorded (as
-     *             {@link com.cp.ecommerce.domain.payment.PaymentStatus#DECLINED}) before the exception propagates.
+     * @throws PaymentDeclinedException if the gateway declines the charge.
      */
     PaymentTransaction capturePayment(String orderNumber, BigDecimal amount, PaymentMethod method);
 
     /**
-     * Refunds a previously captured payment for {@code orderNumber}. Idempotent no-op if no
-     * {@link com.cp.ecommerce.domain.payment.PaymentStatus#CAPTURED} transaction exists (never captured, already refunded) -
-     * mirrors {@code ManageStockInPort#releaseStock}'s "safe to call unconditionally" convention (ADR 0026), which lets both
-     * {@code OrderController#cancelOrder} and the saga's compensating transaction call this without a separate existence check.
+     * Refunds the remaining refundable amount for an order. Safe to retry.
      */
     PaymentTransaction refundPayment(String orderNumber);
 
+    /**
+     * Refunds a specific amount under a durable idempotency identity, e.g. one return/RMA number.
+     */
+    PaymentTransaction refundPayment(String orderNumber, String refundId, BigDecimal amount);
 }

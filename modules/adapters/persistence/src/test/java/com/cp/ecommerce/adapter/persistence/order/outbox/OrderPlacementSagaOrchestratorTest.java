@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -176,6 +177,35 @@ class OrderPlacementSagaOrchestratorTest {
         newOrchestrator().publishPendingEvents();
 
         verifyNoInteractions(manageOrderInPort, managePaymentInPort, sendMessageInPort);
+    }
+
+    @Test
+    void shouldStopPlacementWhenPaymentWasPartiallyRefunded() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity outboxEvent = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(new Date())
+                .build();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(outboxEvent));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .refundedAmount(BigDecimal.ONE)
+                        .method(order.getPaymentMethod())
+                        .status(PaymentStatus.PARTIALLY_REFUNDED)
+                        .gatewayReference("gw-1")
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(outboxEvent.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
     }
 
     @Test

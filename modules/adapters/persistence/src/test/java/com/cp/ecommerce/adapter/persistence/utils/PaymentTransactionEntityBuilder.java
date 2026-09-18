@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.utils;
 
+import java.math.BigDecimal;
+
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
 
 import lombok.AccessLevel;
@@ -22,6 +24,7 @@ public class PaymentTransactionEntityBuilder {
         return PaymentTransactionEntity.builder()
                 .orderNumber(TEST_ORDER_NUMBER)
                 .amount(TEST_AMOUNT)
+                .refundedAmount(BigDecimal.ZERO)
                 .method(TEST_PAYMENT_METHOD)
                 .status(TEST_PAYMENT_STATUS)
                 .gatewayReference(TEST_GATEWAY_REFERENCE)

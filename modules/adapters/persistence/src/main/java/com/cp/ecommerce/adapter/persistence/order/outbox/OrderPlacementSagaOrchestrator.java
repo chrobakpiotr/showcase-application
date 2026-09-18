@@ -172,7 +172,7 @@ public class OrderPlacementSagaOrchestrator {
         try {
             final PaymentTransaction payment = managePaymentInPort
                     .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
-            if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            if (payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED || payment.getStatus() == PaymentStatus.REFUNDED) {
 
                 sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
                 log.warn("Refusing to continue placement saga for refunded order: {}", order.getOrderNumber());

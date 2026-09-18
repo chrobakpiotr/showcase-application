@@ -7,23 +7,28 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
+import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.FindPaymentTransactionOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * Use case for capturing and refunding an order's payment (see ADR 0030).
+ * Use case for capturing and refunding an order's payment.
  */
 @UseCase
 @RequiredArgsConstructor
 public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPort {
+
+    private static final String ORDER_REFUND_PREFIX = "ORDER-REFUND:";
 
     private final FindPaymentTransactionOutPort findPaymentTransactionOutPort;
 
@@ -32,6 +37,8 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     private final ChargePaymentOutPort chargePaymentOutPort;
 
     private final RefundPaymentOutPort refundPaymentOutPort;
+
+    private final ManagePaymentRefundOutPort managePaymentRefundOutPort;
 
     @Override
     public PaymentTransaction getPayment(final String orderNumber) {
@@ -44,11 +51,9 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction capturePayment(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
 
         final PaymentTransaction current = getPayment(orderNumber);
-        if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.REFUNDED) {
+        if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
+                || current.getStatus() == PaymentStatus.REFUNDED) {
 
-            // CAPTURED is idempotent for repeated saga polls. REFUNDED is terminal for capture: a
-            // cancelled/refunded order must never be charged again even if a future caller bypasses
-            // the placement-saga arbitration boundary.
             return current;
         }
         try {
@@ -58,6 +63,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
+                            .refundedAmount(BigDecimal.ZERO)
                             .method(method)
                             .status(PaymentStatus.CAPTURED)
                             .gatewayReference(gatewayReference)
@@ -69,6 +75,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
+                            .refundedAmount(BigDecimal.ZERO)
                             .method(method)
                             .status(PaymentStatus.DECLINED)
                             .created(new Date())
@@ -80,23 +87,26 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     @Override
     public PaymentTransaction refundPayment(final String orderNumber) {
 
-        final PaymentTransaction current = getPayment(orderNumber);
-        if (current.getStatus() != PaymentStatus.CAPTURED) {
-
-            // Nothing to refund: never captured, already refunded, or was declined in the first place - safe to call
-            // unconditionally (see ManagePaymentInPort#refundPayment).
-            return current;
-        }
-        refundPaymentOutPort.refund(orderNumber, current.getGatewayReference());
-        return savePaymentTransactionOutPort.save(
-                PaymentTransaction.builder()
-                        .orderNumber(current.getOrderNumber())
-                        .amount(current.getAmount())
-                        .method(current.getMethod())
-                        .status(PaymentStatus.REFUNDED)
-                        .gatewayReference(current.getGatewayReference())
-                        .created(current.getCreated())
-                        .build());
+        return executeRefund(managePaymentRefundOutPort.reserveRemaining(ORDER_REFUND_PREFIX + orderNumber, orderNumber));
     }
 
+    @Override
+    public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
+
+        return executeRefund(managePaymentRefundOutPort.reserve(refundId, orderNumber, amount));
+    }
+
+    private PaymentTransaction executeRefund(final PaymentRefundClaim claim) {
+
+        if (claim.outcome() == PaymentRefundOutcome.NOTHING_TO_REFUND) {
+
+            return getPayment(claim.orderNumber());
+        }
+        if (claim.outcome() == PaymentRefundOutcome.COMPLETED) {
+
+            return claim.payment();
+        }
+        refundPaymentOutPort.refund(claim.orderNumber(), claim.gatewayReference(), claim.refundId(), claim.amount());
+        return managePaymentRefundOutPort.complete(claim.refundId());
+    }
 }

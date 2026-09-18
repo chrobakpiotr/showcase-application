@@ -17,16 +17,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Value;
 
 /**
- * A single payment attempt/outcome for one {@link com.cp.ecommerce.domain.order.Order}, identified by {@link #orderNumber} -
- * the payment bounded context is downstream of order (a payment transaction only ever exists to settle a specific order's
- * total), so it is the one allowed to depend on {@code order.PaymentMethod}; the reverse dependency is what is deliberately
- * avoided (see ADR 0030), matching the established catalog/inventory/cart precedent (ADR 0026) of keeping {@code Order}'s own
- * domain independent of bounded contexts composed at the adapter layer.
- *
- * <p>
- * {@link #method} is intentionally not {@code @NotNull}: {@link PaymentStatus#PENDING} placeholder instances (see
- * {@code GetPaymentInPort}) are returned before any method has actually been chosen/charged, so it can only be required once a
- * capture actually happens (enforced by {@code ManagePaymentUseCase}, not this class).
+ * Payment state for one order.
  */
 @Value
 @Builder
@@ -42,6 +33,11 @@ public class PaymentTransaction extends ValidDomainObject<PaymentTransaction> {
     @Builder.Default
     BigDecimal amount = BigDecimal.ZERO;
 
+    @NotNull(message = ValidationConstants.INVALID_PAYMENT_AMOUNT)
+    @DecimalMin(value = "0.0", message = ValidationConstants.INVALID_PAYMENT_AMOUNT)
+    @Builder.Default
+    BigDecimal refundedAmount = BigDecimal.ZERO;
+
     PaymentMethod method;
 
     @NotNull(message = ValidationConstants.INVALID_PAYMENT_METHOD)
@@ -55,6 +51,11 @@ public class PaymentTransaction extends ValidDomainObject<PaymentTransaction> {
 
     Date created;
 
+    public BigDecimal getRemainingRefundableAmount() {
+
+        return amount.subtract(refundedAmount).max(BigDecimal.ZERO);
+    }
+
     public static PaymentTransaction.PaymentTransactionBuilder builder() {
 
         return new PaymentTransaction.PaymentTransactionBuilder() {
@@ -66,5 +67,4 @@ public class PaymentTransaction extends ValidDomainObject<PaymentTransaction> {
             }
         };
     }
-
 }

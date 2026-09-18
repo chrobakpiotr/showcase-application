@@ -30,6 +30,7 @@ public class PaymentTransactionBuilder {
         return PaymentTransaction.builder()
                 .orderNumber(TEST_ORDER_NUMBER)
                 .amount(TEST_AMOUNT)
+                .refundedAmount(BigDecimal.ZERO)
                 .method(TEST_PAYMENT_METHOD)
                 .status(TEST_PAYMENT_STATUS)
                 .gatewayReference(TEST_GATEWAY_REFERENCE)

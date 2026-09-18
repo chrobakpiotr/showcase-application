@@ -17,15 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Mock/simulated payment gateway adapter (see ADR 0030) - this showcase has no real payment provider integration, so this
- * stands in for one while still exercising the same resilience conventions ({@link ResilientExecutor}) used by every other
- * outbound adapter (e.g. {@code SendEmailAdapter}).
- *
- * <p>
- * The decline rule is a deterministic amount threshold rather than random/simulated flakiness, so that tests relying on it stay
- * reproducible: any charge above {@link #declineAboveAmount} is declined, exactly like a real gateway would reject an
- * implausibly large charge. This is a genuine business decline (see {@link PaymentDeclinedException}), so it is thrown
- * immediately, outside of {@link ResilientExecutor}'s retry - retrying a deterministic decline could never succeed.
+ * Mock payment gateway. Refund requests carry a provider idempotency key.
  */
 @Slf4j
 @PersistenceAdapter
@@ -67,17 +59,25 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
     }
 
     @Override
-    public void refund(final String orderNumber, final String gatewayReference) {
+    public void refund(
+            final String orderNumber,
+            final String gatewayReference,
+            final String refundId,
+            final BigDecimal amount) {
 
         try {
 
             resilientExecutor.runResilient(
                     REFUND_RESILIENCE_INSTANCE_NAME,
-                    () -> log.info("Mock payment gateway refunded {} for order: {}", gatewayReference, orderNumber));
+                    () -> log.info(
+                            "Mock payment gateway refunded {} for order: {} ({}, idempotencyKey={})",
+                            amount,
+                            orderNumber,
+                            gatewayReference,
+                            refundId));
         } catch (final RuntimeException exception) {
 
             throw new TechnicalProblemException("Could not refund payment for order: " + orderNumber, exception);
         }
     }
-
 }

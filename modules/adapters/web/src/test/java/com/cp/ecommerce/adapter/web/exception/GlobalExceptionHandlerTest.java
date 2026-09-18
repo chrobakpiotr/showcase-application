@@ -14,6 +14,7 @@ import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
+import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
@@ -158,6 +159,16 @@ class GlobalExceptionHandlerTest {
                 handler.paymentDeclinedException(new PaymentDeclinedException(EXCEPTION_MESSAGE)),
                 PAYMENT_REQUIRED,
                 "Payment Declined",
+                EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldHandlePaymentRefundConflictException() {
+
+        assertProblem(
+                handler.paymentRefundConflictException(new PaymentRefundConflictException(EXCEPTION_MESSAGE)),
+                CONFLICT,
+                "Payment Refund Conflict",
                 EXCEPTION_MESSAGE);
     }
 

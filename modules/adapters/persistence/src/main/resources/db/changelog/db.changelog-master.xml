@@ -36,5 +36,6 @@
 
     <include file="changelogs/db.changelog-idempotency-locks.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-stock-reservation-identity.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-payment-refunds.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

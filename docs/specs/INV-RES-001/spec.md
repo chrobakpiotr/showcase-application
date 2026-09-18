@@ -1,4 +1,4 @@
-# INV-RES-001 — identity-safe stock reservation release
+# INV-RES-001 - identity-safe stock reservation release
 
 ## Intent
 

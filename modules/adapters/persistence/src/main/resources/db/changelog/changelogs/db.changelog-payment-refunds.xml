@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="r04-payment-refunds" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="PAYMENT_TRANSACTION">
+            <column name="REFUNDED_AMOUNT" type="${numeric_type}(19, 2)" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+        <createTable schemaName="${schema_name_full}" tableName="PAYMENT_REFUND">
+            <column name="REFUND_ID" type="VARCHAR(80)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PAYMENT_REFUND" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" foreignKeyName="FK_PAYMENT_REFUND_PAYMENT" referencedTableName="PAYMENT_TRANSACTION" referencedColumnNames="ORDER_NUMBER" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="AMOUNT" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATION_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPLETION_DATE" type="TIMESTAMP" />
+        </createTable>
+
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_REFUND" indexName="IDX_PAYMENT_REFUND_ORDER_STATUS">
+            <column name="ORDER_NUMBER" />
+            <column name="STATUS" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

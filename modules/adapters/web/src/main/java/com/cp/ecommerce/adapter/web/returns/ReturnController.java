@@ -52,7 +52,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
  * <p>
  * Cross-bounded-context composition stays here, not in {@code domain.returns}: the controller validates the referenced
  * {@link Order}, computes the authoritative refund amount from the order line-item snapshot, and composes
- * {@link ManagePaymentInPort#refundPayment(String)} and notification logging after moderation, matching
+ * {@link ManagePaymentInPort#refundPayment(String, String, BigDecimal)} and notification logging after moderation, matching
  * {@code OrderController#cancelOrder}.
  */
 @RequiredArgsConstructor
@@ -189,7 +189,8 @@ public class ReturnController {
         }
         if (approved.getStatus() != ReturnStatus.REFUNDED) {
 
-            managePaymentInPort.refundPayment(approved.getOrderNumber());
+            managePaymentInPort
+                    .refundPayment(approved.getOrderNumber(), approved.getReturnNumber(), approved.getRefundAmount());
         }
         final ReturnRequest refunded = returnModerationInPort.markRefunded(returnNumber);
         if (refunded == null) {

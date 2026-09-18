@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import static java.util.Optional.ofNullable;
 
 /**
- * Mapper responsible for changing {@link PaymentTransaction} object into/from entity object.
+ * Maps payment transactions to/from persistence.
  */
 @Component
 public class PaymentTransactionPersistenceMapper implements PersistenceMapper<PaymentTransaction, PaymentTransactionEntity> {
@@ -23,6 +23,7 @@ public class PaymentTransactionPersistenceMapper implements PersistenceMapper<Pa
                 domain -> PaymentTransactionEntity.builder()
                         .orderNumber(domain.getOrderNumber())
                         .amount(domain.getAmount())
+                        .refundedAmount(domain.getRefundedAmount())
                         .method(domain.getMethod())
                         .status(domain.getStatus())
                         .gatewayReference(domain.getGatewayReference())
@@ -34,14 +35,14 @@ public class PaymentTransactionPersistenceMapper implements PersistenceMapper<Pa
     public Optional<PaymentTransaction> mapToDomainObject(final PaymentTransactionEntity entity) {
 
         return ofNullable(entity).map(
-                paymentTransactionEntity -> PaymentTransaction.builder()
-                        .orderNumber(paymentTransactionEntity.getOrderNumber())
-                        .amount(paymentTransactionEntity.getAmount())
-                        .method(paymentTransactionEntity.getMethod())
-                        .status(paymentTransactionEntity.getStatus())
-                        .gatewayReference(paymentTransactionEntity.getGatewayReference())
-                        .created(paymentTransactionEntity.getCreated())
+                persisted -> PaymentTransaction.builder()
+                        .orderNumber(persisted.getOrderNumber())
+                        .amount(persisted.getAmount())
+                        .refundedAmount(persisted.getRefundedAmount())
+                        .method(persisted.getMethod())
+                        .status(persisted.getStatus())
+                        .gatewayReference(persisted.getGatewayReference())
+                        .created(persisted.getCreated())
                         .build());
     }
-
 }

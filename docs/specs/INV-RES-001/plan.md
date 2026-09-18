@@ -1,4 +1,4 @@
-# Plan — INV-RES-001
+# Plan - INV-RES-001
 
 1. Add the deterministic PostgreSQL counterexample before production changes.
 2. Record ADR 0038 and the identity/transaction contract.

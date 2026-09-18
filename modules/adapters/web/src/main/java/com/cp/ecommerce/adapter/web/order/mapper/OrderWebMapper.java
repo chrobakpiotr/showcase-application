@@ -72,6 +72,7 @@ public class OrderWebMapper implements WebRequestMapper<Order, OrderResource>, W
                 .status(payment.getStatus())
                 .method(payment.getMethod())
                 .amount(payment.getAmount())
+                .refundedAmount(payment.getRefundedAmount())
                 .gatewayReference(payment.getGatewayReference())
                 .build();
     }

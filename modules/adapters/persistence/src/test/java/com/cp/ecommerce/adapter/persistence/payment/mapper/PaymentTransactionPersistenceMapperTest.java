@@ -26,6 +26,7 @@ class PaymentTransactionPersistenceMapperTest {
         assertTrue(result.isPresent());
         assertEquals(paymentTransaction.getOrderNumber(), result.get().getOrderNumber());
         assertEquals(paymentTransaction.getAmount(), result.get().getAmount());
+        assertEquals(paymentTransaction.getRefundedAmount(), result.get().getRefundedAmount());
         assertEquals(paymentTransaction.getMethod(), result.get().getMethod());
         assertEquals(paymentTransaction.getStatus(), result.get().getStatus());
         assertEquals(paymentTransaction.getGatewayReference(), result.get().getGatewayReference());
@@ -41,6 +42,7 @@ class PaymentTransactionPersistenceMapperTest {
         assertTrue(result.isPresent());
         assertEquals(entity.getOrderNumber(), result.get().getOrderNumber());
         assertEquals(entity.getAmount(), result.get().getAmount());
+        assertEquals(entity.getRefundedAmount(), result.get().getRefundedAmount());
         assertEquals(entity.getMethod(), result.get().getMethod());
         assertEquals(entity.getStatus(), result.get().getStatus());
         assertEquals(entity.getGatewayReference(), result.get().getGatewayReference());

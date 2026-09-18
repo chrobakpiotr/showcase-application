@@ -14,6 +14,7 @@ import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
+import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
@@ -79,6 +80,7 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_COUPON_NOT_APPLICABLE = URI.create(PROBLEM_TYPE_PREFIX + "coupon-not-applicable");
     private static final URI TYPE_COUPON_ALREADY_EXISTS = URI.create(PROBLEM_TYPE_PREFIX + "coupon-already-exists");
     private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
+    private static final URI TYPE_PAYMENT_REFUND_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "payment-refund-conflict");
     private static final URI TYPE_RETURN_REQUEST_NOT_APPROVABLE = URI
             .create(PROBLEM_TYPE_PREFIX + "return-request-not-approvable");
     private static final URI TYPE_RETURN_REQUEST_NOT_REJECTABLE = URI
@@ -200,6 +202,18 @@ public class GlobalExceptionHandler {
                 HttpStatus.PAYMENT_REQUIRED,
                 TYPE_PAYMENT_DECLINED,
                 "Payment Declined",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler(PaymentRefundConflictException.class)
+    public ProblemDetail paymentRefundConflictException(final PaymentRefundConflictException exception) {
+
+        return problemDetail(
+                exception,
+                CONFLICT,
+                TYPE_PAYMENT_REFUND_CONFLICT,
+                "Payment Refund Conflict",
                 exception.getMessage());
     }
 

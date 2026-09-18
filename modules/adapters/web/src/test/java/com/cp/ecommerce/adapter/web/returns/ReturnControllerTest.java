@@ -421,6 +421,24 @@ class ReturnControllerTest {
     }
 
     @Test
+    void shouldNotUseWholeOrderRefundForPartialReturn() throws Exception {
+
+        final ReturnRequest approved = TestReturnRequests.approved();
+        final ReturnRequest refunded = TestReturnRequests.refunded();
+        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
+        given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
+        given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
+
+        mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
+                .andExpect(status().isOk());
+
+        verify(managePaymentInPort, never()).refundPayment(ReturnRequestBuilder.TEST_ORDER_NUMBER);
+    }
+
+    @Test
     void shouldApproveReturnAndRefundPayment() throws Exception {
 
         final ReturnRequest approved = TestReturnRequests.approved();
@@ -436,7 +454,10 @@ class ReturnControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REFUNDED"));
 
-        verify(managePaymentInPort).refundPayment(ReturnRequestBuilder.TEST_ORDER_NUMBER);
+        verify(managePaymentInPort).refundPayment(
+                ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                ReturnRequestBuilder.TEST_RETURN_NUMBER,
+                ReturnRequestBuilder.TEST_REFUND_AMOUNT);
         verify(sendNotificationInPort).sendNotification(
                 "test@test.com",
                 NotificationType.RETURN_REFUNDED,
