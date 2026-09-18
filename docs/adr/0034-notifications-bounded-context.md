@@ -29,8 +29,8 @@ was attempted and with what summary, but does not replace the existing HTML/PDF 
 `SendNotificationInPort` creates a `PENDING` notification row, delegates to a mock `DeliverNotificationOutPort`, then
 persists the same row as `SENT` with `sentDate` populated. The delivery adapter is intentionally simulated, mirroring ADR
 0030's mock payment gateway pattern: the showcase has no real generic notification provider, but the adapter boundary is
-kept real so resilience and future replacement stay straightforward. If delivery were ever to fail technically, the log is
-updated to `FAILED` before the exception propagates.
+kept real so resilience and future replacement stay straightforward. This original synchronous failure-propagation rule is superseded by ADR 0041: a technical delivery failure is persisted as
+`FAILED` and retried durably without failing the parent business workflow.
 
 ### Read API is operator-gated and observability-oriented
 

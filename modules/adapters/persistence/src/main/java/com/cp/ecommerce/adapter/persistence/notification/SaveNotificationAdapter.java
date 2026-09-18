@@ -28,6 +28,10 @@ class SaveNotificationAdapter implements SaveNotificationOutPort {
                         () -> new IllegalStateException(
                                 "Failed to map notification domain object to entity for notification id: "
                                         + notification.getNotificationId()));
+        if (entityToSave.getNextAttemptDate() == null) {
+
+            entityToSave.setNextAttemptDate(notification.getCreatedDate());
+        }
         final NotificationEntity saved = notificationEntityRepository.save(entityToSave);
         return notificationPersistenceMapper.mapToDomainObject(saved)
                 .orElseThrow(

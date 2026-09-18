@@ -98,6 +98,8 @@ public class OrderPlacementSagaOrchestrator {
 
         outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
                 .forEach(this::publishPendingEvent);
+        outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING)
+                .forEach(this::publishCompensatingEvent);
     }
 
     private void publishPendingEvent(final OutboxEventEntity outboxEventEntity) {
@@ -187,7 +189,7 @@ public class OrderPlacementSagaOrchestrator {
                     "Payment capture declined for order: {}, compensating by cancelling the order.",
                     order.getOrderNumber(),
                     exception);
-            runCompensation(order, outboxEventEntity);
+            startCompensation(order, outboxEventEntity, exception.getMessage());
             return false;
         }
     }
@@ -212,7 +214,7 @@ public class OrderPlacementSagaOrchestrator {
                         order.getOrderNumber(),
                         outboxEventEntity.getAttempts(),
                         exception);
-                runCompensation(order, outboxEventEntity);
+                startCompensation(order, outboxEventEntity, exception.getMessage());
             } else {
 
                 log.warn(
@@ -227,53 +229,58 @@ public class OrderPlacementSagaOrchestrator {
         }
     }
 
-    // Shared compensating-transaction actions for both pivot steps above: cancel the order, release its reserved
-    // stock, refund its payment (all best-effort where relevant/idempotent), record the compensation, and mark the
-    // outbox event COMPENSATED so it is never re-processed by a later poll.
-    private void runCompensation(final Order order, final OutboxEventEntity outboxEventEntity) {
+    private void startCompensation(final Order order, final OutboxEventEntity outboxEventEntity, final String error) {
 
         cancelOrderInPort.cancelOrder(order.getOrderNumber());
-        releaseReservedStock(order);
-        refundCapturedPayment(order);
-        sagaMetrics.recordCompensation();
-        outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATED);
-        outboxEventEntity.setCompensatedDate(new Date());
+        outboxEventEntity.setStatus(OutboxEventStatus.COMPENSATING);
+        outboxEventEntity.setLastError(error);
         outboxEventEntityRepository.save(outboxEventEntity);
     }
 
-    // Refunds this order's payment as part of compensation - a no-op via ManagePaymentInPort#refundPayment's own
-    // idempotency if payment was never captured (e.g. compensating a payment decline itself) or already refunded, and
-    // an actual refund if fulfillment failed after payment had already been captured. Best-effort like
-    // releaseReservedStock above: a failure here must not prevent the order from being marked COMPENSATED.
-    private void refundCapturedPayment(final Order order) {
+    private void publishCompensatingEvent(final OutboxEventEntity candidate) {
 
         try {
-            managePaymentInPort.refundPayment(order.getOrderNumber());
+            final Order order = manageOrderInPort.findOrder(candidate.getOrderNumber());
+            releaseReservedStock(order);
+            refundCapturedPayment(order);
+            transactionOperations.executeWithoutResult(status -> completeCompensation(candidate.getId()));
         } catch (final RuntimeException exception) {
-            log.warn(
-                    "Could not refund payment for order: {} (best-effort): {}",
-                    order.getOrderNumber(),
-                    exception.getMessage());
+            transactionOperations.executeWithoutResult(status -> recordCompensationFailure(candidate.getId(), exception));
         }
     }
 
-    // Releases the stock reserved for this order at placement time (see OrderController#reserveStockFor), as part of
-    // the saga's compensating transaction. Best-effort like the tail steps below: a failure here must not prevent the
-    // order from being marked COMPENSATED, since the order itself is already cancelled either way - it would only leave
-    // stock over-reserved until manually corrected, which is preferable to silently swallowing the cancellation.
+    private void completeCompensation(final Long eventId) {
+
+        outboxEventEntityRepository.findByIdForUpdate(eventId)
+                .filter(event -> event.getStatus() == OutboxEventStatus.COMPENSATING)
+                .ifPresent(event -> {
+                    event.setStatus(OutboxEventStatus.COMPENSATED);
+                    event.setCompensatedDate(new Date());
+                    event.setLastError(null);
+                    outboxEventEntityRepository.save(event);
+                    sagaMetrics.recordCompensation();
+                });
+    }
+
+    private void recordCompensationFailure(final Long eventId, final RuntimeException exception) {
+
+        outboxEventEntityRepository.findByIdForUpdate(eventId)
+                .filter(event -> event.getStatus() == OutboxEventStatus.COMPENSATING)
+                .ifPresent(event -> {
+                    event.setCompensationAttempts(event.getCompensationAttempts() + 1);
+                    event.setLastError(exception.getMessage());
+                    outboxEventEntityRepository.save(event);
+                });
+    }
+
+    private void refundCapturedPayment(final Order order) {
+
+        managePaymentInPort.refundPayment(order.getOrderNumber());
+    }
+
     private void releaseReservedStock(final Order order) {
 
-        order.getItems().forEach(item -> {
-            try {
-                manageStockInPort.releaseStock(stockReservationId(order), item.getSku());
-            } catch (final RuntimeException exception) {
-                log.warn(
-                        "Could not release reserved stock for order: {}, sku: {} (best-effort): {}",
-                        order.getOrderNumber(),
-                        item.getSku(),
-                        exception.getMessage());
-            }
-        });
+        order.getItems().forEach(item -> manageStockInPort.releaseStock(stockReservationId(order), item.getSku()));
     }
 
     private static String stockReservationId(final Order order) {

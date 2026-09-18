@@ -60,4 +60,7 @@ public class OutboxEventEntity {
     @Column(name = "LAST_ERROR", length = 500)
     private String lastError;
 
+    @Column(name = "COMPENSATION_ATTEMPTS", nullable = false)
+    private int compensationAttempts;
+
 }

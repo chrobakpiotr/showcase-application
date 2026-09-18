@@ -48,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -120,6 +121,10 @@ class OrderPlacementSagaOrchestratorTest {
         lenient().when(classifyOrderRemarksInPort.classifyRemarks(any()))
                 .thenReturn(RemarksTriageResult.standard("No remarks to classify."));
         lenient().when(detectDuplicateOrderInPort.detectDuplicate(any())).thenReturn(DuplicateOrderCheckResult.none());
+        lenient().when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of());
+        lenient().when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of());
         lenient().when(outboxEventEntityRepository.findByIdForUpdate(any())).thenAnswer(invocation -> {
             final Long id = invocation.getArgument(0);
             return outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
@@ -323,122 +328,136 @@ class OrderPlacementSagaOrchestratorTest {
     }
 
     @Test
-    void shouldCompensateAndCancelOrderWhenFulfillmentAttemptsExhausted() {
+    void shouldStartDurableCompensationWhenFulfillmentAttemptsExhausted() {
 
         final Order order = orderWithReservationIdentity();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+        final OutboxEventEntity event = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
                 .createdDate(new Date())
                 .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
                 .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
+                .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
 
-        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        verify(manageStockInPort, times(1)).releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
-        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
-        verifyNoInteractions(
-                sendOrderConfirmationEmailInPort,
-                exportOrderInPort,
-                publishOrderAuditEventInPort,
-                publishOrderAnalyticsEventInPort,
-                routeOrderNotificationInPort,
-                classifyOrderRemarksInPort,
-                detectDuplicateOrderInPort);
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
-        assertThat(outboxEventEntity.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
-        assertThat(outboxEventEntity.getCompensatedDate()).isNotNull();
-        assertThat(outboxEventEntity.getSentDate()).isNull();
-        assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
-        assertThat(compensationCount()).isEqualTo(1);
+        verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
+        verifyNoInteractions(manageStockInPort);
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+        assertThat(event.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
+        assertThat(event.getCompensatedDate()).isNull();
+        assertThat(compensationCount()).isZero();
     }
 
     @Test
-    void shouldCompensateImmediatelyWithoutAttemptingFulfillmentWhenPaymentDeclined() {
+    void shouldStartDurableCompensationWhenPaymentDeclined() {
 
         final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+        final OutboxEventEntity event = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
                 .createdDate(new Date())
                 .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
+                .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doThrow(new PaymentDeclinedException("Payment gateway declined charge")).when(managePaymentInPort)
                 .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
 
         verifyNoInteractions(sendMessageInPort);
-        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        verify(manageStockInPort, times(1)).releaseStock(order.getOrderNumber(), order.getItems().get(0).getSku());
-        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
-        assertThat(timerCountFor("payment-capture", OUTCOME_FAILURE)).isEqualTo(1);
-        assertThat(compensationCount()).isEqualTo(1);
+        verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
+        verifyNoInteractions(manageStockInPort);
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+        assertThat(compensationCount()).isZero();
     }
 
     @Test
-    void shouldStillCompensateWhenReleasingReservedStockFails() {
+    void shouldKeepCompensationRetryableWhenStockReleaseFails() {
 
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
+                .status(OutboxEventStatus.COMPENSATING)
                 .createdDate(new Date())
-                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
                 .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)).thenReturn(List.of());
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
+        doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
         doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
-                .releaseStock(order.getOrderNumber(), order.getItems().get(0).getSku());
+                .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
 
-        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        verify(managePaymentInPort, times(1)).refundPayment(order.getOrderNumber());
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
-        assertThat(compensationCount()).isEqualTo(1);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+        assertThat(event.getCompensationAttempts()).isEqualTo(1);
+        assertThat(event.getLastError()).isEqualTo("Inventory unavailable");
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+        assertThat(compensationCount()).isZero();
     }
 
     @Test
-    void shouldStillCompensateWhenRefundingCapturedPaymentFails() {
+    void shouldKeepCompensationRetryableWhenRefundFails() {
 
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
+                .status(OutboxEventStatus.COMPENSATING)
                 .createdDate(new Date())
-                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
                 .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)).thenReturn(List.of());
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
+        doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
         doThrow(new IllegalStateException("Payment gateway unavailable")).when(managePaymentInPort)
                 .refundPayment(order.getOrderNumber());
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
 
-        verify(cancelOrderInPort, times(1)).cancelOrder(order.getOrderNumber());
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+        assertThat(event.getCompensationAttempts()).isEqualTo(1);
+        assertThat(event.getLastError()).isEqualTo("Payment gateway unavailable");
+        assertThat(compensationCount()).isZero();
+    }
+
+    @Test
+    void shouldCompleteDurableCompensationAfterSideEffectsSucceed() {
+
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(1L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(new Date())
+                .compensationAttempts(1)
+                .lastError("previous failure")
+                .build();
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)).thenReturn(List.of());
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
+
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+
+        verify(manageStockInPort).releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+        assertThat(event.getCompensatedDate()).isNotNull();
+        assertThat(event.getLastError()).isNull();
         assertThat(compensationCount()).isEqualTo(1);
     }
 
@@ -687,6 +706,91 @@ class OrderPlacementSagaOrchestratorTest {
         verifyNoInteractions(cancelOrderInPort);
         assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(duplicateOrderDetectionCount(true)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldIgnoreCompensationCompletionWhenLockedEventIsNoLongerCompensating() {
+
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(41L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(new Date())
+                .build();
+        final OutboxEventEntity locked = OutboxEventEntity.builder()
+                .id(41L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATED)
+                .createdDate(new Date())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(candidate));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doReturn(Optional.of(locked)).when(outboxEventEntityRepository).findByIdForUpdate(41L);
+
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+
+        verify(manageStockInPort).releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verify(outboxEventEntityRepository, never()).save(locked);
+        assertThat(locked.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+    }
+
+    @Test
+    void shouldIgnoreCompensationFailureWhenLockedEventIsNoLongerCompensating() {
+
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(42L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(new Date())
+                .build();
+        final OutboxEventEntity locked = OutboxEventEntity.builder()
+                .id(42L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATED)
+                .createdDate(new Date())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(candidate));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doReturn(Optional.of(locked)).when(outboxEventEntityRepository).findByIdForUpdate(42L);
+        doThrow(new IllegalStateException("inventory unavailable")).when(manageStockInPort)
+                .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
+
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+        verify(outboxEventEntityRepository, never()).save(locked);
+        assertThat(locked.getCompensationAttempts()).isZero();
+        assertThat(locked.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
+    }
+
+    @Test
+    void shouldUseOrderNumberAsReservationFallbackDuringCompensation() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(43L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(new Date())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(43L);
+
+        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+
+        verify(manageStockInPort).releaseStock(order.getOrderNumber(), order.getItems().get(0).getSku());
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATED);
     }
 
     private static Order orderWithReservationIdentity() {

@@ -62,4 +62,13 @@ public class NotificationEntity {
     @Column(name = "SENT_DATE")
     private Date sentDate;
 
+    @Column(name = "DELIVERY_ATTEMPTS", nullable = false)
+    private int deliveryAttempts;
+
+    @Column(name = "NEXT_ATTEMPT_DATE", nullable = false)
+    private Date nextAttemptDate;
+
+    @Column(name = "LAST_ERROR", length = 500)
+    private String lastError;
+
 }

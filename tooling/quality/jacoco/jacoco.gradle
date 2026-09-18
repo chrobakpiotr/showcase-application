@@ -42,8 +42,8 @@ jacocoTestCoverageVerification {
 
 jacocoTestReport {
     reports {
-        html.required
-        xml.required
+        html.required = true
+        xml.required = true
     }
 }
 

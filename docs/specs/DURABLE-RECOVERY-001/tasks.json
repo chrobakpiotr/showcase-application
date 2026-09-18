@@ -1,0 +1,156 @@
+{
+  "feature": "DURABLE-RECOVERY-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define durable recovery state machines",
+      "objective": "Specify compensation and notification claim/retry transaction boundaries.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/DURABLE-RECOVERY-001/**",
+        "docs/adr/0041-durable-compensation-and-notification-retry.md",
+        "docs/adr/README.md"
+      ],
+      "risk_tags": [
+        "transactions",
+        "external-side-effects",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-003",
+        "AC-008",
+        "AC-010"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/DURABLE-RECOVERY-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Specification and ADR."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement durable compensation",
+      "objective": "Keep failed compensation retryable and only mark it complete after every compensating action succeeds.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/SagaCompensationRecoveryPostgresIntegrationTest.java"
+      ],
+      "risk_tags": [
+        "saga",
+        "compensation",
+        "payments",
+        "inventory"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-015"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestratorTest --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.SagaCompensationRecoveryPostgresIntegrationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Real PostgreSQL and orchestrator unit tests."
+    },
+    {
+      "id": "T-003",
+      "title": "Implement durable notification retry",
+      "objective": "Claim, retry and complete the same persisted notification row.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/notification/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/notification/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/notification/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/notification/**",
+        "modules/adapters/persistence/src/main/resources/db/changelog/**",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/DurableNotificationRetryPostgresIntegrationTest.java",
+        "apps/ecommerce/frontend/src/app/notifications/notifications.component.html"
+      ],
+      "risk_tags": [
+        "notifications",
+        "leases",
+        "external-side-effects",
+        "retry"
+      ],
+      "acceptance_criteria": [
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "verification": [
+        "./gradlew :domain:test --tests com.cp.ecommerce.domain.notification.usecase.ManageNotificationUseCaseTest --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.notification.ManageNotificationDeliveryAdapterTest --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Same-row retry with real PostgreSQL."
+    },
+    {
+      "id": "T-004",
+      "title": "Independent R07 evaluation",
+      "objective": "Verify recovery semantics, PostgreSQL evidence and regression gates independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "docs/specs/DURABLE-RECOVERY-001/evidence/**"
+      ],
+      "risk_tags": [
+        "recovery",
+        "transactions"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015",
+        "AC-016",
+        "AC-017"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/DURABLE-RECOVERY-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA and gate evidence."
+    }
+  ]
+}

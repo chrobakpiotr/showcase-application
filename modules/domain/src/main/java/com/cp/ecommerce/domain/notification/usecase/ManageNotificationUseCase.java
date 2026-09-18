@@ -4,28 +4,32 @@ import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.GetNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.ListNotificationsInPort;
+import com.cp.ecommerce.domain.notification.port.incoming.RetryNotificationDeliveryInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.GenerateNotificationIdOutPort;
+import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
 
 import lombok.RequiredArgsConstructor;
 
 /**
- * Use case for recording and querying notification log entries.
+ * Use case for recording, delivering, retrying and querying notification log entries.
  */
 @UseCase
 @RequiredArgsConstructor
-public class ManageNotificationUseCase implements SendNotificationInPort, ListNotificationsInPort, GetNotificationInPort {
+public class ManageNotificationUseCase
+        implements SendNotificationInPort, RetryNotificationDeliveryInPort, ListNotificationsInPort, GetNotificationInPort {
+
+    private static final int RETRY_BATCH_SIZE = 50;
 
     private final SaveNotificationOutPort saveNotificationOutPort;
 
@@ -37,6 +41,8 @@ public class ManageNotificationUseCase implements SendNotificationInPort, ListNo
 
     private final DeliverNotificationOutPort deliverNotificationOutPort;
 
+    private final ManageNotificationDeliveryOutPort manageNotificationDeliveryOutPort;
+
     @Override
     public Notification sendNotification(
             final String recipientEmail,
@@ -44,6 +50,7 @@ public class ManageNotificationUseCase implements SendNotificationInPort, ListNo
             final String subject,
             final String body) {
 
+        final Date now = new Date();
         final Notification pending = save(
                 Notification.builder()
                         .notificationId(generateNotificationIdOutPort.generate())
@@ -53,15 +60,18 @@ public class ManageNotificationUseCase implements SendNotificationInPort, ListNo
                         .subject(subject)
                         .body(body)
                         .status(NotificationStatus.PENDING)
-                        .createdDate(new Date())
+                        .createdDate(now)
                         .build());
-        try {
-            deliverNotificationOutPort.deliver(pending);
-            return save(notificationWithStatus(pending, NotificationStatus.SENT, new Date()));
-        } catch (final TechnicalProblemException exception) {
-            save(notificationWithStatus(pending, NotificationStatus.FAILED, null));
-            throw exception;
-        }
+
+        return deliverPersistedNotification(pending.getNotificationId(), pending);
+    }
+
+    @Override
+    public void retryDueNotifications() {
+
+        final Date now = new Date();
+        manageNotificationDeliveryOutPort.findDueNotificationIds(now, RETRY_BATCH_SIZE)
+                .forEach(notificationId -> deliverPersistedNotification(notificationId, null));
     }
 
     @Override
@@ -88,28 +98,25 @@ public class ManageNotificationUseCase implements SendNotificationInPort, ListNo
         return findNotificationOutPort.find(notificationId);
     }
 
+    private Notification deliverPersistedNotification(final String notificationId, final Notification fallback) {
+
+        final Notification claimed = manageNotificationDeliveryOutPort.claim(notificationId, new Date());
+        if (claimed == null) {
+
+            return fallback == null ? findNotificationOutPort.find(notificationId) : fallback;
+        }
+
+        try {
+            deliverNotificationOutPort.deliver(claimed);
+            return manageNotificationDeliveryOutPort.markSent(notificationId, new Date());
+        } catch (final RuntimeException exception) {
+            return manageNotificationDeliveryOutPort.markFailed(notificationId, exception.getMessage(), new Date());
+        }
+    }
+
     private Notification save(final Notification notification) {
 
         notification.assertValidationsEmpty();
         return saveNotificationOutPort.save(notification);
     }
-
-    private Notification notificationWithStatus(
-            final Notification notification,
-            final NotificationStatus status,
-            final Date sentDate) {
-
-        return Notification.builder()
-                .notificationId(notification.getNotificationId())
-                .recipientEmail(notification.getRecipientEmail())
-                .channel(notification.getChannel())
-                .type(notification.getType())
-                .subject(notification.getSubject())
-                .body(notification.getBody())
-                .status(status)
-                .createdDate(notification.getCreatedDate())
-                .sentDate(sentDate)
-                .build();
-    }
-
 }

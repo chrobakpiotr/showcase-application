@@ -6,6 +6,7 @@ package com.cp.ecommerce.domain.notification;
 public enum NotificationStatus {
 
     PENDING,
+    DELIVERING,
     SENT,
     FAILED
 

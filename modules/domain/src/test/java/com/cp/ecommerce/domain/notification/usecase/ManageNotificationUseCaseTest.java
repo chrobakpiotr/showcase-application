@@ -1,5 +1,6 @@
 package com.cp.ecommerce.domain.notification.usecase;
 
+import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
@@ -10,6 +11,7 @@ import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOut
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.GenerateNotificationIdOutPort;
+import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
 
@@ -21,14 +23,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-/**
- * Tests for {@link ManageNotificationUseCase}.
- */
 @ExtendWith(MockitoExtension.class)
 class ManageNotificationUseCaseTest {
 
@@ -50,12 +52,22 @@ class ManageNotificationUseCaseTest {
     @Mock
     private transient DeliverNotificationOutPort deliverNotificationOutPort;
 
-    @Test
-    void shouldSendNotificationAndMarkItSent() {
+    @Mock
+    private transient ManageNotificationDeliveryOutPort manageNotificationDeliveryOutPort;
 
-        final ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+    @Test
+    void shouldSendNotificationAndMarkSameRowSent() {
+
+        final ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
+        final Notification delivering = notification(NotificationStatus.DELIVERING, null);
+        final Notification sent = notification(NotificationStatus.SENT, new Date());
+
         given(generateNotificationIdOutPort.generate()).willReturn(TestDomainObjectFactory.TEST_NOTIFICATION_ID);
-        given(saveNotificationOutPort.save(captor.capture())).willAnswer(invocation -> invocation.getArgument(0));
+        given(saveNotificationOutPort.save(saved.capture())).willAnswer(invocation -> invocation.getArgument(0));
+        given(manageNotificationDeliveryOutPort.claim(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(delivering);
+        given(manageNotificationDeliveryOutPort.markSent(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(sent);
 
         final Notification result = manageNotificationUseCase.sendNotification(
                 "john.doe@test.com",
@@ -63,32 +75,89 @@ class ManageNotificationUseCaseTest {
                 "Order confirmed",
                 "Your order was confirmed.");
 
-        assertThat(result.getStatus()).isEqualTo(NotificationStatus.SENT);
-        assertThat(result.getSentDate()).isNotNull();
-        assertThat(captor.getAllValues().getFirst().getStatus()).isEqualTo(NotificationStatus.PENDING);
-        assertThat(captor.getAllValues().getLast().getStatus()).isEqualTo(NotificationStatus.SENT);
-        verify(deliverNotificationOutPort).deliver(any(Notification.class));
+        assertThat(result).isSameAs(sent);
+        assertThat(saved.getValue().getStatus()).isEqualTo(NotificationStatus.PENDING);
+        verify(deliverNotificationOutPort).deliver(delivering);
     }
 
     @Test
-    void shouldMarkNotificationFailedWhenDeliveryFails() {
+    void shouldPersistFailedNotificationWithoutFailingParentWorkflow() {
 
-        final ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        final Notification delivering = notification(NotificationStatus.DELIVERING, null);
+        final Notification failed = notification(NotificationStatus.FAILED, null);
+
         given(generateNotificationIdOutPort.generate()).willReturn(TestDomainObjectFactory.TEST_NOTIFICATION_ID);
-        given(saveNotificationOutPort.save(captor.capture())).willAnswer(invocation -> invocation.getArgument(0));
-        org.mockito.Mockito.doThrow(new TechnicalProblemException("boom")).when(deliverNotificationOutPort).deliver(any());
+        given(saveNotificationOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(manageNotificationDeliveryOutPort.claim(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(delivering);
+        doThrow(new TechnicalProblemException("transport unavailable")).when(deliverNotificationOutPort).deliver(delivering);
+        given(
+                manageNotificationDeliveryOutPort
+                        .markFailed(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), eq("transport unavailable"), any()))
+                .willReturn(failed);
 
-        assertThatThrownBy(
-                () -> manageNotificationUseCase.sendNotification(
-                        "john.doe@test.com",
-                        NotificationType.ORDER_CONFIRMED,
-                        "Order confirmed",
-                        "Your order was confirmed."))
-                .isInstanceOf(TechnicalProblemException.class);
+        final Notification result = manageNotificationUseCase.sendNotification(
+                "john.doe@test.com",
+                NotificationType.ORDER_CONFIRMED,
+                "Order confirmed",
+                "Your order was confirmed.");
 
-        assertThat(captor.getAllValues()).hasSize(2);
-        assertThat(captor.getAllValues().get(1).getStatus()).isEqualTo(NotificationStatus.FAILED);
-        assertThat(captor.getAllValues().get(1).getSentDate()).isNull();
+        assertThat(result.getStatus()).isEqualTo(NotificationStatus.FAILED);
+    }
+
+    @Test
+    void shouldRetryDueNotificationUsingSameId() {
+
+        final Notification delivering = notification(NotificationStatus.DELIVERING, null);
+        final Notification sent = notification(NotificationStatus.SENT, new Date());
+
+        given(manageNotificationDeliveryOutPort.findDueNotificationIds(any(), anyInt()))
+                .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
+        given(manageNotificationDeliveryOutPort.claim(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(delivering);
+        given(manageNotificationDeliveryOutPort.markSent(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(sent);
+
+        manageNotificationUseCase.retryDueNotifications();
+
+        verify(deliverNotificationOutPort).deliver(delivering);
+        verify(manageNotificationDeliveryOutPort).markSent(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any());
+        verify(generateNotificationIdOutPort, never()).generate();
+        verify(saveNotificationOutPort, never()).save(any());
+    }
+
+    @Test
+    void shouldSkipDeliveryWhenAnotherWorkerOwnsLease() {
+
+        final Notification current = notification(NotificationStatus.DELIVERING, null);
+        given(manageNotificationDeliveryOutPort.findDueNotificationIds(any(), anyInt()))
+                .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
+        given(manageNotificationDeliveryOutPort.claim(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(null);
+        given(findNotificationOutPort.find(TestDomainObjectFactory.TEST_NOTIFICATION_ID)).willReturn(current);
+
+        manageNotificationUseCase.retryDueNotifications();
+
+        verify(deliverNotificationOutPort, never()).deliver(any());
+    }
+
+    @Test
+    void shouldReturnPendingFallbackWhenImmediateClaimIsUnavailable() {
+
+        final Notification pending = notification(NotificationStatus.PENDING, null);
+        given(generateNotificationIdOutPort.generate()).willReturn(TestDomainObjectFactory.TEST_NOTIFICATION_ID);
+        given(saveNotificationOutPort.save(any())).willReturn(pending);
+        given(manageNotificationDeliveryOutPort.claim(eq(TestDomainObjectFactory.TEST_NOTIFICATION_ID), any()))
+                .willReturn(null);
+
+        final Notification result = manageNotificationUseCase.sendNotification(
+                "john.doe@test.com",
+                NotificationType.ORDER_CONFIRMED,
+                "Order confirmed",
+                "Your order was confirmed.");
+
+        assertThat(result).isSameAs(pending);
+        verify(findNotificationOutPort, never()).find(any());
     }
 
     @Test
@@ -125,7 +194,19 @@ class ManageNotificationUseCaseTest {
 
         assertThat(manageNotificationUseCase.getNotification(TestDomainObjectFactory.TEST_NOTIFICATION_ID))
                 .isSameAs(notification);
-        verify(findNotificationOutPort).find(TestDomainObjectFactory.TEST_NOTIFICATION_ID);
     }
 
+    private static Notification notification(final NotificationStatus status, final Date sentDate) {
+
+        return Notification.builder()
+                .notificationId(TestDomainObjectFactory.TEST_NOTIFICATION_ID)
+                .recipientEmail("john.doe@test.com")
+                .type(NotificationType.ORDER_CONFIRMED)
+                .subject("Order confirmed")
+                .body("Your order was confirmed.")
+                .status(status)
+                .createdDate(new Date())
+                .sentDate(sentDate)
+                .build();
+    }
 }
