@@ -16,8 +16,6 @@ import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
-import com.cp.ecommerce.adapter.web.returns.ReturnController;
-import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
@@ -25,6 +23,9 @@ import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
+import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -68,7 +69,10 @@ class PaymentPartialRefundPostgresIntegrationTest {
     private OrderController orderController;
 
     @Autowired
-    private ReturnController returnController;
+    private RequestReturnInPort requestReturnInPort;
+
+    @Autowired
+    private ReturnModerationInPort returnModerationInPort;
 
     @Autowired
     private ManageStockInPort manageStockInPort;
@@ -94,18 +98,18 @@ class PaymentPartialRefundPostgresIntegrationTest {
         final String orderNumber = capturedOrder(sku);
 
         final String firstReturn = requestReturn(orderNumber, sku, 1);
-        returnController.approveReturn(firstReturn);
+        approveAndRefund(firstReturn);
 
         PaymentTransaction payment = getPaymentInPort.getPayment(orderNumber);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
         assertThat(payment.getRefundedAmount()).isEqualByComparingTo(UNIT_PRICE);
 
-        returnController.approveReturn(firstReturn);
+        approveAndRefund(firstReturn);
         payment = getPaymentInPort.getPayment(orderNumber);
         assertThat(payment.getRefundedAmount()).isEqualByComparingTo(UNIT_PRICE);
 
         final String secondReturn = requestReturn(orderNumber, sku, 1);
-        returnController.approveReturn(secondReturn);
+        approveAndRefund(secondReturn);
 
         payment = getPaymentInPort.getPayment(orderNumber);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
@@ -119,7 +123,7 @@ class PaymentPartialRefundPostgresIntegrationTest {
         final String sku = shortSku("R04B");
         final String orderNumber = capturedOrder(sku);
         final String partialReturn = requestReturn(orderNumber, sku, 1);
-        returnController.approveReturn(partialReturn);
+        approveAndRefund(partialReturn);
 
         final PaymentTransaction result = managePaymentInPort.refundPayment(orderNumber);
 
@@ -198,16 +202,24 @@ class PaymentPartialRefundPostgresIntegrationTest {
 
     private String requestReturn(final String orderNumber, final String sku, final int quantity) {
 
-        return returnController
-                .requestReturn(
-                        RequestReturnResource.builder()
-                                .orderNumber(orderNumber)
-                                .sku(sku)
-                                .quantity(quantity)
-                                .reason("R04 partial return")
-                                .build())
-                .getContent()
-                .returnNumber();
+        final ReturnRequest created = requestReturnInPort.requestReturn(
+                orderNumber,
+                sku,
+                quantity,
+                "R04 partial return",
+                UNIT_PRICE.multiply(BigDecimal.valueOf(quantity)));
+        return created.getReturnNumber();
+    }
+
+    private void approveAndRefund(final String returnNumber) {
+
+        final ReturnRequest approved = returnModerationInPort.approveReturn(returnNumber);
+        if (approved == null) {
+
+            throw new IllegalStateException("Return disappeared before approval: " + returnNumber);
+        }
+        managePaymentInPort.refundPayment(approved.getOrderNumber(), approved.getReturnNumber(), approved.getRefundAmount());
+        returnModerationInPort.markRefunded(returnNumber);
     }
 
     private static OrderResource orderRequest(final String sku) {

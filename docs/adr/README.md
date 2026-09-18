@@ -46,6 +46,7 @@ than editing it in place.
 | [0037](0037-order-cancellation-saga-arbitration.md) | Order cancellation and placement saga share one PostgreSQL arbiter |
 | [0038](0038-stock-reservation-identity.md) | Order stock reservations have durable identity |
 | [0039](0039-partial-payment-refunds.md) | Partial payment refunds use durable refund identities |
+| [0040](0040-stock-mutation-retry-transaction-boundary.md) | Generic stock optimistic retries own one transaction per attempt |
 
 ## Template for new ADRs
 

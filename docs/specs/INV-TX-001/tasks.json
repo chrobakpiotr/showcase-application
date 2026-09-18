@@ -1,0 +1,98 @@
+{
+  "feature": "INV-TX-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Reproduce ambient transaction optimistic retry failure",
+      "objective": "Prove a generic stock retry cannot safely reuse a failed ambient JPA transaction.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/INV-TX-001/**",
+        "docs/adr/0040-stock-mutation-retry-transaction-boundary.md",
+        "docs/adr/README.md",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockRetryTransactionBoundaryPostgresIntegrationTest.java"
+      ],
+      "risk_tags": ["transactions", "optimistic-locking", "concurrency"],
+      "acceptance_criteria": ["AC-001"],
+      "verification": [
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.StockRetryTransactionBoundaryPostgresIntegrationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Real PostgreSQL plus nested TransactionTemplate boundaries."
+    },
+    {
+      "id": "T-002",
+      "title": "Isolate each optimistic mutation attempt",
+      "objective": "Run each stock read-mutate-save attempt in a fresh transaction and persistence context.",
+      "role": "builder",
+      "depends_on": ["T-001"],
+      "allowed_paths": [
+        "docs/specs/INV-TX-001/**",
+        "docs/adr/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/inventory/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/inventory/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/inventory/**",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockRetryTransactionBoundaryPostgresIntegrationTest.java"
+      ],
+      "risk_tags": ["transactions", "optimistic-locking", "rollback-only"],
+      "acceptance_criteria": [
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "./gradlew :domain:test --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test --no-configuration-cache --no-parallel",
+        "./gradlew :application:ecommerce:test --tests com.cp.ecommerce.application.StockRetryTransactionBoundaryPostgresIntegrationTest --no-configuration-cache --no-parallel",
+        "./gradlew test --no-configuration-cache --no-parallel",
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Transaction-owning persistence port with real PostgreSQL acceptance."
+    },
+    {
+      "id": "T-003",
+      "title": "Independent R06 evaluation",
+      "objective": "Independently verify transaction ownership, retry semantics and regression evidence.",
+      "role": "evaluator",
+      "depends_on": ["T-001", "T-002"],
+      "allowed_paths": [
+        "docs/specs/INV-TX-001/evidence/**"
+      ],
+      "risk_tags": ["transactions", "concurrency"],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/INV-TX-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA and PostgreSQL/full-build evidence."
+    }
+  ]
+}

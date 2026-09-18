@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -275,6 +276,40 @@ class ManagePaymentRefundAdapterTest {
         given(refundRepository.findByIdForUpdate(REFUND_ID)).willReturn(Optional.of(refund));
 
         assertThatThrownBy(() -> adapter.complete(REFUND_ID)).isInstanceOf(PaymentRefundConflictException.class);
+    }
+
+    @Test
+    void shouldFailWhenLockedPaymentCannotBeMappedToDomain() {
+
+        final PaymentTransactionEntity payment = payment(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        final PaymentTransactionPersistenceMapper failingMapper = mock(PaymentTransactionPersistenceMapper.class);
+        final ManagePaymentRefundAdapter adapterWithFailingMapper = new ManagePaymentRefundAdapter(
+                paymentRepository,
+                refundRepository,
+                failingMapper);
+        given(paymentRepository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(payment));
+        given(refundRepository.findById(REFUND_ID)).willReturn(Optional.empty());
+        given(refundRepository.sumAmountByOrderNumberAndStatus(ORDER_NUMBER, PaymentRefundStatus.PENDING))
+                .willReturn(BigDecimal.ZERO);
+        given(failingMapper.mapToDomainObject(payment)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adapterWithFailingMapper.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(ORDER_NUMBER);
+    }
+
+    @Test
+    void shouldRejectNullPartialRefundAmount() {
+
+        final PaymentTransactionEntity payment = payment(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        given(paymentRepository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(payment));
+        given(refundRepository.findById(REFUND_ID)).willReturn(Optional.empty());
+        given(refundRepository.sumAmountByOrderNumberAndStatus(ORDER_NUMBER, PaymentRefundStatus.PENDING))
+                .willReturn(BigDecimal.ZERO);
+
+        assertThatThrownBy(() -> adapter.reserve(REFUND_ID, ORDER_NUMBER, null))
+                .isInstanceOf(PaymentRefundConflictException.class)
+                .hasMessageContaining("greater than zero");
     }
 
     @Test
