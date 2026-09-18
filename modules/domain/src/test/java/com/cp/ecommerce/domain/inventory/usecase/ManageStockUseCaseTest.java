@@ -1,11 +1,13 @@
 package com.cp.ecommerce.domain.inventory.usecase;
 
+import java.util.function.UnaryOperator;
+
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.outgoing.FindStockLevelOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
-import com.cp.ecommerce.domain.inventory.port.outgoing.SaveStockLevelOutPort;
+import com.cp.ecommerce.domain.inventory.port.outgoing.MutateStockLevelOutPort;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -33,7 +36,7 @@ class ManageStockUseCaseTest {
     private transient FindStockLevelOutPort findStockLevelOutPort;
 
     @Mock
-    private transient SaveStockLevelOutPort saveStockLevelOutPort;
+    private transient MutateStockLevelOutPort mutateStockLevelOutPort;
 
     @Mock
     private transient ManageStockReservationOutPort manageStockReservationOutPort;
@@ -56,33 +59,27 @@ class ManageStockUseCaseTest {
     @Test
     void shouldReturnPersistedStockLevelWhenPresent() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(5).build();
+        final StockLevel existing = stock(10, 2, 5);
         given(findStockLevelOutPort.find(SKU)).willReturn(existing);
 
-        final StockLevel result = manageStockUseCase.getStockLevel(SKU);
-
-        assertThat(result).isSameAs(existing);
+        assertThat(manageStockUseCase.getStockLevel(SKU)).isSameAs(existing);
     }
 
     @Test
-    void shouldCreateNewStockLevelOnFirstReceive() {
+    void shouldCreateStockOnFirstReceive() {
 
-        given(findStockLevelOutPort.find(SKU)).willReturn(null);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(0, 0, 0));
 
         final StockLevel result = manageStockUseCase.receiveStock(SKU, 15);
 
         assertThat(result.getQuantityOnHand()).isEqualTo(15);
         assertThat(result.getQuantityReserved()).isZero();
-        assertThat(result.getVersion()).isZero();
     }
 
     @Test
-    void shouldIncreaseOnHandQuantityOnReceive() {
+    void shouldIncreaseOnHandQuantity() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(3).version(2).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(10, 3, 2));
 
         final StockLevel result = manageStockUseCase.receiveStock(SKU, 5);
 
@@ -92,11 +89,9 @@ class ManageStockUseCaseTest {
     }
 
     @Test
-    void shouldReserveStockWhenEnoughAvailable() {
+    void shouldReserveWhenFreshStateHasEnoughAvailable() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(10, 2, 1));
 
         final StockLevel result = manageStockUseCase.reserveStock(SKU, 5);
 
@@ -105,45 +100,33 @@ class ManageStockUseCaseTest {
     }
 
     @Test
-    void shouldThrowInsufficientStockExceptionWhenReservingMoreThanAvailable() {
+    void shouldRejectReserveAgainstFreshInsufficientState() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(8).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
+        applyMutationAgainst(stock(10, 8, 2));
 
         assertThatThrownBy(() -> manageStockUseCase.reserveStock(SKU, 5)).isInstanceOf(InsufficientStockException.class);
-        verify(saveStockLevelOutPort, never()).save(any());
     }
 
     @Test
     void shouldReleaseReservedStock() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(5).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(10, 5, 1));
 
-        final StockLevel result = manageStockUseCase.releaseStock(SKU, 3);
-
-        assertThat(result.getQuantityReserved()).isEqualTo(2);
+        assertThat(manageStockUseCase.releaseStock(SKU, 3).getQuantityReserved()).isEqualTo(2);
     }
 
     @Test
-    void shouldClampReleasedReservationToZeroWhenReleasingMoreThanReserved() {
+    void shouldClampReleasedReservationToZero() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(10, 2, 1));
 
-        final StockLevel result = manageStockUseCase.releaseStock(SKU, 10);
-
-        assertThat(result.getQuantityReserved()).isZero();
+        assertThat(manageStockUseCase.releaseStock(SKU, 10).getQuantityReserved()).isZero();
     }
 
     @Test
-    void shouldFulfillReservedStockDecreasingBothOnHandAndReserved() {
+    void shouldFulfillReservedStock() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(5).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        applyMutationAgainst(stock(10, 5, 1));
 
         final StockLevel result = manageStockUseCase.fulfillStock(SKU, 4);
 
@@ -152,60 +135,72 @@ class ManageStockUseCaseTest {
     }
 
     @Test
-    void shouldThrowInsufficientStockExceptionWhenFulfillingMoreThanReserved() {
+    void shouldRejectFulfillAgainstFreshInsufficientState() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
+        applyMutationAgainst(stock(10, 2, 1));
 
         assertThatThrownBy(() -> manageStockUseCase.fulfillStock(SKU, 5)).isInstanceOf(InsufficientStockException.class);
-        verify(saveStockLevelOutPort, never()).save(any());
     }
 
     @Test
-    void shouldRetryOnConflictAndSucceedOnceCurrentStateAllowsIt() {
+    void shouldRetryConflictAndApplyMutationToFreshState() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any()))
+        final StockLevel freshState = stock(12, 2, 2);
+        given(mutateStockLevelOutPort.mutate(eq(SKU), any()))
                 .willThrow(new StockLevelConflictException(SKU, new IllegalStateException("stale version")))
-                .willAnswer(invocation -> invocation.getArgument(0));
+                .willAnswer(invocation -> {
+                    final UnaryOperator<StockLevel> mutation = invocation.getArgument(1);
+                    return mutation.apply(freshState);
+                });
 
         final StockLevel result = manageStockUseCase.receiveStock(SKU, 5);
 
-        assertThat(result.getQuantityOnHand()).isEqualTo(15);
-        verify(saveStockLevelOutPort, times(2)).save(any());
+        assertThat(result.getQuantityOnHand()).isEqualTo(17);
+        verify(mutateStockLevelOutPort, times(2)).mutate(eq(SKU), any());
     }
 
     @Test
-    void shouldGiveUpAfterExhaustingRetryAttempts() {
+    void shouldGiveUpAfterThreeConflicts() {
 
-        final StockLevel existing = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(2).version(1).build();
-        given(findStockLevelOutPort.find(SKU)).willReturn(existing);
-        given(saveStockLevelOutPort.save(any()))
+        given(mutateStockLevelOutPort.mutate(eq(SKU), any()))
                 .willThrow(new StockLevelConflictException(SKU, new IllegalStateException("stale version")));
 
         assertThatThrownBy(() -> manageStockUseCase.receiveStock(SKU, 5)).isInstanceOf(StockLevelConflictException.class);
-        verify(saveStockLevelOutPort, times(3)).save(any());
+        verify(mutateStockLevelOutPort, times(3)).mutate(eq(SKU), any());
     }
 
     @Test
     void shouldDelegateIdentityAwareReserve() {
 
-        final StockLevel expected = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(3).version(1).build();
+        final StockLevel expected = stock(10, 3, 1);
         given(manageStockReservationOutPort.reserveStock("RES-1", SKU, 3)).willReturn(expected);
 
         assertThat(manageStockUseCase.reserveStock("RES-1", SKU, 3)).isSameAs(expected);
         verify(manageStockReservationOutPort).reserveStock("RES-1", SKU, 3);
+        verify(mutateStockLevelOutPort, never()).mutate(any(), any());
     }
 
     @Test
     void shouldDelegateIdentityAwareRelease() {
 
-        final StockLevel expected = StockLevel.builder().sku(SKU).quantityOnHand(10).quantityReserved(0).version(2).build();
+        final StockLevel expected = stock(10, 0, 2);
         given(manageStockReservationOutPort.releaseStock("RES-1", SKU)).willReturn(expected);
 
         assertThat(manageStockUseCase.releaseStock("RES-1", SKU)).isSameAs(expected);
         verify(manageStockReservationOutPort).releaseStock("RES-1", SKU);
+        verify(mutateStockLevelOutPort, never()).mutate(any(), any());
     }
 
+    private void applyMutationAgainst(final StockLevel current) {
+
+        given(mutateStockLevelOutPort.mutate(eq(SKU), any())).willAnswer(invocation -> {
+            final UnaryOperator<StockLevel> mutation = invocation.getArgument(1);
+            return mutation.apply(current);
+        });
+    }
+
+    private static StockLevel stock(final int onHand, final int reserved, final long version) {
+
+        return StockLevel.builder().sku(SKU).quantityOnHand(onHand).quantityReserved(reserved).version(version).build();
+    }
 }

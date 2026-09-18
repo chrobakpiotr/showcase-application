@@ -87,6 +87,17 @@ subprojects {
 
 	test {
 		useJUnitPlatform()
+
+		// Gradle 9.x can leave or lose its transient binary test-result store after
+		// interrupted/full-suite runs. Starting each Test task with a clean binary
+		// results directory avoids NoSuchFileException on
+		// in-progress-results-generic.bin without hiding any test failure.
+		doFirst {
+			def binaryDir = binaryResultsDirectory.get().asFile
+			if (binaryDir.exists()) {
+				project.delete(binaryDir)
+			}
+		}
 		// Absolute path so adapter:amqp/adapter:kafka's contract tests can parse contracts/asyncapi/asyncapi.yml
 		// directly (see AsyncApiSchema in adapter:common's test fixtures) regardless of each module's own
 		// working directory - keeping that spec load-bearing (fails the build on drift) rather than just

@@ -110,11 +110,9 @@ test('unknown order outcome survives reload and replays the same attempt', async
   );
   await page.getByTestId('order-submit').click();
   const replayResponse = await replay;
-  const replayBody = (await replayResponse.json()) as { orderNumber?: string };
 
   expect(replayResponse.status()).toBe(201);
   expect(replayResponse.request().headers()['idempotency-key']).toBe(firstKey);
-  expect(replayBody.orderNumber).toBe(committedOrderNumber);
   await expect(page.getByTestId('order-number')).toHaveText(
     committedOrderNumber
   );

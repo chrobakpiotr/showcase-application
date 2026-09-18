@@ -11,7 +11,7 @@ import com.cp.ecommerce.domain.inventory.port.incoming.GetStockLevelInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.FindStockLevelOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
-import com.cp.ecommerce.domain.inventory.port.outgoing.SaveStockLevelOutPort;
+import com.cp.ecommerce.domain.inventory.port.outgoing.MutateStockLevelOutPort;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,10 +19,9 @@ import lombok.RequiredArgsConstructor;
  * Use case for reading and mutating stock levels.
  *
  * <p>
- * Every mutation follows an optimistic "read - compute next state - save" cycle (see ADR 0026): rather than locking a row for
- * the duration of the business decision, it re-reads the current state, recomputes the mutation on top of it, and retries the
- * whole cycle - up to {@link #MAX_ATTEMPTS} times - whenever {@link SaveStockLevelOutPort#save(StockLevel)} reports that
- * another request won the race first ({@link StockLevelConflictException}).
+ * Generic mutations use a bounded optimistic retry. One call to {@link MutateStockLevelOutPort} is one complete transactional
+ * attempt, so a conflict is retried against a fresh persistence context instead of a transaction already marked rollback-only.
+ * Identity-aware reservation operations remain delegated to their R02 ledger boundary.
  */
 @UseCase
 @RequiredArgsConstructor
@@ -32,15 +31,14 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
 
     private final FindStockLevelOutPort findStockLevelOutPort;
 
-    private final SaveStockLevelOutPort saveStockLevelOutPort;
+    private final MutateStockLevelOutPort mutateStockLevelOutPort;
 
     private final ManageStockReservationOutPort manageStockReservationOutPort;
 
     @Override
     public StockLevel getStockLevel(final String sku) {
 
-        return Optional.ofNullable(findStockLevelOutPort.find(sku))
-                .orElseGet(() -> StockLevel.builder().sku(sku).quantityOnHand(0).quantityReserved(0).build());
+        return Optional.ofNullable(findStockLevelOutPort.find(sku)).orElseGet(() -> zeroStock(sku));
     }
 
     @Override
@@ -126,11 +124,9 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
         StockLevelConflictException lastConflict = null;
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
 
-            final StockLevel mutated = mutation.apply(getStockLevel(sku));
-            mutated.assertValidationsEmpty();
             try {
 
-                return saveStockLevelOutPort.save(mutated);
+                return mutateStockLevelOutPort.mutate(sku, mutation);
             } catch (final StockLevelConflictException conflict) {
 
                 lastConflict = conflict;
@@ -139,4 +135,8 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
         throw lastConflict;
     }
 
+    private static StockLevel zeroStock(final String sku) {
+
+        return StockLevel.builder().sku(sku).quantityOnHand(0).quantityReserved(0).build();
+    }
 }
