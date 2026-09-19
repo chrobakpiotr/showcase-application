@@ -56,6 +56,9 @@ jobs:
       - name: Verify Java formatting
         run: ./gradlew spotlessJavaCheck --no-configuration-cache --no-parallel
 
+      - name: Verify required Postgres recovery/concurrency tests
+        run: tooling/scripts/verify-critical-postgres-tests.sh
+
       - name: Build, verify quality gates and run tests
         run: >
           ./gradlew clean build

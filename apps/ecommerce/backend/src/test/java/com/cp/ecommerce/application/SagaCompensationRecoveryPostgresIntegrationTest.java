@@ -47,7 +47,7 @@ import static org.mockito.Mockito.doThrow;
 
 @SpringBootTest
 @ActiveProfiles("test-postgres")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @TestPropertySource(
         properties = {
                 "outbox.publisher.enabled=true",

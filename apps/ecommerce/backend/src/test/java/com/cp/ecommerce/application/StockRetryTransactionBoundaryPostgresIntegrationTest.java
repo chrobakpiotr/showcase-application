@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @ActiveProfiles("test-postgres")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @TestPropertySource(properties = "outbox.publisher.enabled=false")
 class StockRetryTransactionBoundaryPostgresIntegrationTest {
 

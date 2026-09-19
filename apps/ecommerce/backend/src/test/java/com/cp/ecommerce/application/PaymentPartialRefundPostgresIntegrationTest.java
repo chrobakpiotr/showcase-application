@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("test-postgres")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @TestPropertySource(
         properties = {
                 "outbox.publisher.enabled=false",
