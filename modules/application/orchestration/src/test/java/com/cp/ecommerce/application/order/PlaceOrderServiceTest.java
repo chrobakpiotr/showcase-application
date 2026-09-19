@@ -39,7 +39,6 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -54,6 +53,14 @@ class PlaceOrderServiceTest {
     private static final String EMAIL = "customer@example.com";
     private static final String FIRST_SKU = "SKU-1";
     private static final String SECOND_SKU = "SKU-2";
+    private static final String COUPON_CODE = "SAVE10";
+
+    private static final String FIRST_PRODUCT_NAME = "Keyboard";
+
+    private static final String FIRST_PRODUCT_PRICE = "12.50";
+
+    private static final String ROLLBACK_RESERVATION_ID = "RESERVATION-2";
+
     private static final Instant NOW = Instant.parse("2026-09-19T10:00:00Z");
 
     @Mock
@@ -88,11 +95,16 @@ class PlaceOrderServiceTest {
     @Test
     void shouldResolvePricingApplyCouponReserveStockAndNotify() {
 
-        final Order draft = draft(ORDER_NUMBER, null, "SAVE10", List.of(clientItem(FIRST_SKU, 2), clientItem(SECOND_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
+        final Order draft = draft(
+                ORDER_NUMBER,
+                null,
+                COUPON_CODE,
+                List.of(clientItem(FIRST_SKU, 2), clientItem(SECOND_SKU, 1)));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
         given(manageProductInPort.findProduct(SECOND_SKU)).willReturn(product(SECOND_SKU, "Mouse", "5.00", true));
-        given(applyCouponInPort.applyCoupon(eq("SAVE10"), eq(new BigDecimal("30.00")), any()))
-                .willReturn(new CouponDiscount("SAVE10", new BigDecimal("3.00")));
+        given(applyCouponInPort.applyCoupon(eq(COUPON_CODE), eq(new BigDecimal("30.00")), any()))
+                .willReturn(new CouponDiscount(COUPON_CODE, new BigDecimal("3.00")));
 
         final AtomicReference<Order> prepared = new AtomicReference<>();
         given(placeOrderUseCase.placeOrder(any(), eq("key-1"), any())).willAnswer(invocation -> {
@@ -106,9 +118,10 @@ class PlaceOrderServiceTest {
 
         assertThat(result.orderNumber()).isEqualTo(ORDER_NUMBER);
         assertThat(prepared.get().getStockReservationId()).isEqualTo(ORDER_NUMBER);
-        assertThat(prepared.get().getItems()).extracting(OrderLineItem::getProductName).containsExactly("Keyboard", "Mouse");
+        assertThat(prepared.get().getItems()).extracting(OrderLineItem::getProductName)
+                .containsExactly(FIRST_PRODUCT_NAME, "Mouse");
         assertThat(prepared.get().getDiscountAmount()).isEqualByComparingTo("3.00");
-        verify(applyCouponInPort).applyCoupon(eq("SAVE10"), eq(new BigDecimal("30.00")), eq(java.util.Date.from(NOW)));
+        verify(applyCouponInPort).applyCoupon(eq(COUPON_CODE), eq(new BigDecimal("30.00")), eq(java.util.Date.from(NOW)));
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, FIRST_SKU, 2);
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, SECOND_SKU, 1);
         verify(sendNotificationInPort).sendNotification(
@@ -122,7 +135,8 @@ class PlaceOrderServiceTest {
     void shouldGenerateReservationIdentityForDraftWithoutOrderNumberAndSkipReplayNotification() {
 
         final Order draft = draft(null, null, null, List.of(clientItem(FIRST_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
 
         final AtomicReference<Order> prepared = new AtomicReference<>();
         given(placeOrderUseCase.placeOrder(any(), eq("key-2"), any())).willAnswer(invocation -> {
@@ -142,7 +156,8 @@ class PlaceOrderServiceTest {
     void shouldReuseExistingReservationIdentityAndTreatBlankCouponAsAbsent() {
 
         final Order draft = draft(ORDER_NUMBER, "RESERVATION-1", " ", List.of(clientItem(FIRST_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
         given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
             final UnaryOperator<Order> prepare = invocation.getArgument(2);
             final Order prepared = prepare.apply(invocation.getArgument(0));
@@ -160,7 +175,8 @@ class PlaceOrderServiceTest {
     void shouldRejectDuplicateSkuBeforeCallingUseCase() {
 
         final Order draft = draft(ORDER_NUMBER, null, null, List.of(clientItem(FIRST_SKU, 1), clientItem(FIRST_SKU, 2)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
 
         assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
@@ -184,7 +200,8 @@ class PlaceOrderServiceTest {
     void shouldRejectInactiveProduct() {
 
         final Order draft = draft(ORDER_NUMBER, null, null, List.of(clientItem(FIRST_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", false));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, false));
 
         assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
@@ -195,8 +212,9 @@ class PlaceOrderServiceTest {
     void shouldReturnNotFoundWhenCouponCannotBeResolved() {
 
         final Order draft = draft(ORDER_NUMBER, null, "MISSING", List.of(clientItem(FIRST_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
-        given(applyCouponInPort.applyCoupon(eq("MISSING"), eq(new BigDecimal("12.50")), any())).willReturn(null);
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
+        given(applyCouponInPort.applyCoupon(eq("MISSING"), eq(new BigDecimal(FIRST_PRODUCT_PRICE)), any())).willReturn(null);
         given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
             final UnaryOperator<Order> prepare = invocation.getArgument(2);
             return new PlaceOrderResult(prepare.apply(invocation.getArgument(0)).getOrderNumber(), true);
@@ -212,10 +230,11 @@ class PlaceOrderServiceTest {
 
         final Order draft = draft(
                 ORDER_NUMBER,
-                "RESERVATION-2",
+                ROLLBACK_RESERVATION_ID,
                 null,
                 List.of(clientItem(FIRST_SKU, 1), clientItem(SECOND_SKU, 1)));
-        given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(product(FIRST_SKU, "Keyboard", "12.50", true));
+        given(manageProductInPort.findProduct(FIRST_SKU))
+                .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
         given(manageProductInPort.findProduct(SECOND_SKU)).willReturn(product(SECOND_SKU, "Mouse", "5.00", true));
         given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
             final UnaryOperator<Order> prepare = invocation.getArgument(2);
@@ -224,12 +243,12 @@ class PlaceOrderServiceTest {
         });
         org.mockito.Mockito.doThrow(new InsufficientStockException("insufficient"))
                 .when(manageStockInPort)
-                .reserveStock("RESERVATION-2", SECOND_SKU, 1);
+                .reserveStock(ROLLBACK_RESERVATION_ID, SECOND_SKU, 1);
 
         assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOf(InsufficientStockException.class);
 
-        verify(manageStockInPort).reserveStock("RESERVATION-2", FIRST_SKU, 1);
-        verify(manageStockInPort).releaseStock("RESERVATION-2", FIRST_SKU);
+        verify(manageStockInPort).reserveStock(ROLLBACK_RESERVATION_ID, FIRST_SKU, 1);
+        verify(manageStockInPort).releaseStock(ROLLBACK_RESERVATION_ID, FIRST_SKU);
     }
 
     private static Order draft(

@@ -34,7 +34,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -49,6 +48,7 @@ class ShipmentServiceTest {
     private static final String SHIPMENT_NUMBER = "SHIP-1";
     private static final String SKU = "SKU-1";
     private static final String EMAIL = "customer@example.com";
+    private static final String CARRIER = "DHL";
 
     @Mock
     private transient CreateShipmentInPort createShipmentInPort;
@@ -94,9 +94,9 @@ class ShipmentServiceTest {
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
         given(listShipmentsInPort.listShipmentsForOrder(ORDER_NUMBER)).willReturn(List.of());
-        given(createShipmentInPort.createShipment(ORDER_NUMBER, "DHL")).willReturn(created);
+        given(createShipmentInPort.createShipment(ORDER_NUMBER, CARRIER)).willReturn(created);
 
-        final Shipment result = service.createShipment(ORDER_NUMBER, "DHL");
+        final Shipment result = service.createShipment(ORDER_NUMBER, CARRIER);
 
         assertThat(result).isSameAs(created);
     }
@@ -106,7 +106,7 @@ class ShipmentServiceTest {
 
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(null);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, "DHL")).isInstanceOfSatisfying(
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
                 exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
@@ -116,7 +116,7 @@ class ShipmentServiceTest {
 
         org.mockito.Mockito.doReturn(order(OrderStatus.CANCELLED, null)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, "DHL")).isInstanceOfSatisfying(
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
                 exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     }
@@ -127,7 +127,7 @@ class ShipmentServiceTest {
         org.mockito.Mockito.doReturn(order(OrderStatus.CONFIRMED, null)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.PENDING)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, "DHL")).isInstanceOfSatisfying(
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
                 exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     }
@@ -139,7 +139,7 @@ class ShipmentServiceTest {
         org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
         given(listShipmentsInPort.listShipmentsForOrder(ORDER_NUMBER)).willReturn(List.of(mock(Shipment.class)));
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, "DHL")).isInstanceOfSatisfying(
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
                 ResponseStatusException.class,
                 exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     }
