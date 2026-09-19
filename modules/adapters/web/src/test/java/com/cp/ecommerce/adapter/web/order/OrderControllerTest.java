@@ -1,7 +1,9 @@
 package com.cp.ecommerce.adapter.web.order;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -18,6 +20,9 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.application.order.PlaceOrderService;
+import com.cp.ecommerce.domain.catalog.Category;
+import com.cp.ecommerce.domain.catalog.Product;
+import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
@@ -96,6 +101,9 @@ class OrderControllerTest {
     private transient PlaceOrderUseCase placeOrderUseCase;
 
     @MockitoBean
+    private transient Clock clock;
+
+    @MockitoBean
     private transient ManageOrderUseCase manageOrderUseCase;
 
     @MockitoBean
@@ -117,6 +125,9 @@ class OrderControllerTest {
     private transient CurrentOperatorProvider currentOperatorProvider;
 
     @MockitoBean
+    private transient ManageProductInPort manageProductInPort;
+
+    @MockitoBean
     private transient ManageStockInPort manageStockInPort;
 
     @MockitoBean
@@ -130,6 +141,22 @@ class OrderControllerTest {
 
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
+
+        org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(Instant.parse("2026-09-19T10:00:00Z"));
+
+        org.mockito.Mockito.lenient().when(manageProductInPort.findProduct(anyString())).thenAnswer(invocation -> {
+            final String sku = invocation.getArgument(0);
+            final BigDecimal price = SECOND_LINE_ITEM_SKU.equals(sku)
+                    ? BigDecimal.ONE
+                    : OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE;
+            return Product.builder()
+                    .sku(sku)
+                    .name(OrderBuilder.TEST_ORDER_LINE_ITEM_PRODUCT_NAME)
+                    .category(Category.builder().name("Test").slug("test").build())
+                    .unitPrice(price)
+                    .active(true)
+                    .build();
+        });
 
         org.mockito.Mockito.lenient().when(placeOrderUseCase.placeOrder(any(), any(), any())).thenAnswer(invocation -> {
             final UnaryOperator<Order> prepare = invocation.getArgument(2);

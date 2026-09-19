@@ -12,11 +12,16 @@ import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
 import com.cp.ecommerce.application.shipment.ShipmentService;
 import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
+import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
@@ -80,10 +85,28 @@ class ShipmentControllerTest {
     private transient ManageOrderUseCase manageOrderUseCase;
 
     @MockitoBean
+    private transient GetPaymentInPort getPaymentInPort;
+
+    @MockitoBean
+    private transient ManageStockInPort manageStockInPort;
+
+    @MockitoBean
     private transient SendNotificationInPort sendNotificationInPort;
 
     @MockitoBean
     private transient ShipmentWebMapper shipmentWebMapper;
+
+    @org.junit.jupiter.api.BeforeEach
+    void defaultCapturedPayment() {
+
+        given(getPaymentInPort.getPayment(anyString())).willAnswer(
+                invocation -> PaymentTransaction.builder()
+                        .orderNumber(invocation.getArgument(0))
+                        .amount(java.math.BigDecimal.TEN)
+                        .method(PaymentMethod.CARD)
+                        .status(PaymentStatus.CAPTURED)
+                        .build());
+    }
 
     @Test
     void shouldListShipments() throws Exception {
