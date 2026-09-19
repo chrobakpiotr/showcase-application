@@ -38,52 +38,69 @@ describe('DashboardComponent', () => {
   it('always shows role-agnostic cards', () => {
     setup('admin', []);
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('a[href="/order"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/cart"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/wishlist"]')).toBeTruthy();
-    expect(compiled.querySelector('a[href="/recommendations"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/reviews"]')).toBeTruthy();
   });
 
   it('hides role-gated cards without the required role', () => {
-    setup('admin', []);
+    setup('viewer', []);
     const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[href="/order"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/orders"]')).toBeFalsy();
-    expect(compiled.querySelector('a[href="/catalog"]')).toBeFalsy();
-    expect(compiled.querySelector('a[href="/inventory"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/analytics"]')).toBeFalsy();
-    expect(compiled.querySelector('a[href="/coupons"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/catalog"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/recommendations"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/inventory"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/returns"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/notifications"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/shipments"]')).toBeFalsy();
+    expect(compiled.querySelector('a[href="/coupons"]')).toBeFalsy();
   });
 
-  it('shows role-gated cards with the required role', () => {
+  it('shows role-gated cards with the required roles', () => {
     setup('admin', [
+      'ORDER_WRITE',
       'ORDER_READ',
       'CATALOG_READ',
       'INVENTORY_READ',
-      'NOTIFICATION_READ',
-      'COUPON_READ',
       'RETURN_READ',
+      'NOTIFICATION_READ',
+      'SHIPMENT_READ',
+      'COUPON_READ',
     ]);
     const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[href="/order"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/orders"]')).toBeTruthy();
-    expect(compiled.querySelector('a[href="/catalog"]')).toBeTruthy();
-    expect(compiled.querySelector('a[href="/inventory"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/analytics"]')).toBeTruthy();
-    expect(compiled.querySelector('a[href="/coupons"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/catalog"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/recommendations"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/inventory"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/returns"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/notifications"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/shipments"]')).toBeTruthy();
+    expect(compiled.querySelector('a[href="/coupons"]')).toBeTruthy();
   });
 
-  it('reports isVisible correctly for role-agnostic cards', () => {
+  it('reports role-agnostic capabilities as visible', () => {
     setup('admin', []);
     expect(
       component.isVisible({
-        title: '',
-        description: '',
-        routerLink: '',
-        requiredRole: null,
+        path: '/cart',
+        title: 'Cart',
+        description: 'Cart',
+      })
+    ).toBeTrue();
+  });
+
+  it('supports write-only capability visibility', () => {
+    setup('writer', ['ORDER_WRITE']);
+    expect(
+      component.isVisible({
+        path: '/order',
+        title: 'Place an order',
+        description: 'Place an order',
+        writeRole: 'ORDER_WRITE',
       })
     ).toBeTrue();
   });

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from '@app/auth/auth.guard';
+import { roleGuard } from '@app/auth/role.guard';
 
 export const routes: Routes = [
   {
@@ -19,7 +20,7 @@ export const routes: Routes = [
     path: 'order',
     loadComponent: () =>
       import('./order/order.component').then((m) => m.OrderComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'orders',
@@ -27,7 +28,7 @@ export const routes: Routes = [
       import('./order-list/order-list.component').then(
         (m) => m.OrderListComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'analytics',
@@ -35,25 +36,25 @@ export const routes: Routes = [
       import('./analytics-assistant/analytics-assistant.component').then(
         (m) => m.AnalyticsAssistantComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'catalog',
     loadComponent: () =>
       import('./catalog/catalog.component').then((m) => m.CatalogComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'cart',
     loadComponent: () =>
       import('./cart/cart.component').then((m) => m.CartComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'wishlist',
     loadComponent: () =>
       import('./wishlist/wishlist.component').then((m) => m.WishlistComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'recommendations',
@@ -61,7 +62,7 @@ export const routes: Routes = [
       import('./recommendations/recommendations.component').then(
         (m) => m.RecommendationsComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'inventory',
@@ -69,19 +70,19 @@ export const routes: Routes = [
       import('./inventory/inventory.component').then(
         (m) => m.InventoryComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'reviews',
     loadComponent: () =>
       import('./reviews/reviews.component').then((m) => m.ReviewsComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'returns',
     loadComponent: () =>
       import('./returns/returns.component').then((m) => m.ReturnsComponent),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'notifications',
@@ -89,7 +90,7 @@ export const routes: Routes = [
       import('./notifications/notifications.component').then(
         (m) => m.NotificationsComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'shipments',
@@ -97,12 +98,20 @@ export const routes: Routes = [
       import('./shipments/shipments.component').then(
         (m) => m.ShipmentsComponent
       ),
-    canActivate: [authGuard],
+    canActivate: [authGuard, roleGuard],
   },
   {
     path: 'coupons',
     loadComponent: () =>
       import('./coupons/coupons.component').then((m) => m.CouponsComponent),
+    canActivate: [authGuard, roleGuard],
+  },
+  {
+    path: 'forbidden',
+    loadComponent: () =>
+      import('./forbidden/forbidden.component').then(
+        (m) => m.ForbiddenComponent
+      ),
     canActivate: [authGuard],
   },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
