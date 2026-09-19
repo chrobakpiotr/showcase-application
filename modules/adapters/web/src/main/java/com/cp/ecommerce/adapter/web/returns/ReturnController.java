@@ -1,6 +1,5 @@
 package com.cp.ecommerce.adapter.web.returns;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
@@ -8,19 +7,11 @@ import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
-import com.cp.ecommerce.domain.notification.NotificationType;
-import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
-import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.OrderLineItem;
-import com.cp.ecommerce.domain.order.OrderStatus;
-import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
-import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.application.returns.ReturnWorkflow;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
-import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
-import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
@@ -63,19 +54,11 @@ public class ReturnController {
 
     private static final String RETURN_NOT_FOUND_MESSAGE = "Return request not found";
 
-    private final RequestReturnInPort requestReturnInPort;
-
     private final GetReturnInPort getReturnInPort;
 
+    private final ReturnWorkflow returnWorkflow;
+
     private final ListReturnsInPort listReturnsInPort;
-
-    private final ReturnModerationInPort returnModerationInPort;
-
-    private final ManageOrderUseCase manageOrderUseCase;
-
-    private final ManagePaymentInPort managePaymentInPort;
-
-    private final SendNotificationInPort sendNotificationInPort;
 
     private final ReturnWebMapper returnWebMapper;
 
@@ -150,23 +133,7 @@ public class ReturnController {
         final String sku = requireNonBlank(resource.sku(), ValidationConstants.INVALID_RETURN_SKU);
         final int quantity = requirePositiveQuantity(resource.quantity());
         final String reason = requireNonBlank(resource.reason(), ValidationConstants.INVALID_RETURN_REASON);
-        final Order order = manageOrderUseCase.findOrder(orderNumber);
-        if (order == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        if (order.getStatus() != OrderStatus.CONFIRMED) {
-
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CONFIRMED orders can be returned");
-        }
-        final OrderLineItem orderLineItem = order.getItems()
-                .stream()
-                .filter(item -> item.getSku().equals(sku))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order line item not found"));
-        final BigDecimal refundAmount = orderLineItem.getUnitPrice().multiply(BigDecimal.valueOf(quantity));
-        final ReturnRequest created = requestReturnInPort
-                .requestReturn(orderNumber, sku, quantity, orderLineItem.getQuantity(), reason, refundAmount);
+        final ReturnRequest created = returnWorkflow.requestReturn(orderNumber, sku, quantity, reason);
         return toResourceModel(created);
     }
 
@@ -174,26 +141,7 @@ public class ReturnController {
     @Operation(summary = "Approve a return request and trigger payment refund")
     public EntityModel<ReturnRequestResource> approveReturn(@PathVariable("returnNumber") final String returnNumber) {
 
-        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
-        final ReturnRequest approved = returnModerationInPort.approveReturn(returnNumber);
-        if (approved == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND_MESSAGE);
-        }
-        if (approved.getStatus() != ReturnStatus.REFUNDED) {
-
-            managePaymentInPort
-                    .refundPayment(approved.getOrderNumber(), approved.getReturnNumber(), approved.getRefundAmount());
-        }
-        final ReturnRequest refunded = returnModerationInPort.markRefunded(returnNumber);
-        if (refunded == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND_MESSAGE);
-        }
-        if (existing == null || existing.getStatus() != ReturnStatus.REFUNDED) {
-
-            sendReturnRefundedNotification(refunded);
-        }
+        final ReturnRequest refunded = returnWorkflow.approveReturn(returnNumber);
         return toResourceModel(refunded);
     }
 
@@ -201,16 +149,7 @@ public class ReturnController {
     @Operation(summary = "Reject a return request")
     public EntityModel<ReturnRequestResource> rejectReturn(@PathVariable("returnNumber") final String returnNumber) {
 
-        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
-        final ReturnRequest rejected = returnModerationInPort.rejectReturn(returnNumber);
-        if (rejected == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND_MESSAGE);
-        }
-        if (existing == null || existing.getStatus() != ReturnStatus.REJECTED) {
-
-            sendReturnRejectedNotification(rejected);
-        }
+        final ReturnRequest rejected = returnWorkflow.rejectReturn(returnNumber);
         return toResourceModel(rejected);
     }
 
@@ -245,34 +184,6 @@ public class ReturnController {
             model.add(linkTo(methodOn(ReturnController.class).rejectReturn(returnNumber)).withRel("reject"));
         }
         return model;
-    }
-
-    private void sendReturnRejectedNotification(final ReturnRequest rejected) {
-
-        sendNotificationInPort.sendNotification(
-                findCustomerEmail(rejected.getOrderNumber()),
-                NotificationType.RETURN_REJECTED,
-                "Return " + rejected.getReturnNumber() + " rejected",
-                "Your return request " + rejected.getReturnNumber() + " was rejected.");
-    }
-
-    private void sendReturnRefundedNotification(final ReturnRequest refunded) {
-
-        sendNotificationInPort.sendNotification(
-                findCustomerEmail(refunded.getOrderNumber()),
-                NotificationType.RETURN_REFUNDED,
-                "Return " + refunded.getReturnNumber() + " refunded",
-                "Your return request " + refunded.getReturnNumber() + " was refunded.");
-    }
-
-    private String findCustomerEmail(final String orderNumber) {
-
-        final Order order = manageOrderUseCase.findOrder(orderNumber);
-        if (order == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        return order.getCustomer().getContact().getEmail();
     }
 
 }

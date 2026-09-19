@@ -7,15 +7,9 @@ import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
 import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
-import com.cp.ecommerce.domain.notification.NotificationType;
-import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
-import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.OrderStatus;
-import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
-import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
-import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.GetShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
 
@@ -59,17 +53,11 @@ public class ShipmentController {
 
     private static final String SHIPMENT_NOT_FOUND_MESSAGE = "Shipment not found";
 
-    private final CreateShipmentInPort createShipmentInPort;
-
-    private final AdvanceShipmentStatusInPort advanceShipmentStatusInPort;
-
     private final GetShipmentInPort getShipmentInPort;
 
+    private final ShipmentWorkflow shipmentWorkflow;
+
     private final ListShipmentsInPort listShipmentsInPort;
-
-    private final ManageOrderUseCase manageOrderUseCase;
-
-    private final SendNotificationInPort sendNotificationInPort;
 
     private final ShipmentWebMapper shipmentWebMapper;
 
@@ -137,35 +125,14 @@ public class ShipmentController {
         }
         final String orderNumber = requireNonBlank(resource.orderNumber(), ValidationConstants.INVALID_SHIPMENT_ORDER_NUMBER);
         final String carrier = requireNonBlank(resource.carrier(), ValidationConstants.INVALID_SHIPMENT_CARRIER);
-        final Order order = manageOrderUseCase.findOrder(orderNumber);
-        if (order == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        if (order.getStatus() != OrderStatus.CONFIRMED) {
-
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CONFIRMED orders can be shipped");
-        }
-        return toResourceModel(createShipmentInPort.createShipment(orderNumber, carrier));
+        return toResourceModel(shipmentWorkflow.createShipment(orderNumber, carrier));
     }
 
     @PostMapping("/{shipmentNumber}/advance")
     @Operation(summary = "Advance a shipment to its next status")
     public EntityModel<ShipmentResource> advanceShipmentStatus(@PathVariable("shipmentNumber") final String shipmentNumber) {
 
-        final Shipment advanced = advanceShipmentStatusInPort.advanceShipmentStatus(shipmentNumber);
-        if (advanced == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, SHIPMENT_NOT_FOUND_MESSAGE);
-        }
-        if (advanced.getStatus() == ShipmentStatus.DISPATCHED) {
-
-            sendShipmentDispatchedNotification(advanced);
-        }
-        if (advanced.getStatus() == ShipmentStatus.DELIVERED) {
-
-            sendShipmentDeliveredNotification(advanced);
-        }
+        final Shipment advanced = shipmentWorkflow.advanceShipment(shipmentNumber);
         return toResourceModel(advanced);
     }
 
@@ -191,35 +158,6 @@ public class ShipmentController {
                     linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber)).withRel("advance-status"));
         }
         return model;
-    }
-
-    private void sendShipmentDispatchedNotification(final Shipment shipment) {
-
-        sendNotificationInPort.sendNotification(
-                findCustomerEmail(shipment.getOrderNumber()),
-                NotificationType.SHIPMENT_DISPATCHED,
-                "Shipment " + shipment.getShipmentNumber() + " dispatched",
-                "Your shipment " + shipment.getShipmentNumber() + " was dispatched. Tracking number: "
-                        + shipment.getTrackingNumber() + ".");
-    }
-
-    private void sendShipmentDeliveredNotification(final Shipment shipment) {
-
-        sendNotificationInPort.sendNotification(
-                findCustomerEmail(shipment.getOrderNumber()),
-                NotificationType.SHIPMENT_DELIVERED,
-                "Shipment " + shipment.getShipmentNumber() + " delivered",
-                "Your shipment " + shipment.getShipmentNumber() + " was delivered.");
-    }
-
-    private String findCustomerEmail(final String orderNumber) {
-
-        final Order order = manageOrderUseCase.findOrder(orderNumber);
-        if (order == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
-        }
-        return order.getCustomer().getContact().getEmail();
     }
 
 }

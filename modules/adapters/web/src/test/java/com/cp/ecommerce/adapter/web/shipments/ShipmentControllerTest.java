@@ -11,6 +11,8 @@ import com.cp.ecommerce.adapter.web.exception.GlobalExceptionHandler;
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
 import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
+import com.cp.ecommerce.application.shipment.ShipmentService;
+import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -50,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Test class checking shipment controller's behavior and API responses.
  */
 @WebMvcTest(ShipmentController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({ GlobalExceptionHandler.class, ShipmentService.class })
 class ShipmentControllerTest {
 
     private static final String SHIPMENTS_ENDPOINT = "/api/shipments";
@@ -58,6 +60,9 @@ class ShipmentControllerTest {
 
     @Autowired
     private transient MockMvc mockMvc;
+
+    @Autowired
+    private transient ShipmentWorkflow shipmentWorkflow;
 
     @MockitoBean
     private transient CreateShipmentInPort createShipmentInPort;
@@ -172,12 +177,9 @@ class ShipmentControllerTest {
     void shouldRejectCreateWhenRequestBodyIsMissing() {
 
         final ShipmentController controller = new ShipmentController(
-                createShipmentInPort,
-                advanceShipmentStatusInPort,
                 getShipmentInPort,
+                shipmentWorkflow,
                 listShipmentsInPort,
-                manageOrderUseCase,
-                sendNotificationInPort,
                 shipmentWebMapper);
 
         assertThatThrownBy(() -> controller.createShipment(null)).isInstanceOf(ResponseStatusException.class);
@@ -187,12 +189,9 @@ class ShipmentControllerTest {
     void shouldRejectCreateWhenCarrierIsMissing() {
 
         final ShipmentController controller = new ShipmentController(
-                createShipmentInPort,
-                advanceShipmentStatusInPort,
                 getShipmentInPort,
+                shipmentWorkflow,
                 listShipmentsInPort,
-                manageOrderUseCase,
-                sendNotificationInPort,
                 shipmentWebMapper);
 
         assertThatThrownBy(
@@ -205,12 +204,9 @@ class ShipmentControllerTest {
     void shouldRejectCreateWhenOrderNumberIsBlank() {
 
         final ShipmentController controller = new ShipmentController(
-                createShipmentInPort,
-                advanceShipmentStatusInPort,
                 getShipmentInPort,
+                shipmentWorkflow,
                 listShipmentsInPort,
-                manageOrderUseCase,
-                sendNotificationInPort,
                 shipmentWebMapper);
 
         assertThatThrownBy(

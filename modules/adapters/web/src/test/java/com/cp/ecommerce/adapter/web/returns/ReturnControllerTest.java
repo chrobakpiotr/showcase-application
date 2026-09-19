@@ -13,6 +13,8 @@ import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
+import com.cp.ecommerce.application.returns.ReturnService;
+import com.cp.ecommerce.application.returns.ReturnWorkflow;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -31,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -54,6 +57,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Test class checking return controller's behavior and API responses.
  */
 @WebMvcTest(ReturnController.class)
+@Import(ReturnService.class)
 class ReturnControllerTest {
 
     private static final String RETURNS_ENDPOINT = "/api/returns";
@@ -63,6 +67,9 @@ class ReturnControllerTest {
 
     @Autowired
     private transient MockMvc mockMvc;
+
+    @Autowired
+    private transient ReturnWorkflow returnWorkflow;
 
     @MockitoBean
     private transient RequestReturnInPort requestReturnInPort;
@@ -221,13 +228,9 @@ class ReturnControllerTest {
     void shouldRejectCreateWhenQuantityIsNull() {
 
         final ReturnController controller = new ReturnController(
-                requestReturnInPort,
                 getReturnInPort,
+                returnWorkflow,
                 listReturnsInPort,
-                returnModerationInPort,
-                manageOrderUseCase,
-                managePaymentInPort,
-                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -245,13 +248,9 @@ class ReturnControllerTest {
     void shouldRejectCreateWhenRequestBodyIsMissing() {
 
         final ReturnController controller = new ReturnController(
-                requestReturnInPort,
                 getReturnInPort,
+                returnWorkflow,
                 listReturnsInPort,
-                returnModerationInPort,
-                manageOrderUseCase,
-                managePaymentInPort,
-                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(() -> controller.requestReturn(null)).isInstanceOf(ResponseStatusException.class);
@@ -261,13 +260,9 @@ class ReturnControllerTest {
     void shouldRejectCreateWhenSkuIsMissing() {
 
         final ReturnController controller = new ReturnController(
-                requestReturnInPort,
                 getReturnInPort,
+                returnWorkflow,
                 listReturnsInPort,
-                returnModerationInPort,
-                manageOrderUseCase,
-                managePaymentInPort,
-                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -285,13 +280,9 @@ class ReturnControllerTest {
     void shouldRejectCreateWhenReasonIsMissing() {
 
         final ReturnController controller = new ReturnController(
-                requestReturnInPort,
                 getReturnInPort,
+                returnWorkflow,
                 listReturnsInPort,
-                returnModerationInPort,
-                manageOrderUseCase,
-                managePaymentInPort,
-                sendNotificationInPort,
                 returnWebMapper);
 
         assertThatThrownBy(
@@ -555,13 +546,9 @@ class ReturnControllerTest {
     void shouldThrowWhenRefundedReturnCannotBeReloadedInDirectInvocation() {
 
         final ReturnController controller = new ReturnController(
-                requestReturnInPort,
                 getReturnInPort,
+                returnWorkflow,
                 listReturnsInPort,
-                returnModerationInPort,
-                manageOrderUseCase,
-                managePaymentInPort,
-                sendNotificationInPort,
                 returnWebMapper);
         final ReturnRequest approved = TestReturnRequests.approved();
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);

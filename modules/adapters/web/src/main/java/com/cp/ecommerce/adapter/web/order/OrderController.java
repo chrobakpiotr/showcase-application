@@ -1,12 +1,8 @@
 package com.cp.ecommerce.adapter.web.order;
 
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
@@ -16,20 +12,14 @@ import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
-import com.cp.ecommerce.domain.coupon.CouponDiscount;
-import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
-import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
-import com.cp.ecommerce.domain.notification.NotificationType;
-import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
+import com.cp.ecommerce.application.order.PlaceOrderWorkflow;
 import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
-import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 
 import org.springframework.hateoas.EntityModel;
@@ -81,7 +71,7 @@ public class OrderController {
 
     private static final String CANCEL_ORDER_RATE_LIMITER = "cancelOrder";
 
-    private final PlaceOrderUseCase placeOrderUseCase;
+    private final PlaceOrderWorkflow placeOrderWorkflow;
 
     private final ManageOrderUseCase manageOrderUseCase;
 
@@ -97,13 +87,7 @@ public class OrderController {
 
     private final CurrentOperatorProvider currentOperatorProvider;
 
-    private final ManageStockInPort manageStockInPort;
-
-    private final ApplyCouponInPort applyCouponInPort;
-
     private final GetPaymentInPort getPaymentInPort;
-
-    private final SendNotificationInPort sendNotificationInPort;
 
     @PostMapping
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -150,12 +134,10 @@ public class OrderController {
         final Order orderDraft = orderWebMapper.mapToDomainObject(orderResource)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
         orderDraft.assertValidationsEmpty();
-        final PlaceOrderResult result = rateLimitedExecutor.callRateLimited(
-                PLACE_ORDER_RATE_LIMITER,
-                () -> placeOrderUseCase.placeOrder(orderDraft, idempotencyKey, this::prepareOrder));
+        final PlaceOrderResult result = rateLimitedExecutor
+                .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderWorkflow.placeOrder(orderDraft, idempotencyKey));
         if (result.newlyPlaced()) {
 
-            sendOrderConfirmedNotification(orderDraft, result.orderNumber());
             orderMetrics.recordOrderPlaced();
             log.info(
                     "Order {} placed by operator {}",
@@ -254,87 +236,6 @@ public class OrderController {
         orderMetrics.recordOrderCancelled();
         log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
         return toResourceWithLinks(order, orderNumber);
-    }
-
-    private Order prepareOrder(final Order draft) {
-
-        final Order prepared = withStockReservationIdentity(applyCouponIfPresent(draft));
-        prepared.assertValidationsEmpty();
-        reserveStockFor(prepared);
-        return prepared;
-    }
-
-    private Order withStockReservationIdentity(final Order order) {
-
-        if (order.getStockReservationId() != null && !order.getStockReservationId().isBlank()) {
-
-            return order;
-        }
-        final String reservationId = order.getOrderNumber() == null || order.getOrderNumber().isBlank()
-                ? UUID.randomUUID().toString()
-                : order.getOrderNumber();
-        return Order.builder()
-                .remarks(order.getRemarks())
-                .orderNumber(order.getOrderNumber())
-                .stockReservationId(reservationId)
-                .created(order.getCreated())
-                .customer(order.getCustomer())
-                .items(order.getItems())
-                .status(order.getStatus())
-                .paymentMethod(order.getPaymentMethod())
-                .couponCode(order.getCouponCode())
-                .discountAmount(order.getDiscountAmount())
-                .build();
-    }
-
-    private Order applyCouponIfPresent(final Order order) {
-
-        if (order.getCouponCode() == null || order.getCouponCode().isBlank()) {
-
-            return order;
-        }
-        final CouponDiscount discount = applyCouponInPort.applyCoupon(order.getCouponCode(), order.getSubtotal(), new Date());
-        if (discount == null) {
-
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");
-        }
-        return Order.builder()
-                .remarks(order.getRemarks())
-                .orderNumber(order.getOrderNumber())
-                .stockReservationId(order.getStockReservationId())
-                .created(order.getCreated())
-                .customer(order.getCustomer())
-                .items(order.getItems())
-                .status(order.getStatus())
-                .paymentMethod(order.getPaymentMethod())
-                .couponCode(discount.code())
-                .discountAmount(discount.discountAmount())
-                .build();
-    }
-
-    private void reserveStockFor(final Order order) {
-
-        final List<OrderLineItem> reserved = new ArrayList<>();
-        try {
-            for (final OrderLineItem item : order.getItems()) {
-
-                manageStockInPort.reserveStock(order.getStockReservationId(), item.getSku(), item.getQuantity());
-                reserved.add(item);
-            }
-        } catch (final InsufficientStockException exception) {
-
-            reserved.forEach(item -> manageStockInPort.releaseStock(order.getStockReservationId(), item.getSku()));
-            throw exception;
-        }
-    }
-
-    private void sendOrderConfirmedNotification(final Order order, final String orderNumber) {
-
-        sendNotificationInPort.sendNotification(
-                order.getCustomer().getContact().getEmail(),
-                NotificationType.ORDER_CONFIRMED,
-                "Order " + orderNumber + " confirmed",
-                "Your order " + orderNumber + " was confirmed.");
     }
 
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {

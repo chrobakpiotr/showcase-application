@@ -20,6 +20,7 @@ import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
+import com.cp.ecommerce.application.order.PlaceOrderService;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
@@ -42,6 +43,7 @@ import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -76,6 +78,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
  * Test class checking order page controller's behavior and order page API response.
  */
 @WebMvcTest(OrderController.class)
+@Import(PlaceOrderService.class)
 @SuppressWarnings("PMD.CouplingBetweenObjects")
 class OrderControllerTest {
 
