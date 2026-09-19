@@ -86,8 +86,8 @@ class ManagePaymentUseCaseTest {
         given(findPaymentTransactionOutPort.findAll(List.of(ORDER_NUMBER, secondOrderNumber)))
                 .willReturn(Map.of(ORDER_NUMBER, existing));
 
-        final Map<String, PaymentTransaction> result =
-                managePaymentUseCase.getPayments(List.of(ORDER_NUMBER, secondOrderNumber));
+        final Map<String, PaymentTransaction> result = managePaymentUseCase
+                .getPayments(List.of(ORDER_NUMBER, secondOrderNumber));
 
         assertThat(result.get(ORDER_NUMBER)).isSameAs(existing);
         assertThat(result.get(secondOrderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);

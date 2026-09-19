@@ -539,11 +539,8 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(listOrdersUseCase.listOrders(new PageQuery(0, 20))).willReturn(new PagedResult<>(List.of(order), 0, 20, 1, 1));
-        given(getPaymentInPort.getPayments(List.of(order.getOrderNumber())))
-                .willReturn(
-                        Map.of(
-                                order.getOrderNumber(),
-                                PaymentTransaction.builder().orderNumber(order.getOrderNumber()).build()));
+        given(getPaymentInPort.getPayments(List.of(order.getOrderNumber()))).willReturn(
+                Map.of(order.getOrderNumber(), PaymentTransaction.builder().orderNumber(order.getOrderNumber()).build()));
         given(orderWebMapper.mapToResource(eq(order), any()))
                 .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
 

@@ -18,8 +18,8 @@ public interface GetPaymentInPort {
     PaymentTransaction getPayment(String orderNumber);
 
     /**
-     * Batch variant used by paged order reads so payment enrichment does not become one query per order.
-     * Missing transactions are represented by the same PENDING placeholder contract as {@link #getPayment(String)}.
+     * Batch variant used by paged order reads so payment enrichment does not become one query per order. Missing transactions
+     * are represented by the same PENDING placeholder contract as {@link #getPayment(String)}.
      */
     Map<String, PaymentTransaction> getPayments(Collection<String> orderNumbers);
 

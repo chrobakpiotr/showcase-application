@@ -21,9 +21,7 @@ class OutboxEventEntityRepositoryBatchTest {
     @Test
     void shouldBoundPendingCandidateRead() {
 
-        final OutboxEventEntityRepository repository = mock(
-                OutboxEventEntityRepository.class,
-                CALLS_REAL_METHODS);
+        final OutboxEventEntityRepository repository = mock(OutboxEventEntityRepository.class, CALLS_REAL_METHODS);
         doReturn(List.of()).when(repository)
                 .findAllByStatusOrderByCreatedDateAsc(eq(OutboxEventStatus.PENDING), any(Pageable.class));
 
@@ -38,9 +36,7 @@ class OutboxEventEntityRepositoryBatchTest {
     @Test
     void shouldBoundExpiredClaimCandidateRead() {
 
-        final OutboxEventEntityRepository repository = mock(
-                OutboxEventEntityRepository.class,
-                CALLS_REAL_METHODS);
+        final OutboxEventEntityRepository repository = mock(OutboxEventEntityRepository.class, CALLS_REAL_METHODS);
         final Date now = new Date();
         doReturn(List.of()).when(repository)
                 .findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
@@ -48,16 +44,13 @@ class OutboxEventEntityRepositoryBatchTest {
                         eq(now),
                         any(Pageable.class));
 
-        repository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
-                OutboxEventStatus.PROCESSING,
-                now);
+        repository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(OutboxEventStatus.PROCESSING, now);
 
         final ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository)
-                .findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
-                        eq(OutboxEventStatus.PROCESSING),
-                        eq(now),
-                        pageable.capture());
+        verify(repository).findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
+                eq(OutboxEventStatus.PROCESSING),
+                eq(now),
+                pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(OutboxEventEntityRepository.DEFAULT_POLL_BATCH_SIZE);
     }
