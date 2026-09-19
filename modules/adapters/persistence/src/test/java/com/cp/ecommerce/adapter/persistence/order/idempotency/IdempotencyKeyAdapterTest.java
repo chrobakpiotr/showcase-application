@@ -36,6 +36,7 @@ class IdempotencyKeyAdapterTest {
     private static final long STALE_AFTER_MS = 60000;
     private static final String KEY = "client-key-1";
     private static final String FINGERPRINT = "fingerprint-a";
+    private static final String LEGACY_FINGERPRINT = "legacy-fingerprint";
     private static final String ORDER_NUMBER = "ORD-1001";
 
     @Mock
@@ -81,6 +82,17 @@ class IdempotencyKeyAdapterTest {
     }
 
     @Test
+    void shouldReturnDuplicateWhenCompletedLegacyFingerprintExists() {
+
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, LEGACY_FINGERPRINT, Instant.now()));
+
+        final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT, LEGACY_FINGERPRINT);
+
+        assertThat(reservation.outcome()).isEqualTo(IdempotencyReservation.Outcome.DUPLICATE);
+        assertThat(reservation.existingOrderNumber()).isEqualTo(ORDER_NUMBER);
+    }
+
+    @Test
     void shouldReturnConflictWhenExistingRequestHasDifferentFingerprint() {
 
         givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, "different-fingerprint", Instant.now()));
@@ -118,6 +130,22 @@ class IdempotencyKeyAdapterTest {
         assertThat(captor.getValue().getFingerprint()).isEqualTo(FINGERPRINT);
         assertThat(captor.getValue().getOrderNumber()).isNull();
         assertThat(captor.getValue().getCompletedDate()).isNull();
+    }
+
+    @Test
+    void shouldMigrateLegacyFingerprintWhenStaleRequestIsTakenOver() {
+
+        final IdempotencyKeyEntity stale = existingEntity(
+                IdempotencyKeyStatus.IN_PROGRESS,
+                LEGACY_FINGERPRINT,
+                Instant.now().minusMillis(STALE_AFTER_MS + 1000));
+        givenExistingKey(stale);
+
+        final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT, LEGACY_FINGERPRINT);
+
+        assertThat(reservation.outcome()).isEqualTo(IdempotencyReservation.Outcome.RESERVED);
+        assertThat(stale.getFingerprint()).isEqualTo(FINGERPRINT);
+        verify(idempotencyKeyEntityRepository).save(stale);
     }
 
     @Test

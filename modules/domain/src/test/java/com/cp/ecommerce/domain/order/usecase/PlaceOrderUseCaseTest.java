@@ -117,7 +117,7 @@ class PlaceOrderUseCaseTest {
 
         final Order order = TestDomainObjectFactory.validOrder();
         final Order savedOrder = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenReturn(IdempotencyReservation.reserved());
         when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(savedOrder);
 
         final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
@@ -131,7 +131,7 @@ class PlaceOrderUseCaseTest {
     void shouldReplayStoredOrderNumberWhenIdempotencyKeyIsDuplicate() {
 
         final Order order = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any()))
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any()))
                 .thenReturn(IdempotencyReservation.duplicate(TestDomainObjectFactory.TEST_ORDER_NUMBER));
 
         final PlaceOrderResult result = placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
@@ -146,7 +146,7 @@ class PlaceOrderUseCaseTest {
     void shouldThrowConflictWhenIdempotencyKeyWasUsedForDifferentRequest() {
 
         final Order order = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.conflict());
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenReturn(IdempotencyReservation.conflict());
 
         assertThrows(IdempotencyKeyConflictException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY));
 
@@ -164,7 +164,7 @@ class PlaceOrderUseCaseTest {
                 .created(TestDomainObjectFactory.TEST_CREATED)
                 .customer(TestDomainObjectFactory.validCustomer())
                 .build();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenReturn(IdempotencyReservation.reserved());
         when(manageOrderInPort.saveOrder(any(Order.class))).thenReturn(order);
 
         placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY);
@@ -172,7 +172,7 @@ class PlaceOrderUseCaseTest {
         placeOrderUseCase.placeOrder(differentOrder, IDEMPOTENCY_KEY);
 
         final ArgumentCaptor<String> fingerprintCaptor = ArgumentCaptor.forClass(String.class);
-        verify(idempotencyKeyOutPort, times(3)).reserve(eq(IDEMPOTENCY_KEY), fingerprintCaptor.capture());
+        verify(idempotencyKeyOutPort, times(3)).reserve(eq(IDEMPOTENCY_KEY), fingerprintCaptor.capture(), any());
         final String firstFingerprint = fingerprintCaptor.getAllValues().get(0);
         final String repeatedFingerprint = fingerprintCaptor.getAllValues().get(1);
         final String differentFingerprint = fingerprintCaptor.getAllValues().get(2);
@@ -186,7 +186,7 @@ class PlaceOrderUseCaseTest {
     void shouldSkipPreparationForReplayAndConflict() {
 
         final Order order = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any()))
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any()))
                 .thenReturn(IdempotencyReservation.duplicate("ORD-1"), IdempotencyReservation.conflict());
         assertEquals("ORD-1", placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare).orderNumber());
         assertThrows(
@@ -199,12 +199,12 @@ class PlaceOrderUseCaseTest {
     void shouldPrepareExactlyOnceBeforeSavingANewAttempt() {
 
         final Order order = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenReturn(IdempotencyReservation.reserved());
         when(prepare.apply(order)).thenReturn(order);
         when(manageOrderInPort.saveOrder(order)).thenReturn(order);
         placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare);
         final org.mockito.InOrder ordering = org.mockito.Mockito.inOrder(prepare, manageOrderInPort, idempotencyKeyOutPort);
-        ordering.verify(idempotencyKeyOutPort).reserve(eq(IDEMPOTENCY_KEY), any());
+        ordering.verify(idempotencyKeyOutPort).reserve(eq(IDEMPOTENCY_KEY), any(), any());
         ordering.verify(prepare).apply(order);
         ordering.verify(manageOrderInPort).saveOrder(order);
         ordering.verify(idempotencyKeyOutPort).complete(IDEMPOTENCY_KEY, order.getOrderNumber());
@@ -214,7 +214,7 @@ class PlaceOrderUseCaseTest {
     void shouldNotPersistOrCompleteWhenPreparationFails() {
 
         final Order order = TestDomainObjectFactory.validOrder();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenReturn(IdempotencyReservation.reserved());
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenReturn(IdempotencyReservation.reserved());
         when(prepare.apply(order)).thenThrow(new IllegalStateException("stock unavailable"));
         assertThrows(IllegalStateException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY, prepare));
         verifyNoInteractions(manageOrderInPort);
@@ -262,8 +262,6 @@ class PlaceOrderUseCaseTest {
                                 "DE")),
                 builder -> builder.customer(Customer.builder().build()),
                 builder -> builder.items(List.of(item("OTHER", "Wireless Mouse", "29.99", 2))),
-                builder -> builder.items(List.of(item("SKU-1001", "Other", "29.99", 2))),
-                builder -> builder.items(List.of(item("SKU-1001", "Wireless Mouse", "30.00", 2))),
                 builder -> builder.items(List.of(item("SKU-1001", "Wireless Mouse", "29.99", 3))),
                 builder -> builder.items(List.of()));
     }
@@ -272,8 +270,10 @@ class PlaceOrderUseCaseTest {
     void shouldIgnoreDerivedValuesButPreserveNullsAndItemBoundaries() {
 
         final String original = fingerprintOf(request().build());
-        assertEquals("7c2150b1fef773c64f247ff2287bc4f3978a55ee22044e4a6c96728037c2927f", original);
+        assertEquals("4903a49c1be8113dad64ae7d97e017474adf37ca3fa512d6d0fb85db1a359309", original);
         assertEquals(original, fingerprintOf(request().discountAmount(BigDecimal.TEN).orderNumber("server-generated").build()));
+        assertEquals(original, fingerprintOf(request().items(List.of(item("SKU-1001", "Other", "29.99", 2))).build()));
+        assertEquals(original, fingerprintOf(request().items(List.of(item("SKU-1001", "Wireless Mouse", "30.00", 2))).build()));
         assertEquals(
                 original,
                 fingerprintOf(
@@ -300,11 +300,30 @@ class PlaceOrderUseCaseTest {
                 fingerprintOf(request().items(List.of(second, first)).build()));
     }
 
+    @Test
+    void shouldPreserveLegacyV2FingerprintForHistoricalReplay() {
+
+        assertEquals(
+                "7c2150b1fef773c64f247ff2287bc4f3978a55ee22044e4a6c96728037c2927f",
+                legacyFingerprintOf(request().build()));
+    }
+
     private String fingerprintOf(final Order order) {
 
         final AtomicReference<String> captured = new AtomicReference<>();
-        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any())).thenAnswer(invocation -> {
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenAnswer(invocation -> {
             captured.set(invocation.getArgument(1));
+            return IdempotencyReservation.conflict();
+        });
+        assertThrows(IdempotencyKeyConflictException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY));
+        return captured.get();
+    }
+
+    private String legacyFingerprintOf(final Order order) {
+
+        final AtomicReference<String> captured = new AtomicReference<>();
+        when(idempotencyKeyOutPort.reserve(eq(IDEMPOTENCY_KEY), any(), any())).thenAnswer(invocation -> {
+            captured.set(invocation.getArgument(2));
             return IdempotencyReservation.conflict();
         });
         assertThrows(IdempotencyKeyConflictException.class, () -> placeOrderUseCase.placeOrder(order, IDEMPOTENCY_KEY));

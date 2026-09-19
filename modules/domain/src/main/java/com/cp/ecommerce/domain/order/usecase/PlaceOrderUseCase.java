@@ -68,7 +68,8 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
             return doPlaceOrder(prepare.apply(order));
         }
 
-        final IdempotencyReservation reservation = idempotencyKeyOutPort.reserve(idempotencyKey, fingerprint(order));
+        final IdempotencyReservation reservation = idempotencyKeyOutPort
+                .reserve(idempotencyKey, fingerprint(order), legacyFingerprint(order));
 
         return switch (reservation.outcome()) {
         case DUPLICATE -> {
@@ -105,13 +106,23 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
     // javadoc), so NoSuchAlgorithmException is provably unreachable here. A real try/catch around it would be an
     // untestable branch that this module's 100% line/mutation coverage requirement can't be satisfied without
     // artificially forcing the "impossible" path in a test.
-    @SneakyThrows(NoSuchAlgorithmException.class)
     private static String fingerprint(final Order order) {
+
+        return fingerprint(order, "order-request-v3", lineItemsFingerprint(order));
+    }
+
+    private static String legacyFingerprint(final Order order) {
+
+        return fingerprint(order, "order-request-v2", legacyLineItemsFingerprint(order));
+    }
+
+    @SneakyThrows(NoSuchAlgorithmException.class)
+    private static String fingerprint(final Order order, final String version, final String lineItemsFingerprint) {
 
         final Optional<Contact> contact = Optional.ofNullable(order.getCustomer().getContact());
         final Optional<Address> address = Optional.ofNullable(order.getCustomer().getAddress());
         final String canonical = fields(
-                "order-request-v2",
+                version,
                 order.getRemarks(),
                 Optional.ofNullable(order.getCreated()).map(java.util.Date::getTime).orElse(null),
                 contact.map(Contact::getFullName).orElse(null),
@@ -124,18 +135,19 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
                 order.getPaymentMethod(),
                 order.getCouponCode(),
                 order.getItems().size(),
-                lineItemsFingerprint(order));
+                lineItemsFingerprint);
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        // Preserve exact UTF-16 code units, including lone surrogates accepted by JSON parsers.
-        // UTF-8's replacement behavior would otherwise collapse a surrogate and a literal question mark.
         final ByteBuffer encoded = ByteBuffer.allocate(canonical.length() * Character.BYTES);
         encoded.asCharBuffer().put(canonical);
         return HexFormat.of().formatHex(digest.digest(encoded.array()));
     }
 
-    // Stable (order-preserving) representation of the order's line items, so an Idempotency-Key replay is only
-    // considered a genuine retry of the same request if the items also match - not just the customer/remarks.
     private static String lineItemsFingerprint(final Order order) {
+
+        return order.getItems().stream().map(item -> fields(item.getSku(), item.getQuantity())).collect(Collectors.joining());
+    }
+
+    private static String legacyLineItemsFingerprint(final Order order) {
 
         return order.getItems()
                 .stream()

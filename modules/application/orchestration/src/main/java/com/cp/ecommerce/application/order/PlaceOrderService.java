@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.UUID;
 
 import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
+import com.cp.ecommerce.domain.catalog.Product;
+import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
@@ -28,6 +30,8 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
 
     private final PlaceOrderUseCase placeOrderUseCase;
 
+    private final ManageProductInPort manageProductInPort;
+
     private final ManageStockInPort manageStockInPort;
 
     private final ApplyCouponInPort applyCouponInPort;
@@ -37,16 +41,50 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
     @Override
     public PlaceOrderResult placeOrder(final Order draft, final String idempotencyKey) {
 
-        draft.assertValidationsEmpty();
-        final PlaceOrderResult result = placeOrderUseCase.placeOrder(draft, idempotencyKey, this::prepareOrder);
+        final Order priced = priceOrder(draft);
+        priced.assertValidationsEmpty();
+        final PlaceOrderResult result = placeOrderUseCase.placeOrder(priced, idempotencyKey, this::prepareOrder);
         if (result.newlyPlaced()) {
             sendNotificationInPort.sendNotification(
-                    draft.getCustomer().getContact().getEmail(),
+                    priced.getCustomer().getContact().getEmail(),
                     NotificationType.ORDER_CONFIRMED,
                     "Order " + result.orderNumber() + " confirmed",
                     "Your order " + result.orderNumber() + " was confirmed.");
         }
         return result;
+    }
+
+    private Order priceOrder(final Order draft) {
+
+        final java.util.Set<String> seen = new java.util.HashSet<>();
+        final List<OrderLineItem> pricedItems = draft.getItems().stream().map(item -> {
+            if (!seen.add(item.getSku())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate SKU in order: " + item.getSku());
+            }
+            final Product product = manageProductInPort.findProduct(item.getSku());
+            if (product == null || !product.isActive()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active product not found: " + item.getSku());
+            }
+            return OrderLineItem.builder()
+                    .sku(product.getSku())
+                    .productName(product.getName())
+                    .unitPrice(product.getUnitPrice())
+                    .quantity(item.getQuantity())
+                    .build();
+        }).toList();
+
+        return Order.builder()
+                .remarks(draft.getRemarks())
+                .orderNumber(draft.getOrderNumber())
+                .stockReservationId(draft.getStockReservationId())
+                .created(draft.getCreated())
+                .customer(draft.getCustomer())
+                .items(pricedItems)
+                .status(draft.getStatus())
+                .paymentMethod(draft.getPaymentMethod())
+                .couponCode(draft.getCouponCode())
+                .discountAmount(draft.getDiscountAmount())
+                .build();
     }
 
     private Order prepareOrder(final Order draft) {

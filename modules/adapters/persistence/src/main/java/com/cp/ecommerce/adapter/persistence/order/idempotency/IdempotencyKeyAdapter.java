@@ -39,9 +39,15 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
     @Override
     public IdempotencyReservation reserve(final String key, final String fingerprint) {
 
+        return reserve(key, fingerprint, fingerprint);
+    }
+
+    @Override
+    public IdempotencyReservation reserve(final String key, final String fingerprint, final String legacyFingerprint) {
+
         lock(key);
         return idempotencyKeyEntityRepository.findByKey(key)
-                .map(existing -> toReservation(existing, fingerprint))
+                .map(existing -> toReservation(existing, fingerprint, legacyFingerprint))
                 .orElseGet(() -> {
                     idempotencyKeyEntityRepository.saveAndFlush(
                             IdempotencyKeyEntity.builder()
@@ -67,9 +73,12 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
         });
     }
 
-    private IdempotencyReservation toReservation(final IdempotencyKeyEntity existing, final String fingerprint) {
+    private IdempotencyReservation toReservation(
+            final IdempotencyKeyEntity existing,
+            final String fingerprint,
+            final String legacyFingerprint) {
 
-        if (!existing.getFingerprint().equals(fingerprint)) {
+        if (!existing.getFingerprint().equals(fingerprint) && !existing.getFingerprint().equals(legacyFingerprint)) {
 
             return IdempotencyReservation.conflict();
         }

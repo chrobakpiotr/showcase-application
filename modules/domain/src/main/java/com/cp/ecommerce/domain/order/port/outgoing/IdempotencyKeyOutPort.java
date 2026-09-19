@@ -25,6 +25,23 @@ public interface IdempotencyKeyOutPort {
     IdempotencyReservation reserve(final String key, final String fingerprint);
 
     /**
+     * Reserves a key while accepting one historical fingerprint representation for replay compatibility.
+     *
+     * <p>
+     * New reservations persist {@code fingerprint}. {@code legacyFingerprint} is only used to recognize a completed or
+     * reclaimable request written before request canonicalization changed.
+     *
+     * @param key client-supplied idempotency key.
+     * @param fingerprint current canonical request fingerprint.
+     * @param legacyFingerprint fingerprint produced by the preceding canonicalization.
+     * @return reservation outcome.
+     */
+    default IdempotencyReservation reserve(final String key, final String fingerprint, final String legacyFingerprint) {
+
+        return reserve(key, fingerprint);
+    }
+
+    /**
      * Marks a previously {@link #reserve(String, String) reserved} key as completed with the resulting order number, so future
      * retries under the same key can replay the same response instead of placing a second order.
      *
