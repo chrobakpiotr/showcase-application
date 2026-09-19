@@ -7,7 +7,6 @@ import java.util.concurrent.Callable;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.assistant.SupportAnswer;
 import com.cp.ecommerce.domain.assistant.SupportQuestion;
-import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,9 +14,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -35,10 +31,8 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link SupportAssistantAdapter}. As with {@code OrderRemarksClassifierAdapterTest}, a real {@link ChatClient}
- * is built around a mocked {@link ChatModel} - the model call is the only external boundary stubbed. The {@link ChatMemory} is
- * a real, in-memory instance (nothing external to fake there); the {@link VectorStore} is mocked since embedding/similarity
- * search is itself an external-model boundary in the real adapter.
+ * Unit tests for {@link SupportAssistantAdapter}. ADR 0044 intentionally gives the public assistant no customer-data tools and
+ * no server-side chat memory.
  */
 @ExtendWith(MockitoExtension.class)
 class SupportAssistantAdapterTest {
@@ -52,38 +46,45 @@ class SupportAssistantAdapterTest {
     @Mock
     transient ResilientExecutor resilientExecutor;
 
-    @Mock
-    transient ManageOrderInPort manageOrderInPort;
-
-    private final transient ChatMemory chatMemory = MessageWindowChatMemory.builder()
-            .chatMemoryRepository(new InMemoryChatMemoryRepository())
-            .build();
-
     @Test
     void shouldAnswerUsingTheModelResponseGroundedByRetrievedDocuments() {
 
-        respondWith("Your order is confirmed and will be processed shortly.");
+        respondWith("General order-processing policy.");
         runResilientActionEagerly();
         lenient().when(vectorStore.similaritySearch(any(SearchRequest.class)))
                 .thenReturn(List.of(new Document("Confirmed orders are being processed.")));
         final SupportAssistantAdapter adapter = newAdapter();
 
-        final SupportAnswer answer = adapter.ask(question("Where is my order?"), "conversation-1");
+        final SupportAnswer answer = adapter.ask(question("What happens after an order is confirmed?"), "conversation-1");
 
-        assertThat(answer.getAnswer()).isEqualTo("Your order is confirmed and will be processed shortly.");
+        assertThat(answer.getAnswer()).isEqualTo("General order-processing policy.");
         assertThat(answer.isAssistantAvailable()).isTrue();
     }
 
     @Test
-    void shouldGenerateAFreshConversationIdWhenNoneIsSupplied() {
+    void shouldAnswerWhenConversationIdIsMissing() {
 
         respondWith("General policy answer.");
         runResilientActionEagerly();
         lenient().when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
         final SupportAssistantAdapter adapter = newAdapter();
 
-        final SupportAnswer answer = adapter.ask(question("Can I cancel my order?"), null);
+        final SupportAnswer answer = adapter.ask(question("Can I cancel an order?"), null);
 
+        assertThat(answer.isAssistantAvailable()).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreArbitraryConversationIdWithoutServerSideMemory() {
+
+        respondWith("Policy-only answer.");
+        runResilientActionEagerly();
+        lenient().when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+        final SupportAssistantAdapter adapter = newAdapter();
+
+        final SupportAnswer answer = adapter.ask(question("Tell me the cancellation policy."), "attacker-chosen-id");
+
+        assertThat(answer.getAnswer()).isEqualTo("Policy-only answer.");
         assertThat(answer.isAssistantAvailable()).isTrue();
     }
 
@@ -93,19 +94,14 @@ class SupportAssistantAdapterTest {
         when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
         final SupportAssistantAdapter adapter = newAdapter();
 
-        final SupportAnswer answer = adapter.ask(question("Where is my order?"), "conversation-1");
+        final SupportAnswer answer = adapter.ask(question("What is the return policy?"), "conversation-1");
 
         assertThat(answer.isAssistantAvailable()).isFalse();
     }
 
     private SupportAssistantAdapter newAdapter() {
 
-        return new SupportAssistantAdapter(
-                ChatClient.builder(chatModel),
-                vectorStore,
-                chatMemory,
-                new OrderLookupTool(manageOrderInPort),
-                resilientExecutor);
+        return new SupportAssistantAdapter(ChatClient.builder(chatModel), vectorStore, resilientExecutor);
     }
 
     private SupportQuestion question(final String text) {

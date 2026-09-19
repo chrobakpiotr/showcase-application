@@ -23,7 +23,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Public/customer-facing endpoint for AI-powered personalized product recommendations.
+ * Operator-only endpoint for AI-powered personalized product recommendations.
+ *
+ * <p>
+ * ADR 0044 requires {@code ORDER_READ}: the input is an arbitrary customer e-mail and the recommendation context is derived
+ * from customer purchase/review history, while this showcase has no customer identity/ownership model.
  */
 @RequiredArgsConstructor
 @RestController

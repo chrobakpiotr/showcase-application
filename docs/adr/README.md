@@ -50,6 +50,7 @@ than editing it in place.
 | [0041](0041-durable-compensation-and-notification-retry.md) | Saga compensation and notification delivery are durably retryable |
 | [0042](0042-leased-outbox-claims.md) | Order outbox workers use leased claims with fencing tokens |
 | [0043](0043-concurrent-return-entitlement-and-moderation.md) | Return entitlement and moderation use database row locks |
+| [0044](0044-explicit-api-access-boundary.md) | Public API access is explicit and anonymous AI has no customer-data tools |
 
 ## Template for new ADRs
 

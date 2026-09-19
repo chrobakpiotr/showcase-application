@@ -1,5 +1,8 @@
 # 0036. AI personalized product recommendations
 
+> R08 update: ADR 0044 supersedes the anonymous/public access decision in this ADR. Personalized recommendations now require the existing `ORDER_READ` operator role.
+
+
 ## Context
 
 The showcase already demonstrates six different AI feature shapes, but none of them helps a shopper discover what to buy next. The existing platform already has enough small, local signals to support a lightweight recommendation experience without pretending to be a full ML recommender system: recent orders already capture what a customer bought, Reviews & Ratings capture what they liked or disliked, and the Catalog already exposes the candidate products that can actually be recommended.

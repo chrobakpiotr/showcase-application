@@ -27,9 +27,8 @@ import lombok.RequiredArgsConstructor;
  * Controller serving the AI customer-support assistant (see ADR 0020).
  *
  * <p>
- * Unlike {@code OrderController}, every endpoint here is public/unauthenticated by design ({@code WebSecurityConfiguration}'s
- * catch-all {@code anyRequest().permitAll()} covers any path outside {@code /api/order/**}): a customer-support chat should be
- * usable by visitors who haven't signed in, not just authenticated back-office operators.
+ * This endpoint is explicitly public/unauthenticated in {@code WebSecurityConfiguration}. ADR 0044 keeps the public assistant
+ * policy-only: it has no customer-data tools and no server-side chat memory.
  * </p>
  */
 @RequiredArgsConstructor
@@ -47,9 +46,9 @@ public class SupportAssistantController {
     @PostMapping("/questions")
     @Operation(
             summary = "Ask the AI support assistant a question",
-            description = "Answers a free-text customer question, grounded in bundled platform policy documents and, when "
-                    + "relevant, a live lookup of a specific order. Never invents capabilities the platform doesn't have; "
-                    + "falls back to a fixed message rather than an error when the feature is disabled or unavailable.")
+            description = "Answers a free-text customer question using bundled platform policy documents only. The public "
+                    + "assistant has no access to orders or other customer-specific data. Falls back to a fixed message rather "
+                    + "than an error when the feature is disabled or unavailable.")
     @ApiResponse(
             responseCode = "200",
             description = "Answer produced (or a fallback message if the assistant is disabled/unavailable - see "

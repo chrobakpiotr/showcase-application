@@ -44,11 +44,15 @@ public class WebSecurityConfiguration {
 
     private static final String WISHLIST_API_PATH_MATCHER = "/api/wishlist/**";
 
-    // Like Cart and Wishlist, personalized recommendations are intentionally customer-facing/public: the only
-    // input is a shopper's own e-mail address, and there is no persisted customer-account system in this showcase
-    // that could sensibly gate the feature behind operator roles. Declared explicitly for documentation, even though
-    // it would otherwise fall through to anyRequest().permitAll().
+    // Recommendations are personalized from order/review history keyed by arbitrary customer e-mail. There is no
+    // customer identity/ownership model in this showcase, so ADR 0044 treats this as operator data access and reuses
+    // ORDER_READ rather than exposing customer history anonymously.
     private static final String RECOMMENDATIONS_API_PATH_MATCHER = "/api/recommendations";
+
+    // Public support remains available to anonymous storefront users, but ADR 0044 removes all customer-data tools and
+    // server-side chat memory from that assistant. Keep the matcher exact so a future sibling endpoint is not public by
+    // accident.
+    private static final String SUPPORT_ASSISTANT_QUESTIONS_API_PATH_MATCHER = "/api/support-assistant/questions";
 
     // The AI ops-analytics assistant endpoint (see ADR 0021) is logically read-only - it only ever queries the
     // order-analytics projection and remarks-triage classification counts, never mutates anything - but must be a POST
@@ -173,8 +177,12 @@ public class WebSecurityConfiguration {
                         .permitAll()
                         .requestMatchers(WISHLIST_API_PATH_MATCHER)
                         .permitAll()
-                        .requestMatchers(RECOMMENDATIONS_API_PATH_MATCHER)
+                        .requestMatchers(HttpMethod.POST, SUPPORT_ASSISTANT_QUESTIONS_API_PATH_MATCHER)
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, RECOMMENDATIONS_API_PATH_MATCHER)
+                        .hasRole(ORDER_READ_ROLE)
+                        .requestMatchers("/api/**")
+                        .denyAll()
                         .anyRequest()
                         .permitAll())
                 .oauth2ResourceServer(

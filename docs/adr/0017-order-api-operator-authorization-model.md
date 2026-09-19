@@ -1,5 +1,8 @@
 # 0017. Order API authorization model: role-based operator access, not per-customer ownership
 
+> R08 update: ADR 0044 extends this operator model with an explicit fail-closed `/api/**` boundary and uses `ORDER_READ` for personalized recommendations.
+
+
 ## Context
 
 [ADR 0004](0004-jwt-oauth2-resource-server-with-keycloak.md) gates `/api/order/**` purely by realm role

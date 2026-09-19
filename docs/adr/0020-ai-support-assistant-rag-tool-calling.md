@@ -1,5 +1,8 @@
 # 0020. AI customer-support assistant: RAG + tool-calling, as a standalone bounded context
 
+> R08 update: ADR 0044 supersedes the public order-tool and server-side chat-memory parts of this ADR. The public support assistant is now policy-only and stateless between requests.
+
+
 ## Context
 
 ADR 0019 added a locally-hosted LLM as a best-effort *saga step* - a backend-only, fire-and-forget

@@ -1,0 +1,148 @@
+{
+  "feature": "API-ACCESS-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define explicit API trust boundary",
+      "objective": "Specify public routes, operator-only personalized AI, fail-closed API fallback and anonymous AI capability limits.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/API-ACCESS-001/**",
+        "docs/adr/0044-explicit-api-access-boundary.md",
+        "docs/adr/README.md",
+        "docs/adr/0017-order-api-operator-authorization-model.md",
+        "docs/adr/0020-ai-support-assistant-rag-tool-calling.md",
+        "docs/adr/0036-ai-personalized-product-recommendations.md"
+      ],
+      "risk_tags": [
+        "security",
+        "authorization",
+        "ai",
+        "pii"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-004",
+        "AC-009",
+        "AC-014"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/API-ACCESS-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Specification and ADR."
+    },
+    {
+      "id": "T-002",
+      "title": "Fail closed on unmatched API paths",
+      "objective": "Make public routes explicit, protect recommendations and deny every unmatched API route.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfiguration.java",
+        "modules/adapters/security/src/test/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfigurationTest.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/recommendation/RecommendationController.java"
+      ],
+      "risk_tags": [
+        "security",
+        "authorization",
+        "fail-closed"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008"
+      ],
+      "verification": [
+        "./gradlew :adapter:security:test --tests com.cp.ecommerce.adapter.security.configuration.WebSecurityConfigurationTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "MockMvc authorization matrix."
+    },
+    {
+      "id": "T-003",
+      "title": "Remove customer data capabilities from public AI",
+      "objective": "Keep support FAQ public while removing order lookup tools and server-side chat memory.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "modules/adapters/ai/src/main/java/com/cp/ecommerce/adapter/ai/support/**",
+        "modules/adapters/ai/src/test/java/com/cp/ecommerce/adapter/ai/support/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/assistant/SupportAssistantController.java"
+      ],
+      "risk_tags": [
+        "ai",
+        "prompt-injection",
+        "pii",
+        "conversation-isolation"
+      ],
+      "acceptance_criteria": [
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013"
+      ],
+      "verification": [
+        "./gradlew :adapter:ai:test --tests com.cp.ecommerce.adapter.ai.support.SupportAssistantAdapterTest --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.assistant.SupportAssistantControllerTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Support adapter tests plus structural source assertions."
+    },
+    {
+      "id": "T-004",
+      "title": "Independent R08 evaluation",
+      "objective": "Verify the authorization matrix, AI capability boundary, ADR supersession and repository gates independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "docs/specs/API-ACCESS-001/evidence/**"
+      ],
+      "risk_tags": [
+        "security",
+        "authorization",
+        "ai"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008",
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-012",
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/API-ACCESS-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator records SHA and deterministic gate evidence."
+    }
+  ]
+}
