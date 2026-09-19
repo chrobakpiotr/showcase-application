@@ -159,6 +159,81 @@ class ManageStockReservationAdapterTest {
     }
 
     @Test
+    void shouldFulfillOwnedReservationOnce() {
+
+        final StockLevelEntity stock = stock(10, 5);
+        final StockReservationEntity reservation = reservation(3, StockReservationStatus.RESERVED);
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY)).willReturn(Optional.of(reservation));
+        given(stockLevelEntityRepository.saveAndFlush(stock)).willReturn(stock);
+
+        final StockLevel result = adapter.fulfillStock(RESERVATION_ID, SKU);
+
+        assertThat(result.getQuantityOnHand()).isEqualTo(7);
+        assertThat(result.getQuantityReserved()).isEqualTo(2);
+        assertThat(reservation.getStatus()).isEqualTo(StockReservationStatus.FULFILLED);
+        verify(stockReservationEntityRepository).save(reservation);
+    }
+
+    @Test
+    void shouldReplayAlreadyFulfilledReservationWithoutDoubleConsumption() {
+
+        final StockLevelEntity stock = stock(7, 2);
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY))
+                .willReturn(Optional.of(reservation(3, StockReservationStatus.FULFILLED)));
+
+        final StockLevel result = adapter.fulfillStock(RESERVATION_ID, SKU);
+
+        assertThat(result.getQuantityOnHand()).isEqualTo(7);
+        assertThat(result.getQuantityReserved()).isEqualTo(2);
+        verify(stockLevelEntityRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void shouldRejectFulfillmentWhenReservationDoesNotExist() {
+
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock(10, 3)));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adapter.fulfillStock(RESERVATION_ID, SKU)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("not found for fulfillment");
+    }
+
+    @Test
+    void shouldRejectFulfillmentWhenReservationIsNotReserved() {
+
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock(10, 3)));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY))
+                .willReturn(Optional.of(reservation(3, StockReservationStatus.RELEASED)));
+
+        assertThatThrownBy(() -> adapter.fulfillStock(RESERVATION_ID, SKU)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Only RESERVED");
+    }
+
+    @Test
+    void shouldRejectFulfillmentWhenAggregateReservedQuantityIsTooSmall() {
+
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock(10, 2)));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY))
+                .willReturn(Optional.of(reservation(3, StockReservationStatus.RESERVED)));
+
+        assertThatThrownBy(() -> adapter.fulfillStock(RESERVATION_ID, SKU)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot fulfill reservation");
+    }
+
+    @Test
+    void shouldRejectFulfillmentWhenOnHandQuantityIsTooSmall() {
+
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock(2, 3)));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY))
+                .willReturn(Optional.of(reservation(3, StockReservationStatus.RESERVED)));
+
+        assertThatThrownBy(() -> adapter.fulfillStock(RESERVATION_ID, SKU)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cannot fulfill reservation");
+    }
+
+    @Test
     void shouldRejectLedgerThatExceedsAggregateReservation() {
 
         final StockLevelEntity stock = stock(10, 2);
