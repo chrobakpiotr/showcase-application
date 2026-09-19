@@ -80,6 +80,14 @@ rootProject.configureBootTasks(project)
 // failing the build, but only for tests that failed at least once and passed on retry - a test
 // that fails consistently on every attempt still fails the build as normal.
 test {
+    // The dedicated Postgres gate must execute these Testcontainers tests fresh, but
+    // global --rerun-tasks also rebuilds every dependency task and defeats the build cache.
+    // Force only this Test task fresh; compilation and the rest of the graph remain cacheable.
+    if (providers.gradleProperty('criticalPostgresGate').getOrElse('false').toBoolean()) {
+        outputs.upToDateWhen { false }
+        outputs.cacheIf { false }
+    }
+
     retry {
         maxRetries = 2
         maxFailures = 5

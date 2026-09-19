@@ -21,9 +21,7 @@ for test_name in "${TESTS[@]}"; do
 done
 
 ./gradlew :application:ecommerce:test "${args[@]}" \
-  --rerun-tasks \
-  --no-configuration-cache \
-  --no-parallel
+  -PcriticalPostgresGate=true
 
 python3 <<'PY'
 from pathlib import Path

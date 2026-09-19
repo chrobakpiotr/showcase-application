@@ -52,16 +52,20 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # setup-gradle v6 already uses Enhanced Caching by default.
+          # This optional secret additionally enables encrypted configuration-cache persistence.
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Verify Java formatting
-        run: ./gradlew spotlessJavaCheck --no-configuration-cache --no-parallel
+        run: ./gradlew spotlessJavaCheck
 
       - name: Verify required Postgres recovery/concurrency tests
         run: tooling/scripts/verify-critical-postgres-tests.sh
 
       - name: Build, verify quality gates and run tests
         run: >
-          ./gradlew clean build
+          ./gradlew build
           -x :adapter:ecommerce-frontend:npm_run_build
           -x :adapter:ecommerce-frontend:npm_run_test
           -x :adapter:ecommerce-frontend:runESLintCheck
