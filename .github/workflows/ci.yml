@@ -124,7 +124,6 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: ./gradlew dependencyCheckAnalyze --continue
-        continue-on-error: true
 
       - name: Publish DependencyCheck reports
         if: always()
@@ -269,9 +268,9 @@ jobs:
           severity: CRITICAL,HIGH
           # Report-only for now (doesn't fail the build) - the base eclipse-temurin image's CVE
           # backlog isn't something this showcase project controls the remediation timeline for;
-          # the scan's value here is visibility, matching the OWASP DependencyCheck job's
-          # continue-on-error stance on the same tradeoff for source dependencies.
-          exit-code: '0'
+          # HIGH/CRITICAL findings are policy failures; documented temporary exceptions live in
+          # docs/security/vulnerability-exceptions.md.
+          exit-code: '1'
 
   frontend:
     name: Frontend build, lint & test

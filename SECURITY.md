@@ -32,3 +32,5 @@ This repository already applies a number of automated supply-chain safeguards, d
 Given the nature of this project (a local-only, Docker Compose/Kind-based showcase with no
 publicly hosted deployment), most realistic findings will be about code quality, dependency
 hygiene, or configuration hardening rather than an actively exploitable live system.
+
+Security scans are enforcement gates for new HIGH/CRITICAL findings; temporary exceptions require owner, reason and expiry in `docs/security/vulnerability-exceptions.md`.
