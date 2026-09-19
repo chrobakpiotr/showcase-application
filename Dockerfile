@@ -25,7 +25,10 @@ RUN ./gradlew :application:ecommerce:bootJar --no-daemon -x test -x check
 
 FROM eclipse-temurin:25-jre-alpine@sha256:3137541deb3cac6626b5d9a4a2187bc0d6a34312f858bd2c67dd01e732e6b682 AS runtime
 
-RUN addgroup -S app && adduser -S app -G app
+# Keep the runtime base pinned while applying currently available Alpine security fixes.
+RUN apk upgrade --no-cache \
+    && addgroup -S app \
+    && adduser -S app -G app
 WORKDIR /app
 COPY --from=builder /workspace/apps/ecommerce/backend/build/libs/*.jar app.jar
 RUN chown app:app app.jar

@@ -123,7 +123,14 @@ jobs:
       - name: Run OWASP DependencyCheck
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./gradlew dependencyCheckAnalyze --continue
+        run: |
+          # GitHub exposes an undefined secret as an empty string. DependencyCheck treats an
+          # explicitly empty NVD_API_KEY as invalid, so remove it and use anonymous NVD access.
+          # Genuine scanner/update failures still fail the job.
+          if [ -z "${NVD_API_KEY:-}" ]; then
+            unset NVD_API_KEY
+          fi
+          ./gradlew dependencyCheckAnalyze --continue
 
       - name: Publish DependencyCheck reports
         if: always()
