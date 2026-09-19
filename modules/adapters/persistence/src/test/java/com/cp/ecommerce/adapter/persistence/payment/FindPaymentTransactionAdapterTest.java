@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.PaymentTransactionBuilder;
@@ -46,6 +48,19 @@ class FindPaymentTransactionAdapterTest {
         final PaymentTransaction result = findPaymentTransactionAdapter.find(TEST_ORDER_NUMBER);
 
         assertEquals(paymentTransaction, result);
+    }
+
+    @Test
+    void shouldBatchFindPaymentTransactions() {
+
+        final var entity = PaymentTransactionEntityBuilder.mockPaymentTransactionEntity();
+        final PaymentTransaction paymentTransaction = PaymentTransactionBuilder.mockPaymentTransaction();
+        doReturn(List.of(entity)).when(paymentTransactionEntityRepository).findAllById(List.of(TEST_ORDER_NUMBER));
+        doReturn(Optional.of(paymentTransaction)).when(paymentTransactionPersistenceMapper).mapToDomainObject(entity);
+
+        final Map<String, PaymentTransaction> result = findPaymentTransactionAdapter.findAll(List.of(TEST_ORDER_NUMBER));
+
+        assertEquals(paymentTransaction, result.get(TEST_ORDER_NUMBER));
     }
 
     @Test

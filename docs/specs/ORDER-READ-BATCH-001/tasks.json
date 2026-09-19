@@ -1,0 +1,70 @@
+{
+  "feature": "ORDER-READ-BATCH-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Batch payment reads for order pages",
+      "objective": "Remove one-payment-query-per-order enrichment from paged order reads.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/ORDER-READ-BATCH-001/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/payment/**",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/payment/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/OrderController.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/order/OrderControllerTest.java"
+      ],
+      "risk_tags": [
+        "read-performance",
+        "persistence",
+        "api-compatibility"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew :domain:test --tests com.cp.ecommerce.domain.payment.usecase.ManagePaymentUseCaseTest --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.payment.FindPaymentTransactionAdapterTest --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.order.OrderControllerTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Page enrichment proves one batch read while preserving missing-payment semantics."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify batch payment enrichment, placeholder compatibility and full repository gates.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/ORDER-READ-BATCH-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation",
+        "read-performance",
+        "api-compatibility"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}

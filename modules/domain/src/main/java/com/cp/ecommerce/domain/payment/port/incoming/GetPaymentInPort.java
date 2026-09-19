@@ -1,5 +1,8 @@
 package com.cp.ecommerce.domain.payment.port.incoming;
 
+import java.util.Collection;
+import java.util.Map;
+
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 
 /**
@@ -13,5 +16,11 @@ public interface GetPaymentInPort {
      * placeholder rather than a 404 - mirrors {@code GetStockLevelInPort#getStockLevel} (see ADR 0026).
      */
     PaymentTransaction getPayment(String orderNumber);
+
+    /**
+     * Batch variant used by paged order reads so payment enrichment does not become one query per order.
+     * Missing transactions are represented by the same PENDING placeholder contract as {@link #getPayment(String)}.
+     */
+    Map<String, PaymentTransaction> getPayments(Collection<String> orderNumbers);
 
 }

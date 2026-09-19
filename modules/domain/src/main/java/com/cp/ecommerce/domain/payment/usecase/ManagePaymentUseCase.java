@@ -1,7 +1,10 @@
 package com.cp.ecommerce.domain.payment.usecase;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
@@ -46,7 +49,20 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction getPayment(final String orderNumber) {
 
         return Optional.ofNullable(findPaymentTransactionOutPort.find(orderNumber))
-                .orElseGet(() -> PaymentTransaction.builder().orderNumber(orderNumber).build());
+                .orElseGet(() -> pendingPayment(orderNumber));
+    }
+
+    @Override
+    public Map<String, PaymentTransaction> getPayments(final Collection<String> orderNumbers) {
+
+        final Map<String, PaymentTransaction> persisted = findPaymentTransactionOutPort.findAll(orderNumbers);
+        final Map<String, PaymentTransaction> result = new LinkedHashMap<>();
+        for (final String orderNumber : orderNumbers) {
+            result.put(
+                    orderNumber,
+                    Optional.ofNullable(persisted.get(orderNumber)).orElseGet(() -> pendingPayment(orderNumber)));
+        }
+        return result;
     }
 
     @Override
@@ -97,6 +113,11 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
 
         return executeRefund(managePaymentRefundOutPort.reserve(refundId, orderNumber, amount));
+    }
+
+    private static PaymentTransaction pendingPayment(final String orderNumber) {
+
+        return PaymentTransaction.builder().orderNumber(orderNumber).build();
     }
 
     private PaymentTransaction executeRefund(final PaymentRefundClaim claim) {

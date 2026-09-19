@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -37,6 +38,7 @@ import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
@@ -537,6 +539,11 @@ class OrderControllerTest {
 
         final Order order = OrderBuilder.mockOrder();
         given(listOrdersUseCase.listOrders(new PageQuery(0, 20))).willReturn(new PagedResult<>(List.of(order), 0, 20, 1, 1));
+        given(getPaymentInPort.getPayments(List.of(order.getOrderNumber())))
+                .willReturn(
+                        Map.of(
+                                order.getOrderNumber(),
+                                PaymentTransaction.builder().orderNumber(order.getOrderNumber()).build()));
         given(orderWebMapper.mapToResource(eq(order), any()))
                 .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
 

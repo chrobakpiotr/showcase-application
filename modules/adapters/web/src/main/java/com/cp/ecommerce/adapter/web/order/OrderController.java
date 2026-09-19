@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.web.order;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
@@ -19,6 +20,7 @@ import com.cp.ecommerce.domain.order.PagedResult;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -174,9 +176,11 @@ public class OrderController {
                     "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
         }
         final PagedResult<Order> result = listOrdersUseCase.listOrders(new PageQuery(page, size));
+        final Map<String, PaymentTransaction> payments = getPaymentInPort
+                .getPayments(result.content().stream().map(Order::getOrderNumber).toList());
         final List<EntityModel<OrderDetailsResource>> content = result.content()
                 .stream()
-                .map(order -> toResourceWithLinks(order, order.getOrderNumber()))
+                .map(order -> toResourceWithLinks(order, order.getOrderNumber(), payments.get(order.getOrderNumber())))
                 .toList();
         final PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(
                 result.size(),
@@ -240,7 +244,15 @@ public class OrderController {
 
     private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {
 
-        final OrderDetailsResource resource = orderWebMapper.mapToResource(order, getPaymentInPort.getPayment(orderNumber))
+        return toResourceWithLinks(order, orderNumber, getPaymentInPort.getPayment(orderNumber));
+    }
+
+    private EntityModel<OrderDetailsResource> toResourceWithLinks(
+            final Order order,
+            final String orderNumber,
+            final PaymentTransaction payment) {
+
+        final OrderDetailsResource resource = orderWebMapper.mapToResource(order, payment)
                 .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
         final EntityModel<OrderDetailsResource> model = EntityModel
                 .of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());

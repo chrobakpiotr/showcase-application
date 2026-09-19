@@ -1,6 +1,8 @@
 package com.cp.ecommerce.domain.payment.usecase;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
@@ -74,6 +76,21 @@ class ManagePaymentUseCaseTest {
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
 
         assertThat(managePaymentUseCase.getPayment(ORDER_NUMBER)).isSameAs(existing);
+    }
+
+    @Test
+    void shouldBatchReadPaymentsAndFillPendingPlaceholders() {
+
+        final String secondOrderNumber = "ORDER-1002";
+        final PaymentTransaction existing = captured();
+        given(findPaymentTransactionOutPort.findAll(List.of(ORDER_NUMBER, secondOrderNumber)))
+                .willReturn(Map.of(ORDER_NUMBER, existing));
+
+        final Map<String, PaymentTransaction> result =
+                managePaymentUseCase.getPayments(List.of(ORDER_NUMBER, secondOrderNumber));
+
+        assertThat(result.get(ORDER_NUMBER)).isSameAs(existing);
+        assertThat(result.get(secondOrderNumber).getStatus()).isEqualTo(PaymentStatus.PENDING);
     }
 
     @Test
