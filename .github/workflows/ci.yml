@@ -121,21 +121,13 @@ jobs:
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run OWASP DependencyCheck
-        env:
-          NVD_API_KEY_SECRET: ${{ secrets.NVD_API_KEY }}
         run: |
-          # Do not expose an undefined GitHub secret as NVD_API_KEY="". DependencyCheck 13
-          # interprets an empty key as an invalid supplied key instead of anonymous access.
-          if [ -n "${NVD_API_KEY_SECRET:-}" ]; then
-            export NVD_API_KEY="$NVD_API_KEY_SECRET"
-          else
-            unset NVD_API_KEY
-          fi
-          unset NVD_API_KEY_SECRET
-
-          # DependencyCheck tasks are not configuration-cache compatible and NVD updates should
-          # be serialized to avoid redundant concurrent API traffic/rate-limit pressure.
-          ./gradlew dependencyCheckAnalyze             --continue             --no-configuration-cache             --no-parallel
+          # DependencyCheck uses the configured NVD JSON datafeed, so this job does not depend
+          # on an NVD API key. Scanner/update failures and unacceptable findings still fail CI.
+          ./gradlew dependencyCheckAnalyze \
+            --continue \
+            --no-configuration-cache \
+            --no-parallel
 
       - name: Publish DependencyCheck reports
         if: always()

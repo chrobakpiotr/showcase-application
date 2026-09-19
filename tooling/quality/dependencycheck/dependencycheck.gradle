@@ -1,6 +1,12 @@
 apply plugin: 'org.owasp.dependencycheck'
 
 dependencyCheck {
+	// Use the NVD JSON 2.0 feed instead of the REST API. This keeps CI independent
+	// from NVD API-key availability while preserving fail-closed vulnerability scanning.
+	nvd {
+		datafeedUrl = 'https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz'
+	}
+
 	outputDirectory = layout.buildDirectory.dir("reports/security").get().asFile.path
 	suppressionFiles = [
 		"tooling/quality/dependencycheck/suppressions.xml"
