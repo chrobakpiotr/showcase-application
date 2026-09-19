@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
 import com.cp.ecommerce.domain.order.port.outgoing.SaveOrderAnalyticsProjectionOutPort;
@@ -28,7 +28,11 @@ class RecordOrderAnalyticsProjectionUseCaseTest {
     @Test
     void shouldDelegateToOutgoingPort() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection("ORDER-1", 1L, new Date(), new Date());
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
+                "ORDER-1",
+                1L,
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
 
         recordOrderAnalyticsProjectionUseCase.recordProjection(projection);
 

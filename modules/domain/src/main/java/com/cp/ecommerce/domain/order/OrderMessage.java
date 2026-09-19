@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 
@@ -11,7 +11,7 @@ import lombok.Builder;
  */
 @Builder
 @DomainObject
-public record OrderMessage(String schemaVersion, Date created, Long customerId, String orderNumber) {
+public record OrderMessage(String schemaVersion, Instant created, Long customerId, String orderNumber) {
 
     public static final String SCHEMA_VERSION = "1.0";
 

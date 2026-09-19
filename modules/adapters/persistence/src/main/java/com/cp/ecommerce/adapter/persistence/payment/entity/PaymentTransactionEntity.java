@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -54,5 +54,5 @@ public class PaymentTransactionEntity {
     private String gatewayReference;
 
     @Column(name = "CREATION_DATE")
-    private Date created;
+    private Instant created;
 }

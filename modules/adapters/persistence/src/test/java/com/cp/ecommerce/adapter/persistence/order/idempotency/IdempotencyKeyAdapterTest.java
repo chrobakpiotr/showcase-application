@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
@@ -223,7 +222,7 @@ class IdempotencyKeyAdapterTest {
                 .fingerprint(fingerprint)
                 .status(status)
                 .orderNumber(status == IdempotencyKeyStatus.COMPLETED ? ORDER_NUMBER : null)
-                .createdDate(Date.from(createdDate))
+                .createdDate(Instant.ofEpochMilli(createdDate.toEpochMilli()))
                 .build();
     }
 

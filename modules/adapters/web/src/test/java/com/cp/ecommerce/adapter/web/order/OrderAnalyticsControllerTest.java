@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.order;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,8 +53,8 @@ class OrderAnalyticsControllerTest {
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 TEST_ORDER_NUMBER,
                 1001L,
-                new Date(),
-                new Date());
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         final OrderAnalyticsResource resource = OrderAnalyticsResource.builder()
                 .orderNumber(TEST_ORDER_NUMBER)
                 .customerId(1001L)
@@ -123,8 +123,8 @@ class OrderAnalyticsControllerTest {
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 TEST_ORDER_NUMBER,
                 1001L,
-                new Date(),
-                new Date());
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         given(findRecentOrderAnalyticsUseCase.findRecent(20)).willReturn(List.of(projection));
         given(orderAnalyticsWebMapper.mapToResource(any())).willReturn(Optional.empty());
 

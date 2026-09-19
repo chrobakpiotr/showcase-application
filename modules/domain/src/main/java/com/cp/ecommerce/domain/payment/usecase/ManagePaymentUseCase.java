@@ -1,8 +1,8 @@
 package com.cp.ecommerce.domain.payment.usecase;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Collection;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -86,7 +86,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .method(method)
                             .status(PaymentStatus.CAPTURED)
                             .gatewayReference(gatewayReference)
-                            .created(new Date())
+                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                             .build());
         } catch (final PaymentDeclinedException declined) {
 
@@ -97,7 +97,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .refundedAmount(BigDecimal.ZERO)
                             .method(method)
                             .status(PaymentStatus.DECLINED)
-                            .created(new Date())
+                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                             .build());
             throw declined;
         }

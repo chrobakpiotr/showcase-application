@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.coupon.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.DiscountType;
@@ -52,7 +52,7 @@ public class CouponEntity {
     private int redemptionCount;
 
     @Column(name = "EXPIRES_AT")
-    private Date expiresAt;
+    private Instant expiresAt;
 
     @Column(name = "ACTIVE", nullable = false)
     private boolean active;

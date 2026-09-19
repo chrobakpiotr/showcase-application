@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.notification.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.notification.Notification;
@@ -60,7 +60,7 @@ class ManageNotificationUseCaseTest {
 
         final ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
         final Notification delivering = notification(NotificationStatus.DELIVERING, null);
-        final Notification sent = notification(NotificationStatus.SENT, new Date());
+        final Notification sent = notification(NotificationStatus.SENT, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
 
         given(generateNotificationIdOutPort.generate()).willReturn(TestDomainObjectFactory.TEST_NOTIFICATION_ID);
         given(saveNotificationOutPort.save(saved.capture())).willAnswer(invocation -> invocation.getArgument(0));
@@ -109,7 +109,7 @@ class ManageNotificationUseCaseTest {
     void shouldRetryDueNotificationUsingSameId() {
 
         final Notification delivering = notification(NotificationStatus.DELIVERING, null);
-        final Notification sent = notification(NotificationStatus.SENT, new Date());
+        final Notification sent = notification(NotificationStatus.SENT, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
 
         given(manageNotificationDeliveryOutPort.findDueNotificationIds(any(), anyInt()))
                 .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
@@ -196,7 +196,7 @@ class ManageNotificationUseCaseTest {
                 .isSameAs(notification);
     }
 
-    private static Notification notification(final NotificationStatus status, final Date sentDate) {
+    private static Notification notification(final NotificationStatus status, final Instant sentDate) {
 
         return Notification.builder()
                 .notificationId(TestDomainObjectFactory.TEST_NOTIFICATION_ID)
@@ -205,7 +205,7 @@ class ManageNotificationUseCaseTest {
                 .subject("Order confirmed")
                 .body("Your order was confirmed.")
                 .status(status)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .sentDate(sentDate)
                 .build();
     }

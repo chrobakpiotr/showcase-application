@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics.mapper;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.persistence.order.analytics.OrderAnalyticsProjectionEntity;
@@ -23,8 +23,8 @@ class OrderAnalyticsProjectionPersistenceMapperTest {
     @Test
     void shouldMapDomainToEntity() {
 
-        final Date orderPlacedDate = new Date();
-        final Date consumedDate = new Date();
+        final Instant orderPlacedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant consumedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 TEST_ORDER_NUMBER,
                 1L,
@@ -45,8 +45,8 @@ class OrderAnalyticsProjectionPersistenceMapperTest {
     @Test
     void shouldMapEntityToDomain() {
 
-        final Date orderPlacedDate = new Date();
-        final Date consumedDate = new Date();
+        final Instant orderPlacedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant consumedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
                 .id(1L)
                 .orderNumber(TEST_ORDER_NUMBER)

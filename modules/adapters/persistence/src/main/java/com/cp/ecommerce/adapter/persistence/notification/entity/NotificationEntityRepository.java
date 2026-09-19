@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.notification.entity;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,7 +43,7 @@ public interface NotificationEntityRepository extends JpaRepository<Notification
             """)
     List<String> findDueNotificationIds(
             @Param("statuses") List<NotificationStatus> statuses,
-            @Param("now") Date now,
+            @Param("now") Instant now,
             Pageable pageable);
 
     @Query("""
@@ -52,7 +52,7 @@ public interface NotificationEntityRepository extends JpaRepository<Notification
             where notification.status in :statuses
               and notification.nextAttemptDate <= :now
             """)
-    Date findOldestDueAttemptDate(@Param("statuses") List<NotificationStatus> statuses, @Param("now") Date now);
+    Instant findOldestDueAttemptDate(@Param("statuses") List<NotificationStatus> statuses, @Param("now") Instant now);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select notification from NotificationEntity notification where notification.notificationId = :notificationId")

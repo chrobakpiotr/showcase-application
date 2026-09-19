@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.wishlist.entity;
 
-import java.util.Date;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -28,6 +28,6 @@ public class WishlistItemEmbeddable {
     private String productName;
 
     @Column(name = "ADDED_DATE", nullable = false)
-    private Date addedDate;
+    private Instant addedDate;
 
 }

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * Read-model projection built from the Kafka order-analytics event stream (see {@code OrderAnalyticsEventConsumer} in
@@ -18,6 +18,6 @@ import java.util.Date;
  * @param orderPlacedDate timestamp the order was originally placed, as carried by the event.
  * @param consumedDate timestamp this consumer processed the event, useful to observe consumer lag.
  */
-public record OrderAnalyticsProjection(String orderNumber, Long customerId, Date orderPlacedDate, Date consumedDate) {
+public record OrderAnalyticsProjection(String orderNumber, Long customerId, Instant orderPlacedDate, Instant consumedDate) {
 
 }

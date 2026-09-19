@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.review;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -52,7 +52,7 @@ public class Review extends ValidDomainObject<Review> {
     @Builder.Default
     ReviewStatus status = ReviewStatus.PENDING;
 
-    Date created;
+    Instant created;
 
     public static Review.ReviewBuilder builder() {
 

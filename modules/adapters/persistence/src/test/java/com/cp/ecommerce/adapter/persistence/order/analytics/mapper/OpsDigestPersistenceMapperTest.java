@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics.mapper;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
@@ -26,7 +26,7 @@ class OpsDigestPersistenceMapperTest {
     @Test
     void shouldMapDomainToEntityFlatteningCountsByCategory() {
 
-        final Date generatedDate = new Date();
+        final Instant generatedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final OpsDigest opsDigest = OpsDigest.builder()
                 .generatedDate(generatedDate)
                 .ordersPlacedLastDay(9L)
@@ -59,7 +59,7 @@ class OpsDigestPersistenceMapperTest {
     @Test
     void shouldMapEntityToDomainRebuildingCountsByCategory() {
 
-        final Date generatedDate = new Date();
+        final Instant generatedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final OpsDigestEntity entity = OpsDigestEntity.builder()
                 .id(1L)
                 .generatedDate(generatedDate)

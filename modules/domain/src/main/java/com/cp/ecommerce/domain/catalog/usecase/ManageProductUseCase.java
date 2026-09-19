@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.catalog.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.catalog.CategoryNotFoundException;
@@ -52,7 +52,7 @@ public class ManageProductUseCase implements ManageProductInPort {
                 .unitPrice(productDraft.getUnitPrice())
                 .imageUrl(productDraft.getImageUrl())
                 .active(true)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         product.assertValidationsEmpty();
         return saveProductOutPort.save(product);

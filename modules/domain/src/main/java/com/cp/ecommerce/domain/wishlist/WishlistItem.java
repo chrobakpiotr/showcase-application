@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.wishlist;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -32,7 +32,7 @@ public class WishlistItem extends ValidDomainObject<WishlistItem> {
     String productName;
 
     @NotNull(message = ValidationConstants.INVALID_WISHLIST_ADDED_DATE)
-    Date addedDate;
+    Instant addedDate;
 
     public static WishlistItem.WishlistItemBuilder builder() {
 

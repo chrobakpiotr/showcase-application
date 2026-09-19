@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.cart;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.web.cart.mapper.CartWebMapper;
 import com.cp.ecommerce.adapter.web.cart.resource.AddCartItemResource;
@@ -140,8 +140,10 @@ public class CartController {
             @RequestBody final ApplyCouponResource resource) {
 
         final Cart cart = getExistingCart(cartId);
-        final CouponDiscount discount = previewCouponInPort
-                .previewCoupon(requireCouponCode(resource), cart.getSubtotal(), new Date());
+        final CouponDiscount discount = previewCouponInPort.previewCoupon(
+                requireCouponCode(resource),
+                cart.getSubtotal(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         if (discount == null) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");

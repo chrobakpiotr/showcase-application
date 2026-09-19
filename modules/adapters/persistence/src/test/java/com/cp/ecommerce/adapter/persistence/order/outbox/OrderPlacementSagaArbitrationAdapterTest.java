@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim;
@@ -57,7 +57,7 @@ class OrderPlacementSagaArbitrationAdapterTest {
 
         final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
         event.setClaimId("worker-a");
-        event.setClaimUntil(new Date(Long.MAX_VALUE));
+        event.setClaimUntil(Instant.ofEpochMilli(Long.MAX_VALUE));
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.TOO_LATE);
@@ -70,7 +70,7 @@ class OrderPlacementSagaArbitrationAdapterTest {
 
         final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
         event.setClaimId("dead-worker");
-        event.setClaimUntil(new Date(0L));
+        event.setClaimUntil(Instant.ofEpochMilli(0L));
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);

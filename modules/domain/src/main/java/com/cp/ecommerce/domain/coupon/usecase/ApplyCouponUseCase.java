@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.coupon.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Locale;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
@@ -29,7 +29,7 @@ public class ApplyCouponUseCase implements ApplyCouponInPort {
     private final SaveCouponOutPort saveCouponOutPort;
 
     @Override
-    public CouponDiscount applyCoupon(final String code, final BigDecimal orderTotal, final Date now) {
+    public CouponDiscount applyCoupon(final String code, final BigDecimal orderTotal, final Instant now) {
 
         CouponConflictException lastConflict = null;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

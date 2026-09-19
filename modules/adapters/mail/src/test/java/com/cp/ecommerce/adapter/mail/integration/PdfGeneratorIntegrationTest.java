@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.mail.integration;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 
 import com.cp.ecommerce.adapter.MailTestConfiguration;
@@ -81,7 +81,7 @@ public class PdfGeneratorIntegrationTest {
         return Order.builder()
                 .orderNumber(null)
                 .remarks(TEST_REMARKS)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerBuilder.mockCustomer())
                 .build();
     }

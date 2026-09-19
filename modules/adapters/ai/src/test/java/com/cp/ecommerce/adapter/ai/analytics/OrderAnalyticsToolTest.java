@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.ai.analytics;
 
 import java.time.Instant;
-import java.util.Date;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
@@ -37,7 +36,7 @@ class OrderAnalyticsToolTest {
     @Test
     void shouldCountOrdersPlacedBetweenTheGivenInclusiveDateRange() {
 
-        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Date.class), any(Date.class))).thenReturn(7L);
+        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Instant.class), any(Instant.class))).thenReturn(7L);
 
         final String result = newTool().countOrdersPlacedBetween(SINGLE_DAY, "2024-01-31");
 
@@ -47,15 +46,17 @@ class OrderAnalyticsToolTest {
     @Test
     void shouldPassAnInclusiveWholeDayRangeToTheOutPort() {
 
-        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Date.class), any(Date.class))).thenReturn(0L);
-        final ArgumentCaptor<Date> fromCaptor = ArgumentCaptor.forClass(Date.class);
-        final ArgumentCaptor<Date> toCaptor = ArgumentCaptor.forClass(Date.class);
+        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Instant.class), any(Instant.class))).thenReturn(0L);
+        final ArgumentCaptor<Instant> fromCaptor = ArgumentCaptor.forClass(Instant.class);
+        final ArgumentCaptor<Instant> toCaptor = ArgumentCaptor.forClass(Instant.class);
 
         newTool().countOrdersPlacedBetween(SINGLE_DAY, SINGLE_DAY);
 
         verify(countOrderAnalyticsProjectionsInPort).countPlacedBetween(fromCaptor.capture(), toCaptor.capture());
-        assertThat(fromCaptor.getValue()).isEqualTo(Date.from(Instant.parse("2024-01-01T00:00:00.000Z")));
-        assertThat(toCaptor.getValue()).isEqualTo(Date.from(Instant.parse("2024-01-01T23:59:59.999Z")));
+        assertThat(fromCaptor.getValue())
+                .isEqualTo(Instant.ofEpochMilli(Instant.parse("2024-01-01T00:00:00.000Z").toEpochMilli()));
+        assertThat(toCaptor.getValue())
+                .isEqualTo(Instant.ofEpochMilli(Instant.parse("2024-01-01T23:59:59.999Z").toEpochMilli()));
     }
 
     @Test

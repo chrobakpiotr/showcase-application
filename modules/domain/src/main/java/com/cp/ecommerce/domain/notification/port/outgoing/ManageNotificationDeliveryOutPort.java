@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.notification.port.outgoing;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.notification.Notification;
@@ -10,11 +10,11 @@ import com.cp.ecommerce.domain.notification.Notification;
  */
 public interface ManageNotificationDeliveryOutPort {
 
-    List<String> findDueNotificationIds(Date now, int limit);
+    List<String> findDueNotificationIds(Instant now, int limit);
 
-    Notification claim(String notificationId, Date now);
+    Notification claim(String notificationId, Instant now);
 
-    Notification markSent(String notificationId, Date sentDate);
+    Notification markSent(String notificationId, Instant sentDate);
 
-    Notification markFailed(String notificationId, String error, Date failedAt);
+    Notification markFailed(String notificationId, String error, Instant failedAt);
 }

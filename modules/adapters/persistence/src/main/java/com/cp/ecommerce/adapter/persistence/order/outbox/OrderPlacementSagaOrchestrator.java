@@ -2,7 +2,7 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,7 +105,7 @@ public class OrderPlacementSagaOrchestrator {
     @Scheduled(fixedDelayString = "${outbox.publisher.poll-interval-ms:5000}")
     public void publishPendingEvents() {
 
-        final Date now = Date.from(clock.instant());
+        final Instant now = Instant.ofEpochMilli(clock.instant().toEpochMilli());
         outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
                 .forEach(this::publishPlacementCandidate);
         outboxEventEntityRepository
@@ -138,7 +138,7 @@ public class OrderPlacementSagaOrchestrator {
                         .filter(
                                 event -> event.getStatus() == OutboxEventStatus.PENDING
                                         || event.getStatus() == OutboxEventStatus.PROCESSING
-                                                && leaseExpired(event, Date.from(clock.instant())))
+                                                && leaseExpired(event, Instant.ofEpochMilli(clock.instant().toEpochMilli())))
                         .map(event -> {
                             final String claimId = UUID.randomUUID().toString();
                             event.setStatus(OutboxEventStatus.PROCESSING);
@@ -308,7 +308,7 @@ public class OrderPlacementSagaOrchestrator {
                         .filter(event -> ownsPlacementClaim(event, claim))
                         .ifPresent(event -> {
                             event.setStatus(OutboxEventStatus.SENT);
-                            event.setSentDate(Date.from(clock.instant()));
+                            event.setSentDate(Instant.ofEpochMilli(clock.instant().toEpochMilli()));
                             clearClaim(event);
                             outboxEventEntityRepository.save(event);
                         }));
@@ -329,7 +329,7 @@ public class OrderPlacementSagaOrchestrator {
                 status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
                         .filter(
                                 event -> event.getStatus() == OutboxEventStatus.COMPENSATING
-                                        && leaseAvailable(event, Date.from(clock.instant())))
+                                        && leaseAvailable(event, Instant.ofEpochMilli(clock.instant().toEpochMilli())))
                         .map(event -> {
                             final String claimId = UUID.randomUUID().toString();
                             event.setClaimId(claimId);
@@ -356,7 +356,7 @@ public class OrderPlacementSagaOrchestrator {
                 .filter(event -> ownsCompensationClaim(event, claim))
                 .ifPresent(event -> {
                     event.setStatus(OutboxEventStatus.COMPENSATED);
-                    event.setCompensatedDate(Date.from(clock.instant()));
+                    event.setCompensatedDate(Instant.ofEpochMilli(clock.instant().toEpochMilli()));
                     event.setLastError(null);
                     clearClaim(event);
                     outboxEventEntityRepository.save(event);
@@ -511,19 +511,19 @@ public class OrderPlacementSagaOrchestrator {
         return event.getStatus() == OutboxEventStatus.COMPENSATING && Objects.equals(event.getClaimId(), claim.claimId());
     }
 
-    private static boolean leaseAvailable(final OutboxEventEntity event, final Date now) {
+    private static boolean leaseAvailable(final OutboxEventEntity event, final Instant now) {
 
         return event.getClaimUntil() == null || leaseExpired(event, now);
     }
 
-    private static boolean leaseExpired(final OutboxEventEntity event, final Date now) {
+    private static boolean leaseExpired(final OutboxEventEntity event, final Instant now) {
 
-        return !event.getClaimUntil().after(now);
+        return !event.getClaimUntil().isAfter(now);
     }
 
-    private Date claimUntil() {
+    private Instant claimUntil() {
 
-        return Date.from(clock.instant().plusMillis(claimLeaseMs));
+        return Instant.ofEpochMilli(clock.instant().plusMillis(claimLeaseMs).toEpochMilli());
     }
 
     private static void clearClaim(final OutboxEventEntity event) {

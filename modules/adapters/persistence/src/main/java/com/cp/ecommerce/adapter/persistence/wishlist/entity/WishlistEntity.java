@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.wishlist.entity;
 
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.domain.wishlist.Wishlist;
@@ -43,7 +43,7 @@ public class WishlistEntity {
     private List<WishlistItemEmbeddable> items = new ArrayList<>();
 
     @Column(name = "UPDATED_DATE", nullable = false)
-    private Date updated;
+    private Instant updated;
 
     @Version
     @Column(name = "VERSION", nullable = false)

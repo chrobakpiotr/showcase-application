@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order;
 
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -42,7 +42,8 @@ class FindRecentOrdersByCustomerAdapter implements FindRecentOrdersByCustomerOut
     public List<Order> findRecentOrders(final Order order) {
 
         final String customerEmail = order.getCustomer().getContact().getEmail();
-        final Date createdAfter = Date.from(order.getCreated().toInstant().minus(Duration.ofMinutes(lookbackMinutes)));
+        final Instant createdAfter = Instant
+                .ofEpochMilli(order.getCreated().minus(Duration.ofMinutes(lookbackMinutes)).toEpochMilli());
         final List<OrderEntity> candidates = orderEntityRepository
                 .findTop5ByCustomerEmailAndCreatedAfterAndOrderNumberNotOrderByCreatedDesc(
                         customerEmail,

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
@@ -37,7 +37,7 @@ class GetLatestOpsDigestAdapterTest {
 
         final OpsDigestEntity entity = OpsDigestEntity.builder().narrative("All quiet.").build();
         final OpsDigest domain = OpsDigest.builder()
-                .generatedDate(new Date())
+                .generatedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .ordersPlacedLastDay(4L)
                 .remarksClassificationSummary(new RemarksClassificationSummary(Map.of()))
                 .narrative("All quiet.")

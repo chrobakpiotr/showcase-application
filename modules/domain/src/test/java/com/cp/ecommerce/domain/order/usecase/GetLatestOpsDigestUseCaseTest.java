@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,7 +33,7 @@ class GetLatestOpsDigestUseCaseTest {
     void shouldDelegateToOutPort() {
 
         final OpsDigest expected = OpsDigest.builder()
-                .generatedDate(new Date())
+                .generatedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .ordersPlacedLastDay(3L)
                 .remarksClassificationSummary(new RemarksClassificationSummary(Map.of()))
                 .narrative("All quiet.")

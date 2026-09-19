@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.order.usecase;
 
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.OpsDigest;
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
@@ -35,8 +35,8 @@ public class GenerateOpsDigestUseCase implements GenerateOpsDigestInPort {
     @Override
     public OpsDigest generateDigest() {
 
-        final Date now = new Date();
-        final Date lookbackStart = Date.from(now.toInstant().minus(LOOKBACK_WINDOW));
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant lookbackStart = Instant.ofEpochMilli(now.minus(LOOKBACK_WINDOW).toEpochMilli());
         final long ordersPlacedLastDay = countOrderAnalyticsProjectionsInPort.countPlacedBetween(lookbackStart, now);
         final RemarksClassificationSummary remarksClassificationSummary = getRemarksClassificationSummaryInPort.getSummary();
         final String narrative = generateOpsDigestNarrativeOutPort

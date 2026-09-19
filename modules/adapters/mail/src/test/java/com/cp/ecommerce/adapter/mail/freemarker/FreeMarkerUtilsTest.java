@@ -4,9 +4,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Date;
 import java.util.Map;
 
+import com.cp.ecommerce.adapter.common.time.LegacyDateInterop;
 import com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
@@ -48,8 +48,8 @@ public class FreeMarkerUtilsTest {
 
     @Test
     public void shouldConfigureEnvironment() throws Exception {
-
-        final Date date = Date.from(LocalDate.of(2016, 1, 5).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant());
+        final Object date = LegacyDateInterop
+                .toDate(LocalDate.of(2016, 1, 5).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant());
         final Map<String, Object> model = ImmutableMap.of("date", date);
         final Template template = createTemplate("${date?date}");
 

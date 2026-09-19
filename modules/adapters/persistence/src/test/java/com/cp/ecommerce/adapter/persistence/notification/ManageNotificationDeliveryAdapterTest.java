@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.notification;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,7 +54,7 @@ class ManageNotificationDeliveryAdapterTest {
     @Test
     void shouldFindDueNotificationIds() {
 
-        final Date now = new Date(10_000L);
+        final Instant now = Instant.ofEpochMilli(10_000L);
         given(repository.findDueNotificationIds(any(), eq(now), any(Pageable.class))).willReturn(List.of(NOTIFICATION_ID));
 
         assertThat(adapter.findDueNotificationIds(now, 20)).containsExactly(NOTIFICATION_ID);
@@ -65,33 +65,33 @@ class ManageNotificationDeliveryAdapterTest {
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.empty());
 
-        assertThat(adapter.claim(NOTIFICATION_ID, new Date())).isNull();
+        assertThat(adapter.claim(NOTIFICATION_ID, Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isNull();
     }
 
     @Test
     void shouldReturnNullWhenNotificationIsAlreadySent() {
 
-        final NotificationEntity entity = entity(NotificationStatus.SENT, new Date(0L));
+        final NotificationEntity entity = entity(NotificationStatus.SENT, Instant.ofEpochMilli(0L));
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
 
-        assertThat(adapter.claim(NOTIFICATION_ID, new Date(10_000L))).isNull();
+        assertThat(adapter.claim(NOTIFICATION_ID, Instant.ofEpochMilli(10_000L))).isNull();
         verify(repository, never()).saveAndFlush(any());
     }
 
     @Test
     void shouldReturnNullWhileDeliveryLeaseIsActive() {
 
-        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, new Date(20_000L));
+        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, Instant.ofEpochMilli(20_000L));
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
 
-        assertThat(adapter.claim(NOTIFICATION_ID, new Date(10_000L))).isNull();
+        assertThat(adapter.claim(NOTIFICATION_ID, Instant.ofEpochMilli(10_000L))).isNull();
     }
 
     @Test
     void shouldClaimDueNotificationAndExtendLease() {
 
-        final Date now = new Date(10_000L);
-        final NotificationEntity entity = entity(NotificationStatus.FAILED, new Date(9_000L));
+        final Instant now = Instant.ofEpochMilli(10_000L);
+        final NotificationEntity entity = entity(NotificationStatus.FAILED, Instant.ofEpochMilli(9_000L));
         final Notification mapped = notification(NotificationStatus.DELIVERING);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
@@ -101,14 +101,14 @@ class ManageNotificationDeliveryAdapterTest {
         assertThat(adapter.claim(NOTIFICATION_ID, now)).isSameAs(mapped);
         assertThat(entity.getStatus()).isEqualTo(NotificationStatus.DELIVERING);
         assertThat(entity.getDeliveryAttempts()).isEqualTo(2);
-        assertThat(entity.getNextAttemptDate()).isEqualTo(new Date(now.getTime() + LEASE_MILLIS));
+        assertThat(entity.getNextAttemptDate()).isEqualTo(Instant.ofEpochMilli(now.toEpochMilli() + LEASE_MILLIS));
     }
 
     @Test
     void shouldRecoverExpiredDeliveringLease() {
 
-        final Date now = new Date(10_000L);
-        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, new Date(9_000L));
+        final Instant now = Instant.ofEpochMilli(10_000L);
+        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, Instant.ofEpochMilli(9_000L));
         final Notification mapped = notification(NotificationStatus.DELIVERING);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
@@ -122,8 +122,8 @@ class ManageNotificationDeliveryAdapterTest {
     @Test
     void shouldMarkClaimSent() {
 
-        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, new Date(20_000L));
-        final Date sentDate = new Date(30_000L);
+        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, Instant.ofEpochMilli(20_000L));
+        final Instant sentDate = Instant.ofEpochMilli(30_000L);
         final Notification mapped = notification(NotificationStatus.SENT);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
@@ -139,21 +139,21 @@ class ManageNotificationDeliveryAdapterTest {
     @Test
     void shouldLeaveAlreadySentNotificationTerminal() {
 
-        final NotificationEntity entity = entity(NotificationStatus.SENT, new Date(20_000L));
+        final NotificationEntity entity = entity(NotificationStatus.SENT, Instant.ofEpochMilli(20_000L));
         final Notification mapped = notification(NotificationStatus.SENT);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
         given(mapper.mapToDomainObject(entity)).willReturn(Optional.of(mapped));
 
-        assertThat(adapter.markSent(NOTIFICATION_ID, new Date())).isSameAs(mapped);
+        assertThat(adapter.markSent(NOTIFICATION_ID, Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isSameAs(mapped);
         verify(repository, never()).saveAndFlush(any());
     }
 
     @Test
     void shouldMarkClaimFailedAndScheduleRetry() {
 
-        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, new Date(20_000L));
-        final Date failedAt = new Date(30_000L);
+        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, Instant.ofEpochMilli(20_000L));
+        final Instant failedAt = Instant.ofEpochMilli(30_000L);
         final Notification mapped = notification(NotificationStatus.FAILED);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
@@ -163,19 +163,20 @@ class ManageNotificationDeliveryAdapterTest {
         assertThat(adapter.markFailed(NOTIFICATION_ID, "transport unavailable", failedAt)).isSameAs(mapped);
         assertThat(entity.getStatus()).isEqualTo(NotificationStatus.FAILED);
         assertThat(entity.getLastError()).isEqualTo("transport unavailable");
-        assertThat(entity.getNextAttemptDate()).isEqualTo(new Date(failedAt.getTime() + RETRY_DELAY_MILLIS));
+        assertThat(entity.getNextAttemptDate()).isEqualTo(Instant.ofEpochMilli(failedAt.toEpochMilli() + RETRY_DELAY_MILLIS));
     }
 
     @Test
     void shouldNotTurnSentNotificationBackToFailed() {
 
-        final NotificationEntity entity = entity(NotificationStatus.SENT, new Date(20_000L));
+        final NotificationEntity entity = entity(NotificationStatus.SENT, Instant.ofEpochMilli(20_000L));
         final Notification mapped = notification(NotificationStatus.SENT);
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
         given(mapper.mapToDomainObject(entity)).willReturn(Optional.of(mapped));
 
-        assertThat(adapter.markFailed(NOTIFICATION_ID, "late failure", new Date())).isSameAs(mapped);
+        assertThat(adapter.markFailed(NOTIFICATION_ID, "late failure", Instant.ofEpochMilli(Instant.now().toEpochMilli())))
+                .isSameAs(mapped);
         assertThat(entity.getStatus()).isEqualTo(NotificationStatus.SENT);
         verify(repository, never()).saveAndFlush(any());
     }
@@ -183,7 +184,7 @@ class ManageNotificationDeliveryAdapterTest {
     @Test
     void shouldTruncateLongDeliveryError() {
 
-        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, new Date(20_000L));
+        final NotificationEntity entity = entity(NotificationStatus.DELIVERING, Instant.ofEpochMilli(20_000L));
         final Notification mapped = notification(NotificationStatus.FAILED);
         final String error = "x".repeat(600);
 
@@ -191,7 +192,7 @@ class ManageNotificationDeliveryAdapterTest {
         given(repository.saveAndFlush(entity)).willReturn(entity);
         given(mapper.mapToDomainObject(entity)).willReturn(Optional.of(mapped));
 
-        adapter.markFailed(NOTIFICATION_ID, error, new Date());
+        adapter.markFailed(NOTIFICATION_ID, error, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
 
         assertThat(entity.getLastError()).hasSize(500);
     }
@@ -201,23 +202,25 @@ class ManageNotificationDeliveryAdapterTest {
 
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> adapter.markSent(NOTIFICATION_ID, new Date())).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> adapter.markSent(NOTIFICATION_ID, Instant.ofEpochMilli(Instant.now().toEpochMilli())))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(NOTIFICATION_ID);
     }
 
     @Test
     void shouldFailWhenClaimCannotBeMapped() {
 
-        final NotificationEntity entity = entity(NotificationStatus.PENDING, new Date(0L));
+        final NotificationEntity entity = entity(NotificationStatus.PENDING, Instant.ofEpochMilli(0L));
         given(repository.findByNotificationIdForUpdate(NOTIFICATION_ID)).willReturn(Optional.of(entity));
         given(repository.saveAndFlush(entity)).willReturn(entity);
         given(mapper.mapToDomainObject(entity)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> adapter.claim(NOTIFICATION_ID, new Date(10_000L))).isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> adapter.claim(NOTIFICATION_ID, Instant.ofEpochMilli(10_000L)))
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(NOTIFICATION_ID);
     }
 
-    private static NotificationEntity entity(final NotificationStatus status, final Date nextAttemptDate) {
+    private static NotificationEntity entity(final NotificationStatus status, final Instant nextAttemptDate) {
 
         return NotificationEntity.builder()
                 .notificationId(NOTIFICATION_ID)
@@ -227,7 +230,7 @@ class ManageNotificationDeliveryAdapterTest {
                 .subject("Order confirmed")
                 .body("Your order was confirmed.")
                 .status(status)
-                .createdDate(new Date(1L))
+                .createdDate(Instant.ofEpochMilli(1L))
                 .deliveryAttempts(1)
                 .nextAttemptDate(nextAttemptDate)
                 .lastError("old error")
@@ -243,7 +246,7 @@ class ManageNotificationDeliveryAdapterTest {
                 .subject("Order confirmed")
                 .body("Your order was confirmed.")
                 .status(status)
-                .createdDate(new Date(1L))
+                .createdDate(Instant.ofEpochMilli(1L))
                 .build();
     }
 }

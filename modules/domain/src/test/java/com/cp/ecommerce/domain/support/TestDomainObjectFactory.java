@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.support;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.cart.Cart;
@@ -39,7 +39,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class TestDomainObjectFactory {
 
-    public static final Date TEST_CREATED = new Date(1710000000000L);
+    public static final Instant TEST_CREATED = Instant.ofEpochMilli(1710000000000L);
 
     public static final Long TEST_CUSTOMER_ID = 1001L;
 
@@ -200,7 +200,7 @@ public final class TestDomainObjectFactory {
                 .reason("Damaged on arrival.")
                 .status(ReturnStatus.APPROVED)
                 .requestedDate(TEST_CREATED)
-                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .decidedDate(Instant.ofEpochMilli(TEST_CREATED.toEpochMilli() + 60000))
                 .refundAmount(new BigDecimal("29.99"))
                 .build();
     }
@@ -215,7 +215,7 @@ public final class TestDomainObjectFactory {
                 .reason("Damaged on arrival.")
                 .status(ReturnStatus.REJECTED)
                 .requestedDate(TEST_CREATED)
-                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .decidedDate(Instant.ofEpochMilli(TEST_CREATED.toEpochMilli() + 60000))
                 .refundAmount(new BigDecimal("29.99"))
                 .build();
     }
@@ -230,7 +230,7 @@ public final class TestDomainObjectFactory {
                 .reason("Damaged on arrival.")
                 .status(ReturnStatus.REFUNDED)
                 .requestedDate(TEST_CREATED)
-                .decidedDate(new Date(TEST_CREATED.getTime() + 60000))
+                .decidedDate(Instant.ofEpochMilli(TEST_CREATED.toEpochMilli() + 60000))
                 .refundAmount(new BigDecimal("29.99"))
                 .build();
     }
@@ -246,7 +246,7 @@ public final class TestDomainObjectFactory {
                 .body("Your order was confirmed.")
                 .status(NotificationStatus.SENT)
                 .createdDate(TEST_CREATED)
-                .sentDate(new Date(TEST_CREATED.getTime() + 60000))
+                .sentDate(Instant.ofEpochMilli(TEST_CREATED.toEpochMilli() + 60000))
                 .build();
     }
 
@@ -264,7 +264,7 @@ public final class TestDomainObjectFactory {
 
     public static Shipment validDispatchedShipment() {
 
-        final Date dispatchedDate = new Date(TEST_CREATED.getTime() + 60000);
+        final Instant dispatchedDate = Instant.ofEpochMilli(TEST_CREATED.toEpochMilli() + 60000);
         return Shipment.builder()
                 .shipmentNumber(TEST_SHIPMENT_NUMBER)
                 .orderNumber(TEST_ORDER_NUMBER)
@@ -272,7 +272,7 @@ public final class TestDomainObjectFactory {
                 .trackingNumber(TEST_TRACKING_NUMBER)
                 .status(ShipmentStatus.DISPATCHED)
                 .dispatchedDate(dispatchedDate)
-                .estimatedDeliveryDate(new Date(dispatchedDate.getTime() + 5 * 24 * 60 * 60 * 1000L))
+                .estimatedDeliveryDate(Instant.ofEpochMilli(dispatchedDate.toEpochMilli() + 5 * 24 * 60 * 60 * 1000L))
                 .createdDate(TEST_CREATED)
                 .build();
     }
@@ -303,7 +303,7 @@ public final class TestDomainObjectFactory {
                 .status(ShipmentStatus.DELIVERED)
                 .dispatchedDate(inTransitShipment.getDispatchedDate())
                 .estimatedDeliveryDate(inTransitShipment.getEstimatedDeliveryDate())
-                .deliveredDate(new Date(inTransitShipment.getEstimatedDeliveryDate().getTime()))
+                .deliveredDate(Instant.ofEpochMilli(inTransitShipment.getEstimatedDeliveryDate().toEpochMilli()))
                 .createdDate(inTransitShipment.getCreatedDate())
                 .build();
     }

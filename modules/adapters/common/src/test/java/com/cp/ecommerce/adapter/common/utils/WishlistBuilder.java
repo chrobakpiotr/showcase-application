@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.common.utils;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.wishlist.Wishlist;
@@ -21,9 +21,9 @@ public class WishlistBuilder {
 
     public static final String TEST_WISHLIST_PRODUCT_NAME = "Wireless Mouse";
 
-    public static final Date TEST_WISHLIST_ADDED_DATE = new Date(1710000000000L);
+    public static final Instant TEST_WISHLIST_ADDED_DATE = Instant.ofEpochMilli(1710000000000L);
 
-    public static final Date TEST_WISHLIST_UPDATED = new Date(1710003600000L);
+    public static final Instant TEST_WISHLIST_UPDATED = Instant.ofEpochMilli(1710003600000L);
 
     public static final long TEST_WISHLIST_VERSION = 3L;
 

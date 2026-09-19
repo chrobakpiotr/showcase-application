@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,7 +38,7 @@ public class OpsDigestEntity {
     private Long id;
 
     @Column(name = "GENERATED_DATE", nullable = false)
-    private Date generatedDate;
+    private Instant generatedDate;
 
     @Column(name = "ORDERS_PLACED_LAST_DAY", nullable = false)
     private long ordersPlacedLastDay;

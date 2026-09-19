@@ -1,7 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -144,7 +144,7 @@ class SagaCompensationRecoveryPostgresIntegrationTest {
 
         return new OrderResource(
                 "R07 durable compensation",
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "R07 Buyer",
                         UUID.randomUUID() + "@example.com",

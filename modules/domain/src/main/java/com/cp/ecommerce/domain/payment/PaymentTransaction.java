@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.payment;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.foundation.annotation.DomainObject;
@@ -49,7 +49,7 @@ public class PaymentTransaction extends ValidDomainObject<PaymentTransaction> {
             message = ValidationConstants.INVALID_PAYMENT_GATEWAY_REFERENCE)
     String gatewayReference;
 
-    Date created;
+    Instant created;
 
     public BigDecimal getRemainingRefundableAmount() {
 

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +30,6 @@ public interface OrderAnalyticsProjectionEntityRepository extends JpaRepository<
      * @param to end of the range (inclusive).
      * @return matching projection count.
      */
-    long countByOrderPlacedDateBetween(Date from, Date to);
+    long countByOrderPlacedDateBetween(Instant from, Instant to);
 
 }

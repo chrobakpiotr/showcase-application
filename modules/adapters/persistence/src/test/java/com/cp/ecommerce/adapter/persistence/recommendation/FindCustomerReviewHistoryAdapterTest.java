@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.recommendation;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
@@ -79,7 +79,7 @@ class FindCustomerReviewHistoryAdapterTest {
         customer.setEmail(CUSTOMER_EMAIL);
         customer.setFullName(fullName);
         final OrderEntity order = new OrderEntity();
-        order.setCreated(new Date());
+        order.setCreated(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         order.setCustomer(customer);
         return order;
     }
@@ -87,7 +87,7 @@ class FindCustomerReviewHistoryAdapterTest {
     private OrderEntity orderWithNullCustomer() {
 
         final OrderEntity order = new OrderEntity();
-        order.setCreated(new Date());
+        order.setCreated(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         return order;
     }
 
@@ -100,7 +100,7 @@ class FindCustomerReviewHistoryAdapterTest {
         review.setRating(rating);
         review.setComment(comment);
         review.setStatus(ReviewStatus.APPROVED);
-        review.setCreatedDate(new Date());
+        review.setCreatedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         return review;
     }
 

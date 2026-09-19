@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.returns;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntityRepository;
@@ -73,7 +73,7 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
         }
 
         entity.setStatus(ReturnStatus.APPROVED);
-        entity.setDecidedDate(new Date());
+        entity.setDecidedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         return saveAndMap(entity);
     }
 
@@ -104,7 +104,7 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
         }
 
         entity.setStatus(ReturnStatus.REJECTED);
-        entity.setDecidedDate(new Date());
+        entity.setDecidedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         return saveAndMap(entity);
     }
 

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.port.outgoing.CountOrderAnalyticsProjectionsOutPort;
 
@@ -29,8 +29,8 @@ class CountOrderAnalyticsProjectionsUseCaseTest {
     @Test
     void shouldDelegateRangeAndReturnCount() {
 
-        final Date from = new Date(0);
-        final Date to = new Date();
+        final Instant from = Instant.ofEpochMilli(0);
+        final Instant to = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         when(countOrderAnalyticsProjectionsOutPort.countPlacedBetween(from, to)).thenReturn(42L);
 
         final long actual = countOrderAnalyticsProjectionsUseCase.countPlacedBetween(from, to);

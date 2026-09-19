@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.utils;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntity;
@@ -39,7 +39,7 @@ public class OrderEntityBuilder {
         return OrderEntity.builder()
                 .remarks(TEST_REMARKS)
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .items(List.of(mockOrderLineItemEmbeddable()))
                 .status(OrderStatus.CONFIRMED)
                 .paymentMethod(PaymentMethod.CARD)

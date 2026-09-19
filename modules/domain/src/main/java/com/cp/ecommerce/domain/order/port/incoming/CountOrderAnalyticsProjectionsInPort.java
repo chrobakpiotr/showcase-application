@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.port.incoming;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * Incoming port for counting how many order-analytics projections fall within a placement-date range.
@@ -14,6 +14,6 @@ public interface CountOrderAnalyticsProjectionsInPort {
      * @param to end of the range (inclusive).
      * @return matching projection count.
      */
-    long countPlacedBetween(Date from, Date to);
+    long countPlacedBetween(Instant from, Instant to);
 
 }

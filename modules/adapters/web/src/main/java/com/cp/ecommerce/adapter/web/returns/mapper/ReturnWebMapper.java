@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.web.returns.mapper;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.mapping.WebRequestMapper;
@@ -31,7 +31,7 @@ public class ReturnWebMapper implements WebRequestMapper<ReturnRequest, RequestR
                                 .quantity(request.quantity() == null ? 0 : request.quantity())
                                 .reason(request.reason())
                                 .status(ReturnStatus.REQUESTED)
-                                .requestedDate(new Date())
+                                .requestedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                                 .refundAmount(BigDecimal.ZERO)
                                 .build());
     }

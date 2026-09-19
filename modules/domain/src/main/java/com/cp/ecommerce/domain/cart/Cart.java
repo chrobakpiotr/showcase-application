@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.cart;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
@@ -44,7 +44,7 @@ public class Cart extends ValidDomainObject<Cart> {
     @Builder.Default
     BigDecimal discountAmount = BigDecimal.ZERO;
 
-    Date updated;
+    Instant updated;
 
     @Builder.Default
     long version = 0;

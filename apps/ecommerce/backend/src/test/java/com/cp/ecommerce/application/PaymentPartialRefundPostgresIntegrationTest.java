@@ -1,7 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -231,7 +231,7 @@ class PaymentPartialRefundPostgresIntegrationTest {
 
         return new OrderResource(
                 "R04 partial refunds",
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "R04 Buyer",
                         compactUuid() + "@example.com",

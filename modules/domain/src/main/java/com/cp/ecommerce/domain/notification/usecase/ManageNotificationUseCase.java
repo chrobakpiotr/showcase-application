@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.notification.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.notification.Notification;
@@ -52,7 +52,7 @@ public class ManageNotificationUseCase
             final String subject,
             final String body) {
 
-        final Date now = new Date();
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final Notification pending = save(
                 Notification.builder()
                         .notificationId(generateNotificationIdOutPort.generate())
@@ -71,7 +71,7 @@ public class ManageNotificationUseCase
     @Override
     public void retryDueNotifications() {
 
-        final Date now = new Date();
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         manageNotificationDeliveryOutPort.findDueNotificationIds(now, RETRY_BATCH_SIZE)
                 .forEach(notificationId -> deliverPersistedNotification(notificationId, null));
     }
@@ -102,7 +102,8 @@ public class ManageNotificationUseCase
 
     private Notification deliverPersistedNotification(final String notificationId, final Notification fallback) {
 
-        final Notification claimed = manageNotificationDeliveryOutPort.claim(notificationId, new Date());
+        final Notification claimed = manageNotificationDeliveryOutPort
+                .claim(notificationId, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         if (claimed == null) {
 
             return fallback == null ? findNotificationOutPort.find(notificationId) : fallback;
@@ -110,9 +111,11 @@ public class ManageNotificationUseCase
 
         try {
             deliverNotificationOutPort.deliver(claimed);
-            return manageNotificationDeliveryOutPort.markSent(notificationId, new Date());
+            return manageNotificationDeliveryOutPort
+                    .markSent(notificationId, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         } catch (final RuntimeException exception) {
-            return manageNotificationDeliveryOutPort.markFailed(notificationId, exception.getMessage(), new Date());
+            return manageNotificationDeliveryOutPort
+                    .markFailed(notificationId, exception.getMessage(), Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         }
     }
 

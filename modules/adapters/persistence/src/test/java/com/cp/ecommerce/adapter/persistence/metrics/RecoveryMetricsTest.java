@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.metrics;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.persistence.notification.entity.NotificationEntityRepository;
@@ -51,15 +51,15 @@ class RecoveryMetricsTest {
         final long now = System.currentTimeMillis();
 
         given(outboxEventEntityRepository.findOldestCreatedDateByStatus(OutboxEventStatus.PENDING))
-                .willReturn(new Date(now - 60_000L));
+                .willReturn(Instant.ofEpochMilli(now - 60_000L));
         given(
                 outboxEventEntityRepository
-                        .countByStatusAndClaimUntilLessThanEqual(eq(OutboxEventStatus.PROCESSING), any(Date.class)))
+                        .countByStatusAndClaimUntilLessThanEqual(eq(OutboxEventStatus.PROCESSING), any(Instant.class)))
                 .willReturn(2L);
         given(outboxEventEntityRepository.countByStatusAndAttemptsGreaterThan(OutboxEventStatus.PENDING, 0)).willReturn(3L);
         given(outboxEventEntityRepository.countByStatus(OutboxEventStatus.COMPENSATING)).willReturn(4L);
-        given(notificationEntityRepository.findOldestDueAttemptDate(anyList(), any(Date.class)))
-                .willReturn(new Date(now - 30_000L));
+        given(notificationEntityRepository.findOldestDueAttemptDate(anyList(), any(Instant.class)))
+                .willReturn(Instant.ofEpochMilli(now - 30_000L));
 
         recoveryMetrics.refresh();
 
@@ -74,7 +74,7 @@ class RecoveryMetricsTest {
     void shouldExposeZeroAgeWhenNoPendingRecoveryWorkExists() {
 
         given(outboxEventEntityRepository.findOldestCreatedDateByStatus(OutboxEventStatus.PENDING)).willReturn(null);
-        given(notificationEntityRepository.findOldestDueAttemptDate(anyList(), any(Date.class))).willReturn(null);
+        given(notificationEntityRepository.findOldestDueAttemptDate(anyList(), any(Instant.class))).willReturn(null);
 
         recoveryMetrics.refresh();
 

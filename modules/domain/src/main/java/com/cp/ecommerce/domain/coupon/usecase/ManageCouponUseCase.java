@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.coupon.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Locale;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
@@ -96,7 +96,7 @@ public class ManageCouponUseCase
     }
 
     @Override
-    public CouponDiscount previewCoupon(final String code, final BigDecimal orderTotal, final Date now) {
+    public CouponDiscount previewCoupon(final String code, final BigDecimal orderTotal, final Instant now) {
 
         final Coupon coupon = findCouponOutPort.find(normalizeCode(code));
         if (coupon == null) {
@@ -154,7 +154,7 @@ public class ManageCouponUseCase
         return value == null ? null : value.stripTrailingZeros();
     }
 
-    private void ensureApplicable(final Coupon coupon, final BigDecimal orderTotal, final Date now) {
+    private void ensureApplicable(final Coupon coupon, final BigDecimal orderTotal, final Instant now) {
 
         if (!coupon.isValidFor(orderTotal, now)) {
 

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.common.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.cart.Cart;
@@ -26,7 +26,7 @@ public class CartBuilder {
 
     public static final int TEST_CART_QUANTITY = 2;
 
-    public static final Date TEST_CART_UPDATED = new Date(1710000000000L);
+    public static final Instant TEST_CART_UPDATED = Instant.ofEpochMilli(1710000000000L);
 
     public static final long TEST_CART_VERSION = 3L;
 

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.review.entity;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
@@ -54,6 +54,6 @@ public class ReviewEntity {
     private ReviewStatus status;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date createdDate;
+    private Instant createdDate;
 
 }

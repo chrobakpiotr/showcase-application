@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.integration;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.persistence.configuration.PersistenceConfiguration;
@@ -41,8 +41,8 @@ class OrderAnalyticsProjectionPersistenceAdapterTest {
         final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
                 .orderNumber("ORDER-1")
                 .customerId(1L)
-                .orderPlacedDate(new Date())
-                .consumedDate(new Date())
+                .orderPlacedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .consumedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
 
         final OrderAnalyticsProjectionEntity saved = orderAnalyticsProjectionEntityRepository.save(entity);
@@ -57,14 +57,14 @@ class OrderAnalyticsProjectionPersistenceAdapterTest {
         final OrderAnalyticsProjectionEntity earlier = OrderAnalyticsProjectionEntity.builder()
                 .orderNumber("ORDER-EARLIER")
                 .customerId(1L)
-                .orderPlacedDate(new Date(1L))
-                .consumedDate(new Date(1L))
+                .orderPlacedDate(Instant.ofEpochMilli(1L))
+                .consumedDate(Instant.ofEpochMilli(1L))
                 .build();
         final OrderAnalyticsProjectionEntity later = OrderAnalyticsProjectionEntity.builder()
                 .orderNumber("ORDER-LATER")
                 .customerId(2L)
-                .orderPlacedDate(new Date(2L))
-                .consumedDate(new Date(2L))
+                .orderPlacedDate(Instant.ofEpochMilli(2L))
+                .consumedDate(Instant.ofEpochMilli(2L))
                 .build();
         orderAnalyticsProjectionEntityRepository.save(earlier);
         orderAnalyticsProjectionEntityRepository.save(later);
@@ -88,8 +88,8 @@ class OrderAnalyticsProjectionPersistenceAdapterTest {
                     OrderAnalyticsProjectionEntity.builder()
                             .orderNumber("ORDER-" + i)
                             .customerId(1L)
-                            .orderPlacedDate(new Date())
-                            .consumedDate(new Date())
+                            .orderPlacedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                            .consumedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                             .build());
         }
 

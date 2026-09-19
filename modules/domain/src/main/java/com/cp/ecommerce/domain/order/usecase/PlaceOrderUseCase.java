@@ -3,6 +3,7 @@ package com.cp.ecommerce.domain.order.usecase;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
@@ -116,7 +117,7 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
         final String canonical = fields(
                 version,
                 order.getRemarks(),
-                Optional.ofNullable(order.getCreated()).map(java.util.Date::getTime).orElse(null),
+                Optional.ofNullable(order.getCreated()).map(Instant::toEpochMilli).orElse(null),
                 contact.map(Contact::getFullName).orElse(null),
                 contact.map(Contact::getEmail).orElse(null),
                 contact.map(Contact::getPhone).orElse(null),

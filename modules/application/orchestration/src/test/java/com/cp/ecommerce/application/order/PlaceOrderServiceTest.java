@@ -121,7 +121,7 @@ class PlaceOrderServiceTest {
         assertThat(prepared.get().getItems()).extracting(OrderLineItem::getProductName)
                 .containsExactly(FIRST_PRODUCT_NAME, "Mouse");
         assertThat(prepared.get().getDiscountAmount()).isEqualByComparingTo("3.00");
-        verify(applyCouponInPort).applyCoupon(eq(COUPON_CODE), eq(new BigDecimal("30.00")), eq(java.util.Date.from(NOW)));
+        verify(applyCouponInPort).applyCoupon(eq(COUPON_CODE), eq(new BigDecimal("30.00")), eq(NOW));
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, FIRST_SKU, 2);
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, SECOND_SKU, 1);
         verify(sendNotificationInPort).sendNotification(

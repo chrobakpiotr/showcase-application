@@ -1,8 +1,8 @@
 package com.cp.ecommerce.domain.cart.usecase;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,7 +34,10 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
     @Override
     public Cart createCart() {
 
-        final Cart cart = Cart.builder().cartId(generateCartIdOutPort.generate()).updated(new Date()).build();
+        final Cart cart = Cart.builder()
+                .cartId(generateCartIdOutPort.generate())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .build();
         cart.assertValidationsEmpty();
         return saveCartOutPort.save(cart);
     }
@@ -143,7 +146,7 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
                 .items(existing.getItems())
                 .couponCode(couponCode)
                 .discountAmount(discountAmount)
-                .updated(new Date())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .version(existing.getVersion())
                 .build();
         mutated.assertValidationsEmpty();
@@ -161,7 +164,7 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
         final Cart mutated = Cart.builder()
                 .cartId(existing.getCartId())
                 .items(existing.getItems())
-                .updated(new Date())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .version(existing.getVersion())
                 .build();
         mutated.assertValidationsEmpty();
@@ -180,7 +183,7 @@ public class ManageCartUseCase implements CreateCartInPort, GetCartInPort, Manag
                 .items(items)
                 .couponCode(preserveCoupon ? existing.getCouponCode() : null)
                 .discountAmount(preserveCoupon ? existing.getDiscountAmount() : BigDecimal.ZERO)
-                .updated(new Date())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .version(existing.getVersion())
                 .build();
         mutated.assertValidationsEmpty();

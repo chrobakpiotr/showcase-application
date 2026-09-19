@@ -1,0 +1,44 @@
+{
+  "feature": "INSTANT-TIME-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Migrate Java timestamps to Instant",
+      "objective": "Use Instant throughout the application and isolate legacy Date interop.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "apps/**/*.java",
+        "modules/**/*.java",
+        "modules/adapters/persistence/src/main/resources/application-persistence.yml",
+        "docs/adr/0049-instant-time-model.md",
+        "docs/specs/INSTANT-TIME-001/**",
+        "tooling/scripts/check_no_legacy_java_date.py"
+      ],
+      "risk_tags": ["time", "persistence", "serialization", "api"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": [
+        "python3 tooling/scripts/check_no_legacy_java_date.py",
+        "python3 tooling/scripts/check_controlled_time.py",
+        "./gradlew test"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Whole-repository compile, serialization and integration tests."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify Instant migration under full repository quality gates.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/INSTANT-TIME-001/evidence/**"],
+      "risk_tags": ["evaluation"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": ["./gradlew build --continue"],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.idempotency;
 
-import java.util.Date;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,9 +52,9 @@ public class IdempotencyKeyEntity {
     private IdempotencyKeyStatus status;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date createdDate;
+    private Instant createdDate;
 
     @Column(name = "COMPLETED_DATE")
-    private Date completedDate;
+    private Instant completedDate;
 
 }

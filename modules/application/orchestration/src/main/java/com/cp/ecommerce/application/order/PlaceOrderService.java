@@ -1,8 +1,8 @@
 package com.cp.ecommerce.application.order;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -115,7 +115,7 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
             return order;
         }
         final CouponDiscount discount = applyCouponInPort
-                .applyCoupon(order.getCouponCode(), order.getSubtotal(), Date.from(clock.instant()));
+                .applyCoupon(order.getCouponCode(), order.getSubtotal(), Instant.ofEpochMilli(clock.instant().toEpochMilli()));
         if (discount == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");
         }

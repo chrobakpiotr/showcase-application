@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.shipment;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -48,14 +48,14 @@ public class Shipment extends ValidDomainObject<Shipment> {
     @Builder.Default
     ShipmentStatus status = ShipmentStatus.PENDING;
 
-    Date dispatchedDate;
+    Instant dispatchedDate;
 
-    Date estimatedDeliveryDate;
+    Instant estimatedDeliveryDate;
 
-    Date deliveredDate;
+    Instant deliveredDate;
 
     @NotNull(message = ValidationConstants.INVALID_SHIPMENT_CREATED_DATE)
-    Date createdDate;
+    Instant createdDate;
 
     public static ShipmentBuilder builder() {
 

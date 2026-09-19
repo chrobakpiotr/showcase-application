@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.coupon;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +18,7 @@ class CouponTest {
                 .discountValue(new BigDecimal("10"))
                 .active(true)
                 .build();
-        assertThat(coupon.isValidFor(new BigDecimal("100.00"), new Date())).isTrue();
+        assertThat(coupon.isValidFor(new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isTrue();
     }
 
     @Test
@@ -28,9 +28,9 @@ class CouponTest {
                 .code("SAVE10")
                 .discountType(DiscountType.PERCENTAGE)
                 .discountValue(new BigDecimal("10"))
-                .expiresAt(new Date(1))
+                .expiresAt(Instant.ofEpochMilli(1))
                 .build();
-        assertThat(coupon.isValidFor(new BigDecimal("100.00"), new Date())).isFalse();
+        assertThat(coupon.isValidFor(new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isFalse();
     }
 
     @Test
@@ -42,7 +42,7 @@ class CouponTest {
                 .discountValue(new BigDecimal("10"))
                 .active(false)
                 .build();
-        assertThat(coupon.isValidFor(new BigDecimal("100.00"), new Date())).isFalse();
+        assertThat(coupon.isValidFor(new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isFalse();
     }
 
     @Test
@@ -55,7 +55,7 @@ class CouponTest {
                 .maxRedemptions(1)
                 .redemptionCount(1)
                 .build();
-        assertThat(coupon.isValidFor(new BigDecimal("100.00"), new Date())).isFalse();
+        assertThat(coupon.isValidFor(new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isFalse();
     }
 
     @Test
@@ -67,7 +67,7 @@ class CouponTest {
                 .discountValue(new BigDecimal("10"))
                 .minimumOrderAmount(new BigDecimal("200.00"))
                 .build();
-        assertThat(coupon.isValidFor(new BigDecimal("100.00"), new Date())).isFalse();
+        assertThat(coupon.isValidFor(new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))).isFalse();
     }
 
     @Test

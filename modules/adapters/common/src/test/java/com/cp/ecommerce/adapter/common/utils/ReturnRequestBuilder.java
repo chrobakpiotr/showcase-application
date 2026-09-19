@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.common.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
@@ -27,9 +27,9 @@ public class ReturnRequestBuilder {
 
     public static final ReturnStatus TEST_STATUS = ReturnStatus.REQUESTED;
 
-    public static final Date TEST_REQUESTED_DATE = new Date(1710000000000L);
+    public static final Instant TEST_REQUESTED_DATE = Instant.ofEpochMilli(1710000000000L);
 
-    public static final Date TEST_DECIDED_DATE = new Date(1710003600000L);
+    public static final Instant TEST_DECIDED_DATE = Instant.ofEpochMilli(1710003600000L);
 
     public static final BigDecimal TEST_REFUND_AMOUNT = new BigDecimal("29.99");
 

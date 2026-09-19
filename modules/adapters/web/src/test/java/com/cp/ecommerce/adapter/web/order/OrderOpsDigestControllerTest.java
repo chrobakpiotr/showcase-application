@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.order;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
@@ -42,7 +42,7 @@ class OrderOpsDigestControllerTest {
     void shouldReturnLatestDigestWhenOneExists() throws Exception {
 
         final OpsDigest opsDigest = OpsDigest.builder()
-                .generatedDate(new Date())
+                .generatedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .ordersPlacedLastDay(7L)
                 .remarksClassificationSummary(new RemarksClassificationSummary(Map.of(RemarksTriageCategory.STANDARD, 7L)))
                 .narrative("7 orders placed in the last 24 hours, all routine.")

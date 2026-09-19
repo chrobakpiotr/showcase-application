@@ -2,7 +2,7 @@ package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -163,7 +163,7 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
                     .orElseThrow();
             event.setStatus(OutboxEventStatus.PROCESSING);
             event.setClaimId("dead-worker");
-            event.setClaimUntil(new Date(0L));
+            event.setClaimUntil(Instant.ofEpochMilli(0L));
             outboxEventEntityRepository.save(event);
         });
 
@@ -226,7 +226,7 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
         return new OrderResource(
                 "R03 multi-worker outbox claim",
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "R03 Buyer",
                         UUID.randomUUID() + "@example.com",

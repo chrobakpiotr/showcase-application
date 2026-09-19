@@ -1,8 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.cart.entity;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.domain.cart.Cart;
@@ -50,7 +50,7 @@ public class CartEntity {
     private BigDecimal discountAmount;
 
     @Column(name = "UPDATED_DATE", nullable = false)
-    private Date updated;
+    private Instant updated;
 
     @Version
     @Column(name = "VERSION", nullable = false)

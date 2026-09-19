@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order;
 
-import java.util.Date;
+import java.time.Instant;
 
 import lombok.Builder;
 import lombok.Value;
@@ -20,7 +20,7 @@ import lombok.Value;
 @Builder
 public class OpsDigest {
 
-    Date generatedDate;
+    Instant generatedDate;
 
     long ordersPlacedLastDay;
 

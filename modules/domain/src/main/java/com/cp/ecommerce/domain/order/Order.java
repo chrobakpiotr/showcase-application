@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.order;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.customer.Customer;
@@ -34,7 +34,7 @@ public class Order extends ValidDomainObject<Order> {
 
     String stockReservationId;
 
-    Date created;
+    Instant created;
 
     @NotNull(message = ValidationConstants.INVALID_CUSTOMER)
     @Valid

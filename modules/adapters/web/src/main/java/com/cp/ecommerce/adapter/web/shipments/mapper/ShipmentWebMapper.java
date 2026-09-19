@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.shipments.mapper;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.mapping.WebRequestMapper;
@@ -29,7 +29,7 @@ public class ShipmentWebMapper
                                 .carrier(request.carrier())
                                 .trackingNumber("PENDING")
                                 .status(ShipmentStatus.PENDING)
-                                .createdDate(new Date())
+                                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                                 .build());
     }
 

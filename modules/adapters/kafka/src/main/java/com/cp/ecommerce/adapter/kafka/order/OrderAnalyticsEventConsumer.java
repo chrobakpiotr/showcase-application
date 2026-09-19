@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.kafka.order;
 
 import java.time.Instant;
-import java.util.Date;
 
 import com.cp.ecommerce.adapter.kafka.order.dto.OrderAnalyticsEvent;
 import com.cp.ecommerce.adapter.kafka.order.metrics.OrderAnalyticsConsumerMetrics;
@@ -54,8 +53,8 @@ public class OrderAnalyticsEventConsumer {
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 event.orderNumber(),
                 event.customerId(),
-                Date.from(Instant.parse(event.timestamp())),
-                new Date());
+                Instant.ofEpochMilli(Instant.parse(event.timestamp()).toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         recordOrderAnalyticsProjectionInPort.recordProjection(projection);
         orderAnalyticsConsumerMetrics.recordConsumed();
         log.info(

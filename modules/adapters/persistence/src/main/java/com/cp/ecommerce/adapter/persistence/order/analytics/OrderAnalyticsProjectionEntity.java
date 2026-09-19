@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -43,9 +43,9 @@ public class OrderAnalyticsProjectionEntity {
     private Long customerId;
 
     @Column(name = "ORDER_PLACED_DATE", nullable = false)
-    private Date orderPlacedDate;
+    private Instant orderPlacedDate;
 
     @Column(name = "CONSUMED_DATE", nullable = false)
-    private Date consumedDate;
+    private Instant consumedDate;
 
 }

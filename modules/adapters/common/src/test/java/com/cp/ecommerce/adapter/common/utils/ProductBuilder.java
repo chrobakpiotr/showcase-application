@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.common.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.catalog.Product;
 
@@ -34,7 +34,7 @@ public class ProductBuilder {
                 .unitPrice(TEST_PRODUCT_UNIT_PRICE)
                 .imageUrl(TEST_PRODUCT_IMAGE_URL)
                 .active(true)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
     }
 

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.order.mapper;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.web.order.resource.OrderAnalyticsResource;
@@ -35,8 +35,8 @@ class OrderAnalyticsWebMapperTest {
     @Test
     void shouldMapProjectionToResource() {
 
-        final Date orderPlacedDate = new Date();
-        final Date consumedDate = new Date();
+        final Instant orderPlacedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant consumedDate = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 "ORD-1001",
                 1001L,

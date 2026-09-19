@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,8 +26,8 @@ class CountOrderAnalyticsProjectionsAdapterTest {
     @Test
     void shouldDelegateToRepositoryCount() {
 
-        final Date from = new Date(0);
-        final Date to = new Date();
+        final Instant from = Instant.ofEpochMilli(0);
+        final Instant to = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         given(orderAnalyticsProjectionEntityRepository.countByOrderPlacedDateBetween(from, to)).willReturn(7L);
 
         final long result = countOrderAnalyticsProjectionsAdapter.countPlacedBetween(from, to);

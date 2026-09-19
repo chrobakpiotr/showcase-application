@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.recommendation;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.persistence.customer.entity.CustomerEntity;
@@ -49,7 +49,7 @@ class FindCustomerPurchaseHistoryAdapterTest {
         customer.setEmail("john.doe@test.com");
         customer.setFullName("John Doe");
         final OrderEntity order = new OrderEntity();
-        order.setCreated(new Date());
+        order.setCreated(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         order.setCustomer(customer);
         order.setItems(List.of(items));
         return order;

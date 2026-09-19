@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,8 +47,8 @@ class FindRecentOrderAnalyticsProjectionsAdapterTest {
                 .id(1L)
                 .orderNumber("ORDER-1")
                 .customerId(1L)
-                .orderPlacedDate(new Date())
-                .consumedDate(new Date())
+                .orderPlacedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .consumedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
                 "ORDER-1",

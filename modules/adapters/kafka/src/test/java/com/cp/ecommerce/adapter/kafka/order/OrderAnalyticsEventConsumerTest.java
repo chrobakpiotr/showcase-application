@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.kafka.order;
 
 import java.time.Instant;
-import java.util.Date;
 
 import com.cp.ecommerce.adapter.kafka.order.metrics.OrderAnalyticsConsumerMetrics;
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
@@ -56,7 +55,8 @@ class OrderAnalyticsEventConsumerTest {
         final OrderAnalyticsProjection projection = captor.getValue();
         assertThat(projection.orderNumber()).isEqualTo("ORD-1001");
         assertThat(projection.customerId()).isEqualTo(1001L);
-        assertThat(projection.orderPlacedDate()).isEqualTo(Date.from(Instant.parse("2024-01-01T00:00:00Z")));
+        assertThat(projection.orderPlacedDate())
+                .isEqualTo(Instant.ofEpochMilli(Instant.parse("2024-01-01T00:00:00Z").toEpochMilli()));
         assertThat(projection.consumedDate()).isNotNull();
         then(orderAnalyticsConsumerMetrics).should().recordConsumed();
     }

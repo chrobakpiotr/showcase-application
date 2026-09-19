@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.returns.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.returns.PageQuery;
@@ -51,7 +51,7 @@ public class ManageReturnUseCase implements RequestReturnInPort, GetReturnInPort
                 .quantity(quantity)
                 .reason(reason)
                 .status(ReturnStatus.REQUESTED)
-                .requestedDate(new Date())
+                .requestedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .refundAmount(refundAmount)
                 .build();
         requested.assertValidationsEmpty();

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.returns;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -54,9 +54,9 @@ public class ReturnRequest extends ValidDomainObject<ReturnRequest> {
     ReturnStatus status = ReturnStatus.REQUESTED;
 
     @NotNull(message = ValidationConstants.INVALID_RETURN_REQUESTED_DATE)
-    Date requestedDate;
+    Instant requestedDate;
 
-    Date decidedDate;
+    Instant decidedDate;
 
     @NotNull(message = ValidationConstants.INVALID_RETURN_REFUND_AMOUNT)
     @DecimalMin(value = "0.00", message = ValidationConstants.INVALID_RETURN_REFUND_AMOUNT)

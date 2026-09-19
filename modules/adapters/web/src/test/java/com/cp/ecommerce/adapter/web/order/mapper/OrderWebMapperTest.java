@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.order.mapper;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
@@ -71,7 +71,10 @@ class OrderWebMapperTest {
     @Test
     void shouldMapOrderWithoutCustomerResourceToNullDomainCustomer() {
 
-        final OrderResource orderResource = OrderResource.builder().remarks("remark").created(new Date()).build();
+        final OrderResource orderResource = OrderResource.builder()
+                .remarks("remark")
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .build();
         final Optional<Order> order = orderWebMapper.mapToDomainObject(orderResource);
 
         assertTrue(order.isPresent());

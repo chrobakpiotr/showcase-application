@@ -2,10 +2,10 @@ package com.cp.ecommerce.adapter.security.configuration;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
 import java.util.UUID;
 
 import com.cp.ecommerce.adapter.SecurityTestConfiguration;
+import com.cp.ecommerce.adapter.common.time.LegacyDateInterop;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -168,8 +168,8 @@ class JwtDecoderWireMockTest {
         final JWTClaimsSet claims = new JWTClaimsSet.Builder().subject(SUBJECT)
                 .issuer(ISSUER)
                 .audience(audience)
-                .issueTime(Date.from(issuedAt))
-                .expirationTime(Date.from(expiresAt))
+                .issueTime(LegacyDateInterop.toDate(issuedAt))
+                .expirationTime(LegacyDateInterop.toDate(expiresAt))
                 .build();
 
         return sign(signingKey, claims);
@@ -182,8 +182,8 @@ class JwtDecoderWireMockTest {
 
         final JWTClaimsSet claims = new JWTClaimsSet.Builder().subject(SUBJECT)
                 .issuer(ISSUER)
-                .issueTime(Date.from(issuedAt))
-                .expirationTime(Date.from(expiresAt))
+                .issueTime(LegacyDateInterop.toDate(issuedAt))
+                .expirationTime(LegacyDateInterop.toDate(expiresAt))
                 .build();
 
         return sign(signingKey, claims);

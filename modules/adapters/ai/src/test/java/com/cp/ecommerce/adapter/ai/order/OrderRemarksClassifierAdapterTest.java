@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.ai.order;
 
+import java.time.Instant;
 import java.util.Collections;
-import java.util.Date;
 import java.util.concurrent.Callable;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -53,7 +53,7 @@ class OrderRemarksClassifierAdapterTest {
         final Order order = Order.builder()
                 .remarks(" ")
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(mockCustomer())
                 .build();
         final OrderRemarksClassifierAdapter adapter = newAdapter();

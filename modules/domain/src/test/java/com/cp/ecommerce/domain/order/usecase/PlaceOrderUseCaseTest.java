@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.order.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -235,7 +235,7 @@ class PlaceOrderUseCaseTest {
         return Stream.of(
                 builder -> builder.remarks("different"),
                 builder -> builder.remarks(null),
-                builder -> builder.created(new Date(TestDomainObjectFactory.TEST_CREATED.getTime() + 1)),
+                builder -> builder.created(Instant.ofEpochMilli(TestDomainObjectFactory.TEST_CREATED.toEpochMilli() + 1)),
                 builder -> builder.created(null),
                 builder -> builder.paymentMethod(PaymentMethod.PAYPAL),
                 builder -> builder.couponCode("SAVE10"),

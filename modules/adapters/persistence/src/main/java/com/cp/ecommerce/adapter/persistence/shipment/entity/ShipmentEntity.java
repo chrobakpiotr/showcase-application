@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.shipment.entity;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
@@ -47,15 +47,15 @@ public class ShipmentEntity {
     private ShipmentStatus status;
 
     @Column(name = "DISPATCHED_DATE")
-    private Date dispatchedDate;
+    private Instant dispatchedDate;
 
     @Column(name = "ESTIMATED_DELIVERY_DATE")
-    private Date estimatedDeliveryDate;
+    private Instant estimatedDeliveryDate;
 
     @Column(name = "DELIVERED_DATE")
-    private Date deliveredDate;
+    private Instant deliveredDate;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date createdDate;
+    private Instant createdDate;
 
 }

@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -134,7 +133,7 @@ class OrderPlacementSagaOrchestratorTest {
         lenient().when(
                 outboxEventEntityRepository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                         eq(OutboxEventStatus.PROCESSING),
-                        any(Date.class)))
+                        any(Instant.class)))
                 .thenReturn(List.of());
         lenient().when(outboxEventEntityRepository.findByIdForUpdate(any())).thenAnswer(invocation -> {
             final Long id = invocation.getArgument(0);
@@ -159,13 +158,13 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OutboxEventEntity locked = OutboxEventEntity.builder()
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.CANCELLING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(candidate));
@@ -184,7 +183,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(candidate));
@@ -203,7 +202,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(outboxEvent));
@@ -232,7 +231,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(event));
@@ -255,7 +254,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -307,13 +306,13 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(failedOrder.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date(1L))
+                .createdDate(Instant.ofEpochMilli(1L))
                 .build();
         final OutboxEventEntity successfulEvent = OutboxEventEntity.builder()
                 .id(2L)
                 .orderNumber(successfulOrder.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date(2L))
+                .createdDate(Instant.ofEpochMilli(2L))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -346,7 +345,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -373,7 +372,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of(event));
@@ -399,7 +398,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)).thenReturn(List.of());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -426,7 +425,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)).thenReturn(List.of());
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -452,7 +451,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .compensationAttempts(1)
                 .lastError("previous failure")
                 .build();
@@ -480,7 +479,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -503,7 +502,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -525,7 +524,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -547,7 +546,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -569,7 +568,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -591,7 +590,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -621,7 +620,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -644,7 +643,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -673,7 +672,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -696,7 +695,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(1L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -727,13 +726,13 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(41L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OutboxEventEntity locked = OutboxEventEntity.builder()
                 .id(41L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATED)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -757,13 +756,13 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(42L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OutboxEventEntity locked = OutboxEventEntity.builder()
                 .id(42L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATED)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -789,7 +788,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(43L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -812,15 +811,15 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(51L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PROCESSING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("dead-worker")
-                .claimUntil(new Date(0L))
+                .claimUntil(Instant.ofEpochMilli(0L))
                 .build();
 
         when(
                 outboxEventEntityRepository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                         eq(OutboxEventStatus.PROCESSING),
-                        any(Date.class)))
+                        any(Instant.class)))
                 .thenReturn(List.of(event));
         doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(51L);
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
@@ -841,23 +840,23 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(52L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PROCESSING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("stale-candidate")
-                .claimUntil(new Date(0L))
+                .claimUntil(Instant.ofEpochMilli(0L))
                 .build();
         final OutboxEventEntity locked = OutboxEventEntity.builder()
                 .id(52L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PROCESSING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("active-worker")
-                .claimUntil(new Date(Long.MAX_VALUE))
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
                 .build();
 
         when(
                 outboxEventEntityRepository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                         eq(OutboxEventStatus.PROCESSING),
-                        any(Date.class)))
+                        any(Instant.class)))
                 .thenReturn(List.of(candidate));
         doReturn(Optional.of(locked)).when(outboxEventEntityRepository).findByIdForUpdate(52L);
 
@@ -875,15 +874,15 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(53L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
                 .id(53L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PROCESSING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("newer-worker")
-                .claimUntil(new Date(Long.MAX_VALUE))
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
@@ -907,9 +906,9 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(54L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("active-compensator")
-                .claimUntil(new Date(Long.MAX_VALUE))
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -930,15 +929,15 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(55L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
                 .id(55L)
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .claimId("newer-compensator")
-                .claimUntil(new Date(Long.MAX_VALUE))
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -962,7 +961,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .id(56L)
                 .orderNumber("ORDER-COMPENSATION-CLAIM-FAILURE")
                 .status(OutboxEventStatus.COMPENSATING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
 
         when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))

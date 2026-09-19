@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.notification;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -50,14 +50,14 @@ class ManageNotificationDeliveryAdapter implements ManageNotificationDeliveryOut
     }
 
     @Override
-    public List<String> findDueNotificationIds(final Date now, final int limit) {
+    public List<String> findDueNotificationIds(final Instant now, final int limit) {
 
         return notificationEntityRepository.findDueNotificationIds(RETRYABLE_STATUSES, now, PageRequest.of(0, limit));
     }
 
     @Override
     @Transactional
-    public Notification claim(final String notificationId, final Date now) {
+    public Notification claim(final String notificationId, final Instant now) {
 
         final NotificationEntity notification = notificationEntityRepository.findByNotificationIdForUpdate(notificationId)
                 .orElse(null);
@@ -65,20 +65,20 @@ class ManageNotificationDeliveryAdapter implements ManageNotificationDeliveryOut
 
             return null;
         }
-        if (notification.getNextAttemptDate().after(now)) {
+        if (notification.getNextAttemptDate().isAfter(now)) {
 
             return null;
         }
 
         notification.setStatus(NotificationStatus.DELIVERING);
         notification.setDeliveryAttempts(notification.getDeliveryAttempts() + 1);
-        notification.setNextAttemptDate(new Date(now.getTime() + leaseMillis));
+        notification.setNextAttemptDate(Instant.ofEpochMilli(now.toEpochMilli() + leaseMillis));
         return map(notificationEntityRepository.saveAndFlush(notification));
     }
 
     @Override
     @Transactional
-    public Notification markSent(final String notificationId, final Date sentDate) {
+    public Notification markSent(final String notificationId, final Instant sentDate) {
 
         final NotificationEntity notification = requireLocked(notificationId);
         if (notification.getStatus() != NotificationStatus.SENT) {
@@ -94,7 +94,7 @@ class ManageNotificationDeliveryAdapter implements ManageNotificationDeliveryOut
 
     @Override
     @Transactional
-    public Notification markFailed(final String notificationId, final String error, final Date failedAt) {
+    public Notification markFailed(final String notificationId, final String error, final Instant failedAt) {
 
         final NotificationEntity notification = requireLocked(notificationId);
         if (notification.getStatus() != NotificationStatus.SENT) {
@@ -102,7 +102,7 @@ class ManageNotificationDeliveryAdapter implements ManageNotificationDeliveryOut
             final String message = String.valueOf(error);
             notification.setStatus(NotificationStatus.FAILED);
             notification.setLastError(message.substring(0, Math.min(message.length(), LAST_ERROR_MAX_LENGTH)));
-            notification.setNextAttemptDate(new Date(failedAt.getTime() + retryDelayMillis));
+            notification.setNextAttemptDate(Instant.ofEpochMilli(failedAt.toEpochMilli() + retryDelayMillis));
             notificationEntityRepository.saveAndFlush(notification);
         }
         return map(notification);

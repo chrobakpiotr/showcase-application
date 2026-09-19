@@ -1,8 +1,6 @@
 package com.cp.ecommerce.adapter.amqp.order.utils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Locale;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.OrderMessage;
 
@@ -15,11 +13,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrderMessageBuilder {
 
-    public static OrderMessage mockOrderMessage() throws ParseException {
+    public static OrderMessage mockOrderMessage() {
 
         return OrderMessage.builder()
                 .schemaVersion("0.9")
-                .created(new SimpleDateFormat("dd-MM-yyyy", Locale.ENGLISH).parse("2023-02-20"))
+                .created(Instant.parse("2023-02-20T00:00:00Z"))
                 .customerId(1111L)
                 .orderNumber("number")
                 .build();

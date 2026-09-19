@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.common.utils;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
@@ -30,9 +30,9 @@ public class NotificationBuilder {
 
     public static final NotificationStatus TEST_STATUS = NotificationStatus.SENT;
 
-    public static final Date TEST_CREATED_DATE = new Date(1710000000000L);
+    public static final Instant TEST_CREATED_DATE = Instant.ofEpochMilli(1710000000000L);
 
-    public static final Date TEST_SENT_DATE = new Date(1710003600000L);
+    public static final Instant TEST_SENT_DATE = Instant.ofEpochMilli(1710003600000L);
 
     public static Notification mockNotification() {
 

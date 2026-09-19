@@ -1,8 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.order.entity;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.persistence.customer.entity.CustomerEntity;
@@ -62,7 +62,7 @@ public class OrderEntity {
     private String stockReservationId;
 
     @Column(name = "CREATION_DATE", length = 40, nullable = false)
-    private Date created;
+    private Instant created;
 
     @OneToOne(targetEntity = CustomerEntity.class, fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "CUSTOMER_ID")

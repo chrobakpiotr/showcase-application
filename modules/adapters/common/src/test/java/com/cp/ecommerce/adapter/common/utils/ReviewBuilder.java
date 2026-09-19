@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.common.utils;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewStatus;
@@ -26,7 +26,7 @@ public class ReviewBuilder {
 
     public static final ReviewStatus TEST_REVIEW_STATUS = ReviewStatus.PENDING;
 
-    public static final Date TEST_REVIEW_CREATED = new Date(1710000000000L);
+    public static final Instant TEST_REVIEW_CREATED = Instant.ofEpochMilli(1710000000000L);
 
     public static Review mockReview() {
 

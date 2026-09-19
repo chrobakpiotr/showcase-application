@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.port.incoming.CountOrderAnalyticsProjectionsInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.CountOrderAnalyticsProjectionsOutPort;
@@ -18,7 +18,7 @@ public class CountOrderAnalyticsProjectionsUseCase implements CountOrderAnalytic
     private final CountOrderAnalyticsProjectionsOutPort countOrderAnalyticsProjectionsOutPort;
 
     @Override
-    public long countPlacedBetween(final Date from, final Date to) {
+    public long countPlacedBetween(final Instant from, final Instant to) {
 
         return countOrderAnalyticsProjectionsOutPort.countPlacedBetween(from, to);
     }

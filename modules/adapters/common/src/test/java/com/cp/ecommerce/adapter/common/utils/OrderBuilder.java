@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.common.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.order.Order;
@@ -46,7 +46,7 @@ public class OrderBuilder {
         return Order.builder()
                 .remarks(TEST_REMARKS)
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerBuilder.mockCustomer())
                 .items(List.of(mockOrderLineItem()))
                 .paymentMethod(TEST_PAYMENT_METHOD)

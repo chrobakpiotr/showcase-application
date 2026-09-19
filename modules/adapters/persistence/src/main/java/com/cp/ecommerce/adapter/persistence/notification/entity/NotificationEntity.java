@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.notification.entity;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
@@ -57,16 +57,16 @@ public class NotificationEntity {
     private NotificationStatus status;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date createdDate;
+    private Instant createdDate;
 
     @Column(name = "SENT_DATE")
-    private Date sentDate;
+    private Instant sentDate;
 
     @Column(name = "DELIVERY_ATTEMPTS", nullable = false)
     private int deliveryAttempts;
 
     @Column(name = "NEXT_ATTEMPT_DATE", nullable = false)
-    private Date nextAttemptDate;
+    private Instant nextAttemptDate;
 
     @Column(name = "LAST_ERROR", length = 500)
     private String lastError;

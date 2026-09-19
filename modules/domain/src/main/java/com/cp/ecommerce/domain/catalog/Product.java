@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.catalog;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -52,7 +52,7 @@ public class Product extends ValidDomainObject<Product> {
     @Builder.Default
     boolean active = true;
 
-    Date created;
+    Instant created;
 
     public static Product.ProductBuilder builder() {
 

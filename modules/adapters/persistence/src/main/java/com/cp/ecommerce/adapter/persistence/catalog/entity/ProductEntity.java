@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.catalog.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.catalog.Product;
 
@@ -68,6 +68,6 @@ public class ProductEntity {
     private boolean active;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date created;
+    private Instant created;
 
 }

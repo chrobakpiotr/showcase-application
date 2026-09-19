@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
-import java.util.Date;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,13 +46,13 @@ public class OutboxEventEntity {
     private OutboxEventStatus status;
 
     @Column(name = "CREATED_DATE", nullable = false)
-    private Date createdDate;
+    private Instant createdDate;
 
     @Column(name = "SENT_DATE")
-    private Date sentDate;
+    private Instant sentDate;
 
     @Column(name = "COMPENSATED_DATE")
-    private Date compensatedDate;
+    private Instant compensatedDate;
 
     @Column(name = "ATTEMPTS", nullable = false)
     private int attempts;
@@ -67,6 +67,6 @@ public class OutboxEventEntity {
     private String claimId;
 
     @Column(name = "CLAIM_UNTIL")
-    private Date claimUntil;
+    private Instant claimUntil;
 
 }

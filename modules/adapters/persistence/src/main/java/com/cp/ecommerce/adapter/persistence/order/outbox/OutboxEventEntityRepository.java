@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +44,7 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
      */
     default List<OutboxEventEntity> findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
             final OutboxEventStatus status,
-            final Date claimUntil) {
+            final Instant claimUntil) {
 
         return findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                 status,
@@ -54,13 +54,13 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
 
     List<OutboxEventEntity> findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
             OutboxEventStatus status,
-            Date claimUntil,
+            Instant claimUntil,
             Pageable pageable);
 
     @Query("select min(event.createdDate) from OutboxEventEntity event where event.status = :status")
-    Date findOldestCreatedDateByStatus(@Param("status") OutboxEventStatus status);
+    Instant findOldestCreatedDateByStatus(@Param("status") OutboxEventStatus status);
 
-    long countByStatusAndClaimUntilLessThanEqual(OutboxEventStatus status, Date claimUntil);
+    long countByStatusAndClaimUntilLessThanEqual(OutboxEventStatus status, Instant claimUntil);
 
     long countByStatusAndAttemptsGreaterThan(OutboxEventStatus status, int attempts);
 

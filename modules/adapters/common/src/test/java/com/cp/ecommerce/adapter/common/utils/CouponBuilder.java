@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.common.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.DiscountType;
@@ -23,7 +23,7 @@ public class CouponBuilder {
                 .minimumOrderAmount(new BigDecimal("50.00"))
                 .maxRedemptions(100)
                 .redemptionCount(2)
-                .expiresAt(new Date(System.currentTimeMillis() + 86400000))
+                .expiresAt(Instant.ofEpochMilli(System.currentTimeMillis() + 86400000))
                 .active(true)
                 .build();
     }

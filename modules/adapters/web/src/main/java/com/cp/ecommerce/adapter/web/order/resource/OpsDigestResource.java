@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.order.resource;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
@@ -19,7 +19,7 @@ import lombok.Builder;
  *            disabled or was unavailable when this digest was generated.
  */
 @Builder
-public record OpsDigestResource(@Schema(example = "2024-03-15T06:00:00.000Z") Date generatedDate,
+public record OpsDigestResource(@Schema(example = "2024-03-15T06:00:00.000Z") Instant generatedDate,
         @Schema(example = "7") long ordersPlacedLastDay, Map<RemarksTriageCategory, Long> remarksClassificationCounts,
         @Schema(
                 example = "7 orders were placed in the last 24 hours, all routine. No urgent or suspicious remarks to "

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -114,7 +114,7 @@ class ManagePaymentRefundAdapter implements ManagePaymentRefundOutPort {
         final PaymentTransactionEntity saved = paymentTransactionEntityRepository.saveAndFlush(payment);
 
         refund.setStatus(PaymentRefundStatus.COMPLETED);
-        refund.setCompleted(new Date());
+        refund.setCompleted(Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         paymentRefundEntityRepository.save(refund);
 
         return toDomain(saved);
@@ -189,7 +189,7 @@ class ManagePaymentRefundAdapter implements ManagePaymentRefundOutPort {
                 .orderNumber(orderNumber)
                 .amount(amount)
                 .status(PaymentRefundStatus.PENDING)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         paymentRefundEntityRepository.save(refund);
 

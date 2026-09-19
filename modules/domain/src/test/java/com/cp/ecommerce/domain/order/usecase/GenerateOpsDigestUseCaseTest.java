@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.order.usecase;
 
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.OpsDigest;
@@ -62,7 +62,7 @@ class GenerateOpsDigestUseCaseTest {
                         0L,
                         RemarksTriageCategory.SUSPICIOUS,
                         0L));
-        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Date.class), any(Date.class))).thenReturn(7L);
+        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Instant.class), any(Instant.class))).thenReturn(7L);
         when(getRemarksClassificationSummaryInPort.getSummary()).thenReturn(summary);
         when(generateOpsDigestNarrativeOutPort.generateNarrative(eq(7L), eq(summary))).thenReturn(NARRATIVE);
 
@@ -86,7 +86,7 @@ class GenerateOpsDigestUseCaseTest {
     @Test
     void shouldQueryLast24HoursOnly() {
 
-        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Date.class), any(Date.class))).thenReturn(0L);
+        when(countOrderAnalyticsProjectionsInPort.countPlacedBetween(any(Instant.class), any(Instant.class))).thenReturn(0L);
         when(getRemarksClassificationSummaryInPort.getSummary()).thenReturn(new RemarksClassificationSummary(Map.of()));
         when(generateOpsDigestNarrativeOutPort.generateNarrative(anyLong(), any())).thenReturn(NARRATIVE);
 
@@ -98,11 +98,11 @@ class GenerateOpsDigestUseCaseTest {
 
         useCase.generateDigest();
 
-        final ArgumentCaptor<Date> fromCaptor = ArgumentCaptor.forClass(Date.class);
-        final ArgumentCaptor<Date> toCaptor = ArgumentCaptor.forClass(Date.class);
+        final ArgumentCaptor<Instant> fromCaptor = ArgumentCaptor.forClass(Instant.class);
+        final ArgumentCaptor<Instant> toCaptor = ArgumentCaptor.forClass(Instant.class);
         verify(countOrderAnalyticsProjectionsInPort).countPlacedBetween(fromCaptor.capture(), toCaptor.capture());
 
-        final long windowMillis = toCaptor.getValue().getTime() - fromCaptor.getValue().getTime();
+        final long windowMillis = toCaptor.getValue().toEpochMilli() - fromCaptor.getValue().toEpochMilli();
         assertThat(windowMillis).isEqualTo(Duration.ofDays(1).toMillis());
     }
 

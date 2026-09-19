@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.coupon.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.CouponPageQuery;
@@ -86,7 +86,10 @@ class ManageCouponUseCaseTest {
 
         final Coupon coupon = mockCoupon();
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
-        assertThat(manageCouponUseCase.previewCoupon("save10", new BigDecimal("100.00"), new Date()).discountAmount())
+        assertThat(
+                manageCouponUseCase
+                        .previewCoupon("save10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                        .discountAmount())
                 .isEqualByComparingTo("10.00");
     }
 
@@ -100,7 +103,9 @@ class ManageCouponUseCaseTest {
                 .active(false)
                 .build();
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
-        assertThatThrownBy(() -> manageCouponUseCase.previewCoupon("SAVE10", new BigDecimal("100.00"), new Date()))
+        assertThatThrownBy(
+                () -> manageCouponUseCase
+                        .previewCoupon("SAVE10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli())))
                 .isInstanceOf(CouponNotApplicableException.class);
     }
 
@@ -113,7 +118,7 @@ class ManageCouponUseCaseTest {
                 .minimumOrderAmount(new BigDecimal("50.00"))
                 .maxRedemptions(100)
                 .redemptionCount(2)
-                .expiresAt(new Date(System.currentTimeMillis() + 86400000))
+                .expiresAt(Instant.ofEpochMilli(System.currentTimeMillis() + 86400000))
                 .active(true)
                 .build();
     }

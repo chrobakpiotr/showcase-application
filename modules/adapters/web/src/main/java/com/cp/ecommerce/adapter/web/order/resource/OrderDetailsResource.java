@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.web.order.resource;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -13,7 +13,7 @@ import lombok.Builder;
  * Resource representing detailed order data.
  */
 @Builder
-public record OrderDetailsResource(String orderNumber, Date created, String remarks, CustomerResource customer,
+public record OrderDetailsResource(String orderNumber, Instant created, String remarks, CustomerResource customer,
         List<OrderLineItemResource> items, OrderStatus status, BigDecimal subtotal, String couponCode,
         BigDecimal discountAmount, BigDecimal total, PaymentMethod paymentMethod, PaymentResource payment) {
 

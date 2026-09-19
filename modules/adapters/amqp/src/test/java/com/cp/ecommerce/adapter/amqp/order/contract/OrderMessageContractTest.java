@@ -1,15 +1,15 @@
 package com.cp.ecommerce.adapter.amqp.order.contract;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.amqp.order.mapper.OrderMessageMapper;
+import com.cp.ecommerce.adapter.common.configuration.GsonConfiguration;
 import com.cp.ecommerce.adapter.common.testfixtures.AsyncApiSchema;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderMessage;
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
@@ -46,7 +46,7 @@ class OrderMessageContractTest {
 
         final Order order = validOrder();
 
-        final String payload = new Gson().toJson(mapper.mapToMessage(order).orElseThrow());
+        final String payload = new GsonConfiguration().gson().toJson(mapper.mapToMessage(order).orElseThrow());
         final JsonObject jsonPayload = JsonParser.parseString(payload).getAsJsonObject();
 
         assertEquals(AsyncApiSchema.declaredProperties("OrderMessage"), jsonPayload.keySet());
@@ -66,7 +66,7 @@ class OrderMessageContractTest {
         return Order.builder()
                 .remarks("remark")
                 .orderNumber("ORD-1001")
-                .created(new Date(1710000000000L))
+                .created(Instant.ofEpochMilli(1710000000000L))
                 .customer(validCustomer())
                 .build();
     }

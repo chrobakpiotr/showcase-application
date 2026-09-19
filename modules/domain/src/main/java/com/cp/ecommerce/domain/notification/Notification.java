@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.notification;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -51,9 +51,9 @@ public class Notification extends ValidDomainObject<Notification> {
     NotificationStatus status = NotificationStatus.PENDING;
 
     @NotNull(message = ValidationConstants.INVALID_NOTIFICATION_CREATED_DATE)
-    Date createdDate;
+    Instant createdDate;
 
-    Date sentDate;
+    Instant sentDate;
 
     public static NotificationBuilder builder() {
 

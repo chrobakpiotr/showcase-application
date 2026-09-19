@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class OutboxEventEntityRepositoryBatchTest {
     void shouldBoundExpiredClaimCandidateRead() {
 
         final OutboxEventEntityRepository repository = mock(OutboxEventEntityRepository.class, CALLS_REAL_METHODS);
-        final Date now = new Date();
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         doReturn(List.of()).when(repository)
                 .findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                         eq(OutboxEventStatus.PROCESSING),

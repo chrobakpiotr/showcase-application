@@ -2,7 +2,7 @@ package com.cp.ecommerce.domain.coupon;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
@@ -47,7 +47,7 @@ public class Coupon extends ValidDomainObject<Coupon> {
     @Min(value = 0, message = ValidationConstants.INVALID_COUPON_REDEMPTION_COUNT)
     int redemptionCount = 0;
 
-    Date expiresAt;
+    Instant expiresAt;
 
     @Builder.Default
     boolean active = true;
@@ -70,7 +70,7 @@ public class Coupon extends ValidDomainObject<Coupon> {
     /**
      * Whether the coupon is currently applicable for the supplied subtotal.
      */
-    public boolean isValidFor(final BigDecimal orderTotal, final Date now) {
+    public boolean isValidFor(final BigDecimal orderTotal, final Instant now) {
 
         if (!active || orderTotal == null || orderTotal.signum() <= 0 || !hasValidDiscountConfiguration()) {
 
@@ -84,7 +84,7 @@ public class Coupon extends ValidDomainObject<Coupon> {
 
             return false;
         }
-        return expiresAt == null || now == null || !expiresAt.before(now);
+        return expiresAt == null || now == null || !expiresAt.isBefore(now);
     }
 
     /**

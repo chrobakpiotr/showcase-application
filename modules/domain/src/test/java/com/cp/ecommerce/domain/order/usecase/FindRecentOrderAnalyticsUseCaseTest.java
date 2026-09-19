@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
@@ -30,8 +30,12 @@ class FindRecentOrderAnalyticsUseCaseTest {
     @Test
     void shouldDelegateToOutgoingPort() {
 
-        final List<OrderAnalyticsProjection> expected = List
-                .of(new OrderAnalyticsProjection("ORDER-1", 1L, new Date(), new Date()));
+        final List<OrderAnalyticsProjection> expected = List.of(
+                new OrderAnalyticsProjection(
+                        "ORDER-1",
+                        1L,
+                        Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                        Instant.ofEpochMilli(Instant.now().toEpochMilli())));
         given(findRecentOrderAnalyticsProjectionsOutPort.findRecent(20)).willReturn(expected);
 
         final List<OrderAnalyticsProjection> result = findRecentOrderAnalyticsUseCase.findRecent(20);

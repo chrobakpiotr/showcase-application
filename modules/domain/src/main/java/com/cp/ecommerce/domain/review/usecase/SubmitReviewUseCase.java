@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.review.usecase;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.port.incoming.SubmitReviewInPort;
@@ -30,7 +30,7 @@ public class SubmitReviewUseCase implements SubmitReviewInPort {
                 .authorName(authorName)
                 .rating(rating)
                 .comment(comment)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         review.assertValidationsEmpty();
         return saveReviewOutPort.save(review);

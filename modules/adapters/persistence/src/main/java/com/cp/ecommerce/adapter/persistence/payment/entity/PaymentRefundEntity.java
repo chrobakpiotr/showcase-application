@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 
@@ -44,8 +44,8 @@ public class PaymentRefundEntity {
     private PaymentRefundStatus status;
 
     @Column(name = "CREATION_DATE", nullable = false)
-    private Date created;
+    private Instant created;
 
     @Column(name = "COMPLETION_DATE")
-    private Date completed;
+    private Instant completed;
 }

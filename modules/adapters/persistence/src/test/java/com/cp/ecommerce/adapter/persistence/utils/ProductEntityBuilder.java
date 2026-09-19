@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.utils;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.persistence.catalog.entity.ProductEntity;
 
@@ -29,7 +29,7 @@ public class ProductEntityBuilder {
                 .unitPrice(TEST_PRODUCT_UNIT_PRICE)
                 .imageUrl(TEST_PRODUCT_IMAGE_URL)
                 .active(true)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
     }
 

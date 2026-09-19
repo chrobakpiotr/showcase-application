@@ -1,5 +1,6 @@
 package com.cp.ecommerce.domain.wishlist.usecase;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.wishlist.Wishlist;
@@ -92,7 +93,7 @@ class ManageWishlistUseCaseTest {
         final WishlistItem existingItem = WishlistItem.builder()
                 .sku(SKU)
                 .productName("old")
-                .addedDate(new java.util.Date())
+                .addedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final Wishlist existing = Wishlist.builder().wishlistId(WISHLIST_ID).items(List.of(existingItem)).build();
         given(findWishlistOutPort.find(WISHLIST_ID)).willReturn(existing);
@@ -118,7 +119,7 @@ class ManageWishlistUseCaseTest {
         final WishlistItem existingItem = WishlistItem.builder()
                 .sku(SKU)
                 .productName("name")
-                .addedDate(new java.util.Date())
+                .addedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         final Wishlist existing = Wishlist.builder().wishlistId(WISHLIST_ID).items(List.of(existingItem)).build();
         given(findWishlistOutPort.find(WISHLIST_ID)).willReturn(existing);

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.persistence.catalog.entity.CategoryEntity;
 import com.cp.ecommerce.adapter.persistence.catalog.entity.CategoryEntityRepository;
@@ -56,7 +56,7 @@ public class CatalogProductFixture {
                         .category(category)
                         .unitPrice(unitPrice)
                         .active(true)
-                        .created(new Date())
+                        .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                         .build());
     }
 }

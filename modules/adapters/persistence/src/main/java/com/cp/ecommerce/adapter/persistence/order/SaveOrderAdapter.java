@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntityRepository;
@@ -42,7 +42,7 @@ public class SaveOrderAdapter implements SaveOrderOutPort {
                 OutboxEventEntity.builder()
                         .orderNumber(order.getOrderNumber())
                         .status(OutboxEventStatus.PENDING)
-                        .createdDate(new Date())
+                        .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                         .build());
         return order;
     }

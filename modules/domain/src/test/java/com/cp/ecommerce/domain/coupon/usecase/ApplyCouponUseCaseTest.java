@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.coupon.usecase;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
@@ -40,7 +40,8 @@ class ApplyCouponUseCaseTest {
         final Coupon coupon = mockCoupon();
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
         given(saveCouponOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
-        final CouponDiscount result = applyCouponUseCase.applyCoupon("save10", new BigDecimal("100.00"), new Date());
+        final CouponDiscount result = applyCouponUseCase
+                .applyCoupon("save10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         assertThat(result.code()).isEqualTo("SAVE10");
         assertThat(result.discountAmount()).isEqualByComparingTo("10.00");
     }
@@ -48,7 +49,10 @@ class ApplyCouponUseCaseTest {
     @Test
     void shouldReturnNullWhenCouponNotFound() {
 
-        assertThat(applyCouponUseCase.applyCoupon("save10", new BigDecimal("100.00"), new Date())).isNull();
+        assertThat(
+                applyCouponUseCase
+                        .applyCoupon("save10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli())))
+                .isNull();
     }
 
     @Test
@@ -58,7 +62,10 @@ class ApplyCouponUseCaseTest {
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
         given(saveCouponOutPort.save(any())).willThrow(new CouponConflictException("SAVE10", new RuntimeException()))
                 .willAnswer(invocation -> invocation.getArgument(0));
-        assertThat(applyCouponUseCase.applyCoupon("SAVE10", new BigDecimal("100.00"), new Date()).discountAmount())
+        assertThat(
+                applyCouponUseCase
+                        .applyCoupon("SAVE10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                        .discountAmount())
                 .isEqualByComparingTo("10.00");
     }
 
@@ -68,7 +75,9 @@ class ApplyCouponUseCaseTest {
         final Coupon coupon = mockCoupon();
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
         given(saveCouponOutPort.save(any())).willThrow(new CouponConflictException("SAVE10", new RuntimeException()));
-        assertThatThrownBy(() -> applyCouponUseCase.applyCoupon("SAVE10", new BigDecimal("100.00"), new Date()))
+        assertThatThrownBy(
+                () -> applyCouponUseCase
+                        .applyCoupon("SAVE10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli())))
                 .isInstanceOf(CouponConflictException.class);
     }
 
@@ -82,7 +91,9 @@ class ApplyCouponUseCaseTest {
                 .active(false)
                 .build();
         given(findCouponOutPort.find("SAVE10")).willReturn(coupon);
-        assertThatThrownBy(() -> applyCouponUseCase.applyCoupon("SAVE10", new BigDecimal("100.00"), new Date()))
+        assertThatThrownBy(
+                () -> applyCouponUseCase
+                        .applyCoupon("SAVE10", new BigDecimal("100.00"), Instant.ofEpochMilli(Instant.now().toEpochMilli())))
                 .isInstanceOf(CouponNotApplicableException.class);
     }
 
@@ -95,7 +106,7 @@ class ApplyCouponUseCaseTest {
                 .minimumOrderAmount(new BigDecimal("50.00"))
                 .maxRedemptions(100)
                 .redemptionCount(2)
-                .expiresAt(new Date(System.currentTimeMillis() + 86400000))
+                .expiresAt(Instant.ofEpochMilli(System.currentTimeMillis() + 86400000))
                 .active(true)
                 .build();
     }

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.recommendation;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -75,7 +75,7 @@ class FindRecommendationCandidateProductsAdapterTest {
                                 .name("Keyboard")
                                 .description("Keyboard description")
                                 .unitPrice(BigDecimal.ONE)
-                                .created(new Date())
+                                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                                 .build()));
 
         final var result = adapter.findCandidates(Set.of());
@@ -94,7 +94,7 @@ class FindRecommendationCandidateProductsAdapterTest {
                 .description(name + " description")
                 .category(Category.builder().id(1L).name("Electronics").slug("electronics").build())
                 .unitPrice(BigDecimal.ONE)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
     }
 

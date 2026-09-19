@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.persistence.order.idempotency;
 import java.sql.Connection;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -58,7 +57,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
                                     .key(key)
                                     .fingerprint(fingerprint)
                                     .status(IdempotencyKeyStatus.IN_PROGRESS)
-                                    .createdDate(Date.from(now()))
+                                    .createdDate(Instant.ofEpochMilli(now().toEpochMilli()))
                                     .build());
                     return IdempotencyReservation.reserved();
                 });
@@ -72,7 +71,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
             entity.setStatus(IdempotencyKeyStatus.COMPLETED);
             entity.setOrderNumber(orderNumber);
-            entity.setCompletedDate(Date.from(now()));
+            entity.setCompletedDate(Instant.ofEpochMilli(now().toEpochMilli()));
             idempotencyKeyEntityRepository.save(entity);
         });
     }
@@ -102,7 +101,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
         existing.setFingerprint(fingerprint);
         existing.setStatus(IdempotencyKeyStatus.IN_PROGRESS);
-        existing.setCreatedDate(Date.from(now()));
+        existing.setCreatedDate(Instant.ofEpochMilli(now().toEpochMilli()));
         existing.setOrderNumber(null);
         existing.setCompletedDate(null);
         idempotencyKeyEntityRepository.save(existing);
@@ -111,7 +110,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
     private boolean isStale(final IdempotencyKeyEntity existing) {
 
-        return existing.getCreatedDate().toInstant().plusMillis(staleAfterMs).isBefore(now());
+        return existing.getCreatedDate().plusMillis(staleAfterMs).isBefore(now());
     }
 
     private Instant now() {

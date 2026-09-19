@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.persistence.order.analytics.mapper.OrderAnalyticsProjectionPersistenceMapper;
@@ -43,7 +43,11 @@ class SaveOrderAnalyticsProjectionAdapterTest {
     @Test
     void shouldMapAndSaveProjection() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
+                ORDER_NUMBER,
+                1L,
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
                 .orderNumber(ORDER_NUMBER)
                 .build();
@@ -60,7 +64,11 @@ class SaveOrderAnalyticsProjectionAdapterTest {
     @Test
     void shouldNotSaveWhenMappingFails() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
+                ORDER_NUMBER,
+                1L,
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         given(orderAnalyticsProjectionPersistenceMapper.mapToEntity(projection)).willReturn(Optional.empty());
 
         saveOrderAnalyticsProjectionAdapter.save(projection);
@@ -71,7 +79,11 @@ class SaveOrderAnalyticsProjectionAdapterTest {
     @Test
     void shouldIgnoreDuplicateRedeliveryInsteadOfPropagatingException() {
 
-        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(ORDER_NUMBER, 1L, new Date(), new Date());
+        final OrderAnalyticsProjection projection = new OrderAnalyticsProjection(
+                ORDER_NUMBER,
+                1L,
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()));
         final OrderAnalyticsProjectionEntity entity = OrderAnalyticsProjectionEntity.builder()
                 .orderNumber(ORDER_NUMBER)
                 .build();

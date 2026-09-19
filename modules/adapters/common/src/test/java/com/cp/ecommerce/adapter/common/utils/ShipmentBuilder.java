@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.common.utils;
 
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
@@ -19,10 +19,10 @@ public class ShipmentBuilder {
     public static final String TEST_CARRIER = "DHL";
     public static final String TEST_TRACKING_NUMBER = "DHL-TRACK-1234";
     public static final ShipmentStatus TEST_STATUS = ShipmentStatus.PENDING;
-    public static final Date TEST_CREATED_DATE = new Date(1710000000000L);
-    public static final Date TEST_DISPATCHED_DATE = new Date(1710086400000L);
-    public static final Date TEST_ESTIMATED_DELIVERY_DATE = new Date(1710518400000L);
-    public static final Date TEST_DELIVERED_DATE = new Date(1710345600000L);
+    public static final Instant TEST_CREATED_DATE = Instant.ofEpochMilli(1710000000000L);
+    public static final Instant TEST_DISPATCHED_DATE = Instant.ofEpochMilli(1710086400000L);
+    public static final Instant TEST_ESTIMATED_DELIVERY_DATE = Instant.ofEpochMilli(1710518400000L);
+    public static final Instant TEST_DELIVERED_DATE = Instant.ofEpochMilli(1710345600000L);
 
     public static Shipment mockShipment() {
 

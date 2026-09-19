@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.entity;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.order.Order;
@@ -39,7 +39,7 @@ public interface OrderEntityRepository extends JpaRepository<OrderEntity, Long> 
      */
     List<OrderEntity> findTop5ByCustomerEmailAndCreatedAfterAndOrderNumberNotOrderByCreatedDesc(
             String customerEmail,
-            Date createdAfter,
+            Instant createdAfter,
             String orderNumber);
 
     List<OrderEntity> findTop10ByCustomerEmailOrderByCreatedDesc(String customerEmail);

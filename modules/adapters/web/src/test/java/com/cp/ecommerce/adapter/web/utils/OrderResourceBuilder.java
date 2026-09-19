@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.web.utils;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
@@ -39,7 +39,7 @@ public class OrderResourceBuilder {
 
         return OrderResource.builder()
                 .remarks("remark")
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerResourceBuilder.mockCustomerResource())
                 .items(List.of(mockOrderLineItemResource()))
                 .paymentMethod(PaymentMethod.CARD)

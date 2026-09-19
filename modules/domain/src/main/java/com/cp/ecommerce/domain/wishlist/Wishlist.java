@@ -1,6 +1,6 @@
 package com.cp.ecommerce.domain.wishlist;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.foundation.annotation.DomainObject;
@@ -32,7 +32,7 @@ public class Wishlist extends ValidDomainObject<Wishlist> {
     @Builder.Default
     List<WishlistItem> items = List.of();
 
-    Date updated;
+    Instant updated;
 
     @Builder.Default
     long version = 0;

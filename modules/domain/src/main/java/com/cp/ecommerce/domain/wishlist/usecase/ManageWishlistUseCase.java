@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.wishlist.usecase;
 
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import com.cp.ecommerce.domain.wishlist.Wishlist;
@@ -34,7 +34,7 @@ public class ManageWishlistUseCase implements CreateWishlistInPort, GetWishlistI
 
         final Wishlist wishlist = Wishlist.builder()
                 .wishlistId(generateWishlistIdOutPort.generate())
-                .updated(new Date())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         wishlist.assertValidationsEmpty();
         return saveWishlistOutPort.save(wishlist);
@@ -60,7 +60,12 @@ public class ManageWishlistUseCase implements CreateWishlistInPort, GetWishlistI
 
             return existing;
         }
-        items.add(WishlistItem.builder().sku(sku).productName(productName).addedDate(new Date()).build());
+        items.add(
+                WishlistItem.builder()
+                        .sku(sku)
+                        .productName(productName)
+                        .addedDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                        .build());
         return persist(existing, items);
     }
 
@@ -86,7 +91,7 @@ public class ManageWishlistUseCase implements CreateWishlistInPort, GetWishlistI
         final Wishlist mutated = Wishlist.builder()
                 .wishlistId(existing.getWishlistId())
                 .items(items)
-                .updated(new Date())
+                .updated(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .version(existing.getVersion())
                 .build();
         mutated.assertValidationsEmpty();

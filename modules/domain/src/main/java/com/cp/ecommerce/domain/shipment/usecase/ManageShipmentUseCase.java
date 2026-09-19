@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.shipment.usecase;
 
 import java.time.Duration;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.shipment.PageQuery;
@@ -55,7 +55,7 @@ public class ManageShipmentUseCase
                 .carrier(carrier)
                 .trackingNumber(generateTrackingNumberOutPort.generate(carrier))
                 .status(ShipmentStatus.PENDING)
-                .createdDate(new Date())
+                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .build();
         shipment.assertValidationsEmpty();
         return saveShipmentOutPort.save(shipment);
@@ -70,12 +70,12 @@ public class ManageShipmentUseCase
             return null;
         }
         final ShipmentStatus nextStatus = nextStatus(existing);
-        final Date now = new Date();
-        final Date dispatchedDate = nextStatus == ShipmentStatus.DISPATCHED ? now : existing.getDispatchedDate();
-        final Date estimatedDeliveryDate = nextStatus == ShipmentStatus.DISPATCHED
-                ? Date.from(now.toInstant().plus(DEFAULT_ESTIMATED_DELIVERY_LEAD_TIME))
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant dispatchedDate = nextStatus == ShipmentStatus.DISPATCHED ? now : existing.getDispatchedDate();
+        final Instant estimatedDeliveryDate = nextStatus == ShipmentStatus.DISPATCHED
+                ? Instant.ofEpochMilli(now.plus(DEFAULT_ESTIMATED_DELIVERY_LEAD_TIME).toEpochMilli())
                 : existing.getEstimatedDeliveryDate();
-        final Date deliveredDate = nextStatus == ShipmentStatus.DELIVERED ? now : existing.getDeliveredDate();
+        final Instant deliveredDate = nextStatus == ShipmentStatus.DELIVERED ? now : existing.getDeliveredDate();
         final Shipment advanced = Shipment.builder()
                 .shipmentNumber(existing.getShipmentNumber())
                 .orderNumber(existing.getOrderNumber())

@@ -6,11 +6,11 @@ import java.time.Duration;
 import java.time.Instant;
 
 import com.cp.ecommerce.adapter.camel.configuration.CamelProperties;
+import com.cp.ecommerce.adapter.common.configuration.GsonConfiguration;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.Order;
-import com.google.gson.Gson;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.ProducerTemplate;
@@ -46,7 +46,7 @@ class OrderNotificationRoutesTest {
         final CamelProperties camelProperties = new CamelProperties(DOMESTIC_COUNTRY_CODE, tempDir.toString());
 
         camelContext = new DefaultCamelContext();
-        camelContext.addRoutes(new OrderNotificationRoutes(camelProperties, new Gson()));
+        camelContext.addRoutes(new OrderNotificationRoutes(camelProperties, new GsonConfiguration().gson()));
         camelContext.start();
         producerTemplate = camelContext.createProducerTemplate();
     }

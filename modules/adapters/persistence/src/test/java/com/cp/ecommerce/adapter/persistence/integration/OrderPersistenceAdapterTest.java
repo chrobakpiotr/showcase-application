@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.integration;
 
-import java.util.Date;
+import java.time.Instant;
 
 import javax.sql.DataSource;
 
@@ -94,7 +94,7 @@ class OrderPersistenceAdapterTest {
         final OrderEntity entity = OrderEntity.builder()
                 .remarks(TEST_REMARKS)
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerEntityBuilder.mockContactEntity())
                 .status(OrderStatus.CONFIRMED)
                 .build();
@@ -133,12 +133,12 @@ class OrderPersistenceAdapterTest {
         final OutboxEventEntity laterEvent = OutboxEventEntity.builder()
                 .orderNumber("5678")
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date(2L))
+                .createdDate(Instant.ofEpochMilli(2L))
                 .build();
         final OutboxEventEntity earlierEvent = OutboxEventEntity.builder()
                 .orderNumber(TEST_ORDER_NUMBER)
                 .status(OutboxEventStatus.PENDING)
-                .createdDate(new Date(1L))
+                .createdDate(Instant.ofEpochMilli(1L))
                 .build();
         outboxEventEntityRepository.save(laterEvent);
         outboxEventEntityRepository.save(earlierEvent);
@@ -155,7 +155,7 @@ class OrderPersistenceAdapterTest {
         final OrderEntity original = OrderEntity.builder()
                 .remarks("original remark")
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerEntityBuilder.mockContactEntity())
                 .status(OrderStatus.CONFIRMED)
                 .build();
@@ -165,7 +165,7 @@ class OrderPersistenceAdapterTest {
         final OrderEntity reusedOrderNumber = OrderEntity.builder()
                 .remarks("updated remark after order number reuse")
                 .orderNumber(TEST_ORDER_NUMBER)
-                .created(new Date())
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                 .customer(CustomerEntityBuilder.mockContactEntity())
                 .status(OrderStatus.CONFIRMED)
                 .build();

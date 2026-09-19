@@ -2,7 +2,7 @@ package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -257,7 +257,7 @@ class OrderCancellationSagaPostgresIntegrationTest {
 
         return new OrderResource(
                 "R01 cancellation arbitration",
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "R01 Buyer",
                         UUID.randomUUID() + "@example.com",

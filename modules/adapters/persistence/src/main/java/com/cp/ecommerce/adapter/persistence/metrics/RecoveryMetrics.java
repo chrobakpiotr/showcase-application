@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.metrics;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -79,7 +79,7 @@ public class RecoveryMetrics {
             return;
         }
 
-        final Date now = new Date();
+        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         pendingAgeSeconds
                 .set(ageSeconds(outboxEventEntityRepository.findOldestCreatedDateByStatus(OutboxEventStatus.PENDING), now));
         expiredClaims
@@ -118,11 +118,11 @@ public class RecoveryMetrics {
                 .register(meterRegistry);
     }
 
-    private static long ageSeconds(final Date timestamp, final Date now) {
+    private static long ageSeconds(final Instant timestamp, final Instant now) {
 
         if (timestamp == null) {
             return 0L;
         }
-        return Math.max(0L, TimeUnit.MILLISECONDS.toSeconds(now.getTime() - timestamp.getTime()));
+        return Math.max(0L, TimeUnit.MILLISECONDS.toSeconds(now.toEpochMilli() - timestamp.toEpochMilli()));
     }
 }

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -238,7 +238,7 @@ class ReturnConcurrencyPostgresIntegrationTest {
 
         return new OrderResource(
                 "R05 return concurrency",
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "R05 Buyer",
                         compactUuid() + "@example.com",

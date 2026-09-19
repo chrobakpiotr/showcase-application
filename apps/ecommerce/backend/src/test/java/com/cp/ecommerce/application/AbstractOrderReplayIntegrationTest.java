@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -173,7 +173,10 @@ abstract class AbstractOrderReplayIntegrationTest {
         final String key = UUID.randomUUID().toString();
         if (stale) {
             transaction().executeWithoutResult(status -> keys.reserve(key, "same-request"));
-            jdbc.update("update test_db.idempotency_key set created_date = ? where idempotency_key = ?", new Date(0), key);
+            jdbc.update(
+                    "update test_db.idempotency_key set created_date = ? where idempotency_key = ?",
+                    java.sql.Timestamp.from(java.time.Instant.EPOCH),
+                    key);
         }
         final CountDownLatch holding = new CountDownLatch(1);
         final CountDownLatch release = new CountDownLatch(1);
@@ -297,7 +300,7 @@ abstract class AbstractOrderReplayIntegrationTest {
 
         return new OrderResource(
                 remarks,
-                new Date(),
+                Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
                         "Integration Buyer",
                         UUID.randomUUID() + "@example.com",

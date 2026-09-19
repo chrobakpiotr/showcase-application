@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.ai.order;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Callable;
 
@@ -173,7 +173,12 @@ class DuplicateOrderDetectorAdapterTest {
     private static Order orderWithRemarks(final String orderNumber, final String remarks) {
 
         final Customer customer = mockCustomer();
-        return Order.builder().remarks(remarks).orderNumber(orderNumber).created(new Date()).customer(customer).build();
+        return Order.builder()
+                .remarks(remarks)
+                .orderNumber(orderNumber)
+                .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                .customer(customer)
+                .build();
     }
 
 }

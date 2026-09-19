@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.returns.entity;
 
 import java.math.BigDecimal;
-import java.util.Date;
+import java.time.Instant;
 
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
@@ -52,10 +52,10 @@ public class ReturnRequestEntity {
     private ReturnStatus status;
 
     @Column(name = "REQUESTED_DATE", nullable = false)
-    private Date requestedDate;
+    private Instant requestedDate;
 
     @Column(name = "DECIDED_DATE")
-    private Date decidedDate;
+    private Instant decidedDate;
 
     @Column(name = "REFUND_AMOUNT", nullable = false)
     private BigDecimal refundAmount;

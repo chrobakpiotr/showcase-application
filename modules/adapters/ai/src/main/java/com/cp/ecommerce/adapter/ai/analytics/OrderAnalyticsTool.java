@@ -1,9 +1,9 @@
 package com.cp.ecommerce.adapter.ai.analytics;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
-import java.util.Date;
 import java.util.stream.Collectors;
 
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
@@ -58,9 +58,9 @@ class OrderAnalyticsTool {
                     + "e.g. 2024-01-31.";
         }
 
-        final Date fromInclusive = Date.from(from.atStartOfDay(ZoneOffset.UTC).toInstant());
+        final Instant fromInclusive = from.atStartOfDay(ZoneOffset.UTC).toInstant();
         // "to" is inclusive of the whole day: the last millisecond before the next day starts.
-        final Date toInclusive = Date.from(to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().minusMillis(1));
+        final Instant toInclusive = to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().minusMillis(1);
         final long count = countOrderAnalyticsProjectionsInPort.countPlacedBetween(fromInclusive, toInclusive);
         return "%d order(s) were placed between %s and %s (inclusive, UTC).".formatted(count, from, to);
     }
