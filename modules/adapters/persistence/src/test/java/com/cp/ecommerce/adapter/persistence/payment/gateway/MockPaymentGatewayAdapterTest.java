@@ -31,6 +31,10 @@ class MockPaymentGatewayAdapterTest {
 
     private static final String ORDER_NUMBER = "ORDER-1001";
 
+    private static final String ORDER_AMOUNT = "59.98";
+
+    private static final String CAPTURE_OPERATION_ID = "ORDER-CAPTURE:" + ORDER_NUMBER;
+
     private static final BigDecimal DECLINE_ABOVE_AMOUNT = new BigDecimal("10000.00");
 
     @Mock
@@ -44,9 +48,23 @@ class MockPaymentGatewayAdapterTest {
 
         runResilientCallableEagerly();
 
-        final String result = mockPaymentGatewayAdapter.charge(ORDER_NUMBER, new BigDecimal("59.98"), PaymentMethod.CARD);
+        final String result = mockPaymentGatewayAdapter
+                .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
 
-        assertThat(result).startsWith("mock-gw-");
+        assertThat(result).isEqualTo("mock-gw-" + CAPTURE_OPERATION_ID);
+    }
+
+    @Test
+    void shouldReturnSameGatewayReferenceForRepeatedCaptureOperation() throws Exception {
+
+        runResilientCallableEagerly();
+
+        final String first = mockPaymentGatewayAdapter
+                .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
+        final String second = mockPaymentGatewayAdapter
+                .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
+
+        assertThat(second).isEqualTo(first);
     }
 
     @Test
@@ -54,7 +72,9 @@ class MockPaymentGatewayAdapterTest {
 
         final BigDecimal amountAboveThreshold = DECLINE_ABOVE_AMOUNT.add(BigDecimal.ONE);
 
-        assertThatThrownBy(() -> mockPaymentGatewayAdapter.charge(ORDER_NUMBER, amountAboveThreshold, PaymentMethod.CARD))
+        assertThatThrownBy(
+                () -> mockPaymentGatewayAdapter
+                        .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, amountAboveThreshold, PaymentMethod.CARD))
                 .isInstanceOf(PaymentDeclinedException.class);
         verify(resilientExecutor, never()).callResilient(anyString(), any());
     }
@@ -64,7 +84,9 @@ class MockPaymentGatewayAdapterTest {
 
         doThrow(new RuntimeException("gateway timeout")).when(resilientExecutor).callResilient(anyString(), any());
 
-        assertThatThrownBy(() -> mockPaymentGatewayAdapter.charge(ORDER_NUMBER, new BigDecimal("59.98"), PaymentMethod.CARD))
+        assertThatThrownBy(
+                () -> mockPaymentGatewayAdapter
+                        .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD))
                 .isInstanceOf(TechnicalProblemException.class);
     }
 
@@ -88,7 +110,6 @@ class MockPaymentGatewayAdapterTest {
                 .isInstanceOf(TechnicalProblemException.class);
     }
 
-    @SuppressWarnings("unchecked")
     private void runResilientCallableEagerly() throws Exception {
 
         doAnswer(invocation -> {

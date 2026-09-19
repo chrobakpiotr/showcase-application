@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPort {
 
+    private static final String ORDER_CAPTURE_PREFIX = "ORDER-CAPTURE:";
+
     private static final String ORDER_REFUND_PREFIX = "ORDER-REFUND:";
 
     private final FindPaymentTransactionOutPort findPaymentTransactionOutPort;
@@ -58,7 +60,8 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         }
         try {
 
-            final String gatewayReference = chargePaymentOutPort.charge(orderNumber, amount, method);
+            final String gatewayReference = chargePaymentOutPort
+                    .charge(orderNumber, ORDER_CAPTURE_PREFIX + orderNumber, amount, method);
             return savePaymentTransactionOutPort.save(
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)

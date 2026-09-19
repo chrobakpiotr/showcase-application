@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.payment.gateway;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -34,7 +33,11 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
     private BigDecimal declineAboveAmount = new BigDecimal("10000.00");
 
     @Override
-    public String charge(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
+    public String charge(
+            final String orderNumber,
+            final String operationId,
+            final BigDecimal amount,
+            final PaymentMethod method) {
 
         if (amount.compareTo(declineAboveAmount) > 0) {
 
@@ -44,13 +47,14 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
         try {
 
             final String gatewayReference = resilientExecutor
-                    .callResilient(CHARGE_RESILIENCE_INSTANCE_NAME, () -> "mock-gw-" + UUID.randomUUID());
+                    .callResilient(CHARGE_RESILIENCE_INSTANCE_NAME, () -> "mock-gw-" + operationId);
             log.info(
-                    "Mock payment gateway captured {} for order: {} via {} ({})",
+                    "Mock payment gateway captured {} for order: {} via {} ({}, idempotencyKey={})",
                     amount,
                     orderNumber,
                     method,
-                    gatewayReference);
+                    gatewayReference,
+                    operationId);
             return gatewayReference;
         } catch (final Exception exception) {
 

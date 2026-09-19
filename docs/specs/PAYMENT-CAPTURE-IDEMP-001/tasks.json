@@ -1,0 +1,72 @@
+{
+  "feature": "PAYMENT-CAPTURE-IDEMP-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Make payment capture provider-idempotent",
+      "objective": "Reuse one stable provider operation identity across payment capture retries after unknown local outcomes.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/PAYMENT-CAPTURE-IDEMP-001/**",
+        "docs/adr/0046-provider-idempotent-payment-capture.md",
+        "docs/adr/README.md",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/payment/port/outgoing/ChargePaymentOutPort.java",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCase.java",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseTest.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/gateway/MockPaymentGatewayAdapter.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/gateway/MockPaymentGatewayAdapterTest.java"
+      ],
+      "risk_tags": [
+        "payment",
+        "external-side-effects",
+        "idempotency",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "./gradlew :domain:test --tests com.cp.ecommerce.domain.payment.usecase.ManagePaymentUseCaseTest --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.payment.gateway.MockPaymentGatewayAdapterTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Stable provider operation identity at the domain port plus deterministic mock-provider replay."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent R03 capture-idempotency evaluation",
+      "objective": "Verify stable capture identity and existing payment regressions independently.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/PAYMENT-CAPTURE-IDEMP-001/evidence/**"
+      ],
+      "risk_tags": [
+        "payment",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/PAYMENT-CAPTURE-IDEMP-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}

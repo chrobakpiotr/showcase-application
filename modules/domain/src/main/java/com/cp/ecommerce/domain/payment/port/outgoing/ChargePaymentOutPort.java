@@ -15,9 +15,14 @@ public interface ChargePaymentOutPort {
     /**
      * Charges {@code amount} for {@code orderNumber} via {@code method}.
      *
-     * @return an opaque gateway-assigned reference identifying the charge.
+     * <p>
+     * {@code operationId} is the stable provider-side idempotency identity for this logical capture. A retry after an unknown
+     * local outcome must reuse the same value so a provider that already accepted the original call can return the same logical
+     * charge instead of creating a second one.
+     *
+     * @return an opaque gateway-assigned reference identifying the logical charge.
      * @throws PaymentDeclinedException if the gateway declines the charge.
      */
-    String charge(String orderNumber, BigDecimal amount, PaymentMethod method);
+    String charge(String orderNumber, String operationId, BigDecimal amount, PaymentMethod method);
 
 }

@@ -52,6 +52,7 @@ than editing it in place.
 | [0043](0043-concurrent-return-entitlement-and-moderation.md) | Return entitlement and moderation use database row locks |
 | [0044](0044-explicit-api-access-boundary.md) | Public API access is explicit and anonymous AI has no customer-data tools |
 | [0045](0045-oidc-authorization-code-pkce.md) | Browser authentication uses Authorization Code with PKCE and memory-only tokens |
+| [0046](0046-provider-idempotent-payment-capture.md) | Payment capture retries use a stable provider idempotency identity |
 
 ## Template for new ADRs
 

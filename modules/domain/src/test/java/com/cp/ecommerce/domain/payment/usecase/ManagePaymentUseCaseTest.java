@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 class ManagePaymentUseCaseTest {
 
     private static final String ORDER_NUMBER = "ORDER-1001";
+    private static final String CAPTURE_OPERATION_ID = "ORDER-CAPTURE:" + ORDER_NUMBER;
     private static final String GATEWAY_REFERENCE = "mock-gw-1";
     private static final String REFUND_ID = "RETURN-1";
     private static final BigDecimal AMOUNT = new BigDecimal("59.98");
@@ -79,7 +80,8 @@ class ManagePaymentUseCaseTest {
     void shouldCaptureNewPayment() {
 
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
-        given(chargePaymentOutPort.charge(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).willReturn(GATEWAY_REFERENCE);
+        given(chargePaymentOutPort.charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, AMOUNT, PaymentMethod.CARD))
+                .willReturn(GATEWAY_REFERENCE);
         given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
@@ -126,7 +128,7 @@ class ManagePaymentUseCaseTest {
     void shouldRecordDecline() {
 
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
-        given(chargePaymentOutPort.charge(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
+        given(chargePaymentOutPort.charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, AMOUNT, PaymentMethod.CARD))
                 .willThrow(new PaymentDeclinedException("declined"));
         given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
 
@@ -224,7 +226,7 @@ class ManagePaymentUseCaseTest {
         given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(existing);
 
         assertThat(managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).isSameAs(existing);
-        verify(chargePaymentOutPort, never()).charge(any(), any(), any());
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
     }
 
     private static PaymentTransaction captured() {
