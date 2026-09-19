@@ -1,0 +1,67 @@
+{
+  "feature": "OUTBOX-BATCH-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Bound outbox candidate polling",
+      "objective": "Prevent one poll from materializing the complete pending/recovery backlog.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/OUTBOX-BATCH-001/**",
+        "docs/adr/0047-bounded-outbox-polling.md",
+        "docs/adr/README.md",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OutboxEventEntityRepository.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OutboxEventEntityRepositoryBatchTest.java"
+      ],
+      "risk_tags": [
+        "outbox",
+        "backlog",
+        "performance",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepositoryBatchTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Repository default methods prove a hard candidate limit."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify bounded outbox candidate polling, multi-worker recovery and full repository gates.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/OUTBOX-BATCH-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation",
+        "outbox",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}

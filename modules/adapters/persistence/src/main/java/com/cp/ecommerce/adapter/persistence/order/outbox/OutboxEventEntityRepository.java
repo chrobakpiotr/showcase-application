@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -18,13 +20,20 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEntity, Long> {
 
+    int DEFAULT_POLL_BATCH_SIZE = 50;
+
     /**
      * Find all outbox events by status ordered by creation date.
      *
      * @param status status to search for.
      * @return matching outbox events.
      */
-    List<OutboxEventEntity> findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus status);
+    default List<OutboxEventEntity> findAllByStatusOrderByCreatedDateAsc(final OutboxEventStatus status) {
+
+        return findAllByStatusOrderByCreatedDateAsc(status, PageRequest.of(0, DEFAULT_POLL_BATCH_SIZE));
+    }
+
+    List<OutboxEventEntity> findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus status, Pageable pageable);
 
     /**
      * Find expired claims for one status ordered by creation date.
@@ -33,9 +42,20 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
      * @param claimUntil latest lease deadline that is considered expired.
      * @return expired claimed events.
      */
+    default List<OutboxEventEntity> findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
+            final OutboxEventStatus status,
+            final Date claimUntil) {
+
+        return findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
+                status,
+                claimUntil,
+                PageRequest.of(0, DEFAULT_POLL_BATCH_SIZE));
+    }
+
     List<OutboxEventEntity> findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
             OutboxEventStatus status,
-            Date claimUntil);
+            Date claimUntil,
+            Pageable pageable);
 
     /**
      * Reload one candidate while holding the shared saga/cancellation arbitration lock.

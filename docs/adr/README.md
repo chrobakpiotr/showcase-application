@@ -53,6 +53,7 @@ than editing it in place.
 | [0044](0044-explicit-api-access-boundary.md) | Public API access is explicit and anonymous AI has no customer-data tools |
 | [0045](0045-oidc-authorization-code-pkce.md) | Browser authentication uses Authorization Code with PKCE and memory-only tokens |
 | [0046](0046-provider-idempotent-payment-capture.md) | Payment capture retries use a stable provider idempotency identity |
+| [0047](0047-bounded-outbox-polling.md) | Order outbox polling uses bounded candidate batches |
 
 ## Template for new ADRs
 
