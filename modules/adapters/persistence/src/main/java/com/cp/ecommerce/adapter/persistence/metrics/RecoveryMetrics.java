@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.persistence.metrics;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -22,6 +23,10 @@ import io.micrometer.core.instrument.MeterRegistry;
  *
  * <p>
  * Order numbers, outbox ids, notification ids and payment operation ids belong in logs/traces rather than metric labels.
+ *
+ * <p>
+ * Persistence slice tests intentionally do not create a {@link MeterRegistry}. In that environment this component remains a
+ * no-op so persistence configuration can still be loaded without pulling observability auto-configuration into the slice.
  */
 @Component
 public class RecoveryMetrics {
@@ -55,15 +60,42 @@ public class RecoveryMetrics {
 
     private final transient AtomicLong notificationLagSeconds = new AtomicLong();
 
-    private final transient Counter paymentUnknownCounter;
+    private final transient Optional<Counter> paymentUnknownCounter;
 
     public RecoveryMetrics(
-            final MeterRegistry meterRegistry,
+            final Optional<MeterRegistry> meterRegistry,
             final OutboxEventEntityRepository outboxEventEntityRepository,
             final NotificationEntityRepository notificationEntityRepository) {
 
         this.outboxEventEntityRepository = outboxEventEntityRepository;
         this.notificationEntityRepository = notificationEntityRepository;
+        paymentUnknownCounter = meterRegistry.map(this::registerMetrics);
+    }
+
+    @Scheduled(fixedDelayString = "${recovery.metrics.refresh-ms:15000}")
+    void refresh() {
+
+        if (paymentUnknownCounter.isEmpty()) {
+            return;
+        }
+
+        final Date now = new Date();
+        pendingAgeSeconds
+                .set(ageSeconds(outboxEventEntityRepository.findOldestCreatedDateByStatus(OutboxEventStatus.PENDING), now));
+        expiredClaims
+                .set(outboxEventEntityRepository.countByStatusAndClaimUntilLessThanEqual(OutboxEventStatus.PROCESSING, now));
+        retryBacklog.set(outboxEventEntityRepository.countByStatusAndAttemptsGreaterThan(OutboxEventStatus.PENDING, 0));
+        incompleteCompensations.set(outboxEventEntityRepository.countByStatus(OutboxEventStatus.COMPENSATING));
+        notificationLagSeconds.set(
+                ageSeconds(notificationEntityRepository.findOldestDueAttemptDate(RETRYABLE_NOTIFICATION_STATUSES, now), now));
+    }
+
+    public void recordPaymentUnknown() {
+
+        paymentUnknownCounter.ifPresent(Counter::increment);
+    }
+
+    private Counter registerMetrics(final MeterRegistry meterRegistry) {
 
         Gauge.builder(PENDING_AGE_METRIC_NAME, pendingAgeSeconds, AtomicLong::doubleValue)
                 .description("Age in seconds of the oldest pending order-placement outbox event")
@@ -80,28 +112,10 @@ public class RecoveryMetrics {
         Gauge.builder(NOTIFICATION_LAG_METRIC_NAME, notificationLagSeconds, AtomicLong::doubleValue)
                 .description("Seconds by which the oldest retryable notification is overdue")
                 .register(meterRegistry);
-        paymentUnknownCounter = Counter.builder(PAYMENT_UNKNOWN_METRIC_NAME)
+
+        return Counter.builder(PAYMENT_UNKNOWN_METRIC_NAME)
                 .description("Payment capture calls whose final provider outcome is unknown")
                 .register(meterRegistry);
-    }
-
-    @Scheduled(fixedDelayString = "${recovery.metrics.refresh-ms:15000}")
-    void refresh() {
-
-        final Date now = new Date();
-        pendingAgeSeconds
-                .set(ageSeconds(outboxEventEntityRepository.findOldestCreatedDateByStatus(OutboxEventStatus.PENDING), now));
-        expiredClaims
-                .set(outboxEventEntityRepository.countByStatusAndClaimUntilLessThanEqual(OutboxEventStatus.PROCESSING, now));
-        retryBacklog.set(outboxEventEntityRepository.countByStatusAndAttemptsGreaterThan(OutboxEventStatus.PENDING, 0));
-        incompleteCompensations.set(outboxEventEntityRepository.countByStatus(OutboxEventStatus.COMPENSATING));
-        notificationLagSeconds.set(
-                ageSeconds(notificationEntityRepository.findOldestDueAttemptDate(RETRYABLE_NOTIFICATION_STATUSES, now), now));
-    }
-
-    public void recordPaymentUnknown() {
-
-        paymentUnknownCounter.increment();
     }
 
     private static long ageSeconds(final Date timestamp, final Date now) {

@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.metrics;
 
 import java.util.Date;
+import java.util.Optional;
 
 import com.cp.ecommerce.adapter.persistence.notification.entity.NotificationEntityRepository;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
@@ -19,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class RecoveryMetricsTest {
@@ -37,7 +39,10 @@ class RecoveryMetricsTest {
     void setUp() {
 
         meterRegistry = new SimpleMeterRegistry();
-        recoveryMetrics = new RecoveryMetrics(meterRegistry, outboxEventEntityRepository, notificationEntityRepository);
+        recoveryMetrics = new RecoveryMetrics(
+                Optional.of(meterRegistry),
+                outboxEventEntityRepository,
+                notificationEntityRepository);
     }
 
     @Test
@@ -83,6 +88,20 @@ class RecoveryMetricsTest {
         recoveryMetrics.recordPaymentUnknown();
 
         assertThat(meterRegistry.get(RecoveryMetrics.PAYMENT_UNKNOWN_METRIC_NAME).counter().count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldRemainNoOpWhenMeterRegistryIsUnavailable() {
+
+        final RecoveryMetrics metricsWithoutRegistry = new RecoveryMetrics(
+                Optional.empty(),
+                outboxEventEntityRepository,
+                notificationEntityRepository);
+
+        metricsWithoutRegistry.refresh();
+        metricsWithoutRegistry.recordPaymentUnknown();
+
+        verifyNoInteractions(outboxEventEntityRepository, notificationEntityRepository);
     }
 
     private double gauge(final String name) {
