@@ -64,7 +64,7 @@ class FindOrdersAdapterTest {
     }
 
     @Test
-    void shouldRequestPageableSortedByCreatedDescending() {
+    void shouldRequestPageableSortedByCreatedAndIdDescending() {
 
         given(orderEntityRepository.findAll(any(Pageable.class))).willReturn(Page.empty());
 
@@ -75,7 +75,7 @@ class FindOrdersAdapterTest {
         final Pageable pageable = pageableCaptor.getValue();
         assertThat(pageable.getPageNumber()).isEqualTo(2);
         assertThat(pageable.getPageSize()).isEqualTo(10);
-        assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "created"));
+        assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Order.desc("created"), Sort.Order.desc("id")));
     }
 
     @Test

@@ -34,7 +34,8 @@ class FindOrdersAdapter implements FindOrdersOutPort {
     @Override
     public PagedResult<Order> findAll(final PageQuery pageQuery) {
 
-        final Pageable pageable = PageRequest.of(pageQuery.page(), pageQuery.size(), Sort.by(Sort.Direction.DESC, "created"));
+        final Pageable pageable = PageRequest
+                .of(pageQuery.page(), pageQuery.size(), Sort.by(Sort.Order.desc("created"), Sort.Order.desc("id")));
         final Page<OrderEntity> page = orderEntityRepository.findAll(pageable);
         final var content = page.getContent().stream().map(this::mapToDomainObjectOrThrow).toList();
         return new PagedResult<>(content, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
