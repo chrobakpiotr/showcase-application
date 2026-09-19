@@ -1,6 +1,5 @@
 package com.cp.ecommerce.adapter.web.wishlist;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.wishlist.mapper.WishlistWebMapper;
 import com.cp.ecommerce.adapter.web.wishlist.resource.AddWishlistItemResource;
 import com.cp.ecommerce.adapter.web.wishlist.resource.MoveWishlistItemToCartResource;
@@ -14,6 +13,7 @@ import com.cp.ecommerce.domain.wishlist.WishlistItem;
 import com.cp.ecommerce.domain.wishlist.port.incoming.CreateWishlistInPort;
 import com.cp.ecommerce.domain.wishlist.port.incoming.GetWishlistInPort;
 import com.cp.ecommerce.domain.wishlist.port.incoming.ManageWishlistInPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

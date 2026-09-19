@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.recommendation.CustomerReviewProfile;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendations;
 import com.cp.ecommerce.domain.recommendation.PurchasedProductProfile;
@@ -15,6 +14,7 @@ import com.cp.ecommerce.domain.recommendation.port.outgoing.FindCustomerPurchase
 import com.cp.ecommerce.domain.recommendation.port.outgoing.FindCustomerReviewHistoryOutPort;
 import com.cp.ecommerce.domain.recommendation.port.outgoing.FindRecommendationCandidateProductsOutPort;
 import com.cp.ecommerce.domain.recommendation.port.outgoing.GenerateProductRecommendationsOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

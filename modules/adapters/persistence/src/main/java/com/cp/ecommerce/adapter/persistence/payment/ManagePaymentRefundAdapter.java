@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntityRepository;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
@@ -17,6 +16,7 @@ import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
+import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 
 import org.springframework.transaction.annotation.Transactional;
 

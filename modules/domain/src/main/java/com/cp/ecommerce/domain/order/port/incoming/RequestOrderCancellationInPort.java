@@ -17,8 +17,8 @@ public interface RequestOrderCancellationInPort {
      *
      * @param orderNumber number of the order to cancel.
      * @return the updated {@link Order}, with {@link com.cp.ecommerce.domain.order.OrderStatus#CANCELLED} status.
-     * @throws com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException if the order does not exist, or is no
-     *             longer in a cancellable state.
+     * @throws com.cp.ecommerce.foundation.exception.OrderNotCancellableException if the order does not exist, or is no longer
+     *             in a cancellable state.
      */
     Order requestCancellation(String orderNumber);
 

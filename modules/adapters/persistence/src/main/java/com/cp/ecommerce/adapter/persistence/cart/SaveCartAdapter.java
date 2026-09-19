@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.persistence.cart;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.CartConflictException;
 import com.cp.ecommerce.adapter.persistence.cart.entity.CartEntity;
 import com.cp.ecommerce.adapter.persistence.cart.entity.CartEntityRepository;
 import com.cp.ecommerce.adapter.persistence.cart.mapper.CartPersistenceMapper;
 import com.cp.ecommerce.domain.cart.Cart;
 import com.cp.ecommerce.domain.cart.port.outgoing.SaveCartOutPort;
+import com.cp.ecommerce.foundation.exception.CartConflictException;
 
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;

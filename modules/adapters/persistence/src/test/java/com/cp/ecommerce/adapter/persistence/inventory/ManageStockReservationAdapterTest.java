@@ -2,13 +2,13 @@ package com.cp.ecommerce.adapter.persistence.inventory;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntity;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntityRepository;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEntity;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEntityRepository;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationStatus;
 import com.cp.ecommerce.domain.inventory.StockLevel;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

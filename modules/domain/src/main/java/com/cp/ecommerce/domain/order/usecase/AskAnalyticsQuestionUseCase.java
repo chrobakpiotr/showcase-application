@@ -1,10 +1,10 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
 import com.cp.ecommerce.domain.order.AnalyticsQuestion;
 import com.cp.ecommerce.domain.order.port.incoming.AskAnalyticsQuestionInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.AskAnalyticsQuestionOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

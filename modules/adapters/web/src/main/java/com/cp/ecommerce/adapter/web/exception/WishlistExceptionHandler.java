@@ -3,7 +3,7 @@ package com.cp.ecommerce.adapter.web.exception;
 import java.net.URI;
 import java.util.UUID;
 
-import com.cp.ecommerce.adapter.common.exception.WishlistConflictException;
+import com.cp.ecommerce.foundation.exception.WishlistConflictException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;

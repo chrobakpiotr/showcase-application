@@ -1,12 +1,12 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.port.incoming.RequestOrderCancellationInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.CancelOrderOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindOrderOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
 
 import lombok.RequiredArgsConstructor;
 

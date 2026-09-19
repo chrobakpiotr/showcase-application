@@ -1,9 +1,9 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
 import com.cp.ecommerce.domain.order.port.incoming.RecordOrderAnalyticsProjectionInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SaveOrderAnalyticsProjectionOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

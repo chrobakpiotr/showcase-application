@@ -1,11 +1,11 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.port.outgoing.CancelOrderOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindOrderOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

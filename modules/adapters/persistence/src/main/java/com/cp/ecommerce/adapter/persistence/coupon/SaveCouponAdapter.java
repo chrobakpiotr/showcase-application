@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.persistence.coupon;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
 import com.cp.ecommerce.adapter.persistence.coupon.entity.CouponEntity;
 import com.cp.ecommerce.adapter.persistence.coupon.entity.CouponEntityRepository;
 import com.cp.ecommerce.adapter.persistence.coupon.mapper.CouponPersistenceMapper;
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.port.outgoing.SaveCouponOutPort;
+import com.cp.ecommerce.foundation.exception.CouponConflictException;
 
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,10 +1,10 @@
 package com.cp.ecommerce.domain.assistant.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.assistant.SupportAnswer;
 import com.cp.ecommerce.domain.assistant.SupportQuestion;
 import com.cp.ecommerce.domain.assistant.port.incoming.AskSupportQuestionInPort;
 import com.cp.ecommerce.domain.assistant.port.outgoing.AskSupportQuestionOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

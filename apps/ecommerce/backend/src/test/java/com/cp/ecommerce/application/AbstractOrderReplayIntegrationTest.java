@@ -15,7 +15,6 @@ import java.util.concurrent.TimeoutException;
 
 import javax.sql.DataSource;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.persistence.order.idempotency.IdempotencyKeyAdapter;
 import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
@@ -25,6 +24,7 @@ import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +66,8 @@ abstract class AbstractOrderReplayIntegrationTest {
     private OrderController controller;
 
     @Autowired
+    private CatalogProductFixture catalogProductFixture;
+    @Autowired
     private ManageStockInPort inventory;
 
     @Autowired
@@ -84,6 +86,8 @@ abstract class AbstractOrderReplayIntegrationTest {
     void shouldReplayAfterStockExhaustionWithoutAdditionalWrites() {
 
         final String sku = sku();
+
+        catalogProductFixture.ensureActiveProduct(sku, "Integration fixture", BigDecimal.TEN);
         final String key = UUID.randomUUID().toString();
         inventory.receiveStock(sku, 1);
         final OrderResource request = request(sku, List.of(line(sku)));
@@ -96,7 +100,10 @@ abstract class AbstractOrderReplayIntegrationTest {
     void shouldRollbackPartialStockAndKeyThenPermitImmediateRetry() {
 
         final String firstSku = sku();
+
+        catalogProductFixture.ensureActiveProduct(firstSku, "Integration fixture", BigDecimal.TEN);
         final String secondSku = sku();
+        catalogProductFixture.ensureActiveProduct(secondSku, "Integration fixture", BigDecimal.TEN);
         final String key = UUID.randomUUID().toString();
         inventory.receiveStock(firstSku, 1);
         final OrderResource request = request(key, List.of(line(firstSku), line(secondSku)));
@@ -121,6 +128,8 @@ abstract class AbstractOrderReplayIntegrationTest {
     void shouldSerializeConcurrentSameKeyPlacements() throws Exception {
 
         final String sku = sku();
+
+        catalogProductFixture.ensureActiveProduct(sku, "Integration fixture", BigDecimal.TEN);
         final String key = UUID.randomUUID().toString();
         inventory.receiveStock(sku, 1);
         final OrderResource request = request(sku, List.of(line(sku)));

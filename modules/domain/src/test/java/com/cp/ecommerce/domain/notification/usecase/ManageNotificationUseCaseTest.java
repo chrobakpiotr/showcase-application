@@ -3,7 +3,6 @@ package com.cp.ecommerce.domain.notification.usecase;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 import com.cp.ecommerce.domain.notification.NotificationType;
@@ -14,6 +13,7 @@ import com.cp.ecommerce.domain.notification.port.outgoing.GenerateNotificationId
 import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

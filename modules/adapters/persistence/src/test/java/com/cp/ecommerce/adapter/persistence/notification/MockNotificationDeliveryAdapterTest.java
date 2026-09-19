@@ -1,8 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.notification;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.adapter.common.utils.NotificationBuilder;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

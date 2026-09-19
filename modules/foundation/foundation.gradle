@@ -1,0 +1,10 @@
+apply from: rootProject.file('tooling/quality/spotbugs/spotbugs.gradle')
+apply from: rootProject.file('tooling/quality/checkstyle/checkstyle.gradle')
+apply from: rootProject.file('tooling/quality/spotless/spotless-java.gradle')
+apply from: rootProject.file('tooling/quality/pmd/pmd.gradle')
+
+dependencies {
+    api 'jakarta.validation:jakarta.validation-api'
+}
+
+rootProject.configureTestDependencies(project)

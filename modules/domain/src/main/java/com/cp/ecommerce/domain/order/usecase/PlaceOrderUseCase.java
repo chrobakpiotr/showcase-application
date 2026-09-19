@@ -9,8 +9,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Contact;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
@@ -20,12 +18,11 @@ import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PlaceOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.IdempotencyKeyOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.LogOrderOutPort;
-
-import org.springframework.util.StringUtils;
+import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.IdempotencyKeyConflictException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Use case for placing order.
@@ -43,7 +40,6 @@ import lombok.extern.slf4j.Slf4j;
  * content, so a retried request with the exact same payload replays the original order number instead of placing a second
  * order, while a retried request reusing the same key with a different payload is rejected as a conflict.
  */
-@Slf4j
 @RequiredArgsConstructor
 @UseCase
 public class PlaceOrderUseCase implements PlaceOrderInPort {
@@ -63,7 +59,7 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
     @Override
     public PlaceOrderResult placeOrder(final Order order, final String idempotencyKey, final UnaryOperator<Order> prepare) {
 
-        if (!StringUtils.hasText(idempotencyKey)) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
 
             return doPlaceOrder(prepare.apply(order));
         }
@@ -73,7 +69,6 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
         return switch (reservation.outcome()) {
         case DUPLICATE -> {
-            log.info("Replaying a completed order placement.");
             yield new PlaceOrderResult(reservation.existingOrderNumber(), false);
         }
         case CONFLICT -> throw new IdempotencyKeyConflictException(
@@ -89,11 +84,8 @@ public class PlaceOrderUseCase implements PlaceOrderInPort {
 
     private PlaceOrderResult doPlaceOrder(final Order order) {
 
-        log.info("Saving order data started...");
         final Order savedOrder = manageOrderInPort.saveOrder(order);
-        log.info("Saving order completed.");
 
-        log.info("Order's number: {}", savedOrder.getOrderNumber());
         logOrderOutPort.log(savedOrder);
 
         return new PlaceOrderResult(savedOrder.getOrderNumber(), true);

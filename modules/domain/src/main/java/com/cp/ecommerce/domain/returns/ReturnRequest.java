@@ -3,9 +3,9 @@ package com.cp.ecommerce.domain.returns;
 import java.math.BigDecimal;
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.annotation.DomainObject;
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.validation.ValidDomainObject;
+import com.cp.ecommerce.foundation.annotation.DomainObject;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.validation.ValidDomainObject;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;

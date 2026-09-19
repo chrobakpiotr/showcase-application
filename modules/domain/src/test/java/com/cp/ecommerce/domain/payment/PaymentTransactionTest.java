@@ -2,9 +2,9 @@ package com.cp.ecommerce.domain.payment;
 
 import java.math.BigDecimal;
 
-import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.exception.DomainObjectValidationException;
 
 import org.junit.jupiter.api.Test;
 

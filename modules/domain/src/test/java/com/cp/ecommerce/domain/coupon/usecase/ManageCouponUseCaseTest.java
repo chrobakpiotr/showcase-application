@@ -3,8 +3,6 @@ package com.cp.ecommerce.domain.coupon.usecase;
 import java.math.BigDecimal;
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.exception.CouponAlreadyExistsException;
-import com.cp.ecommerce.adapter.common.exception.CouponNotApplicableException;
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.CouponPageQuery;
 import com.cp.ecommerce.domain.coupon.DiscountType;
@@ -12,6 +10,8 @@ import com.cp.ecommerce.domain.coupon.PagedCoupons;
 import com.cp.ecommerce.domain.coupon.port.outgoing.FindCouponOutPort;
 import com.cp.ecommerce.domain.coupon.port.outgoing.FindCouponsOutPort;
 import com.cp.ecommerce.domain.coupon.port.outgoing.SaveCouponOutPort;
+import com.cp.ecommerce.foundation.exception.CouponAlreadyExistsException;
+import com.cp.ecommerce.foundation.exception.CouponNotApplicableException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

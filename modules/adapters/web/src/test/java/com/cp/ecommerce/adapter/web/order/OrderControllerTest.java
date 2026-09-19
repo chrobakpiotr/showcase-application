@@ -7,9 +7,6 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
-import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
-import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
@@ -36,6 +33,9 @@ import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
+import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
+import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

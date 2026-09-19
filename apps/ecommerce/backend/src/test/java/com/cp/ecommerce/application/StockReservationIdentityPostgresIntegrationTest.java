@@ -75,6 +75,8 @@ class StockReservationIdentityPostgresIntegrationTest {
     private OrderController orderController;
 
     @Autowired
+    private CatalogProductFixture catalogProductFixture;
+    @Autowired
     private CancelOrderWorkflow cancelOrderWorkflow;
 
     @Autowired
@@ -179,6 +181,8 @@ class StockReservationIdentityPostgresIntegrationTest {
     }
 
     private String place(final String sku, final int quantity) {
+
+        catalogProductFixture.ensureActiveProduct(sku, "R02 fixture", BigDecimal.TEN);
 
         return orderController.placeOrder(request(sku, quantity), UUID.randomUUID().toString()).orderNumber();
     }

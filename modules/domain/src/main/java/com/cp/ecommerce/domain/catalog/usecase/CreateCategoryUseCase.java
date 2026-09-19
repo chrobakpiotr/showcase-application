@@ -1,9 +1,9 @@
 package com.cp.ecommerce.domain.catalog.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.catalog.Category;
 import com.cp.ecommerce.domain.catalog.port.incoming.CreateCategoryInPort;
 import com.cp.ecommerce.domain.catalog.port.outgoing.SaveCategoryOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

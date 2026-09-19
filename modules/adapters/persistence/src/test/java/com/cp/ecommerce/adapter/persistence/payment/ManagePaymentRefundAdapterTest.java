@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.persistence.payment;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntityRepository;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
@@ -15,6 +14,7 @@ import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
+import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

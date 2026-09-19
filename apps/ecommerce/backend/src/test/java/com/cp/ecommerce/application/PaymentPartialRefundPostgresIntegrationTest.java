@@ -11,7 +11,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.cp.ecommerce.adapter.common.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
@@ -26,6 +25,7 @@ import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -68,6 +68,8 @@ class PaymentPartialRefundPostgresIntegrationTest {
     @Autowired
     private OrderController orderController;
 
+    @Autowired
+    private CatalogProductFixture catalogProductFixture;
     @Autowired
     private RequestReturnInPort requestReturnInPort;
 
@@ -193,6 +195,8 @@ class PaymentPartialRefundPostgresIntegrationTest {
     }
 
     private String capturedOrder(final String sku) {
+
+        catalogProductFixture.ensureActiveProduct(sku, "R04 fixture", UNIT_PRICE);
 
         manageStockInPort.receiveStock(sku, 2);
         final String orderNumber = orderController.placeOrder(orderRequest(sku), UUID.randomUUID().toString()).orderNumber();

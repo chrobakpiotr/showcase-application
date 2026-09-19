@@ -2,8 +2,8 @@ package com.cp.ecommerce.domain.inventory.port.outgoing;
 
 import java.util.function.UnaryOperator;
 
-import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.domain.inventory.StockLevel;
+import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 
 /**
  * Executes one complete generic stock mutation attempt.

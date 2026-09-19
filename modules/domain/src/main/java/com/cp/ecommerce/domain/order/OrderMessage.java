@@ -2,7 +2,7 @@ package com.cp.ecommerce.domain.order;
 
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.annotation.DomainObject;
+import com.cp.ecommerce.foundation.annotation.DomainObject;
 
 import lombok.Builder;
 

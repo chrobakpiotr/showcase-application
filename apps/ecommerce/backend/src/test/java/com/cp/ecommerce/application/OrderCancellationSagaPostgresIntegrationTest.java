@@ -11,7 +11,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.cp.ecommerce.adapter.common.exception.OrderNotCancellableException;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestrator;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventStatus;
@@ -39,6 +38,7 @@ import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSumma
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -91,6 +91,8 @@ class OrderCancellationSagaPostgresIntegrationTest {
     @Autowired
     private OrderController orderController;
 
+    @Autowired
+    private CatalogProductFixture catalogProductFixture;
     @Autowired
     private CancelOrderWorkflow cancelOrderWorkflow;
 
@@ -211,6 +213,8 @@ class OrderCancellationSagaPostgresIntegrationTest {
     }
 
     private String place(final String sku) {
+
+        catalogProductFixture.ensureActiveProduct(sku, "R01 fixture", BigDecimal.TEN);
 
         return orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
     }

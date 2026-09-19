@@ -13,6 +13,7 @@ addSubproject('adapter:camel', 'modules/adapters/camel')
 addSubproject('adapter:ai', 'modules/adapters/ai')
 addSubproject('application:ecommerce', 'apps/ecommerce/backend')
 addSubproject('application:orchestration', 'modules/application/orchestration')
+addSubproject('foundation', 'modules/foundation')
 addSubproject('domain', 'modules/domain')
 
 project(':adapter').projectDir = file('modules/adapters')

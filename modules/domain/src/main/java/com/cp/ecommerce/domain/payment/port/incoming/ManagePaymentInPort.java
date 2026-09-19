@@ -2,9 +2,9 @@ package com.cp.ecommerce.domain.payment.port.incoming;
 
 import java.math.BigDecimal;
 
-import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
+import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 
 /**
  * Incoming port for capturing and refunding an order's payment.

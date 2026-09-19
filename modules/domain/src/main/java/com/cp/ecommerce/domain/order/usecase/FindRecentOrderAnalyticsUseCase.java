@@ -2,10 +2,10 @@ package com.cp.ecommerce.domain.order.usecase;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
 import com.cp.ecommerce.domain.order.port.incoming.FindRecentOrderAnalyticsInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindRecentOrderAnalyticsProjectionsOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

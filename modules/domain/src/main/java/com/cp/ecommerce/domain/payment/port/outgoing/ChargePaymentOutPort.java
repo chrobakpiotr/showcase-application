@@ -2,8 +2,8 @@ package com.cp.ecommerce.domain.payment.port.outgoing;
 
 import java.math.BigDecimal;
 
-import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 
 /**
  * Outgoing port abstracting the actual payment gateway integration - implemented by a mock/simulated adapter (see ADR 0030),

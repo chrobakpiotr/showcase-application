@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.web.order;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
@@ -21,6 +20,7 @@ import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;

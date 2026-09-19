@@ -2,7 +2,6 @@ package com.cp.ecommerce.adapter.web.cart;
 
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.cart.mapper.CartWebMapper;
 import com.cp.ecommerce.adapter.web.cart.resource.AddCartItemResource;
 import com.cp.ecommerce.adapter.web.cart.resource.ApplyCouponResource;
@@ -16,6 +15,7 @@ import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.PreviewCouponInPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

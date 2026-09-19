@@ -3,15 +3,15 @@ package com.cp.ecommerce.domain.inventory.usecase;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
-import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.incoming.GetStockLevelInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.FindStockLevelOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
 import com.cp.ecommerce.domain.inventory.port.outgoing.MutateStockLevelOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
+import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 
 import lombok.RequiredArgsConstructor;
 

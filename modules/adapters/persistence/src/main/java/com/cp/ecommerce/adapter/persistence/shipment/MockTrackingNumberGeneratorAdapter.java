@@ -5,9 +5,9 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.shipment.port.outgoing.GenerateTrackingNumberOutPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

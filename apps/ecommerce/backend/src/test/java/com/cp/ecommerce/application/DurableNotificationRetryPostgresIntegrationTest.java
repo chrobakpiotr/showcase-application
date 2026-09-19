@@ -1,6 +1,5 @@
 package com.cp.ecommerce.application;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.persistence.notification.entity.NotificationEntity;
 import com.cp.ecommerce.adapter.persistence.notification.entity.NotificationEntityRepository;
 import com.cp.ecommerce.domain.notification.Notification;
@@ -10,6 +9,7 @@ import com.cp.ecommerce.domain.notification.port.incoming.RetryNotificationDeliv
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;

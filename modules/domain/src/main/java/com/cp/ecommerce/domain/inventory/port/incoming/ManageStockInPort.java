@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.inventory.port.incoming;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.domain.inventory.StockLevel;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 /**
  * Incoming port for every stock-mutating operation on a SKU's {@link StockLevel}.

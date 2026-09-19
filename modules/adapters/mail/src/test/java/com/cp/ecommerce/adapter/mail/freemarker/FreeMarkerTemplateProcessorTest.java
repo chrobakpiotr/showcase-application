@@ -3,7 +3,7 @@ package com.cp.ecommerce.adapter.mail.freemarker;
 import java.io.IOException;
 import java.util.Locale;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

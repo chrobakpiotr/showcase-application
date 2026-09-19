@@ -2,13 +2,13 @@ package com.cp.ecommerce.adapter.persistence.coupon;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
 import com.cp.ecommerce.adapter.common.utils.CouponBuilder;
 import com.cp.ecommerce.adapter.persistence.coupon.entity.CouponEntity;
 import com.cp.ecommerce.adapter.persistence.coupon.entity.CouponEntityRepository;
 import com.cp.ecommerce.adapter.persistence.coupon.mapper.CouponPersistenceMapper;
 import com.cp.ecommerce.adapter.persistence.utils.CouponEntityBuilder;
 import com.cp.ecommerce.domain.coupon.Coupon;
+import com.cp.ecommerce.foundation.exception.CouponConflictException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -2,9 +2,9 @@ package com.cp.ecommerce.domain.order.usecase;
 
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.port.incoming.CountOrderAnalyticsProjectionsInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.CountOrderAnalyticsProjectionsOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

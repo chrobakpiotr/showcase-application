@@ -4,13 +4,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 
-import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.recommendation.mapper.RecommendationWebMapper;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendation;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendations;
 import com.cp.ecommerce.domain.recommendation.RecommendationRequest;
 import com.cp.ecommerce.domain.recommendation.port.incoming.RecommendProductsInPort;
+import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

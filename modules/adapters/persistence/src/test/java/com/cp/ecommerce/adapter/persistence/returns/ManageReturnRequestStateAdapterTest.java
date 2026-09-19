@@ -2,10 +2,6 @@ package com.cp.ecommerce.adapter.persistence.returns;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
 import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntity;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntityRepository;
@@ -15,6 +11,10 @@ import com.cp.ecommerce.adapter.persistence.returns.mapper.ReturnRequestPersiste
 import com.cp.ecommerce.adapter.persistence.utils.ReturnRequestEntityBuilder;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
+import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

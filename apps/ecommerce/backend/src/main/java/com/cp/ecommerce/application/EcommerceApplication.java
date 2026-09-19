@@ -6,6 +6,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 @SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
 @ComponentScan(
         basePackages = {
-                "com.cp.ecommerce.application.order",
+                "com.cp.ecommerce.application",
                 "com.cp.ecommerce.adapter.web",
                 "com.cp.ecommerce.adapter.mail",
                 "com.cp.ecommerce.adapter.persistence",
@@ -26,7 +27,10 @@ import lombok.extern.slf4j.Slf4j;
                 "com.cp.ecommerce.adapter.kafka",
                 "com.cp.ecommerce.adapter.camel",
                 "com.cp.ecommerce.adapter.ai",
-                "com.cp.ecommerce.adapter.common" })
+                "com.cp.ecommerce.adapter.common" },
+        includeFilters = @ComponentScan.Filter(
+                type = FilterType.REGEX,
+                pattern = "com\\.cp\\.ecommerce\\.domain\\..*\\.usecase\\..*UseCase"))
 public class EcommerceApplication {
 
     public static void main(final String... args) {

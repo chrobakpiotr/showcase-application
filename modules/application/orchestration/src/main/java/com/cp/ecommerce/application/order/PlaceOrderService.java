@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
@@ -17,6 +16,7 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;

@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.web.inventory;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.inventory.mapper.StockLevelWebMapper;
 import com.cp.ecommerce.adapter.web.inventory.resource.StockAdjustmentResource;
 import com.cp.ecommerce.adapter.web.inventory.resource.StockLevelResource;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.incoming.GetStockLevelInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.web.shipments;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.common.utils.ShipmentBuilder;
@@ -24,6 +23,7 @@ import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPor
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.GetShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
+import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 
 import org.junit.jupiter.api.Test;
 

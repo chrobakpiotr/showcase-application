@@ -3,10 +3,6 @@ package com.cp.ecommerce.adapter.persistence.returns;
 import java.util.Date;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntityRepository;
 import com.cp.ecommerce.adapter.persistence.returns.entity.ReturnRequestEntity;
 import com.cp.ecommerce.adapter.persistence.returns.entity.ReturnRequestEntityRepository;
@@ -14,6 +10,10 @@ import com.cp.ecommerce.adapter.persistence.returns.mapper.ReturnRequestPersiste
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.outgoing.ManageReturnRequestStateOutPort;
+import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
 
 import org.springframework.transaction.annotation.Transactional;
 

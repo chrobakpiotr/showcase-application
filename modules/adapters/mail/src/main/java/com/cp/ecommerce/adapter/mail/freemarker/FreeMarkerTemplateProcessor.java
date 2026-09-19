@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;

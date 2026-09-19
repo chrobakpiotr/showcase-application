@@ -4,8 +4,6 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.ShipmentConflictException;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
@@ -17,6 +15,8 @@ import com.cp.ecommerce.domain.shipment.port.outgoing.FindShipmentsOutPort;
 import com.cp.ecommerce.domain.shipment.port.outgoing.GenerateShipmentNumberOutPort;
 import com.cp.ecommerce.domain.shipment.port.outgoing.GenerateTrackingNumberOutPort;
 import com.cp.ecommerce.domain.shipment.port.outgoing.SaveShipmentOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 
 import lombok.RequiredArgsConstructor;
 

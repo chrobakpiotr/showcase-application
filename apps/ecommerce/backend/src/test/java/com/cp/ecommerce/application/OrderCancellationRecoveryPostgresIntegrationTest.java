@@ -76,6 +76,8 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
     private OrderController orderController;
 
     @Autowired
+    private CatalogProductFixture catalogProductFixture;
+    @Autowired
     private CancelOrderWorkflow cancelOrderWorkflow;
 
     @Autowired
@@ -99,6 +101,7 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
     void shouldResumeCancellationFromDurableIntentAfterFirstSideEffectFails() {
 
         final String sku = "R01X-" + compactUuid();
+        catalogProductFixture.ensureActiveProduct(sku, "R01 recovery fixture", BigDecimal.TEN);
         manageStockInPort.receiveStock(sku, 1);
         final String orderNumber = orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
 

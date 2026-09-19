@@ -3,7 +3,7 @@ package com.cp.ecommerce.adapter.common.resilience;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.junit.jupiter.api.Test;
 

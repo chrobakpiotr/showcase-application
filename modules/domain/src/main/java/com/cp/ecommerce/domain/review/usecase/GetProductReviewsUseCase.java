@@ -2,12 +2,12 @@ package com.cp.ecommerce.domain.review.usecase;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewSummary;
 import com.cp.ecommerce.domain.review.port.incoming.GetProductReviewsInPort;
 import com.cp.ecommerce.domain.review.port.outgoing.ComputeReviewSummaryOutPort;
 import com.cp.ecommerce.domain.review.port.outgoing.FindApprovedReviewsBySkuOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.common.validation;
 
-import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
+import com.cp.ecommerce.foundation.exception.DomainObjectValidationException;
 
 import org.junit.jupiter.api.Test;
 

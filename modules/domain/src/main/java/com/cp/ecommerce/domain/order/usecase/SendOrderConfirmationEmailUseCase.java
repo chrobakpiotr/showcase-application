@@ -1,11 +1,11 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.SupportedLocale;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.DetectRemarksLanguageOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SendEmailOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

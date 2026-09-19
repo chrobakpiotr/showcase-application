@@ -2,8 +2,6 @@ package com.cp.ecommerce.adapter.web.shipments;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
 import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
@@ -12,6 +10,8 @@ import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.GetShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;

@@ -3,11 +3,11 @@ package com.cp.ecommerce.adapter.web.order;
 import java.time.Duration;
 import java.util.function.Supplier;
 
-import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.web.order.resource.AnalyticsQuestionResource;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
 import com.cp.ecommerce.domain.order.usecase.AskAnalyticsQuestionUseCase;
+import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

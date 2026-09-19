@@ -75,6 +75,8 @@ class SagaCompensationRecoveryPostgresIntegrationTest {
     private OrderController orderController;
 
     @Autowired
+    private CatalogProductFixture catalogProductFixture;
+    @Autowired
     private OrderPlacementSagaOrchestrator orchestrator;
 
     @Autowired
@@ -101,6 +103,7 @@ class SagaCompensationRecoveryPostgresIntegrationTest {
     void shouldResumeDurableCompensationAfterStockReleaseFailure() {
 
         final String sku = "R07-" + compactUuid();
+        catalogProductFixture.ensureActiveProduct(sku, "R07 fixture", BigDecimal.TEN);
         manageStockInPort.receiveStock(sku, 1);
         final String orderNumber = orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
 

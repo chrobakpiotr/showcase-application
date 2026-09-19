@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.web.catalog;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.catalog.mapper.ProductWebMapper;
 import com.cp.ecommerce.adapter.web.catalog.metrics.ProductMetrics;
 import com.cp.ecommerce.adapter.web.catalog.resource.ProductDetailsResource;
@@ -14,6 +13,7 @@ import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.ProductPageQuery;
 import com.cp.ecommerce.domain.catalog.usecase.ListProductsUseCase;
 import com.cp.ecommerce.domain.catalog.usecase.ManageProductUseCase;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;

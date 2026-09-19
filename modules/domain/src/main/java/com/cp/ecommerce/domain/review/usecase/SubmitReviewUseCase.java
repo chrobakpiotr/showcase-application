@@ -2,11 +2,11 @@ package com.cp.ecommerce.domain.review.usecase;
 
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.port.incoming.SubmitReviewInPort;
 import com.cp.ecommerce.domain.review.port.outgoing.GenerateReviewIdOutPort;
 import com.cp.ecommerce.domain.review.port.outgoing.SaveReviewOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.persistence.wishlist;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.WishlistConflictException;
 import com.cp.ecommerce.adapter.persistence.wishlist.entity.WishlistEntity;
 import com.cp.ecommerce.adapter.persistence.wishlist.entity.WishlistEntityRepository;
 import com.cp.ecommerce.adapter.persistence.wishlist.mapper.WishlistPersistenceMapper;
 import com.cp.ecommerce.domain.wishlist.Wishlist;
 import com.cp.ecommerce.domain.wishlist.port.outgoing.SaveWishlistOutPort;
+import com.cp.ecommerce.foundation.exception.WishlistConflictException;
 
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Transactional;

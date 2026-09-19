@@ -4,14 +4,14 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Locale;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
-import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
-import com.cp.ecommerce.adapter.common.exception.CouponNotApplicableException;
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.coupon.port.outgoing.FindCouponOutPort;
 import com.cp.ecommerce.domain.coupon.port.outgoing.SaveCouponOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.CouponConflictException;
+import com.cp.ecommerce.foundation.exception.CouponNotApplicableException;
 
 import lombok.RequiredArgsConstructor;
 

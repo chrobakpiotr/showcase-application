@@ -2,8 +2,6 @@ package com.cp.ecommerce.adapter.web.review;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.review.mapper.ReviewSummaryWebMapper;
 import com.cp.ecommerce.adapter.web.review.mapper.ReviewWebMapper;
 import com.cp.ecommerce.adapter.web.review.resource.ReviewResource;
@@ -13,6 +11,8 @@ import com.cp.ecommerce.domain.review.Review;
 import com.cp.ecommerce.domain.review.ReviewSummary;
 import com.cp.ecommerce.domain.review.port.incoming.GetProductReviewsInPort;
 import com.cp.ecommerce.domain.review.port.incoming.SubmitReviewInPort;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

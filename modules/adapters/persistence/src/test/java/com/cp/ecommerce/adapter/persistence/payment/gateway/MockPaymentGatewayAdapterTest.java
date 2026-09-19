@@ -3,10 +3,10 @@ package com.cp.ecommerce.adapter.persistence.payment.gateway;
 import java.math.BigDecimal;
 import java.util.concurrent.Callable;
 
-import com.cp.ecommerce.adapter.common.exception.PaymentDeclinedException;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

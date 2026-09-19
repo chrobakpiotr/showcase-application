@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.DomainObject;
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.validation.ValidDomainObject;
 import com.cp.ecommerce.domain.customer.Customer;
+import com.cp.ecommerce.foundation.annotation.DomainObject;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.validation.ValidDomainObject;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;

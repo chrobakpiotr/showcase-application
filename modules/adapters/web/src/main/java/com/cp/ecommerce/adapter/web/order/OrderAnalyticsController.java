@@ -2,11 +2,11 @@ package com.cp.ecommerce.adapter.web.order;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderAnalyticsWebMapper;
 import com.cp.ecommerce.adapter.web.order.resource.OrderAnalyticsResource;
 import com.cp.ecommerce.domain.order.OrderAnalyticsProjection;
 import com.cp.ecommerce.domain.order.usecase.FindRecentOrderAnalyticsUseCase;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.http.HttpStatus;

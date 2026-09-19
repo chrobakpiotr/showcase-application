@@ -8,8 +8,8 @@ import java.nio.file.Paths;
 
 import javax.xml.transform.TransformerException;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -80,6 +80,8 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
     private OrderController orderController;
 
     @Autowired
+    private CatalogProductFixture catalogProductFixture;
+    @Autowired
     private ManageStockInPort manageStockInPort;
 
     @Autowired
@@ -180,6 +182,8 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
     }
 
     private String place(final String sku) {
+
+        catalogProductFixture.ensureActiveProduct(sku, "R03 fixture", BigDecimal.TEN);
 
         return orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
     }

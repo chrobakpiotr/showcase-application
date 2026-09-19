@@ -1,10 +1,10 @@
 package com.cp.ecommerce.adapter.persistence.notification;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOutPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

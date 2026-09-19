@@ -1,11 +1,11 @@
 package com.cp.ecommerce.domain.catalog.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.catalog.PagedResult;
 import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.ProductPageQuery;
 import com.cp.ecommerce.domain.catalog.port.incoming.ListProductsInPort;
 import com.cp.ecommerce.domain.catalog.port.outgoing.FindProductsOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

@@ -11,9 +11,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
 import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
@@ -27,6 +24,9 @@ import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -66,6 +66,8 @@ class ReturnConcurrencyPostgresIntegrationTest {
     @Autowired
     private OrderController orderController;
 
+    @Autowired
+    private CatalogProductFixture catalogProductFixture;
     @Autowired
     private ManageStockInPort manageStockInPort;
 
@@ -225,6 +227,8 @@ class ReturnConcurrencyPostgresIntegrationTest {
     }
 
     private String placeOrder(final String sku, final int quantity) {
+
+        catalogProductFixture.ensureActiveProduct(sku, "R05 fixture", UNIT_PRICE);
 
         manageStockInPort.receiveStock(sku, quantity);
         return orderController.placeOrder(orderRequest(sku, quantity), UUID.randomUUID().toString()).orderNumber();

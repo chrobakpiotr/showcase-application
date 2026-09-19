@@ -3,7 +3,6 @@ package com.cp.ecommerce.domain.order.usecase;
 import java.time.Duration;
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.OpsDigest;
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
 import com.cp.ecommerce.domain.order.port.incoming.CountOrderAnalyticsProjectionsInPort;
@@ -11,6 +10,7 @@ import com.cp.ecommerce.domain.order.port.incoming.GenerateOpsDigestInPort;
 import com.cp.ecommerce.domain.order.port.incoming.GetRemarksClassificationSummaryInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GenerateOpsDigestNarrativeOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SaveOpsDigestOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

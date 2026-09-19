@@ -6,7 +6,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.cart.Cart;
 import com.cp.ecommerce.domain.cart.CartLineItem;
 import com.cp.ecommerce.domain.cart.port.incoming.CreateCartInPort;
@@ -15,6 +14,7 @@ import com.cp.ecommerce.domain.cart.port.incoming.ManageCartInPort;
 import com.cp.ecommerce.domain.cart.port.outgoing.FindCartOutPort;
 import com.cp.ecommerce.domain.cart.port.outgoing.GenerateCartIdOutPort;
 import com.cp.ecommerce.domain.cart.port.outgoing.SaveCartOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

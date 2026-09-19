@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.web.exception;
 
-import com.cp.ecommerce.adapter.common.exception.WishlistConflictException;
+import com.cp.ecommerce.foundation.exception.WishlistConflictException;
 
 import org.junit.jupiter.api.Test;
 

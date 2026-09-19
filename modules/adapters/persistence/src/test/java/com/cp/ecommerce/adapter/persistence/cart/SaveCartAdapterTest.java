@@ -2,13 +2,13 @@ package com.cp.ecommerce.adapter.persistence.cart;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.CartConflictException;
 import com.cp.ecommerce.adapter.common.utils.CartBuilder;
 import com.cp.ecommerce.adapter.persistence.cart.entity.CartEntity;
 import com.cp.ecommerce.adapter.persistence.cart.entity.CartEntityRepository;
 import com.cp.ecommerce.adapter.persistence.cart.mapper.CartPersistenceMapper;
 import com.cp.ecommerce.adapter.persistence.utils.CartEntityBuilder;
 import com.cp.ecommerce.domain.cart.Cart;
+import com.cp.ecommerce.foundation.exception.CartConflictException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

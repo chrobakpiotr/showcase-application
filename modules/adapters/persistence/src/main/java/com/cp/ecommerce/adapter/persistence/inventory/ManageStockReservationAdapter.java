@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.inventory;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.InsufficientStockException;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntity;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntityRepository;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEntity;
@@ -9,6 +8,7 @@ import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEnt
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationStatus;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.outgoing.ManageStockReservationOutPort;
+import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 import org.springframework.transaction.annotation.Transactional;
 

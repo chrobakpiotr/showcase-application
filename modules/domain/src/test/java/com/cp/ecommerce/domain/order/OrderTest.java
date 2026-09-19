@@ -1,10 +1,10 @@
 package com.cp.ecommerce.domain.order;
 
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.domain.customer.Address;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.exception.DomainObjectValidationException;
 
 import org.junit.jupiter.api.Test;
 

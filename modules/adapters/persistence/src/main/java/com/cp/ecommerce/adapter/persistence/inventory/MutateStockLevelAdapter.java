@@ -3,12 +3,12 @@ package com.cp.ecommerce.adapter.persistence.inventory;
 import java.util.function.UnaryOperator;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
-import com.cp.ecommerce.adapter.common.exception.StockLevelConflictException;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntity;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockLevelEntityRepository;
 import com.cp.ecommerce.adapter.persistence.inventory.mapper.StockLevelPersistenceMapper;
 import com.cp.ecommerce.domain.inventory.StockLevel;
 import com.cp.ecommerce.domain.inventory.port.outgoing.MutateStockLevelOutPort;
+import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.transaction.annotation.Propagation;

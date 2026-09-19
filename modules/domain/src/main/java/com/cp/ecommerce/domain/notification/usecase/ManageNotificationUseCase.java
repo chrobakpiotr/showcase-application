@@ -3,7 +3,6 @@ package com.cp.ecommerce.domain.notification.usecase;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
@@ -18,6 +17,7 @@ import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPo
 import com.cp.ecommerce.domain.notification.port.outgoing.GenerateNotificationIdOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

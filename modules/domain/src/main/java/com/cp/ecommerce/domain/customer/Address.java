@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.customer;
 
-import com.cp.ecommerce.adapter.common.constant.ValidationConstants;
-import com.cp.ecommerce.adapter.common.validation.ValidDomainObject;
+import com.cp.ecommerce.foundation.constant.ValidationConstants;
+import com.cp.ecommerce.foundation.validation.ValidDomainObject;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

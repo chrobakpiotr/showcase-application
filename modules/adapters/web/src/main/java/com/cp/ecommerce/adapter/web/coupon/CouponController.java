@@ -3,7 +3,6 @@ package com.cp.ecommerce.adapter.web.coupon;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.coupon.mapper.CouponWebMapper;
 import com.cp.ecommerce.adapter.web.coupon.resource.CouponDetailsResource;
 import com.cp.ecommerce.adapter.web.coupon.resource.CouponResource;
@@ -14,6 +13,7 @@ import com.cp.ecommerce.domain.coupon.port.incoming.CreateCouponInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.GetCouponInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ListCouponsInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ManageCouponInPort;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;

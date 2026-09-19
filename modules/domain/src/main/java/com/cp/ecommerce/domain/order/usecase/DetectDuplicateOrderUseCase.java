@@ -2,12 +2,12 @@ package com.cp.ecommerce.domain.order.usecase;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.DetectDuplicateOrderOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindRecentOrdersByCustomerOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

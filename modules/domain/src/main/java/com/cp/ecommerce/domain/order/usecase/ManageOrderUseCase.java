@@ -1,12 +1,12 @@
 package com.cp.ecommerce.domain.order.usecase;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindOrderOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.FindSequenceNumberOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GenerateOrderNumberOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SaveOrderOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

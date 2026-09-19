@@ -2,7 +2,6 @@ package com.cp.ecommerce.domain.shipment.usecase;
 
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.exception.BusinessRuleException;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.outgoing.FindShipmentOutPort;
@@ -11,6 +10,7 @@ import com.cp.ecommerce.domain.shipment.port.outgoing.GenerateShipmentNumberOutP
 import com.cp.ecommerce.domain.shipment.port.outgoing.GenerateTrackingNumberOutPort;
 import com.cp.ecommerce.domain.shipment.port.outgoing.SaveShipmentOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.exception.BusinessRuleException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

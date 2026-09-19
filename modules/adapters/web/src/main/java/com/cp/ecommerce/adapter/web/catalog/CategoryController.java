@@ -3,12 +3,12 @@ package com.cp.ecommerce.adapter.web.catalog;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.TechnicalProblemException;
 import com.cp.ecommerce.adapter.web.catalog.mapper.CategoryWebMapper;
 import com.cp.ecommerce.adapter.web.catalog.resource.CategoryResource;
 import com.cp.ecommerce.domain.catalog.Category;
 import com.cp.ecommerce.domain.catalog.usecase.CreateCategoryUseCase;
 import com.cp.ecommerce.domain.catalog.usecase.ListCategoriesUseCase;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

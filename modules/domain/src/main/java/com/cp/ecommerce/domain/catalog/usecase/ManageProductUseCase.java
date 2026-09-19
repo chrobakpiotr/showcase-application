@@ -3,7 +3,6 @@ package com.cp.ecommerce.domain.catalog.usecase;
 import java.util.Date;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.catalog.CategoryNotFoundException;
 import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
@@ -11,6 +10,7 @@ import com.cp.ecommerce.domain.catalog.port.outgoing.FindCategoryOutPort;
 import com.cp.ecommerce.domain.catalog.port.outgoing.FindProductOutPort;
 import com.cp.ecommerce.domain.catalog.port.outgoing.GenerateSkuOutPort;
 import com.cp.ecommerce.domain.catalog.port.outgoing.SaveProductOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

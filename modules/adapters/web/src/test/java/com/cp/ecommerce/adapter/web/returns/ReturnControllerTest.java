@@ -4,10 +4,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotApprovableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRefundableException;
-import com.cp.ecommerce.adapter.common.exception.ReturnRequestNotRejectableException;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
@@ -28,6 +24,10 @@ import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
+import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
 
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ package com.cp.ecommerce.adapter.common.resilience;
 import java.time.Duration;
 import java.util.function.Supplier;
 
-import com.cp.ecommerce.adapter.common.exception.RateLimitExceededException;
+import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.springframework.stereotype.Component;
 

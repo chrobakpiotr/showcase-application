@@ -3,8 +3,8 @@ package com.cp.ecommerce.domain.cart;
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.exception.DomainObjectValidationException;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
+import com.cp.ecommerce.foundation.exception.DomainObjectValidationException;
 
 import org.junit.jupiter.api.Test;
 

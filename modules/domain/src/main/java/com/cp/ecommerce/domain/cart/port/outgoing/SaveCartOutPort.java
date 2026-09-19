@@ -1,7 +1,7 @@
 package com.cp.ecommerce.domain.cart.port.outgoing;
 
-import com.cp.ecommerce.adapter.common.exception.CartConflictException;
 import com.cp.ecommerce.domain.cart.Cart;
+import com.cp.ecommerce.foundation.exception.CartConflictException;
 
 /**
  * Outgoing port for persisting a cart.

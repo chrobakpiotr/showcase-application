@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.wishlist.Wishlist;
 import com.cp.ecommerce.domain.wishlist.WishlistItem;
 import com.cp.ecommerce.domain.wishlist.port.incoming.CreateWishlistInPort;
@@ -13,6 +12,7 @@ import com.cp.ecommerce.domain.wishlist.port.incoming.ManageWishlistInPort;
 import com.cp.ecommerce.domain.wishlist.port.outgoing.FindWishlistOutPort;
 import com.cp.ecommerce.domain.wishlist.port.outgoing.GenerateWishlistIdOutPort;
 import com.cp.ecommerce.domain.wishlist.port.outgoing.SaveWishlistOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 

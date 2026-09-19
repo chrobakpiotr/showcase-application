@@ -2,13 +2,13 @@ package com.cp.ecommerce.adapter.persistence.wishlist;
 
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.exception.WishlistConflictException;
 import com.cp.ecommerce.adapter.common.utils.WishlistBuilder;
 import com.cp.ecommerce.adapter.persistence.utils.WishlistEntityBuilder;
 import com.cp.ecommerce.adapter.persistence.wishlist.entity.WishlistEntity;
 import com.cp.ecommerce.adapter.persistence.wishlist.entity.WishlistEntityRepository;
 import com.cp.ecommerce.adapter.persistence.wishlist.mapper.WishlistPersistenceMapper;
 import com.cp.ecommerce.domain.wishlist.Wishlist;
+import com.cp.ecommerce.foundation.exception.WishlistConflictException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

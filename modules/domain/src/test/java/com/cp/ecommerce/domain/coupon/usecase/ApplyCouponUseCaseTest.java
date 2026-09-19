@@ -3,13 +3,13 @@ package com.cp.ecommerce.domain.coupon.usecase;
 import java.math.BigDecimal;
 import java.util.Date;
 
-import com.cp.ecommerce.adapter.common.exception.CouponConflictException;
-import com.cp.ecommerce.adapter.common.exception.CouponNotApplicableException;
 import com.cp.ecommerce.domain.coupon.Coupon;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.DiscountType;
 import com.cp.ecommerce.domain.coupon.port.outgoing.FindCouponOutPort;
 import com.cp.ecommerce.domain.coupon.port.outgoing.SaveCouponOutPort;
+import com.cp.ecommerce.foundation.exception.CouponConflictException;
+import com.cp.ecommerce.foundation.exception.CouponNotApplicableException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

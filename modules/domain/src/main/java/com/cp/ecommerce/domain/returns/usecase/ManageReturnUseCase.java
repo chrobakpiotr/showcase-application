@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
-import com.cp.ecommerce.adapter.common.annotation.UseCase;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
@@ -15,6 +14,7 @@ import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestsOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.GenerateReturnNumberOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.ManageReturnRequestStateOutPort;
+import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 
