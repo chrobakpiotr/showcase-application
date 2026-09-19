@@ -4,13 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 
 import { AuthService } from '@app/auth/auth.service';
 
@@ -19,51 +13,27 @@ import { AuthService } from '@app/auth/auth.service';
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule],
 })
 export class LoginComponent {
   private readonly authService = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
-  readonly loginForm = new FormGroup({
-    username: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    password: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-  });
+  onLogin(): void {
+    if (this.submitting()) return;
 
-  get usernameControl() {
-    return this.loginForm.controls.username;
-  }
-
-  get passwordControl() {
-    return this.loginForm.controls.password;
-  }
-
-  onSubmit(): void {
-    if (this.loginForm.invalid || this.submitting()) return;
     this.submitting.set(true);
     this.errorMessage.set(null);
-    const { username, password } = this.loginForm.getRawValue();
-    this.authService.login(username, password).subscribe({
-      next: () => {
-        this.submitting.set(false);
-        const returnUrl =
-          this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard';
-        this.router.navigateByUrl(returnUrl);
-      },
-      error: (err: Error) => {
-        this.submitting.set(false);
-        this.errorMessage.set(err.message);
-      },
+    const returnUrl =
+      this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard';
+
+    void this.authService.login(returnUrl).catch(() => {
+      this.submitting.set(false);
+      this.errorMessage.set(
+        'Could not start the Keycloak sign-in flow. Please try again.'
+      );
     });
   }
 }

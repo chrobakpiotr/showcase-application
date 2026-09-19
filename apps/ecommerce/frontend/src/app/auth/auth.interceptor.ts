@@ -1,22 +1,29 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { from, switchMap } from 'rxjs';
 
-import { environment } from '@environments/environment';
 import { AuthService } from '@app/auth/auth.service';
+import { environment } from '@environments/environment';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const document = inject(DOCUMENT);
-  const authService = inject(AuthService);
-  const token = authService.getAccessToken();
-  if (token && isApiRequest(req.url, document.baseURI)) {
-    return next(
-      req.clone({
-        headers: req.headers.set('Authorization', `Bearer ${token}`),
-      })
-    );
+  if (!isApiRequest(req.url, document.baseURI)) {
+    return next(req);
   }
-  return next(req);
+
+  const authService = inject(AuthService);
+  return from(authService.getValidAccessToken()).pipe(
+    switchMap((token) =>
+      next(
+        token
+          ? req.clone({
+              headers: req.headers.set('Authorization', `Bearer ${token}`),
+            })
+          : req
+      )
+    )
+  );
 };
 
 function isApiRequest(url: string, baseUri: string): boolean {

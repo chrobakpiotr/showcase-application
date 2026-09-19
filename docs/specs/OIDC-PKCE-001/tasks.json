@@ -1,0 +1,111 @@
+{
+  "feature": "OIDC-PKCE-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Define OIDC PKCE session policy",
+      "objective": "Record the standard-flow, PKCE, redirect, token-storage, refresh and logout contract.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/OIDC-PKCE-001/**",
+        "docs/adr/0045-oidc-authorization-code-pkce.md",
+        "docs/adr/README.md",
+        "docs/adr/0004-jwt-oauth2-resource-server-with-keycloak.md"
+      ],
+      "risk_tags": ["security", "oauth", "oidc", "session"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/OIDC-PKCE-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Specification and ADR."
+    },
+    {
+      "id": "T-002",
+      "title": "Configure Keycloak public client for PKCE",
+      "objective": "Disable password grants, enable standard flow, require S256 and remove wildcard redirects/origins.",
+      "role": "builder",
+      "depends_on": ["T-001"],
+      "allowed_paths": [
+        "infra/docker/keycloak/realm-export.json"
+      ],
+      "risk_tags": ["security", "oauth", "redirect"],
+      "acceptance_criteria": ["AC-003", "AC-004", "AC-005", "AC-013"],
+      "verification": [
+        "python3 -m json.tool infra/docker/keycloak/realm-export.json"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Realm JSON structural assertions."
+    },
+    {
+      "id": "T-003",
+      "title": "Replace SPA password grant with Keycloak JS",
+      "objective": "Use Authorization Code + PKCE with memory-only tokens, refresh and safe redirects.",
+      "role": "builder",
+      "depends_on": ["T-001", "T-002"],
+      "allowed_paths": [
+        "apps/ecommerce/frontend/package.json",
+        "apps/ecommerce/frontend/package-lock.json",
+        "apps/ecommerce/frontend/src/app/auth/**",
+        "apps/ecommerce/frontend/src/app/app.config.ts",
+        "apps/ecommerce/frontend/src/app/app.component.ts",
+        "apps/ecommerce/frontend/src/app/app.component.spec.ts",
+        "apps/ecommerce/frontend/src/environments/environment.base.ts",
+        "modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfiguration.java",
+        "modules/adapters/security/src/test/java/com/cp/ecommerce/adapter/security/configuration/WebSecurityConfigurationTest.java"
+      ],
+      "risk_tags": ["security", "oauth", "token", "open-redirect"],
+      "acceptance_criteria": [
+        "AC-001", "AC-002", "AC-006", "AC-007", "AC-008", "AC-009",
+        "AC-010", "AC-011", "AC-012", "AC-013", "AC-015"
+      ],
+      "verification": [
+        "./gradlew :adapter:ecommerce-frontend:runUnitTests --no-configuration-cache --no-parallel",
+        "./gradlew :adapter:ecommerce-frontend:runESLintCheck --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Auth service, interceptor and login component unit tests."
+    },
+    {
+      "id": "T-004",
+      "title": "Exercise browser OIDC flow",
+      "objective": "Use the real Keycloak login page in Playwright and verify return route, viewer login and logout.",
+      "role": "builder",
+      "depends_on": ["T-003"],
+      "allowed_paths": [
+        "apps/ecommerce/frontend/e2e/**"
+      ],
+      "risk_tags": ["security", "oauth", "e2e"],
+      "acceptance_criteria": ["AC-009", "AC-013", "AC-014", "AC-017"],
+      "verification": [
+        "cd apps/ecommerce/frontend && npm run e2e -- auth-flow.spec.ts"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Playwright against real Keycloak."
+    },
+    {
+      "id": "T-005",
+      "title": "Independent R16 evaluation",
+      "objective": "Verify no password grant/token persistence remains and all focused/full gates pass.",
+      "role": "evaluator",
+      "depends_on": ["T-001", "T-002", "T-003", "T-004"],
+      "allowed_paths": [
+        "docs/specs/OIDC-PKCE-001/evidence/**"
+      ],
+      "risk_tags": ["security", "oauth", "oidc"],
+      "acceptance_criteria": [
+        "AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006",
+        "AC-007", "AC-008", "AC-009", "AC-010", "AC-011", "AC-012",
+        "AC-013", "AC-014", "AC-015", "AC-016", "AC-017"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/OIDC-PKCE-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh SHA and gate evidence."
+    }
+  ]
+}

@@ -71,11 +71,10 @@ class WebSecurityConfigurationTest {
     }
 
     @Test
-    void shouldAllowConnectSrcToKeycloaksOwnOriginForDirectBrowserLogin() throws Exception {
+    void shouldAllowConnectSrcToKeycloaksOwnOriginForOidcCodeExchangeAndRefresh() throws Exception {
 
-        // The Angular frontend authenticates against Keycloak's token endpoint directly from the browser (see
-        // AuthService.login), not through this backend - without this, connect-src 'self' would silently block
-        // that login request.
+        // Authorization Code + PKCE still exchanges/refreshes tokens directly with Keycloak from the browser;
+        // without this origin, connect-src would block those OIDC requests.
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(

@@ -19,49 +19,24 @@
     <div class="login-heading">
       <p class="eyebrow">Operator access</p>
       <h2>Sign in</h2>
-      <p>Use the seeded Keycloak users to explore role-aware workflows.</p>
+      <p>
+        Continue to Keycloak. Credentials are entered only on the identity
+        provider page and the browser uses Authorization Code + PKCE.
+      </p>
     </div>
 
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-      <div class="field">
-        <label for="username">Username</label>
-        <input
-          id="username"
-          type="text"
-          formControlName="username"
-          data-testid="login-username"
-          autocomplete="username"
-          placeholder="order-admin"
-        />
-        @if (usernameControl.invalid && usernameControl.touched) {
-        <span class="error">Username is required.</span>
-        }
-      </div>
-      <div class="field">
-        <label for="password">Password</label>
-        <input
-          id="password"
-          type="password"
-          formControlName="password"
-          data-testid="login-password"
-          autocomplete="current-password"
-          placeholder="password"
-        />
-        @if (passwordControl.invalid && passwordControl.touched) {
-        <span class="error">Password is required.</span>
-        }
-      </div>
-      @if (errorMessage()) {
-      <div class="error-message" role="alert">{{ errorMessage() }}</div>
-      }
-      <button
-        type="submit"
-        [disabled]="loginForm.invalid || submitting()"
-        data-testid="login-submit"
-      >
-        {{ submitting() ? 'Signing in…' : 'Sign In' }}
-      </button>
-    </form>
+    @if (errorMessage()) {
+    <div class="error-message" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <button
+      type="button"
+      [disabled]="submitting()"
+      data-testid="login-submit"
+      (click)="onLogin()"
+    >
+      {{ submitting() ? 'Redirecting…' : 'Continue to Keycloak' }}
+    </button>
 
     <div class="demo-hint">
       <div class="demo-hint__title">

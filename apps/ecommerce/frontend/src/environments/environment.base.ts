@@ -4,7 +4,7 @@ export const environmentBase = {
   production: false,
   appVersion: packageInfo.version,
   apiPrefix: '/home/api',
-  authTokenUrl:
-    'http://localhost:8081/realms/ecommerce/protocol/openid-connect/token',
+  authUrl: 'http://localhost:8081',
+  authRealm: 'ecommerce',
   clientId: 'ecommerce-app',
 };

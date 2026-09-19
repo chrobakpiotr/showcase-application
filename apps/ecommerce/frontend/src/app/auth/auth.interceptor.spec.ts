@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, flushMicrotasks } from '@angular/core/testing';
 import {
   HttpClient,
   provideHttpClient,
@@ -17,13 +17,13 @@ import { environment } from '@environments/environment';
 describe('authInterceptor', () => {
   let httpClient: HttpClient;
   let httpTesting: HttpTestingController;
-  let getAccessTokenSpy: jasmine.Spy;
+  let getValidAccessTokenSpy: jasmine.Spy;
 
   function setup(token: string | null = null): void {
-    sessionStorage.clear();
-    getAccessTokenSpy = jasmine
-      .createSpy('getAccessToken')
-      .and.returnValue(token);
+    getValidAccessTokenSpy = jasmine
+      .createSpy('getValidAccessToken')
+      .and.resolveTo(token);
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(
@@ -33,7 +33,7 @@ describe('authInterceptor', () => {
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { getAccessToken: getAccessTokenSpy },
+          useValue: { getValidAccessToken: getValidAccessTokenSpy },
         },
       ],
     });
@@ -44,37 +44,45 @@ describe('authInterceptor', () => {
   afterEach(() => {
     httpTesting.verify();
     TestBed.resetTestingModule();
-    sessionStorage.clear();
   });
 
-  it('adds Authorization header when token exists and URL includes apiPrefix', () => {
-    setup('my-test-token');
+  it('refreshes and adds Authorization for protected API requests', fakeAsync(() => {
+    setup('fresh-token');
     const apiUrl = `${environment.apiPrefix}/order`;
+
     httpClient.get(apiUrl).subscribe();
+    flushMicrotasks();
+
+    expect(getValidAccessTokenSpy).toHaveBeenCalled();
     const req = httpTesting.expectOne(apiUrl);
-    expect(req.request.headers.get('Authorization')).toBe(
-      'Bearer my-test-token'
-    );
+    expect(req.request.headers.get('Authorization')).toBe('Bearer fresh-token');
     req.flush({});
-  });
+  }));
 
-  it('does NOT add Authorization header when URL does NOT include apiPrefix', () => {
-    setup('my-test-token');
-    const tokenUrl = environment.authTokenUrl;
-    httpClient.get(tokenUrl).subscribe();
-    const req = httpTesting.expectOne(tokenUrl);
-    expect(req.request.headers.get('Authorization')).toBeNull();
-    req.flush({});
-  });
-
-  it('does NOT add Authorization header when token is null', () => {
+  it('does not add Authorization when refresh returns null', fakeAsync(() => {
     setup(null);
     const apiUrl = `${environment.apiPrefix}/order`;
+
     httpClient.get(apiUrl).subscribe();
+    flushMicrotasks();
+
     const req = httpTesting.expectOne(apiUrl);
     expect(req.request.headers.get('Authorization')).toBeNull();
     req.flush({});
+  }));
+
+  it('does not ask for a token outside the API boundary', () => {
+    setup('secret-token');
+    const keycloakUrl = `${environment.authUrl}/realms/${environment.authRealm}`;
+
+    httpClient.get(keycloakUrl).subscribe();
+
+    expect(getValidAccessTokenSpy).not.toHaveBeenCalled();
+    const req = httpTesting.expectOne(keycloakUrl);
+    expect(req.request.headers.get('Authorization')).toBeNull();
+    req.flush({});
   });
+
   for (const url of [
     'https://attacker.example/home/api/order',
     '//attacker.example/home/api/order',
@@ -86,25 +94,31 @@ describe('authInterceptor', () => {
   ]) {
     it(`does not attach a token outside the API boundary: ${url}`, () => {
       setup('secret-token');
+
       httpClient.get(url).subscribe();
+
+      expect(getValidAccessTokenSpy).not.toHaveBeenCalled();
       const req = httpTesting.expectOne(url);
       expect(req.request.headers.has('Authorization')).toBeFalse();
       req.flush({});
     });
   }
 
-  it('attaches to the exact API path and its absolute same-origin descendants', () => {
+  it('attaches to the exact API path and same-origin descendants', fakeAsync(() => {
     setup('secret-token');
+
     for (const url of [
       environment.apiPrefix,
       new URL(`${environment.apiPrefix}/order?x=1`, document.baseURI).href,
     ]) {
       httpClient.get(url).subscribe();
+      flushMicrotasks();
+
       const req = httpTesting.expectOne(url);
       expect(req.request.headers.get('Authorization')).toBe(
         'Bearer secret-token'
       );
       req.flush({});
     }
-  });
+  }));
 });

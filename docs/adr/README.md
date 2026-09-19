@@ -51,6 +51,7 @@ than editing it in place.
 | [0042](0042-leased-outbox-claims.md) | Order outbox workers use leased claims with fencing tokens |
 | [0043](0043-concurrent-return-entitlement-and-moderation.md) | Return entitlement and moderation use database row locks |
 | [0044](0044-explicit-api-access-boundary.md) | Public API access is explicit and anonymous AI has no customer-data tools |
+| [0045](0045-oidc-authorization-code-pkce.md) | Browser authentication uses Authorization Code with PKCE and memory-only tokens |
 
 ## Template for new ADRs
 

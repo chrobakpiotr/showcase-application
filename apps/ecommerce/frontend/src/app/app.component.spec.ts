@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 
 import { AuthService } from '@app/auth/auth.service';
 import { AppComponent } from './app.component';
@@ -9,14 +9,13 @@ describe('AppComponent', () => {
   let fixture: ComponentFixture<AppComponent>;
   let component: AppComponent;
   let logoutSpy: jasmine.Spy;
-  let router: Router;
 
   function setup(
     authenticated: boolean,
     username = '',
     roles: string[] = []
   ): void {
-    logoutSpy = jasmine.createSpy('logout');
+    logoutSpy = jasmine.createSpy('logout').and.resolveTo();
 
     TestBed.configureTestingModule({
       imports: [AppComponent],
@@ -34,8 +33,6 @@ describe('AppComponent', () => {
       ],
     });
 
-    router = TestBed.inject(Router);
-    spyOn(router, 'navigate');
     fixture = TestBed.createComponent(AppComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -70,11 +67,10 @@ describe('AppComponent', () => {
     expect(compiled.querySelector('header')).toBeFalsy();
   });
 
-  it('logout() calls authService.logout() and navigates to /login', () => {
+  it('logout() delegates OIDC logout to AuthService', () => {
     setup(true);
     component.logout();
     expect(logoutSpy).toHaveBeenCalled();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 
   it('shows the analytics nav link when the user has ORDER_READ', () => {

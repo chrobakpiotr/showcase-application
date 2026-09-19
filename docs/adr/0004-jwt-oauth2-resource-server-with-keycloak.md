@@ -1,5 +1,8 @@
 # 0004. JWT / OAuth2 Resource Server backed by Keycloak
 
+> R16 update: ADR 0045 keeps the backend Resource Server decision but replaces the SPA password grant with OIDC Authorization Code + PKCE and memory-only tokens.
+
+
 ## Context
 
 The order API (`/api/order/**`) needed authentication and authorization, while the Angular

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { loginAs } from './auth';
+
 const ROUTES = [
   ['dashboard', 'app-dashboard'],
   ['order', 'app-order'],
@@ -22,11 +24,7 @@ for (const [route, component] of ROUTES) {
   test(`${route} renders without viewport overflow`, async ({ page }) => {
     // Preserve the viewport selected in the main-branch pipeline repair.
     await page.setViewportSize({ width: 681, height: 844 });
-    await page.goto('');
-    await page.getByTestId('login-username').fill('order-admin');
-    await page.getByTestId('login-password').fill('password');
-    await page.getByTestId('login-submit').click();
-    await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
+    await loginAs(page);
     const target = new URL(page.url());
     target.pathname = target.pathname.replace(/\/dashboard$/, `/${route}`);
     const tableRoutes = new Set(['notifications', 'shipments', 'coupons']);
@@ -61,11 +59,7 @@ for (const [route, component] of ROUTES) {
 for (const state of ['populated', 'empty', 'error'] as const) {
   test(`catalog at 390px after ${state} response`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('');
-    await page.getByTestId('login-username').fill('order-admin');
-    await page.getByTestId('login-password').fill('password');
-    await page.getByTestId('login-submit').click();
-    await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
+    await loginAs(page);
     await page.route('**/api/catalog/products?*', (route) =>
       route.fulfill({
         status: state === 'error' ? 503 : 200,

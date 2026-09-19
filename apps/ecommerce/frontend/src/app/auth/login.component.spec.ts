@@ -1,12 +1,10 @@
-import { signal } from '@angular/core';
 import {
   ComponentFixture,
   TestBed,
   fakeAsync,
-  tick,
+  flushMicrotasks,
 } from '@angular/core/testing';
-import { ActivatedRoute, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
 
 import { AuthService } from '@app/auth/auth.service';
 import { LoginComponent } from '@app/auth/login.component';
@@ -15,35 +13,24 @@ describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let component: LoginComponent;
   let loginSpy: jasmine.Spy;
-  let navigateByUrlSpy: jasmine.Spy;
-  let queryParamMapGetSpy: jasmine.Spy;
 
   function setup(returnUrl?: string): void {
-    loginSpy = jasmine.createSpy('login');
-    navigateByUrlSpy = jasmine.createSpy('navigateByUrl');
-    queryParamMapGetSpy = jasmine
-      .createSpy('get')
-      .and.returnValue(returnUrl ?? null);
+    loginSpy = jasmine.createSpy('login').and.resolveTo();
 
     TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [
         {
           provide: AuthService,
-          useValue: {
-            isAuthenticated: signal(false),
-            login: loginSpy,
-          },
-        },
-        {
-          provide: Router,
-          useValue: { navigateByUrl: navigateByUrlSpy },
+          useValue: { login: loginSpy },
         },
         {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: { get: queryParamMapGetSpy },
+              queryParamMap: {
+                get: () => returnUrl ?? null,
+              },
             },
           },
         },
@@ -59,95 +46,68 @@ describe('LoginComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  it('should create the component', () => {
+  it('renders redirect-based Keycloak login without password fields', () => {
     setup();
-    expect(component).toBeTruthy();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('[data-testid="login-submit"]')).toBeTruthy();
+    expect(compiled.querySelector('input[type="password"]')).toBeNull();
+    expect(compiled.textContent).toContain('Authorization Code + PKCE');
   });
 
-  it('should not submit when form is invalid', () => {
-    setup();
-    component.onSubmit();
-    expect(loginSpy).not.toHaveBeenCalled();
-  });
+  it('starts login with the original returnUrl', fakeAsync(() => {
+    setup('/orders');
 
-  it('should not submit when already submitting', () => {
+    component.onLogin();
+    flushMicrotasks();
+
+    expect(loginSpy).toHaveBeenCalledWith('/orders');
+  }));
+
+  it('uses dashboard as the default post-login route', fakeAsync(() => {
     setup();
-    component.loginForm.setValue({ username: 'user', password: 'pass' });
+
+    component.onLogin();
+    flushMicrotasks();
+
+    expect(loginSpy).toHaveBeenCalledWith('/dashboard');
+  }));
+
+  it('does not start a second redirect while submitting', () => {
+    setup();
     component.submitting.set(true);
-    component.onSubmit();
-    expect(loginSpy).not.toHaveBeenCalled();
-  });
-
-  it('should show validation errors when fields are touched and invalid', () => {
-    setup();
-    component.usernameControl.markAsTouched();
-    component.passwordControl.markAsTouched();
     fixture.detectChanges();
-    const compiled = fixture.nativeElement as HTMLElement;
-    const errors = compiled.querySelectorAll('.error');
-    expect(errors.length).toBe(2);
-  });
 
-  it('should call authService.login() with form values on submit', fakeAsync(() => {
-    setup();
-    loginSpy.and.returnValue(of(void 0));
-    component.loginForm.setValue({ username: 'admin', password: 'secret' });
-    component.onSubmit();
-    tick();
-    expect(loginSpy).toHaveBeenCalledWith('admin', 'secret');
-  }));
+    component.onLogin();
 
-  it('on success: navigates to returnUrl query param', fakeAsync(() => {
-    setup('/order');
-    loginSpy.and.returnValue(of(void 0));
-    component.loginForm.setValue({ username: 'admin', password: 'secret' });
-    component.onSubmit();
-    tick();
-    expect(navigateByUrlSpy).toHaveBeenCalledWith('/order');
-  }));
-
-  it('on success with no returnUrl: navigates to /dashboard', fakeAsync(() => {
-    setup();
-    loginSpy.and.returnValue(of(void 0));
-    component.loginForm.setValue({ username: 'admin', password: 'secret' });
-    component.onSubmit();
-    tick();
-    expect(navigateByUrlSpy).toHaveBeenCalledWith('/dashboard');
-  }));
-
-  it('on error: shows errorMessage', fakeAsync(() => {
-    setup();
-    loginSpy.and.returnValue(
-      throwError(() => new Error('Invalid username or password.'))
-    );
-    component.loginForm.setValue({ username: 'admin', password: 'wrong' });
-    component.onSubmit();
-    tick();
-    fixture.detectChanges();
-    expect(component.errorMessage()).toBe('Invalid username or password.');
-    const compiled = fixture.nativeElement as HTMLElement;
-    const alert = compiled.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('Invalid username or password.');
-  }));
-
-  it('button is disabled when form is invalid', () => {
-    setup();
-    fixture.detectChanges();
     const button = fixture.nativeElement.querySelector(
       '[data-testid="login-submit"]'
     ) as HTMLButtonElement;
     expect(button.disabled).toBeTrue();
+    expect(button.textContent).toContain('Redirecting');
+    expect(loginSpy).not.toHaveBeenCalled();
   });
 
-  it('button is disabled when submitting', fakeAsync(() => {
+  it('shows an error if the OIDC redirect cannot be started', fakeAsync(() => {
     setup();
-    loginSpy.and.returnValue(of(void 0));
-    component.loginForm.setValue({ username: 'admin', password: 'secret' });
-    component.submitting.set(true);
+
+    let rejectLogin: (reason?: unknown) => void = () => undefined;
+    const loginPromise = new Promise<void>((_resolve, reject) => {
+      rejectLogin = reject;
+    });
+    loginSpy.and.returnValue(loginPromise);
+
+    component.onLogin();
+
+    // Reject only after onLogin() has already attached its catch handler.
+    rejectLogin(new Error('Keycloak unavailable'));
+    flushMicrotasks();
     fixture.detectChanges();
-    const button = fixture.nativeElement.querySelector(
-      '[data-testid="login-submit"]'
-    ) as HTMLButtonElement;
-    expect(button.disabled).toBeTrue();
+
+    expect(component.submitting()).toBeFalse();
+    expect(
+      fixture.nativeElement.querySelector('[role="alert"]').textContent
+    ).toContain('Could not start the Keycloak sign-in flow');
   }));
 });

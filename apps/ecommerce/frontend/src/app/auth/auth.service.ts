@@ -1,105 +1,130 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { DOCUMENT } from '@angular/common';
 import { Injectable, inject, signal } from '@angular/core';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { KEYCLOAK } from '@app/auth/keycloak.instance';
 
-import { environment } from '@environments/environment';
-
-const TOKEN_STORAGE_KEY = 'ecommerce_access_token';
-
-interface JwtPayload {
-  sub: string;
-  preferred_username: string;
-  exp: number;
-  realm_access: { roles: string[] };
+interface OperatorToken {
+  preferred_username?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly httpClient = inject(HttpClient);
+  private static readonly REFRESH_MIN_VALIDITY_SECONDS = 30;
 
-  readonly isAuthenticated = signal<boolean>(false);
-  readonly username = signal<string>('');
+  private readonly keycloak = inject(KEYCLOAK);
+  private readonly document = inject(DOCUMENT);
+
+  readonly initialized = signal(false);
+  readonly isAuthenticated = signal(false);
+  readonly username = signal('');
   readonly roles = signal<string[]>([]);
 
-  private token: string | null = null;
-
   constructor() {
-    this.restoreSession();
+    this.keycloak.onAuthSuccess = () => this.syncFromKeycloak();
+    this.keycloak.onAuthRefreshSuccess = () => this.syncFromKeycloak();
+    this.keycloak.onAuthLogout = () => this.clearLocalState();
+    this.keycloak.onTokenExpired = () => {
+      void this.refreshExpiredToken();
+    };
   }
 
-  private decodeJwtPayload(token: string): JwtPayload {
-    const payloadPart = token.split('.')[1];
-    const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64)) as JwtPayload;
-  }
-
-  private isTokenExpired(token: string): boolean {
+  async initialize(): Promise<void> {
     try {
-      const payload = this.decodeJwtPayload(token);
-      return payload.exp * 1000 < Date.now();
+      const authenticated = await this.keycloak.init({
+        onLoad: 'check-sso',
+        flow: 'standard',
+        pkceMethod: 'S256',
+        checkLoginIframe: false,
+      });
+      if (authenticated) {
+        this.syncFromKeycloak();
+      } else {
+        this.clearLocalState();
+      }
     } catch {
-      return true;
+      this.clearLocalState();
+    } finally {
+      this.initialized.set(true);
     }
   }
 
-  private applyToken(token: string): void {
-    const payload = this.decodeJwtPayload(token);
-    this.token = token;
+  async login(returnUrl = '/dashboard'): Promise<void> {
+    await this.keycloak.login({
+      redirectUri: this.internalAppUrl(returnUrl),
+    });
+  }
+
+  async logout(): Promise<void> {
+    this.clearLocalState();
+    await this.keycloak.logout({
+      redirectUri: this.internalAppUrl('/login'),
+    });
+  }
+
+  async getValidAccessToken(): Promise<string | null> {
+    if (!this.keycloak.authenticated || !this.keycloak.token) {
+      this.clearLocalState();
+      return null;
+    }
+
+    try {
+      await this.keycloak.updateToken(AuthService.REFRESH_MIN_VALIDITY_SECONDS);
+      this.syncFromKeycloak();
+      return this.keycloak.token ?? null;
+    } catch {
+      this.keycloak.clearToken();
+      this.clearLocalState();
+      return null;
+    }
+  }
+
+  private async refreshExpiredToken(): Promise<void> {
+    try {
+      await this.keycloak.updateToken(0);
+      this.syncFromKeycloak();
+    } catch {
+      this.keycloak.clearToken();
+      this.clearLocalState();
+    }
+  }
+
+  private syncFromKeycloak(): void {
+    if (!this.keycloak.authenticated || !this.keycloak.token) {
+      this.clearLocalState();
+      return;
+    }
+
+    const parsed = this.keycloak.tokenParsed as OperatorToken | undefined;
     this.isAuthenticated.set(true);
-    this.username.set(payload.preferred_username);
-    this.roles.set(payload.realm_access.roles);
+    this.username.set(parsed?.preferred_username ?? '');
+    this.roles.set([...(this.keycloak.realmAccess?.roles ?? [])]);
   }
 
-  private restoreSession(): void {
-    const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (storedToken && !this.isTokenExpired(storedToken)) {
-      this.applyToken(storedToken);
-    }
-  }
-
-  login(username: string, password: string): Observable<void> {
-    const body = new HttpParams()
-      .set('grant_type', 'password')
-      .set('client_id', environment.clientId)
-      .set('username', username)
-      .set('password', password);
-
-    return this.httpClient
-      .post<{ access_token: string }>(
-        environment.authTokenUrl,
-        body.toString(),
-        {
-          headers: new HttpHeaders({
-            'Content-Type': 'application/x-www-form-urlencoded',
-          }),
-        }
-      )
-      .pipe(
-        tap((response) => {
-          sessionStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
-          this.applyToken(response.access_token);
-        }),
-        map(() => void 0),
-        catchError((err) => {
-          const message =
-            err.status === 401
-              ? 'Invalid username or password.'
-              : 'Login failed. Please try again.';
-          return throwError(() => new Error(message));
-        })
-      );
-  }
-
-  logout(): void {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    this.token = null;
+  private clearLocalState(): void {
     this.isAuthenticated.set(false);
     this.username.set('');
     this.roles.set([]);
   }
 
-  getAccessToken(): string | null {
-    return this.token;
+  private internalAppUrl(returnUrl: string): string {
+    const base = new URL(this.document.baseURI);
+    const basePath = base.pathname.endsWith('/')
+      ? base.pathname
+      : `${base.pathname}/`;
+    const fallback = new URL('dashboard', base).href;
+
+    if (
+      !returnUrl.startsWith('/') ||
+      returnUrl.startsWith('//') ||
+      returnUrl.includes('\\')
+    ) {
+      return fallback;
+    }
+
+    const resolved = new URL(returnUrl.slice(1), base);
+    if (!resolved.pathname.startsWith(basePath)) {
+      return fallback;
+    }
+
+    return resolved.href;
   }
 }

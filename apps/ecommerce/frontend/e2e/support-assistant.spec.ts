@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { loginAs } from './auth';
+
 // Mocked at the network boundary via page.route() rather than exercising the real Ollama-backed endpoint: the "ai"
 // docker-compose profile (and so Ollama) isn't started for this e2e pipeline, so a real call would either hang or
 // 503. This test is only about the widget's own wiring (open/close, send, render the response) - not about the
@@ -7,13 +9,7 @@ import { expect, test } from '@playwright/test';
 test('support assistant widget: ask a question and see the mocked answer', async ({
   page,
 }) => {
-  await page.goto('');
-  await expect(page).toHaveURL(/login/);
-
-  await page.getByTestId('login-username').fill('order-admin');
-  await page.getByTestId('login-password').fill('password');
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
+  await loginAs(page);
 
   await page.getByRole('link', { name: 'Orders', exact: true }).click();
   await expect(page).toHaveURL(/\/order(?:$|[?#])/);

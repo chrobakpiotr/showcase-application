@@ -1,14 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
-async function loginAsAdmin(page: Page): Promise<void> {
-  await page.goto('');
-  await expect(page).toHaveURL(/login/);
-  await page.getByTestId('login-username').fill('order-admin');
-  await page.getByTestId('login-password').fill('password');
-  await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL(/\/dashboard(?:$|[?#])/);
-}
+import { loginAs } from './auth';
 
 async function prepareIsolatedStock(page: Page, sku: string): Promise<void> {
   await page.getByRole('link', { name: 'Inventory', exact: true }).click();
@@ -43,7 +36,7 @@ test('order happy path: login, prepare isolated stock and place order', async ({
 }) => {
   const fixtureSku = `E2E-${randomUUID().replaceAll('-', '')}`;
 
-  await loginAsAdmin(page);
+  await loginAs(page);
   await prepareIsolatedStock(page, fixtureSku);
   await openDemoOrder(page, fixtureSku);
 
@@ -70,7 +63,7 @@ test('unknown order outcome survives reload and replays the same attempt', async
   let firstKey = '';
   let committedOrderNumber = '';
 
-  await loginAsAdmin(page);
+  await loginAs(page);
   await prepareIsolatedStock(page, fixtureSku);
   await openDemoOrder(page, fixtureSku);
 

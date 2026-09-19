@@ -114,12 +114,9 @@ public class WebSecurityConfiguration {
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
 
-    // The Angular frontend authenticates via a direct resource-owner-password-credentials grant against
-    // Keycloak's token endpoint (see AuthService.login in the frontend module), so the browser issues an XHR
-    // straight to Keycloak's own origin rather than routing through this backend - connect-src therefore needs
-    // to allow-list that origin too, or the CSP silently blocks the login request itself. Reusing the same
-    // browser-facing issuer-uri already used for "iss" claim validation keeps both in lockstep across profiles
-    // (local/docker/k8s) instead of hand-maintaining a second, easily-forgotten Keycloak origin property.
+    // The Angular frontend uses Keycloak Authorization Code + PKCE (ADR 0045). The browser still exchanges the
+    // authorization code and refresh token with Keycloak's origin, so connect-src must allow-list that origin. Reusing
+    // the browser-facing issuer-uri keeps CSP and JWT issuer validation aligned across profiles.
     @Value("${security.oauth2.issuer-uri:http://localhost:8081/realms/ecommerce}")
     private String oauth2IssuerUri;
 
@@ -196,8 +193,8 @@ public class WebSecurityConfiguration {
                 // bundled Swagger UI (springdoc-openapi), which injects syntax-highlighting <style> tags at runtime;
                 // everything else (this app's own Angular bundle plus Swagger UI's own JS) is served same-origin, so
                 // script-src/default-src can stay locked to 'self' with no external CDNs allow-listed. connect-src
-                // additionally allow-lists Keycloak's own origin (see oauth2IssuerUri field javadoc above) since the
-                // frontend talks to it directly for login, not through this backend.
+                // additionally allow-lists Keycloak's own origin (see oauth2IssuerUri field javadoc above) for the
+                // authorization-code exchange and token refresh.
                 .headers(
                         headers -> headers.contentSecurityPolicy(
                                 csp -> csp.policyDirectives(

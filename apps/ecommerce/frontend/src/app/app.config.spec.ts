@@ -1,17 +1,28 @@
 import { APP_BASE_HREF } from '@angular/common';
-import { TestBed } from '@angular/core/testing';
-import { ErrorHandler, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { ErrorHandler, inject } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 
+import { AuthService } from '@app/auth/auth.service';
 import { GlobalErrorHandler } from '@app/core/global-error-handler';
 import { appConfig } from './app.config';
 
 describe('appConfig', () => {
+  let initializeSpy: jasmine.Spy;
+
   beforeEach(() => {
+    initializeSpy = jasmine.createSpy('initialize').and.resolveTo();
+
     TestBed.configureTestingModule({
-      providers: [...appConfig.providers],
+      providers: [
+        ...appConfig.providers,
+        {
+          provide: AuthService,
+          useValue: { initialize: initializeSpy },
+        },
+      ],
     });
   });
 
@@ -29,5 +40,10 @@ describe('appConfig', () => {
   it('registers a GlobalErrorHandler as the ErrorHandler', () => {
     const handler = TestBed.runInInjectionContext(() => inject(ErrorHandler));
     expect(handler).toBeInstanceOf(GlobalErrorHandler);
+  });
+
+  it('runs the mocked identity initializer instead of a real Keycloak redirect', () => {
+    expect(TestBed.inject(AuthService)).toBeTruthy();
+    expect(initializeSpy).toHaveBeenCalledTimes(1);
   });
 });
