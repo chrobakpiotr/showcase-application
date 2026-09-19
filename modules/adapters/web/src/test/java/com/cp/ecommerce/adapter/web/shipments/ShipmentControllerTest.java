@@ -448,4 +448,22 @@ class ShipmentControllerTest {
                 .build();
     }
 
+    @Test
+    void shouldExposeShipmentPagingNavigation() throws Exception {
+        final Shipment value = ShipmentBuilder.mockShipment();
+        given(listShipmentsInPort.listShipments(new PageQuery(1, 10)))
+                .willReturn(new PagedResult<>(List.of(value), 1, 10, 30, 3));
+        given(shipmentWebMapper.mapToResource(value)).willReturn(Optional.of(toResource(value)));
+        mockMvc.perform(get(SHIPMENTS_ENDPOINT).param("page", "1").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$._links.prev.href").exists())
+                .andExpect(jsonPath("$._links.next.href").exists());
+    }
+
+    @Test
+    void shouldRejectInvalidShipmentPage() throws Exception {
+        mockMvc.perform(get(SHIPMENTS_ENDPOINT).param("page", "-1")).andExpect(status().isBadRequest());
+    }
+
 }

@@ -13,7 +13,6 @@ import com.cp.ecommerce.domain.notification.port.incoming.GetNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.ListNotificationsInPort;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
-import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.Link;
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -46,6 +44,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @RestController
 @RequestMapping("/api/notifications")
 @Tag(name = "Notifications", description = "Reading persisted notification log entries")
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class NotificationController {
 
     private static final String NOTIFICATION_NOT_FOUND_MESSAGE = "Notification not found";
@@ -66,7 +65,6 @@ public class NotificationController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(NotificationController.class).listNotifications(target, size)).withSelfRel());
     }
 
@@ -82,7 +80,6 @@ public class NotificationController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(
                         methodOn(NotificationController.class).listNotificationsForRecipient(recipientEmail, target, size))
                         .withSelfRel());
@@ -100,7 +97,6 @@ public class NotificationController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(NotificationController.class).listNotificationsByStatus(status, target, size))
                         .withSelfRel());
     }
@@ -142,7 +138,6 @@ public class NotificationController {
     private PagedModel<EntityModel<NotificationResource>> toPagedModel(
             final PagedResult<Notification> result,
             final int page,
-            final int size,
             final IntFunction<Link> linkForPage) {
         final var content = result.content().stream().map(this::toResourceModel).toList();
         final var metadata = new PagedModel.PageMetadata(
@@ -153,8 +148,14 @@ public class NotificationController {
         final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
         final int lastPage = Math.max(result.totalPages() - 1, 0);
         model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
-        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        if (page > 0) {
+
+            model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        }
+        if (page < lastPage) {
+
+            model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        }
         model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
     }

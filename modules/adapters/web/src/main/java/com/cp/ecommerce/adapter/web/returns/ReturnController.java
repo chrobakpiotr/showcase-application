@@ -16,7 +16,6 @@ import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
-import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.Link;
@@ -35,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -58,6 +56,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @RestController
 @RequestMapping("/api/returns")
 @Tag(name = "Returns", description = "Requesting, reading and moderating return / RMA requests")
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class ReturnController {
 
     private static final String RETURN_NOT_FOUND_MESSAGE = "Return request not found";
@@ -80,7 +79,6 @@ public class ReturnController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ReturnController.class).listReturns(target, size)).withSelfRel());
     }
 
@@ -94,7 +92,6 @@ public class ReturnController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ReturnController.class).listPendingReturns(target, size)).withSelfRel());
     }
 
@@ -109,7 +106,6 @@ public class ReturnController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ReturnController.class).listReturnsForOrder(orderNumber, target, size))
                         .withSelfRel());
     }
@@ -215,7 +211,6 @@ public class ReturnController {
     private PagedModel<EntityModel<ReturnRequestResource>> toPagedModel(
             final PagedResult<ReturnRequest> result,
             final int page,
-            final int size,
             final IntFunction<Link> linkForPage) {
         final var content = result.content().stream().map(this::toResourceModel).toList();
         final var metadata = new PagedModel.PageMetadata(
@@ -226,8 +221,14 @@ public class ReturnController {
         final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
         final int lastPage = Math.max(result.totalPages() - 1, 0);
         model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
-        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        if (page > 0) {
+
+            model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        }
+        if (page < lastPage) {
+
+            model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        }
         model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
     }

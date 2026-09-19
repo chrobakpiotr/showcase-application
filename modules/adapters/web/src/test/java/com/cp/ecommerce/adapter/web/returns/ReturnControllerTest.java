@@ -714,4 +714,21 @@ class ReturnControllerTest {
 
     }
 
+    @Test
+    void shouldExposeReturnPagingNavigation() throws Exception {
+        final ReturnRequest value = ReturnRequestBuilder.mockReturnRequest();
+        given(listReturnsInPort.listReturns(new PageQuery(1, 10))).willReturn(new PagedResult<>(List.of(value), 1, 10, 30, 3));
+        given(returnWebMapper.mapToResource(value)).willReturn(Optional.of(mockReturnRequestResource()));
+        mockMvc.perform(get(RETURNS_ENDPOINT).param("page", "1").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$._links.prev.href").exists())
+                .andExpect(jsonPath("$._links.next.href").exists());
+    }
+
+    @Test
+    void shouldRejectInvalidReturnPage() throws Exception {
+        mockMvc.perform(get(RETURNS_ENDPOINT).param("page", "-1")).andExpect(status().isBadRequest());
+    }
+
 }

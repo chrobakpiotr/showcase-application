@@ -16,7 +16,6 @@ import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
 import com.cp.ecommerce.foundation.constant.ValidationConstants;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
-import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.Link;
@@ -35,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -57,6 +55,7 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 @RestController
 @RequestMapping("/api/shipments")
 @Tag(name = "Shipments", description = "Creating, reading and advancing shipping / fulfillment tracking")
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class ShipmentController {
 
     private static final String SHIPMENT_NOT_FOUND_MESSAGE = "Shipment not found";
@@ -79,7 +78,6 @@ public class ShipmentController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ShipmentController.class).listShipments(target, size)).withSelfRel());
     }
 
@@ -94,7 +92,6 @@ public class ShipmentController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ShipmentController.class).listShipmentsForOrder(orderNumber, target, size))
                         .withSelfRel());
     }
@@ -110,7 +107,6 @@ public class ShipmentController {
         return toPagedModel(
                 result,
                 page,
-                size,
                 target -> linkTo(methodOn(ShipmentController.class).listShipmentsByStatus(status, target, size)).withSelfRel());
     }
 
@@ -195,7 +191,6 @@ public class ShipmentController {
     private PagedModel<EntityModel<ShipmentResource>> toPagedModel(
             final PagedResult<Shipment> result,
             final int page,
-            final int size,
             final IntFunction<Link> linkForPage) {
         final var content = result.content().stream().map(this::toResourceModel).toList();
         final var metadata = new PagedModel.PageMetadata(
@@ -206,8 +201,14 @@ public class ShipmentController {
         final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
         final int lastPage = Math.max(result.totalPages() - 1, 0);
         model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
-        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        if (page > 0) {
+
+            model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        }
+        if (page < lastPage) {
+
+            model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        }
         model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
     }

@@ -146,4 +146,22 @@ class NotificationControllerTest {
                 .build();
     }
 
+    @Test
+    void shouldExposeNotificationPagingNavigation() throws Exception {
+        final Notification value = NotificationBuilder.mockNotification();
+        given(listNotificationsInPort.listNotifications(new PageQuery(1, 10)))
+                .willReturn(new PagedResult<>(List.of(value), 1, 10, 30, 3));
+        given(notificationWebMapper.mapToResource(value)).willReturn(Optional.of(mockNotificationResource()));
+        mockMvc.perform(get(NOTIFICATIONS_ENDPOINT).param("page", "1").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$._links.prev.href").exists())
+                .andExpect(jsonPath("$._links.next.href").exists());
+    }
+
+    @Test
+    void shouldRejectInvalidNotificationPage() throws Exception {
+        mockMvc.perform(get(NOTIFICATIONS_ENDPOINT).param("page", "-1")).andExpect(status().isBadRequest());
+    }
+
 }
