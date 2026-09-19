@@ -1,0 +1,33 @@
+{
+  "feature": "RECOVERY-OPS-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "operationalize durable recovery",
+      "objective": "Document safe redrive and expose a low-cardinality recovery metric contract for backlog, leases and compensation.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": ["**"],
+      "risk_tags": ["roadmap-closeout"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
+      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Focused unit/integration verification."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify the focused change and full repository gates.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/RECOVERY-OPS-001/evidence/**"],
+      "risk_tags": ["evaluation"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}
