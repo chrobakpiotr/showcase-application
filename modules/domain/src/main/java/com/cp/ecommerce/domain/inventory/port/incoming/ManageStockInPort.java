@@ -47,4 +47,6 @@ public interface ManageStockInPort {
      */
     StockLevel fulfillStock(String sku, int quantity);
 
+    StockLevel fulfillStock(String reservationId, String sku);
+
 }

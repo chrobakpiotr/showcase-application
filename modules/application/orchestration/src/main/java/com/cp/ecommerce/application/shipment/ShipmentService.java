@@ -1,14 +1,18 @@
 package com.cp.ecommerce.application.shipment;
 
+import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
+import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,6 +30,12 @@ public class ShipmentService implements ShipmentWorkflow {
 
     private final ManageOrderUseCase manageOrderUseCase;
 
+    private final GetPaymentInPort getPaymentInPort;
+
+    private final ListShipmentsInPort listShipmentsInPort;
+
+    private final ManageStockInPort manageStockInPort;
+
     private final SendNotificationInPort sendNotificationInPort;
 
     @Override
@@ -34,6 +44,12 @@ public class ShipmentService implements ShipmentWorkflow {
         final Order order = requireOrder(orderNumber);
         if (order.getStatus() != OrderStatus.CONFIRMED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CONFIRMED orders can be shipped");
+        }
+        if (getPaymentInPort.getPayment(orderNumber).getStatus() != PaymentStatus.CAPTURED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CAPTURED orders can be shipped");
+        }
+        if (!listShipmentsInPort.listShipmentsForOrder(orderNumber).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order already has a shipment");
         }
         return createShipmentInPort.createShipment(orderNumber, carrier);
     }
@@ -46,6 +62,11 @@ public class ShipmentService implements ShipmentWorkflow {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found");
         }
         if (advanced.getStatus() == ShipmentStatus.DISPATCHED) {
+            final Order order = requireOrder(advanced.getOrderNumber());
+            final String reservationId = order.getStockReservationId() == null
+                    ? order.getOrderNumber()
+                    : order.getStockReservationId();
+            order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
             notify(advanced, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
         }
         if (advanced.getStatus() == ShipmentStatus.DELIVERED) {

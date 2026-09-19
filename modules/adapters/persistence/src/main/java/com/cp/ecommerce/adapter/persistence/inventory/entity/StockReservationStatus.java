@@ -6,5 +6,6 @@ package com.cp.ecommerce.adapter.persistence.inventory.entity;
 public enum StockReservationStatus {
 
     RESERVED,
-    RELEASED
+    RELEASED,
+    FULFILLED
 }

@@ -100,6 +100,12 @@ public class ManageStockUseCase implements GetStockLevelInPort, ManageStockInPor
     }
 
     @Override
+    public StockLevel fulfillStock(final String reservationId, final String sku) {
+
+        return manageStockReservationOutPort.fulfillStock(reservationId, sku);
+    }
+
+    @Override
     public StockLevel fulfillStock(final String sku, final int quantity) {
 
         return applyWithRetry(sku, current -> {

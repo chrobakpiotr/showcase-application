@@ -10,4 +10,7 @@ public interface ManageStockReservationOutPort {
     StockLevel reserveStock(String reservationId, String sku, int quantity);
 
     StockLevel releaseStock(String reservationId, String sku);
+
+    StockLevel fulfillStock(String reservationId, String sku);
+
 }

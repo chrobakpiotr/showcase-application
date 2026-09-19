@@ -81,6 +81,31 @@ class ManageStockReservationAdapter implements ManageStockReservationOutPort {
         return toDomain(saved);
     }
 
+    @Override
+    public StockLevel fulfillStock(final String reservationId, final String sku) {
+
+        final StockLevelEntity stock = stockForUpdate(sku);
+        final StockReservationEntity reservation = stockReservationEntityRepository.findById(reservationKey(reservationId, sku))
+                .orElseThrow(
+                        () -> new IllegalStateException(
+                                "Stock reservation not found for fulfillment: " + reservationId + " / " + sku));
+        if (reservation.getStatus() == StockReservationStatus.FULFILLED) {
+            return toDomain(stock);
+        }
+        if (reservation.getStatus() != StockReservationStatus.RESERVED) {
+            throw new IllegalStateException("Only RESERVED stock can be fulfilled: " + reservationId + " / " + sku);
+        }
+        if (stock.getQuantityReserved() < reservation.getQuantity() || stock.getQuantityOnHand() < reservation.getQuantity()) {
+            throw new IllegalStateException("Stock aggregate cannot fulfill reservation for SKU " + sku);
+        }
+        stock.setQuantityReserved(stock.getQuantityReserved() - reservation.getQuantity());
+        stock.setQuantityOnHand(stock.getQuantityOnHand() - reservation.getQuantity());
+        final StockLevelEntity saved = stockLevelEntityRepository.saveAndFlush(stock);
+        reservation.setStatus(StockReservationStatus.FULFILLED);
+        stockReservationEntityRepository.save(reservation);
+        return toDomain(saved);
+    }
+
     private StockLevelEntity stockForUpdate(final String sku) {
 
         return stockLevelEntityRepository.findBySkuForUpdate(sku)
