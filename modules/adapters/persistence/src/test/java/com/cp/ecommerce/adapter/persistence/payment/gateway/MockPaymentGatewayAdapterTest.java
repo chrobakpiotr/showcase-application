@@ -36,6 +36,8 @@ class MockPaymentGatewayAdapterTest {
 
     private static final String CAPTURE_OPERATION_ID = "ORDER-CAPTURE:" + ORDER_NUMBER;
 
+    private static final BigDecimal CAPTURE_AMOUNT = new BigDecimal("59.98");
+
     private static final BigDecimal DECLINE_ABOVE_AMOUNT = new BigDecimal("10000.00");
 
     @Mock
