@@ -9,10 +9,35 @@
       "objective": "Move cross-bounded-context order placement, return moderation and shipment orchestration out of MVC controllers.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["**"],
-      "risk_tags": ["roadmap-closeout"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
-      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "allowed_paths": [
+        "docs/specs/APP-ORCH-001/plan.md",
+        "docs/specs/APP-ORCH-001/spec.md",
+        "docs/specs/APP-ORCH-001/tasks.json",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/OrderController.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/returns/ReturnController.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipments/ShipmentController.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/order/OrderControllerTest.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/returns/ReturnControllerTest.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/shipments/ShipmentControllerTest.java",
+        "modules/application/orchestration/orchestration.gradle",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/PlaceOrderService.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/PlaceOrderWorkflow.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/returns/ReturnService.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/returns/ReturnWorkflow.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/shipment/ShipmentService.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/shipment/ShipmentWorkflow.java"
+      ],
+      "risk_tags": [
+        "roadmap-closeout"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew test --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "red-green-refactor",
       "test_seam": "Focused unit/integration verification."
     },
@@ -21,11 +46,24 @@
       "title": "Independent evaluation",
       "objective": "Verify the focused change and full repository gates.",
       "role": "evaluator",
-      "depends_on": ["T-001"],
-      "allowed_paths": ["docs/specs/APP-ORCH-001/evidence/**"],
-      "risk_tags": ["evaluation"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
-      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/APP-ORCH-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh evaluator evidence."
     }

@@ -9,10 +9,28 @@
       "objective": "Resolve product name and unit price from the catalog for new order placements while preserving idempotent replay.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["**"],
-      "risk_tags": ["roadmap-closeout"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
-      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "allowed_paths": [
+        "docs/specs/ORDER-PRICING-001/plan.md",
+        "docs/specs/ORDER-PRICING-001/spec.md",
+        "docs/specs/ORDER-PRICING-001/tasks.json",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/idempotency/IdempotencyKeyAdapter.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/idempotency/IdempotencyKeyAdapterTest.java",
+        "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/PlaceOrderService.java",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/order/port/outgoing/IdempotencyKeyOutPort.java",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/order/usecase/PlaceOrderUseCase.java",
+        "modules/domain/src/test/java/com/cp/ecommerce/domain/order/usecase/PlaceOrderUseCaseTest.java"
+      ],
+      "risk_tags": [
+        "roadmap-closeout"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew test --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "red-green-refactor",
       "test_seam": "Focused unit/integration verification."
     },
@@ -21,11 +39,24 @@
       "title": "Independent evaluation",
       "objective": "Verify the focused change and full repository gates.",
       "role": "evaluator",
-      "depends_on": ["T-001"],
-      "allowed_paths": ["docs/specs/ORDER-PRICING-001/evidence/**"],
-      "risk_tags": ["evaluation"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
-      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/ORDER-PRICING-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh evaluator evidence."
     }

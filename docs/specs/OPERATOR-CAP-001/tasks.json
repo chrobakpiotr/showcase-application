@@ -9,10 +9,33 @@
       "objective": "Use one capability map for dashboard visibility and role-aware route guards while keeping backend authorization authoritative.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["**"],
-      "risk_tags": ["roadmap-closeout"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
-      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "allowed_paths": [
+        "apps/ecommerce/frontend/src/app/app.routes.spec.ts",
+        "apps/ecommerce/frontend/src/app/app.routes.ts",
+        "apps/ecommerce/frontend/src/app/auth/capabilities.spec.ts",
+        "apps/ecommerce/frontend/src/app/auth/capabilities.ts",
+        "apps/ecommerce/frontend/src/app/auth/role.guard.spec.ts",
+        "apps/ecommerce/frontend/src/app/auth/role.guard.ts",
+        "apps/ecommerce/frontend/src/app/dashboard/dashboard.component.html",
+        "apps/ecommerce/frontend/src/app/dashboard/dashboard.component.spec.ts",
+        "apps/ecommerce/frontend/src/app/dashboard/dashboard.component.ts",
+        "apps/ecommerce/frontend/src/app/forbidden/forbidden.component.spec.ts",
+        "apps/ecommerce/frontend/src/app/forbidden/forbidden.component.ts",
+        "docs/specs/OPERATOR-CAP-001/plan.md",
+        "docs/specs/OPERATOR-CAP-001/spec.md",
+        "docs/specs/OPERATOR-CAP-001/tasks.json"
+      ],
+      "risk_tags": [
+        "roadmap-closeout"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew test --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "red-green-refactor",
       "test_seam": "Focused unit/integration verification."
     },
@@ -21,11 +44,24 @@
       "title": "Independent evaluation",
       "objective": "Verify the focused change and full repository gates.",
       "role": "evaluator",
-      "depends_on": ["T-001"],
-      "allowed_paths": ["docs/specs/OPERATOR-CAP-001/evidence/**"],
-      "risk_tags": ["evaluation"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
-      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/OPERATOR-CAP-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh evaluator evidence."
     }

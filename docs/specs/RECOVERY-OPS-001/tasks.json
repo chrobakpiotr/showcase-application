@@ -9,10 +9,24 @@
       "objective": "Document safe redrive and expose a low-cardinality recovery metric contract for backlog, leases and compensation.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["**"],
-      "risk_tags": ["roadmap-closeout"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
-      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "allowed_paths": [
+        "docs/runbooks/recovery-metrics.md",
+        "docs/runbooks/recovery-redrive.md",
+        "docs/specs/RECOVERY-OPS-001/plan.md",
+        "docs/specs/RECOVERY-OPS-001/spec.md",
+        "docs/specs/RECOVERY-OPS-001/tasks.json"
+      ],
+      "risk_tags": [
+        "roadmap-closeout"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew test --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "red-green-refactor",
       "test_seam": "Focused unit/integration verification."
     },
@@ -21,11 +35,24 @@
       "title": "Independent evaluation",
       "objective": "Verify the focused change and full repository gates.",
       "role": "evaluator",
-      "depends_on": ["T-001"],
-      "allowed_paths": ["docs/specs/RECOVERY-OPS-001/evidence/**"],
-      "risk_tags": ["evaluation"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
-      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/RECOVERY-OPS-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh evaluator evidence."
     }

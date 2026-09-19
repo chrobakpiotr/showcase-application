@@ -9,10 +9,32 @@
       "objective": "Make Docker-backed concurrency and recovery tests an explicit required gate instead of silently green when skipped.",
       "role": "builder",
       "depends_on": [],
-      "allowed_paths": ["**"],
-      "risk_tags": ["roadmap-closeout"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003"],
-      "verification": ["./gradlew test --no-configuration-cache --no-parallel"],
+      "allowed_paths": [
+        ".github/workflows/ci.yml",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/DurableNotificationRetryPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationSagaPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentPartialRefundPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/ReturnConcurrencyPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/SagaCompensationRecoveryPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockReservationIdentityPostgresIntegrationTest.java",
+        "apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/StockRetryTransactionBoundaryPostgresIntegrationTest.java",
+        "docs/specs/FAILURE-GATES-001/plan.md",
+        "docs/specs/FAILURE-GATES-001/spec.md",
+        "docs/specs/FAILURE-GATES-001/tasks.json",
+        "tooling/scripts/verify-critical-postgres-tests.sh"
+      ],
+      "risk_tags": [
+        "roadmap-closeout"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
+      "verification": [
+        "./gradlew test --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "red-green-refactor",
       "test_seam": "Focused unit/integration verification."
     },
@@ -21,11 +43,24 @@
       "title": "Independent evaluation",
       "objective": "Verify the focused change and full repository gates.",
       "role": "evaluator",
-      "depends_on": ["T-001"],
-      "allowed_paths": ["docs/specs/FAILURE-GATES-001/evidence/**"],
-      "risk_tags": ["evaluation"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
-      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/FAILURE-GATES-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
       "test_mode": "existing-suite",
       "test_seam": "Fresh evaluator evidence."
     }
