@@ -695,7 +695,7 @@ A GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push/PR:
   off), validates the Terraform config (`fmt`/`validate`), and validates the AsyncAPI spec.
 - `container-image-scan`: a [Trivy](https://trivy.dev/) scan of the built container image for OS/library
   vulnerabilities - the missing piece alongside DependencyCheck (source deps) and CodeQL (source code) for a
-  full supply-chain security picture. Report-only (doesn't fail the build), since remediation of the base
+  full supply-chain security picture. HIGH/CRITICAL policy gate, since remediation of the base
   image's own CVE backlog isn't on this project's timeline.
 - A separate frontend build/lint/test job.
 - `e2e`: boots an isolated disposable project from `infra/docker/e2e/docker-compose.yml`, using the real app image
@@ -818,3 +818,11 @@ dir):
     CycloneDX Software Bill of Materials (SBOM) from the resolved dependency graph of every module. Not part of the
     default build/check lifecycle; run explicitly with `./gradlew cyclonedxBom` (output at
     `build/reports/cyclonedx/bom.json`), or see the `sbom` CI job which publishes it as a build artifact on every push.
+
+## Current showcase path
+
+For a compact end-to-end walkthrough, see [docs/showcase-demo.md](docs/showcase-demo.md).
+
+The browser login uses Keycloak Authorization Code + PKCE. The backend is a stateless OAuth2 Resource Server and remains the authorization authority. Order placement, cancellation, partial refunds, stock reservation recovery and notification retry use durable identities and recovery state rather than assuming exactly-once external side effects.
+
+Security scans are enforcement gates for unacceptable HIGH/CRITICAL findings. Critical PostgreSQL concurrency/recovery tests are required to execute in CI rather than being accepted as skipped.

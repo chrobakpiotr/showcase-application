@@ -88,3 +88,7 @@ replaying the wrong result.
   `OrderResource.items` rather than requiring the caller to redeclare them.
 - The synchronous-reservation-outside-the-saga pattern established here is the reference point for any
   future saga-adjacent operation that must happen exactly once rather than be retried.
+
+## Later updates
+
+The repository now includes a cart UI and server-authoritative order pricing. See the later order-pricing and application-orchestration decisions; this ADR remains historical context for the original line-item and reservation model.
