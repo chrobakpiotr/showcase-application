@@ -1,11 +1,14 @@
 package com.cp.ecommerce.adapter.web.returns;
 
 import java.util.Optional;
+import java.util.function.IntFunction;
 
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
 import com.cp.ecommerce.application.returns.ReturnWorkflow;
+import com.cp.ecommerce.domain.returns.PageQuery;
+import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
@@ -15,6 +18,9 @@ import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -23,11 +29,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -63,37 +71,47 @@ public class ReturnController {
     private final ReturnWebMapper returnWebMapper;
 
     @GetMapping
-    @Operation(summary = "List return requests", description = "Newest first. Empty list if there are none.")
-    @ApiResponse(
-            responseCode = "200",
-            description = "Return requests",
-            content = @Content(
-                    mediaType = "application/hal+json",
-                    schema = @Schema(implementation = ReturnRequestResource.class)))
-    public CollectionModel<EntityModel<ReturnRequestResource>> listReturns() {
-
-        return CollectionModel.of(
-                listReturnsInPort.listReturns().stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ReturnController.class).listReturns()).withSelfRel());
+    @Operation(summary = "List return requests", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<ReturnRequestResource>> listReturns(
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<ReturnRequest> result = listReturnsInPort.listReturns(new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ReturnController.class).listReturns(target, size)).withSelfRel());
     }
 
     @GetMapping("/pending")
-    @Operation(summary = "List pending return requests", description = "Oldest first moderation queue.")
-    public CollectionModel<EntityModel<ReturnRequestResource>> listPendingReturns() {
-
-        return CollectionModel.of(
-                listReturnsInPort.listPendingReturns().stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ReturnController.class).listPendingReturns()).withSelfRel());
+    @Operation(summary = "List pending return requests", description = "Oldest first, page by page.")
+    public PagedModel<EntityModel<ReturnRequestResource>> listPendingReturns(
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<ReturnRequest> result = listReturnsInPort.listPendingReturns(new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ReturnController.class).listPendingReturns(target, size)).withSelfRel());
     }
 
     @GetMapping("/order/{orderNumber}")
-    @Operation(summary = "List return requests for an order", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<ReturnRequestResource>> listReturnsForOrder(
-            @PathVariable("orderNumber") final String orderNumber) {
-
-        return CollectionModel.of(
-                listReturnsInPort.listReturnsForOrder(orderNumber).stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ReturnController.class).listReturnsForOrder(orderNumber)).withSelfRel());
+    @Operation(summary = "List return requests for an order", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<ReturnRequestResource>> listReturnsForOrder(
+            @PathVariable("orderNumber") final String orderNumber,
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<ReturnRequest> result = listReturnsInPort.listReturnsForOrder(orderNumber, new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ReturnController.class).listReturnsForOrder(orderNumber, target, size))
+                        .withSelfRel());
     }
 
     @GetMapping("/{returnNumber}")
@@ -183,6 +201,34 @@ public class ReturnController {
             model.add(linkTo(methodOn(ReturnController.class).approveReturn(returnNumber)).withRel("approve"));
             model.add(linkTo(methodOn(ReturnController.class).rejectReturn(returnNumber)).withRel("reject"));
         }
+        return model;
+    }
+
+    private static void validatePage(final int page, final int size) {
+        if (page < 0 || size < 1 || size > PageQuery.MAX_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
+        }
+    }
+
+    private PagedModel<EntityModel<ReturnRequestResource>> toPagedModel(
+            final PagedResult<ReturnRequest> result,
+            final int page,
+            final int size,
+            final IntFunction<Link> linkForPage) {
+        final var content = result.content().stream().map(this::toResourceModel).toList();
+        final var metadata = new PagedModel.PageMetadata(
+                result.size(),
+                result.page(),
+                result.totalElements(),
+                result.totalPages());
+        final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
+        final int lastPage = Math.max(result.totalPages() - 1, 0);
+        model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
+        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
     }
 

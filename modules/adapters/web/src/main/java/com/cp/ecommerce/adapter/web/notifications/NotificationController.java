@@ -1,27 +1,35 @@
 package com.cp.ecommerce.adapter.web.notifications;
 
 import java.util.Optional;
+import java.util.function.IntFunction;
 
 import com.cp.ecommerce.adapter.web.notifications.mapper.NotificationWebMapper;
 import com.cp.ecommerce.adapter.web.notifications.resource.NotificationResource;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
+import com.cp.ecommerce.domain.notification.PageQuery;
+import com.cp.ecommerce.domain.notification.PagedResult;
 import com.cp.ecommerce.domain.notification.port.incoming.GetNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.ListNotificationsInPort;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -49,35 +57,52 @@ public class NotificationController {
     private final NotificationWebMapper notificationWebMapper;
 
     @GetMapping
-    @Operation(summary = "List notifications", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<NotificationResource>> listNotifications() {
-
-        return CollectionModel.of(
-                listNotificationsInPort.listNotifications().stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(NotificationController.class).listNotifications()).withSelfRel());
+    @Operation(summary = "List notifications", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<NotificationResource>> listNotifications(
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Notification> result = listNotificationsInPort.listNotifications(new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(NotificationController.class).listNotifications(target, size)).withSelfRel());
     }
 
     @GetMapping("/recipient/{recipientEmail}")
-    @Operation(summary = "List notifications for a recipient", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<NotificationResource>> listNotificationsForRecipient(
-            @PathVariable("recipientEmail") final String recipientEmail) {
-
-        return CollectionModel.of(
-                listNotificationsInPort.listNotificationsForRecipient(recipientEmail)
-                        .stream()
-                        .map(this::toResourceModel)
-                        .toList(),
-                linkTo(methodOn(NotificationController.class).listNotificationsForRecipient(recipientEmail)).withSelfRel());
+    @Operation(summary = "List notifications for a recipient", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<NotificationResource>> listNotificationsForRecipient(
+            @PathVariable("recipientEmail") final String recipientEmail,
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Notification> result = listNotificationsInPort
+                .listNotificationsForRecipient(recipientEmail, new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(
+                        methodOn(NotificationController.class).listNotificationsForRecipient(recipientEmail, target, size))
+                        .withSelfRel());
     }
 
     @GetMapping("/status/{status}")
-    @Operation(summary = "List notifications by status", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<NotificationResource>> listNotificationsByStatus(
-            @PathVariable("status") final NotificationStatus status) {
-
-        return CollectionModel.of(
-                listNotificationsInPort.listNotificationsByStatus(status).stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(NotificationController.class).listNotificationsByStatus(status)).withSelfRel());
+    @Operation(summary = "List notifications by status", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<NotificationResource>> listNotificationsByStatus(
+            @PathVariable("status") final NotificationStatus status,
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Notification> result = listNotificationsInPort
+                .listNotificationsByStatus(status, new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(NotificationController.class).listNotificationsByStatus(status, target, size))
+                        .withSelfRel());
     }
 
     @GetMapping("/{notificationId}")
@@ -104,6 +129,34 @@ public class NotificationController {
                 notificationWebMapper.mapToResource(notification)
                         .orElseThrow(() -> new TechnicalProblemException("Notification data is missing")),
                 linkTo(methodOn(NotificationController.class).getNotification(notification.getNotificationId())).withSelfRel());
+    }
+
+    private static void validatePage(final int page, final int size) {
+        if (page < 0 || size < 1 || size > PageQuery.MAX_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
+        }
+    }
+
+    private PagedModel<EntityModel<NotificationResource>> toPagedModel(
+            final PagedResult<Notification> result,
+            final int page,
+            final int size,
+            final IntFunction<Link> linkForPage) {
+        final var content = result.content().stream().map(this::toResourceModel).toList();
+        final var metadata = new PagedModel.PageMetadata(
+                result.size(),
+                result.page(),
+                result.totalElements(),
+                result.totalPages());
+        final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
+        final int lastPage = Math.max(result.totalPages() - 1, 0);
+        model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
+        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
+        return model;
     }
 
 }

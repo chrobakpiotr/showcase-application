@@ -7,6 +7,8 @@ import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 import com.cp.ecommerce.domain.notification.NotificationType;
+import com.cp.ecommerce.domain.notification.PageQuery;
+import com.cp.ecommerce.domain.notification.PagedResult;
 import com.cp.ecommerce.domain.notification.port.incoming.GetNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.ListNotificationsInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.RetryNotificationDeliveryInPort;
@@ -119,4 +121,20 @@ public class ManageNotificationUseCase
         notification.assertValidationsEmpty();
         return saveNotificationOutPort.save(notification);
     }
+
+    @Override
+    public PagedResult<Notification> listNotifications(final PageQuery pageQuery) {
+        return findNotificationsOutPort.findAll(pageQuery);
+    }
+
+    @Override
+    public PagedResult<Notification> listNotificationsForRecipient(final String recipientEmail, final PageQuery pageQuery) {
+        return findNotificationsOutPort.findByRecipientEmail(recipientEmail, pageQuery);
+    }
+
+    @Override
+    public PagedResult<Notification> listNotificationsByStatus(final NotificationStatus status, final PageQuery pageQuery) {
+        return findNotificationsOutPort.findByStatus(status, pageQuery);
+    }
+
 }

@@ -1,11 +1,14 @@
 package com.cp.ecommerce.adapter.web.shipments;
 
 import java.util.Optional;
+import java.util.function.IntFunction;
 
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
 import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
 import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
+import com.cp.ecommerce.domain.shipment.PageQuery;
+import com.cp.ecommerce.domain.shipment.PagedResult;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.GetShipmentInPort;
@@ -15,6 +18,9 @@ import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -23,11 +29,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -62,32 +70,48 @@ public class ShipmentController {
     private final ShipmentWebMapper shipmentWebMapper;
 
     @GetMapping
-    @Operation(summary = "List shipments", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<ShipmentResource>> listShipments() {
-
-        return CollectionModel.of(
-                listShipmentsInPort.listShipments().stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ShipmentController.class).listShipments()).withSelfRel());
+    @Operation(summary = "List shipments", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<ShipmentResource>> listShipments(
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Shipment> result = listShipmentsInPort.listShipments(new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ShipmentController.class).listShipments(target, size)).withSelfRel());
     }
 
     @GetMapping("/order/{orderNumber}")
-    @Operation(summary = "List shipments for an order", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<ShipmentResource>> listShipmentsForOrder(
-            @PathVariable("orderNumber") final String orderNumber) {
-
-        return CollectionModel.of(
-                listShipmentsInPort.listShipmentsForOrder(orderNumber).stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ShipmentController.class).listShipmentsForOrder(orderNumber)).withSelfRel());
+    @Operation(summary = "List shipments for an order", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<ShipmentResource>> listShipmentsForOrder(
+            @PathVariable("orderNumber") final String orderNumber,
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Shipment> result = listShipmentsInPort.listShipmentsForOrder(orderNumber, new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ShipmentController.class).listShipmentsForOrder(orderNumber, target, size))
+                        .withSelfRel());
     }
 
     @GetMapping("/status/{status}")
-    @Operation(summary = "List shipments by status", description = "Newest first. Empty list if there are none.")
-    public CollectionModel<EntityModel<ShipmentResource>> listShipmentsByStatus(
-            @PathVariable("status") final ShipmentStatus status) {
-
-        return CollectionModel.of(
-                listShipmentsInPort.listShipmentsByStatus(status).stream().map(this::toResourceModel).toList(),
-                linkTo(methodOn(ShipmentController.class).listShipmentsByStatus(status)).withSelfRel());
+    @Operation(summary = "List shipments by status", description = "Newest first, page by page.")
+    public PagedModel<EntityModel<ShipmentResource>> listShipmentsByStatus(
+            @PathVariable("status") final ShipmentStatus status,
+            @RequestParam(name = "page", defaultValue = "0") final int page,
+            @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
+        validatePage(page, size);
+        final PagedResult<Shipment> result = listShipmentsInPort.listShipmentsByStatus(status, new PageQuery(page, size));
+        return toPagedModel(
+                result,
+                page,
+                size,
+                target -> linkTo(methodOn(ShipmentController.class).listShipmentsByStatus(status, target, size)).withSelfRel());
     }
 
     @GetMapping("/{shipmentNumber}")
@@ -157,6 +181,34 @@ public class ShipmentController {
             model.add(
                     linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber)).withRel("advance-status"));
         }
+        return model;
+    }
+
+    private static void validatePage(final int page, final int size) {
+        if (page < 0 || size < 1 || size > PageQuery.MAX_SIZE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
+        }
+    }
+
+    private PagedModel<EntityModel<ShipmentResource>> toPagedModel(
+            final PagedResult<Shipment> result,
+            final int page,
+            final int size,
+            final IntFunction<Link> linkForPage) {
+        final var content = result.content().stream().map(this::toResourceModel).toList();
+        final var metadata = new PagedModel.PageMetadata(
+                result.size(),
+                result.page(),
+                result.totalElements(),
+                result.totalPages());
+        final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
+        final int lastPage = Math.max(result.totalPages() - 1, 0);
+        model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
+        if (page > 0) model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
+        if (page < lastPage) model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
+        model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
         return model;
     }
 

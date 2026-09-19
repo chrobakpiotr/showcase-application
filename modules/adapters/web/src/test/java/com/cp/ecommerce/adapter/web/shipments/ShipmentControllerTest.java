@@ -22,6 +22,8 @@ import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.domain.shipment.PageQuery;
+import com.cp.ecommerce.domain.shipment.PagedResult;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
@@ -112,7 +114,8 @@ class ShipmentControllerTest {
     void shouldListShipments() throws Exception {
 
         final Shipment shipment = ShipmentBuilder.mockShipment();
-        given(listShipmentsInPort.listShipments()).willReturn(List.of(shipment));
+        given(listShipmentsInPort.listShipments(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(shipment), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(shipmentWebMapper.mapToResource(shipment)).willReturn(Optional.of(toResource(shipment)));
 
         mockMvc.perform(get(SHIPMENTS_ENDPOINT))
@@ -127,7 +130,10 @@ class ShipmentControllerTest {
     void shouldListShipmentsForOrder() throws Exception {
 
         final Shipment shipment = ShipmentBuilder.mockShipment();
-        given(listShipmentsInPort.listShipmentsForOrder(ShipmentBuilder.TEST_ORDER_NUMBER)).willReturn(List.of(shipment));
+        given(
+                listShipmentsInPort
+                        .listShipmentsForOrder(ShipmentBuilder.TEST_ORDER_NUMBER, new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(shipment), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(shipmentWebMapper.mapToResource(shipment)).willReturn(Optional.of(toResource(shipment)));
 
         mockMvc.perform(get(SHIPMENTS_ENDPOINT + "/order/" + ShipmentBuilder.TEST_ORDER_NUMBER))
@@ -140,7 +146,8 @@ class ShipmentControllerTest {
     void shouldListShipmentsByStatus() throws Exception {
 
         final Shipment shipment = ShipmentBuilder.mockShipment();
-        given(listShipmentsInPort.listShipmentsByStatus(ShipmentStatus.PENDING)).willReturn(List.of(shipment));
+        given(listShipmentsInPort.listShipmentsByStatus(ShipmentStatus.PENDING, new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(shipment), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(shipmentWebMapper.mapToResource(shipment)).willReturn(Optional.of(toResource(shipment)));
 
         mockMvc.perform(get(SHIPMENTS_ENDPOINT + "/status/PENDING"))

@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
+import com.cp.ecommerce.domain.returns.PageQuery;
+import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
@@ -96,6 +98,21 @@ public class ManageReturnUseCase implements RequestReturnInPort, GetReturnInPort
     public ReturnRequest markRefunded(final String returnNumber) {
 
         return manageReturnRequestStateOutPort.markRefunded(returnNumber);
+    }
+
+    @Override
+    public PagedResult<ReturnRequest> listReturns(final PageQuery pageQuery) {
+        return findReturnRequestsOutPort.findAll(pageQuery);
+    }
+
+    @Override
+    public PagedResult<ReturnRequest> listPendingReturns(final PageQuery pageQuery) {
+        return findReturnRequestsOutPort.findPending(pageQuery);
+    }
+
+    @Override
+    public PagedResult<ReturnRequest> listReturnsForOrder(final String orderNumber, final PageQuery pageQuery) {
+        return findReturnRequestsOutPort.findByOrderNumber(orderNumber, pageQuery);
     }
 
 }

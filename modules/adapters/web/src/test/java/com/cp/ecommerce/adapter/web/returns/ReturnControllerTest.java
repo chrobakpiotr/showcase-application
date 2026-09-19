@@ -18,6 +18,8 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.returns.PageQuery;
+import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
@@ -99,7 +101,8 @@ class ReturnControllerTest {
     void shouldListReturns() throws Exception {
 
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
-        given(listReturnsInPort.listReturns()).willReturn(List.of(returnRequest));
+        given(listReturnsInPort.listReturns(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT))
@@ -114,7 +117,8 @@ class ReturnControllerTest {
     void shouldListPendingReturns() throws Exception {
 
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
-        given(listReturnsInPort.listPendingReturns()).willReturn(List.of(returnRequest));
+        given(listReturnsInPort.listPendingReturns(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT + "/pending"))
@@ -129,7 +133,10 @@ class ReturnControllerTest {
     void shouldListReturnsForOrder() throws Exception {
 
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
-        given(listReturnsInPort.listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(List.of(returnRequest));
+        given(
+                listReturnsInPort
+                        .listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER, new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT + "/order/" + ReturnRequestBuilder.TEST_ORDER_NUMBER))

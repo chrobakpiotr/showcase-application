@@ -4,6 +4,8 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 
+import com.cp.ecommerce.domain.shipment.PageQuery;
+import com.cp.ecommerce.domain.shipment.PagedResult;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
@@ -122,6 +124,21 @@ public class ManageShipmentUseCase
         case DELIVERED ->
             throw new ShipmentConflictException("Shipment '" + existing.getShipmentNumber() + "' is already DELIVERED");
         };
+    }
+
+    @Override
+    public PagedResult<Shipment> listShipments(final PageQuery pageQuery) {
+        return findShipmentsOutPort.findAll(pageQuery);
+    }
+
+    @Override
+    public PagedResult<Shipment> listShipmentsForOrder(final String orderNumber, final PageQuery pageQuery) {
+        return findShipmentsOutPort.findByOrderNumber(orderNumber, pageQuery);
+    }
+
+    @Override
+    public PagedResult<Shipment> listShipmentsByStatus(final ShipmentStatus status, final PageQuery pageQuery) {
+        return findShipmentsOutPort.findByStatus(status, pageQuery);
     }
 
 }

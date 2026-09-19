@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -23,9 +24,15 @@ public interface NotificationEntityRepository extends JpaRepository<Notification
 
     List<NotificationEntity> findAllByOrderByCreatedDateDesc();
 
+    Page<NotificationEntity> findAllByOrderByCreatedDateDesc(Pageable pageable);
+
     List<NotificationEntity> findByRecipientEmailOrderByCreatedDateDesc(String recipientEmail);
 
+    Page<NotificationEntity> findByRecipientEmailOrderByCreatedDateDesc(String recipientEmail, Pageable pageable);
+
     List<NotificationEntity> findByStatusOrderByCreatedDateDesc(NotificationStatus status);
+
+    Page<NotificationEntity> findByStatusOrderByCreatedDateDesc(NotificationStatus status, Pageable pageable);
 
     @Query("""
             select notification.notificationId

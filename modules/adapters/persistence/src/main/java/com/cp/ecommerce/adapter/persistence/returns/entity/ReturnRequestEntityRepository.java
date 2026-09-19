@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -34,8 +36,14 @@ public interface ReturnRequestEntityRepository extends JpaRepository<ReturnReque
 
     List<ReturnRequestEntity> findAllByOrderByRequestedDateDesc();
 
+    Page<ReturnRequestEntity> findAllByOrderByRequestedDateDesc(Pageable pageable);
+
     List<ReturnRequestEntity> findByStatusOrderByRequestedDateAsc(ReturnStatus status);
 
+    Page<ReturnRequestEntity> findByStatusOrderByRequestedDateAsc(ReturnStatus status, Pageable pageable);
+
     List<ReturnRequestEntity> findByOrderNumberOrderByRequestedDateDesc(String orderNumber);
+
+    Page<ReturnRequestEntity> findByOrderNumberOrderByRequestedDateDesc(String orderNumber, Pageable pageable);
 
 }

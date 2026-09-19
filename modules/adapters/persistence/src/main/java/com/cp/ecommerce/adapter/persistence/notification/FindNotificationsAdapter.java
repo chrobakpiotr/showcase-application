@@ -8,7 +8,12 @@ import com.cp.ecommerce.adapter.persistence.notification.entity.NotificationEnti
 import com.cp.ecommerce.adapter.persistence.notification.mapper.NotificationPersistenceMapper;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
+import com.cp.ecommerce.domain.notification.PageQuery;
+import com.cp.ecommerce.domain.notification.PagedResult;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPort;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,6 +62,33 @@ class FindNotificationsAdapter implements FindNotificationsOutPort {
                         () -> new IllegalStateException(
                                 "Failed to map notification entity to domain object for notification id: "
                                         + entity.getNotificationId()));
+    }
+
+    @Override
+    public PagedResult<Notification> findAll(final PageQuery q) {
+        return page(notificationEntityRepository.findAllByOrderByCreatedDateDesc(PageRequest.of(q.page(), q.size())));
+    }
+
+    @Override
+    public PagedResult<Notification> findByRecipientEmail(final String email, final PageQuery q) {
+        return page(
+                notificationEntityRepository
+                        .findByRecipientEmailOrderByCreatedDateDesc(email, PageRequest.of(q.page(), q.size())));
+    }
+
+    @Override
+    public PagedResult<Notification> findByStatus(final NotificationStatus status, final PageQuery q) {
+        return page(
+                notificationEntityRepository.findByStatusOrderByCreatedDateDesc(status, PageRequest.of(q.page(), q.size())));
+    }
+
+    private PagedResult<Notification> page(final Page<NotificationEntity> page) {
+        return new PagedResult<>(
+                page.getContent().stream().map(this::mapToDomainObjectOrThrow).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages());
     }
 
 }

@@ -8,6 +8,8 @@ import com.cp.ecommerce.adapter.web.notifications.mapper.NotificationWebMapper;
 import com.cp.ecommerce.adapter.web.notifications.resource.NotificationResource;
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
+import com.cp.ecommerce.domain.notification.PageQuery;
+import com.cp.ecommerce.domain.notification.PagedResult;
 import com.cp.ecommerce.domain.notification.port.incoming.GetNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.ListNotificationsInPort;
 
@@ -49,7 +51,8 @@ class NotificationControllerTest {
     void shouldListNotifications() throws Exception {
 
         final Notification notification = NotificationBuilder.mockNotification();
-        given(listNotificationsInPort.listNotifications()).willReturn(List.of(notification));
+        given(listNotificationsInPort.listNotifications(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(notification), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(notificationWebMapper.mapToResource(notification)).willReturn(Optional.of(mockNotificationResource()));
 
         mockMvc.perform(get(NOTIFICATIONS_ENDPOINT))
@@ -64,8 +67,11 @@ class NotificationControllerTest {
     void shouldListNotificationsForRecipient() throws Exception {
 
         final Notification notification = NotificationBuilder.mockNotification();
-        given(listNotificationsInPort.listNotificationsForRecipient(NotificationBuilder.TEST_RECIPIENT_EMAIL))
-                .willReturn(List.of(notification));
+        given(
+                listNotificationsInPort.listNotificationsForRecipient(
+                        NotificationBuilder.TEST_RECIPIENT_EMAIL,
+                        new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(notification), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(notificationWebMapper.mapToResource(notification)).willReturn(Optional.of(mockNotificationResource()));
 
         mockMvc.perform(get(NOTIFICATIONS_ENDPOINT + "/recipient/" + NotificationBuilder.TEST_RECIPIENT_EMAIL))
@@ -79,7 +85,10 @@ class NotificationControllerTest {
     void shouldListNotificationsByStatus() throws Exception {
 
         final Notification notification = NotificationBuilder.mockNotification();
-        given(listNotificationsInPort.listNotificationsByStatus(NotificationStatus.SENT)).willReturn(List.of(notification));
+        given(
+                listNotificationsInPort
+                        .listNotificationsByStatus(NotificationStatus.SENT, new PageQuery(0, PageQuery.DEFAULT_SIZE)))
+                .willReturn(new PagedResult<>(List.of(notification), 0, PageQuery.DEFAULT_SIZE, 1, 1));
         given(notificationWebMapper.mapToResource(notification)).willReturn(Optional.of(mockNotificationResource()));
 
         mockMvc.perform(get(NOTIFICATIONS_ENDPOINT + "/status/SENT"))

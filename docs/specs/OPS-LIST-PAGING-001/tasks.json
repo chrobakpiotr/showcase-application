@@ -1,0 +1,47 @@
+{
+  "feature": "OPS-LIST-PAGING-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Paginate operational list APIs",
+      "objective": "Bound public returns, notifications and shipments reads at the DB boundary.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/OPS-LIST-PAGING-001/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/returns/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/notification/**",
+        "modules/domain/src/main/java/com/cp/ecommerce/domain/shipment/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/returns/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/notification/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/shipment/**",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/returns/ReturnController.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/notifications/NotificationController.java",
+        "modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/shipments/ShipmentController.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/returns/ReturnControllerTest.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/notifications/NotificationControllerTest.java",
+        "modules/adapters/web/src/test/java/com/cp/ecommerce/adapter/web/shipments/ShipmentControllerTest.java"
+      ],
+      "risk_tags": ["performance", "pagination", "api"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": ["./gradlew :domain:test :adapter:persistence:test :adapter:web:test --no-configuration-cache --no-parallel"],
+      "test_mode": "existing-suite",
+      "test_seam": "Controller contracts and persistence adapter tests."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify bounded reads and HAL paging without regressions.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/OPS-LIST-PAGING-001/evidence/**"],
+      "risk_tags": ["evaluation"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}
