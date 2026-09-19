@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.persistence.metrics.RecoveryMetrics;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
@@ -28,6 +29,8 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
     private static final String REFUND_RESILIENCE_INSTANCE_NAME = "refundPayment";
 
     private final ResilientExecutor resilientExecutor;
+
+    private final RecoveryMetrics recoveryMetrics;
 
     @Value("${payment.gateway.mock.decline-above:10000.00}")
     private BigDecimal declineAboveAmount = new BigDecimal("10000.00");
@@ -58,6 +61,7 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
             return gatewayReference;
         } catch (final Exception exception) {
 
+            recoveryMetrics.recordPaymentUnknown();
             throw new TechnicalProblemException("Could not charge payment for order: " + orderNumber, exception);
         }
     }

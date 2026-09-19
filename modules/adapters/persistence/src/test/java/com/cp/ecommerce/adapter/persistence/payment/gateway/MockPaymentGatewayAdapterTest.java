@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.concurrent.Callable;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.persistence.metrics.RecoveryMetrics;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
@@ -39,6 +40,9 @@ class MockPaymentGatewayAdapterTest {
 
     @Mock
     private transient ResilientExecutor resilientExecutor;
+
+    @Mock
+    private transient RecoveryMetrics recoveryMetrics;
 
     @InjectMocks
     private transient MockPaymentGatewayAdapter mockPaymentGatewayAdapter;
@@ -88,6 +92,7 @@ class MockPaymentGatewayAdapterTest {
                 () -> mockPaymentGatewayAdapter
                         .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD))
                 .isInstanceOf(TechnicalProblemException.class);
+        verify(recoveryMetrics).recordPaymentUnknown();
     }
 
     @Test

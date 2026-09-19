@@ -1,0 +1,70 @@
+{
+  "feature": "RECOVERY-METRICS-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Expose durable recovery metrics",
+      "objective": "Implement the documented R18 recovery metric contract without high-cardinality labels.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/specs/RECOVERY-METRICS-001/**",
+        "docs/runbooks/recovery-metrics.md",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/metrics/**",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/metrics/**",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OutboxEventEntityRepository.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/notification/entity/NotificationEntityRepository.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/gateway/MockPaymentGatewayAdapter.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/gateway/MockPaymentGatewayAdapterTest.java"
+      ],
+      "risk_tags": [
+        "observability",
+        "recovery",
+        "payment",
+        "metrics"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004"
+      ],
+      "verification": [
+        "./gradlew :adapter:persistence:test --tests com.cp.ecommerce.adapter.persistence.metrics.RecoveryMetricsTest --tests com.cp.ecommerce.adapter.persistence.payment.gateway.MockPaymentGatewayAdapterTest --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "SimpleMeterRegistry plus mocked durable repositories."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify recovery metric semantics, bounded cardinality and full repository gates.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "docs/specs/RECOVERY-METRICS-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation",
+        "observability",
+        "recovery"
+      ],
+      "acceptance_criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005"
+      ],
+      "verification": [
+        "./gradlew build --continue --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}

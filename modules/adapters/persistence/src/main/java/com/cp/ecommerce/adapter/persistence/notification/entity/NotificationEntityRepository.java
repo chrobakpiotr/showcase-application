@@ -39,6 +39,14 @@ public interface NotificationEntityRepository extends JpaRepository<Notification
             @Param("now") Date now,
             Pageable pageable);
 
+    @Query("""
+            select min(notification.nextAttemptDate)
+            from NotificationEntity notification
+            where notification.status in :statuses
+              and notification.nextAttemptDate <= :now
+            """)
+    Date findOldestDueAttemptDate(@Param("statuses") List<NotificationStatus> statuses, @Param("now") Date now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select notification from NotificationEntity notification where notification.notificationId = :notificationId")
     Optional<NotificationEntity> findByNotificationIdForUpdate(@Param("notificationId") String notificationId);

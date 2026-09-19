@@ -57,6 +57,15 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
             Date claimUntil,
             Pageable pageable);
 
+    @Query("select min(event.createdDate) from OutboxEventEntity event where event.status = :status")
+    Date findOldestCreatedDateByStatus(@Param("status") OutboxEventStatus status);
+
+    long countByStatusAndClaimUntilLessThanEqual(OutboxEventStatus status, Date claimUntil);
+
+    long countByStatusAndAttemptsGreaterThan(OutboxEventStatus status, int attempts);
+
+    long countByStatus(OutboxEventStatus status);
+
     /**
      * Reload one candidate while holding the shared saga/cancellation arbitration lock.
      *
