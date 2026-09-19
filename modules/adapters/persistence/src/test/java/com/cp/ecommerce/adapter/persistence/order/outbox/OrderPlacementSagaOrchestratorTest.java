@@ -1,6 +1,9 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -71,6 +74,8 @@ class OrderPlacementSagaOrchestratorTest {
     private static final String OUTCOME_FAILURE = "failure";
 
     private static final String RABBITMQ_UNAVAILABLE_MESSAGE = "RabbitMQ unavailable";
+
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-09-19T12:00:00Z"), ZoneOffset.UTC);
 
     @Mock
     private transient OutboxEventEntityRepository outboxEventEntityRepository;
@@ -1004,7 +1009,8 @@ class OrderPlacementSagaOrchestratorTest {
                 manageStockInPort,
                 managePaymentInPort,
                 executeInSimpleTransaction(),
-                sagaMetrics);
+                sagaMetrics,
+                FIXED_CLOCK);
     }
 
     private TransactionOperations executeInSimpleTransaction() {

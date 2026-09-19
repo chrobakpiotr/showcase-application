@@ -1,5 +1,8 @@
 package com.cp.ecommerce.adapter.kafka.order;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.concurrent.CompletableFuture;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -30,6 +33,8 @@ import static com.cp.ecommerce.adapter.kafka.configuration.KafkaTopicConfigurati
 @ExtendWith(MockitoExtension.class)
 class PublishOrderAnalyticsEventAdapterTest {
 
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-09-19T12:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     transient KafkaTemplate<String, String> kafkaTemplate;
 
@@ -46,7 +51,8 @@ class PublishOrderAnalyticsEventAdapterTest {
         final PublishOrderAnalyticsEventAdapter adapter = new PublishOrderAnalyticsEventAdapter(
                 kafkaTemplate,
                 resilientExecutor,
-                gson);
+                gson,
+                FIXED_CLOCK);
         runResilientActionEagerly();
         given(gson.toJson(any(Object.class))).willReturn("{}");
         given(kafkaTemplate.send(anyString(), anyString(), anyString()))

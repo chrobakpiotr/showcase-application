@@ -1,5 +1,9 @@
 package com.cp.ecommerce.adapter.aws.order;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
 import com.google.gson.Gson;
@@ -27,6 +31,8 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 @ExtendWith(MockitoExtension.class)
 class PublishOrderAuditEventAdapterTest {
 
+    private static final Clock FIXED_CLOCK = Clock.fixed(Instant.parse("2026-09-19T12:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     transient SqsClient sqsClient;
 
@@ -45,7 +51,8 @@ class PublishOrderAuditEventAdapterTest {
                 sqsClient,
                 queueUrl,
                 resilientExecutor,
-                gson);
+                gson,
+                FIXED_CLOCK);
         runResilientActionEagerly();
         given(gson.toJson(any(Object.class))).willReturn("{}");
         given(sqsClient.sendMessage(any(SendMessageRequest.class))).willReturn(SendMessageResponse.builder().build());
@@ -64,7 +71,8 @@ class PublishOrderAuditEventAdapterTest {
                 sqsClient,
                 queueUrl,
                 resilientExecutor,
-                gson);
+                gson,
+                FIXED_CLOCK);
         runResilientActionEagerly();
         given(gson.toJson(any(Object.class))).willReturn("{}");
         given(sqsClient.sendMessage(any(SendMessageRequest.class))).willReturn(SendMessageResponse.builder().build());

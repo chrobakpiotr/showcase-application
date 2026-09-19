@@ -1,6 +1,6 @@
 package com.cp.ecommerce.adapter.kafka.order;
 
-import java.time.Instant;
+import java.time.Clock;
 
 import com.cp.ecommerce.adapter.common.annotation.WebAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -38,6 +38,8 @@ public class PublishOrderAnalyticsEventAdapter implements PublishOrderAnalyticsE
 
     private final Gson gson;
 
+    private final Clock clock;
+
     @Override
     public void publish(final Order order) {
 
@@ -45,7 +47,7 @@ public class PublishOrderAnalyticsEventAdapter implements PublishOrderAnalyticsE
                 .orderNumber(order.getOrderNumber())
                 .customerId(order.getCustomer().getId())
                 .eventType(EVENT_TYPE)
-                .timestamp(Instant.now().toString())
+                .timestamp(clock.instant().toString())
                 .build();
         final String json = gson.toJson(event);
         log.info(

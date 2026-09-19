@@ -1,7 +1,9 @@
 package com.cp.ecommerce.adapter.persistence.order.idempotency;
 
 import java.sql.Connection;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.Optional;
 
@@ -12,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,6 +40,10 @@ class IdempotencyKeyAdapterTest {
     private static final String LEGACY_FINGERPRINT = "legacy-fingerprint";
     private static final String ORDER_NUMBER = "ORD-1001";
 
+    private static final Instant FIXED_INSTANT = Instant.parse("2026-09-19T12:00:00Z");
+
+    private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
+
     @Mock
     private transient IdempotencyKeyEntityRepository idempotencyKeyEntityRepository;
 
@@ -50,6 +55,10 @@ class IdempotencyKeyAdapterTest {
 
         TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED);
         lenient().when(lockRepository.findById(any())).thenReturn(Optional.of(new IdempotencyLockEntity()));
+        idempotencyKeyAdapter = new IdempotencyKeyAdapter(
+                lockRepository,
+                idempotencyKeyEntityRepository,
+                Optional.of(FIXED_CLOCK));
     }
 
     @AfterEach
@@ -58,7 +67,6 @@ class IdempotencyKeyAdapterTest {
         TransactionSynchronizationManager.clear();
     }
 
-    @InjectMocks
     private transient IdempotencyKeyAdapter idempotencyKeyAdapter;
 
     @Test
@@ -73,7 +81,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnDuplicateWhenCompletedRequestWithSameFingerprintExists() {
 
-        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, FINGERPRINT, Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, FINGERPRINT, FIXED_INSTANT));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -84,7 +92,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnDuplicateWhenCompletedLegacyFingerprintExists() {
 
-        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, LEGACY_FINGERPRINT, Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, LEGACY_FINGERPRINT, FIXED_INSTANT));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT, LEGACY_FINGERPRINT);
 
@@ -95,7 +103,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnConflictWhenExistingRequestHasDifferentFingerprint() {
 
-        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, "different-fingerprint", Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.COMPLETED, "different-fingerprint", FIXED_INSTANT));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -105,7 +113,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldReturnConflictWhenRequestIsStillInProgressAndNotStale() {
 
-        givenExistingKey(existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, Instant.now()));
+        givenExistingKey(existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, FIXED_INSTANT));
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
 
@@ -118,7 +126,7 @@ class IdempotencyKeyAdapterTest {
         final IdempotencyKeyEntity stale = existingEntity(
                 IdempotencyKeyStatus.IN_PROGRESS,
                 FINGERPRINT,
-                Instant.now().minusMillis(STALE_AFTER_MS + 1000));
+                FIXED_INSTANT.minusMillis(STALE_AFTER_MS + 1000));
         givenExistingKey(stale);
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT);
@@ -138,7 +146,7 @@ class IdempotencyKeyAdapterTest {
         final IdempotencyKeyEntity stale = existingEntity(
                 IdempotencyKeyStatus.IN_PROGRESS,
                 LEGACY_FINGERPRINT,
-                Instant.now().minusMillis(STALE_AFTER_MS + 1000));
+                FIXED_INSTANT.minusMillis(STALE_AFTER_MS + 1000));
         givenExistingKey(stale);
 
         final IdempotencyReservation reservation = idempotencyKeyAdapter.reserve(KEY, FINGERPRINT, LEGACY_FINGERPRINT);
@@ -178,7 +186,7 @@ class IdempotencyKeyAdapterTest {
     @Test
     void shouldCompleteReservedKey() {
 
-        final IdempotencyKeyEntity inProgress = existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, Instant.now());
+        final IdempotencyKeyEntity inProgress = existingEntity(IdempotencyKeyStatus.IN_PROGRESS, FINGERPRINT, FIXED_INSTANT);
         when(idempotencyKeyEntityRepository.findByKey(KEY)).thenReturn(Optional.of(inProgress));
 
         idempotencyKeyAdapter.complete(KEY, ORDER_NUMBER);

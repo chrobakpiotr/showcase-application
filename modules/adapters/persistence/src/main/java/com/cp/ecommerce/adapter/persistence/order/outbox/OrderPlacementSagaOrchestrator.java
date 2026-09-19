@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Date;
 import java.util.Objects;
@@ -90,6 +91,8 @@ public class OrderPlacementSagaOrchestrator {
 
     private final SagaMetrics sagaMetrics;
 
+    private final Clock clock;
+
     @Value("${outbox.publisher.max-fulfillment-attempts:5}")
     private int maxFulfillmentAttempts = 5;
 
@@ -102,7 +105,7 @@ public class OrderPlacementSagaOrchestrator {
     @Scheduled(fixedDelayString = "${outbox.publisher.poll-interval-ms:5000}")
     public void publishPendingEvents() {
 
-        final Date now = new Date();
+        final Date now = Date.from(clock.instant());
         outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
                 .forEach(this::publishPlacementCandidate);
         outboxEventEntityRepository
@@ -134,7 +137,8 @@ public class OrderPlacementSagaOrchestrator {
                 status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
                         .filter(
                                 event -> event.getStatus() == OutboxEventStatus.PENDING
-                                        || event.getStatus() == OutboxEventStatus.PROCESSING && leaseExpired(event, new Date()))
+                                        || event.getStatus() == OutboxEventStatus.PROCESSING
+                                                && leaseExpired(event, Date.from(clock.instant())))
                         .map(event -> {
                             final String claimId = UUID.randomUUID().toString();
                             event.setStatus(OutboxEventStatus.PROCESSING);
@@ -304,7 +308,7 @@ public class OrderPlacementSagaOrchestrator {
                         .filter(event -> ownsPlacementClaim(event, claim))
                         .ifPresent(event -> {
                             event.setStatus(OutboxEventStatus.SENT);
-                            event.setSentDate(new Date());
+                            event.setSentDate(Date.from(clock.instant()));
                             clearClaim(event);
                             outboxEventEntityRepository.save(event);
                         }));
@@ -325,7 +329,7 @@ public class OrderPlacementSagaOrchestrator {
                 status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
                         .filter(
                                 event -> event.getStatus() == OutboxEventStatus.COMPENSATING
-                                        && leaseAvailable(event, new Date()))
+                                        && leaseAvailable(event, Date.from(clock.instant())))
                         .map(event -> {
                             final String claimId = UUID.randomUUID().toString();
                             event.setClaimId(claimId);
@@ -352,7 +356,7 @@ public class OrderPlacementSagaOrchestrator {
                 .filter(event -> ownsCompensationClaim(event, claim))
                 .ifPresent(event -> {
                     event.setStatus(OutboxEventStatus.COMPENSATED);
-                    event.setCompensatedDate(new Date());
+                    event.setCompensatedDate(Date.from(clock.instant()));
                     event.setLastError(null);
                     clearClaim(event);
                     outboxEventEntityRepository.save(event);
@@ -519,7 +523,7 @@ public class OrderPlacementSagaOrchestrator {
 
     private Date claimUntil() {
 
-        return new Date(System.currentTimeMillis() + claimLeaseMs);
+        return Date.from(clock.instant().plusMillis(claimLeaseMs));
     }
 
     private static void clearClaim(final OutboxEventEntity event) {

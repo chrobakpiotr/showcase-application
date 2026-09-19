@@ -1,8 +1,10 @@
 package com.cp.ecommerce.adapter.persistence.order.idempotency;
 
 import java.sql.Connection;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.order.IdempotencyReservation;
@@ -33,6 +35,8 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
     private final IdempotencyKeyEntityRepository idempotencyKeyEntityRepository;
 
+    private final Optional<Clock> clock;
+
     @Value("${order.idempotency.stale-after-ms:60000}")
     private long staleAfterMs = 60000;
 
@@ -54,7 +58,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
                                     .key(key)
                                     .fingerprint(fingerprint)
                                     .status(IdempotencyKeyStatus.IN_PROGRESS)
-                                    .createdDate(new Date())
+                                    .createdDate(Date.from(now()))
                                     .build());
                     return IdempotencyReservation.reserved();
                 });
@@ -68,7 +72,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
             entity.setStatus(IdempotencyKeyStatus.COMPLETED);
             entity.setOrderNumber(orderNumber);
-            entity.setCompletedDate(new Date());
+            entity.setCompletedDate(Date.from(now()));
             idempotencyKeyEntityRepository.save(entity);
         });
     }
@@ -98,7 +102,7 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
         existing.setFingerprint(fingerprint);
         existing.setStatus(IdempotencyKeyStatus.IN_PROGRESS);
-        existing.setCreatedDate(new Date());
+        existing.setCreatedDate(Date.from(now()));
         existing.setOrderNumber(null);
         existing.setCompletedDate(null);
         idempotencyKeyEntityRepository.save(existing);
@@ -107,7 +111,12 @@ public class IdempotencyKeyAdapter implements IdempotencyKeyOutPort {
 
     private boolean isStale(final IdempotencyKeyEntity existing) {
 
-        return existing.getCreatedDate().toInstant().plusMillis(staleAfterMs).isBefore(Instant.now());
+        return existing.getCreatedDate().toInstant().plusMillis(staleAfterMs).isBefore(now());
+    }
+
+    private Instant now() {
+
+        return clock.orElseGet(Clock::systemUTC).instant();
     }
 
     private void lock(final String key) {

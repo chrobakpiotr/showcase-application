@@ -1,0 +1,48 @@
+{
+  "feature": "TIME-CONTROL-001",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Control operational clocks",
+      "objective": "Use injected Clock for critical operational time.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/adr/0048-controlled-operational-time.md",
+        "docs/specs/TIME-CONTROL-001/**",
+        "tooling/scripts/check_controlled_time.py",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java",
+        "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/idempotency/IdempotencyKeyAdapter.java",
+        "modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/idempotency/IdempotencyKeyAdapterTest.java",
+        "modules/adapters/aws/src/main/java/com/cp/ecommerce/adapter/aws/order/PublishOrderAuditEventAdapter.java",
+        "modules/adapters/aws/src/test/java/com/cp/ecommerce/adapter/aws/order/PublishOrderAuditEventAdapterTest.java",
+        "modules/adapters/kafka/src/main/java/com/cp/ecommerce/adapter/kafka/order/PublishOrderAnalyticsEventAdapter.java",
+        "modules/adapters/kafka/src/test/java/com/cp/ecommerce/adapter/kafka/order/PublishOrderAnalyticsEventAdapterTest.java"
+      ],
+      "risk_tags": ["time", "recovery", "idempotency", "integration"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/scripts/check_controlled_time.py",
+        "./gradlew :adapter:persistence:test :adapter:aws:test :adapter:kafka:test --no-configuration-cache --no-parallel"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fixed Clock."
+    },
+    {
+      "id": "T-002",
+      "title": "Independent evaluation",
+      "objective": "Verify time-control compatibility.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/TIME-CONTROL-001/evidence/**"],
+      "risk_tags": ["evaluation"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": ["./gradlew build --continue --no-configuration-cache --no-parallel"],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh evaluator evidence."
+    }
+  ]
+}
