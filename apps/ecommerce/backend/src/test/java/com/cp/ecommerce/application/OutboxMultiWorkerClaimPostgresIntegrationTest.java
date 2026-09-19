@@ -1,6 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -212,7 +213,8 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
                 manageStockInPort,
                 managePaymentInPort,
                 new TransactionTemplate(transactionManager),
-                new SagaMetrics(new SimpleMeterRegistry()));
+                new SagaMetrics(new SimpleMeterRegistry()),
+                Clock.systemUTC());
     }
 
     private static String compactUuid() {
