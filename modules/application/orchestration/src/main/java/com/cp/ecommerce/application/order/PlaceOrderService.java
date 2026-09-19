@@ -1,5 +1,6 @@
 package com.cp.ecommerce.application.order;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -29,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 public class PlaceOrderService implements PlaceOrderWorkflow {
 
     private final PlaceOrderUseCase placeOrderUseCase;
+
+    private final Clock clock;
 
     private final ManageProductInPort manageProductInPort;
 
@@ -111,7 +114,8 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
         if (order.getCouponCode() == null || order.getCouponCode().isBlank()) {
             return order;
         }
-        final CouponDiscount discount = applyCouponInPort.applyCoupon(order.getCouponCode(), order.getSubtotal(), new Date());
+        final CouponDiscount discount = applyCouponInPort
+                .applyCoupon(order.getCouponCode(), order.getSubtotal(), Date.from(clock.instant()));
         if (discount == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");
         }

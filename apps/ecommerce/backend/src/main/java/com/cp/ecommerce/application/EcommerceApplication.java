@@ -1,10 +1,12 @@
 package com.cp.ecommerce.application;
 
+import java.time.Clock;
 import java.util.TimeZone;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
@@ -32,6 +34,12 @@ import lombok.extern.slf4j.Slf4j;
                 type = FilterType.REGEX,
                 pattern = "com\\.cp\\.ecommerce\\.domain\\..*\\.usecase\\..*UseCase"))
 public class EcommerceApplication {
+
+    @Bean
+    Clock applicationClock() {
+
+        return Clock.systemUTC();
+    }
 
     public static void main(final String... args) {
 
