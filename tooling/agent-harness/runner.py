@@ -198,12 +198,37 @@ def claude_sandbox_settings() -> str:
     return json.dumps(settings, separators=(',', ':'))
 
 
+def claude_schema_text(schema_path: pathlib.Path) -> str:
+    """Render a Claude CLI compatible schema without mutating the canonical schema file."""
+
+    try:
+        schema = json.loads(schema_path.read_text(encoding='utf-8'))
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        die(f'invalid Claude output schema {schema_path}: {exc}')
+    if not isinstance(schema, dict):
+        die(f'Claude output schema must contain a JSON object: {schema_path}')
+
+    def strip_meta_schema(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: strip_meta_schema(item)
+                for key, item in value.items()
+                if key != '$schema'
+            }
+        if isinstance(value, list):
+            return [strip_meta_schema(item) for item in value]
+        return value
+
+    return json.dumps(strip_meta_schema(schema), separators=(',', ':'), sort_keys=True)
+
+
 def claude_command(
     args: argparse.Namespace, prompt: str, worktree: pathlib.Path, *, schema_path: pathlib.Path | None = None
 ) -> list[str]:
     if not args.print_command and not shutil.which('claude'):
         die('claude CLI is not installed')
-    schema = (schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')).read_text(encoding='utf-8')
+    schema_path = schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')
+    schema = claude_schema_text(schema_path)
     read_only_profile = args.review_existing or bool(args.profile and args.profile.endswith('-reviewer'))
     tools = 'Read,Glob,Grep,Bash' if read_only_profile else 'Read,Edit,Write,Glob,Grep,Bash'
     allowed = ['Read', 'Glob', 'Grep'] if read_only_profile else ['Read', 'Edit', 'Write', 'Glob', 'Grep']

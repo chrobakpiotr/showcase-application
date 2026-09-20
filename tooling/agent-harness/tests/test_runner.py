@@ -54,6 +54,40 @@ class RunnerTest(unittest.TestCase):
         )
         self.assertEqual(str(schema), cmd[cmd.index('--output-schema') + 1])
 
+
+    def test_claude_command_strips_meta_schema_without_mutating_canonical_schema(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            schema = root / 'result.schema.json'
+            canonical = {
+                '$schema': 'https://json-schema.org/draft/2020-12/schema',
+                'type': 'object',
+                'required': ['value'],
+                'properties': {'value': {'type': ['string', 'null']}},
+            }
+            schema.write_text(json.dumps(canonical), encoding='utf-8')
+
+            args = argparse.Namespace(
+                print_command=True,
+                review_existing=False,
+                profile=None,
+                max_turns=1,
+                max_budget_usd=None,
+                model=None,
+            )
+            cmd = runner.claude_command(args, 'prompt', root, schema_path=schema)
+
+            rendered = json.loads(cmd[cmd.index('--json-schema') + 1])
+            self.assertNotIn('$schema', rendered)
+            self.assertEqual('object', rendered['type'])
+            self.assertEqual(['string', 'null'], rendered['properties']['value']['type'])
+
+            persisted = json.loads(schema.read_text(encoding='utf-8'))
+            self.assertEqual(
+                'https://json-schema.org/draft/2020-12/schema',
+                persisted['$schema'],
+            )
+
     def test_packet_protocol_v3_requires_lease_policy(self):
         packet = {
             'protocol_version': 3, 'context': {}, 'lease_policy': {'ttl_seconds': 1800}
