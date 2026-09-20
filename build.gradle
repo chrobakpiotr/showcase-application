@@ -1,5 +1,11 @@
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
+import org.gradle.api.file.FileCollection
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.process.CommandLineArgumentProvider
+
 import com.github.spotbugs.snom.Confidence
 import com.github.spotbugs.snom.Effort
 import org.cyclonedx.model.Component
@@ -60,10 +66,29 @@ allprojects {
     }
 }
 
+class MockitoAgentArgumentProvider implements CommandLineArgumentProvider {
+
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    FileCollection agentClasspath
+
+    @Override
+    Iterable<String> asArguments() {
+        ["-javaagent:${agentClasspath.singleFile.absolutePath}"]
+    }
+}
+
 subprojects {
 	apply plugin: 'java-library'
 	apply plugin: 'io.github.ben-manes.versions'
 	apply plugin: 'io.freefair.lombok'
+
+    def mockitoAgentConfiguration = configurations.create('mockitoAgent')
+    dependencies {
+        mockitoAgent('org.mockito:mockito-core:5.23.0') {
+            transitive = false
+        }
+    }
 	java {
         sourceCompatibility = 25
         targetCompatibility = 25
@@ -89,6 +114,11 @@ subprojects {
 		useJUnitPlatform()
 		// Netty/Testcontainers load native libraries; JDK 24+ requires explicit native access.
 		jvmArgs '--enable-native-access=ALL-UNNAMED'
+        // JDK 21+ warns about Mockito's legacy dynamic self-attach. Attach mockito-core
+        // explicitly as a javaagent, as recommended by Mockito, while keeping the
+        // agent jar as a relocatable Gradle task input.
+        jvmArgumentProviders.add(new MockitoAgentArgumentProvider(
+                agentClasspath: mockitoAgentConfiguration))
 
 		// Gradle 9.x can leave or lose its transient binary test-result store after
 		// interrupted/full-suite runs. Starting each Test task with a clean binary

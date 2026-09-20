@@ -6,4 +6,7 @@ pitest {
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
     mutationThreshold = 100
+    // PIT launches its own child JVMs, independently from Gradle Test tasks.
+    // Explicitly attach Mockito there too so JDK 25 never needs dynamic self-attach.
+    jvmArgs = ["-javaagent:${configurations.mockitoAgent.singleFile.absolutePath}"]
 }
