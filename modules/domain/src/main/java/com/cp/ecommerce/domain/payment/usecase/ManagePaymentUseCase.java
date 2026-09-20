@@ -19,6 +19,7 @@ import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.FindPaymentTransactionOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.PreparePaymentProviderOperationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 import com.cp.ecommerce.foundation.annotation.UseCase;
@@ -49,6 +50,8 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
 
     private final ManagePaymentReconciliationOutPort managePaymentReconciliationOutPort;
 
+    private final PreparePaymentProviderOperationOutPort preparePaymentProviderOperationOutPort;
+
     @Override
     public PaymentTransaction getPayment(final String orderNumber) {
 
@@ -74,6 +77,11 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
 
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         PaymentTransaction current = getPayment(orderNumber);
+
+        if (current.getMethod() != null) {
+            validateCaptureIdentity(current, orderNumber, amount, method);
+        }
+
         if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
                 || current.getStatus() == PaymentStatus.REFUNDED || current.getStatus() == PaymentStatus.DECLINED) {
 
@@ -82,7 +90,8 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         }
 
         if (current.getCreated() == null) {
-            current = savePaymentTransactionOutPort.save(
+            current = preparePaymentProviderOperationOutPort.prepareCapture(
+                    operationId,
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
@@ -91,12 +100,8 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .status(PaymentStatus.PENDING)
                             .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                             .build());
-        } else if (current.getAmount().compareTo(amount) != 0 || current.getMethod() != method) {
-            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
-                    "Payment operation identity was reused with different capture parameters for order " + orderNumber);
         }
 
-        managePaymentReconciliationOutPort.start(operationId, orderNumber, PaymentProviderOperationType.CAPTURE, null);
         try {
             final String gatewayReference = chargePaymentOutPort.charge(orderNumber, operationId, amount, method);
             final PaymentTransaction captured = savePaymentTransactionOutPort.saveCaptureResult(
@@ -123,6 +128,18 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .build());
             managePaymentReconciliationOutPort.complete(operationId);
             throw declined;
+        }
+    }
+
+    private static void validateCaptureIdentity(
+            final PaymentTransaction current,
+            final String orderNumber,
+            final BigDecimal amount,
+            final PaymentMethod method) {
+
+        if (current.getAmount() == null || current.getAmount().compareTo(amount) != 0 || current.getMethod() != method) {
+            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
+                    "Payment operation identity was reused with different capture parameters for order " + orderNumber);
         }
     }
 

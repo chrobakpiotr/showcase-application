@@ -15,6 +15,7 @@ import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.FindPaymentTransactionOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.PreparePaymentProviderOperationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
@@ -30,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -57,6 +59,8 @@ class ManagePaymentUseCaseMutationTest {
     private ManagePaymentRefundOutPort managePaymentRefundOutPort;
     @Mock
     private ManagePaymentReconciliationOutPort managePaymentReconciliationOutPort;
+    @Mock
+    private PreparePaymentProviderOperationOutPort preparePaymentProviderOperationOutPort;
 
     private ManagePaymentUseCase useCase;
 
@@ -68,7 +72,8 @@ class ManagePaymentUseCaseMutationTest {
                 chargePaymentOutPort,
                 refundPaymentOutPort,
                 managePaymentRefundOutPort,
-                managePaymentReconciliationOutPort);
+                managePaymentReconciliationOutPort,
+                preparePaymentProviderOperationOutPort);
     }
 
     @Test
@@ -96,7 +101,8 @@ class ManagePaymentUseCaseMutationTest {
         final PaymentTransaction captured = useCase.capturePayment(ORDER, AMOUNT, PaymentMethod.CARD);
 
         verify(savePaymentTransactionOutPort, never()).save(any());
-        verify(managePaymentReconciliationOutPort).start(CAPTURE_ID, ORDER, PaymentProviderOperationType.CAPTURE, null);
+        verify(preparePaymentProviderOperationOutPort, never()).prepareCapture(any(), any());
+        verify(managePaymentReconciliationOutPort, never()).start(any(), any(), any(), any());
         verify(managePaymentReconciliationOutPort).complete(CAPTURE_ID);
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
         assertThat(captured.getGatewayReference()).isEqualTo(GATEWAY);
@@ -122,7 +128,8 @@ class ManagePaymentUseCaseMutationTest {
     @Test
     void shouldPersistDeclinedStateAndCompleteItsReconciliation() {
         given(findPaymentTransactionOutPort.find(ORDER)).willReturn(null);
-        given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(preparePaymentProviderOperationOutPort.prepareCapture(eq(CAPTURE_ID), any()))
+                .willAnswer(invocation -> invocation.getArgument(1));
         given(chargePaymentOutPort.charge(ORDER, CAPTURE_ID, AMOUNT, PaymentMethod.CARD))
                 .willThrow(new PaymentDeclinedException("declined"));
         given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(invocation -> invocation.getArgument(0));

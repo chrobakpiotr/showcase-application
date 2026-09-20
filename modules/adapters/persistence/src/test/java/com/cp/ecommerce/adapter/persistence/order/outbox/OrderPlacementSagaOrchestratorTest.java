@@ -916,7 +916,7 @@ class OrderPlacementSagaOrchestratorTest {
     }
 
     @Test
-    void shouldRefundLateCaptureAndStopBeforeFulfillmentWhenClaimIsLostDuringProviderCall() {
+    void shouldNotRefundLateCaptureWhenHealthyWorkerTakesOver() {
 
         final Order order = OrderBuilder.mockOrder();
         final OutboxEventEntity candidate = OutboxEventEntity.builder()
@@ -952,7 +952,7 @@ class OrderPlacementSagaOrchestratorTest {
 
         newOrchestrator().publishPendingEvents();
 
-        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
         verifyNoInteractions(sendMessageInPort);
         assertThat(newerOwner.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
         assertThat(newerOwner.getClaimId()).isEqualTo(NEWER_WORKER_CLAIM_ID);
@@ -1049,6 +1049,66 @@ class OrderPlacementSagaOrchestratorTest {
                 .couponCode(base.getCouponCode())
                 .discountAmount(base.getDiscountAmount())
                 .build();
+    }
+
+    @Test
+    void shouldCompensatePersistedDeclineWithoutPublishingFulfillment() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(71L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .method(order.getPaymentMethod())
+                        .status(PaymentStatus.DECLINED)
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(sendMessageInPort);
+        verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+    }
+
+    @Test
+    void shouldRevalidatePendingBackoffUnderLockBeforeClaim() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity staleCandidate = OutboxEventEntity.builder()
+                .id(72L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity lockedWithNewerBackoff = OutboxEventEntity.builder()
+                .id(72L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant().plusSeconds(30))
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(staleCandidate));
+        doReturn(Optional.of(lockedWithNewerBackoff)).when(outboxEventEntityRepository).findByIdForUpdate(72L);
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(manageOrderInPort, managePaymentInPort, sendMessageInPort);
+        assertThat(lockedWithNewerBackoff.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(lockedWithNewerBackoff.getClaimId()).isNull();
     }
 
     private OrderPlacementSagaOrchestrator newOrchestrator() {
@@ -1189,7 +1249,7 @@ class OrderPlacementSagaOrchestratorTest {
     }
 
     @Test
-    void shouldRefundPartiallyRefundedLateCaptureWhenPlacementClaimIsLost() {
+    void shouldNotRefundPartiallyRefundedLateCaptureWhenPlacementClaimIsLost() {
 
         final Order order = OrderBuilder.mockOrder();
         final OutboxEventEntity candidate = OutboxEventEntity.builder()
@@ -1222,7 +1282,7 @@ class OrderPlacementSagaOrchestratorTest {
 
         newOrchestrator().publishPendingEvents();
 
-        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
         verifyNoInteractions(sendMessageInPort);
     }
 

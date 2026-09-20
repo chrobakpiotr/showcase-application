@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestrator;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntity;
@@ -34,6 +35,9 @@ import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
+import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.Test;
@@ -48,6 +52,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -55,8 +60,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -88,8 +95,11 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
     @Autowired
     private ManageOrderInPort manageOrderInPort;
 
-    @Autowired
+    @MockitoSpyBean
     private ManagePaymentInPort managePaymentInPort;
+
+    @Autowired
+    private GetPaymentInPort getPaymentInPort;
 
     @Autowired
     private OutboxEventEntityRepository outboxEventEntityRepository;
@@ -144,6 +154,64 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
         assertThat(statusContains(OutboxEventStatus.SENT, orderNumber)).isTrue();
         assertThat(statusContains(OutboxEventStatus.PROCESSING, orderNumber)).isFalse();
+        verify(fulfillment, times(1)).sendMessage(any(Order.class));
+    }
+
+
+    @Test
+    void shouldNotRefundLateCaptureAfterHealthyTakeover() throws Exception {
+
+        final String sku = "A1Q01-" + compactUuid();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+
+        final CountDownLatch firstCaptureReturned = new CountDownLatch(1);
+        final CountDownLatch releaseLateWorker = new CountDownLatch(1);
+        final AtomicInteger captureCalls = new AtomicInteger();
+
+        doAnswer(invocation -> {
+            final PaymentTransaction result = (PaymentTransaction) invocation.callRealMethod();
+            if (captureCalls.incrementAndGet() == 1) {
+                firstCaptureReturned.countDown();
+                if (!releaseLateWorker.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("Timed out waiting to release late capture worker");
+                }
+            }
+            return result;
+        }).when(managePaymentInPort)
+                .capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
+
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        final OrderPlacementSagaOrchestrator workerA = newOrchestrator(fulfillment);
+        final OrderPlacementSagaOrchestrator workerB = newOrchestrator(fulfillment);
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<?> firstPoll = executor.submit(workerA::publishPendingEvents);
+            assertThat(firstCaptureReturned.await(10, TimeUnit.SECONDS)).isTrue();
+
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                final OutboxEventEntity processing = outboxEventEntityRepository
+                        .findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PROCESSING)
+                        .stream()
+                        .filter(event -> event.getOrderNumber().equals(orderNumber))
+                        .findFirst()
+                        .orElseThrow();
+                processing.setClaimUntil(Instant.EPOCH);
+                outboxEventEntityRepository.save(processing);
+            });
+
+            final Future<?> secondPoll = executor.submit(workerB::publishPendingEvents);
+            secondPoll.get(10, TimeUnit.SECONDS);
+
+            assertThat(statusContains(OutboxEventStatus.SENT, orderNumber)).isTrue();
+            verify(fulfillment, times(1)).sendMessage(any(Order.class));
+
+            releaseLateWorker.countDown();
+            firstPoll.get(10, TimeUnit.SECONDS);
+        }
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        verify(managePaymentInPort, never()).refundPayment(orderNumber);
         verify(fulfillment, times(1)).sendMessage(any(Order.class));
     }
 

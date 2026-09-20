@@ -15,6 +15,7 @@ TESTS=(
   "com.cp.ecommerce.application.SagaCompensationRecoveryPostgresIntegrationTest"
   "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest"
   "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest"
+  "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest"
   "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest"
 )
 
@@ -26,7 +27,16 @@ for test_name in "${TESTS[@]}"; do
   args+=(--tests "$test_name")
 done
 
-./gradlew :application:ecommerce:test "${args[@]}" -PcriticalPostgresGate=true
+extra_gradle_args=()
+if [[ "${CRITICAL_POSTGRES_BACKEND_ONLY:-false}" == "true" ]]; then
+  extra_gradle_args+=(
+    -x :adapter:ecommerce-frontend:npmInstall
+    -x :adapter:ecommerce-frontend:npm_run_build
+    -x :adapter:ecommerce-frontend:processGeneratedResources
+  )
+fi
+
+./gradlew :application:ecommerce:test "${args[@]}" "${extra_gradle_args[@]}" -PcriticalPostgresGate=true
 
 expected_file="$(mktemp)"
 trap 'rm -f "$expected_file"' EXIT

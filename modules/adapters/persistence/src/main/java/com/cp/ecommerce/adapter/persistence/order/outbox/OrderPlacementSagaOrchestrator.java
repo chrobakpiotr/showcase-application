@@ -156,19 +156,19 @@ public class OrderPlacementSagaOrchestrator {
 
     private Optional<SagaClaim> claimPlacementEvent(final OutboxEventEntity candidate) {
 
-        return transactionOperations.execute(
-                status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId())
-                        .filter(
-                                event -> event.getStatus() == OutboxEventStatus.PENDING
-                                        || event.getStatus() == OutboxEventStatus.PROCESSING
-                                                && leaseExpired(event, Instant.ofEpochMilli(clock.instant().toEpochMilli())))
-                        .map(event -> {
-                            final String claimId = UUID.randomUUID().toString();
-                            event.setStatus(OutboxEventStatus.PROCESSING);
-                            event.setClaimId(claimId);
-                            event.setClaimUntil(claimUntil());
-                            return new SagaClaim(event.getId(), event.getOrderNumber(), claimId);
-                        }));
+        return transactionOperations
+                .execute(status -> outboxEventEntityRepository.findByIdForUpdate(candidate.getId()).filter(event -> {
+                    final Instant claimNow = Instant.ofEpochMilli(clock.instant().toEpochMilli());
+                    return event.getStatus() == OutboxEventStatus.PENDING
+                            && (event.getNextAttemptDate() == null || !event.getNextAttemptDate().isAfter(claimNow))
+                            || event.getStatus() == OutboxEventStatus.PROCESSING && leaseExpired(event, claimNow);
+                }).map(event -> {
+                    final String claimId = UUID.randomUUID().toString();
+                    event.setStatus(OutboxEventStatus.PROCESSING);
+                    event.setClaimId(claimId);
+                    event.setClaimUntil(claimUntil());
+                    return new SagaClaim(event.getId(), event.getOrderNumber(), claimId);
+                }));
     }
 
     private void processPlacementClaim(final SagaClaim claim) {
@@ -236,11 +236,14 @@ public class OrderPlacementSagaOrchestrator {
                     .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
 
             if (!ownsPlacementClaim(claim)) {
-                if (payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED) {
-                    managePaymentInPort.refundPayment(order.getOrderNumber());
-                }
                 sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
                 log.warn("Placement claim was lost during payment capture for order: {}", order.getOrderNumber());
+                return false;
+            }
+
+            if (payment.getStatus() == PaymentStatus.DECLINED) {
+                sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
+                startCompensation(order, claim, "Payment is declined");
                 return false;
             }
 
