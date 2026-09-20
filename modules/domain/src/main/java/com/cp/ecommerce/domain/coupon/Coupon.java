@@ -72,7 +72,7 @@ public class Coupon extends ValidDomainObject<Coupon> {
      */
     public boolean isValidFor(final BigDecimal orderTotal, final Instant now) {
 
-        if (!active || orderTotal == null || orderTotal.signum() <= 0 || !hasValidDiscountConfiguration()) {
+        if (!active || orderTotal == null || orderTotal.signum() <= 0 || hasInvalidDiscountConfiguration()) {
 
             return false;
         }
@@ -92,7 +92,7 @@ public class Coupon extends ValidDomainObject<Coupon> {
      */
     public BigDecimal calculateDiscount(final BigDecimal orderTotal) {
 
-        if (orderTotal == null || orderTotal.signum() <= 0 || !hasValidDiscountConfiguration()) {
+        if (orderTotal == null || orderTotal.signum() != 1 || hasInvalidDiscountConfiguration()) {
 
             return BigDecimal.ZERO;
         }
@@ -118,21 +118,11 @@ public class Coupon extends ValidDomainObject<Coupon> {
                 .build();
     }
 
-    private boolean hasValidDiscountConfiguration() {
+    private boolean hasInvalidDiscountConfiguration() {
 
-        if (discountType == null || discountValue == null || discountValue.signum() <= 0) {
-
-            return false;
-        }
-        if (minimumOrderAmount != null && minimumOrderAmount.signum() < 0) {
-
-            return false;
-        }
-        if (maxRedemptions != null && maxRedemptions < 1) {
-
-            return false;
-        }
-        return discountType != DiscountType.PERCENTAGE || discountValue.compareTo(HUNDRED) <= 0;
+        return discountType == null || discountValue == null || discountValue.signum() <= 0
+                || minimumOrderAmount != null && minimumOrderAmount.signum() < 0 || maxRedemptions != null && maxRedemptions < 1
+                || discountType == DiscountType.PERCENTAGE && discountValue.compareTo(HUNDRED) > 0;
     }
 
 }

@@ -68,6 +68,7 @@ dependencies {
     testImplementation project(':adapter:web')
     testImplementation project(':application:orchestration')
     testImplementation 'org.liquibase:liquibase-core'
+    testImplementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
 }
 
 processResources.dependsOn(':adapter:ecommerce-frontend:processGeneratedResources')

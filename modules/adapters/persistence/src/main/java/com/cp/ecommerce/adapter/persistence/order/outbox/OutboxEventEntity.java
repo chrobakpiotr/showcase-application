@@ -76,6 +76,22 @@ public class OutboxEventEntity {
     @Column(name = "PROCESSING_ATTEMPTS", nullable = false)
     private int processingAttempts;
 
+    @Builder.Default
+    @Column(name = "CANCELLATION_ATTEMPTS", nullable = false)
+    private int cancellationAttempts = 0;
+
+    @Column(name = "CANCELLATION_NEXT_ATTEMPT_DATE")
+    private Instant cancellationNextAttemptDate;
+
+    @Column(name = "CANCELLATION_CLAIM_ID", length = 36)
+    private String cancellationClaimId;
+
+    @Column(name = "CANCELLATION_CLAIM_UNTIL")
+    private Instant cancellationClaimUntil;
+
+    @Column(name = "CANCELLATION_LAST_ERROR", length = 500)
+    private String cancellationLastError;
+
     @PrePersist
     void initializeNextAttemptDate() {
 

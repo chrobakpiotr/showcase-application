@@ -542,4 +542,58 @@ class ShipmentControllerTest {
         verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
     }
 
+    @Test
+    void shouldExposeLegacyShipmentAdvanceDeprecationHeaders() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER)).willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        final var servletResponse = new org.springframework.mock.web.MockHttpServletResponse();
+
+        final var response = controller
+                .advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, null, null, servletResponse);
+
+        org.assertj.core.api.Assertions.assertThat(response).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Deprecation")).isEqualTo("true");
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Sunset"))
+                .isEqualTo("Thu, 31 Dec 2026 23:59:59 GMT");
+        verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
+    }
+
+    @Test
+    void shouldNotDeprecateOperationAwareShipmentAdvance() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER, "operation-n20", ShipmentStatus.PENDING))
+                .willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        final var servletResponse = new org.springframework.mock.web.MockHttpServletResponse();
+
+        final var response = controller.advanceShipmentStatus(
+                ShipmentBuilder.TEST_SHIPMENT_NUMBER,
+                "operation-n20",
+                ShipmentStatus.PENDING,
+                servletResponse);
+
+        org.assertj.core.api.Assertions.assertThat(response).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Deprecation")).isNull();
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Sunset")).isNull();
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Link")).isNull();
+        verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER, "operation-n20", ShipmentStatus.PENDING);
+    }
+
 }

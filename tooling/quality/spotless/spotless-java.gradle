@@ -4,7 +4,7 @@ spotless {
     // Java Spotless is an explicit formatting gate in CI/pre-push rather than an
     // implicit child of `check`. This keeps formatter classloaders away from the
     // multi-module `clean build` graph (diffplug/spotless#2850).
-    enforceCheck false
+    enforceCheck = false
 
     java {
         importOrderFile rootProject.file("./tooling/quality/spotless/importorder")

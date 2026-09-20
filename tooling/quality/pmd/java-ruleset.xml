@@ -96,10 +96,10 @@
     <rule ref="category/java/codestyle.xml/UselessParentheses">
         <priority>4</priority>
     </rule>
-    <rule ref="category/java/codestyle.xml/AvoidProtectedFieldInFinalClass">
+    <rule ref="category/java/design.xml/ProtectedMemberInFinalClass">
         <priority>3</priority>
     </rule>
-    <rule ref="category/java/codestyle.xml/UnnecessaryLocalBeforeReturn">
+    <rule ref="category/java/codestyle.xml/VariableCanBeInlined">
         <priority>4</priority>
     </rule>
     <rule ref="category/java/codestyle.xml/EmptyMethodInAbstractClassShouldBeAbstract">
@@ -237,8 +237,8 @@
     <rule ref="category/java/errorprone.xml/AvoidMultipleUnaryOperators">
         <priority>3</priority>
     </rule>
-    <rule ref="category/java/errorprone.xml/CheckSkipResult">
-        <priority>3</priority>
+    <rule ref="category/java/errorprone.xml/UnusedReturnValue">
+        <priority>2</priority>
     </rule>
     <rule ref="category/java/errorprone.xml/AvoidBranchingStatementAsLastInLoop">
         <priority>2</priority>
@@ -251,9 +251,6 @@
     </rule>
     <rule ref="category/java/errorprone.xml/UnnecessaryConversionTemporary">
         <priority>3</priority>
-    </rule>
-    <rule ref="category/java/errorprone.xml/UselessOperationOnImmutable">
-        <priority>2</priority>
     </rule>
     <rule ref="category/java/errorprone.xml/UnusedNullCheckInEquals">
         <priority>3</priority>
@@ -321,7 +318,7 @@
     <rule ref="category/java/errorprone.xml/AssignmentInOperand">
         <priority>3</priority>
     </rule>
-    <rule ref="category/java/errorprone.xml/DontImportSun">
+    <rule ref="category/java/errorprone.xml/UnsupportedJdkApiUsage">
         <priority>2</priority>
     </rule>
     <rule ref="category/java/errorprone.xml/SuspiciousOctalEscape">

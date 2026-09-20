@@ -13,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -37,12 +36,12 @@ class MockTrackingNumberGeneratorAdapterTest {
         doAnswer(invocation -> {
             final Callable<String> action = invocation.getArgument(1);
             return action.call();
-        }).when(resilientExecutor).callResilient(anyString(), any(Callable.class));
+        }).when(resilientExecutor).callResilient(anyString(), org.mockito.ArgumentMatchers.<Callable<String>> any());
 
         final String result = mockTrackingNumberGeneratorAdapter.generate("DHL");
 
         assertThat(result).startsWith("DHL-");
-        verify(resilientExecutor).callResilient(anyString(), any(Callable.class));
+        verify(resilientExecutor).callResilient(anyString(), org.mockito.ArgumentMatchers.<Callable<String>> any());
     }
 
     @Test
@@ -51,7 +50,7 @@ class MockTrackingNumberGeneratorAdapterTest {
         doAnswer(invocation -> {
             final Callable<String> action = invocation.getArgument(1);
             return action.call();
-        }).when(resilientExecutor).callResilient(anyString(), any(Callable.class));
+        }).when(resilientExecutor).callResilient(anyString(), org.mockito.ArgumentMatchers.<Callable<String>> any());
 
         final String result = mockTrackingNumberGeneratorAdapter.generate(null);
 
@@ -64,7 +63,7 @@ class MockTrackingNumberGeneratorAdapterTest {
         doAnswer(invocation -> {
             final Callable<String> action = invocation.getArgument(1);
             return action.call();
-        }).when(resilientExecutor).callResilient(anyString(), any(Callable.class));
+        }).when(resilientExecutor).callResilient(anyString(), org.mockito.ArgumentMatchers.<Callable<String>> any());
 
         final String result = mockTrackingNumberGeneratorAdapter.generate("***");
 
@@ -75,7 +74,7 @@ class MockTrackingNumberGeneratorAdapterTest {
     void shouldWrapUnexpectedGeneratorFailureAsTechnicalProblem() throws Exception {
 
         doThrow(new RuntimeException("generator timeout")).when(resilientExecutor)
-                .callResilient(anyString(), any(Callable.class));
+                .callResilient(anyString(), org.mockito.ArgumentMatchers.<Callable<String>> any());
 
         assertThatThrownBy(() -> mockTrackingNumberGeneratorAdapter.generate("DHL"))
                 .isInstanceOf(TechnicalProblemException.class);

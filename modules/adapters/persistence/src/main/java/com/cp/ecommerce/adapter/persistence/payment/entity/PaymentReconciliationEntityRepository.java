@@ -21,6 +21,13 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface PaymentReconciliationEntityRepository extends JpaRepository<PaymentReconciliationEntity, String> {
 
+    long countByStatus(PaymentReconciliationStatus status);
+
+    @Query("select min(operation.created) from PaymentReconciliationEntity operation where operation.status = :status")
+    Instant findOldestCreatedByStatus(@Param("status") PaymentReconciliationStatus status);
+
+    long deleteByStatusAndCompletedBefore(PaymentReconciliationStatus status, Instant completedBefore);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select operation from PaymentReconciliationEntity operation where operation.operationId = :operationId")
     Optional<PaymentReconciliationEntity> findByIdForUpdate(@Param("operationId") String operationId);

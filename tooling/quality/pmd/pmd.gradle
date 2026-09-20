@@ -7,3 +7,10 @@ pmd {
 	rulesMinimumPriority = 5
 	ruleSetFiles = files(rootProject.file("./tooling/quality/pmd/java-ruleset.xml"))
 }
+
+tasks.withType(org.gradle.api.plugins.quality.Pmd).configureEach {
+    def jrtFs = file("${System.getProperty('java.home')}/lib/jrt-fs.jar")
+    if (jrtFs.exists()) {
+        classpath = files(jrtFs) + classpath
+    }
+}

@@ -87,6 +87,8 @@ subprojects {
 
 	test {
 		useJUnitPlatform()
+		// Netty/Testcontainers load native libraries; JDK 24+ requires explicit native access.
+		jvmArgs '--enable-native-access=ALL-UNNAMED'
 
 		// Gradle 9.x can leave or lose its transient binary test-result store after
 		// interrupted/full-suite runs. Starting each Test task with a clean binary

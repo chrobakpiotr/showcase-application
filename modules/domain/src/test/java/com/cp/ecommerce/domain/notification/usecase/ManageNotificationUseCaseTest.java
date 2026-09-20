@@ -77,7 +77,7 @@ class ManageNotificationUseCaseTest {
         assertThat(result.getEventKey()).isNotBlank();
         assertThat(result.getNotificationId()).startsWith("NOTIF-");
         assertThat(result.getCreatedDate()).isEqualTo(NOW);
-        verify(deliverNotificationOutPort, never()).deliver(any());
+        verify(deliverNotificationOutPort, never()).deliver(any(), any());
     }
 
     @Test
@@ -93,7 +93,7 @@ class ManageNotificationUseCaseTest {
 
         useCase.retryDueNotifications();
 
-        verify(deliverNotificationOutPort).deliver(delivering);
+        verify(deliverNotificationOutPort).deliver(TestDomainObjectFactory.TEST_NOTIFICATION_ID, delivering);
         verify(manageNotificationDeliveryOutPort).markSent(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-1", NOW);
     }
 
@@ -105,7 +105,8 @@ class ManageNotificationUseCaseTest {
                 .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
         given(manageNotificationDeliveryOutPort.claimDelivery(TestDomainObjectFactory.TEST_NOTIFICATION_ID, NOW))
                 .willReturn(new NotificationDeliveryClaim(delivering, "claim-2"));
-        doThrow(new TechnicalProblemException("transport unavailable")).when(deliverNotificationOutPort).deliver(delivering);
+        doThrow(new TechnicalProblemException("transport unavailable")).when(deliverNotificationOutPort)
+                .deliver(TestDomainObjectFactory.TEST_NOTIFICATION_ID, delivering);
         given(
                 manageNotificationDeliveryOutPort
                         .markFailed(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-2", "transport unavailable", NOW))
@@ -119,16 +120,14 @@ class ManageNotificationUseCaseTest {
 
     @Test
     void shouldSkipDeliveryWhenAnotherWorkerOwnsLease() {
-        final Notification current = notification(NotificationStatus.DELIVERING);
         given(manageNotificationDeliveryOutPort.findDueNotificationIds(eq(NOW), anyInt()))
                 .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
         given(manageNotificationDeliveryOutPort.claimDelivery(TestDomainObjectFactory.TEST_NOTIFICATION_ID, NOW))
                 .willReturn(null);
-        given(findNotificationOutPort.find(TestDomainObjectFactory.TEST_NOTIFICATION_ID)).willReturn(current);
 
         useCase.retryDueNotifications();
 
-        verify(deliverNotificationOutPort, never()).deliver(any());
+        verify(deliverNotificationOutPort, never()).deliver(any(), any());
     }
 
     @Test

@@ -73,17 +73,17 @@ public class ManageNotificationUseCase
                 .forEach(notificationId -> deliverPersistedNotification(notificationId));
     }
 
-    private Notification deliverPersistedNotification(final String notificationId) {
+    private void deliverPersistedNotification(final String notificationId) {
 
         final NotificationDeliveryClaim claim = manageNotificationDeliveryOutPort.claimDelivery(notificationId, now());
         if (claim == null) {
-            return findNotificationOutPort.find(notificationId);
+            return;
         }
         try {
-            deliverNotificationOutPort.deliver(claim.notification());
-            return manageNotificationDeliveryOutPort.markSent(notificationId, claim.claimId(), now());
+            deliverNotificationOutPort.deliver(claim.notification().getNotificationId(), claim.notification());
+            manageNotificationDeliveryOutPort.markSent(notificationId, claim.claimId(), now());
         } catch (final RuntimeException exception) {
-            return manageNotificationDeliveryOutPort.markFailed(notificationId, claim.claimId(), exception.getMessage(), now());
+            manageNotificationDeliveryOutPort.markFailed(notificationId, claim.claimId(), exception.getMessage(), now());
         }
     }
 

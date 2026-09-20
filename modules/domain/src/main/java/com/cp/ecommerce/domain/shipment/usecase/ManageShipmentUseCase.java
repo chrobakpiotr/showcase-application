@@ -110,7 +110,6 @@ public class ManageShipmentUseCase
                 .version(existing.getVersion())
                 .lastOperationId(operationId)
                 .build();
-        advanced.assertValidationsEmpty();
         return saveShipmentOutPort.save(advanced);
     }
 

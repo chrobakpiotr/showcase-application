@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <changeSet id="n15-cancellation-recovery-lease" author="cp">
+        <addColumn schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="CANCELLATION_ATTEMPTS" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="CANCELLATION_NEXT_ATTEMPT_DATE" type="TIMESTAMP" />
+            <column name="CANCELLATION_CLAIM_ID" type="VARCHAR(36)" />
+            <column name="CANCELLATION_CLAIM_UNTIL" type="TIMESTAMP" />
+            <column name="CANCELLATION_LAST_ERROR" type="VARCHAR(500)" />
+        </addColumn>
+        <sql>
+            UPDATE ${schema_name_prefix}OUTBOX_EVENT
+            SET CANCELLATION_NEXT_ATTEMPT_DATE = CREATED_DATE
+            WHERE STATUS = 'CANCELLING' AND CANCELLATION_NEXT_ATTEMPT_DATE IS NULL
+        </sql>
+        <createIndex schemaName="${schema_name_full}" tableName="OUTBOX_EVENT" indexName="IDX_OUTBOX_CANCELLATION_DUE">
+            <column name="STATUS" />
+            <column name="CANCELLATION_NEXT_ATTEMPT_DATE" />
+            <column name="CANCELLATION_CLAIM_UNTIL" />
+            <column name="CREATED_DATE" />
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

@@ -85,6 +85,15 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
     @Query("select event.orderNumber from OutboxEventEntity event where event.status = :status order by event.createdDate asc")
     List<String> findOrderNumbersByStatus(@Param("status") OutboxEventStatus status, Pageable pageable);
 
+    @Query("select event.orderNumber from OutboxEventEntity event " + "where event.status = :status "
+            + "and (event.cancellationNextAttemptDate is null or event.cancellationNextAttemptDate <= :now) "
+            + "and (event.cancellationClaimUntil is null or event.cancellationClaimUntil <= :now) "
+            + "order by event.createdDate asc, event.id asc")
+    List<String> findDueCancellationOrderNumbers(
+            @Param("status") OutboxEventStatus status,
+            @Param("now") Instant now,
+            Pageable pageable);
+
     @Query("select min(event.createdDate) from OutboxEventEntity event where event.status = :status")
     Instant findOldestCreatedDateByStatus(@Param("status") OutboxEventStatus status);
 

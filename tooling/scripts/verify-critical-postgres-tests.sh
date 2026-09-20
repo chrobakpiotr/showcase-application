@@ -7,6 +7,8 @@ cd "$ROOT"
 TESTS=(
   "com.cp.ecommerce.application.OrderCancellationSagaPostgresIntegrationTest"
   "com.cp.ecommerce.application.OrderCancellationRecoveryPostgresIntegrationTest"
+  "com.cp.ecommerce.application.ForwardMigrationUpgradePostgresIntegrationTest"
+  "com.cp.ecommerce.application.OrderCancellationMultiWorkerClaimPostgresIntegrationTest"
   "com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest"
   "com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest"
   "com.cp.ecommerce.application.StockRetryTransactionBoundaryPostgresIntegrationTest"

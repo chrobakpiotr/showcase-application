@@ -27,6 +27,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -75,7 +76,7 @@ class DurableNotificationRetryPostgresIntegrationTest {
 
         doThrow(new TechnicalProblemException("notification transport unavailable")).doNothing()
                 .when(deliverNotificationOutPort)
-                .deliver(any(Notification.class));
+                .deliver(anyString(), any(Notification.class));
 
         final Notification pending = sendNotificationInPort.sendNotification(
                 "r07@example.com",
@@ -100,6 +101,6 @@ class DurableNotificationRetryPostgresIntegrationTest {
         assertThat(persisted.getDeliveryAttempts()).isEqualTo(2);
         assertThat(persisted.getSentDate()).isNotNull();
         assertThat(notificationEntityRepository.count()).isEqualTo(1);
-        verify(deliverNotificationOutPort, times(2)).deliver(any(Notification.class));
+        verify(deliverNotificationOutPort, times(2)).deliver(anyString(), any(Notification.class));
     }
 }

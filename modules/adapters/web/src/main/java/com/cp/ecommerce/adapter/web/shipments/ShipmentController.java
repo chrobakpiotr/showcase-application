@@ -40,6 +40,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
@@ -155,9 +156,11 @@ public class ShipmentController {
     public EntityModel<ShipmentResource> advanceShipmentStatus(
             @PathVariable("shipmentNumber") final String shipmentNumber,
             @RequestHeader(value = "Idempotency-Key", required = false) final String operationId,
-            @RequestHeader(value = "X-Expected-Shipment-Status", required = false) final ShipmentStatus expectedStatus) {
+            @RequestHeader(value = "X-Expected-Shipment-Status", required = false) final ShipmentStatus expectedStatus,
+            final HttpServletResponse response) {
 
         if ((operationId == null || operationId.isBlank()) && expectedStatus == null) {
+            markLegacyAdvance(response);
             return toResourceModel(shipmentWorkflow.advanceShipment(shipmentNumber));
         }
 
@@ -173,8 +176,25 @@ public class ShipmentController {
         return toResourceModel(advanced);
     }
 
+    EntityModel<ShipmentResource> advanceShipmentStatus(
+            final String shipmentNumber,
+            final String operationId,
+            final ShipmentStatus expectedStatus) {
+        return advanceShipmentStatus(shipmentNumber, operationId, expectedStatus, null);
+    }
+
     EntityModel<ShipmentResource> advanceShipmentStatus(final String shipmentNumber) {
-        return advanceShipmentStatus(shipmentNumber, null, null);
+        return advanceShipmentStatus(shipmentNumber, null, null, null);
+    }
+
+    private static void markLegacyAdvance(final HttpServletResponse response) {
+        if (response != null) {
+            response.setHeader("Deprecation", "true");
+            response.setHeader("Sunset", "Thu, 31 Dec 2026 23:59:59 GMT");
+            response.setHeader(
+                    "Warning",
+                    "299 - Legacy shipment advance without Idempotency-Key and X-Expected-Shipment-Status is deprecated");
+        }
     }
 
     private String requireNonBlank(final String value, final String message) {
@@ -196,7 +216,7 @@ public class ShipmentController {
         if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
 
             model.add(
-                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber, null, null))
+                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber, null, null, null))
                             .withRel("advance-status"));
         }
         return model;
