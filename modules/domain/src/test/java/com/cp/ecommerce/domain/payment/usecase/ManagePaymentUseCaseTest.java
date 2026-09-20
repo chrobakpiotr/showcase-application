@@ -5,16 +5,19 @@ import java.util.List;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.FindPaymentTransactionOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -53,6 +57,9 @@ class ManagePaymentUseCaseTest {
 
     @Mock
     private transient ManagePaymentRefundOutPort managePaymentRefundOutPort;
+
+    @Mock
+    private transient ManagePaymentReconciliationOutPort managePaymentReconciliationOutPort;
 
     @InjectMocks
     private transient ManagePaymentUseCase managePaymentUseCase;
@@ -286,4 +293,37 @@ class ManagePaymentUseCaseTest {
 
         return new PaymentRefundClaim(outcome, REFUND_ID, ORDER_NUMBER, amount, GATEWAY_REFERENCE, payment);
     }
+
+    @Test
+    void shouldLeaveCaptureReconciliationPendingWhenProviderOutcomeIsUnknown() {
+
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(null);
+        given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(chargePaymentOutPort.charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, AMOUNT, PaymentMethod.CARD))
+                .willThrow(new TechnicalProblemException("unknown provider outcome"));
+
+        assertThatThrownBy(() -> managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
+                .isInstanceOf(TechnicalProblemException.class);
+
+        verify(managePaymentReconciliationOutPort)
+                .start(CAPTURE_OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null);
+        verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_OPERATION_ID);
+    }
+
+    @Test
+    void shouldLeaveRefundReconciliationPendingWhenProviderOutcomeIsUnknown() {
+
+        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+                .willReturn(claim(PaymentRefundOutcome.RESERVED, PARTIAL, captured()));
+        doThrow(new TechnicalProblemException("unknown refund outcome")).when(refundPaymentOutPort)
+                .refund(ORDER_NUMBER, GATEWAY_REFERENCE, REFUND_ID, PARTIAL);
+
+        assertThatThrownBy(() -> managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL))
+                .isInstanceOf(TechnicalProblemException.class);
+
+        verify(managePaymentReconciliationOutPort)
+                .start(REFUND_ID, ORDER_NUMBER, PaymentProviderOperationType.REFUND, REFUND_ID);
+        verify(managePaymentReconciliationOutPort, never()).complete(REFUND_ID);
+    }
+
 }

@@ -42,5 +42,6 @@
     <include file="changelogs/db.changelog-return-concurrency.xml" relativeToChangelogFile="true" />
 
     <include file="changelogs/db.changelog-stabilization-n01-n13.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-payment-reconciliation.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

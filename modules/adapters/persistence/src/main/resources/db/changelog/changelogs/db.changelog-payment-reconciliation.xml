@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="n14-payment-provider-reconciliation" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="PAYMENT_RECONCILIATION_OPERATION">
+            <column name="OPERATION_ID" type="VARCHAR(120)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PAYMENT_RECONCILIATION_OPERATION" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" foreignKeyName="FK_PAYMENT_RECONCILIATION_PAYMENT" referencedTableName="PAYMENT_TRANSACTION" referencedColumnNames="ORDER_NUMBER" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="OPERATION_TYPE" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="REFUND_ID" type="VARCHAR(80)" />
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ATTEMPTS" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="NEXT_ATTEMPT_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="CLAIM_ID" type="VARCHAR(80)" />
+            <column name="CLAIM_UNTIL" type="TIMESTAMP" />
+            <column name="LAST_ERROR" type="VARCHAR(1000)" />
+            <column name="CREATION_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPLETION_DATE" type="TIMESTAMP" />
+        </createTable>
+
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_RECONCILIATION_OPERATION" indexName="IDX_PAYMENT_RECONCILIATION_DUE">
+            <column name="STATUS" />
+            <column name="NEXT_ATTEMPT_DATE" />
+            <column name="CLAIM_UNTIL" />
+            <column name="CREATION_DATE" />
+        </createIndex>
+
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_RECONCILIATION_OPERATION" indexName="IDX_PAYMENT_RECONCILIATION_ORDER">
+            <column name="ORDER_NUMBER" />
+            <column name="STATUS" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
