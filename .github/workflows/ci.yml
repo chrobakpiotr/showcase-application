@@ -302,6 +302,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit frontend dependencies
+        # Fail closed on registry/transport errors and on HIGH/CRITICAL advisories.
+        # Lower severities remain visible in the log but do not fail this showcase build.
+        run: npm audit --audit-level=high
+
       - name: Lint
         run: npx ng lint
 
