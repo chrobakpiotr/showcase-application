@@ -157,7 +157,6 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
         verify(fulfillment, times(1)).sendMessage(any(Order.class));
     }
 
-
     @Test
     void shouldNotRefundLateCaptureAfterHealthyTakeover() throws Exception {
 
@@ -178,8 +177,7 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
                 }
             }
             return result;
-        }).when(managePaymentInPort)
-                .capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
+        }).when(managePaymentInPort).capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
 
         final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
         final OrderPlacementSagaOrchestrator workerA = newOrchestrator(fulfillment);

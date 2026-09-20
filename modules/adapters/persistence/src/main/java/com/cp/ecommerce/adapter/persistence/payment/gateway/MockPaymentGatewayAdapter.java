@@ -37,6 +37,8 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
 
     private final Map<String, ProviderOperationFingerprint> providerOperations = new ConcurrentHashMap<>();
 
+    private final MockPaymentGatewayOperationLedger operationLedger = new MockPaymentGatewayOperationLedger();
+
     @Value("${payment.gateway.mock.decline-above:10000.00}")
     private BigDecimal declineAboveAmount = new BigDecimal("10000.00");
 
@@ -63,8 +65,9 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
         }
         try {
 
-            final String gatewayReference = resilientExecutor
-                    .callResilient(CHARGE_RESILIENCE_INSTANCE_NAME, () -> "mock-gw-" + operationId);
+            final String gatewayReference = resilientExecutor.callResilient(
+                    CHARGE_RESILIENCE_INSTANCE_NAME,
+                    () -> operationLedger.replayCapture(operationId, amount, method));
             log.info(
                     "Mock payment gateway captured {} for order: {} via {} ({}, idempotencyKey={})",
                     amount,

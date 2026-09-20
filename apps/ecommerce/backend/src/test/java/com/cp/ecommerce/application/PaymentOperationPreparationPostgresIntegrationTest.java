@@ -33,16 +33,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 @SpringBootTest
 @ActiveProfiles("test-postgres")
 @Testcontainers(disabledWithoutDocker = true)
-@TestPropertySource(
-        properties = {
-                "outbox.publisher.enabled=false",
-                "payment.reconciliation.enabled=false"
-        })
+@TestPropertySource(properties = { "outbox.publisher.enabled=false", "payment.reconciliation.enabled=false" })
 class PaymentOperationPreparationPostgresIntegrationTest {
 
     @Container
-    private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6")
-            .withDatabaseName("test_db")
+    private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6").withDatabaseName("test_db")
             .withUsername("sa")
             .withPassword("sa");
 
@@ -75,15 +70,10 @@ class PaymentOperationPreparationPostgresIntegrationTest {
         final String orderNumber = "A1-" + UUID.randomUUID().toString().substring(0, 24);
         final String operationId = "ORDER-CAPTURE:" + orderNumber;
 
-        doThrow(new IllegalStateException("intent write failed"))
-                .when(reconciliationOutPort)
+        doThrow(new IllegalStateException("intent write failed")).when(reconciliationOutPort)
                 .start(operationId, orderNumber, PaymentProviderOperationType.CAPTURE, null);
 
-        assertThatThrownBy(
-                        () -> managePaymentInPort.capturePayment(
-                                orderNumber,
-                                new BigDecimal("10.00"),
-                                PaymentMethod.CARD))
+        assertThatThrownBy(() -> managePaymentInPort.capturePayment(orderNumber, new BigDecimal("10.00"), PaymentMethod.CARD))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("intent write failed");
 
