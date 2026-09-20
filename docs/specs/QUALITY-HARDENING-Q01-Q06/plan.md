@@ -54,6 +54,10 @@ If RED #6 cannot be proven by an already-existing downstream idempotency contrac
 A1 may extend only the minimal fulfillment messaging seam needed to introduce a
 stable fulfillment operation/message identity. Do not redesign unrelated messaging.
 
+A1 explicitly does not absorb the post-fulfillment best-effort fan-out. Customer-facing
+notification replay is owned by A3/Q06; S3/SQS/Kafka remain documented at-least-once
+best-effort side-channels for this hardening phase.
+
 ### Boundary note
 
 ```text
@@ -79,7 +83,14 @@ Never hold the payment reconciliation row lock during provider I/O.
 - two concurrent enqueue calls for one event;
 - enqueue concurrent with delivery;
 - `SENT` must never regress to `PENDING`;
-- same event key with conflicting immutable payload.
+- same event key with conflicting immutable payload;
+- placement notification becomes externally visible, placement lease is lost before
+  durable completion, a new worker takes over, and the customer still observes one
+  logical notification.
+
+Placement confirmation email / routed customer notification may be adapted to the Q06
+durable event identity only as narrowly as required by `AC-Q06-PLACEMENT-REPLAY`.
+Do not pull S3 export, SQS audit or Kafka analytics into A3 merely for symmetry.
 
 Prefer a PostgreSQL-native atomic insert-once statement. Do not catch a unique
 constraint and continue using a transaction already marked rollback-only.

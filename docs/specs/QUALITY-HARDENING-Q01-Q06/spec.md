@@ -108,6 +108,15 @@ worker A owns placement
 -> expected: one logical fulfillment for the order
 ```
 
+Placement-tail scope note:
+
+- RabbitMQ fulfillment is the critical pivot and belongs to A1/Q01.
+- Customer-facing placement notification replay belongs to A3/Q06.
+- S3 export, SQS audit and Kafka analytics remain explicit best-effort/at-least-once
+  side-channels in this phase; A1 must not claim exactly-once semantics for them.
+- AI triage/duplicate detection are read-only human-in-the-loop side effects and are
+  outside the durable-effect protocol.
+
 ## Q02 — payment reconciliation protocol
 
 Protocol shape:
@@ -228,6 +237,13 @@ not silently merged.
 ### AC-Q06-DELIVERY-RACE
 Concurrent enqueue and delivery leave one durable record and an already `SENT` record
 cannot become `PENDING`.
+
+### AC-Q06-PLACEMENT-REPLAY
+If placement loses its lease after a customer-facing notification became externally
+visible but before the placement outbox row is durably completed, takeover/replay does
+not create a second logical customer notification. Placement confirmation email and
+routed customer notification must either use the durable Q06 event identity or an
+equivalent provider-level idempotency contract. A1 does not own this change.
 
 ## Required evidence before this feature can be called complete
 
