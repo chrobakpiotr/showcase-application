@@ -66,6 +66,22 @@ class PaymentReconciliationArbitrator {
     }
 
     @Transactional
+    public void complete(final String operationId, final String claimId) {
+
+        final PaymentReconciliationEntity operation = repository.findByIdForUpdate(operationId).orElse(null);
+        if (operation == null || operation.getStatus() != PaymentReconciliationStatus.PENDING
+                || !Objects.equals(operation.getClaimId(), claimId)) {
+            return;
+        }
+        operation.setStatus(PaymentReconciliationStatus.COMPLETED);
+        operation.setCompleted(now());
+        operation.setClaimId(null);
+        operation.setClaimUntil(null);
+        operation.setLastError(null);
+        repository.save(operation);
+    }
+
+    @Transactional
     public void recordFailure(final String operationId, final String claimId, final String error) {
         final PaymentReconciliationEntity operation = repository.findByIdForUpdate(operationId).orElse(null);
         if (operation == null || operation.getStatus() != PaymentReconciliationStatus.PENDING

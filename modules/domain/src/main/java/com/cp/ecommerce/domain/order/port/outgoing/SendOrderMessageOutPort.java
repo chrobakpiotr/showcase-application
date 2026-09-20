@@ -12,6 +12,17 @@ public interface SendOrderMessageOutPort {
      *
      * @param order {@link Order} object.
      */
-    void send(final Order order);
+    default void send(final Order order) {
+
+        send(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
+    }
+
+    /**
+     * Sends one logical fulfillment command under a stable replay identity.
+     *
+     * @param order order to fulfill
+     * @param operationId stable logical fulfillment identity
+     */
+    void send(Order order, String operationId);
 
 }

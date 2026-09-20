@@ -59,6 +59,7 @@ class PaymentReconciliationScheduler {
                                         "Refund disappeared during reconciliation: " + operation.getRefundId()));
                 managePaymentInPort.refundPayment(operation.getOrderNumber(), operation.getRefundId(), refund.getAmount());
             }
+            arbitrator.complete(operationId, claimId);
         } catch (final RuntimeException exception) {
             arbitrator.recordFailure(operationId, claimId, exception.getMessage());
         }

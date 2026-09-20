@@ -61,7 +61,7 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
     public void complete(final String operationId) {
 
         repository.findByIdForUpdate(operationId).ifPresent(operation -> {
-            if (operation.getStatus() != PaymentReconciliationStatus.COMPLETED) {
+            if (operation.getStatus() != PaymentReconciliationStatus.COMPLETED && operation.getClaimId() == null) {
 
                 operation.setStatus(PaymentReconciliationStatus.COMPLETED);
                 operation.setCompleted(Instant.ofEpochMilli(clock.instant().toEpochMilli()));

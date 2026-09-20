@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
-import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -183,7 +182,7 @@ class ManagePaymentUseCaseTest {
     void shouldRefundSpecificAmountAndCompleteClaim() {
 
         final PaymentTransaction completed = partiallyRefunded();
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER_NUMBER, PARTIAL))
                 .willReturn(claim(PaymentRefundOutcome.RESERVED, PARTIAL, captured()));
         given(managePaymentRefundOutPort.complete(REFUND_ID)).willReturn(completed);
 
@@ -196,7 +195,7 @@ class ManagePaymentUseCaseTest {
     @Test
     void shouldRetryPendingRefundWithSameProviderIdentity() {
 
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER_NUMBER, PARTIAL))
                 .willReturn(claim(PaymentRefundOutcome.RETRY, PARTIAL, captured()));
         given(managePaymentRefundOutPort.complete(REFUND_ID)).willReturn(partiallyRefunded());
 
@@ -209,7 +208,7 @@ class ManagePaymentUseCaseTest {
     void shouldNotCallGatewayForCompletedRefund() {
 
         final PaymentTransaction completed = partiallyRefunded();
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER_NUMBER, PARTIAL))
                 .willReturn(claim(PaymentRefundOutcome.COMPLETED, PARTIAL, completed));
 
         assertThat(managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL)).isSameAs(completed);
@@ -220,7 +219,7 @@ class ManagePaymentUseCaseTest {
     void shouldRefundRemainingAmountForWholeOrderRefund() {
 
         final String fullRefundId = "ORDER-REFUND:" + ORDER_NUMBER;
-        given(managePaymentRefundOutPort.reserveRemaining(fullRefundId, ORDER_NUMBER)).willReturn(
+        given(preparePaymentProviderOperationOutPort.prepareRefund(fullRefundId, ORDER_NUMBER, null)).willReturn(
                 new PaymentRefundClaim(
                         PaymentRefundOutcome.RESERVED,
                         fullRefundId,
@@ -248,7 +247,7 @@ class ManagePaymentUseCaseTest {
     void shouldPreserveWholeOrderNoOpWhenNothingCanBeRefunded() {
 
         final String fullRefundId = "ORDER-REFUND:" + ORDER_NUMBER;
-        given(managePaymentRefundOutPort.reserveRemaining(fullRefundId, ORDER_NUMBER)).willReturn(
+        given(preparePaymentProviderOperationOutPort.prepareRefund(fullRefundId, ORDER_NUMBER, null)).willReturn(
                 new PaymentRefundClaim(
                         PaymentRefundOutcome.NOTHING_TO_REFUND,
                         fullRefundId,
@@ -344,7 +343,7 @@ class ManagePaymentUseCaseTest {
     @Test
     void shouldLeaveRefundReconciliationPendingWhenProviderOutcomeIsUnknown() {
 
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER_NUMBER, PARTIAL))
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER_NUMBER, PARTIAL))
                 .willReturn(claim(PaymentRefundOutcome.RESERVED, PARTIAL, captured()));
         doThrow(new TechnicalProblemException("unknown refund outcome")).when(refundPaymentOutPort)
                 .refund(ORDER_NUMBER, GATEWAY_REFERENCE, REFUND_ID, PARTIAL);
@@ -352,8 +351,7 @@ class ManagePaymentUseCaseTest {
         assertThatThrownBy(() -> managePaymentUseCase.refundPayment(ORDER_NUMBER, REFUND_ID, PARTIAL))
                 .isInstanceOf(TechnicalProblemException.class);
 
-        verify(managePaymentReconciliationOutPort)
-                .start(REFUND_ID, ORDER_NUMBER, PaymentProviderOperationType.REFUND, REFUND_ID);
+        verify(preparePaymentProviderOperationOutPort).prepareRefund(REFUND_ID, ORDER_NUMBER, PARTIAL);
         verify(managePaymentReconciliationOutPort, never()).complete(REFUND_ID);
     }
 

@@ -17,8 +17,8 @@ public class SendMessageUseCase implements SendMessageInPort {
     private final SendOrderMessageOutPort sendOrderMessageOutPort;
 
     @Override
-    public void sendMessage(final Order order) {
+    public void sendMessage(final Order order, final String operationId) {
 
-        sendOrderMessageOutPort.send(order);
+        sendOrderMessageOutPort.send(order, operationId);
     }
 }

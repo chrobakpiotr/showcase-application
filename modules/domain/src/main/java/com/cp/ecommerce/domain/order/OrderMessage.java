@@ -11,7 +11,7 @@ import lombok.Builder;
  */
 @Builder
 @DomainObject
-public record OrderMessage(String schemaVersion, Instant created, Long customerId, String orderNumber) {
+public record OrderMessage(String schemaVersion, String operationId, Instant created, Long customerId, String orderNumber) {
 
     public static final String SCHEMA_VERSION = "1.0";
 

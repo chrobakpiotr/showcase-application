@@ -36,10 +36,17 @@ public class SendOrderMessageAdapter implements SendOrderMessageOutPort {
 
     private final Gson gson;
 
-    public void send(final Order order) {
+    public void send(final Order order, final String operationId) {
 
-        final OrderMessage orderMessage = mapper.mapToMessage(order)
+        final OrderMessage mapped = mapper.mapToMessage(order)
                 .orElseThrow(() -> new IllegalStateException("Failed to map order to message: " + order.getOrderNumber()));
+        final OrderMessage orderMessage = OrderMessage.builder()
+                .schemaVersion(mapped.schemaVersion())
+                .operationId(operationId)
+                .created(mapped.created())
+                .customerId(mapped.customerId())
+                .orderNumber(mapped.orderNumber())
+                .build();
         log.info("Message: {}", orderMessage);
         resilientExecutor.runResilient(
                 RESILIENCE_INSTANCE_NAME,

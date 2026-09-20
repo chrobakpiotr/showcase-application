@@ -12,5 +12,16 @@ public interface SendMessageInPort {
      *
      * @param order domain {@link Order} class.
      */
-    void sendMessage(Order order);
+    default void sendMessage(final Order order) {
+
+        sendMessage(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
+    }
+
+    /**
+     * Sends one logical fulfillment command under a stable replay identity.
+     *
+     * @param order order to fulfill
+     * @param operationId stable logical fulfillment identity
+     */
+    void sendMessage(Order order, String operationId);
 }

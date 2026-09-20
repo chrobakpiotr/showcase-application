@@ -7,6 +7,7 @@ import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class PreparePaymentProviderOperationAdapterTest {
     @Mock
     private ManagePaymentReconciliationOutPort managePaymentReconciliationOutPort;
 
+    @Mock
+    private ManagePaymentRefundOutPort managePaymentRefundOutPort;
+
     @Test
     void shouldPersistPendingPaymentBeforePreparingReconciliationIntent() {
 
@@ -43,7 +47,8 @@ class PreparePaymentProviderOperationAdapterTest {
 
         final PaymentTransaction result = new PreparePaymentProviderOperationAdapter(
                 savePaymentTransactionOutPort,
-                managePaymentReconciliationOutPort).prepareCapture(OPERATION_ID, pending);
+                managePaymentReconciliationOutPort,
+                managePaymentRefundOutPort).prepareCapture(OPERATION_ID, pending);
 
         assertThat(result).isSameAs(pending);
         verify(managePaymentReconciliationOutPort)

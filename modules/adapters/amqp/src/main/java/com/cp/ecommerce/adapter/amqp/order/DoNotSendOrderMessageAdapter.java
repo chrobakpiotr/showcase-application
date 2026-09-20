@@ -17,7 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DoNotSendOrderMessageAdapter implements SendOrderMessageOutPort {
 
     @Override
-    public void send(final Order order) {
+    public void send(final Order order, final String operationId) {
 
         log.info("RabbitMQ disabled for order, messages will not be sent.");
     }

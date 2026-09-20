@@ -31,7 +31,7 @@ class SendMessageUseCaseTest {
 
         sendMessageUseCase.sendMessage(order);
 
-        verify(sendOrderMessageOutPort).send(order);
+        verify(sendOrderMessageOutPort).send(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
     }
 
 }

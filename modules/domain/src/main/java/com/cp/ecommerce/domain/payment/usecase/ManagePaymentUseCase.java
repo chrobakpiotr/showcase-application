@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
-import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -77,11 +76,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
 
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         PaymentTransaction current = getPayment(orderNumber);
-
-        if (current.getMethod() != null) {
-            validateCaptureIdentity(current, orderNumber, amount, method);
-        }
-
+        validateCaptureIdentity(current, amount, method);
         if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
                 || current.getStatus() == PaymentStatus.REFUNDED || current.getStatus() == PaymentStatus.DECLINED) {
 
@@ -90,17 +85,16 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         }
 
         if (current.getCreated() == null) {
-            current = preparePaymentProviderOperationOutPort.prepareCapture(
-                    operationId,
-                    PaymentTransaction.builder()
-                            .orderNumber(orderNumber)
-                            .amount(amount)
-                            .refundedAmount(BigDecimal.ZERO)
-                            .method(method)
-                            .status(PaymentStatus.PENDING)
-                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                            .build());
+            current = PaymentTransaction.builder()
+                    .orderNumber(orderNumber)
+                    .amount(amount)
+                    .refundedAmount(BigDecimal.ZERO)
+                    .method(method)
+                    .status(PaymentStatus.PENDING)
+                    .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                    .build();
         }
+        current = preparePaymentProviderOperationOutPort.prepareCapture(operationId, current);
 
         try {
             final String gatewayReference = chargePaymentOutPort.charge(orderNumber, operationId, amount, method);
@@ -131,34 +125,35 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         }
     }
 
-    private static void validateCaptureIdentity(
-            final PaymentTransaction current,
-            final String orderNumber,
-            final BigDecimal amount,
-            final PaymentMethod method) {
-
-        if (current.getAmount() == null || current.getAmount().compareTo(amount) != 0 || current.getMethod() != method) {
-            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
-                    "Payment operation identity was reused with different capture parameters for order " + orderNumber);
-        }
-    }
-
     @Override
     public PaymentTransaction refundPayment(final String orderNumber) {
 
-        return executeRefund(managePaymentRefundOutPort.reserveRemaining(ORDER_REFUND_PREFIX + orderNumber, orderNumber));
+        final String refundId = ORDER_REFUND_PREFIX + orderNumber;
+        return executeRefund(preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, null));
     }
 
     @Override
     public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
 
-        return executeRefund(managePaymentRefundOutPort.reserve(refundId, orderNumber, amount));
+        return executeRefund(preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, amount));
     }
 
     @Override
     public boolean hasPendingRefunds(final String orderNumber) {
 
         return managePaymentRefundOutPort.hasPending(orderNumber);
+    }
+
+    private static void validateCaptureIdentity(
+            final PaymentTransaction current,
+            final BigDecimal amount,
+            final PaymentMethod method) {
+
+        if (current.getMethod() != null && (current.getAmount().compareTo(amount) != 0 || current.getMethod() != method)) {
+            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
+                    "Payment operation identity was reused with different capture parameters for order "
+                            + current.getOrderNumber());
+        }
     }
 
     private static PaymentTransaction pendingPayment(final String orderNumber) {
@@ -178,8 +173,6 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
             return claim.payment();
         }
 
-        managePaymentReconciliationOutPort
-                .start(claim.refundId(), claim.orderNumber(), PaymentProviderOperationType.REFUND, claim.refundId());
         refundPaymentOutPort.refund(claim.orderNumber(), claim.gatewayReference(), claim.refundId(), claim.amount());
         final PaymentTransaction completed = managePaymentRefundOutPort.complete(claim.refundId());
         managePaymentReconciliationOutPort.complete(claim.refundId());

@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
-import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -95,13 +94,14 @@ class ManagePaymentUseCaseMutationTest {
     void shouldReusePersistedPendingIdentityAndCompleteSuccessfulCapture() {
         final PaymentTransaction pending = payment(PaymentStatus.PENDING, CREATED);
         given(findPaymentTransactionOutPort.find(ORDER)).willReturn(pending);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_ID, pending)).willReturn(pending);
         given(chargePaymentOutPort.charge(ORDER, CAPTURE_ID, AMOUNT, PaymentMethod.CARD)).willReturn(GATEWAY);
         given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         final PaymentTransaction captured = useCase.capturePayment(ORDER, AMOUNT, PaymentMethod.CARD);
 
         verify(savePaymentTransactionOutPort, never()).save(any());
-        verify(preparePaymentProviderOperationOutPort, never()).prepareCapture(any(), any());
+        verify(preparePaymentProviderOperationOutPort).prepareCapture(CAPTURE_ID, pending);
         verify(managePaymentReconciliationOutPort, never()).start(any(), any(), any(), any());
         verify(managePaymentReconciliationOutPort).complete(CAPTURE_ID);
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
@@ -147,7 +147,7 @@ class ManagePaymentUseCaseMutationTest {
     @Test
     void shouldCompleteReconciliationForAlreadyCompletedRefund() {
         final PaymentTransaction completed = payment(PaymentStatus.PARTIALLY_REFUNDED, CREATED);
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER, REFUND)).willReturn(
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER, REFUND)).willReturn(
                 new PaymentRefundClaim(PaymentRefundOutcome.COMPLETED, REFUND_ID, ORDER, REFUND, GATEWAY, completed));
 
         assertThat(useCase.refundPayment(ORDER, REFUND_ID, REFUND)).isSameAs(completed);
@@ -160,7 +160,7 @@ class ManagePaymentUseCaseMutationTest {
     @Test
     void shouldRunAndCompleteFullReconciliationLifecycleForReservedRefund() {
         final PaymentTransaction completed = payment(PaymentStatus.PARTIALLY_REFUNDED, CREATED);
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER, REFUND)).willReturn(
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER, REFUND)).willReturn(
                 new PaymentRefundClaim(
                         PaymentRefundOutcome.RESERVED,
                         REFUND_ID,
@@ -172,7 +172,7 @@ class ManagePaymentUseCaseMutationTest {
 
         assertThat(useCase.refundPayment(ORDER, REFUND_ID, REFUND)).isSameAs(completed);
 
-        verify(managePaymentReconciliationOutPort).start(REFUND_ID, ORDER, PaymentProviderOperationType.REFUND, REFUND_ID);
+        verify(preparePaymentProviderOperationOutPort).prepareRefund(REFUND_ID, ORDER, REFUND);
         verify(refundPaymentOutPort).refund(ORDER, GATEWAY, REFUND_ID, REFUND);
         verify(managePaymentRefundOutPort).complete(REFUND_ID);
         verify(managePaymentReconciliationOutPort).complete(REFUND_ID);
@@ -180,14 +180,14 @@ class ManagePaymentUseCaseMutationTest {
 
     @Test
     void shouldDoNothingProviderSideWhenNothingCanBeRefunded() {
-        given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER, REFUND)).willReturn(
+        given(preparePaymentProviderOperationOutPort.prepareRefund(REFUND_ID, ORDER, REFUND)).willReturn(
                 new PaymentRefundClaim(PaymentRefundOutcome.NOTHING_TO_REFUND, REFUND_ID, ORDER, BigDecimal.ZERO, null, null));
         final PaymentTransaction current = payment(PaymentStatus.REFUNDED, CREATED);
         given(findPaymentTransactionOutPort.find(ORDER)).willReturn(current);
 
         assertThat(useCase.refundPayment(ORDER, REFUND_ID, REFUND)).isSameAs(current);
 
-        verify(managePaymentReconciliationOutPort, never()).start(any(), any(), any(), any());
+        verify(preparePaymentProviderOperationOutPort).prepareRefund(REFUND_ID, ORDER, REFUND);
         verify(managePaymentReconciliationOutPort, never()).complete(any());
         verify(refundPaymentOutPort, never()).refund(any(), any(), any(), any());
         verify(managePaymentRefundOutPort, never()).complete(any());

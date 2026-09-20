@@ -1,6 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.payment.gateway;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -9,6 +11,7 @@ import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.port.outgoing.ChargePaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +35,8 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
 
     private final RecoveryMetrics recoveryMetrics;
 
+    private final Map<String, ProviderOperationFingerprint> providerOperations = new ConcurrentHashMap<>();
+
     @Value("${payment.gateway.mock.decline-above:10000.00}")
     private BigDecimal declineAboveAmount = new BigDecimal("10000.00");
 
@@ -41,6 +46,15 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
             final String operationId,
             final BigDecimal amount,
             final PaymentMethod method) {
+
+        registerProviderOperation(
+                operationId,
+                new ProviderOperationFingerprint(
+                        PaymentProviderOperation.CAPTURE,
+                        orderNumber,
+                        amount.stripTrailingZeros(),
+                        method,
+                        null));
 
         if (amount.compareTo(declineAboveAmount) > 0) {
 
@@ -73,6 +87,15 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
             final String refundId,
             final BigDecimal amount) {
 
+        registerProviderOperation(
+                refundId,
+                new ProviderOperationFingerprint(
+                        PaymentProviderOperation.REFUND,
+                        orderNumber,
+                        amount.stripTrailingZeros(),
+                        null,
+                        gatewayReference));
+
         try {
 
             resilientExecutor.runResilient(
@@ -88,4 +111,23 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
             throw new TechnicalProblemException("Could not refund payment for order: " + orderNumber, exception);
         }
     }
+
+    private void registerProviderOperation(final String operationId, final ProviderOperationFingerprint requested) {
+
+        final ProviderOperationFingerprint existing = providerOperations.putIfAbsent(operationId, requested);
+        if (existing != null && !existing.equals(requested)) {
+            throw new PaymentOperationConflictException(
+                    "Provider operation identity " + operationId + " was reused with different immutable parameters");
+        }
+    }
+
+    private enum PaymentProviderOperation {
+        CAPTURE,
+        REFUND
+    }
+
+    private record ProviderOperationFingerprint(PaymentProviderOperation operation, String orderNumber, BigDecimal amount,
+            PaymentMethod method, String gatewayReference) {
+    }
+
 }

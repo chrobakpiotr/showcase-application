@@ -80,14 +80,12 @@ class ManagePaymentReconciliationAdapterTest {
     }
 
     @Test
-    void shouldCompletePendingOperationAndClearClaim() {
+    void shouldCompleteUnclaimedPendingOperation() {
 
         final PaymentReconciliationEntity existing = operation(
                 PaymentProviderOperationType.CAPTURE,
                 null,
                 PaymentReconciliationStatus.PENDING);
-        existing.setClaimId("worker-1");
-        existing.setClaimUntil(NOW.plusSeconds(30));
         existing.setLastError("timeout");
         given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
 
