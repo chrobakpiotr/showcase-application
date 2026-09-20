@@ -26,6 +26,8 @@ public class Notification extends ValidDomainObject<Notification> {
     @Size(max = ValidationConstants.NOTIFICATION_ID_MAX, message = ValidationConstants.INVALID_NOTIFICATION_ID)
     String notificationId;
 
+    String eventKey;
+
     @NotBlank(message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)
     @Email(message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)
     @Size(max = ValidationConstants.CONTACT_EMAIL_MAX, message = ValidationConstants.INVALID_NOTIFICATION_RECIPIENT_EMAIL)

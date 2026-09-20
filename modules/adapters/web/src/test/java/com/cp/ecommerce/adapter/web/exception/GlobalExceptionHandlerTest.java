@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.Set;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
 import com.cp.ecommerce.foundation.exception.BusinessRuleException;
 import com.cp.ecommerce.foundation.exception.CartConflictException;
 import com.cp.ecommerce.foundation.exception.CouponAlreadyExistsException;
@@ -350,6 +351,16 @@ class GlobalExceptionHandlerTest {
         final Set<ConstraintViolation<Order>> violationSet = validator.validate(Order.builder().build(), Default.class);
 
         return handler.constraintViolationException(new ConstraintViolationException(EXCEPTION_MESSAGE, violationSet));
+    }
+
+    @Test
+    void shouldHandleApplicationBadRequestException() {
+
+        assertProblem(
+                handler.applicationBadRequestException(new ApplicationBadRequestException(EXCEPTION_MESSAGE)),
+                BAD_REQUEST,
+                "Bad Request",
+                EXCEPTION_MESSAGE);
     }
 
 }

@@ -9,4 +9,6 @@ public interface SaveNotificationOutPort {
 
     Notification save(Notification notification);
 
+    Notification saveOnce(Notification notification);
+
 }

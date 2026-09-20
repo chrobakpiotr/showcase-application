@@ -1,0 +1,36 @@
+{
+  "required_for_orchestration": true,
+  "grill": "always",
+  "prototype": "auto",
+  "architecture_grill": "always",
+  "prototype_max_parallel": 2,
+  "prototype_questions": [
+    {
+      "id": "P-001",
+      "question": "Can the existing payment gateway abstraction support durable operation identity plus unknown-outcome reconciliation without introducing a second payment system?",
+      "decision_criteria": [
+        "late-worker safety",
+        "external idempotency/reconciliation capability",
+        "fit with current payment ports",
+        "migration complexity",
+        "operability"
+      ],
+      "rationale": "Late-worker cancellation safety depends on the boundary between durable local payment state, external provider idempotency and reconciliation after a successful effect whose response is lost. A prototype should compare the smallest designs that can prove this contract before production lifecycle code is changed.",
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Keep the existing payment transaction model and add stable operation identity plus conditional/CAS completion updates, using the current provider abstraction for idempotent capture and explicit reconciliation."
+        },
+        {
+          "id": "B",
+          "approach": "Introduce a dedicated durable payment-operation record with STARTED/UNKNOWN/SUCCEEDED/FAILED-style lifecycle, stable operationId/request fingerprint and a reconciliation step that updates the existing payment transaction."
+        },
+        {
+          "id": "C",
+          "approach": "Extend the existing payment transaction persistence model itself with in-flight/unknown outcome metadata and fencing/version checks, avoiding a second table while preserving refund and terminal-state invariants."
+        }
+      ]
+    }
+  ],
+  "verification_contract": "required"
+}

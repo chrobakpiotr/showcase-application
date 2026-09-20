@@ -12,17 +12,24 @@ import {
 export class NotificationsService {
   private readonly httpClient = inject(HttpClient);
 
-  listNotifications(): Observable<NotificationCollectionModel> {
+  listNotifications(
+    page?: number,
+    size?: number
+  ): Observable<NotificationCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<NotificationCollectionModel>(
-      `${environment.apiPrefix}/notifications`
+      `${environment.apiPrefix}/notifications${suffix}`
     );
   }
 
   listNotificationsByStatus(
-    status: string
+    status: string,
+    page?: number,
+    size?: number
   ): Observable<NotificationCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<NotificationCollectionModel>(
-      `${environment.apiPrefix}/notifications/status/${status}`
+      `${environment.apiPrefix}/notifications/status/${status}${suffix}`
     );
   }
 

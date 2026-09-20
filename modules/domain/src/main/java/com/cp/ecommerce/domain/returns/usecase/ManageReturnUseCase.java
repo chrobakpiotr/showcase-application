@@ -44,6 +44,31 @@ public class ManageReturnUseCase implements RequestReturnInPort, GetReturnInPort
             final String reason,
             final BigDecimal refundAmount) {
 
+        return manageReturnRequestStateOutPort
+                .create(requestedReturn(orderNumber, sku, quantity, reason, refundAmount), orderedQuantity);
+    }
+
+    @Override
+    public ReturnRequest requestReturnFromLineEntitlement(
+            final String orderNumber,
+            final String sku,
+            final int quantity,
+            final int orderedQuantity,
+            final String reason,
+            final BigDecimal lineRefundEntitlement) {
+
+        return manageReturnRequestStateOutPort.createFromLineEntitlement(
+                requestedReturn(orderNumber, sku, quantity, reason, lineRefundEntitlement),
+                orderedQuantity);
+    }
+
+    private ReturnRequest requestedReturn(
+            final String orderNumber,
+            final String sku,
+            final int quantity,
+            final String reason,
+            final BigDecimal refundAmount) {
+
         final ReturnRequest requested = ReturnRequest.builder()
                 .returnNumber(generateReturnNumberOutPort.generate())
                 .orderNumber(orderNumber)
@@ -55,7 +80,7 @@ public class ManageReturnUseCase implements RequestReturnInPort, GetReturnInPort
                 .refundAmount(refundAmount)
                 .build();
         requested.assertValidationsEmpty();
-        return manageReturnRequestStateOutPort.create(requested, orderedQuantity);
+        return requested;
     }
 
     @Override

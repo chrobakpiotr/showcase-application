@@ -4,6 +4,7 @@ import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntityRepository;
 import com.cp.ecommerce.adapter.persistence.payment.mapper.PaymentTransactionPersistenceMapper;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 
@@ -37,6 +38,23 @@ class SavePaymentTransactionAdapter implements SavePaymentTransactionOutPort {
                         () -> new IllegalStateException(
                                 "Failed to map payment transaction entity to domain object for order: "
                                         + paymentTransaction.getOrderNumber()));
+    }
+
+    @Override
+    @Transactional
+    public PaymentTransaction saveCaptureResult(final PaymentTransaction paymentTransaction) {
+
+        final var current = paymentTransactionEntityRepository.findByOrderNumberForUpdate(paymentTransaction.getOrderNumber())
+                .orElse(null);
+        if (current != null && (current.getStatus() == PaymentStatus.CAPTURED
+                || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED || current.getStatus() == PaymentStatus.REFUNDED)) {
+
+            return paymentTransactionPersistenceMapper.mapToDomainObject(current)
+                    .orElseThrow(
+                            () -> new IllegalStateException(
+                                    "Failed to map current payment for order: " + paymentTransaction.getOrderNumber()));
+        }
+        return save(paymentTransaction);
     }
 
 }

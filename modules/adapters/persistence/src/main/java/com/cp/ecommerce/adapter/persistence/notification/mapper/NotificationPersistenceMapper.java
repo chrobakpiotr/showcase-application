@@ -21,6 +21,7 @@ public class NotificationPersistenceMapper implements PersistenceMapper<Notifica
                 .map(
                         domain -> NotificationEntity.builder()
                                 .notificationId(domain.getNotificationId())
+                                .eventKey(domain.getEventKey())
                                 .recipientEmail(domain.getRecipientEmail())
                                 .channel(domain.getChannel())
                                 .type(domain.getType())
@@ -39,6 +40,7 @@ public class NotificationPersistenceMapper implements PersistenceMapper<Notifica
                 .map(
                         notificationEntity -> Notification.builder()
                                 .notificationId(notificationEntity.getNotificationId())
+                                .eventKey(notificationEntity.getEventKey())
                                 .recipientEmail(notificationEntity.getRecipientEmail())
                                 .channel(notificationEntity.getChannel())
                                 .type(notificationEntity.getType())

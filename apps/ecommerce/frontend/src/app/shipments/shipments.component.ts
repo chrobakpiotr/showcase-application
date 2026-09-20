@@ -34,6 +34,7 @@ export class ShipmentsComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly filterChanges = new Subject<'ALL' | ShipmentStatus>();
+  private readonly pageSize = 20;
 
   readonly shipments = signal<ShipmentModel[]>([]);
   readonly loading = signal(false);
@@ -41,6 +42,9 @@ export class ShipmentsComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly actionErrorMessage = signal<string | null>(null);
   readonly selectedStatus = signal<'ALL' | ShipmentStatus>('ALL');
+  readonly page = signal(0);
+  readonly totalPages = signal(0);
+  readonly totalElements = signal(0);
 
   get canRead(): boolean {
     return this.authService.roles().includes('SHIPMENT_READ');
@@ -63,8 +67,12 @@ export class ShipmentsComponent implements OnInit {
         switchMap((status) => {
           const request =
             status === 'ALL'
-              ? this.shipmentsService.listShipments()
-              : this.shipmentsService.listShipmentsByStatus(status);
+              ? this.shipmentsService.listShipments(this.page(), this.pageSize)
+              : this.shipmentsService.listShipmentsByStatus(
+                  status,
+                  this.page(),
+                  this.pageSize
+                );
           return request.pipe(
             catchError(() => {
               this.errorMessage.set('Failed to load shipments.');
@@ -78,12 +86,29 @@ export class ShipmentsComponent implements OnInit {
         this.loading.set(false);
         if (page === null) return;
         this.shipments.set(page._embedded?.shipmentResourceList ?? []);
+        this.totalPages.set(page.page?.totalPages ?? 0);
+        this.totalElements.set(
+          page.page?.totalElements ?? this.shipments().length
+        );
       });
   }
 
   updateStatusFilter(status: 'ALL' | ShipmentStatus): void {
     this.selectedStatus.set(status);
+    this.page.set(0);
     this.filterChanges.next(status);
+  }
+
+  previousPage(): void {
+    if (this.page() === 0) return;
+    this.page.update((value) => value - 1);
+    this.filterChanges.next(this.selectedStatus());
+  }
+
+  nextPage(): void {
+    if (this.page() + 1 >= this.totalPages()) return;
+    this.page.update((value) => value + 1);
+    this.filterChanges.next(this.selectedStatus());
   }
 
   advance(shipmentNumber: string): void {
@@ -92,7 +117,13 @@ export class ShipmentsComponent implements OnInit {
     this.actionErrorMessage.set(null);
     this.advancingShipmentId.set(shipmentNumber);
     this.shipmentsService
-      .advanceShipmentStatus(shipmentNumber)
+      .advanceShipmentStatus(
+        shipmentNumber,
+        crypto.randomUUID(),
+        this.shipments().find(
+          (shipment) => shipment.shipmentNumber === shipmentNumber
+        )?.status
+      )
       .pipe(
         finalize(() => this.advancingShipmentId.set(null)),
         takeUntilDestroyed(this.destroyRef)

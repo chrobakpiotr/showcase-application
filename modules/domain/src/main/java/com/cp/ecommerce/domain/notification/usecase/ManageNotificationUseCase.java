@@ -1,10 +1,14 @@
 package com.cp.ecommerce.domain.notification.usecase;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import com.cp.ecommerce.domain.notification.Notification;
 import com.cp.ecommerce.domain.notification.NotificationChannel;
+import com.cp.ecommerce.domain.notification.NotificationDeliveryClaim;
 import com.cp.ecommerce.domain.notification.NotificationStatus;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.PageQuery;
@@ -16,16 +20,12 @@ import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort
 import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPort;
-import com.cp.ecommerce.domain.notification.port.outgoing.GenerateNotificationIdOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
 import com.cp.ecommerce.foundation.annotation.UseCase;
 
 import lombok.RequiredArgsConstructor;
 
-/**
- * Use case for recording, delivering, retrying and querying notification log entries.
- */
 @UseCase
 @RequiredArgsConstructor
 public class ManageNotificationUseCase
@@ -34,16 +34,11 @@ public class ManageNotificationUseCase
     private static final int RETRY_BATCH_SIZE = 50;
 
     private final SaveNotificationOutPort saveNotificationOutPort;
-
     private final FindNotificationOutPort findNotificationOutPort;
-
     private final FindNotificationsOutPort findNotificationsOutPort;
-
-    private final GenerateNotificationIdOutPort generateNotificationIdOutPort;
-
     private final DeliverNotificationOutPort deliverNotificationOutPort;
-
     private final ManageNotificationDeliveryOutPort manageNotificationDeliveryOutPort;
+    private final Clock clock;
 
     @Override
     public Notification sendNotification(
@@ -52,77 +47,68 @@ public class ManageNotificationUseCase
             final String subject,
             final String body) {
 
-        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
-        final Notification pending = save(
-                Notification.builder()
-                        .notificationId(generateNotificationIdOutPort.generate())
-                        .recipientEmail(recipientEmail)
-                        .channel(NotificationChannel.EMAIL)
-                        .type(type)
-                        .subject(subject)
-                        .body(body)
-                        .status(NotificationStatus.PENDING)
-                        .createdDate(now)
-                        .build());
-
-        return deliverPersistedNotification(pending.getNotificationId(), pending);
+        final String eventSource = type + "|" + subject;
+        final String eventKey = UUID.nameUUIDFromBytes(eventSource.getBytes(StandardCharsets.UTF_8)).toString();
+        final String notificationId = "NOTIF-" + eventKey;
+        final Notification pending = Notification.builder()
+                .notificationId(notificationId)
+                .eventKey(eventKey)
+                .recipientEmail(recipientEmail)
+                .channel(NotificationChannel.EMAIL)
+                .type(type)
+                .subject(subject)
+                .body(body)
+                .status(NotificationStatus.PENDING)
+                .createdDate(now())
+                .build();
+        pending.assertValidationsEmpty();
+        return saveNotificationOutPort.saveOnce(pending);
     }
 
     @Override
     public void retryDueNotifications() {
 
-        final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
+        final Instant now = now();
         manageNotificationDeliveryOutPort.findDueNotificationIds(now, RETRY_BATCH_SIZE)
-                .forEach(notificationId -> deliverPersistedNotification(notificationId, null));
+                .forEach(notificationId -> deliverPersistedNotification(notificationId));
+    }
+
+    private Notification deliverPersistedNotification(final String notificationId) {
+
+        final NotificationDeliveryClaim claim = manageNotificationDeliveryOutPort.claimDelivery(notificationId, now());
+        if (claim == null) {
+            return findNotificationOutPort.find(notificationId);
+        }
+        try {
+            deliverNotificationOutPort.deliver(claim.notification());
+            return manageNotificationDeliveryOutPort.markSent(notificationId, claim.claimId(), now());
+        } catch (final RuntimeException exception) {
+            return manageNotificationDeliveryOutPort.markFailed(notificationId, claim.claimId(), exception.getMessage(), now());
+        }
+    }
+
+    private Instant now() {
+        return Instant.ofEpochMilli(clock.instant().toEpochMilli());
     }
 
     @Override
     public List<Notification> listNotifications() {
-
         return findNotificationsOutPort.findAll();
     }
 
     @Override
     public List<Notification> listNotificationsForRecipient(final String recipientEmail) {
-
         return findNotificationsOutPort.findByRecipientEmail(recipientEmail);
     }
 
     @Override
     public List<Notification> listNotificationsByStatus(final NotificationStatus status) {
-
         return findNotificationsOutPort.findByStatus(status);
     }
 
     @Override
     public Notification getNotification(final String notificationId) {
-
         return findNotificationOutPort.find(notificationId);
-    }
-
-    private Notification deliverPersistedNotification(final String notificationId, final Notification fallback) {
-
-        final Notification claimed = manageNotificationDeliveryOutPort
-                .claim(notificationId, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
-        if (claimed == null) {
-
-            return fallback == null ? findNotificationOutPort.find(notificationId) : fallback;
-        }
-
-        try {
-            deliverNotificationOutPort.deliver(claimed);
-            return manageNotificationDeliveryOutPort
-                    .markSent(notificationId, Instant.ofEpochMilli(Instant.now().toEpochMilli()));
-        } catch (final RuntimeException exception) {
-            return manageNotificationDeliveryOutPort
-                    .markFailed(notificationId, exception.getMessage(), Instant.ofEpochMilli(Instant.now().toEpochMilli()));
-        }
-    }
-
-    private Notification save(final Notification notification) {
-
-        notification.assertValidationsEmpty();
-        return saveNotificationOutPort.save(notification);
     }
 
     @Override
@@ -139,5 +125,4 @@ public class ManageNotificationUseCase
     public PagedResult<Notification> listNotificationsByStatus(final NotificationStatus status, final PageQuery pageQuery) {
         return findNotificationsOutPort.findByStatus(status, pageQuery);
     }
-
 }

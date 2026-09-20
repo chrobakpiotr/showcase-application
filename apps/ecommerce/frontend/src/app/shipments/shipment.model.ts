@@ -1,3 +1,5 @@
+import { HalPageMetadata } from '@app/shared/hal-page.model';
+
 export type ShipmentStatus =
   | 'PENDING'
   | 'DISPATCHED'
@@ -28,4 +30,5 @@ export interface ShipmentCollectionModel {
   _embedded?: {
     shipmentResourceList?: ShipmentModel[];
   };
+  page?: HalPageMetadata;
 }

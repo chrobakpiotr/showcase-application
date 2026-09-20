@@ -68,17 +68,32 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     @Override
     public PaymentTransaction capturePayment(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
 
-        final PaymentTransaction current = getPayment(orderNumber);
+        PaymentTransaction current = getPayment(orderNumber);
         if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
-                || current.getStatus() == PaymentStatus.REFUNDED) {
+                || current.getStatus() == PaymentStatus.REFUNDED || current.getStatus() == PaymentStatus.DECLINED) {
 
             return current;
         }
-        try {
 
+        if (current.getCreated() == null) {
+            current = savePaymentTransactionOutPort.save(
+                    PaymentTransaction.builder()
+                            .orderNumber(orderNumber)
+                            .amount(amount)
+                            .refundedAmount(BigDecimal.ZERO)
+                            .method(method)
+                            .status(PaymentStatus.PENDING)
+                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                            .build());
+        } else if (current.getAmount().compareTo(amount) != 0 || current.getMethod() != method) {
+            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
+                    "Payment operation identity was reused with different capture parameters for order " + orderNumber);
+        }
+
+        try {
             final String gatewayReference = chargePaymentOutPort
                     .charge(orderNumber, ORDER_CAPTURE_PREFIX + orderNumber, amount, method);
-            return savePaymentTransactionOutPort.save(
+            return savePaymentTransactionOutPort.saveCaptureResult(
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
@@ -86,18 +101,17 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .method(method)
                             .status(PaymentStatus.CAPTURED)
                             .gatewayReference(gatewayReference)
-                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                            .created(current.getCreated())
                             .build());
         } catch (final PaymentDeclinedException declined) {
-
-            savePaymentTransactionOutPort.save(
+            savePaymentTransactionOutPort.saveCaptureResult(
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
                             .refundedAmount(BigDecimal.ZERO)
                             .method(method)
                             .status(PaymentStatus.DECLINED)
-                            .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                            .created(current.getCreated())
                             .build());
             throw declined;
         }
@@ -113,6 +127,12 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
 
         return executeRefund(managePaymentRefundOutPort.reserve(refundId, orderNumber, amount));
+    }
+
+    @Override
+    public boolean hasPendingRefunds(final String orderNumber) {
+
+        return managePaymentRefundOutPort.hasPending(orderNumber);
     }
 
     private static PaymentTransaction pendingPayment(final String orderNumber) {

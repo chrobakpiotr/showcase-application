@@ -1,3 +1,5 @@
+import { HalPageMetadata } from '@app/shared/hal-page.model';
+
 export interface NotificationModel {
   notificationId: string;
   recipientEmail: string;
@@ -14,4 +16,5 @@ export interface NotificationCollectionModel {
   _embedded?: {
     notificationResourceList?: NotificationModel[];
   };
+  page?: HalPageMetadata;
 }

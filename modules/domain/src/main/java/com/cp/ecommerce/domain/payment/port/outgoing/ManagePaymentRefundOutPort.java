@@ -15,4 +15,6 @@ public interface ManagePaymentRefundOutPort {
     PaymentRefundClaim reserveRemaining(String refundId, String orderNumber);
 
     PaymentTransaction complete(String refundId);
+
+    boolean hasPending(String orderNumber);
 }

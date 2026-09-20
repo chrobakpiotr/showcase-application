@@ -57,6 +57,34 @@ public interface OutboxEventEntityRepository extends JpaRepository<OutboxEventEn
             Instant claimUntil,
             Pageable pageable);
 
+    @Query("""
+            select event
+            from OutboxEventEntity event
+            where event.status = :status
+              and event.nextAttemptDate <= :now
+            order by event.nextAttemptDate asc, event.createdDate asc, event.id asc
+            """)
+    List<OutboxEventEntity> findDueByStatus(
+            @Param("status") OutboxEventStatus status,
+            @Param("now") Instant now,
+            Pageable pageable);
+
+    @Query("""
+            select event
+            from OutboxEventEntity event
+            where event.status = :status
+              and event.nextAttemptDate <= :now
+              and (event.claimUntil is null or event.claimUntil <= :now)
+            order by event.nextAttemptDate asc, event.createdDate asc, event.id asc
+            """)
+    List<OutboxEventEntity> findDueAndClaimableByStatus(
+            @Param("status") OutboxEventStatus status,
+            @Param("now") Instant now,
+            Pageable pageable);
+
+    @Query("select event.orderNumber from OutboxEventEntity event where event.status = :status order by event.createdDate asc")
+    List<String> findOrderNumbersByStatus(@Param("status") OutboxEventStatus status, Pageable pageable);
+
     @Query("select min(event.createdDate) from OutboxEventEntity event where event.status = :status")
     Instant findOldestCreatedDateByStatus(@Param("status") OutboxEventStatus status);
 

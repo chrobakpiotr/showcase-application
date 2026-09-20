@@ -43,6 +43,7 @@ public class SaveOrderAdapter implements SaveOrderOutPort {
                         .orderNumber(order.getOrderNumber())
                         .status(OutboxEventStatus.PENDING)
                         .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+                        .nextAttemptDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                         .build());
         return order;
     }

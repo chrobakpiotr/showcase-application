@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.web.shipments;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.IntFunction;
 
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -150,10 +152,29 @@ public class ShipmentController {
 
     @PostMapping("/{shipmentNumber}/advance")
     @Operation(summary = "Advance a shipment to its next status")
-    public EntityModel<ShipmentResource> advanceShipmentStatus(@PathVariable("shipmentNumber") final String shipmentNumber) {
+    public EntityModel<ShipmentResource> advanceShipmentStatus(
+            @PathVariable("shipmentNumber") final String shipmentNumber,
+            @RequestHeader(value = "Idempotency-Key", required = false) final String operationId,
+            @RequestHeader(value = "X-Expected-Shipment-Status", required = false) final ShipmentStatus expectedStatus) {
 
-        final Shipment advanced = shipmentWorkflow.advanceShipment(shipmentNumber);
+        if ((operationId == null || operationId.isBlank()) && expectedStatus == null) {
+            return toResourceModel(shipmentWorkflow.advanceShipment(shipmentNumber));
+        }
+
+        final Shipment current = getShipmentInPort.getShipment(shipmentNumber);
+        final String effectiveOperationId = operationId == null || operationId.isBlank()
+                ? UUID.randomUUID().toString()
+                : operationId;
+        final ShipmentStatus effectiveExpectedStatus = expectedStatus == null && current != null
+                ? current.getStatus()
+                : expectedStatus;
+        final Shipment advanced = shipmentWorkflow
+                .advanceShipment(shipmentNumber, effectiveOperationId, effectiveExpectedStatus);
         return toResourceModel(advanced);
+    }
+
+    EntityModel<ShipmentResource> advanceShipmentStatus(final String shipmentNumber) {
+        return advanceShipmentStatus(shipmentNumber, null, null);
     }
 
     private String requireNonBlank(final String value, final String message) {
@@ -175,7 +196,8 @@ public class ShipmentController {
         if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
 
             model.add(
-                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber)).withRel("advance-status"));
+                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber, null, null))
+                            .withRel("advance-status"));
         }
         return model;
     }

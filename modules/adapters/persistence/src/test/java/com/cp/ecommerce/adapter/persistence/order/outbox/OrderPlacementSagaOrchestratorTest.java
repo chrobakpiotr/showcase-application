@@ -62,9 +62,11 @@ import static org.mockito.Mockito.when;
  */
 // Coupling here directly mirrors the orchestrator's own dependency count (see its @RequiredArgsConstructor fields) - a test
 // exercising all seven saga steps and their metrics is inherently as coupled as the class under test.
-@SuppressWarnings("PMD.CouplingBetweenObjects")
+@SuppressWarnings({ "PMD.CouplingBetweenObjects", "PMD.TooManyMethods" })
 @ExtendWith(MockitoExtension.class)
 class OrderPlacementSagaOrchestratorTest {
+
+    private static final String NEWER_WORKER_CLAIM_ID = "newer-worker";
 
     private static final int MAX_FULFILLMENT_ATTEMPTS = 5;
 
@@ -130,6 +132,17 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of());
         lenient().when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
                 .thenReturn(List.of());
+        lenient().when(outboxEventEntityRepository.findDueByStatus(eq(OutboxEventStatus.PENDING), any(Instant.class), any()))
+                .thenAnswer(
+                        invocation -> outboxEventEntityRepository
+                                .findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING));
+        lenient()
+                .when(
+                        outboxEventEntityRepository
+                                .findDueAndClaimableByStatus(eq(OutboxEventStatus.COMPENSATING), any(Instant.class), any()))
+                .thenAnswer(
+                        invocation -> outboxEventEntityRepository
+                                .findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING));
         lenient().when(
                 outboxEventEntityRepository.findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(
                         eq(OutboxEventStatus.PROCESSING),
@@ -609,7 +622,10 @@ class OrderPlacementSagaOrchestratorTest {
                 classifyOrderRemarksInPort,
                 detectDuplicateOrderInPort,
                 cancelOrderInPort);
-        verify(outboxEventEntityRepository, times(0)).save(outboxEventEntity);
+        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
+        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(outboxEventEntity.getLastError()).contains("Order not found");
+        assertThat(outboxEventEntity.getNextAttemptDate()).isAfter(FIXED_CLOCK.instant());
     }
 
     @Test
@@ -881,7 +897,7 @@ class OrderPlacementSagaOrchestratorTest {
                 .orderNumber(order.getOrderNumber())
                 .status(OutboxEventStatus.PROCESSING)
                 .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .claimId("newer-worker")
+                .claimId(NEWER_WORKER_CLAIM_ID)
                 .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
                 .build();
 
@@ -892,10 +908,54 @@ class OrderPlacementSagaOrchestratorTest {
 
         newOrchestrator().publishPendingEvents();
 
-        verify(sendMessageInPort).sendMessage(order);
+        verifyNoInteractions(sendMessageInPort);
+        verify(managePaymentInPort, never()).capturePayment(any(String.class), any(BigDecimal.class), any());
         verify(outboxEventEntityRepository, never()).save(newerOwner);
         assertThat(newerOwner.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
-        assertThat(newerOwner.getClaimId()).isEqualTo("newer-worker");
+        assertThat(newerOwner.getClaimId()).isEqualTo(NEWER_WORKER_CLAIM_ID);
+    }
+
+    @Test
+    void shouldRefundLateCaptureAndStopBeforeFulfillmentWhenClaimIsLostDuringProviderCall() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(57L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
+                .id(57L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PROCESSING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .claimId(NEWER_WORKER_CLAIM_ID)
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate), Optional.of(newerOwner)).when(outboxEventEntityRepository)
+                .findByIdForUpdate(57L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .method(order.getPaymentMethod())
+                        .status(PaymentStatus.CAPTURED)
+                        .gatewayReference("gw-late")
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(newerOwner.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+        assertThat(newerOwner.getClaimId()).isEqualTo(NEWER_WORKER_CLAIM_ID);
     }
 
     @Test
@@ -1057,6 +1117,163 @@ class OrderPlacementSagaOrchestratorTest {
                 .tag("duplicate", String.valueOf(duplicate))
                 .counter()
                 .count();
+    }
+
+    @Test
+    void shouldStopBeforeFulfillmentWhenClaimIsLostDuringRenewal() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(61L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
+                .id(61L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PROCESSING)
+                .claimId(NEWER_WORKER_CLAIM_ID)
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
+                .createdDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate), Optional.of(candidate), Optional.of(newerOwner))
+                .when(outboxEventEntityRepository)
+                .findByIdForUpdate(61L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+
+        newOrchestrator().publishPendingEvents();
+
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldStopAfterFulfillmentSendWhenClaimIsLostBeforeCompletionCheck() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(62L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
+                .id(62L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PROCESSING)
+                .claimId(NEWER_WORKER_CLAIM_ID)
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
+                .createdDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(
+                Optional.of(candidate),
+                Optional.of(candidate),
+                Optional.of(candidate),
+                Optional.of(candidate),
+                Optional.of(newerOwner)).when(outboxEventEntityRepository).findByIdForUpdate(62L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+
+        newOrchestrator().publishPendingEvents();
+
+        verify(sendMessageInPort).sendMessage(order);
+        assertThat(timerCountFor("fulfillment", OUTCOME_FAILURE)).isEqualTo(1);
+    }
+
+    @Test
+    void shouldRefundPartiallyRefundedLateCaptureWhenPlacementClaimIsLost() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(63L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity newerOwner = OutboxEventEntity.builder()
+                .id(63L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PROCESSING)
+                .claimId(NEWER_WORKER_CLAIM_ID)
+                .claimUntil(Instant.ofEpochMilli(Long.MAX_VALUE))
+                .createdDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate), Optional.of(newerOwner)).when(outboxEventEntityRepository)
+                .findByIdForUpdate(63L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .status(PaymentStatus.PARTIALLY_REFUNDED)
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verifyNoInteractions(sendMessageInPort);
+    }
+
+    @Test
+    void shouldParkPlacementForManualReviewAfterProcessingAttemptsExhausted() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(64L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        candidate.setProcessingAttempts(9);
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate)).when(outboxEventEntityRepository).findByIdForUpdate(64L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenThrow(new IllegalStateException("order unavailable"));
+
+        newOrchestrator().publishPendingEvents();
+
+        assertThat(candidate.getProcessingAttempts()).isEqualTo(10);
+        assertThat(candidate.getStatus()).isEqualTo(OutboxEventStatus.MANUAL_REVIEW);
+    }
+
+    @Test
+    void shouldParkCompensationForManualReviewAfterAttemptsExhausted() {
+
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(65L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.COMPENSATING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .compensationAttempts(9)
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate)).when(outboxEventEntityRepository).findByIdForUpdate(65L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        doThrow(new IllegalStateException("inventory unavailable")).when(manageStockInPort)
+                .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
+
+        newOrchestrator().publishPendingEvents();
+
+        assertThat(candidate.getCompensationAttempts()).isEqualTo(10);
+        assertThat(candidate.getStatus()).isEqualTo(OutboxEventStatus.MANUAL_REVIEW);
     }
 
 }

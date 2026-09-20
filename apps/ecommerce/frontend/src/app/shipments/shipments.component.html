@@ -52,7 +52,7 @@
         <td>{{ shipment.estimatedDeliveryDate | date : 'mediumDate' }}</td>
         <td>{{ shipment.deliveredDate | date : 'mediumDate' }}</td>
         <td>
-          @if (canWrite && shipment._links?.['advance-status']) {
+          @if (canWrite && shipment._links?.["advance-status"]) {
           <button
             type="button"
             data-testid="advance-shipment"
@@ -77,5 +77,27 @@
       }
     </tbody>
   </table>
+  <nav class="pagination" aria-label="Shipment pages">
+    <button
+      type="button"
+      data-testid="shipments-prev-page"
+      [disabled]="page() === 0 || loading()"
+      (click)="previousPage()"
+    >
+      Previous
+    </button>
+    <span
+      >Page {{ page() + 1 }} / {{ totalPages() || 1 }} ·
+      {{ totalElements() }} total</span
+    >
+    <button
+      type="button"
+      data-testid="shipments-next-page"
+      [disabled]="page() + 1 >= totalPages() || loading()"
+      (click)="nextPage()"
+    >
+      Next
+    </button>
+  </nav>
   }
 </div>

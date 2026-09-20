@@ -3,8 +3,6 @@ package com.cp.ecommerce.application.returns;
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.cp.ecommerce.domain.notification.NotificationType;
-import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -12,253 +10,176 @@ import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
-import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-@SuppressWarnings("PMD.TooManyMethods")
 class ReturnServiceTest {
+
+    private static final String REFUND_AMOUNT = "25.00";
 
     private static final String ORDER_NUMBER = "ORDER-1";
     private static final String RETURN_NUMBER = "RET-1";
     private static final String SKU = "SKU-1";
-    private static final String EMAIL = "customer@example.com";
 
     @Mock
-    private transient RequestReturnInPort requestReturnInPort;
-
+    private RequestReturnInPort requestReturnInPort;
     @Mock
-    private transient GetReturnInPort getReturnInPort;
-
+    private ReturnModerationInPort returnModerationInPort;
     @Mock
-    private transient ReturnModerationInPort returnModerationInPort;
-
+    private ManageOrderUseCase manageOrderUseCase;
     @Mock
-    private transient ManageOrderUseCase manageOrderUseCase;
-
+    private ManagePaymentInPort managePaymentInPort;
     @Mock
-    private transient ManagePaymentInPort managePaymentInPort;
-
+    private RefundEntitlementCalculator refundEntitlementCalculator;
     @Mock
-    private transient SendNotificationInPort sendNotificationInPort;
+    private ReturnStateNotificationTransaction completionTransaction;
 
-    private transient ReturnService service;
+    private ReturnService service;
 
     @BeforeEach
     void setUp() {
-
         service = new ReturnService(
                 requestReturnInPort,
-                getReturnInPort,
                 returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
-                sendNotificationInPort);
+                refundEntitlementCalculator,
+                completionTransaction);
     }
 
     @Test
-    void shouldRequestReturnUsingOrderedQuantityAndRefundSnapshot() {
-
+    void shouldRequestReturnUsingAllocatedRefundEntitlement() {
         final OrderLineItem item = mock(OrderLineItem.class);
         final Order order = mockOrder(OrderStatus.CONFIRMED);
         final ReturnRequest created = mock(ReturnRequest.class);
+        final BigDecimal lineEntitlement = new BigDecimal("45.00");
         given(item.getSku()).willReturn(SKU);
-        given(item.getUnitPrice()).willReturn(new BigDecimal("12.50"));
         given(item.getQuantity()).willReturn(4);
         given(order.getItems()).willReturn(List.of(item));
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
-        given(requestReturnInPort.requestReturn(ORDER_NUMBER, SKU, 2, 4, "damaged", new BigDecimal("25.00")))
+        given(refundEntitlementCalculator.lineEntitlement(order, SKU)).willReturn(lineEntitlement);
+        given(
+                requestReturnInPort.requestReturnFromLineEntitlement(
+                        org.mockito.ArgumentMatchers.eq(ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.eq(SKU),
+                        org.mockito.ArgumentMatchers.eq(2),
+                        org.mockito.ArgumentMatchers.eq(4),
+                        org.mockito.ArgumentMatchers.eq("damaged"),
+                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
                 .willReturn(created);
 
-        final ReturnRequest result = service.requestReturn(ORDER_NUMBER, SKU, 2, "damaged");
+        assertThat(service.requestReturn(ORDER_NUMBER, SKU, 2, "damaged")).isSameAs(created);
 
-        assertThat(result).isSameAs(created);
+        verify(requestReturnInPort).requestReturnFromLineEntitlement(ORDER_NUMBER, SKU, 2, 4, "damaged", lineEntitlement);
     }
 
     @Test
     void shouldRejectReturnForMissingOrder() {
-
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(null);
-
-        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason")).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason"))
+                .isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
     void shouldRejectReturnForNonConfirmedOrder() {
+        final Order order = mockOrder(OrderStatus.CANCELLED);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
 
-        org.mockito.Mockito.doReturn(mockOrder(OrderStatus.CANCELLED)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
-
-        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason")).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason"))
+                .isInstanceOf(ApplicationConflictException.class);
     }
 
     @Test
     void shouldRejectReturnForSkuNotPresentInOrder() {
-
         final Order order = mockOrder(OrderStatus.CONFIRMED);
         given(order.getItems()).willReturn(List.of());
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
-
-        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason")).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.requestReturn(ORDER_NUMBER, SKU, 1, "reason"))
+                .isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
-    void shouldApproveRefundAndNotifyNewReturn() {
-
-        final ReturnRequest approved = returnRequest(ReturnStatus.APPROVED);
-        final ReturnRequest refunded = returnRequest(ReturnStatus.REFUNDED);
-        given(getReturnInPort.getReturn(RETURN_NUMBER)).willReturn(null);
+    void shouldRefundThenCompleteLocalStateAndNotification() {
+        final ReturnRequest approved = request(ReturnStatus.APPROVED, new BigDecimal(REFUND_AMOUNT));
+        final ReturnRequest refunded = request(ReturnStatus.REFUNDED, new BigDecimal(REFUND_AMOUNT));
         given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(approved);
-        given(returnModerationInPort.markRefunded(RETURN_NUMBER)).willReturn(refunded);
-        org.mockito.Mockito.doReturn(mockOrder(OrderStatus.CONFIRMED)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
+        given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
 
-        final ReturnRequest result = service.approveReturn(RETURN_NUMBER);
+        assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
 
-        assertThat(result).isSameAs(refunded);
-        verify(managePaymentInPort).refundPayment(ORDER_NUMBER, RETURN_NUMBER, new BigDecimal("25.00"));
-        verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.RETURN_REFUNDED,
-                "Return RET-1 refunded",
-                "Your return request RET-1 was refunded.");
+        verify(managePaymentInPort).refundPayment(ORDER_NUMBER, RETURN_NUMBER, new BigDecimal(REFUND_AMOUNT));
+        verify(completionTransaction).markRefundedAndNotify(RETURN_NUMBER);
     }
 
     @Test
-    void shouldNotRefundAgainButShouldNotifyWhenExistingReturnWasNotRefunded() {
+    void shouldSkipGatewayForZeroValueReturnAndStillComplete() {
+        final ReturnRequest approved = request(ReturnStatus.APPROVED, BigDecimal.ZERO);
+        final ReturnRequest refunded = request(ReturnStatus.REFUNDED, BigDecimal.ZERO);
+        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(approved);
+        given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
 
-        final ReturnRequest existing = returnRequest(ReturnStatus.APPROVED);
-        final ReturnRequest alreadyRefunded = returnRequest(ReturnStatus.REFUNDED);
-        given(getReturnInPort.getReturn(RETURN_NUMBER)).willReturn(existing);
-        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(alreadyRefunded);
-        given(returnModerationInPort.markRefunded(RETURN_NUMBER)).willReturn(alreadyRefunded);
-        org.mockito.Mockito.doReturn(mockOrder(OrderStatus.CONFIRMED)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
-
-        service.approveReturn(RETURN_NUMBER);
-
-        verify(managePaymentInPort, never()).refundPayment(any(), any(), any());
-        verify(sendNotificationInPort).sendNotification(eq(EMAIL), eq(NotificationType.RETURN_REFUNDED), any(), any());
+        assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
+        verify(managePaymentInPort, never()).refundPayment(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
     }
 
     @Test
-    void shouldNotRepeatRefundNotificationForAlreadyRefundedReturn() {
-
-        final ReturnRequest refunded = returnRequest(ReturnStatus.REFUNDED);
-        given(getReturnInPort.getReturn(RETURN_NUMBER)).willReturn(refunded);
+    void shouldReplayAlreadyRefundedWithoutGatewayCall() {
+        final ReturnRequest refunded = request(ReturnStatus.REFUNDED, new BigDecimal(REFUND_AMOUNT));
         given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(refunded);
-        given(returnModerationInPort.markRefunded(RETURN_NUMBER)).willReturn(refunded);
+        given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
 
-        service.approveReturn(RETURN_NUMBER);
-
-        verify(managePaymentInPort, never()).refundPayment(any(), any(), any());
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
+        verify(managePaymentInPort, never()).refundPayment(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any());
     }
 
     @Test
     void shouldReturnNotFoundWhenApproveCannotLoadReturn() {
-
         given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(null);
-
-        assertThatThrownBy(() -> service.approveReturn(RETURN_NUMBER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.approveReturn(RETURN_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
-    void shouldReturnNotFoundWhenApprovedReturnCannotBeMarkedRefunded() {
-
-        org.mockito.Mockito.doReturn(returnRequest(ReturnStatus.APPROVED))
-                .when(returnModerationInPort)
-                .approveReturn(RETURN_NUMBER);
-        given(returnModerationInPort.markRefunded(RETURN_NUMBER)).willReturn(null);
-
-        assertThatThrownBy(() -> service.approveReturn(RETURN_NUMBER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-    }
-
-    @Test
-    void shouldRejectReturnAndNotifyWhenStateChanges() {
-
-        final ReturnRequest rejected = returnRequest(ReturnStatus.REJECTED);
-        given(getReturnInPort.getReturn(RETURN_NUMBER)).willReturn(null);
-        given(returnModerationInPort.rejectReturn(RETURN_NUMBER)).willReturn(rejected);
-        org.mockito.Mockito.doReturn(mockOrder(OrderStatus.CONFIRMED)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
-
-        final ReturnRequest result = service.rejectReturn(RETURN_NUMBER);
-
-        assertThat(result).isSameAs(rejected);
-        verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.RETURN_REJECTED,
-                "Return RET-1 rejected",
-                "Your return request RET-1 was rejected.");
-    }
-
-    @Test
-    void shouldNotRepeatRejectionNotification() {
-
-        final ReturnRequest rejected = returnRequest(ReturnStatus.REJECTED);
-        given(getReturnInPort.getReturn(RETURN_NUMBER)).willReturn(rejected);
-        given(returnModerationInPort.rejectReturn(RETURN_NUMBER)).willReturn(rejected);
-
-        service.rejectReturn(RETURN_NUMBER);
-
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
-    }
-
-    @Test
-    void shouldReturnNotFoundWhenRejectCannotLoadReturn() {
-
-        given(returnModerationInPort.rejectReturn(RETURN_NUMBER)).willReturn(null);
-
-        assertThatThrownBy(() -> service.rejectReturn(RETURN_NUMBER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    void shouldDelegateRejectionToAtomicCompletion() {
+        final ReturnRequest rejected = request(ReturnStatus.REJECTED, BigDecimal.ZERO);
+        given(completionTransaction.rejectAndNotify(RETURN_NUMBER)).willReturn(rejected);
+        assertThat(service.rejectReturn(RETURN_NUMBER)).isSameAs(rejected);
     }
 
     private static Order mockOrder(final OrderStatus status) {
-
         final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
         given(order.getStatus()).willReturn(status);
-        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
         return order;
     }
 
-    private static ReturnRequest returnRequest(final ReturnStatus status) {
-
+    private static ReturnRequest request(final ReturnStatus status, final BigDecimal refundAmount) {
         final ReturnRequest request = mock(ReturnRequest.class);
-        given(request.getReturnNumber()).willReturn(RETURN_NUMBER);
-        given(request.getOrderNumber()).willReturn(ORDER_NUMBER);
-        given(request.getRefundAmount()).willReturn(new BigDecimal("25.00"));
-        given(request.getStatus()).willReturn(status);
+        org.mockito.Mockito.lenient().when(request.getReturnNumber()).thenReturn(RETURN_NUMBER);
+        org.mockito.Mockito.lenient().when(request.getOrderNumber()).thenReturn(ORDER_NUMBER);
+        org.mockito.Mockito.lenient().when(request.getRefundAmount()).thenReturn(refundAmount);
+        org.mockito.Mockito.lenient().when(request.getStatus()).thenReturn(status);
         return request;
     }
 }

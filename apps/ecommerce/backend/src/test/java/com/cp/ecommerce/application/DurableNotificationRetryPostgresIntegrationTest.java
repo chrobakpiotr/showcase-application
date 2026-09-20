@@ -77,14 +77,16 @@ class DurableNotificationRetryPostgresIntegrationTest {
                 .when(deliverNotificationOutPort)
                 .deliver(any(Notification.class));
 
-        final Notification failed = sendNotificationInPort.sendNotification(
+        final Notification pending = sendNotificationInPort.sendNotification(
                 "r07@example.com",
                 NotificationType.ORDER_CANCELLED,
                 "Order cancelled",
                 "Your order was cancelled.");
 
-        assertThat(failed.getStatus()).isEqualTo(NotificationStatus.FAILED);
-        final String notificationId = failed.getNotificationId();
+        assertThat(pending.getStatus()).isEqualTo(NotificationStatus.PENDING);
+        final String notificationId = pending.getNotificationId();
+
+        retryNotificationDeliveryInPort.retryDueNotifications();
 
         NotificationEntity persisted = notificationEntityRepository.findById(notificationId).orElseThrow();
         assertThat(persisted.getStatus()).isEqualTo(NotificationStatus.FAILED);

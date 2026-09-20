@@ -138,4 +138,47 @@ describe('ReturnsService', () => {
     expect(req.request.method).toBe('POST');
     req.flush(returnRequest);
   });
+
+  it('covers explicit and default paging parameters for return reads', () => {
+    const response: ReturnCollectionModel = {
+      _embedded: { returnRequestResourceList: [returnRequest] },
+    };
+
+    returnsService.listReturns(2, 7).subscribe();
+    let req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns?page=2&size=7`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(response);
+
+    returnsService.listReturns(3).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns?page=3&size=20`
+    );
+    req.flush(response);
+
+    returnsService.listPendingReturns(4, 9).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns/pending?page=4&size=9`
+    );
+    req.flush(response);
+
+    returnsService.listPendingReturns(5).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns/pending?page=5&size=20`
+    );
+    req.flush(response);
+
+    returnsService.listReturnsForOrder('ORD-1', 6, 11).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns/order/ORD-1?page=6&size=11`
+    );
+    req.flush(response);
+
+    returnsService.listReturnsForOrder('ORD-1', 7).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/returns/order/ORD-1?page=7&size=20`
+    );
+    req.flush(response);
+  });
 });

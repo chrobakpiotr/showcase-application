@@ -1,6 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim;
@@ -22,6 +24,8 @@ class OrderPlacementSagaArbitrationAdapterTest {
 
     private static final String ORDER_NUMBER = "ORDER-1";
 
+    private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-20T10:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     private transient OutboxEventEntityRepository repository;
 
@@ -30,7 +34,7 @@ class OrderPlacementSagaArbitrationAdapterTest {
     @BeforeEach
     void setUp() {
 
-        adapter = new OrderPlacementSagaArbitrationAdapter(repository);
+        adapter = new OrderPlacementSagaArbitrationAdapter(repository, CLOCK);
     }
 
     @Test
@@ -70,7 +74,7 @@ class OrderPlacementSagaArbitrationAdapterTest {
 
         final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
         event.setClaimId("dead-worker");
-        event.setClaimUntil(Instant.ofEpochMilli(0L));
+        event.setClaimUntil(CLOCK.instant().minusMillis(1));
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);

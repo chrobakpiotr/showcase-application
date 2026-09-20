@@ -17,6 +17,8 @@ import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,9 +27,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -106,9 +105,8 @@ class ShipmentServiceTest {
 
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(null);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER))
+                .isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
@@ -116,9 +114,8 @@ class ShipmentServiceTest {
 
         org.mockito.Mockito.doReturn(order(OrderStatus.CANCELLED, null)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER))
+                .isInstanceOf(ApplicationConflictException.class);
     }
 
     @Test
@@ -127,9 +124,8 @@ class ShipmentServiceTest {
         org.mockito.Mockito.doReturn(order(OrderStatus.CONFIRMED, null)).when(manageOrderUseCase).findOrder(ORDER_NUMBER);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.PENDING)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER))
+                .isInstanceOf(ApplicationConflictException.class);
     }
 
     @Test
@@ -139,9 +135,8 @@ class ShipmentServiceTest {
         org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
         given(listShipmentsInPort.listShipmentsForOrder(ORDER_NUMBER)).willReturn(List.of(mock(Shipment.class)));
 
-        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
+        assertThatThrownBy(() -> service.createShipment(ORDER_NUMBER, CARRIER))
+                .isInstanceOf(ApplicationConflictException.class);
     }
 
     @Test
@@ -149,9 +144,7 @@ class ShipmentServiceTest {
 
         given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(null);
 
-        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
@@ -243,4 +236,105 @@ class ShipmentServiceTest {
         given(shipment.getTrackingNumber()).willReturn("TRACK-1");
         return shipment;
     }
+
+    @Test
+    void shouldDispatchWithOperationIdentityAndPersistedReservation() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        final Order order = order(OrderStatus.CONFIRMED, "RES-OP");
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-1", ShipmentStatus.PENDING))
+                .willReturn(shipment);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
+
+        assertThat(service.advanceShipment(SHIPMENT_NUMBER, "operation-1", ShipmentStatus.PENDING)).isSameAs(shipment);
+
+        verify(manageStockInPort).fulfillStock("RES-OP", SKU);
+        verify(sendNotificationInPort).sendNotification(
+                EMAIL,
+                NotificationType.SHIPMENT_DISPATCHED,
+                "Shipment SHIP-1 dispatched",
+                "Your shipment SHIP-1 was dispatched. Tracking number: TRACK-1.");
+    }
+
+    @Test
+    void shouldUseOrderNumberReservationForOperationDispatchFallback() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        final Order order = order(OrderStatus.CONFIRMED, null);
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-2", ShipmentStatus.PENDING))
+                .willReturn(shipment);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
+
+        service.advanceShipment(SHIPMENT_NUMBER, "operation-2", ShipmentStatus.PENDING);
+
+        verify(manageStockInPort).fulfillStock(ORDER_NUMBER, SKU);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenOperationDispatchCannotLoadShipment() {
+
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-3", ShipmentStatus.PENDING))
+                .willReturn(null);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-3", ShipmentStatus.PENDING))
+                .isInstanceOf(ApplicationNotFoundException.class);
+    }
+
+    @Test
+    void shouldRejectOperationDispatchForNonConfirmedOrder() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-4", ShipmentStatus.PENDING))
+                .willReturn(shipment);
+        final Order cancelledOrder = order(OrderStatus.CANCELLED, "RES-4");
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(cancelledOrder);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-4", ShipmentStatus.PENDING))
+                .isInstanceOf(ApplicationConflictException.class);
+    }
+
+    @Test
+    void shouldRejectOperationDispatchBeforePaymentCapture() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-5", ShipmentStatus.PENDING))
+                .willReturn(shipment);
+        final Order confirmedOrder = order(OrderStatus.CONFIRMED, "RES-5");
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(confirmedOrder);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.PENDING)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-5", ShipmentStatus.PENDING))
+                .isInstanceOf(ApplicationConflictException.class);
+    }
+
+    @Test
+    void shouldNotifyDeliveryForOperationAdvance() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DELIVERED);
+        final Order confirmedOrder = order(OrderStatus.CONFIRMED, "RES-6");
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT))
+                .willReturn(shipment);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(confirmedOrder);
+
+        assertThat(service.advanceShipment(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT)).isSameAs(shipment);
+
+        verify(sendNotificationInPort).sendNotification(
+                EMAIL,
+                NotificationType.SHIPMENT_DELIVERED,
+                "Shipment SHIP-1 delivered",
+                "Your shipment SHIP-1 was delivered.");
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenNonDispatchOperationAdvanceCannotLoadShipment() {
+
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-7", ShipmentStatus.IN_TRANSIT))
+                .willReturn(null);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-7", ShipmentStatus.IN_TRANSIT))
+                .isInstanceOf(ApplicationNotFoundException.class);
+    }
+
 }

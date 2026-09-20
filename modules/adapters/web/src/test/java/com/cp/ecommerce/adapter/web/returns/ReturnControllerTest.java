@@ -9,7 +9,9 @@ import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
+import com.cp.ecommerce.application.returns.RefundEntitlementCalculator;
 import com.cp.ecommerce.application.returns.ReturnService;
+import com.cp.ecommerce.application.returns.ReturnStateNotificationTransaction;
 import com.cp.ecommerce.application.returns.ReturnWorkflow;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
@@ -26,11 +28,13 @@ import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,13 +43,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -59,8 +64,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Test class checking return controller's behavior and API responses.
  */
 @WebMvcTest(ReturnController.class)
-@Import(ReturnService.class)
+@Import({ ReturnService.class, RefundEntitlementCalculator.class, ReturnStateNotificationTransaction.class })
 class ReturnControllerTest {
+
+    private static final BigDecimal TEST_LINE_REFUND_ENTITLEMENT = OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE
+            .multiply(BigDecimal.valueOf(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY));
+
+    private static final String TEST_EMAIL = "test@test.com";
+
+    private static final String RETURN_SUBJECT_PREFIX = "Return ";
+
+    private static final String RETURN_BODY_PREFIX = "Your return request ";
 
     private static final String RETURNS_ENDPOINT = "/api/returns";
     private static final String APPROVE_ENDPOINT = "/approve";
@@ -96,6 +110,14 @@ class ReturnControllerTest {
 
     @MockitoBean
     private transient ReturnWebMapper returnWebMapper;
+
+    @MockitoBean
+    private transient PlatformTransactionManager transactionManager;
+
+    @BeforeEach
+    void transactionBoundary() {
+        org.mockito.Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+    }
 
     @Test
     void shouldListReturns() throws Exception {
@@ -168,18 +190,17 @@ class ReturnControllerTest {
 
     @Test
     void shouldCreateReturnRequest() throws Exception {
-
         final Order order = OrderBuilder.mockOrder();
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(orderWithNumber(order));
         given(
-                requestReturnInPort.requestReturn(
-                        eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        eq(1),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        eq(ReturnRequestBuilder.TEST_REASON),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE)))
+                requestReturnInPort.requestReturnFromLineEntitlement(
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
+                        org.mockito.ArgumentMatchers.eq(1),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
+                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
                 .willReturn(created);
         given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
 
@@ -193,6 +214,14 @@ class ReturnControllerTest {
                                         ReturnRequestBuilder.TEST_REASON)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.returnNumber").value(ReturnRequestBuilder.TEST_RETURN_NUMBER));
+
+        verify(requestReturnInPort).requestReturnFromLineEntitlement(
+                ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                1,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                ReturnRequestBuilder.TEST_REASON,
+                TEST_LINE_REFUND_ENTITLEMENT);
     }
 
     @Test
@@ -363,17 +392,16 @@ class ReturnControllerTest {
 
     @Test
     void shouldReturnConflictWhenAtomicEntitlementCheckFails() throws Exception {
-
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
         given(
-                requestReturnInPort.requestReturn(
-                        eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        eq(1),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        eq(ReturnRequestBuilder.TEST_REASON),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE)))
+                requestReturnInPort.requestReturnFromLineEntitlement(
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
+                        org.mockito.ArgumentMatchers.eq(1),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
+                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
                 .willThrow(new ReturnQuantityConflictException(0));
 
         mockMvc.perform(
@@ -386,22 +414,29 @@ class ReturnControllerTest {
                                         ReturnRequestBuilder.TEST_REASON)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Return Quantity Conflict"));
+
+        verify(requestReturnInPort).requestReturnFromLineEntitlement(
+                ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                1,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                ReturnRequestBuilder.TEST_REASON,
+                TEST_LINE_REFUND_ENTITLEMENT);
     }
 
     @Test
     void shouldPassOrderedQuantityToAtomicReturnPort() throws Exception {
-
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
         given(
-                requestReturnInPort.requestReturn(
-                        eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        eq(2),
-                        eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        eq(ReturnRequestBuilder.TEST_REASON),
-                        eq(BigDecimal.valueOf(59.98))))
+                requestReturnInPort.requestReturnFromLineEntitlement(
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
+                        org.mockito.ArgumentMatchers.eq(2),
+                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
+                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
+                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
                 .willReturn(created);
         given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
 
@@ -414,6 +449,14 @@ class ReturnControllerTest {
                                         2,
                                         ReturnRequestBuilder.TEST_REASON)))
                 .andExpect(status().isCreated());
+
+        verify(requestReturnInPort).requestReturnFromLineEntitlement(
+                ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                2,
+                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                ReturnRequestBuilder.TEST_REASON,
+                TEST_LINE_REFUND_ENTITLEMENT);
     }
 
     @Test
@@ -455,10 +498,10 @@ class ReturnControllerTest {
                 ReturnRequestBuilder.TEST_RETURN_NUMBER,
                 ReturnRequestBuilder.TEST_REFUND_AMOUNT);
         verify(sendNotificationInPort).sendNotification(
-                "test@test.com",
+                TEST_EMAIL,
                 NotificationType.RETURN_REFUNDED,
-                "Return " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
-                "Your return request " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
+                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
+                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
     }
 
     @Test
@@ -470,12 +513,19 @@ class ReturnControllerTest {
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
 
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REFUNDED"));
 
         verify(managePaymentInPort, never()).refundPayment(any());
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort).sendNotification(
+                TEST_EMAIL,
+                NotificationType.RETURN_REFUNDED,
+                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
+                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
     }
 
     @Test
@@ -494,10 +544,10 @@ class ReturnControllerTest {
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
         verify(sendNotificationInPort).sendNotification(
-                "test@test.com",
+                TEST_EMAIL,
                 NotificationType.RETURN_REJECTED,
-                "Return " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
-                "Your return request " + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
+                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
+                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
     }
 
     @Test
@@ -508,11 +558,18 @@ class ReturnControllerTest {
         given(returnModerationInPort.rejectReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
         given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REJECTED)));
 
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + REJECT_ENDPOINT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort).sendNotification(
+                TEST_EMAIL,
+                NotificationType.RETURN_REJECTED,
+                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
+                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
     }
 
     @Test
@@ -564,7 +621,7 @@ class ReturnControllerTest {
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
 
         assertThatThrownBy(() -> controller.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER))
-                .isInstanceOf(ResponseStatusException.class);
+                .isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test

@@ -23,6 +23,8 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -32,9 +34,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -153,6 +152,23 @@ class PlaceOrderServiceTest {
     }
 
     @Test
+    void shouldReplayCompletedOrderWithoutCatalogCouponOrInventoryAccess() {
+
+        final Order draft = draft(ORDER_NUMBER, null, COUPON_CODE, List.of(clientItem(FIRST_SKU, 1)));
+        given(placeOrderUseCase.placeOrder(any(), eq("replay-key"), any()))
+                .willReturn(new PlaceOrderResult("EXISTING-ORDER", false));
+
+        final PlaceOrderResult result = service.placeOrder(draft, "replay-key");
+
+        assertThat(result.orderNumber()).isEqualTo("EXISTING-ORDER");
+        assertThat(result.newlyPlaced()).isFalse();
+        verify(manageProductInPort, never()).findProduct(any());
+        verify(applyCouponInPort, never()).applyCoupon(any(), any(), any());
+        verify(manageStockInPort, never()).reserveStock(any(), any(), org.mockito.ArgumentMatchers.anyInt());
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+    }
+
+    @Test
     void shouldReuseExistingReservationIdentityAndTreatBlankCouponAsAbsent() {
 
         final Order draft = draft(ORDER_NUMBER, "RESERVATION-1", " ", List.of(clientItem(FIRST_SKU, 1)));
@@ -178,11 +194,15 @@ class PlaceOrderServiceTest {
         given(manageProductInPort.findProduct(FIRST_SKU))
                 .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, true));
 
-        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+        given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
+            final UnaryOperator<Order> prepare = invocation.getArgument(2);
+            prepare.apply(invocation.getArgument(0));
+            return new PlaceOrderResult(ORDER_NUMBER, true);
+        });
 
-        verify(placeOrderUseCase, never()).placeOrder(any(), any(), any());
+        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOf(ApplicationBadRequestException.class);
+
+        verify(placeOrderUseCase).placeOrder(any(), any(), any());
     }
 
     @Test
@@ -191,9 +211,13 @@ class PlaceOrderServiceTest {
         final Order draft = draft(ORDER_NUMBER, null, null, List.of(clientItem(FIRST_SKU, 1)));
         given(manageProductInPort.findProduct(FIRST_SKU)).willReturn(null);
 
-        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
+            final UnaryOperator<Order> prepare = invocation.getArgument(2);
+            prepare.apply(invocation.getArgument(0));
+            return new PlaceOrderResult(ORDER_NUMBER, true);
+        });
+
+        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
@@ -203,9 +227,13 @@ class PlaceOrderServiceTest {
         given(manageProductInPort.findProduct(FIRST_SKU))
                 .willReturn(product(FIRST_SKU, FIRST_PRODUCT_NAME, FIRST_PRODUCT_PRICE, false));
 
-        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        given(placeOrderUseCase.placeOrder(any(), any(), any())).willAnswer(invocation -> {
+            final UnaryOperator<Order> prepare = invocation.getArgument(2);
+            prepare.apply(invocation.getArgument(0));
+            return new PlaceOrderResult(ORDER_NUMBER, true);
+        });
+
+        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test
@@ -220,9 +248,7 @@ class PlaceOrderServiceTest {
             return new PlaceOrderResult(prepare.apply(invocation.getArgument(0)).getOrderNumber(), true);
         });
 
-        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOfSatisfying(
-                ResponseStatusException.class,
-                exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        assertThatThrownBy(() -> service.placeOrder(draft, null)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
     @Test

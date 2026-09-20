@@ -137,4 +137,57 @@ describe('ShipmentsService', () => {
     expect(req.request.method).toBe('POST');
     req.flush(shipment);
   });
+
+  it('covers shipment paging defaults and idempotency header branches', () => {
+    const response: ShipmentCollectionModel = {
+      _embedded: { shipmentResourceList: [shipment] },
+    };
+
+    shipmentsService.listShipments(2, 7).subscribe();
+    let req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments?page=2&size=7`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(response);
+
+    shipmentsService.listShipments(3).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments?page=3&size=20`
+    );
+    req.flush(response);
+
+    shipmentsService.listShipmentsByStatus('DISPATCHED', 4, 9).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments/status/DISPATCHED?page=4&size=9`
+    );
+    req.flush(response);
+
+    shipmentsService.listShipmentsByStatus('DELIVERED', 5).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments/status/DELIVERED?page=5&size=20`
+    );
+    req.flush(response);
+
+    shipmentsService
+      .advanceShipmentStatus('SHIP-1', 'op-without-status')
+      .subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments/SHIP-1/advance`
+    );
+    expect(req.request.headers.has('Idempotency-Key')).toBeFalse();
+    expect(req.request.headers.has('X-Expected-Shipment-Status')).toBeFalse();
+    req.flush(shipment);
+
+    shipmentsService
+      .advanceShipmentStatus('SHIP-1', 'op-2', 'PENDING')
+      .subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/shipments/SHIP-1/advance`
+    );
+    expect(req.request.headers.get('Idempotency-Key')).toBe('op-2');
+    expect(req.request.headers.get('X-Expected-Shipment-Status')).toBe(
+      'PENDING'
+    );
+    req.flush(shipment);
+  });
 });

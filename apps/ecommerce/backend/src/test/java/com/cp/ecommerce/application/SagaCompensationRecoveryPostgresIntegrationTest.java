@@ -53,6 +53,7 @@ import static org.mockito.Mockito.doThrow;
                 "outbox.publisher.enabled=true",
                 "outbox.publisher.poll-interval-ms=3600000",
                 "outbox.publisher.max-fulfillment-attempts=1",
+                "outbox.publisher.retry-backoff-ms=0",
                 "notification.retry.enabled=false",
                 "resilience4j.ratelimiter.instances.placeOrder.limit-for-period=1000" })
 class SagaCompensationRecoveryPostgresIntegrationTest {

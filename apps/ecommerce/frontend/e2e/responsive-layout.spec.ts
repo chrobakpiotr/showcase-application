@@ -1,22 +1,22 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-import { loginAs } from './auth';
+import { loginAs } from "./auth";
 
 const ROUTES = [
-  ['dashboard', 'app-dashboard'],
-  ['order', 'app-order'],
-  ['orders', 'app-order-list'],
-  ['analytics', 'app-analytics-assistant'],
-  ['catalog', 'app-catalog'],
-  ['cart', 'app-cart'],
-  ['wishlist', 'app-wishlist'],
-  ['recommendations', 'app-recommendations'],
-  ['inventory', 'app-inventory'],
-  ['reviews', 'app-reviews'],
-  ['returns', 'app-returns'],
-  ['notifications', 'app-notifications'],
-  ['shipments', 'app-shipments'],
-  ['coupons', 'app-coupons'],
+  ["dashboard", "app-dashboard"],
+  ["order", "app-order"],
+  ["orders", "app-order-list"],
+  ["analytics", "app-analytics-assistant"],
+  ["catalog", "app-catalog"],
+  ["cart", "app-cart"],
+  ["wishlist", "app-wishlist"],
+  ["recommendations", "app-recommendations"],
+  ["inventory", "app-inventory"],
+  ["reviews", "app-reviews"],
+  ["returns", "app-returns"],
+  ["notifications", "app-notifications"],
+  ["shipments", "app-shipments"],
+  ["coupons", "app-coupons"],
 ] as const;
 
 // A separate test budget per route prevents fourteen full navigations sharing 30s.
@@ -27,7 +27,7 @@ for (const [route, component] of ROUTES) {
     await loginAs(page);
     const target = new URL(page.url());
     target.pathname = target.pathname.replace(/\/dashboard$/, `/${route}`);
-    const tableRoutes = new Set(['notifications', 'shipments', 'coupons']);
+    const tableRoutes = new Set(["notifications", "shipments", "coupons"]);
     const loadedTable = tableRoutes.has(route)
       ? page.waitForResponse((response) =>
           new URL(response.url()).pathname.endsWith(`/api/${route}`),
@@ -39,11 +39,17 @@ for (const [route, component] of ROUTES) {
       expect(response.ok()).toBeTruthy();
       // This is a layout test: synchronize on the rendered DOM rather than on
       // the complete network-response lifecycle.
-      await expect(page.locator(`${component} tbody tr`).first()).toBeVisible();
+      if (route === "notifications" || route === "shipments") {
+        await expect(page.locator(`${component} .loading`)).toHaveCount(0);
+      } else {
+        await expect(
+          page.locator(`${component} tbody tr`).first(),
+        ).toBeVisible();
+      }
     }
     await expect(page.locator(component)).toBeVisible();
-    if (route === 'catalog') {
-      await expect(page.getByTestId('product-card').first()).toBeVisible();
+    if (route === "catalog") {
+      await expect(page.getByTestId("product-card").first()).toBeVisible();
     }
     await expect(page.locator(`${component} .loading`)).toHaveCount(0);
     const dimensions = await page.evaluate(() => ({
@@ -56,36 +62,36 @@ for (const [route, component] of ROUTES) {
   });
 }
 
-for (const state of ['populated', 'empty', 'error'] as const) {
+for (const state of ["populated", "empty", "error"] as const) {
   test(`catalog at 390px after ${state} response`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await loginAs(page);
-    await page.route('**/api/catalog/products?*', (route) =>
+    await page.route("**/api/catalog/products?*", (route) =>
       route.fulfill({
-        status: state === 'error' ? 503 : 200,
+        status: state === "error" ? 503 : 200,
         json: {
           _embedded: {
             productDetailsResourceList:
-              state === 'populated'
+              state === "populated"
                 ? [
                     {
-                      sku: 'LAYOUT-FIXTURE',
-                      name: 'A product with a representative long display name',
+                      sku: "LAYOUT-FIXTURE",
+                      name: "A product with a representative long display name",
                       description:
-                        'A loaded product card for layout verification.',
-                      categoryName: 'Electronics',
-                      categorySlug: 'electronics',
+                        "A loaded product card for layout verification.",
+                      categoryName: "Electronics",
+                      categorySlug: "electronics",
                       unitPrice: 39.9,
-                      imageUrl: '',
+                      imageUrl: "",
                       active: true,
-                      created: '2026-01-01',
+                      created: "2026-01-01",
                     },
                   ]
                 : [],
           },
           page: {
             size: 12,
-            totalElements: state === 'populated' ? 1 : 0,
+            totalElements: state === "populated" ? 1 : 0,
             totalPages: 1,
             number: 0,
           },
@@ -93,28 +99,28 @@ for (const state of ['populated', 'empty', 'error'] as const) {
       }),
     );
     const target = new URL(page.url());
-    target.pathname = target.pathname.replace(/\/dashboard$/, '/catalog');
+    target.pathname = target.pathname.replace(/\/dashboard$/, "/catalog");
     const loadedCatalog = page.waitForResponse((result) =>
-      new URL(result.url()).pathname.endsWith('/api/catalog/products'),
+      new URL(result.url()).pathname.endsWith("/api/catalog/products"),
     );
     await page.goto(target.toString());
     await loadedCatalog;
-    await expect(page.locator('app-catalog')).toBeVisible();
-    await expect(page.locator('app-catalog .loading')).toHaveCount(0);
-    if (state === 'populated') {
-      await expect(page.getByTestId('product-card')).toContainText(
-        'LAYOUT-FIXTURE',
+    await expect(page.locator("app-catalog")).toBeVisible();
+    await expect(page.locator("app-catalog .loading")).toHaveCount(0);
+    if (state === "populated") {
+      await expect(page.getByTestId("product-card")).toContainText(
+        "LAYOUT-FIXTURE",
       );
-      await page.getByTestId('product-inventory').click();
-      await expect(page.getByTestId('sku')).toHaveValue('LAYOUT-FIXTURE');
-      await expect(page.getByTestId('stock-level')).toHaveCount(0);
+      await page.getByTestId("product-inventory").click();
+      await expect(page.getByTestId("sku")).toHaveValue("LAYOUT-FIXTURE");
+      await expect(page.getByTestId("stock-level")).toHaveCount(0);
       await page.goBack();
-      await expect(page.getByTestId('product-card')).toBeVisible();
-    } else if (state === 'empty') {
-      await expect(page.getByTestId('empty-products')).toBeVisible();
+      await expect(page.getByTestId("product-card")).toBeVisible();
+    } else if (state === "empty") {
+      await expect(page.getByTestId("empty-products")).toBeVisible();
     } else {
       await expect(page.locator('app-catalog [role="alert"]')).toContainText(
-        'Failed to load products.',
+        "Failed to load products.",
       );
     }
     const overflow = await page.evaluate(

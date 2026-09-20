@@ -88,6 +88,12 @@ class ManagePaymentRefundAdapter implements ManagePaymentRefundOutPort {
     }
 
     @Override
+    public boolean hasPending(final String orderNumber) {
+
+        return paymentRefundEntityRepository.countByOrderNumberAndStatus(orderNumber, PaymentRefundStatus.PENDING) > 0L;
+    }
+
+    @Override
     @Transactional
     public PaymentTransaction complete(final String refundId) {
 

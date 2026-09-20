@@ -4,6 +4,9 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.UUID;
 
+import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 import com.cp.ecommerce.foundation.exception.BusinessRuleException;
 import com.cp.ecommerce.foundation.exception.CartConflictException;
 import com.cp.ecommerce.foundation.exception.CouponAlreadyExistsException;
@@ -14,6 +17,7 @@ import com.cp.ecommerce.foundation.exception.IdempotencyKeyConflictException;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
@@ -98,6 +102,32 @@ public class GlobalExceptionHandler {
     public GlobalExceptionHandler(final ObjectProvider<Tracer> tracerProvider) {
 
         this.tracerProvider = tracerProvider;
+    }
+
+    @ResponseStatus(BAD_REQUEST)
+    @ExceptionHandler(ApplicationBadRequestException.class)
+    public ProblemDetail applicationBadRequestException(final ApplicationBadRequestException exception) {
+
+        return problemDetail(exception, BAD_REQUEST, TYPE_BUSINESS_RULE_VIOLATION, "Bad Request", exception.getMessage());
+    }
+
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ExceptionHandler(ApplicationNotFoundException.class)
+    public ProblemDetail applicationNotFoundException(final ApplicationNotFoundException exception) {
+
+        return problemDetail(
+                exception,
+                HttpStatus.NOT_FOUND,
+                TYPE_BUSINESS_RULE_VIOLATION,
+                "Resource Not Found",
+                exception.getMessage());
+    }
+
+    @ResponseStatus(CONFLICT)
+    @ExceptionHandler({ ApplicationConflictException.class, PaymentOperationConflictException.class })
+    public ProblemDetail applicationConflictException(final BusinessRuleException exception) {
+
+        return problemDetail(exception, CONFLICT, TYPE_BUSINESS_RULE_VIOLATION, "Conflict", exception.getMessage());
     }
 
     @ResponseStatus(BAD_REQUEST)

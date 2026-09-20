@@ -35,6 +35,11 @@ export class ReturnsComponent implements OnInit {
   readonly pendingReturns = signal<ReturnModel[]>([]);
   readonly errorMessage = signal<string | null>(null);
   readonly moderationErrorMessage = signal<string | null>(null);
+  readonly historyPage = signal(0);
+  readonly historyTotalPages = signal(0);
+  readonly pendingPage = signal(0);
+  readonly pendingTotalPages = signal(0);
+  private readonly pageSize = 20;
 
   get canRead(): boolean {
     return this.authService.roles().includes('RETURN_READ');
@@ -49,6 +54,30 @@ export class ReturnsComponent implements OnInit {
       this.loadReturns();
       this.loadPendingReturns();
     }
+  }
+
+  previousHistoryPage(): void {
+    if (this.historyPage() === 0) return;
+    this.historyPage.update((value) => value - 1);
+    this.loadReturns();
+  }
+
+  nextHistoryPage(): void {
+    if (this.historyPage() + 1 >= this.historyTotalPages()) return;
+    this.historyPage.update((value) => value + 1);
+    this.loadReturns();
+  }
+
+  previousPendingPage(): void {
+    if (this.pendingPage() === 0) return;
+    this.pendingPage.update((value) => value - 1);
+    this.loadPendingReturns();
+  }
+
+  nextPendingPage(): void {
+    if (this.pendingPage() + 1 >= this.pendingTotalPages()) return;
+    this.pendingPage.update((value) => value + 1);
+    this.loadPendingReturns();
   }
 
   approve(returnNumber: string): void {
@@ -106,11 +135,13 @@ export class ReturnsComponent implements OnInit {
     this.returnsSubscription.unsubscribe();
     this.errorMessage.set(null);
     this.returnsSubscription = this.returnsService
-      .listReturns()
+      .listReturns(this.historyPage(), this.pageSize)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (page) =>
-          this.returns.set(page._embedded?.returnRequestResourceList ?? []),
+        next: (page) => {
+          this.returns.set(page._embedded?.returnRequestResourceList ?? []);
+          this.historyTotalPages.set(page.page?.totalPages ?? 0);
+        },
         error: () => this.errorMessage.set('Failed to load return requests.'),
       });
   }
@@ -120,7 +151,7 @@ export class ReturnsComponent implements OnInit {
     this.loadingPending.set(true);
     this.moderationErrorMessage.set(null);
     this.pendingSubscription = this.returnsService
-      .listPendingReturns()
+      .listPendingReturns(this.pendingPage(), this.pageSize)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (page) => {
@@ -128,6 +159,11 @@ export class ReturnsComponent implements OnInit {
           this.pendingReturns.set(
             page._embedded?.returnRequestResourceList ?? []
           );
+          this.pendingTotalPages.set(page.page?.totalPages ?? 0);
+          if (this.pendingReturns().length === 0 && this.pendingPage() > 0) {
+            this.pendingPage.update((value) => value - 1);
+            this.loadPendingReturns();
+          }
         },
         error: () => {
           this.loadingPending.set(false);

@@ -17,11 +17,13 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.PlaceOrderUseCase;
+import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,14 +44,13 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
     private final SendNotificationInPort sendNotificationInPort;
 
     @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public PlaceOrderResult placeOrder(final Order draft, final String idempotencyKey) {
 
-        final Order priced = priceOrder(draft);
-        priced.assertValidationsEmpty();
-        final PlaceOrderResult result = placeOrderUseCase.placeOrder(priced, idempotencyKey, this::prepareOrder);
+        final PlaceOrderResult result = placeOrderUseCase.placeOrder(draft, idempotencyKey, this::prepareOrder);
         if (result.newlyPlaced()) {
             sendNotificationInPort.sendNotification(
-                    priced.getCustomer().getContact().getEmail(),
+                    draft.getCustomer().getContact().getEmail(),
                     NotificationType.ORDER_CONFIRMED,
                     "Order " + result.orderNumber() + " confirmed",
                     "Your order " + result.orderNumber() + " was confirmed.");
@@ -62,11 +63,11 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
         final java.util.Set<String> seen = new java.util.HashSet<>();
         final List<OrderLineItem> pricedItems = draft.getItems().stream().map(item -> {
             if (!seen.add(item.getSku())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate SKU in order: " + item.getSku());
+                throw new ApplicationBadRequestException("Duplicate SKU in order: " + item.getSku());
             }
             final Product product = manageProductInPort.findProduct(item.getSku());
             if (product == null || !product.isActive()) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active product not found: " + item.getSku());
+                throw new ApplicationNotFoundException("Active product not found: " + item.getSku());
             }
             return OrderLineItem.builder()
                     .sku(product.getSku())
@@ -92,7 +93,9 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
 
     private Order prepareOrder(final Order draft) {
 
-        final Order prepared = withStockReservationIdentity(applyCouponIfPresent(draft));
+        final Order priced = priceOrder(draft);
+        priced.assertValidationsEmpty();
+        final Order prepared = withStockReservationIdentity(applyCouponIfPresent(priced));
         prepared.assertValidationsEmpty();
         reserveStockFor(prepared);
         return prepared;
@@ -117,7 +120,7 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
         final CouponDiscount discount = applyCouponInPort
                 .applyCoupon(order.getCouponCode(), order.getSubtotal(), Instant.ofEpochMilli(clock.instant().toEpochMilli()));
         if (discount == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Coupon not found");
+            throw new ApplicationNotFoundException("Coupon not found");
         }
         return copy(order, order.getStockReservationId(), discount.code(), discount.discountAmount());
     }

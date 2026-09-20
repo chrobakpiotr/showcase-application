@@ -132,6 +132,30 @@ class StockReservationIdentityPostgresIntegrationTest {
     }
 
     @Test
+    void shouldNotReleaseAnotherOrdersReservationAfterFulfillment() {
+
+        final String sku = "R02F-" + compactUuid();
+        final String reservationA = UUID.randomUUID().toString();
+        final String reservationB = UUID.randomUUID().toString();
+        manageStockInPort.receiveStock(sku, 10);
+
+        manageStockInPort.reserveStock(reservationA, sku, 3);
+        manageStockInPort.reserveStock(reservationB, sku, 4);
+        manageStockInPort.fulfillStock(reservationA, sku);
+
+        assertThat(getStockLevelInPort.getStockLevel(sku).getQuantityOnHand()).isEqualTo(7);
+        assertThat(getStockLevelInPort.getStockLevel(sku).getQuantityReserved()).isEqualTo(4);
+
+        manageStockInPort.releaseStock(reservationA, sku);
+
+        assertThat(getStockLevelInPort.getStockLevel(sku).getQuantityOnHand()).isEqualTo(7);
+        assertThat(getStockLevelInPort.getStockLevel(sku).getQuantityReserved()).isEqualTo(4);
+
+        manageStockInPort.releaseStock(reservationB, sku);
+        assertThat(getStockLevelInPort.getStockLevel(sku).getQuantityReserved()).isZero();
+    }
+
+    @Test
     void shouldReserveOnceAndReleaseOnceUnderConcurrentDuplicateReplay() throws Exception {
 
         final String sku = "R02C-" + compactUuid();

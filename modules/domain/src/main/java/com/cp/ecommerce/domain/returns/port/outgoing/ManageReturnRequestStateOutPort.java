@@ -9,6 +9,8 @@ public interface ManageReturnRequestStateOutPort {
 
     ReturnRequest create(ReturnRequest returnRequest, int orderedQuantity);
 
+    ReturnRequest createFromLineEntitlement(ReturnRequest returnRequest, int orderedQuantity);
+
     ReturnRequest approve(String returnNumber);
 
     ReturnRequest reject(String returnNumber);

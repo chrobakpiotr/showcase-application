@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.returns;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
@@ -71,6 +72,66 @@ class ManageReturnRequestStateAdapterTest {
         given(returnRequestPersistenceMapper.mapToDomainObject(entity)).willReturn(Optional.of(request));
 
         assertThat(adapter.create(request, request.getQuantity())).isSameAs(request);
+    }
+
+    @Test
+    void shouldPreserveRequestedRefundAmountForLegacyPortContract() {
+
+        final BigDecimal requestedRefund = new BigDecimal("30.00");
+        final ReturnRequest directRequest = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(1)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(requestedRefund)
+                .build();
+        final ReturnRequestEntity directEntity = ReturnRequestEntityBuilder.mockReturnRequestEntity();
+        directEntity.setRefundAmount(requestedRefund);
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(directRequest.getOrderNumber()))
+                .willReturn(mock(OrderEntity.class));
+        given(
+                returnRequestEntityRepository
+                        .sumActiveQuantity(directRequest.getOrderNumber(), directRequest.getSku(), ReturnStatus.REJECTED))
+                .willReturn(0L);
+        given(returnRequestPersistenceMapper.mapToEntity(directRequest)).willReturn(Optional.of(directEntity));
+        given(returnRequestEntityRepository.saveAndFlush(directEntity)).willReturn(directEntity);
+        given(returnRequestPersistenceMapper.mapToDomainObject(directEntity)).willReturn(Optional.of(directRequest));
+
+        adapter.create(directRequest, 2);
+
+        assertThat(directEntity.getRefundAmount()).isEqualByComparingTo(requestedRefund);
+    }
+
+    @Test
+    void shouldAllocateFullLineEntitlementAcrossSequentialPartialReturns() {
+
+        final BigDecimal fullLineEntitlement = new BigDecimal("60.00");
+        final ReturnRequest first = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(1)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(fullLineEntitlement)
+                .build();
+        final ReturnRequestEntity firstEntity = ReturnRequestEntityBuilder.mockReturnRequestEntity();
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(first.getOrderNumber())).willReturn(mock(OrderEntity.class));
+        given(returnRequestEntityRepository.sumActiveQuantity(first.getOrderNumber(), first.getSku(), ReturnStatus.REJECTED))
+                .willReturn(0L);
+        given(returnRequestPersistenceMapper.mapToEntity(first)).willReturn(Optional.of(firstEntity));
+        given(returnRequestEntityRepository.saveAndFlush(firstEntity)).willReturn(firstEntity);
+        given(returnRequestPersistenceMapper.mapToDomainObject(firstEntity)).willReturn(Optional.of(first));
+
+        adapter.createFromLineEntitlement(first, 2);
+
+        assertThat(firstEntity.getRefundAmount()).isEqualByComparingTo("30.00");
     }
 
     @Test
@@ -284,6 +345,34 @@ class ManageReturnRequestStateAdapterTest {
 
         assertThat(adapter.markRefunded(request.getReturnNumber())).isSameAs(request);
         assertThat(entity.getStatus()).isEqualTo(ReturnStatus.REFUNDED);
+    }
+
+    @Test
+    void shouldAllocateMinorUnitRemainderToEarliestReturnedUnit() {
+
+        final BigDecimal fullLineEntitlement = new BigDecimal("0.01");
+        final ReturnRequest first = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(1)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(fullLineEntitlement)
+                .build();
+        final ReturnRequestEntity firstEntity = ReturnRequestEntityBuilder.mockReturnRequestEntity();
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(first.getOrderNumber())).willReturn(mock(OrderEntity.class));
+        given(returnRequestEntityRepository.sumActiveQuantity(first.getOrderNumber(), first.getSku(), ReturnStatus.REJECTED))
+                .willReturn(0L);
+        given(returnRequestPersistenceMapper.mapToEntity(first)).willReturn(Optional.of(firstEntity));
+        given(returnRequestEntityRepository.saveAndFlush(firstEntity)).willReturn(firstEntity);
+        given(returnRequestPersistenceMapper.mapToDomainObject(firstEntity)).willReturn(Optional.of(first));
+
+        adapter.createFromLineEntitlement(first, 2);
+
+        assertThat(firstEntity.getRefundAmount()).isEqualByComparingTo("0.01");
     }
 
 }

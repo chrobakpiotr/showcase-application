@@ -41,4 +41,6 @@
     <include file="changelogs/db.changelog-outbox-claims.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-return-concurrency.xml" relativeToChangelogFile="true" />
 
+    <include file="changelogs/db.changelog-stabilization-n01-n13.xml" relativeToChangelogFile="true" />
+
 </databaseChangeLog>

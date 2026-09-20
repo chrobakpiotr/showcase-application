@@ -642,9 +642,12 @@ describe('OrderListComponent', () => {
 
     component.advanceShipmentStatus('SHIP-1');
 
-    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledWith(
-      'SHIP-1'
-    );
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalled();
+    const args =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+    expect(args[0]).toBe('SHIP-1');
+    expect(args[1]).toBeTruthy();
+    expect(args[2]).toBe('PENDING');
     expect(component.shipmentSuccessMessage()).toBe(
       'Shipment status advanced.'
     );
@@ -729,5 +732,15 @@ describe('OrderListComponent', () => {
     component.previousPage();
 
     expect(component.page()).toBe(0);
+  });
+
+  it('does not advance an unknown shipment for a selected order', () => {
+    setup(['SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    component.selectOrder('ORDER-1');
+
+    component.advanceShipmentStatus('SHIP-404');
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).not.toHaveBeenCalled();
   });
 });

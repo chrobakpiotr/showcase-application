@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.returns;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -36,12 +37,26 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
     @Transactional
     public ReturnRequest create(final ReturnRequest returnRequest, final int orderedQuantity) {
 
+        return create(returnRequest, orderedQuantity, false);
+    }
+
+    @Override
+    @Transactional
+    public ReturnRequest createFromLineEntitlement(final ReturnRequest returnRequest, final int orderedQuantity) {
+
+        return create(returnRequest, orderedQuantity, true);
+    }
+
+    private ReturnRequest create(
+            final ReturnRequest returnRequest,
+            final int orderedQuantity,
+            final boolean allocateFromLineEntitlement) {
+
         lockOrder(returnRequest.getOrderNumber());
         final long activeQuantity = returnRequestEntityRepository
                 .sumActiveQuantity(returnRequest.getOrderNumber(), returnRequest.getSku(), ReturnStatus.REJECTED);
         final long remainingQuantity = Math.max(0L, (long) orderedQuantity - activeQuantity);
         if (returnRequest.getQuantity() > remainingQuantity) {
-
             throw new ReturnQuantityConflictException(Math.toIntExact(remainingQuantity));
         }
 
@@ -50,6 +65,14 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
                         () -> new IllegalStateException(
                                 "Failed to map return request domain object to entity for return number: "
                                         + returnRequest.getReturnNumber()));
+        if (allocateFromLineEntitlement) {
+            entity.setRefundAmount(
+                    allocateEntitlement(
+                            returnRequest.getRefundAmount(),
+                            orderedQuantity,
+                            Math.toIntExact(activeQuantity),
+                            returnRequest.getQuantity()));
+        }
         return mapToDomain(returnRequestEntityRepository.saveAndFlush(entity));
     }
 
@@ -129,6 +152,22 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
 
         entity.setStatus(ReturnStatus.REFUNDED);
         return saveAndMap(entity);
+    }
+
+    private static BigDecimal allocateEntitlement(
+            final BigDecimal fullLineEntitlement,
+            final int orderedQuantity,
+            final int alreadyAllocatedQuantity,
+            final int requestedQuantity) {
+
+        final long cents = fullLineEntitlement.movePointRight(2).longValueExact();
+        final long base = cents / orderedQuantity;
+        final long remainder = cents % orderedQuantity;
+        long allocated = 0L;
+        for (int unit = alreadyAllocatedQuantity; unit < alreadyAllocatedQuantity + requestedQuantity; unit++) {
+            allocated += base + (unit < remainder ? 1L : 0L);
+        }
+        return BigDecimal.valueOf(allocated, 2);
     }
 
     private ReturnRequest saveAndMap(final ReturnRequestEntity entity) {

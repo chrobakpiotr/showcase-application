@@ -22,7 +22,11 @@
     </select>
   </div>
 
-  @if (errorMessage()) {
+  @if (loading()) {
+  <p class="loading" data-testid="notifications-loading">
+    Loading notifications...
+  </p>
+  } @if (errorMessage()) {
   <div class="error-message" role="alert">{{ errorMessage() }}</div>
   }
 
@@ -39,8 +43,8 @@
         </tr>
       </thead>
       <tbody>
-        @for (notification of notifications(); track
-        notification.notificationId) {
+        @for ( notification of notifications(); track
+        notification.notificationId ) {
         <tr data-testid="notification-row">
           <td>{{ notification.recipientEmail }}</td>
           <td>{{ notification.type }}</td>
@@ -59,5 +63,27 @@
       </tbody>
     </table>
   </div>
+  <nav class="pagination" aria-label="Notifications pages">
+    <button
+      type="button"
+      data-testid="notifications-prev-page"
+      [disabled]="page() === 0 || loading()"
+      (click)="previousPage()"
+    >
+      Previous
+    </button>
+    <span data-testid="notifications-page-state">
+      Page {{ page() + 1 }} / {{ totalPages() || 1 }} ·
+      {{ totalElements() }} total
+    </span>
+    <button
+      type="button"
+      data-testid="notifications-next-page"
+      [disabled]="page() + 1 >= totalPages() || loading()"
+      (click)="nextPage()"
+    >
+      Next
+    </button>
+  </nav>
   }
 </div>

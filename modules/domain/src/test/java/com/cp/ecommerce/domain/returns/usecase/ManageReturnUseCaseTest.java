@@ -64,6 +64,23 @@ class ManageReturnUseCaseTest {
     }
 
     @Test
+    void shouldCreateRequestedReturnFromFullLineEntitlement() {
+
+        final ArgumentCaptor<ReturnRequest> captor = ArgumentCaptor.forClass(ReturnRequest.class);
+        given(generateReturnNumberOutPort.generate()).willReturn(RETURN_NUMBER);
+        given(manageReturnRequestStateOutPort.createFromLineEntitlement(captor.capture(), eq(3)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        final ReturnRequest result = manageReturnUseCase
+                .requestReturnFromLineEntitlement("ORD-1", "SKU-1", 2, 3, "Damaged", new BigDecimal("89.97"));
+
+        assertThat(result.getReturnNumber()).isEqualTo(RETURN_NUMBER);
+        assertThat(result.getStatus()).isEqualTo(ReturnStatus.REQUESTED);
+        assertThat(captor.getValue().getRefundAmount()).isEqualByComparingTo("89.97");
+        verify(manageReturnRequestStateOutPort).createFromLineEntitlement(captor.getValue(), 3);
+    }
+
+    @Test
     void shouldListReturns() {
 
         given(findReturnRequestsOutPort.findAll()).willReturn(List.of(TestDomainObjectFactory.validReturnRequest()));

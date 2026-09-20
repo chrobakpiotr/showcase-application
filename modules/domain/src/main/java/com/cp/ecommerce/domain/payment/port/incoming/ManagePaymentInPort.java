@@ -27,4 +27,9 @@ public interface ManagePaymentInPort {
      * Refunds a specific amount under a durable idempotency identity, e.g. one return/RMA number.
      */
     PaymentTransaction refundPayment(String orderNumber, String refundId, BigDecimal amount);
+
+    /**
+     * Returns true while at least one durable refund for the order has not reached provider-confirmed completion.
+     */
+    boolean hasPendingRefunds(String orderNumber);
 }

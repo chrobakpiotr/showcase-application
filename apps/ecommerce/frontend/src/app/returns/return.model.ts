@@ -1,3 +1,5 @@
+import { HalPageMetadata } from '@app/shared/hal-page.model';
+
 export type ReturnStatus = 'REQUESTED' | 'APPROVED' | 'REJECTED' | 'REFUNDED';
 
 export interface ReturnModel {
@@ -27,4 +29,5 @@ export interface ReturnCollectionModel {
   _embedded?: {
     returnRequestResourceList: ReturnModel[];
   };
+  page?: HalPageMetadata;
 }

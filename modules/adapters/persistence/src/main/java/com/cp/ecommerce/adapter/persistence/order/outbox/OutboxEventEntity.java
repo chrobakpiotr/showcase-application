@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -68,5 +69,19 @@ public class OutboxEventEntity {
 
     @Column(name = "CLAIM_UNTIL")
     private Instant claimUntil;
+
+    @Column(name = "NEXT_ATTEMPT_DATE", nullable = false)
+    private Instant nextAttemptDate;
+
+    @Column(name = "PROCESSING_ATTEMPTS", nullable = false)
+    private int processingAttempts;
+
+    @PrePersist
+    void initializeNextAttemptDate() {
+
+        if (nextAttemptDate == null) {
+            nextAttemptDate = createdDate;
+        }
+    }
 
 }

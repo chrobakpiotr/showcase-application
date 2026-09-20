@@ -13,21 +13,31 @@ import {
 export class ReturnsService {
   private readonly httpClient = inject(HttpClient);
 
-  listReturns(): Observable<ReturnCollectionModel> {
+  listReturns(page?: number, size?: number): Observable<ReturnCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<ReturnCollectionModel>(
-      `${environment.apiPrefix}/returns`
+      `${environment.apiPrefix}/returns${suffix}`
     );
   }
 
-  listPendingReturns(): Observable<ReturnCollectionModel> {
+  listPendingReturns(
+    page?: number,
+    size?: number
+  ): Observable<ReturnCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<ReturnCollectionModel>(
-      `${environment.apiPrefix}/returns/pending`
+      `${environment.apiPrefix}/returns/pending${suffix}`
     );
   }
 
-  listReturnsForOrder(orderNumber: string): Observable<ReturnCollectionModel> {
+  listReturnsForOrder(
+    orderNumber: string,
+    page?: number,
+    size?: number
+  ): Observable<ReturnCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<ReturnCollectionModel>(
-      `${environment.apiPrefix}/returns/order/${orderNumber}`
+      `${environment.apiPrefix}/returns/order/${orderNumber}${suffix}`
     );
   }
 

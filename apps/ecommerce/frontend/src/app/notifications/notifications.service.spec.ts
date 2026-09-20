@@ -96,4 +96,35 @@ describe('NotificationsService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(notification);
   });
+
+  it('covers explicit and default paging parameters for notification reads', () => {
+    const response: NotificationCollectionModel = {
+      _embedded: { notificationResourceList: [notification] },
+    };
+
+    notificationsService.listNotifications(2, 7).subscribe();
+    let req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/notifications?page=2&size=7`
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(response);
+
+    notificationsService.listNotifications(3).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/notifications?page=3&size=20`
+    );
+    req.flush(response);
+
+    notificationsService.listNotificationsByStatus('SENT', 4, 9).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/notifications/status/SENT?page=4&size=9`
+    );
+    req.flush(response);
+
+    notificationsService.listNotificationsByStatus('FAILED', 5).subscribe();
+    req = httpTestingController.expectOne(
+      `${environment.apiPrefix}/notifications/status/FAILED?page=5&size=20`
+    );
+    req.flush(response);
+  });
 });

@@ -40,4 +40,19 @@ class SaveNotificationAdapter implements SaveNotificationOutPort {
                                         + notification.getNotificationId()));
     }
 
+    @Override
+    public Notification saveOnce(final Notification notification) {
+
+        if (notification.getEventKey() != null) {
+            final var existing = notificationEntityRepository.findByEventKey(notification.getEventKey());
+            if (existing.isPresent()) {
+                return notificationPersistenceMapper.mapToDomainObject(existing.get())
+                        .orElseThrow(
+                                () -> new IllegalStateException(
+                                        "Failed to map existing notification for event key: " + notification.getEventKey()));
+            }
+        }
+        return save(notification);
+    }
+
 }

@@ -359,4 +359,21 @@ class ManagePaymentRefundAdapterTest {
 
         return PaymentRefundEntity.builder().refundId(REFUND_ID).orderNumber(orderNumber).amount(amount).status(status).build();
     }
+
+    @Test
+    void shouldReportPendingRefunds() {
+
+        given(refundRepository.countByOrderNumberAndStatus(ORDER_NUMBER, PaymentRefundStatus.PENDING)).willReturn(1L);
+
+        assertThat(adapter.hasPending(ORDER_NUMBER)).isTrue();
+    }
+
+    @Test
+    void shouldReportNoPendingRefunds() {
+
+        given(refundRepository.countByOrderNumberAndStatus(ORDER_NUMBER, PaymentRefundStatus.PENDING)).willReturn(0L);
+
+        assertThat(adapter.hasPending(ORDER_NUMBER)).isFalse();
+    }
+
 }

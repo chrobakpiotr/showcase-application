@@ -55,6 +55,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
@@ -141,8 +143,13 @@ class OrderControllerTest {
     @MockitoBean
     private transient SendNotificationInPort sendNotificationInPort;
 
+    @MockitoBean
+    private transient PlatformTransactionManager transactionManager;
+
     @BeforeEach
     void stubRateLimiterToRunActionsThrough() {
+
+        org.mockito.Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(Instant.parse("2026-09-19T10:00:00Z"));
 

@@ -1,5 +1,6 @@
 package com.cp.ecommerce.application.order;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
@@ -7,6 +8,8 @@ import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +24,8 @@ import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
@@ -141,6 +146,27 @@ class CancelOrderServiceTest {
     }
 
     @Test
+    void shouldKeepCancellationIntentOpenWhilePartialRefundIsPending() {
+
+        final OrderLineItem item = mock(OrderLineItem.class);
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        given(item.getSku()).willReturn(FIRST_SKU);
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of(item));
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+        given(managePaymentInPort.refundPayment(ORDER_NUMBER))
+                .willReturn(PaymentTransaction.builder().orderNumber(ORDER_NUMBER).status(PaymentStatus.CAPTURED).build());
+        given(managePaymentInPort.hasPendingRefunds(ORDER_NUMBER)).willReturn(true);
+
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
+
+        verify(managePaymentInPort).hasPendingRefunds(ORDER_NUMBER);
+        verifyNoInteractions(sendNotificationInPort);
+        org.mockito.Mockito.verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+    }
+
+    @Test
     void shouldNotRepeatSideEffectsForTerminalCancellation() {
 
         final Order order = mock(Order.class);
@@ -152,4 +178,86 @@ class CancelOrderServiceTest {
         assertThat(result).isSameAs(order);
         verifyNoInteractions(manageStockInPort, managePaymentInPort, sendNotificationInPort);
     }
+
+    @Test
+    void shouldCapturePendingPaymentBeforeCompletingCancellation() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        final PaymentTransaction pending = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.PENDING)
+                .created(Instant.parse("2026-09-20T10:00:00Z"))
+                .build();
+        final PaymentTransaction captured = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.CAPTURED)
+                .build();
+        final PaymentTransaction refunded = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.REFUNDED)
+                .build();
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+        given(managePaymentInPort.refundPayment(ORDER_NUMBER)).willReturn(pending, refunded);
+        given(managePaymentInPort.capturePayment(ORDER_NUMBER, order.getTotal(), order.getPaymentMethod()))
+                .willReturn(captured);
+
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
+
+        org.mockito.Mockito.verify(managePaymentInPort, org.mockito.Mockito.times(2)).refundPayment(ORDER_NUMBER);
+        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
+    }
+
+    @Test
+    void shouldRefundAgainWhenRecoveredCaptureWasPartiallyRefunded() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        final PaymentTransaction pending = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.PENDING)
+                .created(Instant.parse("2026-09-20T10:00:00Z"))
+                .build();
+        final PaymentTransaction partiallyRefunded = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.PARTIALLY_REFUNDED)
+                .build();
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+        given(managePaymentInPort.refundPayment(ORDER_NUMBER)).willReturn(pending, partiallyRefunded);
+        given(managePaymentInPort.capturePayment(ORDER_NUMBER, order.getTotal(), order.getPaymentMethod()))
+                .willReturn(partiallyRefunded);
+
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
+
+        org.mockito.Mockito.verify(managePaymentInPort, org.mockito.Mockito.times(2)).refundPayment(ORDER_NUMBER);
+    }
+
+    @Test
+    void shouldKeepCancellationOpenWhenCaptureOutcomeRemainsPending() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        final PaymentTransaction pending = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .status(PaymentStatus.PENDING)
+                .created(Instant.parse("2026-09-20T10:00:00Z"))
+                .build();
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+        given(managePaymentInPort.refundPayment(ORDER_NUMBER)).willReturn(pending);
+        given(managePaymentInPort.capturePayment(ORDER_NUMBER, order.getTotal(), order.getPaymentMethod())).willReturn(pending);
+
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
+
+        verifyNoInteractions(sendNotificationInPort);
+        org.mockito.Mockito.verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+    }
+
 }

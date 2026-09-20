@@ -61,6 +61,10 @@ import lombok.extern.slf4j.Slf4j;
 @SuppressWarnings("PMD.CouplingBetweenObjects")
 public class OrderPlacementSagaOrchestrator {
 
+    private static final String PAYMENT_CAPTURE_STEP = "payment-capture";
+
+    private static final String FULFILLMENT_STEP = "fulfillment";
+
     private final OutboxEventEntityRepository outboxEventEntityRepository;
 
     private final ManageOrderInPort manageOrderInPort;
@@ -93,6 +97,15 @@ public class OrderPlacementSagaOrchestrator {
 
     private final Clock clock;
 
+    @Value("${outbox.publisher.retry-backoff-ms:5000}")
+    private long retryBackoffMillis = 5_000L;
+
+    @Value("${outbox.publisher.max-processing-attempts:10}")
+    private int maxProcessingAttempts = 10;
+
+    @Value("${outbox.publisher.max-compensation-attempts:10}")
+    private int maxCompensationAttempts = 10;
+
     @Value("${outbox.publisher.max-fulfillment-attempts:5}")
     private int maxFulfillmentAttempts = 5;
 
@@ -106,12 +119,22 @@ public class OrderPlacementSagaOrchestrator {
     public void publishPendingEvents() {
 
         final Instant now = Instant.ofEpochMilli(clock.instant().toEpochMilli());
-        outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING)
+        outboxEventEntityRepository
+                .findDueByStatus(
+                        OutboxEventStatus.PENDING,
+                        now,
+                        org.springframework.data.domain.PageRequest.of(0, OutboxEventEntityRepository.DEFAULT_POLL_BATCH_SIZE))
                 .forEach(this::publishPlacementCandidate);
         outboxEventEntityRepository
                 .findAllByStatusAndClaimUntilLessThanEqualOrderByCreatedDateAsc(OutboxEventStatus.PROCESSING, now)
                 .forEach(this::publishPlacementCandidate);
-        outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING)
+
+        final Instant compensationNow = Instant.ofEpochMilli(clock.instant().toEpochMilli());
+        outboxEventEntityRepository
+                .findDueAndClaimableByStatus(
+                        OutboxEventStatus.COMPENSATING,
+                        compensationNow,
+                        org.springframework.data.domain.PageRequest.of(0, OutboxEventEntityRepository.DEFAULT_POLL_BATCH_SIZE))
                 .forEach(this::publishCompensatingCandidate);
     }
 
@@ -204,20 +227,34 @@ public class OrderPlacementSagaOrchestrator {
 
         final long startNanos = System.nanoTime();
         try {
+            if (!ownsPlacementClaim(claim)) {
+                sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
+                return false;
+            }
+
             final PaymentTransaction payment = managePaymentInPort
                     .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
-            if (payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED || payment.getStatus() == PaymentStatus.REFUNDED) {
 
-                sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
+            if (!ownsPlacementClaim(claim)) {
+                if (payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED) {
+                    managePaymentInPort.refundPayment(order.getOrderNumber());
+                }
+                sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
+                log.warn("Placement claim was lost during payment capture for order: {}", order.getOrderNumber());
+                return false;
+            }
+
+            if (payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED || payment.getStatus() == PaymentStatus.REFUNDED) {
+                sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
                 log.warn("Refusing to continue placement saga for refunded order: {}", order.getOrderNumber());
                 releasePlacementClaim(claim, "Payment is already refunded");
                 return false;
             }
-            sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), true);
+
+            sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), true);
             return true;
         } catch (final PaymentDeclinedException exception) {
-
-            sagaMetrics.recordStepDuration("payment-capture", elapsedSince(startNanos), false);
+            sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
             log.error(
                     "Payment capture declined for order: {}, compensating by cancelling the order.",
                     order.getOrderNumber(),
@@ -227,17 +264,47 @@ public class OrderPlacementSagaOrchestrator {
         }
     }
 
+    private boolean ownsPlacementClaim(final SagaClaim claim) {
+
+        final Boolean owned = transactionOperations.execute(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .map(event -> ownsPlacementClaim(event, claim))
+                        .orElse(false));
+        return Boolean.TRUE.equals(owned);
+    }
+
+    private boolean renewPlacementClaim(final SagaClaim claim) {
+
+        final Boolean renewed = transactionOperations.execute(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .filter(event -> ownsPlacementClaim(event, claim))
+                        .map(event -> {
+                            event.setClaimUntil(claimUntil());
+                            return true;
+                        })
+                        .orElse(false));
+        return Boolean.TRUE.equals(renewed);
+    }
+
     // Pivot/compensable saga step: bounded-retry, and once exhausted, compensates instead of retrying forever.
     private boolean notifyFulfillment(final Order order, final SagaClaim claim) {
 
         final long startNanos = System.nanoTime();
         try {
+            if (!renewPlacementClaim(claim)) {
+                sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
+                return false;
+            }
             sendMessageInPort.sendMessage(order);
-            sagaMetrics.recordStepDuration("fulfillment", elapsedSince(startNanos), true);
+            if (!ownsPlacementClaim(claim)) {
+                sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
+                return false;
+            }
+            sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), true);
             return true;
         } catch (RuntimeException exception) {
 
-            sagaMetrics.recordStepDuration("fulfillment", elapsedSince(startNanos), false);
+            sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
             recordFulfillmentFailure(order, claim, exception);
             return false;
         }
@@ -270,6 +337,7 @@ public class OrderPlacementSagaOrchestrator {
                                         exception);
                                 event.setStatus(OutboxEventStatus.PENDING);
                             }
+                            event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli() + retryBackoffMillis));
                             clearClaim(event);
                             outboxEventEntityRepository.save(event);
                         }));
@@ -284,6 +352,7 @@ public class OrderPlacementSagaOrchestrator {
                             cancelOrderInPort.cancelOrder(order.getOrderNumber());
                             event.setStatus(OutboxEventStatus.COMPENSATING);
                             event.setLastError(error);
+                            event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli()));
                             clearClaim(event);
                             outboxEventEntityRepository.save(event);
                         }));
@@ -295,9 +364,15 @@ public class OrderPlacementSagaOrchestrator {
                 status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
                         .filter(event -> ownsPlacementClaim(event, claim))
                         .ifPresent(event -> {
-                            event.setStatus(OutboxEventStatus.PENDING);
+                            event.setProcessingAttempts(event.getProcessingAttempts() + 1);
+                            event.setStatus(
+                                    event.getProcessingAttempts() >= maxProcessingAttempts
+                                            ? OutboxEventStatus.MANUAL_REVIEW
+                                            : OutboxEventStatus.PENDING);
                             event.setLastError(error);
+                            event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli() + retryBackoffMillis));
                             clearClaim(event);
+                            outboxEventEntityRepository.save(event);
                         }));
     }
 
@@ -371,6 +446,10 @@ public class OrderPlacementSagaOrchestrator {
                 .ifPresent(event -> {
                     event.setCompensationAttempts(event.getCompensationAttempts() + 1);
                     event.setLastError(exception.getMessage());
+                    event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli() + retryBackoffMillis));
+                    if (event.getCompensationAttempts() >= maxCompensationAttempts) {
+                        event.setStatus(OutboxEventStatus.MANUAL_REVIEW);
+                    }
                     clearClaim(event);
                     outboxEventEntityRepository.save(event);
                 });

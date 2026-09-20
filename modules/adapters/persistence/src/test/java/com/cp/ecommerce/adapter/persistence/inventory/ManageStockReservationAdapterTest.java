@@ -159,6 +159,22 @@ class ManageStockReservationAdapterTest {
     }
 
     @Test
+    void shouldNoOpWhenReleasingAlreadyFulfilledReservation() {
+
+        final StockLevelEntity stock = stock(7, 4);
+        given(stockLevelEntityRepository.findBySkuForUpdate(SKU)).willReturn(Optional.of(stock));
+        given(stockReservationEntityRepository.findById(RESERVATION_KEY))
+                .willReturn(Optional.of(reservation(3, StockReservationStatus.FULFILLED)));
+
+        final StockLevel result = adapter.releaseStock(RESERVATION_ID, SKU);
+
+        assertThat(result.getQuantityOnHand()).isEqualTo(7);
+        assertThat(result.getQuantityReserved()).isEqualTo(4);
+        verify(stockLevelEntityRepository, never()).saveAndFlush(any());
+        verify(stockReservationEntityRepository, never()).save(any());
+    }
+
+    @Test
     void shouldFulfillOwnedReservationOnce() {
 
         final StockLevelEntity stock = stock(10, 5);

@@ -1,9 +1,5 @@
 package com.cp.ecommerce.application.returns;
 
-import java.math.BigDecimal;
-
-import com.cp.ecommerce.domain.notification.NotificationType;
-import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
@@ -11,16 +7,18 @@ import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
-import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Application workflow for RMA creation and moderation.
+ */
 @Service
 @RequiredArgsConstructor
 public class ReturnService implements ReturnWorkflow {
@@ -29,83 +27,58 @@ public class ReturnService implements ReturnWorkflow {
 
     private final RequestReturnInPort requestReturnInPort;
 
-    private final GetReturnInPort getReturnInPort;
-
     private final ReturnModerationInPort returnModerationInPort;
 
     private final ManageOrderUseCase manageOrderUseCase;
 
     private final ManagePaymentInPort managePaymentInPort;
 
-    private final SendNotificationInPort sendNotificationInPort;
+    private final RefundEntitlementCalculator refundEntitlementCalculator;
+
+    private final ReturnStateNotificationTransaction returnStateNotificationTransaction;
 
     @Override
     public ReturnRequest requestReturn(final String orderNumber, final String sku, final int quantity, final String reason) {
 
         final Order order = requireOrder(orderNumber);
         if (order.getStatus() != OrderStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CONFIRMED orders can be returned");
+            throw new ApplicationConflictException("Only CONFIRMED orders can be returned");
         }
         final OrderLineItem item = order.getItems()
                 .stream()
                 .filter(line -> line.getSku().equals(sku))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order line item not found"));
-        final BigDecimal amount = item.getUnitPrice().multiply(BigDecimal.valueOf(quantity));
-        return requestReturnInPort.requestReturn(orderNumber, sku, quantity, item.getQuantity(), reason, amount);
+                .orElseThrow(() -> new ApplicationNotFoundException("Order line item not found"));
+        final var lineEntitlement = refundEntitlementCalculator.lineEntitlement(order, sku);
+        return requestReturnInPort
+                .requestReturnFromLineEntitlement(orderNumber, sku, quantity, item.getQuantity(), reason, lineEntitlement);
     }
 
     @Override
     public ReturnRequest approveReturn(final String returnNumber) {
 
-        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
         final ReturnRequest approved = returnModerationInPort.approveReturn(returnNumber);
         if (approved == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND);
+            throw new ApplicationNotFoundException(RETURN_NOT_FOUND);
         }
-        if (approved.getStatus() != ReturnStatus.REFUNDED) {
+        if (approved.getStatus() != ReturnStatus.REFUNDED && approved.getRefundAmount().signum() > 0) {
             managePaymentInPort
                     .refundPayment(approved.getOrderNumber(), approved.getReturnNumber(), approved.getRefundAmount());
         }
-        final ReturnRequest refunded = returnModerationInPort.markRefunded(returnNumber);
-        if (refunded == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND);
-        }
-        if (existing == null || existing.getStatus() != ReturnStatus.REFUNDED) {
-            notify(refunded, NotificationType.RETURN_REFUNDED, "refunded");
-        }
-        return refunded;
+        return returnStateNotificationTransaction.markRefundedAndNotify(returnNumber);
     }
 
     @Override
     public ReturnRequest rejectReturn(final String returnNumber) {
 
-        final ReturnRequest existing = getReturnInPort.getReturn(returnNumber);
-        final ReturnRequest rejected = returnModerationInPort.rejectReturn(returnNumber);
-        if (rejected == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, RETURN_NOT_FOUND);
-        }
-        if (existing == null || existing.getStatus() != ReturnStatus.REJECTED) {
-            notify(rejected, NotificationType.RETURN_REJECTED, "rejected");
-        }
-        return rejected;
-    }
-
-    private void notify(final ReturnRequest request, final NotificationType type, final String state) {
-
-        final Order order = requireOrder(request.getOrderNumber());
-        sendNotificationInPort.sendNotification(
-                order.getCustomer().getContact().getEmail(),
-                type,
-                "Return " + request.getReturnNumber() + " " + state,
-                "Your return request " + request.getReturnNumber() + " was " + state + ".");
+        return returnStateNotificationTransaction.rejectAndNotify(returnNumber);
     }
 
     private Order requireOrder(final String orderNumber) {
 
         final Order order = manageOrderUseCase.findOrder(orderNumber);
         if (order == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
+            throw new ApplicationNotFoundException("Order not found");
         }
         return order;
     }

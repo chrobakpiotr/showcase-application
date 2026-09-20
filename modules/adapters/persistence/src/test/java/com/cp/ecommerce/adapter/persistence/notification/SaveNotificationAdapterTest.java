@@ -70,4 +70,41 @@ class SaveNotificationAdapterTest {
         assertThrows(IllegalStateException.class, () -> saveNotificationAdapter.save(notification));
     }
 
+    @Test
+    void shouldReturnExistingNotificationForSameEventKey() {
+
+        final Notification notification = org.mockito.Mockito.mock(Notification.class);
+        final NotificationEntity existing = NotificationEntityBuilder.mockNotificationEntity();
+        doReturn("event-coverage").when(notification).getEventKey();
+        doReturn(Optional.of(existing)).when(notificationEntityRepository).findByEventKey("event-coverage");
+        doReturn(Optional.of(notification)).when(notificationPersistenceMapper).mapToDomainObject(existing);
+
+        assertEquals(notification, saveNotificationAdapter.saveOnce(notification));
+    }
+
+    @Test
+    void shouldFailWhenExistingEventKeyCannotBeMapped() {
+
+        final Notification notification = org.mockito.Mockito.mock(Notification.class);
+        final NotificationEntity existing = NotificationEntityBuilder.mockNotificationEntity();
+        doReturn("event-coverage-failure").when(notification).getEventKey();
+        doReturn(Optional.of(existing)).when(notificationEntityRepository).findByEventKey("event-coverage-failure");
+        doReturn(Optional.empty()).when(notificationPersistenceMapper).mapToDomainObject(existing);
+
+        assertThrows(IllegalStateException.class, () -> saveNotificationAdapter.saveOnce(notification));
+    }
+
+    @Test
+    void shouldFallBackToSaveWhenEventKeyIsAbsent() {
+
+        final Notification notification = org.mockito.Mockito.mock(Notification.class);
+        final NotificationEntity mappedEntity = NotificationEntityBuilder.mockNotificationEntity();
+        doReturn(null).when(notification).getEventKey();
+        doReturn(Optional.of(mappedEntity)).when(notificationPersistenceMapper).mapToEntity(notification);
+        doReturn(mappedEntity).when(notificationEntityRepository).save(mappedEntity);
+        doReturn(Optional.of(notification)).when(notificationPersistenceMapper).mapToDomainObject(mappedEntity);
+
+        assertEquals(notification, saveNotificationAdapter.saveOnce(notification));
+    }
+
 }

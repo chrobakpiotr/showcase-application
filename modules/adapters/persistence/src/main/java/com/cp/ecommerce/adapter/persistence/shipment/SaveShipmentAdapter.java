@@ -28,7 +28,7 @@ class SaveShipmentAdapter implements SaveShipmentOutPort {
                         () -> new IllegalStateException(
                                 "Failed to map shipment domain object to entity for shipment number: "
                                         + shipment.getShipmentNumber()));
-        final ShipmentEntity saved = shipmentEntityRepository.save(entityToSave);
+        final ShipmentEntity saved = shipmentEntityRepository.saveAndFlush(entityToSave);
         return shipmentPersistenceMapper.mapToDomainObject(saved)
                 .orElseThrow(
                         () -> new IllegalStateException(

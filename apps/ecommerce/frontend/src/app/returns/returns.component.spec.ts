@@ -333,4 +333,71 @@ describe('ReturnsComponent', () => {
     expect(queue.observed).toBeFalse();
     expect(history.observed).toBeFalse();
   });
+
+  it('covers return-history pagination in both directions and at boundaries', () => {
+    setup(['RETURN_READ']);
+    returnsServiceSpy.listReturns.calls.reset();
+
+    component.historyPage.set(0);
+    component.historyTotalPages.set(3);
+    component.previousHistoryPage();
+    expect(returnsServiceSpy.listReturns).not.toHaveBeenCalled();
+
+    component.nextHistoryPage();
+    expect(component.historyPage()).toBe(1);
+    expect(returnsServiceSpy.listReturns).toHaveBeenCalledWith(1, 20);
+
+    component.previousHistoryPage();
+    expect(component.historyPage()).toBe(0);
+    expect(returnsServiceSpy.listReturns).toHaveBeenCalledWith(0, 20);
+
+    returnsServiceSpy.listReturns.calls.reset();
+    component.historyPage.set(2);
+    component.historyTotalPages.set(3);
+    component.nextHistoryPage();
+    expect(component.historyPage()).toBe(2);
+    expect(returnsServiceSpy.listReturns).not.toHaveBeenCalled();
+  });
+
+  it('covers pending pagination boundaries and backs up from an empty trailing page', () => {
+    setup(['RETURN_READ']);
+    returnsServiceSpy.listPendingReturns.calls.reset();
+
+    component.pendingPage.set(0);
+    component.previousPendingPage();
+    expect(returnsServiceSpy.listPendingReturns).not.toHaveBeenCalled();
+
+    component.pendingPage.set(1);
+    returnsServiceSpy.listPendingReturns.and.returnValue(of(pendingPage()));
+    component.previousPendingPage();
+    expect(component.pendingPage()).toBe(0);
+    expect(returnsServiceSpy.listPendingReturns).toHaveBeenCalledWith(0, 20);
+
+    returnsServiceSpy.listPendingReturns.calls.reset();
+    component.pendingPage.set(1);
+    component.pendingTotalPages.set(2);
+    component.nextPendingPage();
+    expect(component.pendingPage()).toBe(1);
+    expect(returnsServiceSpy.listPendingReturns).not.toHaveBeenCalled();
+
+    returnsServiceSpy.listPendingReturns.calls.reset();
+    returnsServiceSpy.listPendingReturns.and.returnValues(
+      of({ _embedded: { returnRequestResourceList: [] } }),
+      of(pendingPage())
+    );
+    component.pendingPage.set(0);
+    component.pendingTotalPages.set(2);
+
+    component.nextPendingPage();
+
+    expect(component.pendingPage()).toBe(0);
+    expect(returnsServiceSpy.listPendingReturns.calls.count()).toBe(2);
+    expect(returnsServiceSpy.listPendingReturns.calls.argsFor(0)).toEqual([
+      1, 20,
+    ]);
+    expect(returnsServiceSpy.listPendingReturns.calls.argsFor(1)).toEqual([
+      0, 20,
+    ]);
+    expect(component.pendingReturns()).toEqual([returnRequest]);
+  });
 });

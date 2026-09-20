@@ -14,9 +14,13 @@ import {
 export class ShipmentsService {
   private readonly httpClient = inject(HttpClient);
 
-  listShipments(): Observable<ShipmentCollectionModel> {
+  listShipments(
+    page?: number,
+    size?: number
+  ): Observable<ShipmentCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<ShipmentCollectionModel>(
-      `${environment.apiPrefix}/shipments`
+      `${environment.apiPrefix}/shipments${suffix}`
     );
   }
 
@@ -29,10 +33,13 @@ export class ShipmentsService {
   }
 
   listShipmentsByStatus(
-    status: ShipmentStatus
+    status: ShipmentStatus,
+    page?: number,
+    size?: number
   ): Observable<ShipmentCollectionModel> {
+    const suffix = page === undefined ? '' : `?page=${page}&size=${size ?? 20}`;
     return this.httpClient.get<ShipmentCollectionModel>(
-      `${environment.apiPrefix}/shipments/status/${status}`
+      `${environment.apiPrefix}/shipments/status/${status}${suffix}`
     );
   }
 
@@ -49,10 +56,24 @@ export class ShipmentsService {
     );
   }
 
-  advanceShipmentStatus(shipmentNumber: string): Observable<ShipmentModel> {
+  advanceShipmentStatus(
+    shipmentNumber: string,
+    operationId?: string,
+    expectedStatus?: ShipmentStatus
+  ): Observable<ShipmentModel> {
+    const options =
+      operationId && expectedStatus
+        ? {
+            headers: {
+              'Idempotency-Key': operationId,
+              'X-Expected-Shipment-Status': expectedStatus,
+            },
+          }
+        : {};
     return this.httpClient.post<ShipmentModel>(
       `${environment.apiPrefix}/shipments/${shipmentNumber}/advance`,
-      {}
+      {},
+      options
     );
   }
 }

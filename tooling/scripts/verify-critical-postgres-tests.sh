@@ -6,6 +6,7 @@ cd "$ROOT"
 
 TESTS=(
   "com.cp.ecommerce.application.OrderCancellationSagaPostgresIntegrationTest"
+  "com.cp.ecommerce.application.OrderCancellationRecoveryPostgresIntegrationTest"
   "com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest"
   "com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest"
   "com.cp.ecommerce.application.StockRetryTransactionBoundaryPostgresIntegrationTest"
@@ -15,45 +16,56 @@ TESTS=(
   "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest"
 )
 
+RESULT_ROOT="apps/ecommerce/backend/build/test-results/test"
+rm -rf "$RESULT_ROOT"
+
 args=()
 for test_name in "${TESTS[@]}"; do
   args+=(--tests "$test_name")
 done
 
-./gradlew :application:ecommerce:test "${args[@]}" \
-  -PcriticalPostgresGate=true
+./gradlew :application:ecommerce:test "${args[@]}" -PcriticalPostgresGate=true
 
-python3 <<'PY'
+expected_file="$(mktemp)"
+trap 'rm -f "$expected_file"' EXIT
+printf '%s
+' "${TESTS[@]}" > "$expected_file"
+
+EXPECTED_FILE="$expected_file" RESULT_ROOT="$RESULT_ROOT" python3 <<'CHECK'
 from pathlib import Path
+import os
 import xml.etree.ElementTree as ET
 
-root = Path("apps/ecommerce/backend/build/test-results/test")
+expected = [line.strip() for line in Path(os.environ["EXPECTED_FILE"]).read_text().splitlines() if line.strip()]
+root = Path(os.environ["RESULT_ROOT"])
 files = list(root.glob("TEST-*.xml"))
-
 if not files:
     raise SystemExit("No JUnit XML results found for required Postgres gate")
 
-executed = 0
-skipped = 0
-failed = 0
-
+by_name = {}
 for file in files:
     suite = ET.parse(file).getroot()
     name = suite.attrib.get("name", "")
-    if "PostgresIntegrationTest" not in name and "MultiWorkerClaim" not in name:
-        continue
+    by_name.setdefault(name, []).append((file, suite))
 
-    executed += int(suite.attrib.get("tests", "0"))
-    skipped += int(suite.attrib.get("skipped", "0"))
-    failed += int(suite.attrib.get("failures", "0"))
-    failed += int(suite.attrib.get("errors", "0"))
+total = 0
+for required in expected:
+    matches = by_name.get(required, [])
+    if len(matches) != 1:
+        raise SystemExit(f"Required Postgres suite {required} expected exactly once, found {len(matches)}")
+    file, suite = matches[0]
+    tests = int(suite.attrib.get("tests", "0"))
+    skipped = int(suite.attrib.get("skipped", "0"))
+    failures = int(suite.attrib.get("failures", "0"))
+    errors = int(suite.attrib.get("errors", "0"))
+    if tests <= 0:
+        raise SystemExit(f"Required Postgres suite {required} executed zero tests: {file}")
+    if skipped or failures or errors:
+        raise SystemExit(
+            f"Required Postgres suite {required} is not clean: "
+            f"tests={tests} skipped={skipped} failures={failures} errors={errors}"
+        )
+    total += tests
 
-if executed == 0:
-    raise SystemExit("Required Postgres tests did not execute")
-if skipped:
-    raise SystemExit(f"Required Postgres gate has {skipped} skipped test(s)")
-if failed:
-    raise SystemExit(f"Required Postgres gate has {failed} failed/error test(s)")
-
-print(f"Required Postgres gate: {executed} tests executed, 0 skipped, 0 failed")
-PY
+print(f"Required Postgres gate: {len(expected)} suites / {total} tests, 0 skipped, 0 failed")
+CHECK

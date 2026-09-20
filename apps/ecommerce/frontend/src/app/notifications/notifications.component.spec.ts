@@ -105,7 +105,7 @@ describe('NotificationsComponent', () => {
 
     expect(
       notificationsServiceSpy.listNotificationsByStatus
-    ).toHaveBeenCalledWith('SENT');
+    ).toHaveBeenCalledWith('SENT', 0, 20);
     expect(component.selectedStatus()).toBe('SENT');
   });
 
@@ -136,5 +136,36 @@ describe('NotificationsComponent', () => {
     fixture.detectChanges();
 
     expect(component.errorMessage()).toBe('Failed to load notifications.');
+  });
+
+  it('covers notification pagination in both directions and at boundaries', () => {
+    setup(['NOTIFICATION_READ']);
+    notificationsServiceSpy.listNotifications.calls.reset();
+
+    component.page.set(0);
+    component.totalPages.set(3);
+    component.previousPage();
+    expect(notificationsServiceSpy.listNotifications).not.toHaveBeenCalled();
+
+    component.nextPage();
+    expect(component.page()).toBe(1);
+    expect(notificationsServiceSpy.listNotifications).toHaveBeenCalledWith(
+      1,
+      20
+    );
+
+    component.previousPage();
+    expect(component.page()).toBe(0);
+    expect(notificationsServiceSpy.listNotifications).toHaveBeenCalledWith(
+      0,
+      20
+    );
+
+    notificationsServiceSpy.listNotifications.calls.reset();
+    component.page.set(2);
+    component.totalPages.set(3);
+    component.nextPage();
+    expect(component.page()).toBe(2);
+    expect(notificationsServiceSpy.listNotifications).not.toHaveBeenCalled();
   });
 });

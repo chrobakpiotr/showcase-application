@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="n01-n03-n06-n10-runtime-state" author="cp">
+        <addColumn schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="NEXT_ATTEMPT_DATE" type="TIMESTAMP" />
+            <column name="PROCESSING_ATTEMPTS" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+        <sql>
+            UPDATE ${schema_name_prefix}OUTBOX_EVENT
+            SET NEXT_ATTEMPT_DATE = CREATED_DATE
+            WHERE NEXT_ATTEMPT_DATE IS NULL
+        </sql>
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="OUTBOX_EVENT" columnName="NEXT_ATTEMPT_DATE" columnDataType="TIMESTAMP" />
+        <createIndex indexName="IDX_OUTBOX_DUE_WORK" schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="STATUS" />
+            <column name="NEXT_ATTEMPT_DATE" />
+            <column name="CLAIM_UNTIL" />
+            <column name="CREATED_DATE" />
+        </createIndex>
+
+        <addColumn schemaName="${schema_name_full}" tableName="NOTIFICATION">
+            <column name="EVENT_KEY" type="VARCHAR(255)" />
+            <column name="CLAIM_ID" type="VARCHAR(36)" />
+        </addColumn>
+        <addUniqueConstraint schemaName="${schema_name_full}" tableName="NOTIFICATION" columnNames="EVENT_KEY" constraintName="UK_NOTIFICATION_EVENT_KEY" />
+
+        <addColumn schemaName="${schema_name_full}" tableName="SHIPMENT">
+            <column name="VERSION" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="LAST_OPERATION_ID" type="VARCHAR(80)" />
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="n07-forward-fix-reconciliation" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="DATA_RECONCILIATION_ISSUE">
+            <column name="ISSUE_KEY" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false" primaryKeyName="PK_DATA_RECONCILIATION_ISSUE" />
+            </column>
+            <column name="ISSUE_TYPE" type="VARCHAR(80)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DETAILS" type="VARCHAR(1000)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <sql>
+            UPDATE ${schema_name_prefix}PAYMENT_TRANSACTION
+            SET REFUNDED_AMOUNT = AMOUNT
+            WHERE STATUS = 'REFUNDED'
+            AND REFUNDED_AMOUNT &lt;&gt; AMOUNT
+        </sql>
+
+        <sql>
+            INSERT INTO ${schema_name_prefix}DATA_RECONCILIATION_ISSUE (ISSUE_KEY, ISSUE_TYPE, DETAILS)
+            SELECT 'STOCK:' || s.SKU,
+            'STOCK_RESERVATION_MISMATCH',
+            'aggregate reserved=' || s.QUANTITY_RESERVED || ', ledger reserved=' ||
+            COALESCE(SUM(CASE WHEN r.STATUS = 'RESERVED' THEN r.QUANTITY ELSE 0 END), 0)
+            FROM ${schema_name_prefix}STOCK_LEVEL s
+            LEFT JOIN ${schema_name_prefix}STOCK_RESERVATION r ON
+            r.SKU = s.SKU
+            GROUP BY s.SKU, s.QUANTITY_RESERVED
+            HAVING s.QUANTITY_RESERVED &lt;&gt;
+            COALESCE(SUM(CASE WHEN r.STATUS = 'RESERVED' THEN r.QUANTITY ELSE 0 END), 0)
+        </sql>
+    </changeSet>
+</databaseChangeLog>

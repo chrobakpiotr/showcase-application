@@ -3,6 +3,7 @@ package com.cp.ecommerce.domain.shipment.usecase;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import com.cp.ecommerce.domain.shipment.PageQuery;
 import com.cp.ecommerce.domain.shipment.PagedResult;
@@ -66,9 +67,29 @@ public class ManageShipmentUseCase
 
         final Shipment existing = findShipmentOutPort.findByShipmentNumber(shipmentNumber);
         if (existing == null) {
-
             return null;
         }
+        return advanceShipmentStatus(shipmentNumber, UUID.randomUUID().toString(), existing.getStatus());
+    }
+
+    @Override
+    public Shipment advanceShipmentStatus(
+            final String shipmentNumber,
+            final String operationId,
+            final ShipmentStatus expectedStatus) {
+
+        final Shipment existing = findShipmentOutPort.findByShipmentNumber(shipmentNumber);
+        if (existing == null) {
+            return null;
+        }
+        if (operationId.equals(existing.getLastOperationId())) {
+            return existing;
+        }
+        if (existing.getStatus() != expectedStatus) {
+            throw new ShipmentConflictException(
+                    "Shipment '" + shipmentNumber + "' expected " + expectedStatus + " but is " + existing.getStatus());
+        }
+
         final ShipmentStatus nextStatus = nextStatus(existing);
         final Instant now = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final Instant dispatchedDate = nextStatus == ShipmentStatus.DISPATCHED ? now : existing.getDispatchedDate();
@@ -86,6 +107,8 @@ public class ManageShipmentUseCase
                 .estimatedDeliveryDate(estimatedDeliveryDate)
                 .deliveredDate(deliveredDate)
                 .createdDate(existing.getCreatedDate())
+                .version(existing.getVersion())
+                .lastOperationId(operationId)
                 .build();
         advanced.assertValidationsEmpty();
         return saveShipmentOutPort.save(advanced);

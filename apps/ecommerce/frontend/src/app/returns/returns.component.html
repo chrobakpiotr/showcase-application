@@ -21,6 +21,25 @@
       <li class="empty" data-testid="empty-returns">No return requests yet.</li>
       }
     </ul>
+    <nav class="pagination" aria-label="Return history pages">
+      <button
+        type="button"
+        data-testid="returns-history-prev-page"
+        [disabled]="historyPage() === 0"
+        (click)="previousHistoryPage()"
+      >
+        Previous
+      </button>
+      <span>Page {{ historyPage() + 1 }} / {{ historyTotalPages() || 1 }}</span>
+      <button
+        type="button"
+        data-testid="returns-history-next-page"
+        [disabled]="historyPage() + 1 >= historyTotalPages()"
+        (click)="nextHistoryPage()"
+      >
+        Next
+      </button>
+    </nav>
   </section>
 
   <section>
@@ -41,8 +60,8 @@
     </div>
     }
     <ul class="return-list" data-testid="pending-return-list">
-      @for (returnRequest of pendingReturns(); track returnRequest.returnNumber)
-      {
+      @for ( returnRequest of pendingReturns(); track returnRequest.returnNumber
+      ) {
       <li data-testid="pending-return-item">
         <strong>{{ returnRequest.returnNumber }}</strong> -
         {{ returnRequest.orderNumber }} / {{ returnRequest.sku }} x
@@ -75,6 +94,27 @@
       </li>
       }
     </ul>
+    <nav class="pagination" aria-label="Pending return pages">
+      <button
+        type="button"
+        data-testid="returns-pending-prev-page"
+        [disabled]="pendingPage() === 0 || loadingPending()"
+        (click)="previousPendingPage()"
+      >
+        Previous
+      </button>
+      <span>Page {{ pendingPage() + 1 }} / {{ pendingTotalPages() || 1 }}</span>
+      <button
+        type="button"
+        data-testid="returns-pending-next-page"
+        [disabled]="
+          pendingPage() + 1 >= pendingTotalPages() || loadingPending()
+        "
+        (click)="nextPendingPage()"
+      >
+        Next
+      </button>
+    </nav>
   </section>
   }
 </div>

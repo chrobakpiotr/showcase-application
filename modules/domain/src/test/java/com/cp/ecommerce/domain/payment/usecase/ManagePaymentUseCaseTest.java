@@ -100,6 +100,7 @@ class ManagePaymentUseCaseTest {
         given(chargePaymentOutPort.charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, AMOUNT, PaymentMethod.CARD))
                 .willReturn(GATEWAY_REFERENCE);
         given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         final PaymentTransaction result = managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD);
 
@@ -148,10 +149,19 @@ class ManagePaymentUseCaseTest {
         given(chargePaymentOutPort.charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, AMOUNT, PaymentMethod.CARD))
                 .willThrow(new PaymentDeclinedException("declined"));
         given(savePaymentTransactionOutPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         assertThatThrownBy(() -> managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
                 .isInstanceOf(PaymentDeclinedException.class);
         verify(savePaymentTransactionOutPort).save(any());
+    }
+
+    @Test
+    void shouldExposePendingRefundStateForCancellationReconciliation() {
+
+        given(managePaymentRefundOutPort.hasPending(ORDER_NUMBER)).willReturn(true);
+
+        assertThat(managePaymentUseCase.hasPendingRefunds(ORDER_NUMBER)).isTrue();
     }
 
     @Test

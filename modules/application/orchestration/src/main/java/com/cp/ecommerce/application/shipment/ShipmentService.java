@@ -13,10 +13,11 @@ import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.ListShipmentsInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
+import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
 
@@ -43,13 +44,13 @@ public class ShipmentService implements ShipmentWorkflow {
 
         final Order order = requireOrder(orderNumber);
         if (order.getStatus() != OrderStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CONFIRMED orders can be shipped");
+            throw new ApplicationConflictException("Only CONFIRMED orders can be shipped");
         }
         if (getPaymentInPort.getPayment(orderNumber).getStatus() != PaymentStatus.CAPTURED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only CAPTURED orders can be shipped");
+            throw new ApplicationConflictException("Only CAPTURED orders can be shipped");
         }
         if (!listShipmentsInPort.listShipmentsForOrder(orderNumber).isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order already has a shipment");
+            throw new ApplicationConflictException("Order already has a shipment");
         }
         return createShipmentInPort.createShipment(orderNumber, carrier);
     }
@@ -59,7 +60,7 @@ public class ShipmentService implements ShipmentWorkflow {
 
         final Shipment advanced = advanceShipmentStatusInPort.advanceShipmentStatus(shipmentNumber);
         if (advanced == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found");
+            throw new ApplicationNotFoundException("Shipment not found");
         }
         if (advanced.getStatus() == ShipmentStatus.DISPATCHED) {
             final Order order = requireOrder(advanced.getOrderNumber());
@@ -68,6 +69,45 @@ public class ShipmentService implements ShipmentWorkflow {
                     : order.getStockReservationId();
             order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
             notify(advanced, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
+        }
+        if (advanced.getStatus() == ShipmentStatus.DELIVERED) {
+            notify(advanced, NotificationType.SHIPMENT_DELIVERED, "delivered");
+        }
+        return advanced;
+    }
+
+    @Override
+    @Transactional
+    public Shipment advanceShipment(
+            final String shipmentNumber,
+            final String operationId,
+            final ShipmentStatus expectedStatus) {
+
+        if (expectedStatus == ShipmentStatus.PENDING) {
+            final Shipment current = advanceShipmentStatusInPort
+                    .advanceShipmentStatus(shipmentNumber, operationId, expectedStatus);
+            if (current == null) {
+                throw new ApplicationNotFoundException("Shipment not found");
+            }
+            final Order order = requireOrder(current.getOrderNumber());
+            if (order.getStatus() != OrderStatus.CONFIRMED) {
+                throw new ApplicationConflictException("Only CONFIRMED orders can be dispatched");
+            }
+            if (getPaymentInPort.getPayment(order.getOrderNumber()).getStatus() != PaymentStatus.CAPTURED) {
+                throw new ApplicationConflictException("Only CAPTURED orders can be dispatched");
+            }
+            final String reservationId = order.getStockReservationId() == null
+                    ? order.getOrderNumber()
+                    : order.getStockReservationId();
+            order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
+            notify(current, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
+            return current;
+        }
+
+        final Shipment advanced = advanceShipmentStatusInPort
+                .advanceShipmentStatus(shipmentNumber, operationId, expectedStatus);
+        if (advanced == null) {
+            throw new ApplicationNotFoundException("Shipment not found");
         }
         if (advanced.getStatus() == ShipmentStatus.DELIVERED) {
             notify(advanced, NotificationType.SHIPMENT_DELIVERED, "delivered");
@@ -93,7 +133,7 @@ public class ShipmentService implements ShipmentWorkflow {
 
         final Order order = manageOrderUseCase.findOrder(orderNumber);
         if (order == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
+            throw new ApplicationNotFoundException("Order not found");
         }
         return order;
     }

@@ -22,6 +22,8 @@ public interface NotificationEntityRepository extends JpaRepository<Notification
 
     NotificationEntity findByNotificationId(String notificationId);
 
+    Optional<NotificationEntity> findByEventKey(String eventKey);
+
     List<NotificationEntity> findAllByOrderByCreatedDateDesc();
 
     Page<NotificationEntity> findAllByOrderByCreatedDateDesc(Pageable pageable);

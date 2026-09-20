@@ -35,6 +35,9 @@ public class NotificationEntity {
     @Column(name = "NOTIFICATION_ID", length = 42, nullable = false)
     private String notificationId;
 
+    @Column(name = "EVENT_KEY", length = 255, unique = true)
+    private String eventKey;
+
     @Column(name = "RECIPIENT_EMAIL", length = 255, nullable = false)
     private String recipientEmail;
 
@@ -70,5 +73,8 @@ public class NotificationEntity {
 
     @Column(name = "LAST_ERROR", length = 500)
     private String lastError;
+
+    @Column(name = "CLAIM_ID", length = 36)
+    private String claimId;
 
 }

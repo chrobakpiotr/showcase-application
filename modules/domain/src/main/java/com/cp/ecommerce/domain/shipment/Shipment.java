@@ -57,6 +57,11 @@ public class Shipment extends ValidDomainObject<Shipment> {
     @NotNull(message = ValidationConstants.INVALID_SHIPMENT_CREATED_DATE)
     Instant createdDate;
 
+    @Builder.Default
+    long version = 0L;
+
+    String lastOperationId;
+
     public static ShipmentBuilder builder() {
 
         return new ShipmentBuilder() {

@@ -12,4 +12,7 @@ public interface SavePaymentTransactionOutPort {
      */
     PaymentTransaction save(PaymentTransaction paymentTransaction);
 
+    /** Persist capture/decline completion without overwriting a later refunded terminal state. */
+    PaymentTransaction saveCaptureResult(PaymentTransaction paymentTransaction);
+
 }

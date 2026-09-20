@@ -41,7 +41,7 @@ class SaveShipmentAdapterTest {
         final Shipment shipment = ShipmentBuilder.mockShipment();
         final ShipmentEntity mappedEntity = ShipmentEntityBuilder.mockShipmentEntity();
         doReturn(Optional.of(mappedEntity)).when(shipmentPersistenceMapper).mapToEntity(eq(shipment));
-        doReturn(mappedEntity).when(shipmentEntityRepository).save(mappedEntity);
+        doReturn(mappedEntity).when(shipmentEntityRepository).saveAndFlush(mappedEntity);
         doReturn(Optional.of(shipment)).when(shipmentPersistenceMapper).mapToDomainObject(mappedEntity);
 
         final Shipment result = saveShipmentAdapter.save(shipment);
@@ -64,7 +64,7 @@ class SaveShipmentAdapterTest {
         final Shipment shipment = ShipmentBuilder.mockShipment();
         final ShipmentEntity mappedEntity = ShipmentEntityBuilder.mockShipmentEntity();
         doReturn(Optional.of(mappedEntity)).when(shipmentPersistenceMapper).mapToEntity(eq(shipment));
-        doReturn(mappedEntity).when(shipmentEntityRepository).save(mappedEntity);
+        doReturn(mappedEntity).when(shipmentEntityRepository).saveAndFlush(mappedEntity);
         doReturn(Optional.empty()).when(shipmentPersistenceMapper).mapToDomainObject(mappedEntity);
 
         assertThrows(IllegalStateException.class, () -> saveShipmentAdapter.save(shipment));

@@ -19,6 +19,10 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface PaymentRefundEntityRepository extends JpaRepository<PaymentRefundEntity, String> {
 
+    long countByStatus(PaymentRefundStatus status);
+
+    long countByOrderNumberAndStatus(String orderNumber, PaymentRefundStatus status);
+
     @Query("select refund.orderNumber from PaymentRefundEntity refund where refund.refundId = :refundId")
     Optional<String> findOrderNumberByRefundId(@Param("refundId") String refundId);
 

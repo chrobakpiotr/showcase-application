@@ -66,7 +66,8 @@ class ManageStockReservationAdapter implements ManageStockReservationOutPort {
         final StockLevelEntity stock = stockForUpdate(sku);
         final StockReservationEntity reservation = stockReservationEntityRepository.findById(reservationKey(reservationId, sku))
                 .orElse(null);
-        if (reservation == null || reservation.getStatus() == StockReservationStatus.RELEASED) {
+        if (reservation == null || reservation.getStatus() == StockReservationStatus.RELEASED
+                || reservation.getStatus() == StockReservationStatus.FULFILLED) {
 
             return toDomain(stock);
         }

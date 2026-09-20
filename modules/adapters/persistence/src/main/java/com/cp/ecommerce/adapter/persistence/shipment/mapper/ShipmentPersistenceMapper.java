@@ -30,6 +30,8 @@ public class ShipmentPersistenceMapper implements PersistenceMapper<Shipment, Sh
                         .estimatedDeliveryDate(domain.getEstimatedDeliveryDate())
                         .deliveredDate(domain.getDeliveredDate())
                         .createdDate(domain.getCreatedDate())
+                        .version(domain.getVersion())
+                        .lastOperationId(domain.getLastOperationId())
                         .build());
     }
 
@@ -47,6 +49,8 @@ public class ShipmentPersistenceMapper implements PersistenceMapper<Shipment, Sh
                         .estimatedDeliveryDate(shipmentEntity.getEstimatedDeliveryDate())
                         .deliveredDate(shipmentEntity.getDeliveredDate())
                         .createdDate(shipmentEntity.getCreatedDate())
+                        .version(shipmentEntity.getVersion())
+                        .lastOperationId(shipmentEntity.getLastOperationId())
                         .build());
     }
 

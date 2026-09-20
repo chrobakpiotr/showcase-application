@@ -11,6 +11,7 @@ public enum OutboxEventStatus {
     COMPENSATING,
     COMPENSATED,
     CANCELLING,
-    CANCELLED
+    CANCELLED,
+    MANUAL_REVIEW
 
 }

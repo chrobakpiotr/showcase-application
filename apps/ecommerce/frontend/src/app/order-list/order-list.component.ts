@@ -179,14 +179,25 @@ export class OrderListComponent implements OnInit {
 
     this.shipmentErrorMessage.set(null);
     this.shipmentSuccessMessage.set(null);
-    this.shipmentsService.advanceShipmentStatus(shipmentNumber).subscribe({
-      next: () => {
-        this.shipmentSuccessMessage.set('Shipment status advanced.');
-        this.loadShipmentsForOrder(orderNumber);
-      },
-      error: () =>
-        this.shipmentErrorMessage.set('Failed to advance shipment status.'),
-    });
+    const shipment = this.orderShipments().find(
+      (candidate) => candidate.shipmentNumber === shipmentNumber
+    );
+    if (!shipment) return;
+
+    this.shipmentsService
+      .advanceShipmentStatus(
+        shipmentNumber,
+        crypto.randomUUID(),
+        shipment.status
+      )
+      .subscribe({
+        next: () => {
+          this.shipmentSuccessMessage.set('Shipment status advanced.');
+          this.loadShipmentsForOrder(orderNumber);
+        },
+        error: () =>
+          this.shipmentErrorMessage.set('Failed to advance shipment status.'),
+      });
   }
 
   requestReturn(): void {

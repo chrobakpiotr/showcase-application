@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
+import java.time.Clock;
 import java.time.Instant;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
@@ -13,9 +14,11 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
 
     private final OutboxEventEntityRepository outboxEventEntityRepository;
 
-    OrderPlacementSagaArbitrationAdapter(final OutboxEventEntityRepository outboxEventEntityRepository) {
+    private final Clock clock;
 
+    OrderPlacementSagaArbitrationAdapter(final OutboxEventEntityRepository outboxEventEntityRepository, final Clock clock) {
         this.outboxEventEntityRepository = outboxEventEntityRepository;
+        this.clock = clock;
     }
 
     @Override
@@ -55,7 +58,7 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
         }
         if (event.getStatus() == OutboxEventStatus.PROCESSING) {
 
-            return leaseExpired(event, Instant.ofEpochMilli(Instant.now().toEpochMilli()))
+            return leaseExpired(event, Instant.ofEpochMilli(clock.instant().toEpochMilli()))
                     ? claimForCancellation(event)
                     : CancellationClaim.TOO_LATE;
         }

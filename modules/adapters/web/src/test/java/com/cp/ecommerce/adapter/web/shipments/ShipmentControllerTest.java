@@ -466,4 +466,80 @@ class ShipmentControllerTest {
         mockMvc.perform(get(SHIPMENTS_ENDPOINT).param("page", "-1")).andExpect(status().isBadRequest());
     }
 
+    @Test
+    void shouldAdvanceWithExplicitOperationAndInferExpectedStatus() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment current = ShipmentBuilder.mockShipment();
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(getShipmentInPort.getShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER)).willReturn(current);
+        given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER, "operation-coverage", current.getStatus()))
+                .willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        controller.advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, "operation-coverage", null);
+
+        verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER, "operation-coverage", current.getStatus());
+    }
+
+    @Test
+    void shouldGenerateOperationIdentityWhenExpectedStatusIsProvided() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(workflow.advanceShipment(eq(ShipmentBuilder.TEST_SHIPMENT_NUMBER), anyString(), eq(ShipmentStatus.PENDING)))
+                .willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        controller.advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, null, ShipmentStatus.PENDING);
+
+        verify(workflow).advanceShipment(eq(ShipmentBuilder.TEST_SHIPMENT_NUMBER), anyString(), eq(ShipmentStatus.PENDING));
+    }
+
+    @Test
+    void shouldTreatBlankOperationIdentityAsLegacyAdvance() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER)).willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        controller.advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, " ", null);
+
+        verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
+    }
+
+    @Test
+    void shouldDelegateLegacyHelperToHeaderAwareAdvance() {
+
+        final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
+        final Shipment advanced = ShipmentBuilder.mockShipment();
+        final ShipmentController controller = new ShipmentController(
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
+        given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER)).willReturn(advanced);
+        given(shipmentWebMapper.mapToResource(advanced)).willReturn(Optional.of(toResource(advanced)));
+
+        controller.advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
+
+        verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
+    }
+
 }

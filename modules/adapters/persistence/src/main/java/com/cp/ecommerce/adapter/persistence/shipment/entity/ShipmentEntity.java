@@ -11,6 +11,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,5 +58,12 @@ public class ShipmentEntity {
 
     @Column(name = "CREATED_DATE", nullable = false)
     private Instant createdDate;
+
+    @Version
+    @Column(name = "VERSION", nullable = false)
+    private long version;
+
+    @Column(name = "LAST_OPERATION_ID", length = 80)
+    private String lastOperationId;
 
 }

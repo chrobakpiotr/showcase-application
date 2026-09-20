@@ -105,7 +105,9 @@ describe('ShipmentsComponent', () => {
     component.updateStatusFilter('DISPATCHED');
 
     expect(shipmentsServiceSpy.listShipmentsByStatus).toHaveBeenCalledWith(
-      'DISPATCHED'
+      'DISPATCHED',
+      0,
+      20
     );
     expect(component.selectedStatus()).toBe('DISPATCHED');
   });
@@ -150,9 +152,10 @@ describe('ShipmentsComponent', () => {
 
     component.advance('SHIP-1');
 
-    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledWith(
-      'SHIP-1'
-    );
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalled();
+    expect(
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args[0]
+    ).toBe('SHIP-1');
     expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledTimes(2);
   });
 
@@ -231,5 +234,30 @@ describe('ShipmentsComponent', () => {
 
     expect(component.errorMessage()).toBe('Failed to load shipments.');
     expect(component.loading()).toBeFalse();
+  });
+
+  it('covers shipment pagination in both directions and at boundaries', () => {
+    setup(['SHIPMENT_READ']);
+    shipmentsServiceSpy.listShipments.calls.reset();
+
+    component.page.set(0);
+    component.totalPages.set(3);
+    component.previousPage();
+    expect(shipmentsServiceSpy.listShipments).not.toHaveBeenCalled();
+
+    component.nextPage();
+    expect(component.page()).toBe(1);
+    expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledWith(1, 20);
+
+    component.previousPage();
+    expect(component.page()).toBe(0);
+    expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledWith(0, 20);
+
+    shipmentsServiceSpy.listShipments.calls.reset();
+    component.page.set(2);
+    component.totalPages.set(3);
+    component.nextPage();
+    expect(component.page()).toBe(2);
+    expect(shipmentsServiceSpy.listShipments).not.toHaveBeenCalled();
   });
 });
