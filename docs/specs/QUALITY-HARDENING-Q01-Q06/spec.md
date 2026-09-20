@@ -88,6 +88,26 @@ can never allow fulfillment publication.
 A PENDING candidate is revalidated under lock at claim time, including
 `NEXT_ATTEMPT_DATE`; a stale discovery cannot bypass a newer backoff.
 
+### AC-Q01-FULFILLMENT-REPLAY
+If a fulfillment command becomes externally visible and the placement lease is lost
+before local completion is recorded, takeover by another worker cannot create a
+second logical fulfillment. The protocol must prove either a stable fulfillment
+operation/message identity consumed idempotently downstream, or an equivalent durable
+dispatch state that prevents duplicate logical effect. A post-send claim check by the
+old worker alone is not sufficient evidence.
+
+Required RED timeline:
+
+```text
+worker A owns placement
+-> A renews lease
+-> RabbitMQ accepts fulfillment command
+-> A loses lease before post-send ownership check
+-> worker B takes over
+-> B retries placement
+-> expected: one logical fulfillment for the order
+```
+
 ## Q02 — payment reconciliation protocol
 
 Protocol shape:

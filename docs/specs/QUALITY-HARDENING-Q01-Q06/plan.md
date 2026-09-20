@@ -34,6 +34,8 @@ GitHub ruleset/required-status configuration is not mutated by A0.
 - `modules/adapters/persistence/.../order/outbox/`
 - `modules/domain/.../payment/`
 - `modules/adapters/persistence/.../payment/`
+- the narrow `SendMessageInPort` / `SendOrderMessageOutPort` / AMQP order-message seam
+  only if required to prove `AC-Q01-FULFILLMENT-REPLAY`
 - focused backend integration tests
 - new forward-only changeset only if the accepted protocol requires schema change
 
@@ -44,6 +46,13 @@ GitHub ruleset/required-status configuration is not mutated by A0.
 3. Response-lost-after-provider-commit using a stateful fake provider.
 4. Claim A->B plus stale completion/failure.
 5. Terminal operation ID reused with conflicting amount/method.
+6. Fulfillment command accepted by the broker, old worker loses the lease before the
+   post-send check, a new worker takes over, and the system still produces one logical
+   fulfillment.
+
+If RED #6 cannot be proven by an already-existing downstream idempotency contract,
+A1 may extend only the minimal fulfillment messaging seam needed to introduce a
+stable fulfillment operation/message identity. Do not redesign unrelated messaging.
 
 ### Boundary note
 
