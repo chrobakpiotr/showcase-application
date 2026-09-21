@@ -2,7 +2,6 @@ package com.cp.ecommerce.adapter.mail;
 
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import com.cp.ecommerce.adapter.common.annotation.WebAdapter;
@@ -18,6 +17,7 @@ import org.springframework.mail.MailParseException;
 import org.springframework.mail.javamail.JavaMailSender;
 
 import jakarta.mail.Address;
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,23 +49,37 @@ public class SendEmailAdapter implements SendEmailOutPort {
         // effect across every retry attempt, not just the first.
         LocaleContextHolder.setLocale(toJavaLocale(locale));
         try {
-
-            final Callable<MimeMessage> action = () -> {
-                final MimeMessage messageToBeSent = emailMessageFactory.createEmailMessage(order);
-                emailSender.send(messageToBeSent);
-                return messageToBeSent;
-            };
-            final MimeMessage messageToBeSent = resilientExecutor.callResilient(RESILIENCE_INSTANCE_NAME, action);
-            log.info(
-                    "Email with order request confirmation was send to: {}",
-                    Arrays.stream(messageToBeSent.getAllRecipients()).map(Address::toString).collect(Collectors.joining(", ")));
-        } catch (Exception ex) {
-
-            log.error("Error while creating and sending emails for order: {}", order.getOrderNumber());
-            throw new MailParseException(ex);
+            final MimeMessage messageToBeSent = resilientExecutor
+                    .callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> createAndSend(order), exception -> {
+                        log.error("Error while creating and sending emails for order: {}", order.getOrderNumber());
+                        if (exception instanceof MailParseException mailParseException) {
+                            throw mailParseException;
+                        }
+                        throw new MailParseException(exception);
+                    });
+            log.info("Email with order request confirmation was send to: {}", recipients(messageToBeSent));
         } finally {
-
             LocaleContextHolder.resetLocaleContext();
+        }
+    }
+
+    private String recipients(final MimeMessage message) {
+
+        try {
+            return Arrays.stream(message.getAllRecipients()).map(Address::toString).collect(Collectors.joining(", "));
+        } catch (final MessagingException exception) {
+            throw new MailParseException(exception);
+        }
+    }
+
+    private MimeMessage createAndSend(final Order order) {
+
+        try {
+            final MimeMessage messageToBeSent = emailMessageFactory.createEmailMessage(order);
+            emailSender.send(messageToBeSent);
+            return messageToBeSent;
+        } catch (final MessagingException exception) {
+            throw new MailParseException(exception);
         }
     }
 

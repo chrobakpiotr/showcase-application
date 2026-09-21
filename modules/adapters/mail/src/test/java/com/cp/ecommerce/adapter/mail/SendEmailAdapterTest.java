@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -73,19 +72,28 @@ public class SendEmailAdapterTest {
     void shouldThrowExceptionWhileSendingEmail() throws Exception {
 
         final Order order = OrderBuilder.mockOrder();
-        runResilientActionEagerly();
+        failResilientActionThroughFallback();
 
         assertThrows(MailParseException.class, () -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH));
         verify(emailSender, never()).send(any(MimeMessage.class));
     }
 
     @SuppressWarnings("unchecked")
-    private void runResilientActionEagerly() throws Exception {
+    private void runResilientActionEagerly() {
 
-        doAnswer(invocation -> {
-            final java.util.concurrent.Callable<Object> action = invocation.getArgument(1);
-            return action.call();
-        }).when(resilientExecutor).callResilient(anyString(), any());
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Supplier<Object> action = invocation.getArgument(1);
+            return action.get();
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void failResilientActionThroughFallback() {
+
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, Object> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("mail delivery failed"));
+        });
     }
 
     private MimeMessage createMimeMessage() throws MessagingException {
