@@ -11,6 +11,7 @@ import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.CouponDiscount;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -50,6 +51,7 @@ public class PlaceOrderService implements PlaceOrderWorkflow {
         final PlaceOrderResult result = placeOrderUseCase.placeOrder(draft, idempotencyKey, this::prepareOrder);
         if (result.newlyPlaced()) {
             sendNotificationInPort.sendNotification(
+                    NotificationEventKey.of("order", result.orderNumber(), NotificationType.ORDER_CONFIRMED, "placement-v1"),
                     draft.getCustomer().getContact().getEmail(),
                     NotificationType.ORDER_CONFIRMED,
                     "Order " + result.orderNumber() + " confirmed",

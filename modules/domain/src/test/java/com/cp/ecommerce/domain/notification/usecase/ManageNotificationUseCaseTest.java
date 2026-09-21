@@ -68,6 +68,7 @@ class ManageNotificationUseCaseTest {
         given(saveNotificationOutPort.saveOnce(any())).willAnswer(invocation -> invocation.getArgument(0));
 
         final Notification result = useCase.sendNotification(
+                "order:ORDER-1:ORDER_CONFIRMED:placement-v1",
                 "john.doe@test.com",
                 NotificationType.ORDER_CONFIRMED,
                 "Order ORDER-1 confirmed",
@@ -78,6 +79,30 @@ class ManageNotificationUseCaseTest {
         assertThat(result.getNotificationId()).startsWith("NOTIF-");
         assertThat(result.getCreatedDate()).isEqualTo(NOW);
         verify(deliverNotificationOutPort, never()).deliver(any(), any());
+    }
+
+    @Test
+    void shouldKeepEventIdentityStableWhenPresentationTextChanges() {
+
+        given(saveNotificationOutPort.saveOnce(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+        final String eventKey = "order:ORDER-1:ORDER_CONFIRMED:placement-v1";
+        final Notification first = useCase.sendNotification(
+                eventKey,
+                "john.doe@test.com",
+                NotificationType.ORDER_CONFIRMED,
+                "Order confirmed",
+                "Your order was confirmed.");
+        final Notification wordingChanged = useCase.sendNotification(
+                eventKey,
+                "john.doe@test.com",
+                NotificationType.ORDER_CONFIRMED,
+                "Your order is confirmed",
+                "We confirmed your order.");
+
+        assertThat(first.getEventKey()).isEqualTo(eventKey);
+        assertThat(wordingChanged.getEventKey()).isEqualTo(eventKey);
+        assertThat(first.getNotificationId()).isEqualTo(wordingChanged.getNotificationId());
     }
 
     @Test

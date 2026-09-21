@@ -1,5 +1,6 @@
 package com.cp.ecommerce.application.returns;
 
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -55,6 +56,7 @@ public class ReturnStateNotificationTransaction {
             throw new ApplicationNotFoundException("Order not found");
         }
         sendNotificationInPort.sendNotification(
+                NotificationEventKey.of("return", request.getReturnNumber(), type, state + "-v1"),
                 order.getCustomer().getContact().getEmail(),
                 type,
                 "Return " + request.getReturnNumber() + " " + state,

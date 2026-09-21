@@ -38,6 +38,7 @@ import org.mockito.quality.Strictness;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -124,10 +125,11 @@ class PlaceOrderServiceTest {
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, FIRST_SKU, 2);
         verify(manageStockInPort).reserveStock(ORDER_NUMBER, SECOND_SKU, 1);
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.ORDER_CONFIRMED,
-                "Order ORDER-1 confirmed",
-                "Your order ORDER-1 was confirmed.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.ORDER_CONFIRMED),
+                eq("Order ORDER-1 confirmed"),
+                eq("Your order ORDER-1 was confirmed."));
     }
 
     @Test
@@ -148,7 +150,7 @@ class PlaceOrderServiceTest {
 
         assertThat(prepared.get().getStockReservationId()).isNotBlank();
         verify(applyCouponInPort, never()).applyCoupon(any(), any(), any());
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
     }
 
     @Test
@@ -165,7 +167,7 @@ class PlaceOrderServiceTest {
         verify(manageProductInPort, never()).findProduct(any());
         verify(applyCouponInPort, never()).applyCoupon(any(), any(), any());
         verify(manageStockInPort, never()).reserveStock(any(), any(), org.mockito.ArgumentMatchers.anyInt());
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
     }
 
     @Test

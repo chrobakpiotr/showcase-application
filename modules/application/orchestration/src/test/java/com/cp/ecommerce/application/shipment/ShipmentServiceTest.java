@@ -33,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -160,10 +161,11 @@ class ShipmentServiceTest {
         assertThat(result).isSameAs(shipment);
         verify(manageStockInPort).fulfillStock("RES-1", SKU);
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.SHIPMENT_DISPATCHED,
-                "Shipment SHIP-1 dispatched",
-                "Your shipment SHIP-1 was dispatched. Tracking number: TRACK-1.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.SHIPMENT_DISPATCHED),
+                eq("Shipment SHIP-1 dispatched"),
+                eq("Your shipment SHIP-1 was dispatched. Tracking number: TRACK-1."));
     }
 
     @Test
@@ -191,10 +193,11 @@ class ShipmentServiceTest {
         assertThat(result).isSameAs(shipment);
         verify(manageStockInPort, never()).fulfillStock(anyString(), anyString());
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.SHIPMENT_DELIVERED,
-                "Shipment SHIP-1 delivered",
-                "Your shipment SHIP-1 was delivered.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.SHIPMENT_DELIVERED),
+                eq("Shipment SHIP-1 delivered"),
+                eq("Your shipment SHIP-1 was delivered."));
     }
 
     @Test
@@ -204,7 +207,7 @@ class ShipmentServiceTest {
         given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(shipment);
 
         assertThat(service.advanceShipment(SHIPMENT_NUMBER)).isSameAs(shipment);
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
     }
 
     private static Order order(final OrderStatus status, final String reservationId) {
@@ -251,10 +254,11 @@ class ShipmentServiceTest {
 
         verify(manageStockInPort).fulfillStock("RES-OP", SKU);
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.SHIPMENT_DISPATCHED,
-                "Shipment SHIP-1 dispatched",
-                "Your shipment SHIP-1 was dispatched. Tracking number: TRACK-1.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.SHIPMENT_DISPATCHED),
+                eq("Shipment SHIP-1 dispatched"),
+                eq("Your shipment SHIP-1 was dispatched. Tracking number: TRACK-1."));
     }
 
     @Test
@@ -321,10 +325,11 @@ class ShipmentServiceTest {
         assertThat(service.advanceShipment(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT)).isSameAs(shipment);
 
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.SHIPMENT_DELIVERED,
-                "Shipment SHIP-1 delivered",
-                "Your shipment SHIP-1 was delivered.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.SHIPMENT_DELIVERED),
+                eq("Shipment SHIP-1 delivered"),
+                eq("Your shipment SHIP-1 was delivered."));
     }
 
     @Test

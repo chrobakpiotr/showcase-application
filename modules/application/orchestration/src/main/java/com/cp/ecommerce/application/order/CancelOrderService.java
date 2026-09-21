@@ -1,6 +1,7 @@
 package com.cp.ecommerce.application.order;
 
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -109,6 +110,7 @@ public class CancelOrderService implements CancelOrderWorkflow {
     private void sendCancellationNotification(final Order order) {
 
         sendNotificationInPort.sendNotification(
+                NotificationEventKey.of("order", order.getOrderNumber(), NotificationType.ORDER_CANCELLED, "cancellation-v1"),
                 order.getCustomer().getContact().getEmail(),
                 NotificationType.ORDER_CANCELLED,
                 "Order " + order.getOrderNumber() + " cancelled",

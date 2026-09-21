@@ -12,6 +12,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementBestEffortTail;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestrator;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntity;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
@@ -264,10 +265,8 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
     private OrderPlacementSagaOrchestrator newOrchestrator(final SendMessageInPort fulfillment) {
 
-        return new OrderPlacementSagaOrchestrator(
-                outboxEventEntityRepository,
-                manageOrderInPort,
-                fulfillment,
+        final SagaMetrics metrics = new SagaMetrics(new SimpleMeterRegistry());
+        final OrderPlacementBestEffortTail bestEffortTail = new OrderPlacementBestEffortTail(
                 mock(SendOrderConfirmationEmailInPort.class),
                 mock(ExportOrderInPort.class),
                 mock(PublishOrderAuditEventInPort.class),
@@ -275,11 +274,18 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
                 mock(RouteOrderNotificationInPort.class),
                 mock(ClassifyOrderRemarksInPort.class),
                 mock(DetectDuplicateOrderInPort.class),
+                metrics);
+
+        return new OrderPlacementSagaOrchestrator(
+                outboxEventEntityRepository,
+                manageOrderInPort,
+                fulfillment,
+                bestEffortTail,
                 mock(CancelOrderInPort.class),
                 manageStockInPort,
                 managePaymentInPort,
                 new TransactionTemplate(transactionManager),
-                new SagaMetrics(new SimpleMeterRegistry()),
+                metrics,
                 Clock.systemUTC());
     }
 

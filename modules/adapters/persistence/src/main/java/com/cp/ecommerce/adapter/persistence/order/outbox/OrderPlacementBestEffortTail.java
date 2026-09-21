@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @ConditionalOnProperty(prefix = "outbox.publisher", name = "enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
-class OrderPlacementBestEffortTail {
+public class OrderPlacementBestEffortTail {
 
     private final SendOrderConfirmationEmailInPort sendOrderConfirmationEmailInPort;
     private final ExportOrderInPort exportOrderInPort;

@@ -161,6 +161,7 @@ class OrderControllerTest {
                 OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
                 OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 CustomerBuilder.TEST_EMAIL,
                 NotificationType.ORDER_CONFIRMED,
                 "Order " + TEST_ORDER_NUMBER + " confirmed",
@@ -343,7 +344,7 @@ class OrderControllerTest {
         org.mockito.Mockito.verifyNoInteractions(manageStockInPort, applyCouponInPort);
         verify(orderMetrics, never()).recordOrderPlaced();
         verify(currentOperatorProvider, never()).currentOperator();
-        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
     }
 
     @Test

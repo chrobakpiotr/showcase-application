@@ -16,6 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -48,10 +50,11 @@ class ReturnStateNotificationTransactionTest {
         assertThat(service.markRefundedAndNotify(RETURN_NUMBER)).isSameAs(request);
 
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.RETURN_REFUNDED,
-                "Return RET-1 refunded",
-                "Your return request RET-1 was refunded.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.RETURN_REFUNDED),
+                eq("Return RET-1 refunded"),
+                eq("Your return request RET-1 was refunded."));
     }
 
     @Test
@@ -68,10 +71,11 @@ class ReturnStateNotificationTransactionTest {
         assertThat(service.rejectAndNotify(RETURN_NUMBER)).isSameAs(request);
 
         verify(sendNotificationInPort).sendNotification(
-                EMAIL,
-                NotificationType.RETURN_REJECTED,
-                "Return RET-1 rejected",
-                "Your return request RET-1 was rejected.");
+                anyString(),
+                eq(EMAIL),
+                eq(NotificationType.RETURN_REJECTED),
+                eq("Return RET-1 rejected"),
+                eq("Your return request RET-1 was rejected."));
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.cp.ecommerce.application.shipment;
 
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -123,6 +124,7 @@ public class ShipmentService implements ShipmentWorkflow {
                         + shipment.getTrackingNumber() + "."
                 : "Your shipment " + shipment.getShipmentNumber() + " was " + state + ".";
         sendNotificationInPort.sendNotification(
+                NotificationEventKey.of("shipment", shipment.getShipmentNumber(), type, state + "-v1"),
                 order.getCustomer().getContact().getEmail(),
                 type,
                 "Shipment " + shipment.getShipmentNumber() + " " + state,

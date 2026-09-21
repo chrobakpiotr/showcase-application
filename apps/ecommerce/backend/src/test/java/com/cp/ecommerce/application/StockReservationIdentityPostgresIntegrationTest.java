@@ -107,13 +107,14 @@ class StockReservationIdentityPostgresIntegrationTest {
 
         final AtomicBoolean failFirstCancellationNotification = new AtomicBoolean(true);
         doAnswer(invocation -> {
-            final NotificationType type = invocation.getArgument(1);
+            final NotificationType type = invocation.getArgument(2);
             if (type == NotificationType.ORDER_CANCELLED && failFirstCancellationNotification.compareAndSet(true, false)) {
 
                 throw new IllegalStateException("notification unavailable after stock release");
             }
             return null;
-        }).when(sendNotificationInPort).sendNotification(anyString(), any(NotificationType.class), anyString(), anyString());
+        }).when(sendNotificationInPort)
+                .sendNotification(anyString(), anyString(), any(NotificationType.class), anyString(), anyString());
 
         final String orderA = place(sku, 3);
         final String orderB = place(sku, 4);

@@ -1,6 +1,5 @@
 package com.cp.ecommerce.domain.notification.usecase;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -43,14 +42,17 @@ public class ManageNotificationUseCase
 
     @Override
     public Notification sendNotification(
+            final String eventKey,
             final String recipientEmail,
             final NotificationType type,
             final String subject,
             final String body) {
 
-        final String eventSource = type + "|" + subject;
-        final String eventKey = UUID.nameUUIDFromBytes(eventSource.getBytes(StandardCharsets.UTF_8)).toString();
-        final String notificationId = "NOTIF-" + eventKey;
+        if (eventKey == null || eventKey.isBlank()) {
+            throw new IllegalArgumentException("eventKey must not be blank");
+        }
+        final String notificationId = "NOTIF-"
+                + UUID.nameUUIDFromBytes(eventKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         final Notification pending = Notification.builder()
                 .notificationId(notificationId)
                 .eventKey(eventKey)

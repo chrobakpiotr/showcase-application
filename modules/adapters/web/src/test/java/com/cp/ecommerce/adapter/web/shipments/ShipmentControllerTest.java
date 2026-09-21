@@ -313,6 +313,7 @@ class ShipmentControllerTest {
                 .andExpect(jsonPath("$.status").value("DISPATCHED"));
 
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 eq(CustomerBuilder.TEST_EMAIL),
                 eq(NotificationType.SHIPMENT_DISPATCHED),
                 eq("Shipment SHIP-1234 dispatched"),
@@ -343,6 +344,7 @@ class ShipmentControllerTest {
                 .andExpect(jsonPath("$.status").value("DELIVERED"));
 
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 eq(CustomerBuilder.TEST_EMAIL),
                 eq(NotificationType.SHIPMENT_DELIVERED),
                 eq("Shipment SHIP-1234 delivered"),
@@ -370,9 +372,9 @@ class ShipmentControllerTest {
                 .andExpect(jsonPath("$.status").value("IN_TRANSIT"));
 
         verify(sendNotificationInPort, never())
-                .sendNotification(anyString(), eq(NotificationType.SHIPMENT_DISPATCHED), anyString(), anyString());
+                .sendNotification(anyString(), anyString(), eq(NotificationType.SHIPMENT_DISPATCHED), anyString(), anyString());
         verify(sendNotificationInPort, never())
-                .sendNotification(anyString(), eq(NotificationType.SHIPMENT_DELIVERED), anyString(), anyString());
+                .sendNotification(anyString(), anyString(), eq(NotificationType.SHIPMENT_DELIVERED), anyString(), anyString());
     }
 
     @Test

@@ -123,6 +123,7 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
         verify(manageStockInPort, times(2)).releaseStock(anyString(), eq(sku));
         verify(sendNotificationInPort, times(1)).sendNotification(
                 anyString(),
+                anyString(),
                 eq(NotificationType.ORDER_CANCELLED),
                 eq("Order " + orderNumber + " cancelled"),
                 eq("Your order " + orderNumber + " was cancelled."));

@@ -21,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -107,10 +109,11 @@ class CancelOrderServiceTest {
         calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
         calls.verify(sendNotificationInPort)
                 .sendNotification(
-                        EMAIL,
-                        NotificationType.ORDER_CANCELLED,
-                        "Order " + ORDER_NUMBER + " cancelled",
-                        "Your order " + ORDER_NUMBER + " was cancelled.");
+                        anyString(),
+                        eq(EMAIL),
+                        eq(NotificationType.ORDER_CANCELLED),
+                        eq("Order " + ORDER_NUMBER + " cancelled"),
+                        eq("Your order " + ORDER_NUMBER + " was cancelled."));
         calls.verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
     }
 
@@ -140,10 +143,11 @@ class CancelOrderServiceTest {
         calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
         calls.verify(sendNotificationInPort)
                 .sendNotification(
-                        EMAIL,
-                        NotificationType.ORDER_CANCELLED,
-                        "Order " + ORDER_NUMBER + " cancelled",
-                        "Your order " + ORDER_NUMBER + " was cancelled.");
+                        anyString(),
+                        eq(EMAIL),
+                        eq(NotificationType.ORDER_CANCELLED),
+                        eq("Order " + ORDER_NUMBER + " cancelled"),
+                        eq("Your order " + ORDER_NUMBER + " was cancelled."));
         calls.verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
     }
 

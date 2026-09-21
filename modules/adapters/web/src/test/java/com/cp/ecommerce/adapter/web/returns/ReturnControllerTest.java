@@ -48,6 +48,7 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -480,6 +481,7 @@ class ReturnControllerTest {
                 ReturnRequestBuilder.TEST_RETURN_NUMBER,
                 ReturnRequestBuilder.TEST_REFUND_AMOUNT);
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 TEST_EMAIL,
                 NotificationType.RETURN_REFUNDED,
                 RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
@@ -504,6 +506,7 @@ class ReturnControllerTest {
 
         verify(managePaymentInPort, never()).refundPayment(any());
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 TEST_EMAIL,
                 NotificationType.RETURN_REFUNDED,
                 RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
@@ -526,6 +529,7 @@ class ReturnControllerTest {
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 TEST_EMAIL,
                 NotificationType.RETURN_REJECTED,
                 RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
@@ -548,6 +552,7 @@ class ReturnControllerTest {
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
         verify(sendNotificationInPort).sendNotification(
+                anyString(),
                 TEST_EMAIL,
                 NotificationType.RETURN_REJECTED,
                 RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
