@@ -30,6 +30,7 @@ import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -140,18 +141,13 @@ public class OrderPlacementSagaOrchestrator {
 
     private void publishPlacementCandidate(final OutboxEventEntity candidate) {
 
-        try {
-            claimPlacementEvent(candidate).ifPresent(claim -> {
-                try {
-                    processPlacementClaim(claim);
-                } catch (final RuntimeException exception) {
-                    releasePlacementClaim(claim, exception.getMessage());
-                    throw exception;
-                }
-            });
-        } catch (RuntimeException exception) {
-            log.warn("Could not process saga step for order: {}", candidate.getOrderNumber(), exception);
-        }
+        RuntimeFailureBoundary.run(
+                () -> claimPlacementEvent(candidate)
+                        .ifPresent(claim -> RuntimeFailureBoundary.run(() -> processPlacementClaim(claim), exception -> {
+                            releasePlacementClaim(claim, exception.getMessage());
+                            throw exception;
+                        })),
+                exception -> log.warn("Could not process saga step for order: {}", candidate.getOrderNumber(), exception));
     }
 
     private Optional<SagaClaim> claimPlacementEvent(final OutboxEventEntity candidate) {
@@ -293,7 +289,7 @@ public class OrderPlacementSagaOrchestrator {
     private boolean notifyFulfillment(final Order order, final SagaClaim claim) {
 
         final long startNanos = System.nanoTime();
-        try {
+        return RuntimeFailureBoundary.call(() -> {
             if (!renewPlacementClaim(claim)) {
                 sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
                 return false;
@@ -305,12 +301,11 @@ public class OrderPlacementSagaOrchestrator {
             }
             sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), true);
             return true;
-        } catch (RuntimeException exception) {
-
+        }, exception -> {
             sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
             recordFulfillmentFailure(order, claim, exception);
             return false;
-        }
+        });
     }
 
     private void recordFulfillmentFailure(final Order order, final SagaClaim claim, final RuntimeException exception) {
@@ -394,11 +389,9 @@ public class OrderPlacementSagaOrchestrator {
 
     private void publishCompensatingCandidate(final OutboxEventEntity candidate) {
 
-        try {
-            claimCompensationEvent(candidate).ifPresent(this::processCompensationClaim);
-        } catch (final RuntimeException exception) {
-            log.warn("Could not claim compensation for order: {}", candidate.getOrderNumber(), exception);
-        }
+        RuntimeFailureBoundary.run(
+                () -> claimCompensationEvent(candidate).ifPresent(this::processCompensationClaim),
+                exception -> log.warn("Could not claim compensation for order: {}", candidate.getOrderNumber(), exception));
     }
 
     private Optional<SagaClaim> claimCompensationEvent(final OutboxEventEntity candidate) {
@@ -418,14 +411,12 @@ public class OrderPlacementSagaOrchestrator {
 
     private void processCompensationClaim(final SagaClaim claim) {
 
-        try {
+        RuntimeFailureBoundary.run(() -> {
             final Order order = manageOrderInPort.findOrder(claim.orderNumber());
             releaseReservedStock(order);
             refundCapturedPayment(order);
             transactionOperations.executeWithoutResult(status -> completeCompensation(claim));
-        } catch (final RuntimeException exception) {
-            transactionOperations.executeWithoutResult(status -> recordCompensationFailure(claim, exception));
-        }
+        }, exception -> transactionOperations.executeWithoutResult(status -> recordCompensationFailure(claim, exception)));
     }
 
     private void completeCompensation(final SagaClaim claim) {
@@ -521,7 +512,7 @@ public class OrderPlacementSagaOrchestrator {
     private void classifyRemarks(final Order order) {
 
         final long startNanos = System.nanoTime();
-        try {
+        RuntimeFailureBoundary.run(() -> {
             final RemarksTriageResult result = classifyOrderRemarksInPort.classifyRemarks(order);
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), true);
             sagaMetrics.recordRemarksClassification(result.getCategory());
@@ -531,10 +522,10 @@ public class OrderPlacementSagaOrchestrator {
                         order.getOrderNumber(),
                         result.getRationale());
             }
-        } catch (RuntimeException exception) {
+        }, exception -> {
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), false);
             log.warn("Could not classify order remarks (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        });
     }
 
     // Custom (not runBestEffortStep-based) step, for the same reason as classifyRemarks above: needs the check's result
@@ -544,7 +535,7 @@ public class OrderPlacementSagaOrchestrator {
     private void detectDuplicateOrder(final Order order) {
 
         final long startNanos = System.nanoTime();
-        try {
+        RuntimeFailureBoundary.run(() -> {
             final DuplicateOrderCheckResult result = detectDuplicateOrderInPort.detectDuplicate(order);
             sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), true);
             sagaMetrics.recordDuplicateOrderDetection(result.isDuplicate());
@@ -557,10 +548,10 @@ public class OrderPlacementSagaOrchestrator {
                         result.getSimilarityScore(),
                         result.getRationale());
             }
-        } catch (RuntimeException exception) {
+        }, exception -> {
             sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), false);
             log.warn("Could not run AI duplicate-order detection (best-effort): {}", order.getOrderNumber(), exception);
-        }
+        });
     }
 
     // Shared execute-time-catch-log wrapper for the saga's independent, best-effort tail steps that only need a
@@ -574,13 +565,13 @@ public class OrderPlacementSagaOrchestrator {
             final String failureLogMessage) {
 
         final long startNanos = System.nanoTime();
-        try {
+        RuntimeFailureBoundary.run(() -> {
             action.accept(order);
             sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), true);
-        } catch (RuntimeException exception) {
+        }, exception -> {
             sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), false);
             log.warn(failureLogMessage, order.getOrderNumber(), exception);
-        }
+        });
     }
 
     private boolean ownsPlacementClaim(final OutboxEventEntity event, final SagaClaim claim) {

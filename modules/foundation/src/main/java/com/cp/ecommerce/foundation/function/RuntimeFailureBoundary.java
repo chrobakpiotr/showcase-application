@@ -3,6 +3,8 @@ package com.cp.ecommerce.foundation.function;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Executes an unchecked action synchronously and exposes only its runtime failure to an explicit handler.
@@ -20,27 +22,34 @@ public final class RuntimeFailureBoundary {
 
     public static void run(final Runnable action, final Consumer<RuntimeException> onFailure) {
 
-        final FutureTask<Void> task = new FutureTask<>(() -> {
+        call(() -> {
             action.run();
             return null;
+        }, exception -> {
+            onFailure.accept(exception);
+            return null;
         });
+    }
+
+    public static <T> T call(final Supplier<T> action, final Function<RuntimeException, T> onFailure) {
+
+        final FutureTask<T> task = new FutureTask<>(action::get);
         task.run();
 
         try {
-            task.get();
+            return task.get();
         } catch (final ExecutionException exception) {
-            handleFailure(exception.getCause(), onFailure);
+            return handleFailure(exception.getCause(), onFailure);
         } catch (final InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Interrupted while observing synchronous runtime action", exception);
         }
     }
 
-    private static void handleFailure(final Throwable failure, final Consumer<RuntimeException> onFailure) {
+    private static <T> T handleFailure(final Throwable failure, final Function<RuntimeException, T> onFailure) {
 
         if (failure instanceof RuntimeException runtimeException) {
-            onFailure.accept(runtimeException);
-            return;
+            return onFailure.apply(runtimeException);
         }
         if (failure instanceof Error error) {
             throw error;

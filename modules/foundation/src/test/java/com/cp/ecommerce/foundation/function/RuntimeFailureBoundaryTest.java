@@ -35,6 +35,24 @@ class RuntimeFailureBoundaryTest {
     }
 
     @Test
+    void shouldReturnActionResult() {
+
+        final String result = RuntimeFailureBoundary.call(() -> "ok", exception -> "fallback");
+
+        assertThat(result).isEqualTo("ok");
+    }
+
+    @Test
+    void shouldReturnFallbackResultForRuntimeFailure() {
+
+        final String result = RuntimeFailureBoundary.call(() -> {
+            throw new IllegalStateException("boom");
+        }, exception -> "fallback:" + exception.getMessage());
+
+        assertThat(result).isEqualTo("fallback:boom");
+    }
+
+    @Test
     void shouldPreserveFailureRaisedByHandler() {
         final IllegalArgumentException handlerFailure = new IllegalArgumentException("handler");
 
