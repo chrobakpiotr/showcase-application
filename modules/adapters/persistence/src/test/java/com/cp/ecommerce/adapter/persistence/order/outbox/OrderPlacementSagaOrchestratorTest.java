@@ -10,20 +10,10 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
-import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.RemarksTriageCategory;
-import com.cp.ecommerce.domain.order.RemarksTriageResult;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
-import com.cp.ecommerce.domain.order.port.incoming.ClassifyOrderRemarksInPort;
-import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
-import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
-import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
-import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
-import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
-import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
@@ -88,25 +78,7 @@ class OrderPlacementSagaOrchestratorTest {
     private transient SendMessageInPort sendMessageInPort;
 
     @Mock
-    private transient SendOrderConfirmationEmailInPort sendOrderConfirmationEmailInPort;
-
-    @Mock
-    private transient ExportOrderInPort exportOrderInPort;
-
-    @Mock
-    private transient PublishOrderAuditEventInPort publishOrderAuditEventInPort;
-
-    @Mock
-    private transient PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
-
-    @Mock
-    private transient RouteOrderNotificationInPort routeOrderNotificationInPort;
-
-    @Mock
-    private transient ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
-
-    @Mock
-    private transient DetectDuplicateOrderInPort detectDuplicateOrderInPort;
+    private transient OrderPlacementBestEffortTail bestEffortTail;
 
     @Mock
     private transient CancelOrderInPort cancelOrderInPort;
@@ -125,9 +97,6 @@ class OrderPlacementSagaOrchestratorTest {
     void setUp() {
 
         // lenient: tests where fulfillment fails/errors never reach this best-effort tail step at all.
-        lenient().when(classifyOrderRemarksInPort.classifyRemarks(any()))
-                .thenReturn(RemarksTriageResult.standard("No remarks to classify."));
-        lenient().when(detectDuplicateOrderInPort.detectDuplicate(any())).thenReturn(DuplicateOrderCheckResult.none());
         lenient().when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
                 .thenReturn(List.of());
         lenient().when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.COMPENSATING))
@@ -280,28 +249,13 @@ class OrderPlacementSagaOrchestratorTest {
         verify(managePaymentInPort, times(1))
                 .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
         verify(sendMessageInPort, times(1)).sendMessage(order);
-        verify(sendOrderConfirmationEmailInPort, times(1)).sendConfirmationEmail(order);
-        verify(exportOrderInPort, times(1)).exportOrder(order);
-        verify(publishOrderAuditEventInPort, times(1)).publishAuditEvent(order);
-        verify(publishOrderAnalyticsEventInPort, times(1)).publishAnalyticsEvent(order);
-        verify(routeOrderNotificationInPort, times(1)).routeNotification(order);
-        verify(classifyOrderRemarksInPort, times(1)).classifyRemarks(order);
-        verify(detectDuplicateOrderInPort, times(1)).detectDuplicate(order);
+        verify(bestEffortTail, times(1)).run(order);
         verifyNoInteractions(cancelOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntityCaptor.capture());
         assertThat(outboxEventEntityCaptor.getValue().getStatus()).isEqualTo(OutboxEventStatus.SENT);
         assertThat(outboxEventEntityCaptor.getValue().getSentDate()).isNotNull();
         assertThat(timerCountFor("fulfillment", OUTCOME_SUCCESS)).isEqualTo(1);
         assertThat(timerCountFor("payment-capture", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("confirmation-email", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("s3-export", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("sqs-audit", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("kafka-analytics", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("camel-routing", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("ai-remarks-triage", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(timerCountFor("ai-duplicate-order-detection", OUTCOME_SUCCESS)).isEqualTo(1);
-        assertThat(remarksClassificationCount(RemarksTriageCategory.STANDARD)).isEqualTo(1);
-        assertThat(duplicateOrderDetectionCount(false)).isEqualTo(1);
         assertThat(compensationCount()).isZero();
     }
 
@@ -338,7 +292,7 @@ class OrderPlacementSagaOrchestratorTest {
 
         verify(sendMessageInPort, times(1)).sendMessage(failedOrder);
         verify(sendMessageInPort, times(1)).sendMessage(successfulOrder);
-        verify(sendOrderConfirmationEmailInPort, times(1)).sendConfirmationEmail(successfulOrder);
+        verify(bestEffortTail, times(1)).run(successfulOrder);
         verifyNoInteractions(cancelOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(failedEvent);
         verify(outboxEventEntityRepository, times(1)).save(successfulEvent);
@@ -485,117 +439,6 @@ class OrderPlacementSagaOrchestratorTest {
     }
 
     @Test
-    void shouldStillMarkEventSentWhenConfirmationEmailFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("Mail server unavailable")).when(sendOrderConfirmationEmailInPort)
-                .sendConfirmationEmail(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenS3ExportFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("S3 unavailable")).when(exportOrderInPort).exportOrder(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenSqsAuditFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("SQS unavailable")).when(publishOrderAuditEventInPort).publishAuditEvent(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenKafkaAnalyticsPublishFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("Kafka unavailable")).when(publishOrderAnalyticsEventInPort).publishAnalyticsEvent(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenCamelRoutingFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("Camel routing unavailable")).when(routeOrderNotificationInPort).routeNotification(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-    }
-
-    @Test
     void shouldLogAndContinueWhenProcessingPendingEventThrowsUnexpectedly() {
 
         final Order order = OrderBuilder.mockOrder();
@@ -612,126 +455,11 @@ class OrderPlacementSagaOrchestratorTest {
 
         assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
 
-        verifyNoInteractions(
-                sendMessageInPort,
-                sendOrderConfirmationEmailInPort,
-                exportOrderInPort,
-                publishOrderAuditEventInPort,
-                publishOrderAnalyticsEventInPort,
-                routeOrderNotificationInPort,
-                classifyOrderRemarksInPort,
-                detectDuplicateOrderInPort,
-                cancelOrderInPort);
+        verifyNoInteractions(sendMessageInPort, bestEffortTail, cancelOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
         assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(outboxEventEntity.getLastError()).contains("Order not found");
         assertThat(outboxEventEntity.getNextAttemptDate()).isAfter(FIXED_CLOCK.instant());
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenRemarksClassificationFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("Ollama unavailable")).when(classifyOrderRemarksInPort).classifyRemarks(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-        assertThat(timerCountFor("ai-remarks-triage", OUTCOME_FAILURE)).isEqualTo(1);
-    }
-
-    @Test
-    void shouldRecordSuspiciousClassificationWithoutActingOnTheOrder() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        when(classifyOrderRemarksInPort.classifyRemarks(order)).thenReturn(
-                RemarksTriageResult.builder()
-                        .category(RemarksTriageCategory.SUSPICIOUS)
-                        .rationale("Requests shipping to an address different from billing.")
-                        .build());
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        // Human-in-the-loop only: a SUSPICIOUS classification is surfaced via metrics/logs, never used to cancel/block the
-        // order (see ClassifyOrderRemarksOutPort's javadoc).
-        verifyNoInteractions(cancelOrderInPort);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-        assertThat(remarksClassificationCount(RemarksTriageCategory.SUSPICIOUS)).isEqualTo(1);
-    }
-
-    @Test
-    void shouldStillMarkEventSentWhenDuplicateDetectionFails() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        doThrow(new RuntimeException("Ollama unavailable")).when(detectDuplicateOrderInPort).detectDuplicate(order);
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-        assertThat(timerCountFor("ai-duplicate-order-detection", OUTCOME_FAILURE)).isEqualTo(1);
-    }
-
-    @Test
-    void shouldRecordDuplicateFlagWithoutActingOnTheOrder() {
-
-        final Order order = OrderBuilder.mockOrder();
-        final OutboxEventEntity outboxEventEntity = OutboxEventEntity.builder()
-                .id(1L)
-                .orderNumber(order.getOrderNumber())
-                .status(OutboxEventStatus.PENDING)
-                .createdDate(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
-                .build();
-        final OrderPlacementSagaOrchestrator orderPlacementSagaOrchestrator = newOrchestrator();
-        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
-                .thenReturn(List.of(outboxEventEntity));
-        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
-        when(detectDuplicateOrderInPort.detectDuplicate(order)).thenReturn(
-                DuplicateOrderCheckResult.builder()
-                        .duplicate(true)
-                        .matchedOrderNumber("PRE-EXISTING-1")
-                        .similarityScore(0.99)
-                        .rationale("Remarks nearly identical to a recent order from the same customer.")
-                        .build());
-
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
-
-        // Human-in-the-loop only: a positive duplicate check is surfaced via metrics/logs, never used to cancel/block the
-        // order (see DetectDuplicateOrderOutPort's javadoc).
-        verifyNoInteractions(cancelOrderInPort);
-        assertThat(outboxEventEntity.getStatus()).isEqualTo(OutboxEventStatus.SENT);
-        assertThat(duplicateOrderDetectionCount(true)).isEqualTo(1);
     }
 
     @Test
@@ -1117,13 +845,7 @@ class OrderPlacementSagaOrchestratorTest {
                 outboxEventEntityRepository,
                 manageOrderInPort,
                 sendMessageInPort,
-                sendOrderConfirmationEmailInPort,
-                exportOrderInPort,
-                publishOrderAuditEventInPort,
-                publishOrderAnalyticsEventInPort,
-                routeOrderNotificationInPort,
-                classifyOrderRemarksInPort,
-                detectDuplicateOrderInPort,
+                bestEffortTail,
                 cancelOrderInPort,
                 manageStockInPort,
                 managePaymentInPort,
@@ -1161,22 +883,6 @@ class OrderPlacementSagaOrchestratorTest {
     private double compensationCount() {
 
         return meterRegistry.get("saga.order-placement.compensations").counter().count();
-    }
-
-    private double remarksClassificationCount(final RemarksTriageCategory category) {
-
-        return meterRegistry.get("saga.order-placement.remarks-classifications")
-                .tag("category", category.name())
-                .counter()
-                .count();
-    }
-
-    private double duplicateOrderDetectionCount(final boolean duplicate) {
-
-        return meterRegistry.get("saga.order-placement.duplicate-order-detections")
-                .tag("duplicate", String.valueOf(duplicate))
-                .counter()
-                .count();
     }
 
     @Test
