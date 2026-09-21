@@ -63,24 +63,21 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
             throw new PaymentDeclinedException(
                     "Payment gateway declined charge of " + amount + " for order: " + orderNumber + " via " + method);
         }
-        try {
-
-            final String gatewayReference = resilientExecutor.callResilient(
-                    CHARGE_RESILIENCE_INSTANCE_NAME,
-                    () -> operationLedger.replayCapture(operationId, amount, method));
-            log.info(
-                    "Mock payment gateway captured {} for order: {} via {} ({}, idempotencyKey={})",
-                    amount,
-                    orderNumber,
-                    method,
-                    gatewayReference,
-                    operationId);
-            return gatewayReference;
-        } catch (final Exception exception) {
-
-            recoveryMetrics.recordPaymentUnknown();
-            throw new TechnicalProblemException("Could not charge payment for order: " + orderNumber, exception);
-        }
+        final String gatewayReference = resilientExecutor.callResilientOrElse(
+                CHARGE_RESILIENCE_INSTANCE_NAME,
+                () -> operationLedger.replayCapture(operationId, amount, method),
+                exception -> {
+                    recoveryMetrics.recordPaymentUnknown();
+                    throw new TechnicalProblemException("Could not charge payment for order: " + orderNumber, exception);
+                });
+        log.info(
+                "Mock payment gateway captured {} for order: {} via {} ({}, idempotencyKey={})",
+                amount,
+                orderNumber,
+                method,
+                gatewayReference,
+                operationId);
+        return gatewayReference;
     }
 
     @Override
@@ -99,20 +96,17 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
                         null,
                         gatewayReference));
 
-        try {
-
-            resilientExecutor.runResilient(
-                    REFUND_RESILIENCE_INSTANCE_NAME,
-                    () -> log.info(
-                            "Mock payment gateway refunded {} for order: {} ({}, idempotencyKey={})",
-                            amount,
-                            orderNumber,
-                            gatewayReference,
-                            refundId));
-        } catch (final RuntimeException exception) {
-
+        resilientExecutor.callResilientOrElse(REFUND_RESILIENCE_INSTANCE_NAME, () -> {
+            log.info(
+                    "Mock payment gateway refunded {} for order: {} ({}, idempotencyKey={})",
+                    amount,
+                    orderNumber,
+                    gatewayReference,
+                    refundId);
+            return null;
+        }, exception -> {
             throw new TechnicalProblemException("Could not refund payment for order: " + orderNumber, exception);
-        }
+        });
     }
 
     private void registerProviderOperation(final String operationId, final ProviderOperationFingerprint requested) {

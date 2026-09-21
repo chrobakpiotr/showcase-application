@@ -24,20 +24,19 @@ class MockNotificationDeliveryAdapter implements DeliverNotificationOutPort {
     @Override
     public void deliver(final String operationId, final Notification notification) {
 
-        try {
-            resilientExecutor.runResilient(
-                    DELIVERY_RESILIENCE_INSTANCE_NAME,
-                    () -> log.info(
-                            "Mock notification delivery recorded {} for {} via {} (idempotencyKey={})",
-                            notification.getNotificationId(),
-                            notification.getRecipientEmail(),
-                            notification.getChannel(),
-                            operationId));
-        } catch (final RuntimeException exception) {
+        resilientExecutor.callResilientOrElse(DELIVERY_RESILIENCE_INSTANCE_NAME, () -> {
+            log.info(
+                    "Mock notification delivery recorded {} for {} via {} (idempotencyKey={})",
+                    notification.getNotificationId(),
+                    notification.getRecipientEmail(),
+                    notification.getChannel(),
+                    operationId);
+            return null;
+        }, exception -> {
             throw new TechnicalProblemException(
                     "Could not deliver notification: " + notification.getNotificationId(),
                     exception);
-        }
+        });
     }
 
 }

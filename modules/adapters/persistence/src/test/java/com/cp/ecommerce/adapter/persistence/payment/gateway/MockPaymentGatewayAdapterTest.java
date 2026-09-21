@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.payment.gateway;
 
 import java.math.BigDecimal;
-import java.util.concurrent.Callable;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.adapter.persistence.metrics.RecoveryMetrics;
@@ -19,8 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -88,7 +85,10 @@ class MockPaymentGatewayAdapterTest {
     @Test
     void shouldWrapUnexpectedResilientExecutorFailureAsTechnicalProblem() throws Exception {
 
-        doThrow(new RuntimeException("gateway timeout")).when(resilientExecutor).callResilient(anyString(), any());
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("gateway timeout"));
+        });
 
         assertThatThrownBy(
                 () -> mockPaymentGatewayAdapter
@@ -104,13 +104,16 @@ class MockPaymentGatewayAdapterTest {
 
         mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00"));
 
-        verify(resilientExecutor).runResilient(anyString(), any());
+        verify(resilientExecutor).callResilientOrElse(anyString(), any(), any());
     }
 
     @Test
     void shouldWrapUnexpectedRefundFailureAsTechnicalProblem() {
 
-        doThrow(new RuntimeException("gateway timeout")).when(resilientExecutor).runResilient(anyString(), any());
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("gateway timeout"));
+        });
 
         assertThatThrownBy(
                 () -> mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00")))
@@ -119,19 +122,18 @@ class MockPaymentGatewayAdapterTest {
 
     private void runResilientCallableEagerly() throws Exception {
 
-        doAnswer(invocation -> {
-            final Callable<Object> action = invocation.getArgument(1);
-            return action.call();
-        }).when(resilientExecutor).callResilient(anyString(), any());
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Supplier<?> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
     private void runResilientRunnableEagerly() {
 
-        doAnswer(invocation -> {
-            final Runnable action = invocation.getArgument(1);
-            action.run();
-            return null;
-        }).when(resilientExecutor).runResilient(anyString(), any(Runnable.class));
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Supplier<?> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

@@ -2,7 +2,6 @@ package com.cp.ecommerce.adapter.persistence.shipment;
 
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
@@ -27,16 +26,16 @@ class MockTrackingNumberGeneratorAdapter implements GenerateTrackingNumberOutPor
     @Override
     public String generate(final String carrier) {
 
-        try {
-            final String trackingNumber = resilientExecutor.callResilient(
-                    GENERATE_TRACKING_RESILIENCE_INSTANCE_NAME,
-                    (Callable<String>) () -> carrierCode(carrier) + "-"
-                            + UUID.randomUUID().toString().toUpperCase(Locale.ROOT));
-            log.info("Mock tracking number {} generated for carrier {}", trackingNumber, carrier);
-            return trackingNumber;
-        } catch (final Exception exception) {
-            throw new TechnicalProblemException("Could not generate tracking number for carrier: " + carrier, exception);
-        }
+        final String trackingNumber = resilientExecutor.callResilientOrElse(
+                GENERATE_TRACKING_RESILIENCE_INSTANCE_NAME,
+                () -> carrierCode(carrier) + "-" + UUID.randomUUID().toString().toUpperCase(Locale.ROOT),
+                exception -> {
+                    throw new TechnicalProblemException(
+                            "Could not generate tracking number for carrier: " + carrier,
+                            exception);
+                });
+        log.info("Mock tracking number {} generated for carrier {}", trackingNumber, carrier);
+        return trackingNumber;
     }
 
     private String carrierCode(final String carrier) {

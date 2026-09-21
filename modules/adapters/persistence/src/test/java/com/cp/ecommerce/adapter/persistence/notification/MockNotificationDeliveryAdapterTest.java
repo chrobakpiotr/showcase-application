@@ -13,8 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -32,21 +30,23 @@ class MockNotificationDeliveryAdapterTest {
     @Test
     void shouldDeliverNotification() {
 
-        doAnswer(invocation -> {
-            final Runnable action = invocation.getArgument(1);
-            action.run();
-            return null;
-        }).when(resilientExecutor).runResilient(anyString(), any(Runnable.class));
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Supplier<?> action = invocation.getArgument(1);
+            return action.get();
+        });
 
         mockNotificationDeliveryAdapter.deliver(NotificationBuilder.mockNotification());
 
-        verify(resilientExecutor).runResilient(anyString(), any(Runnable.class));
+        verify(resilientExecutor).callResilientOrElse(anyString(), any(), any());
     }
 
     @Test
     void shouldWrapUnexpectedDeliveryFailureAsTechnicalProblem() {
 
-        doThrow(new RuntimeException("gateway timeout")).when(resilientExecutor).runResilient(anyString(), any(Runnable.class));
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("gateway timeout"));
+        });
 
         assertThatThrownBy(() -> mockNotificationDeliveryAdapter.deliver(NotificationBuilder.mockNotification()))
                 .isInstanceOf(TechnicalProblemException.class);
