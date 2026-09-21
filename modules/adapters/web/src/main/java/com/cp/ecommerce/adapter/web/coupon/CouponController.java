@@ -1,8 +1,8 @@
 package com.cp.ecommerce.adapter.web.coupon;
 
-import java.util.List;
 import java.util.Optional;
 
+import com.cp.ecommerce.adapter.web.common.PagedModelAssembler;
 import com.cp.ecommerce.adapter.web.coupon.mapper.CouponWebMapper;
 import com.cp.ecommerce.adapter.web.coupon.resource.CouponDetailsResource;
 import com.cp.ecommerce.adapter.web.coupon.resource.CouponResource;
@@ -16,7 +16,6 @@ import com.cp.ecommerce.domain.coupon.port.incoming.ManageCouponInPort;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -94,38 +93,11 @@ public class CouponController {
                     "page must be >= 0 and size must be between 1 and " + CouponPageQuery.MAX_SIZE);
         }
         final PagedCoupons result = listCouponsInPort.listCoupons(new CouponPageQuery(page, size, activeOnly));
-        final List<EntityModel<CouponDetailsResource>> content = result.content()
-                .stream()
-                .map(coupon -> toResourceWithLinks(coupon, coupon.getCode()))
-                .toList();
-        final PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(
-                result.size(),
-                result.page(),
-                result.totalElements(),
-                result.totalPages());
-        final PagedModel<EntityModel<CouponDetailsResource>> pagedModel = PagedModel.of(
+        final var content = result.content().stream().map(coupon -> toResourceWithLinks(coupon, coupon.getCode())).toList();
+        return PagedModelAssembler.assemble(
                 content,
-                metadata,
-                linkTo(methodOn(CouponController.class).listCoupons(page, size, activeOnly)).withSelfRel());
-        final int lastPage = Math.max(result.totalPages() - 1, 0);
-        pagedModel.add(
-                linkTo(methodOn(CouponController.class).listCoupons(0, size, activeOnly)).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) {
-
-            pagedModel.add(
-                    linkTo(methodOn(CouponController.class).listCoupons(page - 1, size, activeOnly))
-                            .withRel(IanaLinkRelations.PREV));
-        }
-        if (page < lastPage) {
-
-            pagedModel.add(
-                    linkTo(methodOn(CouponController.class).listCoupons(page + 1, size, activeOnly))
-                            .withRel(IanaLinkRelations.NEXT));
-        }
-        pagedModel.add(
-                linkTo(methodOn(CouponController.class).listCoupons(lastPage, size, activeOnly))
-                        .withRel(IanaLinkRelations.LAST));
-        return pagedModel;
+                PagedModelAssembler.page(result.page(), result.size(), result.totalElements(), result.totalPages()),
+                target -> linkTo(methodOn(CouponController.class).listCoupons(target, size, activeOnly)).withSelfRel());
     }
 
     @GetMapping("/{code}")

@@ -1,12 +1,12 @@
 package com.cp.ecommerce.adapter.web.catalog;
 
-import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.web.catalog.mapper.ProductWebMapper;
 import com.cp.ecommerce.adapter.web.catalog.metrics.ProductMetrics;
 import com.cp.ecommerce.adapter.web.catalog.resource.ProductDetailsResource;
 import com.cp.ecommerce.adapter.web.catalog.resource.ProductResource;
+import com.cp.ecommerce.adapter.web.common.PagedModelAssembler;
 import com.cp.ecommerce.domain.catalog.CategoryNotFoundException;
 import com.cp.ecommerce.domain.catalog.PagedResult;
 import com.cp.ecommerce.domain.catalog.Product;
@@ -16,7 +16,6 @@ import com.cp.ecommerce.domain.catalog.usecase.ManageProductUseCase;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -100,39 +99,12 @@ public class ProductController {
         }
         final PagedResult<Product> result = listProductsUseCase
                 .listProducts(new ProductPageQuery(page, size, category, activeOnly));
-        final List<EntityModel<ProductDetailsResource>> content = result.content()
-                .stream()
-                .map(product -> toResourceWithLinks(product, product.getSku()))
-                .toList();
-        final PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(
-                result.size(),
-                result.page(),
-                result.totalElements(),
-                result.totalPages());
-        final PagedModel<EntityModel<ProductDetailsResource>> pagedModel = PagedModel.of(
+        final var content = result.content().stream().map(product -> toResourceWithLinks(product, product.getSku())).toList();
+        return PagedModelAssembler.assemble(
                 content,
-                metadata,
-                linkTo(methodOn(ProductController.class).listProducts(page, size, category, activeOnly)).withSelfRel());
-        final int lastPage = Math.max(result.totalPages() - 1, 0);
-        pagedModel.add(
-                linkTo(methodOn(ProductController.class).listProducts(0, size, category, activeOnly))
-                        .withRel(IanaLinkRelations.FIRST));
-        if (page > 0) {
-
-            pagedModel.add(
-                    linkTo(methodOn(ProductController.class).listProducts(page - 1, size, category, activeOnly))
-                            .withRel(IanaLinkRelations.PREV));
-        }
-        if (page < lastPage) {
-
-            pagedModel.add(
-                    linkTo(methodOn(ProductController.class).listProducts(page + 1, size, category, activeOnly))
-                            .withRel(IanaLinkRelations.NEXT));
-        }
-        pagedModel.add(
-                linkTo(methodOn(ProductController.class).listProducts(lastPage, size, category, activeOnly))
-                        .withRel(IanaLinkRelations.LAST));
-        return pagedModel;
+                PagedModelAssembler.page(result.page(), result.size(), result.totalElements(), result.totalPages()),
+                target -> linkTo(methodOn(ProductController.class).listProducts(target, size, category, activeOnly))
+                        .withSelfRel());
     }
 
     @GetMapping("/{sku}")

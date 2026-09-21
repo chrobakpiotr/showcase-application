@@ -2,8 +2,8 @@ package com.cp.ecommerce.adapter.web.shipments;
 
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.IntFunction;
 
+import com.cp.ecommerce.adapter.web.common.PagedModelAssembler;
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
 import com.cp.ecommerce.adapter.web.shipments.resource.CreateShipmentResource;
 import com.cp.ecommerce.adapter.web.shipments.resource.ShipmentResource;
@@ -18,8 +18,6 @@ import com.cp.ecommerce.foundation.constant.ValidationConstants;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.IanaLinkRelations;
-import org.springframework.hateoas.Link;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -78,9 +76,9 @@ public class ShipmentController {
             @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
         validatePage(page, size);
         final PagedResult<Shipment> result = listShipmentsInPort.listShipments(new PageQuery(page, size));
-        return toPagedModel(
-                result,
-                page,
+        return PagedModelAssembler.assemble(
+                result.content().stream().map(this::toResourceModel).toList(),
+                PagedModelAssembler.page(result.page(), result.size(), result.totalElements(), result.totalPages()),
                 target -> linkTo(methodOn(ShipmentController.class).listShipments(target, size)).withSelfRel());
     }
 
@@ -92,9 +90,9 @@ public class ShipmentController {
             @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
         validatePage(page, size);
         final PagedResult<Shipment> result = listShipmentsInPort.listShipmentsForOrder(orderNumber, new PageQuery(page, size));
-        return toPagedModel(
-                result,
-                page,
+        return PagedModelAssembler.assemble(
+                result.content().stream().map(this::toResourceModel).toList(),
+                PagedModelAssembler.page(result.page(), result.size(), result.totalElements(), result.totalPages()),
                 target -> linkTo(methodOn(ShipmentController.class).listShipmentsForOrder(orderNumber, target, size))
                         .withSelfRel());
     }
@@ -107,9 +105,9 @@ public class ShipmentController {
             @RequestParam(name = "size", defaultValue = "" + PageQuery.DEFAULT_SIZE) final int size) {
         validatePage(page, size);
         final PagedResult<Shipment> result = listShipmentsInPort.listShipmentsByStatus(status, new PageQuery(page, size));
-        return toPagedModel(
-                result,
-                page,
+        return PagedModelAssembler.assemble(
+                result.content().stream().map(this::toResourceModel).toList(),
+                PagedModelAssembler.page(result.page(), result.size(), result.totalElements(), result.totalPages()),
                 target -> linkTo(methodOn(ShipmentController.class).listShipmentsByStatus(status, target, size)).withSelfRel());
     }
 
@@ -228,31 +226,6 @@ public class ShipmentController {
                     HttpStatus.BAD_REQUEST,
                     "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
         }
-    }
-
-    private PagedModel<EntityModel<ShipmentResource>> toPagedModel(
-            final PagedResult<Shipment> result,
-            final int page,
-            final IntFunction<Link> linkForPage) {
-        final var content = result.content().stream().map(this::toResourceModel).toList();
-        final var metadata = new PagedModel.PageMetadata(
-                result.size(),
-                result.page(),
-                result.totalElements(),
-                result.totalPages());
-        final var model = PagedModel.of(content, metadata, linkForPage.apply(page).withSelfRel());
-        final int lastPage = Math.max(result.totalPages() - 1, 0);
-        model.add(linkForPage.apply(0).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) {
-
-            model.add(linkForPage.apply(page - 1).withRel(IanaLinkRelations.PREV));
-        }
-        if (page < lastPage) {
-
-            model.add(linkForPage.apply(page + 1).withRel(IanaLinkRelations.NEXT));
-        }
-        model.add(linkForPage.apply(lastPage).withRel(IanaLinkRelations.LAST));
-        return model;
     }
 
 }
