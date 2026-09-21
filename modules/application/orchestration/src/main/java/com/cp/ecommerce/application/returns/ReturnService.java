@@ -6,6 +6,7 @@ import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
@@ -50,8 +51,8 @@ public class ReturnService implements ReturnWorkflow {
                 .findFirst()
                 .orElseThrow(() -> new ApplicationNotFoundException("Order line item not found"));
         final var lineEntitlement = refundEntitlementCalculator.lineEntitlement(order, sku);
-        return requestReturnInPort
-                .requestReturnFromLineEntitlement(orderNumber, sku, quantity, item.getQuantity(), reason, lineEntitlement);
+        return requestReturnInPort.requestReturnFromLineEntitlement(
+                new ReturnRequestCommand(orderNumber, sku, quantity, item.getQuantity(), reason, lineEntitlement));
     }
 
     @Override

@@ -240,26 +240,33 @@ class PlaceOrderUseCaseTest {
                 builder -> builder.paymentMethod(PaymentMethod.PAYPAL),
                 builder -> builder.couponCode("SAVE10"),
                 builder -> builder.customer(
-                        customer("Other", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Warsaw", "PL")),
-                builder -> builder.customer(
-                        customer("John Doe", "other@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Warsaw", "PL")),
-                builder -> builder
-                        .customer(customer("John Doe", "john.doe@test.com", "123", "Main Street 1", "12-345", "Warsaw", "PL")),
-                builder -> builder.customer(
-                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Other", "12-345", "Warsaw", "PL")),
-                builder -> builder.customer(
-                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "other", "Warsaw", "PL")),
-                builder -> builder.customer(
-                        customer("John Doe", "john.doe@test.com", "+48 123 456 789", "Main Street 1", "12-345", "Other", "PL")),
+                        customer(
+                                contact("Other", "john.doe@test.com", "+48 123 456 789"),
+                                address("Main Street 1", "12-345", "Warsaw", "PL"))),
                 builder -> builder.customer(
                         customer(
-                                "John Doe",
-                                "john.doe@test.com",
-                                "+48 123 456 789",
-                                "Main Street 1",
-                                "12-345",
-                                "Warsaw",
-                                "DE")),
+                                contact("John Doe", "other@test.com", "+48 123 456 789"),
+                                address("Main Street 1", "12-345", "Warsaw", "PL"))),
+                builder -> builder.customer(
+                        customer(
+                                contact("John Doe", "john.doe@test.com", "123"),
+                                address("Main Street 1", "12-345", "Warsaw", "PL"))),
+                builder -> builder.customer(
+                        customer(
+                                contact("John Doe", "john.doe@test.com", "+48 123 456 789"),
+                                address("Other", "12-345", "Warsaw", "PL"))),
+                builder -> builder.customer(
+                        customer(
+                                contact("John Doe", "john.doe@test.com", "+48 123 456 789"),
+                                address("Main Street 1", "other", "Warsaw", "PL"))),
+                builder -> builder.customer(
+                        customer(
+                                contact("John Doe", "john.doe@test.com", "+48 123 456 789"),
+                                address("Main Street 1", "12-345", "Other", "PL"))),
+                builder -> builder.customer(
+                        customer(
+                                contact("John Doe", "john.doe@test.com", "+48 123 456 789"),
+                                address("Main Street 1", "12-345", "Warsaw", "DE"))),
                 builder -> builder.customer(Customer.builder().build()),
                 builder -> builder.items(List.of(item("OTHER", "Wireless Mouse", "29.99", 2))),
                 builder -> builder.items(List.of(item("SKU-1001", "Wireless Mouse", "29.99", 3))),
@@ -280,13 +287,8 @@ class PlaceOrderUseCaseTest {
                         request()
                                 .customer(
                                         customer(
-                                                "John Doe",
-                                                "john.doe@test.com",
-                                                "+48 123 456 789",
-                                                "Main Street 1",
-                                                "12-345",
-                                                "Warsaw",
-                                                "PL"))
+                                                contact("John Doe", "john.doe@test.com", "+48 123 456 789"),
+                                                address("Main Street 1", "12-345", "Warsaw", "PL")))
                                 .build()));
         assertNotEquals(fingerprintOf(request().remarks(null).build()), fingerprintOf(request().remarks("null").build()));
         assertNotEquals(fingerprintOf(request().remarks("\uD800").build()), fingerprintOf(request().remarks("?").build()));
@@ -341,19 +343,19 @@ class PlaceOrderUseCaseTest {
                 .paymentMethod(original.getPaymentMethod());
     }
 
-    private static Customer customer(
-            final String name,
-            final String email,
-            final String phone,
-            final String street,
-            final String postalCode,
-            final String city,
-            final String country) {
+    private static Customer customer(final Contact contact, final Address address) {
 
-        return Customer.builder()
-                .contact(Contact.builder().fullName(name).email(email).phone(phone).build())
-                .address(Address.builder().street(street).postalCode(postalCode).city(city).countryCode(country).build())
-                .build();
+        return Customer.builder().contact(contact).address(address).build();
+    }
+
+    private static Contact contact(final String name, final String email, final String phone) {
+
+        return Contact.builder().fullName(name).email(email).phone(phone).build();
+    }
+
+    private static Address address(final String street, final String postalCode, final String city, final String country) {
+
+        return Address.builder().street(street).postalCode(postalCode).city(city).countryCode(country).build();
     }
 
     private static OrderLineItem item(final String sku, final String name, final String price, final int quantity) {

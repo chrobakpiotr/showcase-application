@@ -23,6 +23,7 @@ import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
@@ -207,12 +208,13 @@ class PaymentPartialRefundPostgresIntegrationTest {
     private String requestReturn(final String orderNumber, final String sku, final int quantity) {
 
         final ReturnRequest created = requestReturnInPort.requestReturn(
-                orderNumber,
-                sku,
-                quantity,
-                2,
-                "R04 partial return",
-                UNIT_PRICE.multiply(BigDecimal.valueOf(quantity)));
+                new ReturnRequestCommand(
+                        orderNumber,
+                        sku,
+                        quantity,
+                        2,
+                        "R04 partial return",
+                        UNIT_PRICE.multiply(BigDecimal.valueOf(quantity))));
         return created.getReturnNumber();
     }
 

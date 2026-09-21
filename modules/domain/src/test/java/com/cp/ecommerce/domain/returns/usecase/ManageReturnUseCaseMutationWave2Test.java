@@ -6,6 +6,7 @@ import java.util.List;
 import com.cp.ecommerce.domain.returns.PageQuery;
 import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestsOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.GenerateReturnNumberOutPort;
@@ -67,7 +68,8 @@ class ManageReturnUseCaseMutationWave2Test {
     void shouldValidateRequestedReturnBeforeStateMutation() {
         given(generateReturnNumberOutPort.generate()).willReturn("RETURN-X");
 
-        assertThatThrownBy(() -> useCase.requestReturn("ORDER-1", "SKU-1", 1, 1, " ", new BigDecimal("10.00")))
+        assertThatThrownBy(
+                () -> useCase.requestReturn(new ReturnRequestCommand("ORDER-1", "SKU-1", 1, 1, " ", new BigDecimal("10.00"))))
                 .isInstanceOf(DomainObjectValidationException.class);
 
         verify(manageReturnRequestStateOutPort, never()).create(any(), any(Integer.class));

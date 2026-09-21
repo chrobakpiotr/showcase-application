@@ -7,6 +7,7 @@ import java.util.List;
 import com.cp.ecommerce.domain.returns.PageQuery;
 import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
@@ -36,30 +37,29 @@ public class ManageReturnUseCase implements RequestReturnInPort, GetReturnInPort
     private final GenerateReturnNumberOutPort generateReturnNumberOutPort;
 
     @Override
-    public ReturnRequest requestReturn(
-            final String orderNumber,
-            final String sku,
-            final int quantity,
-            final int orderedQuantity,
-            final String reason,
-            final BigDecimal refundAmount) {
+    public ReturnRequest requestReturn(final ReturnRequestCommand command) {
 
-        return manageReturnRequestStateOutPort
-                .create(requestedReturn(orderNumber, sku, quantity, reason, refundAmount), orderedQuantity);
+        return manageReturnRequestStateOutPort.create(
+                requestedReturn(
+                        command.orderNumber(),
+                        command.sku(),
+                        command.quantity(),
+                        command.reason(),
+                        command.refundAmount()),
+                command.orderedQuantity());
     }
 
     @Override
-    public ReturnRequest requestReturnFromLineEntitlement(
-            final String orderNumber,
-            final String sku,
-            final int quantity,
-            final int orderedQuantity,
-            final String reason,
-            final BigDecimal lineRefundEntitlement) {
+    public ReturnRequest requestReturnFromLineEntitlement(final ReturnRequestCommand command) {
 
         return manageReturnRequestStateOutPort.createFromLineEntitlement(
-                requestedReturn(orderNumber, sku, quantity, reason, lineRefundEntitlement),
-                orderedQuantity);
+                requestedReturn(
+                        command.orderNumber(),
+                        command.sku(),
+                        command.quantity(),
+                        command.reason(),
+                        command.refundAmount()),
+                command.orderedQuantity());
     }
 
     private ReturnRequest requestedReturn(

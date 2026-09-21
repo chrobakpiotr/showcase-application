@@ -23,6 +23,7 @@ import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.PageQuery;
 import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
@@ -50,7 +51,6 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -193,15 +193,7 @@ class ReturnControllerTest {
         final Order order = OrderBuilder.mockOrder();
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(orderWithNumber(order));
-        given(
-                requestReturnInPort.requestReturnFromLineEntitlement(
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        org.mockito.ArgumentMatchers.eq(1),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
-                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
-                .willReturn(created);
+        given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class))).willReturn(created);
         given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
 
         mockMvc.perform(
@@ -216,12 +208,13 @@ class ReturnControllerTest {
                 .andExpect(jsonPath("$.returnNumber").value(ReturnRequestBuilder.TEST_RETURN_NUMBER));
 
         verify(requestReturnInPort).requestReturnFromLineEntitlement(
-                ReturnRequestBuilder.TEST_ORDER_NUMBER,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
-                1,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
-                ReturnRequestBuilder.TEST_REASON,
-                TEST_LINE_REFUND_ENTITLEMENT);
+                new ReturnRequestCommand(
+                        ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                        1,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                        ReturnRequestBuilder.TEST_REASON,
+                        TEST_LINE_REFUND_ENTITLEMENT));
     }
 
     @Test
@@ -229,7 +222,7 @@ class ReturnControllerTest {
 
         mockMvc.perform(post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
-        verify(requestReturnInPort, never()).requestReturn(any(), any(), anyInt(), anyInt(), any(), any());
+        verify(requestReturnInPort, never()).requestReturn(any(ReturnRequestCommand.class));
     }
 
     @Test
@@ -394,14 +387,7 @@ class ReturnControllerTest {
     void shouldReturnConflictWhenAtomicEntitlementCheckFails() throws Exception {
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(
-                requestReturnInPort.requestReturnFromLineEntitlement(
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        org.mockito.ArgumentMatchers.eq(1),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
-                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
+        given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class)))
                 .willThrow(new ReturnQuantityConflictException(0));
 
         mockMvc.perform(
@@ -416,12 +402,13 @@ class ReturnControllerTest {
                 .andExpect(jsonPath("$.title").value("Return Quantity Conflict"));
 
         verify(requestReturnInPort).requestReturnFromLineEntitlement(
-                ReturnRequestBuilder.TEST_ORDER_NUMBER,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
-                1,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
-                ReturnRequestBuilder.TEST_REASON,
-                TEST_LINE_REFUND_ENTITLEMENT);
+                new ReturnRequestCommand(
+                        ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                        1,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                        ReturnRequestBuilder.TEST_REASON,
+                        TEST_LINE_REFUND_ENTITLEMENT));
     }
 
     @Test
@@ -429,15 +416,7 @@ class ReturnControllerTest {
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(
-                requestReturnInPort.requestReturnFromLineEntitlement(
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_ORDER_NUMBER),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
-                        org.mockito.ArgumentMatchers.eq(2),
-                        org.mockito.ArgumentMatchers.eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY),
-                        org.mockito.ArgumentMatchers.eq(ReturnRequestBuilder.TEST_REASON),
-                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
-                .willReturn(created);
+        given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class))).willReturn(created);
         given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
 
         mockMvc.perform(
@@ -451,12 +430,13 @@ class ReturnControllerTest {
                 .andExpect(status().isCreated());
 
         verify(requestReturnInPort).requestReturnFromLineEntitlement(
-                ReturnRequestBuilder.TEST_ORDER_NUMBER,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
-                2,
-                OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
-                ReturnRequestBuilder.TEST_REASON,
-                TEST_LINE_REFUND_ENTITLEMENT);
+                new ReturnRequestCommand(
+                        ReturnRequestBuilder.TEST_ORDER_NUMBER,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
+                        2,
+                        OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY,
+                        ReturnRequestBuilder.TEST_REASON,
+                        TEST_LINE_REFUND_ENTITLEMENT));
     }
 
     @Test

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestOutPort;
 import com.cp.ecommerce.domain.returns.port.outgoing.FindReturnRequestsOutPort;
@@ -55,7 +56,7 @@ class ManageReturnUseCaseTest {
                 .willAnswer(invocation -> invocation.getArgument(0));
 
         final ReturnRequest result = manageReturnUseCase
-                .requestReturn("ORD-1", "SKU-1", 2, 3, "Damaged", new BigDecimal("59.98"));
+                .requestReturn(new ReturnRequestCommand("ORD-1", "SKU-1", 2, 3, "Damaged", new BigDecimal("59.98")));
 
         assertThat(result.getReturnNumber()).isEqualTo(RETURN_NUMBER);
         assertThat(result.getStatus()).isEqualTo(ReturnStatus.REQUESTED);
@@ -71,8 +72,8 @@ class ManageReturnUseCaseTest {
         given(manageReturnRequestStateOutPort.createFromLineEntitlement(captor.capture(), eq(3)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
-        final ReturnRequest result = manageReturnUseCase
-                .requestReturnFromLineEntitlement("ORD-1", "SKU-1", 2, 3, "Damaged", new BigDecimal("89.97"));
+        final ReturnRequest result = manageReturnUseCase.requestReturnFromLineEntitlement(
+                new ReturnRequestCommand("ORD-1", "SKU-1", 2, 3, "Damaged", new BigDecimal("89.97")));
 
         assertThat(result.getReturnNumber()).isEqualTo(RETURN_NUMBER);
         assertThat(result.getStatus()).isEqualTo(ReturnStatus.REQUESTED);

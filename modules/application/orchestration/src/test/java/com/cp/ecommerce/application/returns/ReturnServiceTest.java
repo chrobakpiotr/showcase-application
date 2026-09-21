@@ -9,6 +9,7 @@ import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
@@ -24,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -75,19 +77,12 @@ class ReturnServiceTest {
         given(order.getItems()).willReturn(List.of(item));
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
         given(refundEntitlementCalculator.lineEntitlement(order, SKU)).willReturn(lineEntitlement);
-        given(
-                requestReturnInPort.requestReturnFromLineEntitlement(
-                        org.mockito.ArgumentMatchers.eq(ORDER_NUMBER),
-                        org.mockito.ArgumentMatchers.eq(SKU),
-                        org.mockito.ArgumentMatchers.eq(2),
-                        org.mockito.ArgumentMatchers.eq(4),
-                        org.mockito.ArgumentMatchers.eq("damaged"),
-                        org.mockito.ArgumentMatchers.any(BigDecimal.class)))
-                .willReturn(created);
+        given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class))).willReturn(created);
 
         assertThat(service.requestReturn(ORDER_NUMBER, SKU, 2, "damaged")).isSameAs(created);
 
-        verify(requestReturnInPort).requestReturnFromLineEntitlement(ORDER_NUMBER, SKU, 2, 4, "damaged", lineEntitlement);
+        verify(requestReturnInPort).requestReturnFromLineEntitlement(
+                new ReturnRequestCommand(ORDER_NUMBER, SKU, 2, 4, "damaged", lineEntitlement));
     }
 
     @Test

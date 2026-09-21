@@ -19,6 +19,7 @@ import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
+import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
@@ -223,7 +224,8 @@ class ReturnConcurrencyPostgresIntegrationTest {
 
     private ReturnRequest request(final String orderNumber, final String sku) {
 
-        return requestReturnInPort.requestReturn(orderNumber, sku, 1, 1, "R05 concurrent return", UNIT_PRICE);
+        return requestReturnInPort
+                .requestReturn(new ReturnRequestCommand(orderNumber, sku, 1, 1, "R05 concurrent return", UNIT_PRICE));
     }
 
     private String placeOrder(final String sku, final int quantity) {
