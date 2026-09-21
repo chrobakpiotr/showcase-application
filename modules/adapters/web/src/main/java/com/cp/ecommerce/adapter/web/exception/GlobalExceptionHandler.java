@@ -2,7 +2,6 @@ package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
 import java.util.Locale;
-import java.util.UUID;
 
 import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
 import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
@@ -20,11 +19,6 @@ import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
-import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
-import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
-import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
-import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -40,10 +34,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
-import io.micrometer.tracing.Span;
 import io.micrometer.tracing.Tracer;
 import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -63,14 +55,11 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
  * request.
  */
 @RestControllerAdvice(annotations = Component.class)
-@Slf4j
 @SuppressWarnings("PMD.CouplingBetweenObjects")
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSupport {
 
     public static final String RUNTIME_EXCEPTION_ERROR_MESSAGE = "Could not process your request";
 
-    private static final String ERROR_ID_PROPERTY = "errorId";
-    private static final String TRACE_ID_PROPERTY = "traceId";
     private static final String PROBLEM_TYPE_PREFIX = "urn:problem-type:";
 
     private static final URI TYPE_CONSTRAINT_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "constraint-violation");
@@ -86,22 +75,13 @@ public class GlobalExceptionHandler {
     private static final URI TYPE_COUPON_ALREADY_EXISTS = URI.create(PROBLEM_TYPE_PREFIX + "coupon-already-exists");
     private static final URI TYPE_PAYMENT_DECLINED = URI.create(PROBLEM_TYPE_PREFIX + "payment-declined");
     private static final URI TYPE_PAYMENT_REFUND_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "payment-refund-conflict");
-    private static final URI TYPE_RETURN_QUANTITY_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "return-quantity-conflict");
-    private static final URI TYPE_RETURN_REQUEST_NOT_APPROVABLE = URI
-            .create(PROBLEM_TYPE_PREFIX + "return-request-not-approvable");
-    private static final URI TYPE_RETURN_REQUEST_NOT_REJECTABLE = URI
-            .create(PROBLEM_TYPE_PREFIX + "return-request-not-rejectable");
-    private static final URI TYPE_RETURN_REQUEST_NOT_REFUNDABLE = URI
-            .create(PROBLEM_TYPE_PREFIX + "return-request-not-refundable");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
 
-    private final ObjectProvider<Tracer> tracerProvider;
-
     public GlobalExceptionHandler(final ObjectProvider<Tracer> tracerProvider) {
 
-        this.tracerProvider = tracerProvider;
+        super(tracerProvider);
     }
 
     @ResponseStatus(BAD_REQUEST)
@@ -249,61 +229,6 @@ public class GlobalExceptionHandler {
                 exception.getMessage());
     }
 
-    @ResponseStatus(CONFLICT)
-    @ExceptionHandler(ReturnQuantityConflictException.class)
-    public ProblemDetail returnQuantityConflictException(final ReturnQuantityConflictException exception) {
-
-        return problemDetail(
-                exception,
-                CONFLICT,
-                TYPE_RETURN_QUANTITY_CONFLICT,
-                "Return Quantity Conflict",
-                exception.getMessage());
-    }
-
-    @ResponseStatus(CONFLICT)
-    @ExceptionHandler(ReturnRequestNotApprovableException.class)
-    public ProblemDetail returnRequestNotApprovableException(final ReturnRequestNotApprovableException exception) {
-
-        return problemDetail(
-                exception,
-                CONFLICT,
-                TYPE_RETURN_REQUEST_NOT_APPROVABLE,
-                "Return Request Not Approvable",
-                exception.getMessage());
-    }
-
-    @ResponseStatus(CONFLICT)
-    @ExceptionHandler(ReturnRequestNotRejectableException.class)
-    public ProblemDetail returnRequestNotRejectableException(final ReturnRequestNotRejectableException exception) {
-
-        return problemDetail(
-                exception,
-                CONFLICT,
-                TYPE_RETURN_REQUEST_NOT_REJECTABLE,
-                "Return Request Not Rejectable",
-                exception.getMessage());
-    }
-
-    @ResponseStatus(CONFLICT)
-    @ExceptionHandler(ReturnRequestNotRefundableException.class)
-    public ProblemDetail returnRequestNotRefundableException(final ReturnRequestNotRefundableException exception) {
-
-        return problemDetail(
-                exception,
-                CONFLICT,
-                TYPE_RETURN_REQUEST_NOT_REFUNDABLE,
-                "Return Request Not Refundable",
-                exception.getMessage());
-    }
-
-    @ResponseStatus(CONFLICT)
-    @ExceptionHandler(ShipmentConflictException.class)
-    public ProblemDetail shipmentConflictException(final ShipmentConflictException exception) {
-
-        return problemDetail(exception, CONFLICT, TYPE_BUSINESS_RULE_VIOLATION, "Shipment Conflict", exception.getMessage());
-    }
-
     @ResponseStatus(INTERNAL_SERVER_ERROR)
     @ExceptionHandler(BusinessRuleException.class)
     public ProblemDetail businessRuleException(final BusinessRuleException exception) {
@@ -345,47 +270,6 @@ public class GlobalExceptionHandler {
 
         final HttpStatusCode status = exception.getStatusCode();
         return problemDetail(exception, status, problemTypeFor(status), null, exception.getReason());
-    }
-
-    private ProblemDetail problemDetail(
-            final Exception exception,
-            final HttpStatusCode status,
-            final URI type,
-            final String title,
-            final String detail) {
-
-        final String errorId = UUID.randomUUID().toString();
-        final String traceId = currentTraceId();
-        log.error(
-                "{} [errorId={}, traceId={}]: {}",
-                exception.getClass().getSimpleName(),
-                errorId,
-                traceId != null ? traceId : "none",
-                exception.getMessage());
-
-        final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
-        problemDetail.setType(type);
-        if (title != null) {
-
-            problemDetail.setTitle(title);
-        }
-        problemDetail.setProperty(ERROR_ID_PROPERTY, errorId);
-        if (traceId != null) {
-
-            problemDetail.setProperty(TRACE_ID_PROPERTY, traceId);
-        }
-        return problemDetail;
-    }
-
-    private String currentTraceId() {
-
-        final Tracer tracer = tracerProvider.getIfAvailable();
-        if (tracer == null) {
-
-            return null;
-        }
-        final Span currentSpan = tracer.currentSpan();
-        return currentSpan != null ? currentSpan.context().traceId() : null;
     }
 
     private URI problemTypeFor(final HttpStatusCode status) {
