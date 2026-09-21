@@ -2,7 +2,7 @@ package com.cp.ecommerce.adapter.ai.recommendation;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.recommendation.CustomerReviewProfile;
@@ -118,7 +118,10 @@ class ProductRecommendationsAdapterTest {
     @Test
     void shouldReturnUnavailableFallbackWhenResilienceFails() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final ProductRecommendationsAdapter adapter = newAdapter();
 
         final ProductRecommendations result = adapter.recommend(
@@ -275,14 +278,10 @@ class ProductRecommendationsAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<ProductRecommendations> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<ProductRecommendations> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

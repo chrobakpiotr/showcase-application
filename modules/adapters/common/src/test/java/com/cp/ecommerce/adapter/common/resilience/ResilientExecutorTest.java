@@ -85,4 +85,32 @@ class ResilientExecutorTest {
         })).isInstanceOf(CallNotPermittedException.class);
     }
 
+    @Test
+    void shouldReturnExplicitFallbackForUncheckedFailure() {
+
+        final RetryRegistry retryRegistry = RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build());
+        final CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+        final ResilientExecutor resilientExecutor = new ResilientExecutor(circuitBreakerRegistry, retryRegistry);
+
+        final String result = resilientExecutor.callResilientOrElse(INSTANCE_NAME, () -> {
+            throw new IllegalStateException("boom");
+        }, failure -> "fallback:" + failure.getMessage());
+
+        assertThat(result).isEqualTo("fallback:boom");
+    }
+
+    @Test
+    void shouldPreserveRuntimeFailureThrownByFallbackMapper() {
+
+        final RetryRegistry retryRegistry = RetryRegistry.of(RetryConfig.custom().maxAttempts(1).build());
+        final CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+        final ResilientExecutor resilientExecutor = new ResilientExecutor(circuitBreakerRegistry, retryRegistry);
+
+        assertThatThrownBy(() -> resilientExecutor.callResilientOrElse(INSTANCE_NAME, () -> {
+            throw new IllegalArgumentException("original");
+        }, failure -> {
+            throw new IllegalStateException("mapped", failure);
+        })).isInstanceOf(IllegalStateException.class).hasMessage("mapped").hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
 }

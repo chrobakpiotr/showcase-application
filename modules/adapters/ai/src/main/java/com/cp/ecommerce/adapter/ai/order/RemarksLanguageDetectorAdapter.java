@@ -56,12 +56,10 @@ public class RemarksLanguageDetectorAdapter implements DetectRemarksLanguageOutP
             return SupportedLocale.ENGLISH;
         }
 
-        try {
-            return resilientExecutor.callResilient(RESILIENCE_INSTANCE_NAME, () -> detectWithModel(remarks));
-        } catch (Exception exception) {
+        return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> detectWithModel(remarks), exception -> {
             log.warn("Could not detect remarks language via Ollama, defaulting to ENGLISH.", exception);
             return SupportedLocale.ENGLISH;
-        }
+        });
     }
 
     private SupportedLocale detectWithModel(final String remarks) {

@@ -56,14 +56,13 @@ public class OpsDigestNarrativeAdapter implements GenerateOpsDigestNarrativeOutP
             final long ordersPlacedLastDay,
             final RemarksClassificationSummary remarksClassificationSummary) {
 
-        try {
-            return resilientExecutor.callResilient(
-                    RESILIENCE_INSTANCE_NAME,
-                    () -> generateWithModel(ordersPlacedLastDay, remarksClassificationSummary));
-        } catch (Exception exception) {
-            log.warn("Could not generate ops-digest narrative via Ollama, returning fallback narrative.", exception);
-            return FALLBACK_NARRATIVE;
-        }
+        return resilientExecutor.callResilientOrElse(
+                RESILIENCE_INSTANCE_NAME,
+                () -> generateWithModel(ordersPlacedLastDay, remarksClassificationSummary),
+                exception -> {
+                    log.warn("Could not generate ops-digest narrative via Ollama, returning fallback narrative.", exception);
+                    return FALLBACK_NARRATIVE;
+                });
     }
 
     private String generateWithModel(

@@ -65,13 +65,11 @@ public class OrderRemarksClassifierAdapter implements ClassifyOrderRemarksOutPor
             return RemarksTriageResult.standard("No remarks to classify.");
         }
 
-        try {
-            return resilientExecutor.callResilient(RESILIENCE_INSTANCE_NAME, () -> classifyWithModel(remarks));
-        } catch (Exception exception) {
+        return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> classifyWithModel(remarks), exception -> {
             throw new IllegalStateException(
                     "Could not classify remarks via Ollama for order: " + order.getOrderNumber(),
                     exception);
-        }
+        });
     }
 
     private RemarksTriageResult classifyWithModel(final String remarks) {

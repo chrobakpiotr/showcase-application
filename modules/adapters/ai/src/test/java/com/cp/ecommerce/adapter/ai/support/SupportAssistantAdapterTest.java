@@ -2,7 +2,7 @@ package com.cp.ecommerce.adapter.ai.support;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.assistant.SupportAnswer;
@@ -91,7 +91,10 @@ class SupportAssistantAdapterTest {
     @Test
     void shouldReturnFallbackAnswerWhenResilienceFails() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final SupportAssistantAdapter adapter = newAdapter();
 
         final SupportAnswer answer = adapter.ask(question("What is the return policy?"), "conversation-1");
@@ -119,14 +122,10 @@ class SupportAssistantAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<SupportAnswer> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<SupportAnswer> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

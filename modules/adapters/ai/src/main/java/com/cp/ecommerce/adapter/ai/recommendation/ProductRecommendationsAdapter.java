@@ -57,17 +57,16 @@ public class ProductRecommendationsAdapter implements GenerateProductRecommendat
             final List<CustomerReviewProfile> reviews,
             final List<RecommendationCandidateProduct> candidates) {
 
-        try {
-            return resilientExecutor.callResilient(
-                    RESILIENCE_INSTANCE_NAME,
-                    () -> recommendWithModel(request, purchasedProducts, reviews, candidates));
-        } catch (Exception exception) {
-            log.warn(
-                    "Could not generate personalized recommendations via Ollama for customer {}.",
-                    request.getCustomerEmail(),
-                    exception);
-            return ProductRecommendations.unavailable();
-        }
+        return resilientExecutor.callResilientOrElse(
+                RESILIENCE_INSTANCE_NAME,
+                () -> recommendWithModel(request, purchasedProducts, reviews, candidates),
+                exception -> {
+                    log.warn(
+                            "Could not generate personalized recommendations via Ollama for customer {}.",
+                            request.getCustomerEmail(),
+                            exception);
+                    return ProductRecommendations.unavailable();
+                });
     }
 
     private ProductRecommendations recommendWithModel(

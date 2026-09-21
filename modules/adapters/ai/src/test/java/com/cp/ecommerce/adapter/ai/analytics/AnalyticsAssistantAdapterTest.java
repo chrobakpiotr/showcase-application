@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.ai.analytics;
 
 import java.util.Collections;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
@@ -82,7 +82,10 @@ class AnalyticsAssistantAdapterTest {
     @Test
     void shouldReturnFallbackAnswerWhenResilienceFails() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final AnalyticsAssistantAdapter adapter = newAdapter();
 
         final AnalyticsAnswer answer = adapter.ask(question("How many orders were placed today?"), "conversation-1");
@@ -114,14 +117,10 @@ class AnalyticsAssistantAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<AnalyticsAnswer> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<AnalyticsAnswer> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

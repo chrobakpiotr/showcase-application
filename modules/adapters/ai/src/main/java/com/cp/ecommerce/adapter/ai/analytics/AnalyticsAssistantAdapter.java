@@ -73,12 +73,11 @@ public class AnalyticsAssistantAdapter implements AskAnalyticsQuestionOutPort {
                 ? UUID.randomUUID().toString()
                 : conversationId;
 
-        try {
-            return resilientExecutor.callResilient(RESILIENCE_INSTANCE_NAME, () -> askModel(question, effectiveConversationId));
-        } catch (Exception exception) {
-            log.warn("Could not answer analytics question via Ollama, returning fallback answer.", exception);
-            return AnalyticsAnswer.unavailable();
-        }
+        return resilientExecutor
+                .callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> askModel(question, effectiveConversationId), exception -> {
+                    log.warn("Could not answer analytics question via Ollama, returning fallback answer.", exception);
+                    return AnalyticsAnswer.unavailable();
+                });
     }
 
     private AnalyticsAnswer askModel(final AnalyticsQuestion question, final String conversationId) {

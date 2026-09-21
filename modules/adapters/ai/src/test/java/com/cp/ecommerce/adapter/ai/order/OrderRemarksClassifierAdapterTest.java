@@ -2,7 +2,7 @@ package com.cp.ecommerce.adapter.ai.order;
 
 import java.time.Instant;
 import java.util.Collections;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
@@ -94,7 +94,10 @@ class OrderRemarksClassifierAdapterTest {
     @Test
     void shouldWrapAndPropagateResilienceFailures() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final Order order = mockOrder();
         final OrderRemarksClassifierAdapter adapter = newAdapter();
 
@@ -116,14 +119,10 @@ class OrderRemarksClassifierAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<RemarksTriageResult> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<RemarksTriageResult> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

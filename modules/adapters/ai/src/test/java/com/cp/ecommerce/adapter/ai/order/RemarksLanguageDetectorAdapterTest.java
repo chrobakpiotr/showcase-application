@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.ai.order;
 
 import java.util.Collections;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.SupportedLocale;
@@ -87,7 +87,10 @@ class RemarksLanguageDetectorAdapterTest {
     @Test
     void shouldDefaultToEnglishWhenResilienceFails() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final RemarksLanguageDetectorAdapter adapter = newAdapter();
 
         final SupportedLocale locale = adapter.detectLanguage("Please deliver tomorrow.");
@@ -110,14 +113,10 @@ class RemarksLanguageDetectorAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<SupportedLocale> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<SupportedLocale> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
 }

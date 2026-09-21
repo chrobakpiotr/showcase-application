@@ -76,16 +76,16 @@ public class DuplicateOrderDetectorAdapter implements DetectDuplicateOrderOutPor
             return DuplicateOrderCheckResult.none();
         }
 
-        try {
-            return resilientExecutor
-                    .callResilient(RESILIENCE_INSTANCE_NAME, () -> compareWithModel(order, comparableCandidates));
-        } catch (Exception exception) {
-            log.warn(
-                    "Could not run AI duplicate-order similarity check via Ollama, treating order as not a duplicate: {}",
-                    order.getOrderNumber(),
-                    exception);
-            return DuplicateOrderCheckResult.none();
-        }
+        return resilientExecutor.callResilientOrElse(
+                RESILIENCE_INSTANCE_NAME,
+                () -> compareWithModel(order, comparableCandidates),
+                exception -> {
+                    log.warn(
+                            "Could not run AI duplicate-order similarity check via Ollama, treating order as not a duplicate: {}",
+                            order.getOrderNumber(),
+                            exception);
+                    return DuplicateOrderCheckResult.none();
+                });
     }
 
     private DuplicateOrderCheckResult compareWithModel(final Order order, final List<Order> comparableCandidates) {

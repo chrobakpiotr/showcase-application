@@ -57,12 +57,10 @@ public class SupportAssistantAdapter implements AskSupportQuestionOutPort {
 
         // conversationId remains part of the public contract for compatibility. ADR 0044 intentionally does not use it as
         // a server-side memory key because anonymous callers have no trustworthy identity/session binding.
-        try {
-            return resilientExecutor.callResilient(RESILIENCE_INSTANCE_NAME, () -> askModel(question));
-        } catch (Exception exception) {
+        return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> askModel(question), exception -> {
             log.warn("Could not answer support question via Ollama, returning fallback answer.", exception);
             return SupportAnswer.unavailable();
-        }
+        });
     }
 
     private SupportAnswer askModel(final SupportQuestion question) {

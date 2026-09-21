@@ -2,7 +2,7 @@ package com.cp.ecommerce.adapter.ai.order;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.customer.Customer;
@@ -136,7 +136,10 @@ class DuplicateOrderDetectorAdapterTest {
     @Test
     void shouldReturnNoneWhenResilienceFails() throws Exception {
 
-        when(resilientExecutor.callResilient(anyString(), any())).thenThrow(new IllegalStateException("circuit open"));
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
+            return fallback.apply(new IllegalStateException("circuit open"));
+        });
         final Order order = orderWithRemarks(ORD_1, DELIVER_TOMORROW);
         final Order candidate = orderWithRemarks(ORD_2, UNRELATED_REMARK);
         final DuplicateOrderDetectorAdapter adapter = newAdapter();
@@ -154,14 +157,10 @@ class DuplicateOrderDetectorAdapterTest {
     @SuppressWarnings("unchecked")
     private void runResilientActionEagerly() {
 
-        try {
-            when(resilientExecutor.callResilient(anyString(), any())).thenAnswer(invocation -> {
-                final Callable<DuplicateOrderCheckResult> action = invocation.getArgument(1);
-                return action.call();
-            });
-        } catch (Exception exception) {
-            throw new IllegalStateException(exception);
-        }
+        when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final Supplier<DuplicateOrderCheckResult> action = invocation.getArgument(1);
+            return action.get();
+        });
     }
 
     @SuppressWarnings("unchecked")
