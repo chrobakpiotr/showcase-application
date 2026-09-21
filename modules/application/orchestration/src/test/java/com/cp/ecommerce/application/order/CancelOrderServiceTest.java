@@ -167,6 +167,22 @@ class CancelOrderServiceTest {
     }
 
     @Test
+    void shouldCompleteRecoveredCancellationWithClaimIdentity() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER, "claim-42")).isSameAs(order);
+
+        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, "claim-42");
+        verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+    }
+
+    @Test
     void shouldNotRepeatSideEffectsForTerminalCancellation() {
 
         final Order order = mock(Order.class);

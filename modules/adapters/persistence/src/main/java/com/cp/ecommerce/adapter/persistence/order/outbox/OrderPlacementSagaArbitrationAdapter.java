@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort;
@@ -32,6 +33,12 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
     @Override
     public void completeCancellation(final String orderNumber) {
 
+        completeCancellation(orderNumber, null);
+    }
+
+    @Override
+    public void completeCancellation(final String orderNumber, final String claimId) {
+
         final OutboxEventEntity event = outboxEventEntityRepository.findByOrderNumberForUpdate(orderNumber)
                 .orElseThrow(
                         () -> new IllegalStateException(
@@ -46,7 +53,14 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
                     "Cannot complete customer cancellation from saga state " + event.getStatus() + " for order: "
                             + orderNumber);
         }
+        if (!Objects.equals(event.getCancellationClaimId(), claimId)) {
+
+            return;
+        }
         event.setStatus(OutboxEventStatus.CANCELLED);
+        event.setCancellationClaimId(null);
+        event.setCancellationClaimUntil(null);
+        event.setCancellationLastError(null);
         outboxEventEntityRepository.save(event);
     }
 

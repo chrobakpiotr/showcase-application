@@ -47,6 +47,11 @@ class OrderCancellationArbitrator {
         transactionOperations.executeWithoutResult(status -> arbitrationOutPort.completeCancellation(orderNumber));
     }
 
+    void completeCancellation(final String orderNumber, final String claimId) {
+
+        transactionOperations.executeWithoutResult(status -> arbitrationOutPort.completeCancellation(orderNumber, claimId));
+    }
+
     private CancellationStart beginCancellationInTransaction(final String orderNumber) {
 
         final CancellationClaim claim = arbitrationOutPort.beginCancellation(orderNumber);

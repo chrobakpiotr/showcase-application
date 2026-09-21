@@ -151,6 +151,14 @@ class OrderCancellationArbitratorTest {
         verify(arbitrationOutPort).completeCancellation(ORDER_NUMBER);
     }
 
+    @Test
+    void shouldCompleteRecoveryOwnedCancellationInTransaction() {
+
+        arbitrator.completeCancellation(ORDER_NUMBER, "claim-42");
+
+        verify(arbitrationOutPort).completeCancellation(ORDER_NUMBER, "claim-42");
+    }
+
     private static Order order() {
 
         return mock(Order.class);

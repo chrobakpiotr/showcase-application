@@ -15,4 +15,13 @@ public interface CancelOrderWorkflow {
      */
     Order cancelOrder(String orderNumber);
 
+    /**
+     * Resume cancellation under an already acquired durable recovery claim.
+     *
+     * @param orderNumber order business identifier.
+     * @param claimId durable recovery fencing token.
+     * @return cancelled order, or {@code null} when the order does not exist.
+     */
+    Order cancelOrder(String orderNumber, String claimId);
+
 }

@@ -34,4 +34,12 @@ public interface OrderPlacementSagaArbitrationOutPort {
      * @param orderNumber order business key.
      */
     void completeCancellation(String orderNumber);
+
+    /**
+     * Mark recovery-owned cancellation complete only when the durable claim still matches.
+     *
+     * @param orderNumber order business key.
+     * @param claimId cancellation recovery fencing token.
+     */
+    void completeCancellation(String orderNumber, String claimId);
 }

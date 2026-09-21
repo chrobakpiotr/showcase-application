@@ -11,7 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -30,7 +30,7 @@ class SendMessageUseCaseTest {
     void shouldSendMessage() {
 
         sendMessageUseCase.sendMessage(OrderBuilder.mockOrder());
-        verify(sendOrderMessageOutPort, atLeastOnce()).send(any());
+        verify(sendOrderMessageOutPort).send(any(), eq("ORDER-FULFILLMENT:1234"));
     }
 
 }

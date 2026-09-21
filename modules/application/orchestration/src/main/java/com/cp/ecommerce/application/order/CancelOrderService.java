@@ -43,40 +43,85 @@ public class CancelOrderService implements CancelOrderWorkflow {
     @Override
     public Order cancelOrder(final String orderNumber) {
 
+        return cancelOrder(orderNumber, null);
+    }
+
+    @Override
+    public Order cancelOrder(final String orderNumber, final String claimId) {
+
         final OrderCancellationArbitrator.CancellationStart cancellation = orderCancellationArbitrator
                 .beginCancellation(orderNumber);
         final Order order = cancellation.order();
-        if (order == null) {
-
-            return null;
-        }
-        if (!cancellation.runSideEffects()) {
+        if (order == null || !cancellation.runSideEffects()) {
 
             return order;
         }
+
+        releaseStock(order);
+        if (paymentRecoveryPending(order)) {
+
+            return order;
+        }
+
+        sendCancellationNotification(order);
+        completeCancellation(orderNumber, claimId);
+        return order;
+    }
+
+    private void releaseStock(final Order order) {
+
         final String reservationId = stockReservationId(order);
         order.getItems().forEach(item -> manageStockInPort.releaseStock(reservationId, item.getSku()));
+    }
+
+    private boolean paymentRecoveryPending(final Order order) {
+
         PaymentTransaction payment = managePaymentInPort.refundPayment(order.getOrderNumber());
-        if (payment != null && payment.getStatus() == PaymentStatus.PENDING && payment.getCreated() != null) {
-            payment = managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
-            if (payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED) {
-                payment = managePaymentInPort.refundPayment(order.getOrderNumber());
-            }
+        if (isPendingCreatedPayment(payment)) {
+
+            payment = recoverPendingPayment(order);
         }
-        if (payment != null && payment.getStatus() == PaymentStatus.PENDING && payment.getCreated() != null) {
-            return order;
+        return isPendingCreatedPayment(payment) || managePaymentInPort.hasPendingRefunds(order.getOrderNumber());
+    }
+
+    private PaymentTransaction recoverPendingPayment(final Order order) {
+
+        PaymentTransaction payment = managePaymentInPort
+                .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
+        if (requiresRefund(payment)) {
+
+            payment = managePaymentInPort.refundPayment(order.getOrderNumber());
         }
-        if (managePaymentInPort.hasPendingRefunds(order.getOrderNumber())) {
-            return order;
-        }
+        return payment;
+    }
+
+    private void sendCancellationNotification(final Order order) {
 
         sendNotificationInPort.sendNotification(
                 order.getCustomer().getContact().getEmail(),
                 NotificationType.ORDER_CANCELLED,
                 "Order " + order.getOrderNumber() + " cancelled",
                 "Your order " + order.getOrderNumber() + " was cancelled.");
-        orderCancellationArbitrator.completeCancellation(orderNumber);
-        return order;
+    }
+
+    private void completeCancellation(final String orderNumber, final String claimId) {
+
+        if (claimId == null) {
+
+            orderCancellationArbitrator.completeCancellation(orderNumber);
+            return;
+        }
+        orderCancellationArbitrator.completeCancellation(orderNumber, claimId);
+    }
+
+    private static boolean isPendingCreatedPayment(final PaymentTransaction payment) {
+
+        return payment != null && payment.getStatus() == PaymentStatus.PENDING && payment.getCreated() != null;
+    }
+
+    private static boolean requiresRefund(final PaymentTransaction payment) {
+
+        return payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED;
     }
 
     private static String stockReservationId(final Order order) {

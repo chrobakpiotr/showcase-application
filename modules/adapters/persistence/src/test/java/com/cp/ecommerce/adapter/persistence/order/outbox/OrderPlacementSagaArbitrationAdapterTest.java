@@ -140,6 +140,28 @@ class OrderPlacementSagaArbitrationAdapterTest {
     }
 
     @Test
+    void shouldFenceRecoveryCompletionByCancellationClaimId() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId("claim-live");
+        event.setCancellationClaimUntil(CLOCK.instant().plusSeconds(30));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        adapter.completeCancellation(ORDER_NUMBER, "claim-stale");
+
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.CANCELLING);
+        assertThat(event.getCancellationClaimId()).isEqualTo("claim-live");
+        verify(repository, never()).save(event);
+
+        adapter.completeCancellation(ORDER_NUMBER, "claim-live");
+
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.CANCELLED);
+        assertThat(event.getCancellationClaimId()).isNull();
+        assertThat(event.getCancellationClaimUntil()).isNull();
+        verify(repository).save(event);
+    }
+
+    @Test
     void shouldNoOpWhenCancellationAlreadyCompleted() {
 
         final OutboxEventEntity event = event(OutboxEventStatus.CANCELLED);

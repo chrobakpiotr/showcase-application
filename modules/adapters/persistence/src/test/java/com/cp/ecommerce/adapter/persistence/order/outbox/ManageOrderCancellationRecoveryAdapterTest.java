@@ -46,7 +46,9 @@ class ManageOrderCancellationRecoveryAdapterTest {
         assertThat(adapter.findDueCancellationOrderNumbers(NOW, 10)).containsExactly(ORDER_NUMBER);
         final OrderCancellationRecoveryClaim claim = adapter.claim(ORDER_NUMBER, NOW);
         assertThat(claim.claimId()).isNotBlank();
-        assertThat(event.getCancellationAttempts()).isEqualTo(1);
+        assertThat(event.getCancellationAttempts())
+                .as("claim acquisition alone must not consume a failure attempt while cancellation may only be waiting")
+                .isZero();
         assertThat(event.getCancellationClaimUntil()).isEqualTo(NOW.plusMillis(30_000L));
     }
 
@@ -69,7 +71,7 @@ class ManageOrderCancellationRecoveryAdapterTest {
 
     @Test
     void shouldScheduleOwnedFailureAndFenceStaleFailure() {
-        final OutboxEventEntity event = event(1);
+        final OutboxEventEntity event = event(0);
         event.setCancellationClaimId("claim-1");
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
         adapter.recordFailure(ORDER_NUMBER, "stale", "ignored", NOW);
@@ -78,6 +80,7 @@ class ManageOrderCancellationRecoveryAdapterTest {
         assertThat(event.getCancellationNextAttemptDate()).isEqualTo(NOW.plusMillis(5_000L));
         assertThat(event.getCancellationClaimId()).isNull();
         assertThat(event.getCancellationLastError()).isEqualTo("temporary");
+        assertThat(event.getCancellationAttempts()).isEqualTo(1);
         verify(repository).save(event);
     }
 
@@ -98,11 +101,12 @@ class ManageOrderCancellationRecoveryAdapterTest {
 
     @Test
     void shouldParkOwnedFailureAtMaximumAttempts() {
-        final OutboxEventEntity event = event(2);
+        final OutboxEventEntity event = event(1);
         event.setCancellationClaimId("claim-3");
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
         adapter.recordFailure(ORDER_NUMBER, "claim-3", "still failing", NOW);
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.MANUAL_REVIEW);
+        assertThat(event.getCancellationAttempts()).isEqualTo(2);
     }
 
     private static OutboxEventEntity event(final int attempts) {

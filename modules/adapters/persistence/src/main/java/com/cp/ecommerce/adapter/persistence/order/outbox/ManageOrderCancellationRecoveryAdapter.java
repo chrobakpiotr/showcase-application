@@ -59,7 +59,6 @@ class ManageOrderCancellationRecoveryAdapter implements ManageOrderCancellationR
         final String claimId = UUID.randomUUID().toString();
         event.setCancellationClaimId(claimId);
         event.setCancellationClaimUntil(Instant.ofEpochMilli(now.toEpochMilli() + leaseMillis));
-        event.setCancellationAttempts(event.getCancellationAttempts() + 1);
         repository.save(event);
         return new OrderCancellationRecoveryClaim(orderNumber, claimId);
     }
@@ -89,10 +88,12 @@ class ManageOrderCancellationRecoveryAdapter implements ManageOrderCancellationR
             return;
         }
         final String message = String.valueOf(error);
+        final int attempts = event.getCancellationAttempts() + 1;
+        event.setCancellationAttempts(attempts);
         event.setCancellationLastError(message.substring(0, Math.min(message.length(), LAST_ERROR_MAX_LENGTH)));
         event.setCancellationClaimId(null);
         event.setCancellationClaimUntil(null);
-        if (event.getCancellationAttempts() >= maxAttempts) {
+        if (attempts >= maxAttempts) {
             event.setStatus(OutboxEventStatus.MANUAL_REVIEW);
         } else {
             event.setCancellationNextAttemptDate(Instant.ofEpochMilli(failedAt.toEpochMilli() + retryBackoffMillis));

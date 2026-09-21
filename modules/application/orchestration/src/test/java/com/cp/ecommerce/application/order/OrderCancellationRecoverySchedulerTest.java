@@ -36,13 +36,13 @@ class OrderCancellationRecoverySchedulerTest {
         given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, "claim-1"));
         given(recoveryOutPort.claim(ORDER_2, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_2, "claim-2"));
         given(recoveryOutPort.claim("ORDER-3", NOW)).willReturn(null);
-        doThrow(new IllegalStateException("temporary failure")).when(cancelOrderWorkflow).cancelOrder(ORDER_1);
+        doThrow(new IllegalStateException("temporary failure")).when(cancelOrderWorkflow).cancelOrder(ORDER_1, "claim-1");
 
         new OrderCancellationRecoveryScheduler(recoveryOutPort, cancelOrderWorkflow, Clock.fixed(NOW, ZoneOffset.UTC))
                 .recover();
 
         verify(recoveryOutPort).recordFailure(ORDER_1, "claim-1", "temporary failure", NOW);
-        verify(cancelOrderWorkflow).cancelOrder(ORDER_2);
+        verify(cancelOrderWorkflow).cancelOrder(ORDER_2, "claim-2");
         verify(recoveryOutPort).recordSuccess(ORDER_2, "claim-2");
     }
 }

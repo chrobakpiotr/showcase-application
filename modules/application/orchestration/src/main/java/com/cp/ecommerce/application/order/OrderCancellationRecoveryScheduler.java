@@ -35,7 +35,7 @@ class OrderCancellationRecoveryScheduler {
             return;
         }
         try {
-            cancelOrderWorkflow.cancelOrder(orderNumber);
+            cancelOrderWorkflow.cancelOrder(orderNumber, claim.claimId());
             recoveryOutPort.recordSuccess(orderNumber, claim.claimId());
         } catch (final RuntimeException exception) {
             recoveryOutPort.recordFailure(orderNumber, claim.claimId(), exception.getMessage(), now());
