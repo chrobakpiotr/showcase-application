@@ -81,6 +81,22 @@ class ManageOrderCancellationRecoveryAdapter implements ManageOrderCancellationR
 
     @Override
     @Transactional
+    public void recordWaiting(final String orderNumber, final String claimId, final Instant retryAt) {
+
+        final OutboxEventEntity event = repository.findByOrderNumberForUpdate(orderNumber).orElse(null);
+        if (event == null || event.getStatus() != OutboxEventStatus.CANCELLING
+                || !Objects.equals(event.getCancellationClaimId(), claimId)) {
+            return;
+        }
+        event.setCancellationClaimId(null);
+        event.setCancellationClaimUntil(null);
+        event.setCancellationLastError(null);
+        event.setCancellationNextAttemptDate(retryAt);
+        repository.save(event);
+    }
+
+    @Override
+    @Transactional
     public void recordFailure(final String orderNumber, final String claimId, final String error, final Instant failedAt) {
         final OutboxEventEntity event = repository.findByOrderNumberForUpdate(orderNumber).orElse(null);
         if (event == null || event.getStatus() != OutboxEventStatus.CANCELLING

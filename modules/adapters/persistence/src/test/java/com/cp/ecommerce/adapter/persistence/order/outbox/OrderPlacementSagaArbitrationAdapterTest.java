@@ -108,6 +108,30 @@ class OrderPlacementSagaArbitrationAdapterTest {
     }
 
     @Test
+    void shouldSuppressCustomerResumeWhileCancellationRecoveryLeaseIsActive() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId("recovery-owner");
+        event.setCancellationClaimUntil(CLOCK.instant().plusSeconds(30));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ALREADY_TERMINAL);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
+    void shouldAllowCustomerResumeAfterCancellationRecoveryLeaseExpires() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId("dead-recovery-owner");
+        event.setCancellationClaimUntil(CLOCK.instant().minusMillis(1));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.RESUME);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
     void shouldRejectCancellationWhenSagaAlreadySent() {
 
         final OutboxEventEntity event = event(OutboxEventStatus.SENT);

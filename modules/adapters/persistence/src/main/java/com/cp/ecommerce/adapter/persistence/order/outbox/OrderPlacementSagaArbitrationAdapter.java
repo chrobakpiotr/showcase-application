@@ -78,7 +78,9 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
         }
         if (event.getStatus() == OutboxEventStatus.CANCELLING) {
 
-            return CancellationClaim.RESUME;
+            return activeCancellationRecoveryLease(event, Instant.ofEpochMilli(clock.instant().toEpochMilli()))
+                    ? CancellationClaim.ALREADY_TERMINAL
+                    : CancellationClaim.RESUME;
         }
         if (event.getStatus() == OutboxEventStatus.SENT) {
 
@@ -94,6 +96,12 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
         event.setClaimUntil(null);
         outboxEventEntityRepository.save(event);
         return CancellationClaim.ACQUIRED;
+    }
+
+    private static boolean activeCancellationRecoveryLease(final OutboxEventEntity event, final Instant now) {
+
+        return event.getCancellationClaimId() != null && event.getCancellationClaimUntil() != null
+                && event.getCancellationClaimUntil().isAfter(now);
     }
 
     private static boolean leaseExpired(final OutboxEventEntity event, final Instant now) {

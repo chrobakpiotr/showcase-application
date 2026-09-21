@@ -23,6 +23,10 @@ class OrderCancellationRecoverySchedulerTest {
     private static final String ORDER_1 = "ORDER-1";
     private static final String ORDER_2 = "ORDER-2";
 
+    private static final String CLAIM_1 = "claim-1";
+
+    private static final String CLAIM_2 = "claim-2";
+
     private static final Instant NOW = Instant.parse("2026-09-20T12:00:00Z");
 
     @Mock
@@ -31,18 +35,40 @@ class OrderCancellationRecoverySchedulerTest {
     private CancelOrderWorkflow cancelOrderWorkflow;
 
     @Test
-    void shouldClaimFenceAndContinueAfterOneRecoveryFails() {
-        given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1, ORDER_2, "ORDER-3"));
-        given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, "claim-1"));
-        given(recoveryOutPort.claim(ORDER_2, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_2, "claim-2"));
-        given(recoveryOutPort.claim("ORDER-3", NOW)).willReturn(null);
-        doThrow(new IllegalStateException("temporary failure")).when(cancelOrderWorkflow).cancelOrder(ORDER_1, "claim-1");
+    void shouldReleaseWaitingClaimWithoutRecordingSuccessOrFailure() {
+
+        given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1));
+        given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, CLAIM_1));
+        given(cancelOrderWorkflow.recoverCancellation(ORDER_1, CLAIM_1))
+                .willReturn(CancellationRecoveryOutcome.WAITING_FOR_REFUND);
 
         new OrderCancellationRecoveryScheduler(recoveryOutPort, cancelOrderWorkflow, Clock.fixed(NOW, ZoneOffset.UTC))
                 .recover();
 
-        verify(recoveryOutPort).recordFailure(ORDER_1, "claim-1", "temporary failure", NOW);
-        verify(cancelOrderWorkflow).cancelOrder(ORDER_2, "claim-2");
-        verify(recoveryOutPort).recordSuccess(ORDER_2, "claim-2");
+        verify(recoveryOutPort).recordWaiting(ORDER_1, CLAIM_1, NOW);
+        verify(recoveryOutPort, org.mockito.Mockito.never()).recordSuccess(ORDER_1, CLAIM_1);
+        verify(recoveryOutPort, org.mockito.Mockito.never()).recordFailure(
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.any());
+    }
+
+    @Test
+    void shouldClaimFenceAndContinueAfterOneRecoveryFails() {
+        given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1, ORDER_2, "ORDER-3"));
+        given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, CLAIM_1));
+        given(recoveryOutPort.claim(ORDER_2, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_2, CLAIM_2));
+        given(recoveryOutPort.claim("ORDER-3", NOW)).willReturn(null);
+        doThrow(new IllegalStateException("temporary failure")).when(cancelOrderWorkflow).recoverCancellation(ORDER_1, CLAIM_1);
+
+        given(cancelOrderWorkflow.recoverCancellation(ORDER_2, CLAIM_2)).willReturn(CancellationRecoveryOutcome.COMPLETED);
+
+        new OrderCancellationRecoveryScheduler(recoveryOutPort, cancelOrderWorkflow, Clock.fixed(NOW, ZoneOffset.UTC))
+                .recover();
+
+        verify(recoveryOutPort).recordFailure(ORDER_1, CLAIM_1, "temporary failure", NOW);
+        verify(cancelOrderWorkflow).recoverCancellation(ORDER_2, CLAIM_2);
+        verify(recoveryOutPort).recordSuccess(ORDER_2, CLAIM_2);
     }
 }

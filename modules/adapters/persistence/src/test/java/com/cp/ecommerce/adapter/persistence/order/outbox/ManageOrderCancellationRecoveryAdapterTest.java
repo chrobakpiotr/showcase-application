@@ -85,6 +85,25 @@ class ManageOrderCancellationRecoveryAdapterTest {
     }
 
     @Test
+    void shouldReleaseOwnedWaitingClaimWithoutConsumingFailureAttempt() {
+
+        final OutboxEventEntity event = event(1);
+        event.setCancellationClaimId("claim-waiting");
+        event.setCancellationClaimUntil(NOW.plusSeconds(30));
+        event.setCancellationLastError("old failure");
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        adapter.recordWaiting(ORDER_NUMBER, "claim-waiting", NOW.plusMillis(5_000L));
+
+        assertThat(event.getCancellationAttempts()).isEqualTo(1);
+        assertThat(event.getCancellationClaimId()).isNull();
+        assertThat(event.getCancellationClaimUntil()).isNull();
+        assertThat(event.getCancellationLastError()).isNull();
+        assertThat(event.getCancellationNextAttemptDate()).isEqualTo(NOW.plusMillis(5_000L));
+        verify(repository).save(event);
+    }
+
+    @Test
     void shouldFenceSuccessAndIgnoreAlreadyCancelledRow() {
         final OutboxEventEntity event = event(1);
         event.setCancellationClaimId("claim-2");
@@ -107,6 +126,22 @@ class ManageOrderCancellationRecoveryAdapterTest {
         adapter.recordFailure(ORDER_NUMBER, "claim-3", "still failing", NOW);
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.MANUAL_REVIEW);
         assertThat(event.getCancellationAttempts()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldIgnoreWaitingBookkeepingForMissingAndStaleClaims() {
+
+        given(repository.findByOrderNumberForUpdate("missing-waiting")).willReturn(Optional.empty());
+
+        adapter.recordWaiting("missing-waiting", "claim-missing", NOW.plusSeconds(5));
+
+        final OutboxEventEntity stale = event(0);
+        stale.setCancellationClaimId("claim-live");
+        given(repository.findByOrderNumberForUpdate("stale-waiting")).willReturn(Optional.of(stale));
+
+        adapter.recordWaiting("stale-waiting", "claim-stale", NOW.plusSeconds(5));
+
+        verify(repository, never()).save(stale);
     }
 
     private static OutboxEventEntity event(final int attempts) {

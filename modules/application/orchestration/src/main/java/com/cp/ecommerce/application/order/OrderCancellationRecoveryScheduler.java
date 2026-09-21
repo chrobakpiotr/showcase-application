@@ -35,7 +35,12 @@ class OrderCancellationRecoveryScheduler {
             return;
         }
         try {
-            cancelOrderWorkflow.cancelOrder(orderNumber, claim.claimId());
+            final CancellationRecoveryOutcome outcome = cancelOrderWorkflow.recoverCancellation(orderNumber, claim.claimId());
+            if (outcome == CancellationRecoveryOutcome.WAITING_FOR_REFUND) {
+
+                recoveryOutPort.recordWaiting(orderNumber, claim.claimId(), now());
+                return;
+            }
             recoveryOutPort.recordSuccess(orderNumber, claim.claimId());
         } catch (final RuntimeException exception) {
             recoveryOutPort.recordFailure(orderNumber, claim.claimId(), exception.getMessage(), now());

@@ -43,29 +43,40 @@ public class CancelOrderService implements CancelOrderWorkflow {
     @Override
     public Order cancelOrder(final String orderNumber) {
 
-        return cancelOrder(orderNumber, null);
+        return executeCancellation(orderNumber, null).order();
     }
 
     @Override
     public Order cancelOrder(final String orderNumber, final String claimId) {
+
+        return executeCancellation(orderNumber, claimId).order();
+    }
+
+    @Override
+    public CancellationRecoveryOutcome recoverCancellation(final String orderNumber, final String claimId) {
+
+        return executeCancellation(orderNumber, claimId).outcome();
+    }
+
+    private CancellationExecution executeCancellation(final String orderNumber, final String claimId) {
 
         final OrderCancellationArbitrator.CancellationStart cancellation = orderCancellationArbitrator
                 .beginCancellation(orderNumber);
         final Order order = cancellation.order();
         if (order == null || !cancellation.runSideEffects()) {
 
-            return order;
+            return new CancellationExecution(order, CancellationRecoveryOutcome.COMPLETED);
         }
 
         releaseStock(order);
         if (paymentRecoveryPending(order)) {
 
-            return order;
+            return new CancellationExecution(order, CancellationRecoveryOutcome.WAITING_FOR_REFUND);
         }
 
         sendCancellationNotification(order);
         completeCancellation(orderNumber, claimId);
-        return order;
+        return new CancellationExecution(order, CancellationRecoveryOutcome.COMPLETED);
     }
 
     private void releaseStock(final Order order) {
@@ -122,6 +133,9 @@ public class CancelOrderService implements CancelOrderWorkflow {
     private static boolean requiresRefund(final PaymentTransaction payment) {
 
         return payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED;
+    }
+
+    private record CancellationExecution(Order order, CancellationRecoveryOutcome outcome) {
     }
 
     private static String stockReservationId(final Order order) {

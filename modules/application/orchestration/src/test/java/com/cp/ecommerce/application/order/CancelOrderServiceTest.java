@@ -41,6 +41,8 @@ class CancelOrderServiceTest {
 
     private static final String RESERVATION_ID = "RESERVATION-1";
 
+    private static final String RECOVERY_CLAIM_ID = "claim-42";
+
     @Mock
     private transient OrderCancellationArbitrator orderCancellationArbitrator;
 
@@ -176,10 +178,42 @@ class CancelOrderServiceTest {
         given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
                 .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
 
-        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER, "claim-42")).isSameAs(order);
+        assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER, RECOVERY_CLAIM_ID)).isSameAs(order);
 
-        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, "claim-42");
+        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
         verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+    }
+
+    @Test
+    void shouldExposeWaitingOutcomeForPendingRefundRecovery() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+        given(managePaymentInPort.hasPendingRefunds(ORDER_NUMBER)).willReturn(true);
+
+        assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
+                .isEqualTo(CancellationRecoveryOutcome.WAITING_FOR_REFUND);
+
+        verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
+    }
+
+    @Test
+    void shouldExposeCompletedOutcomeAfterRecoveredCancellationFinalizes() {
+
+        final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
+        given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
+        given(order.getItems()).willReturn(List.of());
+        given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+                .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
+
+        assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
+                .isEqualTo(CancellationRecoveryOutcome.COMPLETED);
+
+        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
     }
 
     @Test
