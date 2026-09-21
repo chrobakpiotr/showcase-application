@@ -87,7 +87,7 @@ import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.TEST_ORDER_NUMB
  * Test class checking order page controller's behavior and order page API response.
  */
 @WebMvcTest(OrderController.class)
-@Import(PlaceOrderService.class)
+@Import({ PlaceOrderService.class, OrderCommandExecutor.class, OrderRepresentationAssembler.class })
 @SuppressWarnings("PMD.CouplingBetweenObjects")
 class OrderControllerTest {
 

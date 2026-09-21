@@ -1,31 +1,18 @@
 package com.cp.ecommerce.adapter.web.order;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
-import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
-import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderPlacementResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
-import com.cp.ecommerce.application.order.CancelOrderWorkflow;
-import com.cp.ecommerce.application.order.PlaceOrderWorkflow;
 import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
-import com.cp.ecommerce.domain.order.PlaceOrderResult;
 import com.cp.ecommerce.domain.order.usecase.ListOrdersUseCase;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
-import com.cp.ecommerce.domain.payment.PaymentTransaction;
-import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
-import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -49,15 +36,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 /**
  * Controller serving the functionality of {@link Order} API.
  */
-@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/order")
@@ -67,27 +49,15 @@ public class OrderController {
 
     private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
-    private static final String PLACE_ORDER_RATE_LIMITER = "placeOrder";
-
-    private static final String CANCEL_ORDER_RATE_LIMITER = "cancelOrder";
-
-    private final PlaceOrderWorkflow placeOrderWorkflow;
-
     private final ManageOrderUseCase manageOrderUseCase;
-
-    private final CancelOrderWorkflow cancelOrderWorkflow;
 
     private final ListOrdersUseCase listOrdersUseCase;
 
     private final OrderWebMapper orderWebMapper;
 
-    private final OrderMetrics orderMetrics;
+    private final OrderCommandExecutor orderCommandExecutor;
 
-    private final RateLimitedExecutor rateLimitedExecutor;
-
-    private final CurrentOperatorProvider currentOperatorProvider;
-
-    private final GetPaymentInPort getPaymentInPort;
+    private final OrderRepresentationAssembler orderRepresentationAssembler;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -133,17 +103,7 @@ public class OrderController {
         final Order orderDraft = orderWebMapper.mapToDomainObject(orderResource)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order data is missing"));
         orderDraft.assertValidationsEmpty();
-        final PlaceOrderResult result = rateLimitedExecutor
-                .callRateLimited(PLACE_ORDER_RATE_LIMITER, () -> placeOrderWorkflow.placeOrder(orderDraft, idempotencyKey));
-        if (result.newlyPlaced()) {
-
-            orderMetrics.recordOrderPlaced();
-            log.info(
-                    "Order {} placed by operator {}",
-                    result.orderNumber(),
-                    currentOperatorProvider.currentOperator().orElse("unknown"));
-        }
-        return new OrderPlacementResource(result.orderNumber());
+        return new OrderPlacementResource(orderCommandExecutor.placeOrder(orderDraft, idempotencyKey));
     }
 
     @GetMapping
@@ -173,31 +133,7 @@ public class OrderController {
                     "page must be >= 0 and size must be between 1 and " + PageQuery.MAX_SIZE);
         }
         final PagedResult<Order> result = listOrdersUseCase.listOrders(new PageQuery(page, size));
-        final Map<String, PaymentTransaction> payments = getPaymentInPort
-                .getPayments(result.content().stream().map(Order::getOrderNumber).toList());
-        final List<EntityModel<OrderDetailsResource>> content = result.content()
-                .stream()
-                .map(order -> toResourceWithLinks(order, order.getOrderNumber(), payments.get(order.getOrderNumber())))
-                .toList();
-        final PagedModel.PageMetadata metadata = new PagedModel.PageMetadata(
-                result.size(),
-                result.page(),
-                result.totalElements(),
-                result.totalPages());
-        final PagedModel<EntityModel<OrderDetailsResource>> pagedModel = PagedModel
-                .of(content, metadata, linkTo(methodOn(OrderController.class).listOrders(page, size)).withSelfRel());
-        final int lastPage = Math.max(result.totalPages() - 1, 0);
-        pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(0, size)).withRel(IanaLinkRelations.FIRST));
-        if (page > 0) {
-
-            pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(page - 1, size)).withRel(IanaLinkRelations.PREV));
-        }
-        if (page < lastPage) {
-
-            pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(page + 1, size)).withRel(IanaLinkRelations.NEXT));
-        }
-        pagedModel.add(linkTo(methodOn(OrderController.class).listOrders(lastPage, size)).withRel(IanaLinkRelations.LAST));
-        return pagedModel;
+        return orderRepresentationAssembler.toPagedModel(result, size);
     }
 
     @GetMapping("/{orderNumber}")
@@ -221,43 +157,19 @@ public class OrderController {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        return toResourceWithLinks(order, orderNumber);
+        return orderRepresentationAssembler.toModel(order, orderNumber);
     }
 
     @PostMapping("/{orderNumber}/cancel")
     @Operation(summary = "Cancel an order")
     public EntityModel<OrderDetailsResource> cancelOrder(@PathVariable("orderNumber") final String orderNumber) {
 
-        final Order order = rateLimitedExecutor
-                .callRateLimited(CANCEL_ORDER_RATE_LIMITER, () -> cancelOrderWorkflow.cancelOrder(orderNumber));
+        final Order order = orderCommandExecutor.cancelOrder(orderNumber);
         if (Optional.ofNullable(order).isEmpty()) {
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found");
         }
-        orderMetrics.recordOrderCancelled();
-        log.info("Order {} cancelled by operator {}", orderNumber, currentOperatorProvider.currentOperator().orElse("unknown"));
-        return toResourceWithLinks(order, orderNumber);
-    }
-
-    private EntityModel<OrderDetailsResource> toResourceWithLinks(final Order order, final String orderNumber) {
-
-        return toResourceWithLinks(order, orderNumber, getPaymentInPort.getPayment(orderNumber));
-    }
-
-    private EntityModel<OrderDetailsResource> toResourceWithLinks(
-            final Order order,
-            final String orderNumber,
-            final PaymentTransaction payment) {
-
-        final OrderDetailsResource resource = orderWebMapper.mapToResource(order, payment)
-                .orElseThrow(() -> new TechnicalProblemException("Order data is missing"));
-        final EntityModel<OrderDetailsResource> model = EntityModel
-                .of(resource, linkTo(methodOn(OrderController.class).findOrder(orderNumber)).withSelfRel());
-        if (order.getStatus() == OrderStatus.CONFIRMED) {
-
-            model.add(linkTo(methodOn(OrderController.class).cancelOrder(orderNumber)).withRel("cancel"));
-        }
-        return model;
+        return orderRepresentationAssembler.toModel(order, orderNumber);
     }
 
 }
