@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
 
 import org.springframework.boot.EnvironmentPostProcessor;
@@ -16,6 +17,7 @@ import org.springframework.core.env.MapPropertySource;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
@@ -80,7 +82,7 @@ public class SecretsManagerDbCredentialsEnvironmentPostProcessor implements Envi
             environment.getPropertySources().addFirst(new MapPropertySource(PROPERTY_SOURCE_NAME, props));
             log.info("Datasource credentials loaded from Secrets Manager secret: {}", secretName);
 
-        } catch (Exception ex) {
+        } catch (SdkException | JsonParseException | IllegalArgumentException ex) {
 
             log.warn(
                     "Could not load datasource credentials from Secrets Manager (secret: {}). "

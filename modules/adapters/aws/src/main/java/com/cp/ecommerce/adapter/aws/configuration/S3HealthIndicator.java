@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 
@@ -38,7 +39,7 @@ public class S3HealthIndicator implements HealthIndicator {
         try {
             s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
             return Health.up().withDetail("bucketName", bucketName).build();
-        } catch (final RuntimeException e) {
+        } catch (final SdkException e) {
             log.warn("S3 health check failed for bucket '{}'", bucketName, e);
             return Health.down(e).withDetail("bucketName", bucketName).build();
         }

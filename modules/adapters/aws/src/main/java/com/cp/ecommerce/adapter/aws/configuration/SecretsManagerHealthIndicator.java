@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.DescribeSecretRequest;
 
@@ -38,7 +39,7 @@ public class SecretsManagerHealthIndicator implements HealthIndicator {
         try {
             secretsManagerClient.describeSecret(DescribeSecretRequest.builder().secretId(secretName).build());
             return Health.up().withDetail("secretName", secretName).build();
-        } catch (final RuntimeException e) {
+        } catch (final SdkException e) {
             log.warn("Secrets Manager health check failed for secret '{}'", secretName, e);
             return Health.down(e).withDetail("secretName", secretName).build();
         }

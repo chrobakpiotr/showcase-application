@@ -18,6 +18,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.core.Ordered;
 import org.springframework.mock.env.MockEnvironment;
 
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest;
 import software.amazon.awssdk.services.secretsmanager.model.GetSecretValueResponse;
@@ -102,7 +103,7 @@ class SecretsManagerDbCredentialsEnvironmentPostProcessorTest {
 
         final MockEnvironment environment = buildEnabledEnvironment();
         given(secretsManagerClient.getSecretValue(any(GetSecretValueRequest.class)))
-                .willThrow(new RuntimeException("LocalStack unavailable"));
+                .willThrow(SdkClientException.create("LocalStack unavailable"));
         final SecretsManagerDbCredentialsEnvironmentPostProcessor processor = processorWithMockClient(secretsManagerClient);
 
         // Must not rethrow - just logs a warning and continues

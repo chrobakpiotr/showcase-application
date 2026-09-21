@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.kafka.configuration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Component;
 
@@ -39,7 +40,7 @@ public class KafkaHealthIndicator implements HealthIndicator {
         try {
             final String clusterId = kafkaAdmin.clusterId();
             return Health.up().withDetail("clusterId", clusterId).build();
-        } catch (final RuntimeException e) {
+        } catch (final KafkaException e) {
             log.warn("Kafka health check failed", e);
             return Health.down(e).build();
         }
