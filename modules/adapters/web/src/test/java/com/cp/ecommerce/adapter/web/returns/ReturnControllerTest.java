@@ -8,7 +8,6 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
-import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
 import com.cp.ecommerce.application.returns.RefundEntitlementCalculator;
 import com.cp.ecommerce.application.returns.ReturnService;
 import com.cp.ecommerce.application.returns.ReturnStateNotificationTransaction;
@@ -16,7 +15,6 @@ import com.cp.ecommerce.application.returns.ReturnWorkflow;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
-import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
@@ -24,7 +22,6 @@ import com.cp.ecommerce.domain.returns.PageQuery;
 import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
-import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.GetReturnInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.ListReturnsInPort;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
@@ -125,7 +122,8 @@ class ReturnControllerTest {
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
         given(listReturnsInPort.listReturns(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
                 .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
-        given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(returnRequest))
+                .willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT))
                 .andExpect(status().isOk())
@@ -141,7 +139,8 @@ class ReturnControllerTest {
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
         given(listReturnsInPort.listPendingReturns(new PageQuery(0, PageQuery.DEFAULT_SIZE)))
                 .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
-        given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(returnRequest))
+                .willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT + "/pending"))
                 .andExpect(status().isOk())
@@ -159,7 +158,8 @@ class ReturnControllerTest {
                 listReturnsInPort
                         .listReturnsForOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER, new PageQuery(0, PageQuery.DEFAULT_SIZE)))
                 .willReturn(new PagedResult<>(List.of(returnRequest), 0, PageQuery.DEFAULT_SIZE, 1, 1));
-        given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(returnRequest))
+                .willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT + "/order/" + ReturnRequestBuilder.TEST_ORDER_NUMBER))
                 .andExpect(status().isOk())
@@ -173,7 +173,8 @@ class ReturnControllerTest {
 
         final ReturnRequest returnRequest = ReturnRequestBuilder.mockReturnRequest();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(returnRequest);
-        given(returnWebMapper.mapToResource(returnRequest)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(returnRequest))
+                .willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(get(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER))
                 .andExpect(status().isOk())
@@ -192,9 +193,10 @@ class ReturnControllerTest {
     void shouldCreateReturnRequest() throws Exception {
         final Order order = OrderBuilder.mockOrder();
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
-        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER)).willReturn(orderWithNumber(order));
+        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(order));
         given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class))).willReturn(created);
-        given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(
                 post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
@@ -370,7 +372,7 @@ class ReturnControllerTest {
     void shouldReturnNotFoundWhenSkuIsNotPartOfOrder() throws Exception {
 
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
 
         mockMvc.perform(
                 post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
@@ -386,7 +388,7 @@ class ReturnControllerTest {
     @Test
     void shouldReturnConflictWhenAtomicEntitlementCheckFails() throws Exception {
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
         given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class)))
                 .willThrow(new ReturnQuantityConflictException(0));
 
@@ -415,9 +417,9 @@ class ReturnControllerTest {
     void shouldPassOrderedQuantityToAtomicReturnPort() throws Exception {
         final ReturnRequest created = ReturnRequestBuilder.mockReturnRequest();
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
         given(requestReturnInPort.requestReturnFromLineEntitlement(any(ReturnRequestCommand.class))).willReturn(created);
-        given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(created)).willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
 
         mockMvc.perform(
                 post(RETURNS_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
@@ -442,14 +444,14 @@ class ReturnControllerTest {
     @Test
     void shouldNotUseWholeOrderRefundForPartialReturn() throws Exception {
 
-        final ReturnRequest approved = TestReturnRequests.approved();
-        final ReturnRequest refunded = TestReturnRequests.refunded();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
+        final ReturnRequest refunded = ReturnControllerTestFixtures.refunded();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
+        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(ReturnControllerTestFixtures.refundedResource()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk());
@@ -460,14 +462,14 @@ class ReturnControllerTest {
     @Test
     void shouldApproveReturnAndRefundPayment() throws Exception {
 
-        final ReturnRequest approved = TestReturnRequests.approved();
-        final ReturnRequest refunded = TestReturnRequests.refunded();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
+        final ReturnRequest refunded = ReturnControllerTestFixtures.refunded();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
+        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(ReturnControllerTestFixtures.refundedResource()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
@@ -487,14 +489,14 @@ class ReturnControllerTest {
     @Test
     void shouldApproveAlreadyRefundedReturnWithoutRefundingPaymentAgain() throws Exception {
 
-        final ReturnRequest refunded = TestReturnRequests.refunded();
+        final ReturnRequest refunded = ReturnControllerTestFixtures.refunded();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
-        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REFUNDED)));
+        given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(ReturnControllerTestFixtures.refundedResource()));
 
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
@@ -511,13 +513,13 @@ class ReturnControllerTest {
     @Test
     void shouldRejectReturn() throws Exception {
 
-        final ReturnRequest rejected = TestReturnRequests.rejected();
+        final ReturnRequest rejected = ReturnControllerTestFixtures.rejected();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER))
                 .willReturn(ReturnRequestBuilder.mockReturnRequest());
         given(returnModerationInPort.rejectReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
-        given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REJECTED)));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
+        given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(ReturnControllerTestFixtures.rejectedResource()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + REJECT_ENDPOINT))
                 .andExpect(status().isOk())
@@ -533,13 +535,13 @@ class ReturnControllerTest {
     @Test
     void shouldRejectAlreadyRejectedReturnWithoutSendingNotificationAgain() throws Exception {
 
-        final ReturnRequest rejected = TestReturnRequests.rejected();
+        final ReturnRequest rejected = ReturnControllerTestFixtures.rejected();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
         given(returnModerationInPort.rejectReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(rejected);
-        given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(resourceWithStatus(ReturnStatus.REJECTED)));
+        given(returnWebMapper.mapToResource(rejected)).willReturn(Optional.of(ReturnControllerTestFixtures.rejectedResource()));
 
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + REJECT_ENDPOINT))
                 .andExpect(status().isOk())
@@ -564,7 +566,7 @@ class ReturnControllerTest {
     @Test
     void shouldReturnNotFoundWhenRefundedReturnCannotBeReloaded() throws Exception {
 
-        final ReturnRequest approved = TestReturnRequests.approved();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(null);
 
@@ -575,8 +577,8 @@ class ReturnControllerTest {
     @Test
     void shouldReturnNotFoundWhenOrderCannotBeLoadedForRefundNotification() throws Exception {
 
-        final ReturnRequest approved = TestReturnRequests.approved();
-        final ReturnRequest refunded = TestReturnRequests.refunded();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
+        final ReturnRequest refunded = ReturnControllerTestFixtures.refunded();
         given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
@@ -594,11 +596,11 @@ class ReturnControllerTest {
                 returnWorkflow,
                 listReturnsInPort,
                 returnWebMapper);
-        final ReturnRequest approved = TestReturnRequests.approved();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(null);
         given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(orderWithNumber(OrderBuilder.mockOrder()));
+                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
 
         assertThatThrownBy(() -> controller.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER))
                 .isInstanceOf(ApplicationNotFoundException.class);
@@ -636,7 +638,7 @@ class ReturnControllerTest {
     @Test
     void shouldReturnConflictWhenReturnCannotBeMarkedRefunded() throws Exception {
 
-        final ReturnRequest approved = TestReturnRequests.approved();
+        final ReturnRequest approved = ReturnControllerTestFixtures.approved();
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(approved);
         given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER))
                 .willThrow(new ReturnRequestNotRefundableException("cannot refund"));
@@ -666,96 +668,11 @@ class ReturnControllerTest {
                 + reason + "\"}";
     }
 
-    private static Order orderWithNumber(final Order order) {
-
-        final OrderLineItem item = order.getItems().getFirst();
-        return Order.builder()
-                .remarks(order.getRemarks())
-                .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                .created(order.getCreated())
-                .customer(order.getCustomer())
-                .items(List.of(item))
-                .status(order.getStatus())
-                .paymentMethod(order.getPaymentMethod())
-                .couponCode(order.getCouponCode())
-                .discountAmount(order.getDiscountAmount())
-                .build();
-    }
-
-    private static ReturnRequestResource mockReturnRequestResource() {
-
-        return resourceWithStatus(ReturnStatus.REQUESTED);
-    }
-
-    private static ReturnRequestResource resourceWithStatus(final ReturnStatus status) {
-
-        return ReturnRequestResource.builder()
-                .returnNumber(ReturnRequestBuilder.TEST_RETURN_NUMBER)
-                .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                .sku(ReturnRequestBuilder.TEST_SKU)
-                .quantity(ReturnRequestBuilder.TEST_QUANTITY)
-                .reason(ReturnRequestBuilder.TEST_REASON)
-                .status(status.name())
-                .requestedDate(ReturnRequestBuilder.TEST_REQUESTED_DATE)
-                .decidedDate(ReturnRequestBuilder.TEST_DECIDED_DATE)
-                .refundAmount(ReturnRequestBuilder.TEST_REFUND_AMOUNT)
-                .build();
-    }
-
-    private static final class TestReturnRequests {
-
-        private static ReturnRequest approved() {
-
-            return ReturnRequest.builder()
-                    .returnNumber(ReturnRequestBuilder.TEST_RETURN_NUMBER)
-                    .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                    .sku(ReturnRequestBuilder.TEST_SKU)
-                    .quantity(ReturnRequestBuilder.TEST_QUANTITY)
-                    .reason(ReturnRequestBuilder.TEST_REASON)
-                    .status(ReturnStatus.APPROVED)
-                    .requestedDate(ReturnRequestBuilder.TEST_REQUESTED_DATE)
-                    .decidedDate(ReturnRequestBuilder.TEST_DECIDED_DATE)
-                    .refundAmount(ReturnRequestBuilder.TEST_REFUND_AMOUNT)
-                    .build();
-        }
-
-        private static ReturnRequest refunded() {
-
-            return ReturnRequest.builder()
-                    .returnNumber(ReturnRequestBuilder.TEST_RETURN_NUMBER)
-                    .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                    .sku(ReturnRequestBuilder.TEST_SKU)
-                    .quantity(ReturnRequestBuilder.TEST_QUANTITY)
-                    .reason(ReturnRequestBuilder.TEST_REASON)
-                    .status(ReturnStatus.REFUNDED)
-                    .requestedDate(ReturnRequestBuilder.TEST_REQUESTED_DATE)
-                    .decidedDate(ReturnRequestBuilder.TEST_DECIDED_DATE)
-                    .refundAmount(ReturnRequestBuilder.TEST_REFUND_AMOUNT)
-                    .build();
-        }
-
-        private static ReturnRequest rejected() {
-
-            return ReturnRequest.builder()
-                    .returnNumber(ReturnRequestBuilder.TEST_RETURN_NUMBER)
-                    .orderNumber(ReturnRequestBuilder.TEST_ORDER_NUMBER)
-                    .sku(ReturnRequestBuilder.TEST_SKU)
-                    .quantity(ReturnRequestBuilder.TEST_QUANTITY)
-                    .reason(ReturnRequestBuilder.TEST_REASON)
-                    .status(ReturnStatus.REJECTED)
-                    .requestedDate(ReturnRequestBuilder.TEST_REQUESTED_DATE)
-                    .decidedDate(ReturnRequestBuilder.TEST_DECIDED_DATE)
-                    .refundAmount(ReturnRequestBuilder.TEST_REFUND_AMOUNT)
-                    .build();
-        }
-
-    }
-
     @Test
     void shouldExposeReturnPagingNavigation() throws Exception {
         final ReturnRequest value = ReturnRequestBuilder.mockReturnRequest();
         given(listReturnsInPort.listReturns(new PageQuery(1, 10))).willReturn(new PagedResult<>(List.of(value), 1, 10, 30, 3));
-        given(returnWebMapper.mapToResource(value)).willReturn(Optional.of(mockReturnRequestResource()));
+        given(returnWebMapper.mapToResource(value)).willReturn(Optional.of(ReturnControllerTestFixtures.requestedResource()));
         mockMvc.perform(get(RETURNS_ENDPOINT).param("page", "1").param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page.number").value(1))

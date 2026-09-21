@@ -2,13 +2,9 @@ package com.cp.ecommerce.adapter.web.order;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 import com.cp.ecommerce.adapter.common.resilience.RateLimitedExecutor;
 import com.cp.ecommerce.adapter.common.utils.CustomerBuilder;
@@ -16,13 +12,8 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.security.authentication.CurrentOperatorProvider;
 import com.cp.ecommerce.adapter.web.order.mapper.OrderWebMapper;
 import com.cp.ecommerce.adapter.web.order.metrics.OrderMetrics;
-import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
-import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
-import com.cp.ecommerce.adapter.web.utils.OrderResourceBuilder;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.application.order.PlaceOrderService;
-import com.cp.ecommerce.domain.catalog.Category;
-import com.cp.ecommerce.domain.catalog.Product;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
@@ -30,7 +21,6 @@ import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
-import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PageQuery;
 import com.cp.ecommerce.domain.order.PagedResult;
 import com.cp.ecommerce.domain.order.PaymentMethod;
@@ -42,29 +32,22 @@ import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.foundation.exception.InsufficientStockException;
 import com.cp.ecommerce.foundation.exception.OrderNotCancellableException;
-import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.SimpleTransactionStatus;
 
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
-
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -147,43 +130,22 @@ class OrderControllerTest {
     private transient PlatformTransactionManager transactionManager;
 
     @BeforeEach
-    void stubRateLimiterToRunActionsThrough() {
+    void stubPlacementInfrastructure() {
 
-        org.mockito.Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
-
-        org.mockito.Mockito.lenient().when(clock.instant()).thenReturn(Instant.parse("2026-09-19T10:00:00Z"));
-
-        org.mockito.Mockito.lenient().when(manageProductInPort.findProduct(anyString())).thenAnswer(invocation -> {
-            final String sku = invocation.getArgument(0);
-            final BigDecimal price = SECOND_LINE_ITEM_SKU.equals(sku)
-                    ? BigDecimal.ONE
-                    : OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE;
-            return Product.builder()
-                    .sku(sku)
-                    .name(OrderBuilder.TEST_ORDER_LINE_ITEM_PRODUCT_NAME)
-                    .category(Category.builder().name("Test").slug("test").build())
-                    .unitPrice(price)
-                    .active(true)
-                    .build();
-        });
-
-        org.mockito.Mockito.lenient().when(placeOrderUseCase.placeOrder(any(), any(), any())).thenAnswer(invocation -> {
-            final UnaryOperator<Order> prepare = invocation.getArgument(2);
-            prepare.apply(invocation.getArgument(0));
-            return new PlaceOrderResult(TEST_ORDER_NUMBER, true);
-        });
-
-        given(rateLimitedExecutor.callRateLimited(anyString(), any())).willAnswer(invocation -> {
-            final Supplier<?> action = invocation.getArgument(1);
-            return action.get();
-        });
+        OrderControllerTestFixtures.stubPlacementInfrastructure(
+                transactionManager,
+                clock,
+                manageProductInPort,
+                placeOrderUseCase,
+                rateLimitedExecutor);
     }
 
     @Test
     void shouldPlaceOrderSuccessfully() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isCreated())
                 // A raw string body can't be parsed as JSON by standards-compliant HTTP clients (e.g. Angular's HttpClient
@@ -223,7 +185,8 @@ class OrderControllerTest {
                 .build();
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andExpect(status().isCreated());
 
         verify(manageStockInPort).reserveStock(
@@ -250,16 +213,16 @@ class OrderControllerTest {
                 .build();
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andExpect(status().isCreated());
 
-        final ArgumentCaptor<String> reservationId = ArgumentCaptor.forClass(String.class);
         verify(manageStockInPort).reserveStock(
-                reservationId.capture(),
+                argThat(
+                        reservationId -> reservationId != null && !reservationId.isBlank()
+                                && !TEST_ORDER_NUMBER.equals(reservationId)),
                 eq(OrderBuilder.TEST_ORDER_LINE_ITEM_SKU),
                 eq(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY));
-        assertThat(reservationId.getValue()).isNotBlank();
-        assertThat(reservationId.getValue()).isNotEqualTo(TEST_ORDER_NUMBER);
     }
 
     @Test
@@ -280,7 +243,8 @@ class OrderControllerTest {
         given(applyCouponInPort.applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any()))
                 .willReturn(new com.cp.ecommerce.domain.coupon.CouponDiscount(TEST_COUPON_CODE, BigDecimal.TEN));
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andExpect(status().isCreated());
 
         verify(applyCouponInPort).applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any());
@@ -303,7 +267,8 @@ class OrderControllerTest {
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(order));
         given(applyCouponInPort.applyCoupon(eq(TEST_COUPON_CODE), eq(order.getSubtotal()), any())).willReturn(null);
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andExpect(status().isNotFound());
     }
 
@@ -332,7 +297,8 @@ class OrderControllerTest {
         given(manageStockInPort.reserveStock(anyString(), eq(SECOND_LINE_ITEM_SKU), eq(1)))
                 .willThrow(new InsufficientStockException(SECOND_LINE_ITEM_SKU));
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isConflict());
 
@@ -351,7 +317,7 @@ class OrderControllerTest {
                 .perform(
                         post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
                                 .header(IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY_VALUE)
-                                .content(createJsonResource()))
+                                .content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isCreated());
 
@@ -370,7 +336,7 @@ class OrderControllerTest {
                 .perform(
                         post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON)
                                 .header(IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY_VALUE)
-                                .content(createJsonResource()))
+                                .content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isCreated());
 
@@ -384,14 +350,14 @@ class OrderControllerTest {
     void shouldRespondWith429WhenRateLimitExceeded() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.ofNullable(OrderBuilder.mockOrder()));
-        willThrow(new RateLimitExceededException("Rate limit exceeded for 'placeOrder'", Duration.ofSeconds(1), null))
-                .given(rateLimitedExecutor)
+        willThrow(OrderControllerTestFixtures.rateLimitExceeded()).given(rateLimitedExecutor)
                 .callRateLimited(anyString(), any());
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isTooManyRequests())
-                .andExpect(header().longValue(HttpHeaders.RETRY_AFTER, 1))
+                .andExpect(header().longValue("Retry-After", 1))
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Rate Limit Exceeded"));
 
@@ -403,7 +369,8 @@ class OrderControllerTest {
     void shouldThrowMissingDataExceptionForEmptyOptional() throws Exception {
 
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.empty());
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
@@ -422,7 +389,8 @@ class OrderControllerTest {
         final Order orderMissingCustomer = Order.builder().build();
         given(orderWebMapper.mapToDomainObject(any())).willReturn(Optional.of(orderMissingCustomer));
 
-        this.mockMvc.perform(post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(createJsonResource()))
+        this.mockMvc.perform(
+                post(ORDER_ENDPOINT).contentType(MediaType.APPLICATION_JSON).content(OrderControllerTestFixtures.orderJson()))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
@@ -459,7 +427,7 @@ class OrderControllerTest {
         final Order order = OrderBuilder.mockOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
         given(orderWebMapper.mapToResource(eq(order), any()))
-                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
+                .willReturn(Optional.of(OrderControllerTestFixtures.confirmedOrderDetailsResource()));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -477,10 +445,10 @@ class OrderControllerTest {
     @Test
     void shouldNotAdvertiseCancelLinkWhenOrderAlreadyCancelled() throws Exception {
 
-        final Order order = cancelledOrder();
+        final Order order = OrderControllerTestFixtures.cancelledOrder();
         given(manageOrderUseCase.findOrder(TEST_ORDER_NUMBER)).willReturn(order);
         given(orderWebMapper.mapToResource(eq(order), any()))
-                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+                .willReturn(Optional.of(OrderControllerTestFixtures.cancelledOrderDetailsResource()));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER))
                 .andDo(print())
@@ -492,10 +460,10 @@ class OrderControllerTest {
     @Test
     void shouldCancelOrderSuccessfully() throws Exception {
 
-        final Order order = cancelledOrder();
+        final Order order = OrderControllerTestFixtures.cancelledOrder();
         given(cancelOrderWorkflow.cancelOrder(TEST_ORDER_NUMBER)).willReturn(order);
         given(orderWebMapper.mapToResource(eq(order), any()))
-                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CANCELLED)));
+                .willReturn(Optional.of(OrderControllerTestFixtures.cancelledOrderDetailsResource()));
 
         this.mockMvc.perform(post(ORDER_ENDPOINT + "/" + TEST_ORDER_NUMBER + CANCEL_PATH_SEGMENT))
                 .andDo(print())
@@ -549,7 +517,7 @@ class OrderControllerTest {
         given(getPaymentInPort.getPayments(List.of(order.getOrderNumber()))).willReturn(
                 Map.of(order.getOrderNumber(), PaymentTransaction.builder().orderNumber(order.getOrderNumber()).build()));
         given(orderWebMapper.mapToResource(eq(order), any()))
-                .willReturn(Optional.of(mockOrderDetailsResource(OrderStatus.CONFIRMED)));
+                .willReturn(Optional.of(OrderControllerTestFixtures.confirmedOrderDetailsResource()));
 
         this.mockMvc.perform(get(ORDER_ENDPOINT))
                 .andDo(print())
@@ -613,44 +581,6 @@ class OrderControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
 
         verify(listOrdersUseCase, never()).listOrders(any());
-    }
-
-    private Order cancelledOrder() {
-
-        final Order confirmed = OrderBuilder.mockOrder();
-        return Order.builder()
-                .remarks(confirmed.getRemarks())
-                .orderNumber(confirmed.getOrderNumber())
-                .created(confirmed.getCreated())
-                .customer(confirmed.getCustomer())
-                .items(confirmed.getItems())
-                .status(OrderStatus.CANCELLED)
-                .build();
-    }
-
-    private OrderDetailsResource mockOrderDetailsResource(final OrderStatus status) {
-
-        final CustomerResource customer = CustomerResource.builder()
-                .fullName(CustomerBuilder.TEST_FULL_NAME)
-                .email(CustomerBuilder.TEST_EMAIL)
-                .phone(CustomerBuilder.TEST_PHONE_NUMBER)
-                .street(CustomerBuilder.TEST_STREET_ADDRESS)
-                .postalCode(CustomerBuilder.TEST_POSTAL_CODE)
-                .city(CustomerBuilder.TEST_CITY)
-                .countryCode(CustomerBuilder.TEST_COUNTRY_CODE)
-                .build();
-        return OrderDetailsResource.builder()
-                .orderNumber(TEST_ORDER_NUMBER)
-                .status(status)
-                .remarks(OrderBuilder.TEST_REMARKS)
-                .customer(customer)
-                .build();
-    }
-
-    private String createJsonResource() throws Exception {
-
-        final ObjectMapper mapper = JsonMapper.builder().build();
-        return mapper.writeValueAsString(OrderResourceBuilder.mockOrderResource());
     }
 
 }
