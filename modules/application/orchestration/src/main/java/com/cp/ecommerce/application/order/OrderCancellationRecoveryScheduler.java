@@ -5,6 +5,7 @@ import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.OrderCancellationRecoveryClaim;
 import com.cp.ecommerce.domain.order.port.outgoing.ManageOrderCancellationRecoveryOutPort;
+import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -34,21 +35,20 @@ class OrderCancellationRecoveryScheduler {
         if (claim == null) {
             return;
         }
-        try {
+        RuntimeFailureBoundary.run(() -> {
             final CancellationRecoveryOutcome outcome = cancelOrderWorkflow.recoverCancellation(orderNumber, claim.claimId());
             if (outcome == CancellationRecoveryOutcome.WAITING_FOR_REFUND) {
-
                 recoveryOutPort.recordWaiting(orderNumber, claim.claimId(), now());
                 return;
             }
             recoveryOutPort.recordSuccess(orderNumber, claim.claimId());
-        } catch (final RuntimeException exception) {
+        }, exception -> {
             recoveryOutPort.recordFailure(orderNumber, claim.claimId(), exception.getMessage(), now());
             LOGGER.log(
                     System.Logger.Level.WARNING,
                     "Cancellation recovery for order " + orderNumber + " remains pending",
                     exception);
-        }
+        });
     }
 
     private Instant now() {

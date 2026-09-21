@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.analytics;
 
 import com.cp.ecommerce.domain.order.port.incoming.GenerateOpsDigestInPort;
+import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -57,11 +58,11 @@ public class OpsDigestScheduler {
 
     private void generate() {
 
-        try {
-            generateOpsDigestInPort.generateDigest();
-        } catch (RuntimeException exception) {
-            log.warn("Could not generate ops digest (best-effort), will try again on the next scheduled run.", exception);
-        }
+        RuntimeFailureBoundary.run(
+                generateOpsDigestInPort::generateDigest,
+                exception -> log.warn(
+                        "Could not generate ops digest (best-effort), will try again on the next scheduled run.",
+                        exception));
     }
 
 }

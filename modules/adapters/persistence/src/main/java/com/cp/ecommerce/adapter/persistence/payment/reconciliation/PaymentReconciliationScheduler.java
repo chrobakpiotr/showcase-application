@@ -8,6 +8,7 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEnt
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntityRepository;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -42,26 +43,29 @@ class PaymentReconciliationScheduler {
         if (claimId == null) {
             return;
         }
-        try {
-            final PaymentReconciliationEntity operation = reconciliationRepository.findById(operationId)
-                    .orElseThrow(
-                            () -> new IllegalStateException("Payment reconciliation operation disappeared: " + operationId));
-            if (operation.getOperationType() == PaymentProviderOperationType.CAPTURE) {
-                final PaymentTransactionEntity payment = paymentRepository.findById(operation.getOrderNumber())
-                        .orElseThrow(
-                                () -> new IllegalStateException(
-                                        "Payment disappeared during capture reconciliation: " + operation.getOrderNumber()));
-                managePaymentInPort.capturePayment(operation.getOrderNumber(), payment.getAmount(), payment.getMethod());
-            } else {
-                final PaymentRefundEntity refund = refundRepository.findById(operation.getRefundId())
-                        .orElseThrow(
-                                () -> new IllegalStateException(
-                                        "Refund disappeared during reconciliation: " + operation.getRefundId()));
-                managePaymentInPort.refundPayment(operation.getOrderNumber(), operation.getRefundId(), refund.getAmount());
-            }
-            arbitrator.complete(operationId, claimId);
-        } catch (final RuntimeException exception) {
-            arbitrator.recordFailure(operationId, claimId, exception.getMessage());
-        }
+        RuntimeFailureBoundary.run(
+                () -> reconcileClaimed(operationId, claimId),
+                exception -> arbitrator.recordFailure(operationId, claimId, exception.getMessage()));
     }
+
+    private void reconcileClaimed(final String operationId, final String claimId) {
+
+        final PaymentReconciliationEntity operation = reconciliationRepository.findById(operationId)
+                .orElseThrow(() -> new IllegalStateException("Payment reconciliation operation disappeared: " + operationId));
+        if (operation.getOperationType() == PaymentProviderOperationType.CAPTURE) {
+            final PaymentTransactionEntity payment = paymentRepository.findById(operation.getOrderNumber())
+                    .orElseThrow(
+                            () -> new IllegalStateException(
+                                    "Payment disappeared during capture reconciliation: " + operation.getOrderNumber()));
+            managePaymentInPort.capturePayment(operation.getOrderNumber(), payment.getAmount(), payment.getMethod());
+        } else {
+            final PaymentRefundEntity refund = refundRepository.findById(operation.getRefundId())
+                    .orElseThrow(
+                            () -> new IllegalStateException(
+                                    "Refund disappeared during reconciliation: " + operation.getRefundId()));
+            managePaymentInPort.refundPayment(operation.getOrderNumber(), operation.getRefundId(), refund.getAmount());
+        }
+        arbitrator.complete(operationId, claimId);
+    }
+
 }
