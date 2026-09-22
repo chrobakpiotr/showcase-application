@@ -39,7 +39,12 @@ class OrderCancellationArbitrator {
 
     CancellationStart beginCancellation(final String orderNumber) {
 
-        return transactionOperations.execute(status -> beginCancellationInTransaction(orderNumber));
+        return beginCancellation(orderNumber, null);
+    }
+
+    CancellationStart beginCancellation(final String orderNumber, final String claimId) {
+
+        return transactionOperations.execute(status -> beginCancellationInTransaction(orderNumber, claimId));
     }
 
     void completeCancellation(final String orderNumber) {
@@ -52,9 +57,11 @@ class OrderCancellationArbitrator {
         transactionOperations.executeWithoutResult(status -> arbitrationOutPort.completeCancellation(orderNumber, claimId));
     }
 
-    private CancellationStart beginCancellationInTransaction(final String orderNumber) {
+    private CancellationStart beginCancellationInTransaction(final String orderNumber, final String claimId) {
 
-        final CancellationClaim claim = arbitrationOutPort.beginCancellation(orderNumber);
+        final CancellationClaim claim = claimId == null
+                ? arbitrationOutPort.beginCancellation(orderNumber)
+                : arbitrationOutPort.beginCancellation(orderNumber, claimId);
         if (claim == CancellationClaim.ACQUIRED) {
 
             return newlyAcquiredCancellation(orderNumber);
@@ -63,16 +70,20 @@ class OrderCancellationArbitrator {
 
             return resumeCancellation(orderNumber);
         }
-        if (claim == CancellationClaim.ALREADY_TERMINAL) {
+        if (claim == CancellationClaim.BUSY || claim == CancellationClaim.LOST_CLAIM
+                || claim == CancellationClaim.ALREADY_TERMINAL) {
 
-            return new CancellationStart(manageOrderInPort.findOrder(orderNumber), false);
+            return new CancellationStart(manageOrderInPort.findOrder(orderNumber), false, claim);
         }
         if (claim == CancellationClaim.TOO_LATE) {
 
             throw new OrderNotCancellableException(
                     "Order '" + orderNumber + "' cannot be cancelled: placement saga is already SENT");
         }
-        return new CancellationStart(requestOrderCancellationInPort.requestCancellation(orderNumber), true);
+        return new CancellationStart(
+                requestOrderCancellationInPort.requestCancellation(orderNumber),
+                true,
+                CancellationClaim.NO_SAGA);
     }
 
     private CancellationStart newlyAcquiredCancellation(final String orderNumber) {
@@ -82,7 +93,7 @@ class OrderCancellationArbitrator {
 
             throw new IllegalStateException("Placement saga exists without an order: " + orderNumber);
         }
-        return new CancellationStart(order, true);
+        return new CancellationStart(order, true, CancellationClaim.ACQUIRED);
     }
 
     private CancellationStart resumeCancellation(final String orderNumber) {
@@ -97,9 +108,13 @@ class OrderCancellationArbitrator {
             throw new IllegalStateException(
                     "Cancellation intent exists but order is not CANCELLED: " + orderNumber + " -> " + order.getStatus());
         }
-        return new CancellationStart(order, true);
+        return new CancellationStart(order, true, CancellationClaim.RESUME);
     }
 
-    record CancellationStart(Order order, boolean runSideEffects) {
+    record CancellationStart(Order order, boolean runSideEffects, CancellationClaim claim) {
+
+        CancellationStart(final Order order, final boolean runSideEffects) {
+            this(order, runSideEffects, runSideEffects ? CancellationClaim.RESUME : CancellationClaim.ALREADY_TERMINAL);
+        }
     }
 }

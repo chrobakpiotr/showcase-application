@@ -61,6 +61,43 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
     }
 
     @Test
+    void staleWorkerMustNotMutateSuccessOrFailureAfterLeaseTakeover() {
+
+        final Instant now = Instant.now();
+        final String orderNumber = "B01-" + UUID.randomUUID().toString().replace("-", "");
+        repository.saveAndFlush(
+                OutboxEventEntity.builder()
+                        .orderNumber(orderNumber)
+                        .status(OutboxEventStatus.CANCELLING)
+                        .createdDate(now.minusSeconds(1))
+                        .nextAttemptDate(now.minusSeconds(1))
+                        .cancellationNextAttemptDate(now.minusSeconds(1))
+                        .build());
+
+        final OrderCancellationRecoveryClaim ownerA = recoveryOutPort.claim(orderNumber, now);
+        assertThat(ownerA).isNotNull();
+
+        final Instant afterLeaseExpiry = now.plusSeconds(31);
+        final OrderCancellationRecoveryClaim ownerB = recoveryOutPort.claim(orderNumber, afterLeaseExpiry);
+        assertThat(ownerB).isNotNull();
+        assertThat(ownerB.claimId()).isNotEqualTo(ownerA.claimId());
+
+        recoveryOutPort.recordSuccess(orderNumber, ownerA.claimId());
+        recoveryOutPort.recordFailure(orderNumber, ownerA.claimId(), "stale failure", afterLeaseExpiry);
+
+        final OutboxEventEntity persisted = repository.findAll()
+                .stream()
+                .filter(event -> orderNumber.equals(event.getOrderNumber()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(persisted.getCancellationClaimId()).isEqualTo(ownerB.claimId());
+        assertThat(persisted.getCancellationAttempts()).isZero();
+        assertThat(persisted.getCancellationLastError()).isNull();
+        assertThat(persisted.getStatus()).isEqualTo(OutboxEventStatus.CANCELLING);
+    }
+
+    @Test
     void shouldAllowOnlyOneWorkerToOwnCancellationRecoveryLease() throws Exception {
         final Instant now = Instant.now();
         final String orderNumber = "N15-" + UUID.randomUUID();

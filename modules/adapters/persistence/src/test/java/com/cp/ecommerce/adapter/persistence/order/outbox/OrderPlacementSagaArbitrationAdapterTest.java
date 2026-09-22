@@ -24,6 +24,8 @@ class OrderPlacementSagaArbitrationAdapterTest {
 
     private static final String ORDER_NUMBER = "ORDER-1";
 
+    private static final String RECOVERY_OWNER = "recovery-owner";
+
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-09-20T10:00:00Z"), ZoneOffset.UTC);
 
     @Mock
@@ -54,6 +56,30 @@ class OrderPlacementSagaArbitrationAdapterTest {
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ACQUIRED);
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.CANCELLING);
         verify(repository).save(event);
+    }
+
+    @Test
+    void shouldFenceRecoveryTokenAgainstPendingPlacementSaga() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.PENDING);
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER, "recovery-owner")).isEqualTo(CancellationClaim.LOST_CLAIM);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
+    void shouldFenceRecoveryTokenAgainstProcessingPlacementSaga() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.PROCESSING);
+        event.setClaimId("placement-owner");
+        event.setClaimUntil(CLOCK.instant().plusSeconds(30));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER, "recovery-owner")).isEqualTo(CancellationClaim.LOST_CLAIM);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
+        verify(repository, never()).save(event);
     }
 
     @Test
@@ -111,11 +137,11 @@ class OrderPlacementSagaArbitrationAdapterTest {
     void shouldSuppressCustomerResumeWhileCancellationRecoveryLeaseIsActive() {
 
         final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
-        event.setCancellationClaimId("recovery-owner");
+        event.setCancellationClaimId(RECOVERY_OWNER);
         event.setCancellationClaimUntil(CLOCK.instant().plusSeconds(30));
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
-        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.ALREADY_TERMINAL);
+        assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.BUSY);
         verify(repository, never()).save(event);
     }
 
@@ -128,6 +154,45 @@ class OrderPlacementSagaArbitrationAdapterTest {
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).isEqualTo(CancellationClaim.RESUME);
+        assertThat(event.getCancellationClaimId()).isNull();
+        assertThat(event.getCancellationClaimUntil()).isNull();
+        verify(repository).save(event);
+    }
+
+    @Test
+    void shouldAllowCurrentRecoveryOwnerToResumeWhileLeaseIsActive() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId(RECOVERY_OWNER);
+        event.setCancellationClaimUntil(CLOCK.instant().plusSeconds(30));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER, RECOVERY_OWNER)).isEqualTo(CancellationClaim.RESUME);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
+    void shouldFenceForeignRecoveryOwnerWhileLeaseIsActive() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId(RECOVERY_OWNER);
+        event.setCancellationClaimUntil(CLOCK.instant().plusSeconds(30));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER, "foreign-owner")).isEqualTo(CancellationClaim.LOST_CLAIM);
+        verify(repository, never()).save(event);
+    }
+
+    @Test
+    void shouldFenceStaleRecoveryOwnerAfterLeaseExpires() {
+
+        final OutboxEventEntity event = event(OutboxEventStatus.CANCELLING);
+        event.setCancellationClaimId("stale-owner");
+        event.setCancellationClaimUntil(CLOCK.instant().minusMillis(1));
+        given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
+
+        assertThat(adapter.beginCancellation(ORDER_NUMBER, "stale-owner")).isEqualTo(CancellationClaim.LOST_CLAIM);
+        assertThat(event.getCancellationClaimId()).isEqualTo("stale-owner");
         verify(repository, never()).save(event);
     }
 

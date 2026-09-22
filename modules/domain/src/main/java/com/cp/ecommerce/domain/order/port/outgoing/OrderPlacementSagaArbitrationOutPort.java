@@ -15,6 +15,8 @@ public interface OrderPlacementSagaArbitrationOutPort {
 
         ACQUIRED,
         RESUME,
+        BUSY,
+        LOST_CLAIM,
         ALREADY_TERMINAL,
         TOO_LATE,
         NO_SAGA
@@ -27,6 +29,15 @@ public interface OrderPlacementSagaArbitrationOutPort {
      * @return arbitration decision.
      */
     CancellationClaim beginCancellation(String orderNumber);
+
+    /**
+     * Resume a recovery-owned cancellation while holding the same durable arbitration lock.
+     *
+     * @param orderNumber order business key.
+     * @param claimId cancellation recovery fencing token.
+     * @return arbitration decision.
+     */
+    CancellationClaim beginCancellation(String orderNumber, String claimId);
 
     /**
      * Mark a previously claimed customer cancellation as fully completed.

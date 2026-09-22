@@ -26,12 +26,11 @@ class OrderCancellationRecoveryScheduler {
 
     @Scheduled(fixedDelayString = "${order.cancellation.recovery.poll-interval-ms:5000}")
     void recover() {
-        final Instant now = now();
-        recoveryOutPort.findDueCancellationOrderNumbers(now, BATCH_SIZE).forEach(orderNumber -> recover(orderNumber, now));
+        recoveryOutPort.findDueCancellationOrderNumbers(now(), BATCH_SIZE).forEach(this::recover);
     }
 
-    private void recover(final String orderNumber, final Instant attemptTime) {
-        final OrderCancellationRecoveryClaim claim = recoveryOutPort.claim(orderNumber, attemptTime);
+    private void recover(final String orderNumber) {
+        final OrderCancellationRecoveryClaim claim = recoveryOutPort.claim(orderNumber, now());
         if (claim == null) {
             return;
         }
@@ -39,6 +38,9 @@ class OrderCancellationRecoveryScheduler {
             final CancellationRecoveryOutcome outcome = cancelOrderWorkflow.recoverCancellation(orderNumber, claim.claimId());
             if (outcome == CancellationRecoveryOutcome.WAITING_FOR_REFUND) {
                 recoveryOutPort.recordWaiting(orderNumber, claim.claimId(), now());
+                return;
+            }
+            if (outcome == CancellationRecoveryOutcome.BUSY || outcome == CancellationRecoveryOutcome.LOST_CLAIM) {
                 return;
             }
             recoveryOutPort.recordSuccess(orderNumber, claim.claimId());

@@ -43,7 +43,7 @@ class OrderCancellationActiveRecoveryClaimRedTest {
 
         assertThat(adapter.beginCancellation(ORDER_NUMBER)).as(
                 "active recovery ownership must prevent customer path from concurrently replaying cancellation side effects")
-                .isEqualTo(CancellationClaim.ALREADY_TERMINAL);
+                .isEqualTo(CancellationClaim.BUSY);
 
         verify(repository, never()).save(event);
     }

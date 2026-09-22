@@ -55,6 +55,24 @@ class OrderCancellationRecoverySchedulerTest {
     }
 
     @Test
+    void shouldIgnoreLostClaimWithoutRecordingSuccessOrFailure() {
+
+        given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1));
+        given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, CLAIM_1));
+        given(cancelOrderWorkflow.recoverCancellation(ORDER_1, CLAIM_1)).willReturn(CancellationRecoveryOutcome.LOST_CLAIM);
+
+        new OrderCancellationRecoveryScheduler(recoveryOutPort, cancelOrderWorkflow, Clock.fixed(NOW, ZoneOffset.UTC))
+                .recover();
+
+        verify(recoveryOutPort, org.mockito.Mockito.never()).recordSuccess(ORDER_1, CLAIM_1);
+        verify(recoveryOutPort, org.mockito.Mockito.never()).recordFailure(
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.anyString(),
+                org.mockito.Mockito.any());
+    }
+
+    @Test
     void shouldClaimFenceAndContinueAfterOneRecoveryFails() {
         given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1, ORDER_2, "ORDER-3"));
         given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, CLAIM_1));

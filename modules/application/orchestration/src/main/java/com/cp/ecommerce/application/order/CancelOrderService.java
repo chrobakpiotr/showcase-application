@@ -5,6 +5,7 @@ import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
@@ -61,10 +62,26 @@ public class CancelOrderService implements CancelOrderWorkflow {
 
     private CancellationExecution executeCancellation(final String orderNumber, final String claimId) {
 
-        final OrderCancellationArbitrator.CancellationStart cancellation = orderCancellationArbitrator
-                .beginCancellation(orderNumber);
+        final OrderCancellationArbitrator.CancellationStart cancellation = claimId == null
+                ? orderCancellationArbitrator.beginCancellation(orderNumber)
+                : orderCancellationArbitrator.beginCancellation(orderNumber, claimId);
         final Order order = cancellation.order();
-        if (order == null || !cancellation.runSideEffects()) {
+        if (cancellation.claim() == CancellationClaim.BUSY) {
+
+            return new CancellationExecution(order, CancellationRecoveryOutcome.BUSY);
+        }
+        if (cancellation.claim() == CancellationClaim.LOST_CLAIM) {
+
+            return new CancellationExecution(order, CancellationRecoveryOutcome.LOST_CLAIM);
+        }
+        if (order == null) {
+            if (claimId != null) {
+
+                throw new IllegalStateException("Cancellation recovery lost its order: " + orderNumber);
+            }
+            return new CancellationExecution(null, CancellationRecoveryOutcome.COMPLETED);
+        }
+        if (!cancellation.runSideEffects()) {
 
             return new CancellationExecution(order, CancellationRecoveryOutcome.COMPLETED);
         }

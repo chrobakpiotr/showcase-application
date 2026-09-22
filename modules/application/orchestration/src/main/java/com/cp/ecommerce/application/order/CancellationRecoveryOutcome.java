@@ -4,5 +4,7 @@ package com.cp.ecommerce.application.order;
 public enum CancellationRecoveryOutcome {
 
     COMPLETED,
-    WAITING_FOR_REFUND
+    WAITING_FOR_REFUND,
+    BUSY,
+    LOST_CLAIM
 }

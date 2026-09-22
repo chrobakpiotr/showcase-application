@@ -25,8 +25,14 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
     @Override
     public CancellationClaim beginCancellation(final String orderNumber) {
 
+        return beginCancellation(orderNumber, null);
+    }
+
+    @Override
+    public CancellationClaim beginCancellation(final String orderNumber, final String claimId) {
+
         return outboxEventEntityRepository.findByOrderNumberForUpdate(orderNumber)
-                .map(this::claim)
+                .map(event -> claim(event, claimId))
                 .orElse(CancellationClaim.NO_SAGA);
     }
 
@@ -64,29 +70,61 @@ class OrderPlacementSagaArbitrationAdapter implements OrderPlacementSagaArbitrat
         outboxEventEntityRepository.save(event);
     }
 
-    private CancellationClaim claim(final OutboxEventEntity event) {
+    private CancellationClaim claim(final OutboxEventEntity event, final String claimId) {
 
         if (event.getStatus() == OutboxEventStatus.PENDING) {
 
-            return claimForCancellation(event);
+            return claimId == null ? claimForCancellation(event) : CancellationClaim.LOST_CLAIM;
         }
         if (event.getStatus() == OutboxEventStatus.PROCESSING) {
 
-            return leaseExpired(event, Instant.ofEpochMilli(clock.instant().toEpochMilli()))
-                    ? claimForCancellation(event)
-                    : CancellationClaim.TOO_LATE;
+            if (claimId != null) {
+                return CancellationClaim.LOST_CLAIM;
+            }
+            return leaseExpired(event, now()) ? claimForCancellation(event) : CancellationClaim.TOO_LATE;
         }
         if (event.getStatus() == OutboxEventStatus.CANCELLING) {
 
-            return activeCancellationRecoveryLease(event, Instant.ofEpochMilli(clock.instant().toEpochMilli()))
-                    ? CancellationClaim.ALREADY_TERMINAL
-                    : CancellationClaim.RESUME;
+            return claimCancelling(event, claimId);
         }
         if (event.getStatus() == OutboxEventStatus.SENT) {
 
             return CancellationClaim.TOO_LATE;
         }
         return CancellationClaim.ALREADY_TERMINAL;
+    }
+
+    private CancellationClaim claimCancelling(final OutboxEventEntity event, final String claimId) {
+
+        if (activeCancellationRecoveryLease(event, now())) {
+
+            if (claimId == null) {
+                return CancellationClaim.BUSY;
+            }
+            return Objects.equals(event.getCancellationClaimId(), claimId)
+                    ? CancellationClaim.RESUME
+                    : CancellationClaim.LOST_CLAIM;
+        }
+        if (claimId != null) {
+            return CancellationClaim.LOST_CLAIM;
+        }
+        clearExpiredCancellationOwnership(event);
+        return CancellationClaim.RESUME;
+    }
+
+    private void clearExpiredCancellationOwnership(final OutboxEventEntity event) {
+
+        if (event.getCancellationClaimId() == null && event.getCancellationClaimUntil() == null) {
+            return;
+        }
+        event.setCancellationClaimId(null);
+        event.setCancellationClaimUntil(null);
+        outboxEventEntityRepository.save(event);
+    }
+
+    private Instant now() {
+
+        return Instant.ofEpochMilli(clock.instant().toEpochMilli());
     }
 
     private CancellationClaim claimForCancellation(final OutboxEventEntity event) {

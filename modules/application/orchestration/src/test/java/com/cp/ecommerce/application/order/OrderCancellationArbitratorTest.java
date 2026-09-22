@@ -28,6 +28,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class OrderCancellationArbitratorTest {
 
+    private static final String RECOVERY_CLAIM_ID = "claim-42";
+
     private static final String ORDER_NUMBER = "ORDER-1";
 
     @Mock
@@ -122,6 +124,35 @@ class OrderCancellationArbitratorTest {
     }
 
     @Test
+    void shouldExposeBusyRecoveryOwnerWithoutSideEffects() {
+
+        final Order order = order();
+        given(arbitrationOutPort.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID)).willReturn(CancellationClaim.BUSY);
+        given(manageOrderInPort.findOrder(ORDER_NUMBER)).willReturn(order);
+
+        final OrderCancellationArbitrator.CancellationStart result = arbitrator
+                .beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
+
+        assertThat(result.order()).isSameAs(order);
+        assertThat(result.runSideEffects()).isFalse();
+        assertThat(result.claim()).isEqualTo(CancellationClaim.BUSY);
+    }
+
+    @Test
+    void shouldExposeLostRecoveryClaimWithoutSideEffects() {
+
+        final Order order = order();
+        given(arbitrationOutPort.beginCancellation(ORDER_NUMBER, "claim-stale")).willReturn(CancellationClaim.LOST_CLAIM);
+        given(manageOrderInPort.findOrder(ORDER_NUMBER)).willReturn(order);
+
+        final OrderCancellationArbitrator.CancellationStart result = arbitrator.beginCancellation(ORDER_NUMBER, "claim-stale");
+
+        assertThat(result.order()).isSameAs(order);
+        assertThat(result.runSideEffects()).isFalse();
+        assertThat(result.claim()).isEqualTo(CancellationClaim.LOST_CLAIM);
+    }
+
+    @Test
     void shouldRejectCancellationAfterPlacementWasSent() {
 
         given(arbitrationOutPort.beginCancellation(ORDER_NUMBER)).willReturn(CancellationClaim.TOO_LATE);
@@ -154,9 +185,9 @@ class OrderCancellationArbitratorTest {
     @Test
     void shouldCompleteRecoveryOwnedCancellationInTransaction() {
 
-        arbitrator.completeCancellation(ORDER_NUMBER, "claim-42");
+        arbitrator.completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
 
-        verify(arbitrationOutPort).completeCancellation(ORDER_NUMBER, "claim-42");
+        verify(arbitrationOutPort).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
     }
 
     private static Order order() {

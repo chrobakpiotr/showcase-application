@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -179,7 +180,7 @@ class CancelOrderServiceTest {
         given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
         given(order.getItems()).willReturn(List.of());
         given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
-        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
 
         assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER, RECOVERY_CLAIM_ID)).isSameAs(order);
@@ -194,7 +195,7 @@ class CancelOrderServiceTest {
         final Order order = mock(Order.class, RETURNS_DEEP_STUBS);
         given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
         given(order.getItems()).willReturn(List.of());
-        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
         given(managePaymentInPort.hasPendingRefunds(ORDER_NUMBER)).willReturn(true);
 
@@ -211,13 +212,61 @@ class CancelOrderServiceTest {
         given(order.getOrderNumber()).willReturn(ORDER_NUMBER);
         given(order.getItems()).willReturn(List.of());
         given(order.getCustomer().getContact().getEmail()).willReturn(EMAIL);
-        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER))
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .willReturn(new OrderCancellationArbitrator.CancellationStart(order, true));
 
         assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .isEqualTo(CancellationRecoveryOutcome.COMPLETED);
 
         verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
+    }
+
+    @Test
+    void shouldRejectClaimedRecoveryWhenDurableOrderDisappears() {
+
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID)).willReturn(
+                new OrderCancellationArbitrator.CancellationStart(
+                        null,
+                        false,
+                        com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim.ALREADY_TERMINAL));
+
+        assertThatThrownBy(() -> cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(ORDER_NUMBER);
+
+        verifyNoInteractions(manageStockInPort, managePaymentInPort, sendNotificationInPort);
+    }
+
+    @Test
+    void shouldExposeLostClaimWithoutRepeatingSideEffects() {
+
+        final Order order = mock(Order.class);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID)).willReturn(
+                new OrderCancellationArbitrator.CancellationStart(
+                        order,
+                        false,
+                        com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim.LOST_CLAIM));
+
+        assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
+                .isEqualTo(CancellationRecoveryOutcome.LOST_CLAIM);
+
+        verifyNoInteractions(manageStockInPort, managePaymentInPort, sendNotificationInPort);
+    }
+
+    @Test
+    void shouldExposeBusyWithoutRepeatingSideEffects() {
+
+        final Order order = mock(Order.class);
+        given(orderCancellationArbitrator.beginCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID)).willReturn(
+                new OrderCancellationArbitrator.CancellationStart(
+                        order,
+                        false,
+                        com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim.BUSY));
+
+        assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
+                .isEqualTo(CancellationRecoveryOutcome.BUSY);
+
+        verifyNoInteractions(manageStockInPort, managePaymentInPort, sendNotificationInPort);
     }
 
     @Test

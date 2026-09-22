@@ -1,6 +1,7 @@
 package com.cp.ecommerce.application;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -12,15 +13,19 @@ import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
 import com.cp.ecommerce.application.order.CancelOrderWorkflow;
+import com.cp.ecommerce.application.order.CancellationRecoveryOutcome;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
+import com.cp.ecommerce.domain.order.OrderCancellationRecoveryClaim;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.domain.order.port.outgoing.ManageOrderCancellationRecoveryOutPort;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
+import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -87,7 +92,16 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
     private GetPaymentInPort getPaymentInPort;
 
     @Autowired
+    private ManagePaymentInPort managePaymentInPort;
+
+    @Autowired
     private OutboxEventEntityRepository outboxEventEntityRepository;
+
+    @Autowired
+    private ManageOrderCancellationRecoveryOutPort cancellationRecoveryOutPort;
+
+    @Autowired
+    private Clock clock;
 
     @DynamicPropertySource
     static void database(final DynamicPropertyRegistry registry) {
@@ -120,6 +134,48 @@ class OrderCancellationRecoveryPostgresIntegrationTest {
 
         assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
         assertThat(statusContains(OutboxEventStatus.CANCELLING, orderNumber)).isFalse();
+        verify(manageStockInPort, times(2)).releaseStock(anyString(), eq(sku));
+        verify(sendNotificationInPort, times(1)).sendNotification(
+                anyString(),
+                anyString(),
+                eq(NotificationType.ORDER_CANCELLED),
+                eq("Order " + orderNumber + " cancelled"),
+                eq("Your order " + orderNumber + " was cancelled."));
+    }
+
+    @Test
+    void claimedRecoveryMustFinishCancellationInsteadOfBlockingItsOwnLease() {
+
+        final String sku = "B01-" + compactUuid();
+        catalogProductFixture.ensureActiveProduct(sku, "B01 claimed recovery fixture", BigDecimal.TEN);
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = orderController.placeOrder(request(sku), UUID.randomUUID().toString()).orderNumber();
+        final var capturedPayment = managePaymentInPort.capturePayment(orderNumber, BigDecimal.TEN, PaymentMethod.CARD);
+        assertThat(capturedPayment.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+
+        doThrow(new IllegalStateException("inventory unavailable")).doCallRealMethod()
+                .when(manageStockInPort)
+                .releaseStock(anyString(), eq(sku));
+
+        assertThatThrownBy(() -> cancelOrderWorkflow.cancelOrder(orderNumber)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("inventory unavailable");
+
+        assertThat(statusContains(OutboxEventStatus.CANCELLING, orderNumber)).isTrue();
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+
+        final OrderCancellationRecoveryClaim claim = cancellationRecoveryOutPort.claim(orderNumber, clock.instant());
+        assertThat(claim).as("recovery worker must acquire the durable CANCELLING row").isNotNull();
+
+        final CancellationRecoveryOutcome outcome = cancelOrderWorkflow.recoverCancellation(orderNumber, claim.claimId());
+        assertThat(outcome).isEqualTo(CancellationRecoveryOutcome.COMPLETED);
+
+        cancellationRecoveryOutPort.recordSuccess(orderNumber, claim.claimId());
+
+        assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber))
+                .as("the worker that owns the cancellation recovery claim must be allowed to resume and finalize")
+                .isTrue();
+        assertThat(statusContains(OutboxEventStatus.CANCELLING, orderNumber)).isFalse();
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.REFUNDED);
         verify(manageStockInPort, times(2)).releaseStock(anyString(), eq(sku));
         verify(sendNotificationInPort, times(1)).sendNotification(
                 anyString(),
