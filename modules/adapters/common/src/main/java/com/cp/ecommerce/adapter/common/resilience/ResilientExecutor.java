@@ -1,10 +1,10 @@
 package com.cp.ecommerce.adapter.common.resilience;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.stereotype.Component;
 
@@ -64,35 +64,7 @@ public class ResilientExecutor {
         final CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker(instanceName);
         final Retry retry = retryRegistry.retry(instanceName);
         final Supplier<T> decorated = Retry.decorateSupplier(retry, CircuitBreaker.decorateSupplier(circuitBreaker, action));
-        final CompletableFuture<T> execution = CompletableFuture.completedFuture(decorated).thenApply(Supplier::get);
-
-        try {
-            return execution.handle((result, failure) -> recover(result, failure, fallback)).join();
-        } catch (final CompletionException exception) {
-            final Throwable cause = exception.getCause();
-            if (cause instanceof RuntimeException runtimeException) {
-                throw runtimeException;
-            }
-            if (cause instanceof Error error) {
-                throw error;
-            }
-            throw exception;
-        }
-    }
-
-    private static <T> T recover(final T result, final Throwable failure, final Function<RuntimeException, T> fallback) {
-
-        if (failure == null) {
-            return result;
-        }
-        final Throwable cause = failure instanceof CompletionException ? failure.getCause() : failure;
-        if (cause instanceof RuntimeException runtimeException) {
-            return fallback.apply(runtimeException);
-        }
-        if (cause instanceof Error error) {
-            throw error;
-        }
-        throw new IllegalStateException(cause);
+        return RuntimeFailureBoundary.call(decorated, fallback);
     }
 
 }

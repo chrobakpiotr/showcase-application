@@ -17,6 +17,7 @@ import com.cp.ecommerce.application.order.PlaceOrderService;
 import com.cp.ecommerce.domain.catalog.port.incoming.ManageProductInPort;
 import com.cp.ecommerce.domain.coupon.port.incoming.ApplyCouponInPort;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -161,11 +162,11 @@ class OrderControllerTest {
                 OrderBuilder.TEST_ORDER_LINE_ITEM_SKU,
                 OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY);
         verify(sendNotificationInPort).sendNotification(
-                anyString(),
-                CustomerBuilder.TEST_EMAIL,
-                NotificationType.ORDER_CONFIRMED,
-                "Order " + TEST_ORDER_NUMBER + " confirmed",
-                "Your order " + TEST_ORDER_NUMBER + " was confirmed.");
+                eq(NotificationEventKey.of("order", TEST_ORDER_NUMBER, NotificationType.ORDER_CONFIRMED, "placement-v1")),
+                eq(CustomerBuilder.TEST_EMAIL),
+                eq(NotificationType.ORDER_CONFIRMED),
+                eq("Order " + TEST_ORDER_NUMBER + " confirmed"),
+                eq("Your order " + TEST_ORDER_NUMBER + " was confirmed."));
     }
 
     @Test

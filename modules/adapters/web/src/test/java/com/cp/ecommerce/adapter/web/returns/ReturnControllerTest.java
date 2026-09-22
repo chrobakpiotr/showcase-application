@@ -12,6 +12,7 @@ import com.cp.ecommerce.application.returns.RefundEntitlementCalculator;
 import com.cp.ecommerce.application.returns.ReturnService;
 import com.cp.ecommerce.application.returns.ReturnStateNotificationTransaction;
 import com.cp.ecommerce.application.returns.ReturnWorkflow;
+import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -48,7 +49,7 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,6 +65,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ReturnController.class)
 @Import({ ReturnService.class, RefundEntitlementCalculator.class, ReturnStateNotificationTransaction.class })
 class ReturnControllerTest {
+
+    private static final String RETURN_AGGREGATE_TYPE = "return";
 
     private static final BigDecimal TEST_LINE_REFUND_ENTITLEMENT = OrderBuilder.TEST_ORDER_LINE_ITEM_UNIT_PRICE
             .multiply(BigDecimal.valueOf(OrderBuilder.TEST_ORDER_LINE_ITEM_QUANTITY));
@@ -481,11 +484,16 @@ class ReturnControllerTest {
                 ReturnRequestBuilder.TEST_RETURN_NUMBER,
                 ReturnRequestBuilder.TEST_REFUND_AMOUNT);
         verify(sendNotificationInPort).sendNotification(
-                anyString(),
-                TEST_EMAIL,
-                NotificationType.RETURN_REFUNDED,
-                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
-                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
+                eq(
+                        NotificationEventKey.of(
+                                RETURN_AGGREGATE_TYPE,
+                                ReturnRequestBuilder.TEST_RETURN_NUMBER,
+                                NotificationType.RETURN_REFUNDED,
+                                "refunded-v1")),
+                eq(TEST_EMAIL),
+                eq(NotificationType.RETURN_REFUNDED),
+                eq(RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded"),
+                eq(RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded."));
     }
 
     @Test
@@ -506,11 +514,16 @@ class ReturnControllerTest {
 
         verify(managePaymentInPort, never()).refundPayment(any());
         verify(sendNotificationInPort).sendNotification(
-                anyString(),
-                TEST_EMAIL,
-                NotificationType.RETURN_REFUNDED,
-                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded",
-                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded.");
+                eq(
+                        NotificationEventKey.of(
+                                RETURN_AGGREGATE_TYPE,
+                                ReturnRequestBuilder.TEST_RETURN_NUMBER,
+                                NotificationType.RETURN_REFUNDED,
+                                "refunded-v1")),
+                eq(TEST_EMAIL),
+                eq(NotificationType.RETURN_REFUNDED),
+                eq(RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded"),
+                eq(RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded."));
     }
 
     @Test
@@ -529,11 +542,16 @@ class ReturnControllerTest {
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
         verify(sendNotificationInPort).sendNotification(
-                anyString(),
-                TEST_EMAIL,
-                NotificationType.RETURN_REJECTED,
-                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
-                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
+                eq(
+                        NotificationEventKey.of(
+                                RETURN_AGGREGATE_TYPE,
+                                ReturnRequestBuilder.TEST_RETURN_NUMBER,
+                                NotificationType.RETURN_REJECTED,
+                                "rejected-v1")),
+                eq(TEST_EMAIL),
+                eq(NotificationType.RETURN_REJECTED),
+                eq(RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected"),
+                eq(RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected."));
     }
 
     @Test
@@ -552,11 +570,16 @@ class ReturnControllerTest {
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REJECTED"));
 
         verify(sendNotificationInPort).sendNotification(
-                anyString(),
-                TEST_EMAIL,
-                NotificationType.RETURN_REJECTED,
-                RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected",
-                RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected.");
+                eq(
+                        NotificationEventKey.of(
+                                RETURN_AGGREGATE_TYPE,
+                                ReturnRequestBuilder.TEST_RETURN_NUMBER,
+                                NotificationType.RETURN_REJECTED,
+                                "rejected-v1")),
+                eq(TEST_EMAIL),
+                eq(NotificationType.RETURN_REJECTED),
+                eq(RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " rejected"),
+                eq(RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was rejected."));
     }
 
     @Test

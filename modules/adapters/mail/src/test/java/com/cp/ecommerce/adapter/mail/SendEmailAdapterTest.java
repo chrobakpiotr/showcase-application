@@ -21,11 +21,13 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -76,6 +78,46 @@ public class SendEmailAdapterTest {
 
         assertThrows(MailParseException.class, () -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH));
         verify(emailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void shouldPreserveMailParseExceptionFromFallback() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final MailParseException failure = new MailParseException(new MessagingException("invalid message"));
+
+        org.mockito.Mockito.when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
+            final java.util.function.Function<RuntimeException, Object> fallback = invocation.getArgument(2);
+            return fallback.apply(failure);
+        });
+
+        assertThatThrownBy(() -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH)).isSameAs(failure);
+    }
+
+    @Test
+    void shouldWrapMessagingExceptionThrownWhileCreatingMessage() throws Exception {
+
+        final Order order = OrderBuilder.mockOrder();
+        given(emailMessageFactory.createEmailMessage(any(Order.class)))
+                .willThrow(new MessagingException("cannot create message"));
+        runResilientActionEagerly();
+
+        assertThatThrownBy(() -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH)).isInstanceOf(MailParseException.class)
+                .hasCauseInstanceOf(MessagingException.class);
+    }
+
+    @Test
+    void shouldWrapMessagingExceptionThrownWhileReadingRecipients() throws Exception {
+
+        final Order order = OrderBuilder.mockOrder();
+        final MimeMessage message = mock(MimeMessage.class);
+        given(emailMessageFactory.createEmailMessage(any(Order.class))).willReturn(message);
+        doNothing().when(emailSender).send(message);
+        given(message.getAllRecipients()).willThrow(new MessagingException("cannot read recipients"));
+        runResilientActionEagerly();
+
+        assertThatThrownBy(() -> sendEmailAdapter.send(order, SupportedLocale.ENGLISH)).isInstanceOf(MailParseException.class)
+                .hasCauseInstanceOf(MessagingException.class);
     }
 
     @SuppressWarnings("unchecked")

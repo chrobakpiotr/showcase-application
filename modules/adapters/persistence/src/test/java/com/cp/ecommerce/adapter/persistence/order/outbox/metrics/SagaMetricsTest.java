@@ -12,26 +12,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SagaMetricsTest {
 
+    private static final String FULFILLMENT_STEP = "fulfillment";
+
     @Test
     void shouldRecordStepOutcomeAndCompensation() {
 
         final SimpleMeterRegistry registry = new SimpleMeterRegistry();
         final SagaMetrics metrics = new SagaMetrics(registry);
 
-        metrics.recordStepDuration("fulfillment", Duration.ofMillis(25), true);
-        metrics.recordStepDuration("fulfillment", Duration.ofMillis(40), false);
+        metrics.recordStepDuration(FULFILLMENT_STEP, Duration.ofMillis(25), true);
+        metrics.recordStepDuration(FULFILLMENT_STEP, Duration.ofMillis(40), false);
         metrics.recordCompensation();
 
         assertThat(
                 registry.get("saga.order-placement.step.duration")
-                        .tag("step", "fulfillment")
+                        .tag("step", FULFILLMENT_STEP)
                         .tag("outcome", "success")
                         .timer()
                         .count())
                 .isEqualTo(1L);
         assertThat(
                 registry.get("saga.order-placement.step.duration")
-                        .tag("step", "fulfillment")
+                        .tag("step", FULFILLMENT_STEP)
                         .tag("outcome", "failure")
                         .timer()
                         .count())

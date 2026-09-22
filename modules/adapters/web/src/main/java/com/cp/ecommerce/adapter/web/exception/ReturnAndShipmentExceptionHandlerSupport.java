@@ -18,7 +18,7 @@ import io.micrometer.tracing.Tracer;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
 
-abstract class ReturnAndShipmentExceptionHandlerSupport {
+class ReturnAndShipmentExceptionHandlerSupport {
 
     private static final URI TYPE_BUSINESS_RULE_VIOLATION = URI.create("urn:problem-type:business-rule-violation");
     private static final URI TYPE_RETURN_QUANTITY_CONFLICT = URI.create("urn:problem-type:return-quantity-conflict");
