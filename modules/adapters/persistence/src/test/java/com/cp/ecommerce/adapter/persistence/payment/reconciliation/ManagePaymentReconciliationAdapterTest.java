@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntityRepository;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
+import com.cp.ecommerce.domain.payment.PaymentReconciliationStartOutcome;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
 import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 
@@ -47,7 +48,8 @@ class ManagePaymentReconciliationAdapterTest {
 
         given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.empty());
 
-        adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null);
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.READY);
 
         verify(repository).save(any(PaymentReconciliationEntity.class));
     }
@@ -61,8 +63,71 @@ class ManagePaymentReconciliationAdapterTest {
                 PaymentReconciliationStatus.PENDING);
         given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
 
-        adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null);
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.READY);
 
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldReportBusyForClaimedPendingOperation() {
+
+        final PaymentReconciliationEntity existing = operation(
+                PaymentProviderOperationType.CAPTURE,
+                null,
+                PaymentReconciliationStatus.PENDING);
+        existing.setClaimId("worker-a");
+        existing.setClaimUntil(NOW.plusSeconds(30));
+        given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
+
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.BUSY);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldReportManualReviewWithoutChangingReviewEvidence() {
+
+        final PaymentReconciliationEntity existing = operation(
+                PaymentProviderOperationType.CAPTURE,
+                null,
+                PaymentReconciliationStatus.MANUAL_REVIEW);
+        existing.setAttempts(4);
+        existing.setLastError("operator review required");
+        given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
+
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.MANUAL_REVIEW);
+        assertThat(existing.getAttempts()).isEqualTo(4);
+        assertThat(existing.getLastError()).isEqualTo("operator review required");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldReportCompletedReplayWithoutChangingRow() {
+
+        final PaymentReconciliationEntity existing = operation(
+                PaymentProviderOperationType.CAPTURE,
+                null,
+                PaymentReconciliationStatus.COMPLETED);
+        given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
+
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.COMPLETED);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldReportBlockedForFailedOperation() {
+
+        final PaymentReconciliationEntity existing = operation(
+                PaymentProviderOperationType.CAPTURE,
+                null,
+                PaymentReconciliationStatus.FAILED);
+        given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
+
+        assertThat(adapter.start(OPERATION_ID, ORDER_NUMBER, PaymentProviderOperationType.CAPTURE, null))
+                .isEqualTo(PaymentReconciliationStartOutcome.BLOCKED);
         verify(repository, never()).save(any());
     }
 
@@ -97,6 +162,28 @@ class ManagePaymentReconciliationAdapterTest {
         assertThat(existing.getClaimUntil()).isNull();
         assertThat(existing.getLastError()).isNull();
         verify(repository).save(existing);
+    }
+
+    @Test
+    void shouldNotAutoCompleteManualReviewOperation() {
+
+        final PaymentReconciliationEntity existing = operation(
+                PaymentProviderOperationType.CAPTURE,
+                null,
+                PaymentReconciliationStatus.MANUAL_REVIEW);
+        existing.setAttempts(4);
+        existing.setLastError("provider outcome requires operator review");
+        given(repository.findByIdForUpdate(OPERATION_ID)).willReturn(Optional.of(existing));
+
+        adapter.complete(OPERATION_ID);
+
+        assertThat(existing.getStatus()).as("automatic replay must never close MANUAL_REVIEW")
+                .isEqualTo(PaymentReconciliationStatus.MANUAL_REVIEW);
+        assertThat(existing.getAttempts()).as("automatic replay must preserve review attempt history").isEqualTo(4);
+        assertThat(existing.getLastError()).as("automatic replay must preserve review reason")
+                .isEqualTo("provider outcome requires operator review");
+        assertThat(existing.getCompleted()).isNull();
+        verify(repository, never()).save(existing);
     }
 
     @Test

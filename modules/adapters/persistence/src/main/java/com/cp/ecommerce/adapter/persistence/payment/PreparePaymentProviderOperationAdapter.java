@@ -5,6 +5,7 @@ import java.util.Objects;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
+import com.cp.ecommerce.domain.payment.PaymentReconciliationStartOutcome;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
@@ -39,9 +40,45 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
 
         validateCaptureOperationId(operationId, pendingPayment.getOrderNumber());
         final PaymentTransaction canonical = savePaymentTransactionOutPort.prepareCapture(pendingPayment);
-        managePaymentReconciliationOutPort
-                .start(operationId, canonical.getOrderNumber(), PaymentProviderOperationType.CAPTURE, null);
+        requireAutomaticCapturePermission(
+                managePaymentReconciliationOutPort
+                        .start(operationId, canonical.getOrderNumber(), PaymentProviderOperationType.CAPTURE, null),
+                operationId,
+                canonical);
         return canonical;
+    }
+
+    private static void requireAutomaticCapturePermission(
+            final PaymentReconciliationStartOutcome outcome,
+            final String operationId,
+            final PaymentTransaction canonical) {
+
+        if (outcome == PaymentReconciliationStartOutcome.READY) {
+            return;
+        }
+        if (outcome == PaymentReconciliationStartOutcome.COMPLETED && isTerminalCapture(canonical)) {
+            return;
+        }
+        throw new PaymentOperationConflictException(
+                "Payment provider operation " + operationId + " is not eligible for automatic replay: " + outcome);
+    }
+
+    private static boolean isTerminalCapture(final PaymentTransaction payment) {
+
+        return payment.getStatus() == com.cp.ecommerce.domain.payment.PaymentStatus.CAPTURED
+                || payment.getStatus() == com.cp.ecommerce.domain.payment.PaymentStatus.PARTIALLY_REFUNDED
+                || payment.getStatus() == com.cp.ecommerce.domain.payment.PaymentStatus.REFUNDED
+                || payment.getStatus() == com.cp.ecommerce.domain.payment.PaymentStatus.DECLINED;
+    }
+
+    private static void requireAutomaticProviderPermission(
+            final PaymentReconciliationStartOutcome outcome,
+            final String operationId) {
+
+        if (outcome != PaymentReconciliationStartOutcome.READY) {
+            throw new PaymentOperationConflictException(
+                    "Payment provider operation " + operationId + " is not eligible for automatic replay: " + outcome);
+        }
     }
 
     private static void validateCaptureOperationId(final String operationId, final String orderNumber) {
@@ -60,7 +97,10 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
                 ? managePaymentRefundOutPort.reserveRemaining(refundId, orderNumber)
                 : managePaymentRefundOutPort.reserve(refundId, orderNumber, amount);
         if (claim.outcome() == PaymentRefundOutcome.RESERVED || claim.outcome() == PaymentRefundOutcome.RETRY) {
-            managePaymentReconciliationOutPort.start(refundId, orderNumber, PaymentProviderOperationType.REFUND, refundId);
+            requireAutomaticProviderPermission(
+                    managePaymentReconciliationOutPort
+                            .start(refundId, orderNumber, PaymentProviderOperationType.REFUND, refundId),
+                    refundId);
         }
         return claim;
     }

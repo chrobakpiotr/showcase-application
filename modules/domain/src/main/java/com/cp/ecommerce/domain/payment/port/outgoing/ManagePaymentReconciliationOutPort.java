@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.payment.port.outgoing;
 
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
+import com.cp.ecommerce.domain.payment.PaymentReconciliationStartOutcome;
 
 /**
  * Durable boundary for provider-operation reconciliation intents.
@@ -13,7 +14,11 @@ public interface ManagePaymentReconciliationOutPort {
      * <p>
      * Replaying the same immutable identity is a no-op. Reusing an operation id with conflicting identity is rejected.
      */
-    void start(String operationId, String orderNumber, PaymentProviderOperationType type, String refundId);
+    PaymentReconciliationStartOutcome start(
+            String operationId,
+            String orderNumber,
+            PaymentProviderOperationType type,
+            String refundId);
 
     /**
      * Marks a previously started provider operation as locally completed.

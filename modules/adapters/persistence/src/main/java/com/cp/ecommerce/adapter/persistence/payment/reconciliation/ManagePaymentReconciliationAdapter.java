@@ -8,6 +8,7 @@ import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntityRepository;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
+import com.cp.ecommerce.domain.payment.PaymentReconciliationStartOutcome;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
 import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
@@ -29,7 +30,7 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
 
     @Override
     @Transactional
-    public void start(
+    public PaymentReconciliationStartOutcome start(
             final String operationId,
             final String orderNumber,
             final PaymentProviderOperationType type,
@@ -39,7 +40,7 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
         if (existing != null) {
 
             validateIdentity(existing, orderNumber, type, refundId);
-            return;
+            return startOutcome(existing);
         }
 
         final Instant now = Instant.ofEpochMilli(clock.instant().toEpochMilli());
@@ -54,6 +55,7 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
                         .nextAttemptDate(now)
                         .created(now)
                         .build());
+        return PaymentReconciliationStartOutcome.READY;
     }
 
     @Override
@@ -61,7 +63,7 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
     public void complete(final String operationId) {
 
         repository.findByIdForUpdate(operationId).ifPresent(operation -> {
-            if (operation.getStatus() != PaymentReconciliationStatus.COMPLETED && operation.getClaimId() == null) {
+            if (operation.getStatus() == PaymentReconciliationStatus.PENDING && operation.getClaimId() == null) {
 
                 operation.setStatus(PaymentReconciliationStatus.COMPLETED);
                 operation.setCompleted(Instant.ofEpochMilli(clock.instant().toEpochMilli()));
@@ -71,6 +73,22 @@ class ManagePaymentReconciliationAdapter implements ManagePaymentReconciliationO
                 repository.save(operation);
             }
         });
+    }
+
+    private static PaymentReconciliationStartOutcome startOutcome(final PaymentReconciliationEntity operation) {
+
+        if (operation.getStatus() == PaymentReconciliationStatus.MANUAL_REVIEW) {
+            return PaymentReconciliationStartOutcome.MANUAL_REVIEW;
+        }
+        if (operation.getStatus() == PaymentReconciliationStatus.COMPLETED) {
+            return PaymentReconciliationStartOutcome.COMPLETED;
+        }
+        if (operation.getStatus() == PaymentReconciliationStatus.PENDING) {
+            return operation.getClaimId() == null
+                    ? PaymentReconciliationStartOutcome.READY
+                    : PaymentReconciliationStartOutcome.BUSY;
+        }
+        return PaymentReconciliationStartOutcome.BLOCKED;
     }
 
     private static void validateIdentity(
