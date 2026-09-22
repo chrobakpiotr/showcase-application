@@ -122,6 +122,64 @@ class ManagePaymentUseCaseTest {
     }
 
     @Test
+    void shouldNotChargeWhenCanonicalPrepareReturnsRefundedPayment() {
+
+        final PaymentTransaction stale = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT)
+                .refundedAmount(BigDecimal.ZERO)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.PENDING)
+                .created(java.time.Instant.parse("2026-09-22T09:00:00Z"))
+                .build();
+        final PaymentTransaction refunded = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT)
+                .refundedAmount(AMOUNT)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.REFUNDED)
+                .gatewayReference(GATEWAY_REFERENCE)
+                .created(stale.getCreated())
+                .build();
+
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(stale);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_OPERATION_ID, stale)).willReturn(refunded);
+
+        assertThat(managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD)).isSameAs(refunded);
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
+        verify(managePaymentReconciliationOutPort).complete(CAPTURE_OPERATION_ID);
+    }
+
+    @Test
+    void shouldRejectCanonicalPrepareWithDifferentAmountBeforeCallingProvider() {
+
+        final PaymentTransaction initial = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT)
+                .refundedAmount(BigDecimal.ZERO)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.PENDING)
+                .build();
+        final PaymentTransaction canonicalConflict = PaymentTransaction.builder()
+                .orderNumber(ORDER_NUMBER)
+                .amount(AMOUNT.add(BigDecimal.ONE))
+                .refundedAmount(BigDecimal.ZERO)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.PENDING)
+                .build();
+
+        given(findPaymentTransactionOutPort.find(ORDER_NUMBER)).willReturn(initial);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(eq(CAPTURE_OPERATION_ID), any()))
+                .willReturn(canonicalConflict);
+
+        assertThatThrownBy(() -> managePaymentUseCase.capturePayment(ORDER_NUMBER, AMOUNT, PaymentMethod.CARD))
+                .isInstanceOf(PaymentOperationConflictException.class);
+
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
+        verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_OPERATION_ID);
+    }
+
+    @Test
     void shouldNotChargeCapturedPaymentAgain() {
 
         assertCaptureIsNoOp(captured());

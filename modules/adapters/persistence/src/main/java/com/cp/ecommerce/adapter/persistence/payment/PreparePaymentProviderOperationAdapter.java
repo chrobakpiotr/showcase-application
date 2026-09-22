@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
@@ -11,6 +12,7 @@ import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliation
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.PreparePaymentProviderOperationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
+import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOperationOutPort {
 
+    private static final String ORDER_CAPTURE_PREFIX = "ORDER-CAPTURE:";
+
     private final SavePaymentTransactionOutPort savePaymentTransactionOutPort;
 
     private final ManagePaymentReconciliationOutPort managePaymentReconciliationOutPort;
@@ -33,10 +37,19 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
     @Transactional
     public PaymentTransaction prepareCapture(final String operationId, final PaymentTransaction pendingPayment) {
 
-        final PaymentTransaction persisted = savePaymentTransactionOutPort.save(pendingPayment);
+        validateCaptureOperationId(operationId, pendingPayment.getOrderNumber());
+        final PaymentTransaction canonical = savePaymentTransactionOutPort.prepareCapture(pendingPayment);
         managePaymentReconciliationOutPort
-                .start(operationId, persisted.getOrderNumber(), PaymentProviderOperationType.CAPTURE, null);
-        return persisted;
+                .start(operationId, canonical.getOrderNumber(), PaymentProviderOperationType.CAPTURE, null);
+        return canonical;
+    }
+
+    private static void validateCaptureOperationId(final String operationId, final String orderNumber) {
+
+        if (!Objects.equals(operationId, ORDER_CAPTURE_PREFIX + orderNumber)) {
+
+            throw new PaymentOperationConflictException("Capture operation identity does not match order " + orderNumber);
+        }
     }
 
     @Override

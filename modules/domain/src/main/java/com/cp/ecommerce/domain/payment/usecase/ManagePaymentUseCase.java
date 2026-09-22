@@ -77,8 +77,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         PaymentTransaction current = getPayment(orderNumber);
         validateCaptureIdentity(current, amount, method);
-        if (current.getStatus() == PaymentStatus.CAPTURED || current.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
-                || current.getStatus() == PaymentStatus.REFUNDED || current.getStatus() == PaymentStatus.DECLINED) {
+        if (captureAlreadyResolved(current)) {
 
             managePaymentReconciliationOutPort.complete(operationId);
             return current;
@@ -95,6 +94,12 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                     .build();
         }
         current = preparePaymentProviderOperationOutPort.prepareCapture(operationId, current);
+        validateCaptureIdentity(current, amount, method);
+        if (captureAlreadyResolved(current)) {
+
+            managePaymentReconciliationOutPort.complete(operationId);
+            return current;
+        }
 
         try {
             final String gatewayReference = chargePaymentOutPort.charge(orderNumber, operationId, amount, method);
@@ -142,6 +147,12 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public boolean hasPendingRefunds(final String orderNumber) {
 
         return managePaymentRefundOutPort.hasPending(orderNumber);
+    }
+
+    private static boolean captureAlreadyResolved(final PaymentTransaction payment) {
+
+        return payment.getStatus() == PaymentStatus.CAPTURED || payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED
+                || payment.getStatus() == PaymentStatus.REFUNDED || payment.getStatus() == PaymentStatus.DECLINED;
     }
 
     private static void validateCaptureIdentity(
