@@ -15,7 +15,9 @@ import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
 import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +44,10 @@ class PaymentReconciliationSchedulerTest {
     private PaymentRefundEntityRepository refundRepository;
     @Mock
     private ManagePaymentInPort managePaymentInPort;
+    @Mock
+    private ManageRefundReturnContinuationOutPort refundReturnContinuationOutPort;
+    @Mock
+    private CompleteRefundReturnContinuationInPort completeRefundReturnContinuationInPort;
 
     @Test
     void shouldReplayCaptureAndRefundWithStableIdentity() {
@@ -79,6 +85,17 @@ class PaymentReconciliationSchedulerTest {
     }
 
     @Test
+    void shouldContinueCompletedRefundIntoLinkedReturn() {
+
+        given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
+        given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of("RETURN-9"));
+
+        scheduler().reconcileDueOperations();
+
+        verify(completeRefundReturnContinuationInPort).complete("RETURN-9");
+    }
+
+    @Test
     void shouldFenceUnownedWorkAndRecordOwnedFailure() {
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of("skip", MISSING));
         given(arbitrator.claim("skip")).willReturn(null);
@@ -88,6 +105,20 @@ class PaymentReconciliationSchedulerTest {
         scheduler().reconcileDueOperations();
 
         verify(arbitrator).recordFailure(MISSING, "claim-1", "Payment reconciliation operation disappeared: missing");
+    }
+
+    @Test
+    void shouldContainContinuationFailureAndKeepSchedulerAlive() {
+
+        given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
+        given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of("RETURN-FAIL"));
+        org.mockito.BDDMockito.willThrow(new IllegalStateException("continuation unavailable"))
+                .given(completeRefundReturnContinuationInPort)
+                .complete("RETURN-FAIL");
+
+        scheduler().reconcileDueOperations();
+
+        verify(completeRefundReturnContinuationInPort).complete("RETURN-FAIL");
     }
 
     @Test
@@ -127,7 +158,9 @@ class PaymentReconciliationSchedulerTest {
                 reconciliationRepository,
                 paymentRepository,
                 refundRepository,
-                managePaymentInPort);
+                managePaymentInPort,
+                refundReturnContinuationOutPort,
+                completeRefundReturnContinuationInPort);
     }
 
     private static PaymentReconciliationEntity operation(

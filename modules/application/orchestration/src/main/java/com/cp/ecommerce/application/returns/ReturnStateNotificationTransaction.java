@@ -5,6 +5,7 @@ import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
@@ -27,6 +28,8 @@ public class ReturnStateNotificationTransaction {
 
     private final SendNotificationInPort sendNotificationInPort;
 
+    private final ManageRefundReturnContinuationOutPort manageRefundReturnContinuationOutPort;
+
     @Transactional
     public ReturnRequest markRefundedAndNotify(final String returnNumber) {
 
@@ -35,6 +38,7 @@ public class ReturnStateNotificationTransaction {
             throw new ApplicationNotFoundException("Return request not found");
         }
         notify(refunded, NotificationType.RETURN_REFUNDED, "refunded");
+        manageRefundReturnContinuationOutPort.completeByReturnNumber(returnNumber);
         return refunded;
     }
 

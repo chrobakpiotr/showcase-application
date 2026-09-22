@@ -4,6 +4,7 @@ import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
@@ -35,6 +36,8 @@ class ReturnStateNotificationTransactionTest {
     private ManageOrderUseCase manageOrderUseCase;
     @Mock
     private SendNotificationInPort sendNotificationInPort;
+    @Mock
+    private ManageRefundReturnContinuationOutPort manageRefundReturnContinuationOutPort;
 
     @Test
     void shouldMarkRefundedAndEnqueueInSameApplicationBoundary() {
@@ -45,7 +48,8 @@ class ReturnStateNotificationTransactionTest {
         final var service = new ReturnStateNotificationTransaction(
                 returnModerationInPort,
                 manageOrderUseCase,
-                sendNotificationInPort);
+                sendNotificationInPort,
+                manageRefundReturnContinuationOutPort);
 
         assertThat(service.markRefundedAndNotify(RETURN_NUMBER)).isSameAs(request);
 
@@ -55,6 +59,7 @@ class ReturnStateNotificationTransactionTest {
                 eq(NotificationType.RETURN_REFUNDED),
                 eq("Return RET-1 refunded"),
                 eq("Your return request RET-1 was refunded."));
+        verify(manageRefundReturnContinuationOutPort).completeByReturnNumber(RETURN_NUMBER);
     }
 
     @Test
@@ -66,7 +71,8 @@ class ReturnStateNotificationTransactionTest {
         final var service = new ReturnStateNotificationTransaction(
                 returnModerationInPort,
                 manageOrderUseCase,
-                sendNotificationInPort);
+                sendNotificationInPort,
+                manageRefundReturnContinuationOutPort);
 
         assertThat(service.rejectAndNotify(RETURN_NUMBER)).isSameAs(request);
 
@@ -83,7 +89,8 @@ class ReturnStateNotificationTransactionTest {
         final var service = new ReturnStateNotificationTransaction(
                 returnModerationInPort,
                 manageOrderUseCase,
-                sendNotificationInPort);
+                sendNotificationInPort,
+                manageRefundReturnContinuationOutPort);
         assertThatThrownBy(() -> service.markRefundedAndNotify(RETURN_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }
 
@@ -106,7 +113,8 @@ class ReturnStateNotificationTransactionTest {
         final var service = new ReturnStateNotificationTransaction(
                 returnModerationInPort,
                 manageOrderUseCase,
-                sendNotificationInPort);
+                sendNotificationInPort,
+                manageRefundReturnContinuationOutPort);
 
         assertThatThrownBy(() -> service.rejectAndNotify(RETURN_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }
@@ -121,7 +129,8 @@ class ReturnStateNotificationTransactionTest {
         final var service = new ReturnStateNotificationTransaction(
                 returnModerationInPort,
                 manageOrderUseCase,
-                sendNotificationInPort);
+                sendNotificationInPort,
+                manageRefundReturnContinuationOutPort);
 
         assertThatThrownBy(() -> service.markRefundedAndNotify(RETURN_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }

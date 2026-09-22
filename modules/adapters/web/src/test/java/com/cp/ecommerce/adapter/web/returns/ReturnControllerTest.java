@@ -19,6 +19,7 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.returns.PageQuery;
 import com.cp.ecommerce.domain.returns.PagedResult;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
@@ -105,6 +106,9 @@ class ReturnControllerTest {
 
     @MockitoBean
     private transient ManagePaymentInPort managePaymentInPort;
+
+    @MockitoBean
+    private transient ManageRefundReturnContinuationOutPort manageRefundReturnContinuationOutPort;
 
     @MockitoBean
     private transient SendNotificationInPort sendNotificationInPort;

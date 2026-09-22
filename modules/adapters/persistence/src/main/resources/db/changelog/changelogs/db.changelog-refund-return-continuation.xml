@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="b03b-refund-return-continuation" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION">
+            <column name="REFUND_ID" type="VARCHAR(80)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PAYMENT_REFUND_RETURN_CONTINUATION" />
+            </column>
+            <column name="RETURN_NUMBER" type="VARCHAR(43)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_PAYMENT_REFUND_RETURN_CONTINUATION_RETURN" foreignKeyName="FK_PAYMENT_REFUND_RETURN_CONTINUATION_RETURN" referencedTableName="RETURN_REQUEST" referencedColumnNames="RETURN_NUMBER" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATION_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPLETION_DATE" type="TIMESTAMP" />
+        </createTable>
+
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" indexName="IDX_PAYMENT_REFUND_RETURN_CONTINUATION_STATUS">
+            <column name="STATUS" />
+            <column name="CREATION_DATE" />
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

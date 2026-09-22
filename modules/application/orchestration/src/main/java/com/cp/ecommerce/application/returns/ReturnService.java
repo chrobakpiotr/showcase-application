@@ -5,6 +5,7 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
@@ -36,6 +37,8 @@ public class ReturnService implements ReturnWorkflow {
 
     private final RefundEntitlementCalculator refundEntitlementCalculator;
 
+    private final ManageRefundReturnContinuationOutPort manageRefundReturnContinuationOutPort;
+
     private final ReturnStateNotificationTransaction returnStateNotificationTransaction;
 
     @Override
@@ -63,6 +66,7 @@ public class ReturnService implements ReturnWorkflow {
             throw new ApplicationNotFoundException(RETURN_NOT_FOUND);
         }
         if (approved.getStatus() != ReturnStatus.REFUNDED && approved.getRefundAmount().signum() > 0) {
+            manageRefundReturnContinuationOutPort.start(approved.getReturnNumber(), approved.getReturnNumber());
             managePaymentInPort
                     .refundPayment(approved.getOrderNumber(), approved.getReturnNumber(), approved.getRefundAmount());
         }
