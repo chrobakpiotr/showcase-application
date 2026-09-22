@@ -22,6 +22,10 @@ class RefundEntitlementCalculatorTest {
 
     private static final String ONE_HUNDRED = "100.00";
 
+    private static final String ONE_CENT = "0.01";
+
+    private static final String TWO_CENTS = "0.02";
+
     private final RefundEntitlementCalculator calculator = new RefundEntitlementCalculator();
 
     @Test
@@ -36,12 +40,26 @@ class RefundEntitlementCalculatorTest {
 
     @Test
     void shouldAllocateMinorUnitRemainderDeterministically() {
-        final OrderLineItem first = line(SKU_ONE, "0.01");
-        final OrderLineItem second = line(SKU_TWO, "0.02");
-        final Order order = order("0.03", "0.02", first, second);
+        final OrderLineItem first = line(SKU_ONE, ONE_CENT);
+        final OrderLineItem second = line(SKU_TWO, TWO_CENTS);
+        final Order order = order("0.03", TWO_CENTS, first, second);
 
-        assertThat(calculator.lineEntitlement(order, SKU_ONE)).isEqualByComparingTo("0.01");
-        assertThat(calculator.lineEntitlement(order, SKU_TWO)).isEqualByComparingTo("0.01");
+        assertThat(calculator.lineEntitlement(order, SKU_ONE)).isEqualByComparingTo(ONE_CENT);
+        assertThat(calculator.lineEntitlement(order, SKU_TWO)).isEqualByComparingTo(ONE_CENT);
+    }
+
+    @Test
+    void shouldAllocateRemainderIndependentOfOrderLineIterationOrder() {
+
+        final OrderLineItem first = line(SKU_ONE, ONE_CENT);
+        final OrderLineItem second = line(SKU_TWO, ONE_CENT);
+        final Order forward = order(TWO_CENTS, ONE_CENT, first, second);
+        final Order reversed = order(TWO_CENTS, ONE_CENT, second, first);
+
+        assertThat(calculator.lineEntitlement(forward, SKU_ONE))
+                .isEqualByComparingTo(calculator.lineEntitlement(reversed, SKU_ONE));
+        assertThat(calculator.lineEntitlement(forward, SKU_TWO))
+                .isEqualByComparingTo(calculator.lineEntitlement(reversed, SKU_TWO));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.persistence.returns.entity;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import com.cp.ecommerce.domain.returns.ReturnStatus;
@@ -30,6 +31,13 @@ public interface ReturnRequestEntityRepository extends JpaRepository<ReturnReque
     @Query("select coalesce(sum(r.quantity), 0) from ReturnRequestEntity r "
             + "where r.orderNumber = :orderNumber and r.sku = :sku and r.status <> :rejectedStatus")
     long sumActiveQuantity(
+            @Param("orderNumber") String orderNumber,
+            @Param("sku") String sku,
+            @Param("rejectedStatus") ReturnStatus rejectedStatus);
+
+    @Query("select coalesce(sum(r.refundAmount), 0) from ReturnRequestEntity r "
+            + "where r.orderNumber = :orderNumber and r.sku = :sku and r.status <> :rejectedStatus")
+    BigDecimal sumActiveRefundAmount(
             @Param("orderNumber") String orderNumber,
             @Param("sku") String sku,
             @Param("rejectedStatus") ReturnStatus rejectedStatus);

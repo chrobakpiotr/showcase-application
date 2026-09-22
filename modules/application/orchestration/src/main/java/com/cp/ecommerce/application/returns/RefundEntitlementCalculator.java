@@ -2,7 +2,9 @@ package com.cp.ecommerce.application.returns;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.cp.ecommerce.domain.order.Order;
@@ -28,9 +30,13 @@ public class RefundEntitlementCalculator {
             return BigDecimal.ZERO.setScale(MONEY_SCALE);
         }
 
+        final List<OrderLineItem> stableItems = order.getItems()
+                .stream()
+                .sorted(Comparator.comparing(OrderLineItem::getSku))
+                .toList();
         final Map<String, Long> allocated = new LinkedHashMap<>();
         long allocatedMinor = 0L;
-        for (final OrderLineItem item : order.getItems()) {
+        for (final OrderLineItem item : stableItems) {
             final long lineGrossMinor = minorUnits(item.getSubtotal());
             final long floor = BigDecimal.valueOf(payableMinor)
                     .multiply(BigDecimal.valueOf(lineGrossMinor))
@@ -41,7 +47,7 @@ public class RefundEntitlementCalculator {
         }
 
         long remainder = payableMinor - allocatedMinor;
-        for (final OrderLineItem item : order.getItems()) {
+        for (final OrderLineItem item : stableItems) {
             if (remainder == 0L) {
                 break;
             }

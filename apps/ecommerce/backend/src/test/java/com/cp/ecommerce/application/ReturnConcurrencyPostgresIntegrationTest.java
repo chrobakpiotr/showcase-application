@@ -136,6 +136,77 @@ class ReturnConcurrencyPostgresIntegrationTest {
     }
 
     @Test
+    void shouldRestoreExactRejectedMinorUnitAcrossABRejectACD() {
+
+        final String sku = shortSku("Q05R");
+        final String orderNumber = placeOrder(sku, 3);
+        final BigDecimal entitlement = new BigDecimal("0.01");
+
+        final ReturnRequest first = requestFromLineEntitlement(orderNumber, sku, 3, entitlement);
+        final ReturnRequest second = requestFromLineEntitlement(orderNumber, sku, 3, entitlement);
+        returnModerationInPort.rejectReturn(first.getReturnNumber());
+        final ReturnRequest third = requestFromLineEntitlement(orderNumber, sku, 3, entitlement);
+        final ReturnRequest fourth = requestFromLineEntitlement(orderNumber, sku, 3, entitlement);
+
+        assertThat(first.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertThat(second.getRefundAmount()).isEqualByComparingTo("0.00");
+        assertThat(third.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertThat(fourth.getRefundAmount()).isEqualByComparingTo("0.00");
+
+        final List<ReturnRequest> active = listReturnsInPort.listReturnsForOrder(orderNumber)
+                .stream()
+                .filter(candidate -> candidate.getStatus() != ReturnStatus.REJECTED)
+                .toList();
+        assertThat(active.stream().mapToInt(ReturnRequest::getQuantity).sum()).isEqualTo(3);
+        assertThat(active.stream().map(ReturnRequest::getRefundAmount).reduce(BigDecimal.ZERO, BigDecimal::add))
+                .isEqualByComparingTo(entitlement);
+    }
+
+    @Test
+    void shouldRespectHistoricalPersistedRefundSnapshotWhenAllocatingRemainingEntitlement() {
+
+        final String sku = shortSku("Q05H");
+        final String orderNumber = placeOrder(sku, 2);
+        requestReturnInPort
+                .requestReturn(new ReturnRequestCommand(orderNumber, sku, 1, 2, "Q05 historical snapshot", BigDecimal.ZERO));
+
+        final ReturnRequest remaining = requestFromLineEntitlement(orderNumber, sku, 2, new BigDecimal("0.01"));
+
+        assertThat(remaining.getRefundAmount()).isEqualByComparingTo("0.01");
+    }
+
+    @Test
+    void shouldConserveRefundEntitlementAcrossGeneratedRejectPatterns() {
+
+        final int[] quantities = { 2, 3, 4 };
+        final int[] entitlementCents = { 1, 2, 5 };
+
+        for (final int quantity : quantities) {
+            for (final int cents : entitlementCents) {
+                final String sku = shortSku("Q05G");
+                final String orderNumber = placeOrder(sku, quantity);
+                final BigDecimal entitlement = BigDecimal.valueOf(cents, 2);
+
+                final ReturnRequest rejected = requestFromLineEntitlement(orderNumber, sku, quantity, entitlement);
+                returnModerationInPort.rejectReturn(rejected.getReturnNumber());
+
+                for (int unit = 0; unit < quantity; unit++) {
+                    requestFromLineEntitlement(orderNumber, sku, quantity, entitlement);
+                }
+
+                final List<ReturnRequest> active = listReturnsInPort.listReturnsForOrder(orderNumber)
+                        .stream()
+                        .filter(candidate -> candidate.getStatus() != ReturnStatus.REJECTED)
+                        .toList();
+
+                assertThat(active.stream().mapToInt(ReturnRequest::getQuantity).sum()).isEqualTo(quantity);
+                assertThat(active.stream().map(ReturnRequest::getRefundAmount).reduce(BigDecimal.ZERO, BigDecimal::add))
+                        .isEqualByComparingTo(entitlement);
+            }
+        }
+    }
+
+    @Test
     void shouldAllowOnlyOneConcurrentApproveOrRejectDecision() throws Exception {
 
         final String sku = shortSku("R05C");
@@ -226,6 +297,22 @@ class ReturnConcurrencyPostgresIntegrationTest {
 
         return requestReturnInPort
                 .requestReturn(new ReturnRequestCommand(orderNumber, sku, 1, 1, "R05 concurrent return", UNIT_PRICE));
+    }
+
+    private ReturnRequest requestFromLineEntitlement(
+            final String orderNumber,
+            final String sku,
+            final int orderedQuantity,
+            final BigDecimal fullLineEntitlement) {
+
+        return requestReturnInPort.requestReturnFromLineEntitlement(
+                new ReturnRequestCommand(
+                        orderNumber,
+                        sku,
+                        1,
+                        orderedQuantity,
+                        "Q05 entitlement conservation",
+                        fullLineEntitlement));
     }
 
     private String placeOrder(final String sku, final int quantity) {

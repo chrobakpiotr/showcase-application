@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.persistence.returns;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.adapter.persistence.order.entity.OrderEntityRepository;
@@ -59,6 +60,14 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
         if (returnRequest.getQuantity() > remainingQuantity) {
             throw new ReturnQuantityConflictException(Math.toIntExact(remainingQuantity));
         }
+        final BigDecimal activeRefundAmount = allocateFromLineEntitlement
+                ? Objects.requireNonNullElse(
+                        returnRequestEntityRepository.sumActiveRefundAmount(
+                                returnRequest.getOrderNumber(),
+                                returnRequest.getSku(),
+                                ReturnStatus.REJECTED),
+                        BigDecimal.ZERO)
+                : BigDecimal.ZERO;
 
         final ReturnRequestEntity entity = returnRequestPersistenceMapper.mapToEntity(returnRequest)
                 .orElseThrow(
@@ -67,10 +76,10 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
                                         + returnRequest.getReturnNumber()));
         if (allocateFromLineEntitlement) {
             entity.setRefundAmount(
-                    allocateEntitlement(
+                    allocateRemainingEntitlement(
                             returnRequest.getRefundAmount(),
-                            orderedQuantity,
-                            Math.toIntExact(activeQuantity),
+                            activeRefundAmount,
+                            Math.toIntExact(remainingQuantity),
                             returnRequest.getQuantity()));
         }
         return mapToDomain(returnRequestEntityRepository.saveAndFlush(entity));
@@ -154,17 +163,23 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
         return saveAndMap(entity);
     }
 
-    private static BigDecimal allocateEntitlement(
+    private static BigDecimal allocateRemainingEntitlement(
             final BigDecimal fullLineEntitlement,
-            final int orderedQuantity,
-            final int alreadyAllocatedQuantity,
+            final BigDecimal activeRefundAmount,
+            final int remainingQuantity,
             final int requestedQuantity) {
 
-        final long cents = fullLineEntitlement.movePointRight(2).longValueExact();
-        final long base = cents / orderedQuantity;
-        final long remainder = cents % orderedQuantity;
+        final long fullMinor = fullLineEntitlement.movePointRight(2).longValueExact();
+        final long activeMinor = activeRefundAmount.movePointRight(2).longValueExact();
+        final long remainingMinor = fullMinor - activeMinor;
+        if (remainingMinor < 0L) {
+            throw new IllegalStateException("Persisted active return refunds exceed the line entitlement");
+        }
+
+        final long base = remainingMinor / remainingQuantity;
+        final long remainder = remainingMinor % remainingQuantity;
         long allocated = 0L;
-        for (int unit = alreadyAllocatedQuantity; unit < alreadyAllocatedQuantity + requestedQuantity; unit++) {
+        for (int unit = 0; unit < requestedQuantity; unit++) {
             allocated += base + (unit < remainder ? 1L : 0L);
         }
         return BigDecimal.valueOf(allocated, 2);

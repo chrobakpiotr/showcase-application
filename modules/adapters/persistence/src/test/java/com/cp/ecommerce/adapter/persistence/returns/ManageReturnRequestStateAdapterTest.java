@@ -37,6 +37,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class ManageReturnRequestStateAdapterTest {
 
+    private static final String ONE_CENT = "0.01";
+
     @InjectMocks
     private transient ManageReturnRequestStateAdapter adapter;
 
@@ -132,6 +134,75 @@ class ManageReturnRequestStateAdapterTest {
         adapter.createFromLineEntitlement(first, 2);
 
         assertThat(firstEntity.getRefundAmount()).isEqualByComparingTo("30.00");
+    }
+
+    @Test
+    void shouldRestoreReleasedMinorUnitFromPersistedActiveRefundSnapshot() {
+
+        final BigDecimal fullLineEntitlement = new BigDecimal(ONE_CENT);
+        final ReturnRequest allocatedRequest = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(1)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(fullLineEntitlement)
+                .build();
+        final ReturnRequestEntity allocatedEntity = ReturnRequestEntityBuilder.mockReturnRequestEntity();
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(allocatedRequest.getOrderNumber()))
+                .willReturn(mock(OrderEntity.class));
+        given(
+                returnRequestEntityRepository
+                        .sumActiveQuantity(allocatedRequest.getOrderNumber(), allocatedRequest.getSku(), ReturnStatus.REJECTED))
+                .willReturn(1L);
+        given(
+                returnRequestEntityRepository.sumActiveRefundAmount(
+                        allocatedRequest.getOrderNumber(),
+                        allocatedRequest.getSku(),
+                        ReturnStatus.REJECTED))
+                .willReturn(BigDecimal.ZERO);
+        given(returnRequestPersistenceMapper.mapToEntity(allocatedRequest)).willReturn(Optional.of(allocatedEntity));
+        given(returnRequestEntityRepository.saveAndFlush(allocatedEntity)).willReturn(allocatedEntity);
+        given(returnRequestPersistenceMapper.mapToDomainObject(allocatedEntity)).willReturn(Optional.of(allocatedRequest));
+
+        adapter.createFromLineEntitlement(allocatedRequest, 3);
+
+        assertThat(allocatedEntity.getRefundAmount()).isEqualByComparingTo(ONE_CENT);
+    }
+
+    @Test
+    void shouldFailClosedWhenPersistedActiveRefundExceedsLineEntitlement() {
+
+        final BigDecimal fullLineEntitlement = new BigDecimal(ONE_CENT);
+        final ReturnRequest corruptRequest = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(1)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(fullLineEntitlement)
+                .build();
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(corruptRequest.getOrderNumber()))
+                .willReturn(mock(OrderEntity.class));
+        given(
+                returnRequestEntityRepository
+                        .sumActiveQuantity(corruptRequest.getOrderNumber(), corruptRequest.getSku(), ReturnStatus.REJECTED))
+                .willReturn(1L);
+        given(
+                returnRequestEntityRepository
+                        .sumActiveRefundAmount(corruptRequest.getOrderNumber(), corruptRequest.getSku(), ReturnStatus.REJECTED))
+                .willReturn(new BigDecimal("0.02"));
+
+        given(returnRequestPersistenceMapper.mapToEntity(corruptRequest)).willReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> adapter.createFromLineEntitlement(corruptRequest, 3)).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("exceed");
     }
 
     @Test
@@ -350,7 +421,7 @@ class ManageReturnRequestStateAdapterTest {
     @Test
     void shouldAllocateMinorUnitRemainderToEarliestReturnedUnit() {
 
-        final BigDecimal fullLineEntitlement = new BigDecimal("0.01");
+        final BigDecimal fullLineEntitlement = new BigDecimal(ONE_CENT);
         final ReturnRequest first = ReturnRequest.builder()
                 .returnNumber(request.getReturnNumber())
                 .orderNumber(request.getOrderNumber())
@@ -372,7 +443,7 @@ class ManageReturnRequestStateAdapterTest {
 
         adapter.createFromLineEntitlement(first, 2);
 
-        assertThat(firstEntity.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertThat(firstEntity.getRefundAmount()).isEqualByComparingTo(ONE_CENT);
     }
 
 }
