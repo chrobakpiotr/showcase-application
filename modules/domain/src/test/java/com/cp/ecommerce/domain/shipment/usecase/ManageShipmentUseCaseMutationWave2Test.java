@@ -7,6 +7,7 @@ import java.util.List;
 import com.cp.ecommerce.domain.shipment.PageQuery;
 import com.cp.ecommerce.domain.shipment.PagedResult;
 import com.cp.ecommerce.domain.shipment.Shipment;
+import com.cp.ecommerce.domain.shipment.ShipmentOperation;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.outgoing.FindShipmentOutPort;
 import com.cp.ecommerce.domain.shipment.port.outgoing.FindShipmentsOutPort;
@@ -91,11 +92,28 @@ class ManageShipmentUseCaseMutationWave2Test {
 
     @Test
     void shouldReplaySameOperationWithoutSavingAgain() {
-        final Shipment existing = shipment(ShipmentStatus.PENDING, "op-1", null, null, null);
+        final Shipment existing = shipment(ShipmentStatus.DISPATCHED, "op-later", DISPATCHED, ESTIMATED, null);
         given(findShipmentOutPort.findByShipmentNumber(SHIPMENT)).willReturn(existing);
+        given(saveShipmentOutPort.findOperation("op-1")).willReturn(
+                ShipmentOperation.builder()
+                        .operationId("op-1")
+                        .shipmentNumber(SHIPMENT)
+                        .expectedStatus(ShipmentStatus.PENDING)
+                        .resultStatus(ShipmentStatus.DISPATCHED)
+                        .dispatchedDate(DISPATCHED)
+                        .estimatedDeliveryDate(ESTIMATED)
+                        .resultVersion(7)
+                        .build());
 
-        assertThat(useCase.advanceShipmentStatus(SHIPMENT, "op-1", ShipmentStatus.PENDING)).isSameAs(existing);
+        final Shipment replay = useCase.advanceShipmentStatus(SHIPMENT, "op-1", ShipmentStatus.PENDING);
+
+        assertThat(replay.getStatus()).isEqualTo(ShipmentStatus.DISPATCHED);
+        assertThat(replay.getLastOperationId()).isEqualTo("op-1");
+        assertThat(replay.getDispatchedDate()).isEqualTo(DISPATCHED);
+        assertThat(replay.getEstimatedDeliveryDate()).isEqualTo(ESTIMATED);
+        assertThat(replay.getVersion()).isEqualTo(7);
         verify(saveShipmentOutPort, never()).save(any());
+        verify(saveShipmentOutPort, never()).saveOperation(any());
     }
 
     @Test

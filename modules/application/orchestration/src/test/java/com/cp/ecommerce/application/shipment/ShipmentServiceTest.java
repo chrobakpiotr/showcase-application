@@ -13,6 +13,7 @@ import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.shipment.Shipment;
+import com.cp.ecommerce.domain.shipment.ShipmentAdvanceResult;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
@@ -245,8 +246,10 @@ class ShipmentServiceTest {
 
         final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
         final Order order = order(OrderStatus.CONFIRMED, "RES-OP");
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-1", ShipmentStatus.PENDING))
-                .willReturn(shipment);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-1", ShipmentStatus.PENDING))
+                .willReturn(new ShipmentAdvanceResult(shipment, false));
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
@@ -266,8 +269,10 @@ class ShipmentServiceTest {
 
         final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
         final Order order = order(OrderStatus.CONFIRMED, null);
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-2", ShipmentStatus.PENDING))
-                .willReturn(shipment);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-2", ShipmentStatus.PENDING))
+                .willReturn(new ShipmentAdvanceResult(shipment, false));
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
@@ -279,7 +284,9 @@ class ShipmentServiceTest {
     @Test
     void shouldReturnNotFoundWhenOperationDispatchCannotLoadShipment() {
 
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-3", ShipmentStatus.PENDING))
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-3", ShipmentStatus.PENDING))
                 .willReturn(null);
 
         assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-3", ShipmentStatus.PENDING))
@@ -290,8 +297,10 @@ class ShipmentServiceTest {
     void shouldRejectOperationDispatchForNonConfirmedOrder() {
 
         final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-4", ShipmentStatus.PENDING))
-                .willReturn(shipment);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-4", ShipmentStatus.PENDING))
+                .willReturn(new ShipmentAdvanceResult(shipment, false));
         final Order cancelledOrder = order(OrderStatus.CANCELLED, "RES-4");
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(cancelledOrder);
 
@@ -303,8 +312,10 @@ class ShipmentServiceTest {
     void shouldRejectOperationDispatchBeforePaymentCapture() {
 
         final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-5", ShipmentStatus.PENDING))
-                .willReturn(shipment);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-5", ShipmentStatus.PENDING))
+                .willReturn(new ShipmentAdvanceResult(shipment, false));
         final Order confirmedOrder = order(OrderStatus.CONFIRMED, "RES-5");
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(confirmedOrder);
         org.mockito.Mockito.doReturn(payment(PaymentStatus.PENDING)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
@@ -318,8 +329,10 @@ class ShipmentServiceTest {
 
         final Shipment shipment = shipment(ShipmentStatus.DELIVERED);
         final Order confirmedOrder = order(OrderStatus.CONFIRMED, "RES-6");
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT))
-                .willReturn(shipment);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT))
+                .willReturn(new ShipmentAdvanceResult(shipment, false));
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(confirmedOrder);
 
         assertThat(service.advanceShipment(SHIPMENT_NUMBER, "operation-6", ShipmentStatus.IN_TRANSIT)).isSameAs(shipment);
@@ -333,9 +346,28 @@ class ShipmentServiceTest {
     }
 
     @Test
+    void shouldSkipFulfillmentAndNotificationForHistoricalOperationReplay() {
+
+        final Shipment historicalDispatch = shipment(ShipmentStatus.DISPATCHED);
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-replay", ShipmentStatus.PENDING))
+                .willReturn(new ShipmentAdvanceResult(historicalDispatch, true));
+
+        assertThat(service.advanceShipment(SHIPMENT_NUMBER, "operation-replay", ShipmentStatus.PENDING))
+                .isSameAs(historicalDispatch);
+
+        verify(manageStockInPort, never()).fulfillStock(anyString(), anyString());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
+        verify(manageOrderUseCase, never()).findOrder(anyString());
+    }
+
+    @Test
     void shouldReturnNotFoundWhenNonDispatchOperationAdvanceCannotLoadShipment() {
 
-        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER, "operation-7", ShipmentStatus.IN_TRANSIT))
+        given(
+                advanceShipmentStatusInPort
+                        .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, "operation-7", ShipmentStatus.IN_TRANSIT))
                 .willReturn(null);
 
         assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER, "operation-7", ShipmentStatus.IN_TRANSIT))

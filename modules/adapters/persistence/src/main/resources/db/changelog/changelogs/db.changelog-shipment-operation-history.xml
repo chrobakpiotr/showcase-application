@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="shipment-operation-history-1" author="PC">
+        <createTable schemaName="${schema_name_full}" tableName="SHIPMENT_OPERATION">
+            <column name="OPERATION_ID" type="VARCHAR(80)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_SHIPMENT_OPERATION" />
+            </column>
+            <column name="SHIPMENT_NUMBER" type="VARCHAR(41)">
+                <constraints nullable="false" />
+            </column>
+            <column name="EXPECTED_STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="RESULT_STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DISPATCHED_DATE" type="TIMESTAMP" />
+            <column name="ESTIMATED_DELIVERY_DATE" type="TIMESTAMP" />
+            <column name="DELIVERED_DATE" type="TIMESTAMP" />
+            <column name="RESULT_VERSION" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableSchemaName="${schema_name_full}" baseTableName="SHIPMENT_OPERATION" baseColumnNames="SHIPMENT_NUMBER" referencedTableSchemaName="${schema_name_full}" referencedTableName="SHIPMENT" referencedColumnNames="SHIPMENT_NUMBER" constraintName="FK_SHIPMENT_OPERATION_SHIPMENT" />
+
+        <createIndex schemaName="${schema_name_full}" tableName="SHIPMENT_OPERATION" indexName="IDX_SHIPMENT_OPERATION_SHIPMENT">
+            <column name="SHIPMENT_NUMBER" />
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

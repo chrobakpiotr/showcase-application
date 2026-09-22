@@ -45,5 +45,6 @@
     <include file="changelogs/db.changelog-payment-reconciliation.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-stabilization-n15-n20.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-refund-return-continuation.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-shipment-operation-history.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

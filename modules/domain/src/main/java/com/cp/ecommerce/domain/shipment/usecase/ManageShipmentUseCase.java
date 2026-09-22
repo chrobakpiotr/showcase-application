@@ -8,6 +8,8 @@ import java.util.UUID;
 import com.cp.ecommerce.domain.shipment.PageQuery;
 import com.cp.ecommerce.domain.shipment.PagedResult;
 import com.cp.ecommerce.domain.shipment.Shipment;
+import com.cp.ecommerce.domain.shipment.ShipmentAdvanceResult;
+import com.cp.ecommerce.domain.shipment.ShipmentOperation;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
@@ -78,13 +80,27 @@ public class ManageShipmentUseCase
             final String operationId,
             final ShipmentStatus expectedStatus) {
 
+        final ShipmentAdvanceResult result = advanceShipmentStatusWithResult(shipmentNumber, operationId, expectedStatus);
+        return result == null ? null : result.shipment();
+    }
+
+    @Override
+    public ShipmentAdvanceResult advanceShipmentStatusWithResult(
+            final String shipmentNumber,
+            final String operationId,
+            final ShipmentStatus expectedStatus) {
+
         final Shipment existing = findShipmentOutPort.findByShipmentNumber(shipmentNumber);
         if (existing == null) {
             return null;
         }
-        if (operationId.equals(existing.getLastOperationId())) {
-            return existing;
+
+        final ShipmentOperation priorOperation = saveShipmentOutPort.findOperation(operationId);
+        if (priorOperation != null) {
+            validateOperationFingerprint(priorOperation, shipmentNumber, expectedStatus);
+            return new ShipmentAdvanceResult(replay(existing, priorOperation), true);
         }
+
         if (existing.getStatus() != expectedStatus) {
             throw new ShipmentConflictException(
                     "Shipment '" + shipmentNumber + "' expected " + expectedStatus + " but is " + existing.getStatus());
@@ -110,7 +126,47 @@ public class ManageShipmentUseCase
                 .version(existing.getVersion())
                 .lastOperationId(operationId)
                 .build();
-        return saveShipmentOutPort.save(advanced);
+        final Shipment saved = saveShipmentOutPort.save(advanced);
+        saveShipmentOutPort.saveOperation(
+                ShipmentOperation.builder()
+                        .operationId(operationId)
+                        .shipmentNumber(shipmentNumber)
+                        .expectedStatus(expectedStatus)
+                        .resultStatus(saved.getStatus())
+                        .dispatchedDate(saved.getDispatchedDate())
+                        .estimatedDeliveryDate(saved.getEstimatedDeliveryDate())
+                        .deliveredDate(saved.getDeliveredDate())
+                        .resultVersion(saved.getVersion())
+                        .build());
+        return new ShipmentAdvanceResult(saved, false);
+    }
+
+    private static void validateOperationFingerprint(
+            final ShipmentOperation operation,
+            final String shipmentNumber,
+            final ShipmentStatus expectedStatus) {
+
+        if (!operation.getShipmentNumber().equals(shipmentNumber) || operation.getExpectedStatus() != expectedStatus) {
+            throw new ShipmentConflictException(
+                    "Shipment operation '" + operation.getOperationId() + "' was already used with a different command");
+        }
+    }
+
+    private static Shipment replay(final Shipment current, final ShipmentOperation operation) {
+
+        return Shipment.builder()
+                .shipmentNumber(current.getShipmentNumber())
+                .orderNumber(current.getOrderNumber())
+                .carrier(current.getCarrier())
+                .trackingNumber(current.getTrackingNumber())
+                .status(operation.getResultStatus())
+                .dispatchedDate(operation.getDispatchedDate())
+                .estimatedDeliveryDate(operation.getEstimatedDeliveryDate())
+                .deliveredDate(operation.getDeliveredDate())
+                .createdDate(current.getCreatedDate())
+                .version(operation.getResultVersion())
+                .lastOperationId(operation.getOperationId())
+                .build();
     }
 
     @Override

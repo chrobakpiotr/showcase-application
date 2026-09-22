@@ -563,9 +563,12 @@ class ShipmentControllerTest {
                 .advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, null, null, servletResponse);
 
         org.assertj.core.api.Assertions.assertThat(response).isNotNull();
-        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Deprecation")).isEqualTo("true");
+        org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Deprecation"))
+                .as("RFC 9745 Deprecation must use Structured Field date syntax")
+                .matches("@[0-9]+");
         org.assertj.core.api.Assertions.assertThat(servletResponse.getHeader("Sunset"))
-                .isEqualTo("Thu, 31 Dec 2026 23:59:59 GMT");
+                .as("Sunset requires an explicit compatibility policy and must not be an arbitrary fixture")
+                .isNull();
         verify(workflow).advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
     }
 

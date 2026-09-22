@@ -653,6 +653,30 @@ describe('OrderListComponent', () => {
     );
   });
 
+  it('reuses the same pending shipment operation identity after a failed order-detail advance', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
+      throwError(() => new Error('lost response'))
+    );
+    component.selectOrder('ORDER-1');
+
+    component.advanceShipmentStatus('SHIP-1');
+    const firstArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    component.advanceShipmentStatus('SHIP-1');
+    const secondArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
+    expect(firstArgs[0]).toBe('SHIP-1');
+    expect(firstArgs[1]).toBeTruthy();
+    expect(firstArgs[2]).toBe('PENDING');
+    expect(secondArgs[1]).toBe(firstArgs[1]);
+    expect(secondArgs[2]).toBe(firstArgs[2]);
+  });
+
   it('sets an error message when advancing a shipment fails', () => {
     setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));

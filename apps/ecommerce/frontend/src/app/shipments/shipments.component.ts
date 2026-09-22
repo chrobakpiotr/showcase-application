@@ -35,6 +35,10 @@ export class ShipmentsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly filterChanges = new Subject<'ALL' | ShipmentStatus>();
   private readonly pageSize = 20;
+  private readonly pendingAdvanceOperations = new Map<
+    string,
+    { operationId: string; expectedStatus: ShipmentStatus }
+  >();
 
   readonly shipments = signal<ShipmentModel[]>([]);
   readonly loading = signal(false);
@@ -116,20 +120,36 @@ export class ShipmentsComponent implements OnInit {
 
     this.actionErrorMessage.set(null);
     this.advancingShipmentId.set(shipmentNumber);
+    const current = this.shipments().find(
+      (shipment) => shipment.shipmentNumber === shipmentNumber
+    );
+    if (!current) {
+      this.advancingShipmentId.set(null);
+      return;
+    }
+
+    const pending =
+      this.pendingAdvanceOperations.get(shipmentNumber) ?? {
+        operationId: crypto.randomUUID(),
+        expectedStatus: current.status,
+      };
+    this.pendingAdvanceOperations.set(shipmentNumber, pending);
+
     this.shipmentsService
       .advanceShipmentStatus(
         shipmentNumber,
-        crypto.randomUUID(),
-        this.shipments().find(
-          (shipment) => shipment.shipmentNumber === shipmentNumber
-        )?.status
+        pending.operationId,
+        pending.expectedStatus
       )
       .pipe(
         finalize(() => this.advancingShipmentId.set(null)),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
-        next: () => this.filterChanges.next(this.selectedStatus()),
+        next: () => {
+          this.pendingAdvanceOperations.delete(shipmentNumber);
+          this.filterChanges.next(this.selectedStatus());
+        },
         error: () =>
           this.actionErrorMessage.set('Failed to advance shipment status.'),
       });

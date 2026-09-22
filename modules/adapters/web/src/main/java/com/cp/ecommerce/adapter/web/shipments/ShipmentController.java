@@ -187,8 +187,7 @@ public class ShipmentController {
 
     private static void markLegacyAdvance(final HttpServletResponse response) {
         if (response != null) {
-            response.setHeader("Deprecation", "true");
-            response.setHeader("Sunset", "Thu, 31 Dec 2026 23:59:59 GMT");
+            response.setHeader("Deprecation", "@1790035200");
             response.setHeader(
                     "Warning",
                     "299 - Legacy shipment advance without Idempotency-Key and X-Expected-Shipment-Status is deprecated");

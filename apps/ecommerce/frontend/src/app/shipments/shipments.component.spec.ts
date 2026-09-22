@@ -159,6 +159,28 @@ describe('ShipmentsComponent', () => {
     expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledTimes(2);
   });
 
+  it('reuses the same pending operation identity after a failed shipment advance', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
+      throwError(() => new Error('lost response'))
+    );
+
+    component.advance('SHIP-1');
+    const firstArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    component.advance('SHIP-1');
+    const secondArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
+    expect(firstArgs[0]).toBe('SHIP-1');
+    expect(firstArgs[1]).toBeTruthy();
+    expect(firstArgs[2]).toBe('PENDING');
+    expect(secondArgs[1]).toBe(firstArgs[1]);
+    expect(secondArgs[2]).toBe(firstArgs[2]);
+  });
+
   it('sets an error message when advancing fails', () => {
     setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
@@ -205,6 +227,15 @@ describe('ShipmentsComponent', () => {
 
     expect(component.shipments()).toEqual([delivered]);
     expect(component.loading()).toBeFalse();
+  });
+
+  it('does not advance a shipment that is not present in the current page', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+
+    component.advance('SHIP-404');
+
+    expect(shipmentsServiceSpy.advanceShipmentStatus).not.toHaveBeenCalled();
+    expect(component.advancingShipmentId()).toBeNull();
   });
 
   it('blocks duplicate shipment advances until the first mutation completes', () => {

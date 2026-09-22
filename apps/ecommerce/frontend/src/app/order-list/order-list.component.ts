@@ -19,7 +19,7 @@ import { OrderDetailsModel } from '@app/order/order-details.model';
 import { OrderService } from '@app/order/order.service';
 import { ReturnModel } from '@app/returns/return.model';
 import { ReturnsService } from '@app/returns/returns.service';
-import { ShipmentModel } from '@app/shipments/shipment.model';
+import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
 import { ShipmentsService } from '@app/shipments/shipments.service';
 
 const PAGE_SIZE = 10;
@@ -49,6 +49,10 @@ export class OrderListComponent implements OnInit {
   readonly returnSuccessMessage = signal<string | null>(null);
   readonly shipmentErrorMessage = signal<string | null>(null);
   readonly shipmentSuccessMessage = signal<string | null>(null);
+  private readonly pendingShipmentAdvanceOperations = new Map<
+    string,
+    { operationId: string; expectedStatus: ShipmentStatus }
+  >();
 
   readonly returnForm = new FormGroup({
     sku: new FormControl('', {
@@ -184,14 +188,22 @@ export class OrderListComponent implements OnInit {
     );
     if (!shipment) return;
 
+    const pending =
+      this.pendingShipmentAdvanceOperations.get(shipmentNumber) ?? {
+        operationId: crypto.randomUUID(),
+        expectedStatus: shipment.status,
+      };
+    this.pendingShipmentAdvanceOperations.set(shipmentNumber, pending);
+
     this.shipmentsService
       .advanceShipmentStatus(
         shipmentNumber,
-        crypto.randomUUID(),
-        shipment.status
+        pending.operationId,
+        pending.expectedStatus
       )
       .subscribe({
         next: () => {
+          this.pendingShipmentAdvanceOperations.delete(shipmentNumber);
           this.shipmentSuccessMessage.set('Shipment status advanced.');
           this.loadShipmentsForOrder(orderNumber);
         },
