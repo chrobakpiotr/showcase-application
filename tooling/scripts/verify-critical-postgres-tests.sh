@@ -17,6 +17,7 @@ TESTS=(
   "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest"
   "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest"
   "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest"
+  "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest"
 )
 
 RESULT_ROOT="apps/ecommerce/backend/build/test-results/test"
@@ -39,8 +40,7 @@ fi
 
 expected_file="$(mktemp)"
 trap 'rm -f "$expected_file"' EXIT
-printf '%s
-' "${TESTS[@]}" > "$expected_file"
+printf '%s\n' "${TESTS[@]}" > "$expected_file"
 
 EXPECTED_FILE="$expected_file" RESULT_ROOT="$RESULT_ROOT" python3 <<'CHECK'
 from pathlib import Path

@@ -6,6 +6,7 @@ import java.util.Objects;
 import com.cp.ecommerce.adapter.common.annotation.PersistenceAdapter;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStartOutcome;
+import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
@@ -20,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Creates the pending capture row and its reconciliation intent in one short database transaction.
+ * Creates the pending provider operation and its durable reconciliation intent in one short database transaction.
  */
 @PersistenceAdapter
 @RequiredArgsConstructor
@@ -38,14 +39,68 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
     @Transactional
     public PaymentTransaction prepareCapture(final String operationId, final PaymentTransaction pendingPayment) {
 
+        return prepareCapture(operationId, pendingPayment, null);
+    }
+
+    @Override
+    @Transactional
+    public PaymentTransaction prepareCapture(
+            final String operationId,
+            final PaymentTransaction pendingPayment,
+            final PaymentRecoveryContext recoveryContext) {
+
         validateCaptureOperationId(operationId, pendingPayment.getOrderNumber());
+        validateOptionalRecoveryContext(recoveryContext, operationId);
         final PaymentTransaction canonical = savePaymentTransactionOutPort.prepareCapture(pendingPayment);
         requireAutomaticCapturePermission(
-                managePaymentReconciliationOutPort
-                        .start(operationId, canonical.getOrderNumber(), PaymentProviderOperationType.CAPTURE, null),
+                startReconciliation(
+                        operationId,
+                        canonical.getOrderNumber(),
+                        PaymentProviderOperationType.CAPTURE,
+                        null,
+                        recoveryContext),
                 operationId,
                 canonical);
         return canonical;
+    }
+
+    @Override
+    @Transactional
+    public PaymentRefundClaim prepareRefund(final String refundId, final String orderNumber, final BigDecimal amount) {
+
+        return prepareRefund(refundId, orderNumber, amount, null);
+    }
+
+    @Override
+    @Transactional
+    public PaymentRefundClaim prepareRefund(
+            final String refundId,
+            final String orderNumber,
+            final BigDecimal amount,
+            final PaymentRecoveryContext recoveryContext) {
+
+        validateOptionalRecoveryContext(recoveryContext, refundId);
+        final PaymentRefundClaim claim = amount == null
+                ? managePaymentRefundOutPort.reserveRemaining(refundId, orderNumber)
+                : managePaymentRefundOutPort.reserve(refundId, orderNumber, amount);
+        if (claim.outcome() == PaymentRefundOutcome.RESERVED || claim.outcome() == PaymentRefundOutcome.RETRY) {
+            requireAutomaticProviderPermission(
+                    startReconciliation(refundId, orderNumber, PaymentProviderOperationType.REFUND, refundId, recoveryContext),
+                    refundId);
+        }
+        return claim;
+    }
+
+    private PaymentReconciliationStartOutcome startReconciliation(
+            final String operationId,
+            final String orderNumber,
+            final PaymentProviderOperationType type,
+            final String refundId,
+            final PaymentRecoveryContext recoveryContext) {
+
+        return recoveryContext == null
+                ? managePaymentReconciliationOutPort.start(operationId, orderNumber, type, refundId)
+                : managePaymentReconciliationOutPort.startOwned(operationId, orderNumber, type, refundId, recoveryContext);
     }
 
     private static void requireAutomaticCapturePermission(
@@ -53,7 +108,7 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
             final String operationId,
             final PaymentTransaction canonical) {
 
-        if (outcome == PaymentReconciliationStartOutcome.READY) {
+        if (outcome == PaymentReconciliationStartOutcome.READY || outcome == PaymentReconciliationStartOutcome.CURRENT_OWNER) {
             return;
         }
         if (outcome == PaymentReconciliationStartOutcome.COMPLETED && isTerminalCapture(canonical)) {
@@ -75,7 +130,7 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
             final PaymentReconciliationStartOutcome outcome,
             final String operationId) {
 
-        if (outcome != PaymentReconciliationStartOutcome.READY) {
+        if (outcome != PaymentReconciliationStartOutcome.READY && outcome != PaymentReconciliationStartOutcome.CURRENT_OWNER) {
             throw new PaymentOperationConflictException(
                     "Payment provider operation " + operationId + " is not eligible for automatic replay: " + outcome);
         }
@@ -89,20 +144,14 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
         }
     }
 
-    @Override
-    @Transactional
-    public PaymentRefundClaim prepareRefund(final String refundId, final String orderNumber, final BigDecimal amount) {
+    private static void validateOptionalRecoveryContext(
+            final PaymentRecoveryContext recoveryContext,
+            final String operationId) {
 
-        final PaymentRefundClaim claim = amount == null
-                ? managePaymentRefundOutPort.reserveRemaining(refundId, orderNumber)
-                : managePaymentRefundOutPort.reserve(refundId, orderNumber, amount);
-        if (claim.outcome() == PaymentRefundOutcome.RESERVED || claim.outcome() == PaymentRefundOutcome.RETRY) {
-            requireAutomaticProviderPermission(
-                    managePaymentReconciliationOutPort
-                            .start(refundId, orderNumber, PaymentProviderOperationType.REFUND, refundId),
-                    refundId);
+        if (recoveryContext != null && !Objects.equals(recoveryContext.operationId(), operationId)) {
+            throw new PaymentOperationConflictException(
+                    "Recovery operation identity " + recoveryContext.operationId() + " does not match provider operation "
+                            + operationId);
         }
-        return claim;
     }
-
 }

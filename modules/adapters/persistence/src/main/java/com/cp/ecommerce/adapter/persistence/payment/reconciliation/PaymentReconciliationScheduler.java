@@ -7,6 +7,7 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntityRe
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntityRepository;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
+import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
 import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
@@ -66,20 +67,28 @@ class PaymentReconciliationScheduler {
 
         final PaymentReconciliationEntity operation = reconciliationRepository.findById(operationId)
                 .orElseThrow(() -> new IllegalStateException("Payment reconciliation operation disappeared: " + operationId));
+        final PaymentRecoveryContext recoveryContext = new PaymentRecoveryContext(operationId, claimId);
         if (operation.getOperationType() == PaymentProviderOperationType.CAPTURE) {
             final PaymentTransactionEntity payment = paymentRepository.findById(operation.getOrderNumber())
                     .orElseThrow(
                             () -> new IllegalStateException(
                                     "Payment disappeared during capture reconciliation: " + operation.getOrderNumber()));
-            managePaymentInPort.capturePayment(operation.getOrderNumber(), payment.getAmount(), payment.getMethod());
+            managePaymentInPort.recoverCapturePayment(
+                    operation.getOrderNumber(),
+                    payment.getAmount(),
+                    payment.getMethod(),
+                    recoveryContext);
         } else {
             final PaymentRefundEntity refund = refundRepository.findById(operation.getRefundId())
                     .orElseThrow(
                             () -> new IllegalStateException(
                                     "Refund disappeared during reconciliation: " + operation.getRefundId()));
-            managePaymentInPort.refundPayment(operation.getOrderNumber(), operation.getRefundId(), refund.getAmount());
+            managePaymentInPort.recoverRefundPayment(
+                    operation.getOrderNumber(),
+                    operation.getRefundId(),
+                    refund.getAmount(),
+                    recoveryContext);
         }
         arbitrator.complete(operationId, claimId);
     }
-
 }

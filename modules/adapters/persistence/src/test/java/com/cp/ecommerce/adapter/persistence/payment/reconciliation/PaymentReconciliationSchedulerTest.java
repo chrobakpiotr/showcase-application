@@ -13,6 +13,7 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEnt
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
+import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
 import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
@@ -50,7 +51,7 @@ class PaymentReconciliationSchedulerTest {
     private CompleteRefundReturnContinuationInPort completeRefundReturnContinuationInPort;
 
     @Test
-    void shouldReplayCaptureAndRefundWithStableIdentity() {
+    void shouldReplayCaptureAndRefundWithStableIdentityAndOwningClaim() {
         final String captureId = "ORDER-CAPTURE:ORDER-1";
         final String refundId = "RETURN-1";
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of(captureId, refundId));
@@ -80,13 +81,22 @@ class PaymentReconciliationSchedulerTest {
 
         scheduler().reconcileDueOperations();
 
-        verify(managePaymentInPort).capturePayment(ORDER_1, new BigDecimal("10.00"), PaymentMethod.CARD);
-        verify(managePaymentInPort).refundPayment(ORDER_2, refundId, new BigDecimal("4.00"));
+        verify(managePaymentInPort).recoverCapturePayment(
+                ORDER_1,
+                new BigDecimal("10.00"),
+                PaymentMethod.CARD,
+                new PaymentRecoveryContext(captureId, "claim-capture"));
+        verify(managePaymentInPort).recoverRefundPayment(
+                ORDER_2,
+                refundId,
+                new BigDecimal("4.00"),
+                new PaymentRecoveryContext(refundId, "claim-refund"));
+        verify(arbitrator).complete(captureId, "claim-capture");
+        verify(arbitrator).complete(refundId, "claim-refund");
     }
 
     @Test
     void shouldContinueCompletedRefundIntoLinkedReturn() {
-
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
         given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of("RETURN-9"));
 
@@ -109,7 +119,6 @@ class PaymentReconciliationSchedulerTest {
 
     @Test
     void shouldContainContinuationFailureAndKeepSchedulerAlive() {
-
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
         given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of("RETURN-FAIL"));
         org.mockito.BDDMockito.willThrow(new IllegalStateException("continuation unavailable"))

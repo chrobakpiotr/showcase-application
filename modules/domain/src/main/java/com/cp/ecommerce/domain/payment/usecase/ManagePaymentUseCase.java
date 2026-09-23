@@ -5,9 +5,11 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
 import com.cp.ecommerce.domain.payment.PaymentRefundClaim;
 import com.cp.ecommerce.domain.payment.PaymentRefundOutcome;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -23,6 +25,7 @@ import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
 import com.cp.ecommerce.foundation.annotation.UseCase;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
+import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -74,12 +77,33 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     @Override
     public PaymentTransaction capturePayment(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
 
+        return capturePayment(orderNumber, amount, method, null);
+    }
+
+    @Override
+    public PaymentTransaction recoverCapturePayment(
+            final String orderNumber,
+            final BigDecimal amount,
+            final PaymentMethod method,
+            final PaymentRecoveryContext recoveryContext) {
+
+        final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
+        validateRecoveryContext(recoveryContext, operationId);
+        return capturePayment(orderNumber, amount, method, recoveryContext);
+    }
+
+    private PaymentTransaction capturePayment(
+            final String orderNumber,
+            final BigDecimal amount,
+            final PaymentMethod method,
+            final PaymentRecoveryContext recoveryContext) {
+
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         PaymentTransaction current = getPayment(orderNumber);
         validateCaptureIdentity(current, amount, method);
         if (captureAlreadyResolved(current)) {
 
-            managePaymentReconciliationOutPort.complete(operationId);
+            completeReconciliation(operationId, recoveryContext);
             return current;
         }
 
@@ -93,11 +117,13 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                     .created(Instant.ofEpochMilli(Instant.now().toEpochMilli()))
                     .build();
         }
-        current = preparePaymentProviderOperationOutPort.prepareCapture(operationId, current);
+        current = recoveryContext == null
+                ? preparePaymentProviderOperationOutPort.prepareCapture(operationId, current)
+                : preparePaymentProviderOperationOutPort.prepareCapture(operationId, current, recoveryContext);
         validateCaptureIdentity(current, amount, method);
         if (captureAlreadyResolved(current)) {
 
-            managePaymentReconciliationOutPort.complete(operationId);
+            completeReconciliation(operationId, recoveryContext);
             return current;
         }
 
@@ -113,7 +139,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .gatewayReference(gatewayReference)
                             .created(current.getCreated())
                             .build());
-            managePaymentReconciliationOutPort.complete(operationId);
+            completeReconciliation(operationId, recoveryContext);
             return captured;
         } catch (final PaymentDeclinedException declined) {
             savePaymentTransactionOutPort.saveCaptureResult(
@@ -125,7 +151,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .status(PaymentStatus.DECLINED)
                             .created(current.getCreated())
                             .build());
-            managePaymentReconciliationOutPort.complete(operationId);
+            completeReconciliation(operationId, recoveryContext);
             throw declined;
         }
     }
@@ -134,13 +160,36 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     public PaymentTransaction refundPayment(final String orderNumber) {
 
         final String refundId = ORDER_REFUND_PREFIX + orderNumber;
-        return executeRefund(preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, null));
+        return executeRefund(preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, null), null);
     }
 
     @Override
     public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
 
-        return executeRefund(preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, amount));
+        return refundPayment(orderNumber, refundId, amount, null);
+    }
+
+    @Override
+    public PaymentTransaction recoverRefundPayment(
+            final String orderNumber,
+            final String refundId,
+            final BigDecimal amount,
+            final PaymentRecoveryContext recoveryContext) {
+
+        validateRecoveryContext(recoveryContext, refundId);
+        return refundPayment(orderNumber, refundId, amount, recoveryContext);
+    }
+
+    private PaymentTransaction refundPayment(
+            final String orderNumber,
+            final String refundId,
+            final BigDecimal amount,
+            final PaymentRecoveryContext recoveryContext) {
+
+        final PaymentRefundClaim claim = recoveryContext == null
+                ? preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, amount)
+                : preparePaymentProviderOperationOutPort.prepareRefund(refundId, orderNumber, amount, recoveryContext);
+        return executeRefund(claim, recoveryContext);
     }
 
     @Override
@@ -161,9 +210,21 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
             final PaymentMethod method) {
 
         if (current.getMethod() != null && (current.getAmount().compareTo(amount) != 0 || current.getMethod() != method)) {
-            throw new com.cp.ecommerce.foundation.exception.PaymentOperationConflictException(
+            throw new PaymentOperationConflictException(
                     "Payment operation identity was reused with different capture parameters for order "
                             + current.getOrderNumber());
+        }
+    }
+
+    private static void validateRecoveryContext(
+            final PaymentRecoveryContext recoveryContext,
+            final String expectedOperationId) {
+
+        final PaymentRecoveryContext context = Objects.requireNonNull(recoveryContext, "recoveryContext");
+        if (!Objects.equals(context.operationId(), expectedOperationId)) {
+            throw new PaymentOperationConflictException(
+                    "Recovery operation identity " + context.operationId() + " does not match expected provider operation "
+                            + expectedOperationId);
         }
     }
 
@@ -172,7 +233,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         return PaymentTransaction.builder().orderNumber(orderNumber).build();
     }
 
-    private PaymentTransaction executeRefund(final PaymentRefundClaim claim) {
+    private PaymentTransaction executeRefund(final PaymentRefundClaim claim, final PaymentRecoveryContext recoveryContext) {
 
         if (claim.outcome() == PaymentRefundOutcome.NOTHING_TO_REFUND) {
 
@@ -180,13 +241,22 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         }
         if (claim.outcome() == PaymentRefundOutcome.COMPLETED) {
 
-            managePaymentReconciliationOutPort.complete(claim.refundId());
+            completeReconciliation(claim.refundId(), recoveryContext);
             return claim.payment();
         }
 
         refundPaymentOutPort.refund(claim.orderNumber(), claim.gatewayReference(), claim.refundId(), claim.amount());
         final PaymentTransaction completed = managePaymentRefundOutPort.complete(claim.refundId());
-        managePaymentReconciliationOutPort.complete(claim.refundId());
+        completeReconciliation(claim.refundId(), recoveryContext);
         return completed;
+    }
+
+    private void completeReconciliation(final String operationId, final PaymentRecoveryContext recoveryContext) {
+
+        if (recoveryContext == null) {
+            managePaymentReconciliationOutPort.complete(operationId);
+        } else {
+            managePaymentReconciliationOutPort.completeOwned(recoveryContext);
+        }
     }
 }
