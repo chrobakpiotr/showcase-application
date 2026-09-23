@@ -14,7 +14,7 @@ public interface ManageOrderCancellationRecoveryOutPort {
 
     void recordSuccess(String orderNumber, String claimId);
 
-    void recordWaiting(String orderNumber, String claimId, Instant retryAt);
+    void recordWaiting(String orderNumber, String claimId, Instant observedAt);
 
     void recordFailure(String orderNumber, String claimId, String error, Instant failedAt);
 }

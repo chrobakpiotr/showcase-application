@@ -6,6 +6,7 @@ import java.util.List;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
+import com.cp.ecommerce.domain.order.CancellationCompletionOutcome;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -68,6 +69,16 @@ class CancelOrderServiceTest {
                 manageStockInPort,
                 managePaymentInPort,
                 sendNotificationInPort);
+        org.mockito.Mockito.lenient()
+                .when(
+                        orderCancellationArbitrator.finalizeCancellation(
+                                org.mockito.ArgumentMatchers.anyString(),
+                                org.mockito.ArgumentMatchers.nullable(String.class),
+                                org.mockito.ArgumentMatchers.any(Runnable.class)))
+                .thenAnswer(invocation -> {
+                    ((Runnable) invocation.getArgument(2)).run();
+                    return CancellationCompletionOutcome.COMPLETED;
+                });
     }
 
     @Test
@@ -108,6 +119,11 @@ class CancelOrderServiceTest {
         calls.verify(manageStockInPort).releaseStock(ORDER_NUMBER, FIRST_SKU);
         calls.verify(manageStockInPort).releaseStock(ORDER_NUMBER, SECOND_SKU);
         calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
+        calls.verify(orderCancellationArbitrator)
+                .finalizeCancellation(
+                        eq(ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(Runnable.class));
         calls.verify(sendNotificationInPort)
                 .sendNotification(
                         anyString(),
@@ -115,7 +131,6 @@ class CancelOrderServiceTest {
                         eq(NotificationType.ORDER_CANCELLED),
                         eq("Order " + ORDER_NUMBER + " cancelled"),
                         eq("Your order " + ORDER_NUMBER + " was cancelled."));
-        calls.verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
     }
 
     @Test
@@ -142,6 +157,11 @@ class CancelOrderServiceTest {
         calls.verify(orderCancellationArbitrator).beginCancellation(ORDER_NUMBER);
         calls.verify(manageStockInPort).releaseStock(RESERVATION_ID, FIRST_SKU);
         calls.verify(managePaymentInPort).refundPayment(ORDER_NUMBER);
+        calls.verify(orderCancellationArbitrator)
+                .finalizeCancellation(
+                        eq(ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(Runnable.class));
         calls.verify(sendNotificationInPort)
                 .sendNotification(
                         anyString(),
@@ -149,7 +169,6 @@ class CancelOrderServiceTest {
                         eq(NotificationType.ORDER_CANCELLED),
                         eq("Order " + ORDER_NUMBER + " cancelled"),
                         eq("Your order " + ORDER_NUMBER + " was cancelled."));
-        calls.verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
     }
 
     @Test
@@ -170,7 +189,11 @@ class CancelOrderServiceTest {
 
         verify(managePaymentInPort).hasPendingRefunds(ORDER_NUMBER);
         verifyNoInteractions(sendNotificationInPort);
-        org.mockito.Mockito.verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+        org.mockito.Mockito.verify(orderCancellationArbitrator, never())
+                .finalizeCancellation(
+                        eq(ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
     @Test
@@ -185,8 +208,14 @@ class CancelOrderServiceTest {
 
         assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER, RECOVERY_CLAIM_ID)).isSameAs(order);
 
-        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
-        verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+        verify(orderCancellationArbitrator).finalizeCancellation(
+                eq(ORDER_NUMBER),
+                eq(RECOVERY_CLAIM_ID),
+                org.mockito.ArgumentMatchers.any(Runnable.class));
+        verify(orderCancellationArbitrator, never()).finalizeCancellation(
+                eq(ORDER_NUMBER),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
     @Test
@@ -202,7 +231,10 @@ class CancelOrderServiceTest {
         assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .isEqualTo(CancellationRecoveryOutcome.WAITING_FOR_REFUND);
 
-        verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
+        verify(orderCancellationArbitrator, never()).finalizeCancellation(
+                eq(ORDER_NUMBER),
+                eq(RECOVERY_CLAIM_ID),
+                org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
     @Test
@@ -218,7 +250,10 @@ class CancelOrderServiceTest {
         assertThat(cancelOrderService.recoverCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID))
                 .isEqualTo(CancellationRecoveryOutcome.COMPLETED);
 
-        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER, RECOVERY_CLAIM_ID);
+        verify(orderCancellationArbitrator).finalizeCancellation(
+                eq(ORDER_NUMBER),
+                eq(RECOVERY_CLAIM_ID),
+                org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
     @Test
@@ -311,7 +346,10 @@ class CancelOrderServiceTest {
         assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
 
         org.mockito.Mockito.verify(managePaymentInPort, org.mockito.Mockito.times(2)).refundPayment(ORDER_NUMBER);
-        verify(orderCancellationArbitrator).completeCancellation(ORDER_NUMBER);
+        verify(orderCancellationArbitrator).finalizeCancellation(
+                eq(ORDER_NUMBER),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
     @Test
@@ -360,7 +398,11 @@ class CancelOrderServiceTest {
         assertThat(cancelOrderService.cancelOrder(ORDER_NUMBER)).isSameAs(order);
 
         verifyNoInteractions(sendNotificationInPort);
-        org.mockito.Mockito.verify(orderCancellationArbitrator, never()).completeCancellation(ORDER_NUMBER);
+        org.mockito.Mockito.verify(orderCancellationArbitrator, never())
+                .finalizeCancellation(
+                        eq(ORDER_NUMBER),
+                        org.mockito.ArgumentMatchers.isNull(),
+                        org.mockito.ArgumentMatchers.any(Runnable.class));
     }
 
 }

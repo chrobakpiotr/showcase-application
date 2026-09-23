@@ -262,13 +262,14 @@ class OrderPlacementSagaArbitrationAdapterTest {
     }
 
     @Test
-    void shouldRejectCompletingUnexpectedSagaState() {
+    void shouldExposeConflictWhenCompletingUnexpectedSagaState() {
 
         final OutboxEventEntity event = event(OutboxEventStatus.PENDING);
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
-        assertThatThrownBy(() -> adapter.completeCancellation(ORDER_NUMBER)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("PENDING");
+        assertThat(adapter.completeCancellation(ORDER_NUMBER))
+                .isEqualTo(com.cp.ecommerce.domain.order.CancellationCompletionOutcome.CONFLICT);
+        verify(repository, never()).save(event);
     }
 
     @Test

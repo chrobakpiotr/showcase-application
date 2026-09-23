@@ -93,7 +93,7 @@ class ManageOrderCancellationRecoveryAdapterTest {
         event.setCancellationLastError("old failure");
         given(repository.findByOrderNumberForUpdate(ORDER_NUMBER)).willReturn(Optional.of(event));
 
-        adapter.recordWaiting(ORDER_NUMBER, "claim-waiting", NOW.plusMillis(5_000L));
+        adapter.recordWaiting(ORDER_NUMBER, "claim-waiting", NOW);
 
         assertThat(event.getCancellationAttempts()).isEqualTo(1);
         assertThat(event.getCancellationClaimId()).isNull();

@@ -4,6 +4,7 @@ import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.notification.NotificationEventKey;
 import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
+import com.cp.ecommerce.domain.order.CancellationCompletionOutcome;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.outgoing.OrderPlacementSagaArbitrationOutPort.CancellationClaim;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
@@ -92,9 +93,7 @@ public class CancelOrderService implements CancelOrderWorkflow {
             return new CancellationExecution(order, CancellationRecoveryOutcome.WAITING_FOR_REFUND);
         }
 
-        sendCancellationNotification(order);
-        completeCancellation(orderNumber, claimId);
-        return new CancellationExecution(order, CancellationRecoveryOutcome.COMPLETED);
+        return new CancellationExecution(order, finalizeCancellation(order, claimId));
     }
 
     private void releaseStock(final Order order) {
@@ -134,14 +133,16 @@ public class CancelOrderService implements CancelOrderWorkflow {
                 "Your order " + order.getOrderNumber() + " was cancelled.");
     }
 
-    private void completeCancellation(final String orderNumber, final String claimId) {
+    private CancellationRecoveryOutcome finalizeCancellation(final Order order, final String claimId) {
 
-        if (claimId == null) {
-
-            orderCancellationArbitrator.completeCancellation(orderNumber);
-            return;
-        }
-        orderCancellationArbitrator.completeCancellation(orderNumber, claimId);
+        final CancellationCompletionOutcome outcome = orderCancellationArbitrator
+                .finalizeCancellation(order.getOrderNumber(), claimId, () -> sendCancellationNotification(order));
+        return switch (outcome) {
+        case COMPLETED, ALREADY_COMPLETED -> CancellationRecoveryOutcome.COMPLETED;
+        case LOST_CLAIM -> CancellationRecoveryOutcome.LOST_CLAIM;
+        case CONFLICT ->
+            throw new IllegalStateException("Cancellation finalization conflicted for order: " + order.getOrderNumber());
+        };
     }
 
     private static boolean isPendingCreatedPayment(final PaymentTransaction payment) {
