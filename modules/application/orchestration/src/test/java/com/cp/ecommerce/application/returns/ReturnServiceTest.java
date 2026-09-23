@@ -8,12 +8,10 @@ import com.cp.ecommerce.domain.order.OrderLineItem;
 import com.cp.ecommerce.domain.order.OrderStatus;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
-import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnRequestCommand;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.incoming.RequestReturnInPort;
-import com.cp.ecommerce.domain.returns.port.incoming.ReturnModerationInPort;
 import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
 import com.cp.ecommerce.foundation.exception.ApplicationNotFoundException;
 
@@ -44,15 +42,13 @@ class ReturnServiceTest {
     @Mock
     private RequestReturnInPort requestReturnInPort;
     @Mock
-    private ReturnModerationInPort returnModerationInPort;
-    @Mock
     private ManageOrderUseCase manageOrderUseCase;
     @Mock
     private ManagePaymentInPort managePaymentInPort;
     @Mock
     private RefundEntitlementCalculator refundEntitlementCalculator;
     @Mock
-    private ManageRefundReturnContinuationOutPort manageRefundReturnContinuationOutPort;
+    private ReturnApprovalRefundPreparationTransaction approvalPreparationTransaction;
     @Mock
     private ReturnStateNotificationTransaction completionTransaction;
 
@@ -62,11 +58,10 @@ class ReturnServiceTest {
     void setUp() {
         service = new ReturnService(
                 requestReturnInPort,
-                returnModerationInPort,
                 manageOrderUseCase,
                 managePaymentInPort,
                 refundEntitlementCalculator,
-                manageRefundReturnContinuationOutPort,
+                approvalPreparationTransaction,
                 completionTransaction);
     }
 
@@ -118,22 +113,19 @@ class ReturnServiceTest {
     void shouldRefundThenCompleteLocalStateAndNotification() {
         final ReturnRequest approved = request(ReturnStatus.APPROVED, new BigDecimal(REFUND_AMOUNT));
         final ReturnRequest refunded = request(ReturnStatus.REFUNDED, new BigDecimal(REFUND_AMOUNT));
-        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(approved);
+        given(approvalPreparationTransaction.approveAndPrepare(RETURN_NUMBER)).willReturn(approved);
         given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
 
         assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
 
-        verify(manageRefundReturnContinuationOutPort).start(RETURN_NUMBER, RETURN_NUMBER);
         verify(managePaymentInPort).refundPayment(ORDER_NUMBER, RETURN_NUMBER, new BigDecimal(REFUND_AMOUNT));
         verify(completionTransaction).markRefundedAndNotify(RETURN_NUMBER);
     }
 
     @Test
     void shouldSkipGatewayForZeroValueReturnAndStillComplete() {
-        final ReturnRequest approved = request(ReturnStatus.APPROVED, BigDecimal.ZERO);
         final ReturnRequest refunded = request(ReturnStatus.REFUNDED, BigDecimal.ZERO);
-        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(approved);
-        given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
+        given(approvalPreparationTransaction.approveAndPrepare(RETURN_NUMBER)).willReturn(refunded);
 
         assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
         verify(managePaymentInPort, never()).refundPayment(
@@ -145,8 +137,7 @@ class ReturnServiceTest {
     @Test
     void shouldReplayAlreadyRefundedWithoutGatewayCall() {
         final ReturnRequest refunded = request(ReturnStatus.REFUNDED, new BigDecimal(REFUND_AMOUNT));
-        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(refunded);
-        given(completionTransaction.markRefundedAndNotify(RETURN_NUMBER)).willReturn(refunded);
+        given(approvalPreparationTransaction.approveAndPrepare(RETURN_NUMBER)).willReturn(refunded);
 
         assertThat(service.approveReturn(RETURN_NUMBER)).isSameAs(refunded);
         verify(managePaymentInPort, never()).refundPayment(
@@ -157,7 +148,7 @@ class ReturnServiceTest {
 
     @Test
     void shouldReturnNotFoundWhenApproveCannotLoadReturn() {
-        given(returnModerationInPort.approveReturn(RETURN_NUMBER)).willReturn(null);
+        given(approvalPreparationTransaction.approveAndPrepare(RETURN_NUMBER)).willReturn(null);
         assertThatThrownBy(() -> service.approveReturn(RETURN_NUMBER)).isInstanceOf(ApplicationNotFoundException.class);
     }
 

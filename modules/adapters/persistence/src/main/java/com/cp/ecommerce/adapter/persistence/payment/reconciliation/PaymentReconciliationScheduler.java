@@ -48,9 +48,10 @@ class PaymentReconciliationScheduler {
 
     private void reconcileReturnContinuation(final String returnNumber) {
 
-        RuntimeFailureBoundary.run(
-                () -> completeRefundReturnContinuationInPort.complete(returnNumber),
-                exception -> log.warn("Could not complete refund continuation for return {}", returnNumber, exception));
+        RuntimeFailureBoundary.run(() -> completeRefundReturnContinuationInPort.complete(returnNumber), exception -> {
+            refundReturnContinuationOutPort.recordFailure(returnNumber, exception.getMessage());
+            log.warn("Could not complete refund continuation for return {}", returnNumber, exception);
+        });
     }
 
     private void reconcile(final String operationId) {

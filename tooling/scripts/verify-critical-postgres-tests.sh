@@ -18,6 +18,9 @@ TESTS=(
   "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest"
   "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest"
   "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest"
+  "com.cp.ecommerce.application.RefundToReturnRecoveryPostgresIntegrationTest"
+  "com.cp.ecommerce.application.RefundContinuationCrashPointPostgresIntegrationTest"
+  "com.cp.ecommerce.adapter.persistence.payment.reconciliation.RefundReturnContinuationFairnessPostgresIntegrationTest"
 )
 
 RESULT_ROOT="apps/ecommerce/backend/build/test-results/test"

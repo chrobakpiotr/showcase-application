@@ -17,10 +17,48 @@
             </column>
             <column name="COMPLETION_DATE" type="TIMESTAMP" />
         </createTable>
-
         <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" indexName="IDX_PAYMENT_REFUND_RETURN_CONTINUATION_STATUS">
             <column name="STATUS" />
             <column name="CREATION_DATE" />
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="s22-02-durable-refund-return-continuation" author="cp">
+        <addColumn schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION">
+            <column name="ORDER_NUMBER" type="VARCHAR(40)" />
+            <column name="REFUND_AMOUNT" type="${numeric_type}(19, 2)" />
+            <column name="ATTEMPTS" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="NEXT_ATTEMPT_DATE" type="TIMESTAMP" />
+            <column name="LAST_ERROR" type="VARCHAR(1000)" />
+        </addColumn>
+        <sql>
+            UPDATE ${schema_name_prefix}PAYMENT_REFUND_RETURN_CONTINUATION c
+            SET ORDER_NUMBER = (SELECT r.ORDER_NUMBER FROM ${schema_name_prefix}RETURN_REQUEST r WHERE r.RETURN_NUMBER = c.RETURN_NUMBER),
+            REFUND_AMOUNT = (SELECT r.REFUND_AMOUNT FROM ${schema_name_prefix}RETURN_REQUEST r WHERE r.RETURN_NUMBER = c.RETURN_NUMBER),
+            NEXT_ATTEMPT_DATE = c.CREATION_DATE
+            WHERE c.ORDER_NUMBER IS NULL OR
+            c.REFUND_AMOUNT IS NULL OR c.NEXT_ATTEMPT_DATE IS NULL
+        </sql>
+        <sql>
+            INSERT INTO ${schema_name_prefix}PAYMENT_REFUND_RETURN_CONTINUATION
+            (REFUND_ID, RETURN_NUMBER, ORDER_NUMBER, REFUND_AMOUNT, STATUS, ATTEMPTS, NEXT_ATTEMPT_DATE, LAST_ERROR, CREATION_DATE, COMPLETION_DATE)
+            SELECT r.RETURN_NUMBER, r.RETURN_NUMBER, r.ORDER_NUMBER, r.REFUND_AMOUNT,
+            'PENDING', 0, CURRENT_TIMESTAMP, NULL, COALESCE(r.DECIDED_DATE, r.REQUESTED_DATE), NULL
+            FROM
+            ${schema_name_prefix}RETURN_REQUEST r
+            WHERE r.STATUS = 'APPROVED'
+            AND NOT EXISTS (SELECT 1 FROM ${schema_name_prefix}PAYMENT_REFUND_RETURN_CONTINUATION c WHERE c.RETURN_NUMBER = r.RETURN_NUMBER)
+        </sql>
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" columnName="ORDER_NUMBER" columnDataType="VARCHAR(40)" />
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" columnName="REFUND_AMOUNT" columnDataType="${numeric_type}(19, 2)" />
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" columnName="NEXT_ATTEMPT_DATE" columnDataType="TIMESTAMP" />
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_REFUND_RETURN_CONTINUATION" indexName="IDX_PAYMENT_REFUND_RETURN_CONTINUATION_DUE">
+            <column name="STATUS" />
+            <column name="NEXT_ATTEMPT_DATE" />
+            <column name="CREATION_DATE" />
+            <column name="REFUND_ID" />
         </createIndex>
     </changeSet>
 </databaseChangeLog>

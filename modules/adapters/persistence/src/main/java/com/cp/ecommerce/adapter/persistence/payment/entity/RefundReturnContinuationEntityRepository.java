@@ -1,9 +1,9 @@
 package com.cp.ecommerce.adapter.persistence.payment.entity;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.RefundReturnContinuationStatus;
 
 import org.springframework.data.domain.Pageable;
@@ -20,23 +20,25 @@ public interface RefundReturnContinuationEntityRepository extends JpaRepository<
     Optional<RefundReturnContinuationEntity> findByReturnNumber(String returnNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            select continuation
-            from RefundReturnContinuationEntity continuation
-            where continuation.returnNumber = :returnNumber
-            """)
+    @Query("select c from RefundReturnContinuationEntity c where c.returnNumber = :returnNumber")
     Optional<RefundReturnContinuationEntity> findByReturnNumberForUpdate(@Param("returnNumber") String returnNumber);
 
     @Query("""
-            select continuation.returnNumber
-            from RefundReturnContinuationEntity continuation, PaymentRefundEntity refund
-            where continuation.refundId = refund.refundId
-              and continuation.status = :continuationStatus
-              and refund.status = :refundStatus
-            order by continuation.created asc
+            select c.returnNumber
+            from RefundReturnContinuationEntity c
+            where c.status = :status
+              and c.nextAttemptDate <= :now
+            order by c.nextAttemptDate asc, c.created asc, c.refundId asc
             """)
     List<String> findRecoverableReturnNumbers(
-            @Param("continuationStatus") RefundReturnContinuationStatus continuationStatus,
-            @Param("refundStatus") PaymentRefundStatus refundStatus,
+            @Param("status") RefundReturnContinuationStatus status,
+            @Param("now") Instant now,
             Pageable pageable);
+
+    @Query("select min(c.created) from RefundReturnContinuationEntity c where c.status = :status")
+    Instant findOldestCreatedDateByStatus(@Param("status") RefundReturnContinuationStatus status);
+
+    long countByStatus(RefundReturnContinuationStatus status);
+
+    long countByStatusAndAttemptsGreaterThan(RefundReturnContinuationStatus status, int attempts);
 }

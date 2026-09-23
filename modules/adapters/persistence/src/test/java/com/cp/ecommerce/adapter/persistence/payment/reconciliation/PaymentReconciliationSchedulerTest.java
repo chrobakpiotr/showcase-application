@@ -34,6 +34,7 @@ class PaymentReconciliationSchedulerTest {
     private static final String ORDER_1 = "ORDER-1";
     private static final String ORDER_2 = "ORDER-2";
     private static final String MISSING = "missing";
+    private static final String RETURN_FAIL = "RETURN-FAIL";
 
     @Mock
     private PaymentReconciliationArbitrator arbitrator;
@@ -120,14 +121,15 @@ class PaymentReconciliationSchedulerTest {
     @Test
     void shouldContainContinuationFailureAndKeepSchedulerAlive() {
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
-        given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of("RETURN-FAIL"));
+        given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of(RETURN_FAIL));
         org.mockito.BDDMockito.willThrow(new IllegalStateException("continuation unavailable"))
                 .given(completeRefundReturnContinuationInPort)
-                .complete("RETURN-FAIL");
+                .complete(RETURN_FAIL);
 
         scheduler().reconcileDueOperations();
 
-        verify(completeRefundReturnContinuationInPort).complete("RETURN-FAIL");
+        verify(completeRefundReturnContinuationInPort).complete(RETURN_FAIL);
+        verify(refundReturnContinuationOutPort).recordFailure(RETURN_FAIL, "continuation unavailable");
     }
 
     @Test

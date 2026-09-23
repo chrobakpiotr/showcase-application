@@ -9,6 +9,7 @@ import com.cp.ecommerce.adapter.common.utils.ReturnRequestBuilder;
 import com.cp.ecommerce.adapter.web.returns.mapper.ReturnWebMapper;
 import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
 import com.cp.ecommerce.application.returns.RefundEntitlementCalculator;
+import com.cp.ecommerce.application.returns.ReturnApprovalRefundPreparationTransaction;
 import com.cp.ecommerce.application.returns.ReturnService;
 import com.cp.ecommerce.application.returns.ReturnStateNotificationTransaction;
 import com.cp.ecommerce.application.returns.ReturnWorkflow;
@@ -64,7 +65,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Test class checking return controller's behavior and API responses.
  */
 @WebMvcTest(ReturnController.class)
-@Import({ ReturnService.class, RefundEntitlementCalculator.class, ReturnStateNotificationTransaction.class })
+@Import({
+        ReturnService.class,
+        RefundEntitlementCalculator.class,
+        ReturnApprovalRefundPreparationTransaction.class,
+        ReturnStateNotificationTransaction.class })
 class ReturnControllerTest {
 
     private static final String RETURN_AGGREGATE_TYPE = "return";
@@ -501,33 +506,19 @@ class ReturnControllerTest {
     }
 
     @Test
-    void shouldApproveAlreadyRefundedReturnWithoutRefundingPaymentAgain() throws Exception {
+    void shouldReplayAlreadyRefundedReturnWithoutRepeatingSideEffects() throws Exception {
 
         final ReturnRequest refunded = ReturnControllerTestFixtures.refunded();
-        given(getReturnInPort.getReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnModerationInPort.approveReturn(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
-        given(returnModerationInPort.markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER)).willReturn(refunded);
         given(returnWebMapper.mapToResource(refunded)).willReturn(Optional.of(ReturnControllerTestFixtures.refundedResource()));
-
-        given(manageOrderUseCase.findOrder(ReturnRequestBuilder.TEST_ORDER_NUMBER))
-                .willReturn(ReturnControllerTestFixtures.orderWithNumber(OrderBuilder.mockOrder()));
 
         mockMvc.perform(post(RETURNS_ENDPOINT + "/" + ReturnRequestBuilder.TEST_RETURN_NUMBER + APPROVE_ENDPOINT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(STATUS_JSON_PATH).value("REFUNDED"));
 
         verify(managePaymentInPort, never()).refundPayment(any());
-        verify(sendNotificationInPort).sendNotification(
-                eq(
-                        NotificationEventKey.of(
-                                RETURN_AGGREGATE_TYPE,
-                                ReturnRequestBuilder.TEST_RETURN_NUMBER,
-                                NotificationType.RETURN_REFUNDED,
-                                "refunded-v1")),
-                eq(TEST_EMAIL),
-                eq(NotificationType.RETURN_REFUNDED),
-                eq(RETURN_SUBJECT_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " refunded"),
-                eq(RETURN_BODY_PREFIX + ReturnRequestBuilder.TEST_RETURN_NUMBER + " was refunded."));
+        verify(returnModerationInPort, never()).markRefunded(ReturnRequestBuilder.TEST_RETURN_NUMBER);
+        verify(sendNotificationInPort, never()).sendNotification(any(), any(), any(), any(), any());
     }
 
     @Test
