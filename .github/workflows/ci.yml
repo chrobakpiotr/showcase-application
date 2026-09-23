@@ -53,6 +53,12 @@ jobs:
       - name: Test aggregate CI gate policy
         run: python3 -m unittest tooling/scripts/tests/test_verify_ci_quality_gate.py -v
 
+      - name: Test critical PostgreSQL evidence verifier
+        run: python3 -m unittest tooling/scripts/tests/test_verify_critical_postgres_results.py -v
+
+      - name: Test PIT evidence verifier
+        run: python3 -m unittest tooling/scripts/tests/test_verify_pit_report.py -v
+
       - name: Check controlled time usage
         run: |
           python3 tooling/scripts/check_no_legacy_java_date.py
@@ -97,6 +103,15 @@ jobs:
       - name: Verify required Postgres recovery/concurrency tests
         run: tooling/scripts/verify-critical-postgres-tests.sh
 
+      - name: Publish isolated critical PostgreSQL evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: critical-postgres-evidence
+          path: apps/ecommerce/backend/build/critical-postgres-results/
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Build, verify quality gates and run tests
         run: >
           ./gradlew build
@@ -139,6 +154,36 @@ jobs:
             **/build/reports/spotbugs/
           retention-days: 14
           if-no-files-found: ignore
+
+  mutation-testing:
+    name: Domain mutation testing (PIT)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Run and verify domain PIT evidence
+        run: tooling/scripts/verify-domain-pitest.sh
+
+      - name: Publish PIT evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: domain-pit-evidence
+          path: modules/domain/build/reports/pitest/
+          retention-days: 14
+          if-no-files-found: error
 
   dependency-check:
     name: OWASP dependency vulnerability scan
@@ -435,6 +480,7 @@ jobs:
       - documentation
       - repository-guards
       - backend
+      - mutation-testing
       - dependency-check
       - dependency-review
       - sbom
@@ -460,6 +506,7 @@ jobs:
           DOCUMENTATION_RESULT: ${{ needs['documentation'].result }}
           REPOSITORY_GUARDS_RESULT: ${{ needs['repository-guards'].result }}
           BACKEND_RESULT: ${{ needs['backend'].result }}
+          MUTATION_TESTING_RESULT: ${{ needs['mutation-testing'].result }}
           DEPENDENCY_CHECK_RESULT: ${{ needs['dependency-check'].result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs['dependency-review'].result }}
           SBOM_RESULT: ${{ needs['sbom'].result }}

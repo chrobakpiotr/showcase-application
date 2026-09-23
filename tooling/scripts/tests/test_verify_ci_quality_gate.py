@@ -52,6 +52,18 @@ class VerifyCiQualityGateTest(unittest.TestCase):
         errors = gate.evaluate("push", results)
         self.assertTrue(any("Frontend build" in error for error in errors))
 
+    def test_empty_event_fails_closed(self):
+        results = self.successful_results()
+        results[gate.DEPENDENCY_REVIEW_KEY] = "skipped"
+        errors = gate.evaluate("", results)
+        self.assertTrue(any("unsupported or missing event" in error for error in errors))
+
+    def test_unknown_event_fails_closed(self):
+        results = self.successful_results()
+        results[gate.DEPENDENCY_REVIEW_KEY] = "skipped"
+        errors = gate.evaluate("repository_dispatch", results)
+        self.assertTrue(any("unsupported or missing event" in error for error in errors))
+
     def test_missing_result_fails_closed(self):
         results = self.successful_results()
         del results["DEPENDENCY_CHECK_RESULT"]

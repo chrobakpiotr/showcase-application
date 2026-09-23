@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "inventoryPolicy": "all-postgres-integration-tests-required",
+  "requirements": [
+    {
+      "ac": "AC-ORDER-REPLAY-01",
+      "scenario": "duplicate order request replays without extra writes",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldReplayAfterStockExhaustionWithoutAdditionalWrites"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-02",
+      "scenario": "partial stock failure rolls back reservation and idempotency key",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldRollbackPartialStockAndKeyThenPermitImmediateRetry"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-03",
+      "scenario": "concurrent same-key placements converge on one order",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldSerializeConcurrentSameKeyPlacements"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-04",
+      "scenario": "idempotency reservation requires an ambient transaction",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldRejectReservationOutsideAnAmbientTransaction"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-05",
+      "scenario": "waiting duplicate proceeds after the first transaction rolls back",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldLetAWaitingAttemptProceedAfterRollback"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-06",
+      "scenario": "stale takeover waits for the current completion commit",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldSerializeStaleTakeoverUntilCompletionCommits"
+    },
+    {
+      "ac": "AC-ORDER-REPLAY-07",
+      "scenario": "idempotency sequence upgrade advances beyond retained identifiers",
+      "suite": "com.cp.ecommerce.application.OrderReplayPostgresIntegrationTest",
+      "testMethod": "shouldUpgradeAWrappedSequenceBeyondRetainedIds"
+    },
+    {
+      "ac": "AC-CANCELLATION-SAGA-01",
+      "scenario": "cancellation before placement poll prevents capture and fulfillment",
+      "suite": "com.cp.ecommerce.application.OrderCancellationSagaPostgresIntegrationTest",
+      "testMethod": "shouldNotCaptureOrFulfillWhenOrderWasCancelledBeforeFirstPoll"
+    },
+    {
+      "ac": "AC-CANCELLATION-SAGA-02",
+      "scenario": "cancelled refunded retry does not recapture",
+      "suite": "com.cp.ecommerce.application.OrderCancellationSagaPostgresIntegrationTest",
+      "testMethod": "shouldNotRecaptureAfterFulfillmentRetryWasCancelledAndRefunded"
+    },
+    {
+      "ac": "AC-CANCELLATION-SAGA-03",
+      "scenario": "placement poll winner and concurrent cancellation serialize correctly",
+      "suite": "com.cp.ecommerce.application.OrderCancellationSagaPostgresIntegrationTest",
+      "testMethod": "shouldLetPollWinnerFinishAndRejectConcurrentCancellation"
+    },
+    {
+      "ac": "AC-CANCELLATION-RECOVERY-01",
+      "scenario": "durable cancellation resumes after first side-effect failure",
+      "suite": "com.cp.ecommerce.application.OrderCancellationRecoveryPostgresIntegrationTest",
+      "testMethod": "shouldResumeCancellationFromDurableIntentAfterFirstSideEffectFails"
+    },
+    {
+      "ac": "AC-CANCELLATION-RECOVERY-02",
+      "scenario": "claimed recovery can finish under its own lease",
+      "suite": "com.cp.ecommerce.application.OrderCancellationRecoveryPostgresIntegrationTest",
+      "testMethod": "claimedRecoveryMustFinishCancellationInsteadOfBlockingItsOwnLease"
+    },
+    {
+      "ac": "AC-FORWARD-MIGRATION-01",
+      "scenario": "forward migration repairs deterministic payment state and reports ambiguous stock",
+      "suite": "com.cp.ecommerce.application.ForwardMigrationUpgradePostgresIntegrationTest",
+      "testMethod": "shouldForwardFixDeterministicPaymentStateAndReportAmbiguousStockState"
+    },
+    {
+      "ac": "AC-CANCELLATION-MULTIWORKER-01",
+      "scenario": "stale cancellation worker cannot mutate after takeover",
+      "suite": "com.cp.ecommerce.application.OrderCancellationMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "staleWorkerMustNotMutateSuccessOrFailureAfterLeaseTakeover"
+    },
+    {
+      "ac": "AC-CANCELLATION-MULTIWORKER-02",
+      "scenario": "only one cancellation recovery worker owns the lease",
+      "suite": "com.cp.ecommerce.application.OrderCancellationMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "shouldAllowOnlyOneWorkerToOwnCancellationRecoveryLease"
+    },
+    {
+      "ac": "AC-STOCK-IDENTITY-01",
+      "scenario": "cancellation retry cannot release another order reservation",
+      "suite": "com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest",
+      "testMethod": "shouldNotReleaseOtherOrdersReservationWhenCancellationIsRetried"
+    },
+    {
+      "ac": "AC-STOCK-IDENTITY-02",
+      "scenario": "fulfillment cannot release another order reservation",
+      "suite": "com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest",
+      "testMethod": "shouldNotReleaseAnotherOrdersReservationAfterFulfillment"
+    },
+    {
+      "ac": "AC-STOCK-IDENTITY-03",
+      "scenario": "concurrent duplicate replay reserves and releases exactly once",
+      "suite": "com.cp.ecommerce.application.StockReservationIdentityPostgresIntegrationTest",
+      "testMethod": "shouldReserveOnceAndReleaseOnceUnderConcurrentDuplicateReplay"
+    },
+    {
+      "ac": "AC-PARTIAL-REFUND-01",
+      "scenario": "multiple returns refund incrementally with idempotent replay",
+      "suite": "com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest",
+      "testMethod": "shouldRefundTwoReturnsIncrementallyAndReplayApprovalIdempotently"
+    },
+    {
+      "ac": "AC-PARTIAL-REFUND-02",
+      "scenario": "whole-order refund pays only remaining entitlement",
+      "suite": "com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest",
+      "testMethod": "shouldRefundOnlyRemainingAmountOnWholeOrderRefundAfterPartialReturn"
+    },
+    {
+      "ac": "AC-PARTIAL-REFUND-03",
+      "scenario": "concurrent refund claims cannot over-refund",
+      "suite": "com.cp.ecommerce.application.PaymentPartialRefundPostgresIntegrationTest",
+      "testMethod": "shouldPreventConcurrentClaimsFromOverRefundingPayment"
+    },
+    {
+      "ac": "AC-STOCK-RETRY-TX-01",
+      "scenario": "stock retry remains inside the ambient transaction boundary",
+      "suite": "com.cp.ecommerce.application.StockRetryTransactionBoundaryPostgresIntegrationTest",
+      "testMethod": "shouldRetryStockMutationInsideAmbientTransactionWithoutPoisoningIt"
+    },
+    {
+      "ac": "AC-SAGA-COMPENSATION-01",
+      "scenario": "durable compensation resumes after stock-release failure",
+      "suite": "com.cp.ecommerce.application.SagaCompensationRecoveryPostgresIntegrationTest",
+      "testMethod": "shouldResumeDurableCompensationAfterStockReleaseFailure"
+    },
+    {
+      "ac": "AC-DURABLE-NOTIFICATION-01",
+      "scenario": "concurrent enqueue creates one durable notification",
+      "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
+      "testMethod": "shouldInsertOneNotificationForConcurrentEnqueueOfSameEvent"
+    },
+    {
+      "ac": "AC-DURABLE-NOTIFICATION-02",
+      "scenario": "same event key cannot carry a conflicting payload",
+      "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
+      "testMethod": "shouldRejectSameEventKeyWithConflictingPayload"
+    },
+    {
+      "ac": "AC-DURABLE-NOTIFICATION-03",
+      "scenario": "replay cannot regress SENT notification to PENDING",
+      "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
+      "testMethod": "shouldNeverRegressSentNotificationToPendingOnReplay"
+    },
+    {
+      "ac": "AC-DURABLE-NOTIFICATION-04",
+      "scenario": "failed delivery retries on the same persisted row",
+      "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
+      "testMethod": "shouldRetryFailedDeliveryOnSamePersistedNotificationRow"
+    },
+    {
+      "ac": "AC-OUTBOX-MULTIWORKER-01",
+      "scenario": "only one placement worker owns an active lease",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "shouldAllowOnlyOneWorkerWhilePlacementLeaseIsActive"
+    },
+    {
+      "ac": "AC-OUTBOX-MULTIWORKER-02",
+      "scenario": "late capture after healthy takeover is not incorrectly refunded",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "shouldNotRefundLateCaptureAfterHealthyTakeover"
+    },
+    {
+      "ac": "AC-OUTBOX-MULTIWORKER-03",
+      "scenario": "expired placement lease is recovered after worker death",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "shouldRecoverExpiredPlacementLeaseAfterWorkerDeath"
+    },
+    {
+      "ac": "AC-PAYMENT-PREPARE-01",
+      "scenario": "stale prepare cannot overwrite fully refunded canonical payment",
+      "suite": "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest",
+      "testMethod": "stalePendingPrepareMustNotOverwriteFullyRefundedCanonicalPayment"
+    },
+    {
+      "ac": "AC-PAYMENT-PREPARE-02",
+      "scenario": "stale prepare cannot overwrite partially refunded canonical payment",
+      "suite": "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest",
+      "testMethod": "stalePendingPrepareMustNotOverwritePartiallyRefundedCanonicalPayment"
+    },
+    {
+      "ac": "AC-PAYMENT-PREPARE-03",
+      "scenario": "concurrent first capture converges on one canonical payment and intent",
+      "suite": "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest",
+      "testMethod": "concurrentFirstCaptureMustConvergeOnOneCanonicalPaymentAndOneIntent"
+    },
+    {
+      "ac": "AC-PAYMENT-PREPARE-04",
+      "scenario": "pending payment rolls back when reconciliation intent preparation fails",
+      "suite": "com.cp.ecommerce.application.PaymentOperationPreparationPostgresIntegrationTest",
+      "testMethod": "shouldRollbackPendingPaymentWhenReconciliationIntentPreparationFails"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-01",
+      "scenario": "only one concurrent request can consume the last returnable unit",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldAllowOnlyOneConcurrentRequestForLastReturnableUnit"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-02",
+      "scenario": "rejected return entitlement is released exactly once",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldReleaseRejectedEntitlementExactlyOnce"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-03",
+      "scenario": "rejected minor-unit entitlement is restored exactly",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldRestoreExactRejectedMinorUnitAcrossABRejectACD"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-04",
+      "scenario": "historical persisted refund snapshot constrains remaining entitlement",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldRespectHistoricalPersistedRefundSnapshotWhenAllocatingRemainingEntitlement"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-05",
+      "scenario": "generated reject patterns conserve refund entitlement",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldConserveRefundEntitlementAcrossGeneratedRejectPatterns"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-06",
+      "scenario": "approve and reject decisions serialize to one winner",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldAllowOnlyOneConcurrentApproveOrRejectDecision"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-01",
+      "scenario": "current reconciliation owner recovers pending capture",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "currentOwnerRecoversPendingCapture"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-02",
+      "scenario": "current reconciliation owner recovers pending refund exactly once",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "currentOwnerRecoversPendingRefundExactlyOnce"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-03",
+      "scenario": "ordinary client cannot use another worker claim",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "ordinaryClientCannotUseAnotherWorkersClaim"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-04",
+      "scenario": "stale owner cannot cross the takeover boundary",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "staleOwnerCannotCrossTakeoverBoundary"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-05",
+      "scenario": "manual-review payment is not automatically replayed or closed",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "manualReviewIsNotAutomaticallyReplayedOrClosed"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-06",
+      "scenario": "lost provider response replays the same key with one economic effect",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "lostProviderResponseReplaysSameKeyWithOneEconomicEffect"
+    },
+    {
+      "ac": "AC-PAYMENT-OWNER-RECOVERY-07",
+      "scenario": "terminal payment replay creates no additional provider effect",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationOwnerRecoveryPostgresIntegrationTest",
+      "testMethod": "terminalReplayDoesNotCreateAnotherProviderEffect"
+    },
+    {
+      "ac": "AC-REFUND-RMA-RECOVERY-01",
+      "scenario": "completed refund resumes approved return without a second user action",
+      "suite": "com.cp.ecommerce.application.RefundToReturnRecoveryPostgresIntegrationTest",
+      "testMethod": "completedRefundMustResumeApprovedReturnWithoutSecondUserAction"
+    },
+    {
+      "ac": "AC-REFUND-CONTINUATION-CRASH-01",
+      "scenario": "approval and durable continuation roll back together",
+      "suite": "com.cp.ecommerce.application.RefundContinuationCrashPointPostgresIntegrationTest",
+      "testMethod": "approvalAndDurableContinuationMustRollbackTogether"
+    },
+    {
+      "ac": "AC-REFUND-CONTINUATION-CRASH-02",
+      "scenario": "mapping without refund row remains discoverable",
+      "suite": "com.cp.ecommerce.application.RefundContinuationCrashPointPostgresIntegrationTest",
+      "testMethod": "mappingWithoutRefundRowMustRemainDiscoverable"
+    },
+    {
+      "ac": "AC-REFUND-CONTINUATION-CRASH-03",
+      "scenario": "zero-value approval rolls back with notification failure",
+      "suite": "com.cp.ecommerce.application.RefundContinuationCrashPointPostgresIntegrationTest",
+      "testMethod": "zeroValueApprovalMustRollbackWithNotificationFailure"
+    },
+    {
+      "ac": "AC-REFUND-CONTINUATION-FAIRNESS-01",
+      "scenario": "poison continuation backlog does not starve healthy item 51",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.RefundReturnContinuationFairnessPostgresIntegrationTest",
+      "testMethod": "fiftyPoisonContinuationsMustNotStarveHealthyItemFiftyOne"
+    },
+    {
+      "ac": "AC-CANCELLATION-FINALIZATION-01",
+      "scenario": "stale finalizer reports LOST_CLAIM and does not enqueue notification",
+      "suite": "com.cp.ecommerce.application.OrderCancellationFinalizationPostgresIntegrationTest",
+      "testMethod": "staleOwnerAfterTakeoverMustReportLostClaimAndMustNotEnqueueNotification"
+    },
+    {
+      "ac": "AC-CANCELLATION-FINALIZATION-02",
+      "scenario": "notification failure rolls back fenced terminal state and retries once",
+      "suite": "com.cp.ecommerce.application.OrderCancellationFinalizationPostgresIntegrationTest",
+      "testMethod": "notificationFailureAfterFencedStateChangeMustRollbackStateAndRetryExactlyOnce"
+    },
+    {
+      "ac": "AC-SHIPMENT-OPERATION-IDENTITY-01",
+      "scenario": "committed shipment operation identity is immutable across shipments",
+      "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",
+      "testMethod": "committedOperationIdMustNotBeReassignedToAnotherShipment"
+    },
+    {
+      "ac": "AC-SHIPMENT-OPERATION-IDENTITY-02",
+      "scenario": "concurrent shipment operation collision has exactly one winner",
+      "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",
+      "testMethod": "concurrentOperationIdCollisionMustHaveExactlyOneWinner"
+    },
+    {
+      "ac": "AC-SHIPMENT-DISPATCH-RULES-01",
+      "scenario": "legacy dispatch enforces captured-payment rule without mutating rejected state",
+      "suite": "com.cp.ecommerce.application.ShipmentDispatchRulesPostgresIntegrationTest",
+      "testMethod": "legacyDispatchMustRejectPartiallyRefundedPaymentWithoutMutatingShipmentOrStock"
+    },
+    {
+      "ac": "AC-SHIPMENT-ATOMICITY-01",
+      "scenario": "legacy dispatch rolls back shipment and earlier stock mutation when a later SKU fails",
+      "suite": "com.cp.ecommerce.application.ShipmentAtomicityPostgresIntegrationTest",
+      "testMethod": "legacyDispatchMustRollbackShipmentAndEarlierSkuWhenLaterSkuFails"
+    }
+  ]
+}

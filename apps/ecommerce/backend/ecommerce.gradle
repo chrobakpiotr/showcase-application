@@ -75,23 +75,23 @@ processResources.dependsOn(':adapter:ecommerce-frontend:processGeneratedResource
 
 rootProject.configureBootTasks(project)
 
-// This module's tests spin up a real Postgres container via Testcontainers, which occasionally
-// fails for purely environmental reasons (Docker daemon cold-start latency, container port
-// binding races, etc.) rather than a genuine regression. Retry failed tests up to twice before
-// failing the build, but only for tests that failed at least once and passed on retry - a test
-// that fails consistently on every attempt still fails the build as normal.
+// The normal backend suite may retry a small number of Testcontainers failures caused by
+// environmental startup races. The dedicated critical Postgres gate is intentionally stricter:
+// it runs fresh, writes JUnit XML to an isolated evidence directory and never retries a failed
+// concurrency/recovery case, so a first failure cannot disappear behind a later flaky pass.
+def criticalPostgresGateEnabled =
+        providers.gradleProperty('criticalPostgresGate').getOrElse('false').toBoolean()
+
 test {
-    // The dedicated Postgres gate must execute these Testcontainers tests fresh, but
-    // global --rerun-tasks also rebuilds every dependency task and defeats the build cache.
-    // Force only this Test task fresh; compilation and the rest of the graph remain cacheable.
-    if (providers.gradleProperty('criticalPostgresGate').getOrElse('false').toBoolean()) {
+    if (criticalPostgresGateEnabled) {
         outputs.upToDateWhen { false }
         outputs.cacheIf { false }
+        reports.junitXml.outputLocation.set(layout.buildDirectory.dir('critical-postgres-results'))
     }
 
     retry {
-        maxRetries = 2
+        maxRetries = criticalPostgresGateEnabled ? 0 : 2
         maxFailures = 5
-        failOnPassedAfterRetry = false
+        failOnPassedAfterRetry = criticalPostgresGateEnabled
     }
 }

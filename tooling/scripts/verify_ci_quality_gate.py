@@ -11,6 +11,7 @@ REQUIRED_RESULTS = (
     ("Documentation links", "DOCUMENTATION_RESULT"),
     ("Repository guards", "REPOSITORY_GUARDS_RESULT"),
     ("Backend build, quality gates & tests", "BACKEND_RESULT"),
+    ("Domain mutation testing (PIT)", "MUTATION_TESTING_RESULT"),
     ("OWASP dependency vulnerability scan", "DEPENDENCY_CHECK_RESULT"),
     ("CycloneDX SBOM generation", "SBOM_RESULT"),
     ("Infra-as-config validation", "INFRA_VALIDATION_RESULT"),
@@ -20,10 +21,14 @@ REQUIRED_RESULTS = (
 )
 
 DEPENDENCY_REVIEW_KEY = "DEPENDENCY_REVIEW_RESULT"
+ALLOWED_EVENTS = frozenset({"push", "pull_request", "workflow_dispatch"})
 
 
 def evaluate(event_name: str, results: Mapping[str, str]) -> list[str]:
     errors: list[str] = []
+
+    if event_name not in ALLOWED_EVENTS:
+        errors.append(f"Event: unsupported or missing event {event_name or '<missing>'}")
 
     for display_name, key in REQUIRED_RESULTS:
         result = results.get(key, "")
@@ -37,7 +42,7 @@ def evaluate(event_name: str, results: Mapping[str, str]) -> list[str]:
                 "Dependency review: pull_request requires success, "
                 f"got {dependency_review or '<missing>'}"
             )
-    elif dependency_review not in {"success", "skipped"}:
+    elif event_name in {"push", "workflow_dispatch"} and dependency_review not in {"success", "skipped"}:
         errors.append(
             "Dependency review: non-PR run allows only success/skipped, "
             f"got {dependency_review or '<missing>'}"
