@@ -836,9 +836,23 @@ def cmd_validate_all(args: argparse.Namespace) -> None:
     root = args.specs_root
     if not root.exists():
         die(f'specs root does not exist: {root}')
-    feature_dirs = sorted(p for p in root.iterdir() if p.is_dir() and (p / 'tasks.json').exists())
+
+    documented_dirs = sorted(
+        p for p in root.iterdir()
+        if p.is_dir() and (p / 'spec.md').exists()
+    )
+    feature_dirs = [p for p in documented_dirs if (p / 'tasks.json').exists()]
+    document_only_dirs = [p for p in documented_dirs if not (p / 'tasks.json').exists()]
+
+    for feature_dir in document_only_dirs:
+        print(
+            f'INFO {feature_dir}: document-only; no tasks.json; '
+            'not executable by validate-all; see docs/specs/INVENTORY.md'
+        )
+
     if not feature_dirs:
-        die(f'no feature specifications found under {root}')
+        die(f'no executable feature specifications found under {root}')
+
     failures = 0
     for feature_dir in feature_dirs:
         errors = validate(feature_dir)

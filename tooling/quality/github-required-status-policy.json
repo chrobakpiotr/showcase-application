@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "deploymentStatus": "pending-human-authorization",
+  "observed": {
+    "sourceSha": "16450b6c9b42a8db8458a0d866fde7db182cabd1",
+    "rulesetId": 21939086,
+    "rulesetName": "Admin rules",
+    "requiredStatusChecks": [],
+    "bypassActors": [
+      {
+        "actorType": "RepositoryRole",
+        "actorId": 5,
+        "bypassMode": "always"
+      }
+    ]
+  },
+  "desired": {
+    "requiredStatusChecks": [
+      {
+        "context": "CI quality gate",
+        "workflow": ".github/workflows/ci.yml",
+        "jobId": "ci-quality-gate"
+      },
+      {
+        "context": "Agentic SDD quality gate",
+        "workflow": ".github/workflows/agentic-sdd.yml",
+        "jobId": "agentic-sdd-gate"
+      }
+    ],
+    "rulesetRule": {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "CI quality gate"
+          },
+          {
+            "context": "Agentic SDD quality gate"
+          }
+        ]
+      }
+    },
+    "recommendedBypassActors": []
+  }
+}

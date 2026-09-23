@@ -1,6 +1,6 @@
 # QUALITY-HARDENING-Q01-Q06 — correctness before stronger claims
 
-Status: **DRAFT CONTRACT / READY FOR INDEPENDENT VERIFICATION AUTHOR**
+Status: **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION AND RULESET DEPLOYMENT PENDING**
 
 Audited baseline:
 
@@ -12,6 +12,46 @@ fix(frontend): patch npm audit vulnerabilities
 This feature captures the next correctness iteration identified by the 2026-09-20
 quality review. Historical N01-N20 completion labels are not acceptance evidence for
 these stronger failure-mode guarantees.
+
+## Implementation and evidence snapshot - 2026-09-23
+
+Evidence baseline before this documentation update:
+
+```text
+c912a5555122e8719a0ee6436b82340747a7f1b6
+ci: harden critical evidence gates
+```
+
+The implementation was delivered through direct S22 checkpoints rather than an
+executable Agentic SDD `tasks.json`. That history is intentional and must not be
+rewritten retroactively. `docs/specs/INVENTORY.md` therefore marks this feature as
+document-only and not selected by `harness.py validate-all`.
+
+| Contract area | Current evidence status |
+| --- | --- |
+| C01 aggregate/evidence | IMPLEMENTED + TESTED; critical PostgreSQL evidence and PIT are fail-closed; GitHub required-status deployment remains pending |
+| Q01/Q02 placement/payment | IMPLEMENTED + TESTED; owner-aware recovery, stable provider operation identity and manual-review preservation are covered; independent review remains pending |
+| Q03 cancellation | IMPLEMENTED + TESTED; terminal fencing plus notification enqueue are one transaction and WAITING_FOR_REFUND is retryable; independent review remains pending |
+| Q04 shipment | IMPLEMENTED + TESTED; immutable operation identity, dispatch rule parity, atomic rollback and UI 409 retry semantics are covered; independent review remains pending |
+| Q05 refund entitlement | IMPLEMENTED + TESTED; persisted refund entitlement is conserved and rejected allocation is released exactly; independent review remains pending |
+| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection is covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
+
+Key implementation corrections now reflected by the contract:
+
+- Payment recovery carries owner context and rejects stale claim use across takeover.
+- Refund-to-return continuation persists refund/order/amount identity, crash recovery,
+  retry state, fairness ordering and manual-review parking.
+- Cancellation finalization fences the terminal transition together with notification
+  enqueue and does not spend the execution failure budget while waiting for refund.
+- Shipment operation history is insert-once: a global operation ID cannot be reassigned
+  to another shipment, and canonical fingerprint mismatch is a conflict.
+- Legacy and operation-aware shipment dispatch share the same CONFIRMED/CAPTURED rule.
+- Browser HTTP 409 is a definitive rejection: refresh state and begin a new logical
+  attempt; an unknown network outcome retains the original operation identity.
+- Refund entitlement uses persisted monetary ownership. Historical allocations are not
+  silently recomputed by reordering line items.
+- Critical PostgreSQL evidence is manifest-driven at suite and test-method level with
+  no retry masking; PIT evidence is fresh, non-empty and bound to source SHA/JDK/config.
 
 ## Goal
 

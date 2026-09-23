@@ -14,9 +14,13 @@ A4  Q05 returns entitlement
 A5  Q04 shipment backend/API/UI
 ```
 
-`tasks.json` is intentionally deferred. This is medium/high-risk lifecycle work:
-the independent verification contract/design review must exist before executable
-builder tasks are generated.
+Historical execution note:
+
+`tasks.json` was never generated for this feature. The implementation proceeded through
+direct, reviewed S22 shell checkpoints after the contract/plan were written. Do not
+synthesize retroactive tasks or RED evidence to make that history look harness-executed.
+`docs/specs/INVENTORY.md` must keep this feature visible as document-only until a future,
+new execution plan explicitly introduces executable tasks.
 
 ## A0 transaction/provider boundary
 

@@ -33,6 +33,7 @@ jobs:
         run: >-
           python3 -m py_compile
           tooling/agent-harness/harness.py
+          tooling/agent-harness/spec_inventory.py
           tooling/agent-harness/orchestrate.py
           tooling/agent-harness/runner.py
           tooling/agent-harness/verification_sandbox.py
@@ -47,8 +48,14 @@ jobs:
       - name: Validate installed protocol profiles and local toolchain
         run: python3 tooling/agent-harness/harness.py doctor
 
-      - name: Validate all committed feature specifications
+      - name: Verify committed specification inventory
+        run: python3 tooling/agent-harness/spec_inventory.py docs/specs --check docs/specs/INVENTORY.md
+
+      - name: Validate all executable feature specifications
         run: python3 tooling/agent-harness/harness.py validate-all docs/specs
+
+      - name: Verify prepared required-status policy
+        run: python3 tooling/scripts/verify_required_status_policy.py
 
       - name: Validate independent self verification contract
         run: python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-001

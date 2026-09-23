@@ -11,6 +11,12 @@ targets = {
         ["Instant.now()", "System.currentTimeMillis()"],
     "modules/adapters/kafka/src/main/java/com/cp/ecommerce/adapter/kafka/order/PublishOrderAnalyticsEventAdapter.java":
         ["Instant.now()", "System.currentTimeMillis()"],
+    "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/ManageRefundReturnContinuationAdapter.java":
+        ["Instant.now()", "System.currentTimeMillis()"],
+    "modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/reconciliation/PaymentReconciliationArbitrator.java":
+        ["Instant.now()", "System.currentTimeMillis()"],
+    "modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/OrderCancellationRecoveryScheduler.java":
+        ["Instant.now()", "System.currentTimeMillis()"],
 }
 errors=[]
 for name, forbidden in targets.items():
