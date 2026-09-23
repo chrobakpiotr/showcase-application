@@ -9,7 +9,11 @@ import com.cp.ecommerce.adapter.persistence.shipment.mapper.ShipmentPersistenceM
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentOperation;
 import com.cp.ecommerce.domain.shipment.port.outgoing.SaveShipmentOutPort;
+import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 
+import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -24,6 +28,8 @@ class SaveShipmentAdapter implements SaveShipmentOutPort {
     private final ShipmentPersistenceMapper shipmentPersistenceMapper;
 
     private final ShipmentOperationEntityRepository shipmentOperationEntityRepository;
+
+    private final EntityManager entityManager;
 
     @Override
     public Shipment save(final Shipment shipment) {
@@ -44,35 +50,73 @@ class SaveShipmentAdapter implements SaveShipmentOutPort {
     @Override
     public ShipmentOperation findOperation(final String operationId) {
 
-        return shipmentOperationEntityRepository.findById(operationId)
-                .map(
-                        entity -> ShipmentOperation.builder()
-                                .operationId(entity.getOperationId())
-                                .shipmentNumber(entity.getShipmentNumber())
-                                .expectedStatus(entity.getExpectedStatus())
-                                .resultStatus(entity.getResultStatus())
-                                .dispatchedDate(entity.getDispatchedDate())
-                                .estimatedDeliveryDate(entity.getEstimatedDeliveryDate())
-                                .deliveredDate(entity.getDeliveredDate())
-                                .resultVersion(entity.getResultVersion())
-                                .build())
-                .orElse(null);
+        return shipmentOperationEntityRepository.findById(operationId).map(SaveShipmentAdapter::toOperation).orElse(null);
     }
 
     @Override
+    @Transactional
     public void saveOperation(final ShipmentOperation operation) {
 
-        shipmentOperationEntityRepository.save(
-                ShipmentOperationEntity.builder()
-                        .operationId(operation.getOperationId())
-                        .shipmentNumber(operation.getShipmentNumber())
-                        .expectedStatus(operation.getExpectedStatus())
-                        .resultStatus(operation.getResultStatus())
-                        .dispatchedDate(operation.getDispatchedDate())
-                        .estimatedDeliveryDate(operation.getEstimatedDeliveryDate())
-                        .deliveredDate(operation.getDeliveredDate())
-                        .resultVersion(operation.getResultVersion())
-                        .build());
+        insertOperationIfAbsent(operation);
+
+        final ShipmentOperation canonical = shipmentOperationEntityRepository.findById(operation.getOperationId())
+                .map(SaveShipmentAdapter::toOperation)
+                .orElseThrow(
+                        () -> new IllegalStateException(
+                                "Shipment operation insert-once did not resolve operation id: " + operation.getOperationId()));
+
+        if (!operation.equals(canonical)) {
+            throw new ShipmentConflictException(
+                    "Shipment operation '" + operation.getOperationId() + "' was reused with a different immutable snapshot");
+        }
     }
 
+    private void insertOperationIfAbsent(final ShipmentOperation operation) {
+
+        entityManager.createNativeQuery("""
+                insert into test_db.SHIPMENT_OPERATION (
+                    OPERATION_ID,
+                    SHIPMENT_NUMBER,
+                    EXPECTED_STATUS,
+                    RESULT_STATUS,
+                    DISPATCHED_DATE,
+                    ESTIMATED_DELIVERY_DATE,
+                    DELIVERED_DATE,
+                    RESULT_VERSION
+                ) values (
+                    :operationId,
+                    :shipmentNumber,
+                    :expectedStatus,
+                    :resultStatus,
+                    :dispatchedDate,
+                    :estimatedDeliveryDate,
+                    :deliveredDate,
+                    :resultVersion
+                )
+                on conflict (OPERATION_ID) do nothing
+                """)
+                .setParameter("operationId", operation.getOperationId())
+                .setParameter("shipmentNumber", operation.getShipmentNumber())
+                .setParameter("expectedStatus", operation.getExpectedStatus().name())
+                .setParameter("resultStatus", operation.getResultStatus().name())
+                .setParameter("dispatchedDate", operation.getDispatchedDate())
+                .setParameter("estimatedDeliveryDate", operation.getEstimatedDeliveryDate())
+                .setParameter("deliveredDate", operation.getDeliveredDate())
+                .setParameter("resultVersion", operation.getResultVersion())
+                .executeUpdate();
+    }
+
+    private static ShipmentOperation toOperation(final ShipmentOperationEntity entity) {
+
+        return ShipmentOperation.builder()
+                .operationId(entity.getOperationId())
+                .shipmentNumber(entity.getShipmentNumber())
+                .expectedStatus(entity.getExpectedStatus())
+                .resultStatus(entity.getResultStatus())
+                .dispatchedDate(entity.getDispatchedDate())
+                .estimatedDeliveryDate(entity.getEstimatedDeliveryDate())
+                .deliveredDate(entity.getDeliveredDate())
+                .resultVersion(entity.getResultVersion())
+                .build();
+    }
 }

@@ -9,16 +9,24 @@ import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentOperationEnt
 import com.cp.ecommerce.adapter.persistence.shipment.mapper.ShipmentPersistenceMapper;
 import com.cp.ecommerce.domain.shipment.ShipmentOperation;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
+import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -26,6 +34,8 @@ class SaveShipmentAdapterOperationTest {
 
     private static final String OPERATION_ID = "op-1";
     private static final String SHIPMENT_NUMBER = "SHIP-1";
+    private static final Instant DISPATCHED = Instant.parse("2026-09-22T10:00:00Z");
+    private static final Instant ESTIMATED = DISPATCHED.plusSeconds(432000);
 
     @Mock
     private ShipmentEntityRepository shipmentEntityRepository;
@@ -36,11 +46,21 @@ class SaveShipmentAdapterOperationTest {
     @Mock
     private ShipmentOperationEntityRepository operationRepository;
 
+    @Mock
+    private EntityManager entityManager;
+
+    @Mock(answer = Answers.RETURNS_SELF)
+    private Query query;
+
     private SaveShipmentAdapter adapter;
 
     @BeforeEach
     void setUp() {
-        adapter = new SaveShipmentAdapter(shipmentEntityRepository, shipmentPersistenceMapper, operationRepository);
+        adapter = new SaveShipmentAdapter(
+                shipmentEntityRepository,
+                shipmentPersistenceMapper,
+                operationRepository,
+                entityManager);
     }
 
     @Test
@@ -54,55 +74,74 @@ class SaveShipmentAdapterOperationTest {
     @Test
     void shouldMapPersistedOperationToDomain() {
 
-        final Instant dispatched = Instant.parse("2026-09-22T10:00:00Z");
-        given(operationRepository.findById(OPERATION_ID)).willReturn(
-                Optional.of(
-                        ShipmentOperationEntity.builder()
-                                .operationId(OPERATION_ID)
-                                .shipmentNumber(SHIPMENT_NUMBER)
-                                .expectedStatus(ShipmentStatus.PENDING)
-                                .resultStatus(ShipmentStatus.DISPATCHED)
-                                .dispatchedDate(dispatched)
-                                .estimatedDeliveryDate(dispatched.plusSeconds(432000))
-                                .resultVersion(3)
-                                .build()));
+        given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity(SHIPMENT_NUMBER, 3)));
 
-        final ShipmentOperation result = adapter.findOperation(OPERATION_ID);
-
-        assertThat(result.getOperationId()).isEqualTo(OPERATION_ID);
-        assertThat(result.getShipmentNumber()).isEqualTo(SHIPMENT_NUMBER);
-        assertThat(result.getExpectedStatus()).isEqualTo(ShipmentStatus.PENDING);
-        assertThat(result.getResultStatus()).isEqualTo(ShipmentStatus.DISPATCHED);
-        assertThat(result.getDispatchedDate()).isEqualTo(dispatched);
-        assertThat(result.getEstimatedDeliveryDate()).isEqualTo(dispatched.plusSeconds(432000));
-        assertThat(result.getDeliveredDate()).isNull();
-        assertThat(result.getResultVersion()).isEqualTo(3);
+        assertThat(adapter.findOperation(OPERATION_ID)).isEqualTo(operation(SHIPMENT_NUMBER, 3));
     }
 
     @Test
-    void shouldPersistOperationSnapshot() {
+    void shouldInsertOperationOnceAndAcceptCanonicalSnapshot() {
 
-        final Instant delivered = Instant.parse("2026-09-22T12:00:00Z");
-        final ShipmentOperation operation = ShipmentOperation.builder()
-                .operationId("op-2")
-                .shipmentNumber(SHIPMENT_NUMBER)
-                .expectedStatus(ShipmentStatus.IN_TRANSIT)
-                .resultStatus(ShipmentStatus.DELIVERED)
-                .deliveredDate(delivered)
-                .resultVersion(5)
+        final ShipmentOperation candidate = operation(SHIPMENT_NUMBER, 3);
+        prepareNativeInsert();
+        given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity(SHIPMENT_NUMBER, 3)));
+
+        adapter.saveOperation(candidate);
+
+        verify(entityManager).createNativeQuery(anyString());
+        verify(query).executeUpdate();
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectCanonicalSnapshotOwnedByAnotherShipment() {
+
+        final ShipmentOperation candidate = operation(SHIPMENT_NUMBER, 3);
+        prepareNativeInsert();
+        given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity("SHIP-OTHER", 3)));
+
+        assertThatThrownBy(() -> adapter.saveOperation(candidate)).isInstanceOf(ShipmentConflictException.class)
+                .hasMessageContaining(OPERATION_ID);
+
+        verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldFailClosedWhenInsertOnceCannotResolveCanonicalOperation() {
+
+        prepareNativeInsert();
+        given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adapter.saveOperation(operation(SHIPMENT_NUMBER, 3))).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(OPERATION_ID);
+    }
+
+    private void prepareNativeInsert() {
+        given(entityManager.createNativeQuery(anyString())).willReturn(query);
+        given(query.executeUpdate()).willReturn(1);
+    }
+
+    private static ShipmentOperation operation(final String shipmentNumber, final long resultVersion) {
+        return ShipmentOperation.builder()
+                .operationId(OPERATION_ID)
+                .shipmentNumber(shipmentNumber)
+                .expectedStatus(ShipmentStatus.PENDING)
+                .resultStatus(ShipmentStatus.DISPATCHED)
+                .dispatchedDate(DISPATCHED)
+                .estimatedDeliveryDate(ESTIMATED)
+                .resultVersion(resultVersion)
                 .build();
+    }
 
-        adapter.saveOperation(operation);
-
-        final ArgumentCaptor<ShipmentOperationEntity> captor = ArgumentCaptor.forClass(ShipmentOperationEntity.class);
-        verify(operationRepository).save(captor.capture());
-
-        final ShipmentOperationEntity saved = captor.getValue();
-        assertThat(saved.getOperationId()).isEqualTo("op-2");
-        assertThat(saved.getShipmentNumber()).isEqualTo(SHIPMENT_NUMBER);
-        assertThat(saved.getExpectedStatus()).isEqualTo(ShipmentStatus.IN_TRANSIT);
-        assertThat(saved.getResultStatus()).isEqualTo(ShipmentStatus.DELIVERED);
-        assertThat(saved.getDeliveredDate()).isEqualTo(delivered);
-        assertThat(saved.getResultVersion()).isEqualTo(5);
+    private static ShipmentOperationEntity entity(final String shipmentNumber, final long resultVersion) {
+        return ShipmentOperationEntity.builder()
+                .operationId(OPERATION_ID)
+                .shipmentNumber(shipmentNumber)
+                .expectedStatus(ShipmentStatus.PENDING)
+                .resultStatus(ShipmentStatus.DISPATCHED)
+                .dispatchedDate(DISPATCHED)
+                .estimatedDeliveryDate(ESTIMATED)
+                .resultVersion(resultVersion)
+                .build();
     }
 }
