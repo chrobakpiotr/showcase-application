@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="4" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_OUTBOX_EVENT" />
+            </column>
+
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" defaultValue="PENDING" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="SENT_DATE" type="TIMESTAMP" />
+        </createTable>
+
+        <createIndex indexName="IDX_OUTBOX_EVENT_ORDER_NUMBER" schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="ORDER_NUMBER" />
+        </createIndex>
+
+    </changeSet>
+
+    <changeSet id="5" author="cp">
+
+        <createSequence sequenceName="SEQ_OUTBOX_EVENT" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+</databaseChangeLog>

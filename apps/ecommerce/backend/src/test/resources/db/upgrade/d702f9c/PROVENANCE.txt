@@ -1,0 +1,5 @@
+SOURCE_COMMIT=d702f9cafd397dbea976bc6b39cdbcd3210cd22a
+SOURCE_TREE=d3437d1fd49e39e25f1c2294b818189797104569
+SOURCE_PATH=modules/adapters/persistence/src/main/resources/db/changelog
+CAPTURE_METHOD=git archive from local immutable Git object
+PURPOSE=S22-07a supported historical Liquibase upgrade fixture

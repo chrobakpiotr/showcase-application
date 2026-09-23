@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="1" author="cp">
+
+        <sql stripComments="true" splitStatements="true">
+            CREATE SCHEMA IF NOT EXISTS test_db;
+        </sql>
+        <sql stripComments="true" splitStatements="true" dbms="h2">
+            SET SCHEMA test_db;
+        </sql>
+        <sql stripComments="true" splitStatements="true">
+            CREATE TABLE IF NOT EXISTS ${schema_name}CUSTOMER
+            (
+            ID ${numeric_type}
+            (
+            13
+            ) not null,
+            EMAIL ${string_type}
+            (
+            255
+            ) not null unique,
+            PHONE ${string_type}
+            (
+            25
+            ),
+            COUNTRY_CODE
+            ${string_type}
+            (
+            2
+            ),
+            POSTAL_CODE ${string_type}
+            (
+            35
+            ),
+            CITY ${string_type}
+            (
+            300
+            ),
+            STREET ${string_type}
+            (
+            35
+            ),
+            FULL_NAME
+            ${string_type}
+            (
+            80
+            ),
+            constraint PK_CUSTOMER
+            primary key
+            (
+            ID
+            )
+            );
+
+            comment
+            on table
+            ${schema_name}CUSTOMER is 'Table containing CUSTOMER information for quote';
+
+            comment
+            on column
+            ${schema_name}CUSTOMER.ID is 'Technical ID';
+
+            comment
+            on column ${schema_name}CUSTOMER.EMAIL is
+            'CUSTOMER''s e-mail';
+
+            comment
+            on column
+            ${schema_name}CUSTOMER.PHONE is 'CUSTOMER''s postal code';
+
+            comment
+            on column
+            ${schema_name}CUSTOMER.COUNTRY_CODE is 'CUSTOMER''s address: country''s
+            two letter UN
+            country
+            code (ISO 3166-1)';
+
+            comment
+            on column ${schema_name}CUSTOMER.POSTAL_CODE
+            is 'CUSTOMER''s address: postal
+            code';
+
+            comment
+            on column ${schema_name}CUSTOMER.CITY is 'CUSTOMER''s address: city
+            name';
+
+            comment
+            on column ${schema_name}CUSTOMER.STREET is 'CUSTOMER''s address: street address line';
+
+            comment
+            on column
+            ${schema_name}CUSTOMER.FULL_NAME is 'CUSTOMER''s full name';
+        </sql>
+
+    </changeSet>
+
+    <changeSet id="2" author="cp">
+
+        <!-- ORDER definition -->
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_ORDER" />
+            </column>
+
+            <column name="CREATION_DATE" type="TIMESTAMP" defaultValue="now()" />
+            <column name="ORDER_NUMBER" type="VARCHAR(40)" />
+            <column name="REMARK" type="VARCHAR(800)" />
+
+            <column name="CUSTOMER_ID" type="${numeric_type}(13,0)">
+                <constraints nullable="false" foreignKeyName="FK_ORDER_CUSTOMER_ID" referencedTableName="CUSTOMER" referencedColumnNames="ID" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+        </createTable>
+
+        <sql stripComments="true" splitStatements="true">
+            ALTER TABLE ${schema_name_prefix}CUSTOMER
+            ADD CONSTRAINT CHK_CUSTOMER_ID CHECK (ID IS NOT NULL);
+        </sql>
+
+    </changeSet>
+
+    <changeSet id="3" author="cp">
+
+        <createSequence sequenceName="SEQ_ORDER" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+        <createSequence sequenceName="SEQ_CUSTOMER" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+        <createSequence sequenceName="SEQ_ORDER_NUMBER" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="ORDER_" columnDataType="${numeric_type}" columnName="CUSTOMER_ID" validate="true" />
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- Idempotency-Key support for POST /api/order: lets a client safely retry order placement. -->
+
+    <changeSet id="8" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="IDEMPOTENCY_KEY">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_IDEMPOTENCY_KEY" />
+            </column>
+
+            <column name="IDEMPOTENCY_KEY" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_IDEMPOTENCY_KEY" />
+            </column>
+            <column name="FINGERPRINT" type="VARCHAR(64)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)" />
+            <column name="STATUS" defaultValue="IN_PROGRESS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="COMPLETED_DATE" type="TIMESTAMP" />
+        </createTable>
+
+    </changeSet>
+
+    <changeSet id="9" author="cp">
+
+        <createSequence sequenceName="SEQ_IDEMPOTENCY_KEY" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="20" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="CATEGORY">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_CATEGORY" />
+            </column>
+
+            <column name="NAME" type="VARCHAR(120)">
+                <constraints nullable="false" />
+            </column>
+            <column name="SLUG" type="VARCHAR(120)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UQ_CATEGORY_SLUG" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_CATEGORY_SLUG" schemaName="${schema_name_full}" tableName="CATEGORY" unique="true">
+            <column name="SLUG" />
+        </createIndex>
+
+    </changeSet>
+
+    <changeSet id="21" author="cp">
+
+        <createSequence sequenceName="SEQ_CATEGORY" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+    <changeSet id="22" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="ID" remarks="Unique technical ID" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PRODUCT" />
+            </column>
+
+            <column name="SKU" type="VARCHAR(40)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UQ_PRODUCT_SKU" />
+            </column>
+            <column name="NAME" type="VARCHAR(200)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DESCRIPTION" type="VARCHAR(2000)" />
+            <column name="UNIT_PRICE" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="IMAGE_URL" type="VARCHAR(500)" />
+            <column name="ACTIVE" defaultValueBoolean="true" type="BOOLEAN">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" defaultValue="now()" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+
+            <column name="CATEGORY_ID" type="${numeric_type}(13,0)">
+                <constraints nullable="false" foreignKeyName="FK_PRODUCT_CATEGORY_ID" referencedTableName="CATEGORY" referencedColumnNames="ID" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+        </createTable>
+
+        <createIndex indexName="IDX_PRODUCT_SKU" schemaName="${schema_name_full}" tableName="PRODUCT" unique="true">
+            <column name="SKU" />
+        </createIndex>
+
+        <createIndex indexName="IDX_PRODUCT_CATEGORY_ID" schemaName="${schema_name_full}" tableName="PRODUCT">
+            <column name="CATEGORY_ID" />
+        </createIndex>
+
+    </changeSet>
+
+    <changeSet id="23" author="cp">
+
+        <createSequence sequenceName="SEQ_PRODUCT" cycle="true" incrementBy="1" minValue="1" maxValue="999" startValue="1" schemaName="${schema_name_full}" />
+
+    </changeSet>
+
+</databaseChangeLog>

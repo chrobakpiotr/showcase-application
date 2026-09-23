@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="r05-return-concurrency" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="RETURN_REQUEST">
+            <column name="VERSION" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+        <createIndex indexName="IDX_RETURN_REQUEST_ORDER_SKU_STATUS" schemaName="${schema_name_full}" tableName="RETURN_REQUEST">
+            <column name="ORDER_NUMBER" />
+            <column name="SKU" />
+            <column name="STATUS" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

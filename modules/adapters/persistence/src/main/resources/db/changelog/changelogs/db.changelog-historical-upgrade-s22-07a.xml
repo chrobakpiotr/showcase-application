@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="s22-07a-historical-refund-return-identity-review" author="cp">
+        <sql>
+            INSERT INTO ${schema_name_prefix}DATA_RECONCILIATION_ISSUE
+            (ISSUE_KEY, ISSUE_TYPE, DETAILS)
+            SELECT
+            'REFUND_RETURN:' || c.RETURN_NUMBER,
+            'REFUND_RETURN_IDENTITY_REVIEW',
+            'Historical RMA has refund evidence that does not match the canonical refundId=' || c.REFUND_ID ||
+            '; automatic continuation is parked'
+            FROM ${schema_name_prefix}PAYMENT_REFUND_RETURN_CONTINUATION c
+            WHERE c.STATUS = 'PENDING'
+            AND EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}RETURN_REQUEST r
+            WHERE r.RETURN_NUMBER = c.RETURN_NUMBER
+            AND r.STATUS = 'APPROVED'
+            )
+            AND (
+            EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}PAYMENT_REFUND exact_refund
+            WHERE exact_refund.REFUND_ID = c.REFUND_ID
+            AND (
+            exact_refund.ORDER_NUMBER &lt;&gt; c.ORDER_NUMBER
+            OR exact_refund.AMOUNT &lt;&gt; c.REFUND_AMOUNT
+            )
+            )
+            OR (
+            NOT EXISTS (
+            SELECT 1
+            FROM
+            ${schema_name_prefix}PAYMENT_REFUND exact_refund
+            WHERE exact_refund.REFUND_ID = c.REFUND_ID
+            )
+            AND EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}PAYMENT_REFUND candidate
+            WHERE candidate.ORDER_NUMBER = c.ORDER_NUMBER
+            AND candidate.AMOUNT = c.REFUND_AMOUNT
+            AND candidate.STATUS IN ('PENDING', 'COMPLETED')
+            )
+            )
+            )
+            AND NOT EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}DATA_RECONCILIATION_ISSUE issue
+            WHERE
+            issue.ISSUE_KEY = 'REFUND_RETURN:' || c.RETURN_NUMBER
+            )
+        </sql>
+
+        <sql>
+            UPDATE ${schema_name_prefix}PAYMENT_REFUND_RETURN_CONTINUATION c
+            SET STATUS = 'MANUAL_REVIEW',
+            LAST_ERROR = 'Historical refund identity requires operator review before continuation'
+            WHERE c.STATUS = 'PENDING'
+            AND EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}DATA_RECONCILIATION_ISSUE issue
+            WHERE issue.ISSUE_KEY = 'REFUND_RETURN:' || c.RETURN_NUMBER
+            AND issue.ISSUE_TYPE =
+            'REFUND_RETURN_IDENTITY_REVIEW'
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="s22-07a-historical-shipment-operation-diagnostic" author="cp">
+        <sql>
+            INSERT INTO ${schema_name_prefix}DATA_RECONCILIATION_ISSUE
+            (ISSUE_KEY, ISSUE_TYPE, DETAILS)
+            SELECT
+            'SHIPMENT_OPERATION:' || s.SHIPMENT_NUMBER,
+            'SHIPMENT_OPERATION_HISTORY_UNAVAILABLE',
+            'Shipment lastOperationId=' || s.LAST_OPERATION_ID ||
+            ' predates immutable SHIPMENT_OPERATION history; replay requires current-state conflict handling'
+            FROM ${schema_name_prefix}SHIPMENT s
+            WHERE
+            s.LAST_OPERATION_ID IS NOT NULL
+            AND NOT EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}SHIPMENT_OPERATION operation
+            WHERE operation.OPERATION_ID = s.LAST_OPERATION_ID
+            )
+            AND NOT EXISTS (
+            SELECT 1
+            FROM ${schema_name_prefix}DATA_RECONCILIATION_ISSUE issue
+            WHERE issue.ISSUE_KEY = 'SHIPMENT_OPERATION:' || s.SHIPMENT_NUMBER
+            )
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

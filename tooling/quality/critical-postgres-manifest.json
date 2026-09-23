@@ -349,6 +349,12 @@
       "scenario": "legacy dispatch rolls back shipment and earlier stock mutation when a later SKU fails",
       "suite": "com.cp.ecommerce.application.ShipmentAtomicityPostgresIntegrationTest",
       "testMethod": "legacyDispatchMustRollbackShipmentAndEarlierSkuWhenLaterSkuFails"
+    },
+    {
+      "ac": "AC-HISTORICAL-UPGRADE-01",
+      "scenario": "frozen d702f9c schema upgrades through current master with safe refund and shipment recovery semantics",
+      "suite": "com.cp.ecommerce.application.HistoricalUpgradePostgresIntegrationTest",
+      "testMethod": "shouldUpgradeFrozenD702f9cDataAndExposeSafeRecoveryContract"
     }
   ]
 }

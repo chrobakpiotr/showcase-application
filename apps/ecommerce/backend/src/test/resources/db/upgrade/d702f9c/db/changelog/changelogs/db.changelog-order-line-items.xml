@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="28" author="cp">
+
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_LINE_ITEM">
+            <column name="ORDER_ID" remarks="FK to ORDER_.ID, see ADR 0029" type="${numeric_type}(13, 0)">
+                <constraints nullable="false" foreignKeyName="FK_ORDER_LINE_ITEM_ORDER_ID" referencedTableName="ORDER_" referencedColumnNames="ID" referencedTableSchemaName="${schema_name_full}" />
+            </column>
+            <column name="SKU" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="PRODUCT_NAME" type="VARCHAR(200)">
+                <constraints nullable="false" />
+            </column>
+            <column name="UNIT_PRICE" type="${numeric_type}(19, 2)">
+                <constraints nullable="false" />
+            </column>
+            <column name="QUANTITY" type="INT">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <addPrimaryKey schemaName="${schema_name_full}" tableName="ORDER_LINE_ITEM" columnNames="ORDER_ID, SKU" constraintName="PK_ORDER_LINE_ITEM" />
+
+        <createIndex indexName="IDX_ORDER_LINE_ITEM_ORDER_ID" schemaName="${schema_name_full}" tableName="ORDER_LINE_ITEM">
+            <column name="ORDER_ID" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

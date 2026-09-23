@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="r02-stock-reservation-identity" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="ORDER_">
+            <column name="STOCK_RESERVATION_ID" type="VARCHAR(40)" />
+        </addColumn>
+
+        <sql>
+            UPDATE ${schema_name_prefix}ORDER_
+            SET STOCK_RESERVATION_ID = ORDER_NUMBER
+            WHERE STOCK_RESERVATION_ID IS NULL
+        </sql>
+
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="ORDER_" columnName="STOCK_RESERVATION_ID" columnDataType="VARCHAR(40)" />
+
+        <createTable schemaName="${schema_name_full}" tableName="STOCK_RESERVATION">
+            <column name="RESERVATION_KEY" type="VARCHAR(100)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_STOCK_RESERVATION" />
+            </column>
+            <column name="RESERVATION_ID" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="SKU" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="QUANTITY" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <addUniqueConstraint schemaName="${schema_name_full}" tableName="STOCK_RESERVATION" columnNames="RESERVATION_ID, SKU" constraintName="UK_STOCK_RESERVATION_ID_SKU" />
+
+        <createIndex indexName="IDX_STOCK_RESERVATION_ID" schemaName="${schema_name_full}" tableName="STOCK_RESERVATION">
+            <column name="RESERVATION_ID" />
+        </createIndex>
+
+        <sql>
+            INSERT INTO ${schema_name_prefix}STOCK_RESERVATION
+            (RESERVATION_KEY, RESERVATION_ID, SKU, QUANTITY, STATUS)
+            SELECT o.STOCK_RESERVATION_ID || ':' || li.SKU,
+            o.STOCK_RESERVATION_ID,
+            li.SKU,
+            li.QUANTITY,
+            'RESERVED'
+            FROM ${schema_name_prefix}ORDER_ o
+            JOIN ${schema_name_prefix}ORDER_LINE_ITEM li ON li.ORDER_ID = o.ID
+            WHERE o.STATUS = 'CONFIRMED'
+        </sql>
+
+    </changeSet>
+
+</databaseChangeLog>

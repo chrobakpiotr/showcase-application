@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <changeSet id="demo-002-idempotency-locks" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" type="INTEGER">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+        </createTable>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="0" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="1" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="2" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="3" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="4" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="5" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="6" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="7" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="8" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="9" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="10" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="11" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="12" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="13" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="14" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="15" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="16" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="17" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="18" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="19" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="20" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="21" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="22" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="23" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="24" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="25" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="26" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="27" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="28" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="29" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="30" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="31" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="32" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="33" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="34" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="35" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="36" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="37" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="38" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="39" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="40" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="41" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="42" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="43" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="44" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="45" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="46" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="47" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="48" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="49" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="50" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="51" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="52" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="53" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="54" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="55" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="56" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="57" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="58" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="59" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="60" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="61" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="62" />
+        </insert>
+        <insert schemaName="${schema_name_full}" tableName="IDEMPOTENCY_LOCK">
+            <column name="ID" valueNumeric="63" />
+        </insert>
+    </changeSet>
+    <changeSet id="demo-002-idempotency-sequence" author="cp">
+        <alterSequence schemaName="${schema_name_full}" sequenceName="SEQ_IDEMPOTENCY_KEY" maxValue="9999999999999" cycle="false" />
+        <!-- Old sequence could only produce 1..999; move beyond all previously legal IDs. -->
+        <sql>ALTER SEQUENCE ${schema_name_full}.SEQ_IDEMPOTENCY_KEY RESTART WITH 1000</sql>
+    </changeSet>
+</databaseChangeLog>

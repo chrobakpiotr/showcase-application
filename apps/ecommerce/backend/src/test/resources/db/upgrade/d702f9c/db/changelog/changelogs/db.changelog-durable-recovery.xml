@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="r07-durable-recovery" author="cp">
+
+        <addColumn schemaName="${schema_name_full}" tableName="OUTBOX_EVENT">
+            <column name="COMPENSATION_ATTEMPTS" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+
+        <addColumn schemaName="${schema_name_full}" tableName="NOTIFICATION">
+            <column name="DELIVERY_ATTEMPTS" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="NEXT_ATTEMPT_DATE" type="TIMESTAMP" />
+            <column name="LAST_ERROR" type="VARCHAR(500)" />
+        </addColumn>
+
+        <sql>
+            UPDATE ${schema_name_prefix}NOTIFICATION
+            SET NEXT_ATTEMPT_DATE = CREATED_DATE
+            WHERE NEXT_ATTEMPT_DATE IS NULL
+        </sql>
+
+        <addNotNullConstraint schemaName="${schema_name_full}" tableName="NOTIFICATION" columnName="NEXT_ATTEMPT_DATE" columnDataType="TIMESTAMP" />
+
+        <createIndex indexName="IDX_NOTIFICATION_RETRY_DUE" schemaName="${schema_name_full}" tableName="NOTIFICATION">
+            <column name="STATUS" />
+            <column name="NEXT_ATTEMPT_DATE" />
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
