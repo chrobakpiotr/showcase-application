@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { of, throwError } from 'rxjs';
@@ -675,6 +676,44 @@ describe('OrderListComponent', () => {
     expect(firstArgs[2]).toBe('PENDING');
     expect(secondArgs[1]).toBe(firstArgs[1]);
     expect(secondArgs[2]).toBe(firstArgs[2]);
+  });
+
+  it('drops a rejected order-detail operation and retries from refreshed status after 409', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    component.selectOrder('ORDER-1');
+
+    const dispatched = {
+      ...shipmentsPage._embedded!.shipmentResourceList![0],
+      status: 'DISPATCHED' as const,
+    };
+    shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
+      of({ _embedded: { shipmentResourceList: [dispatched] } })
+    );
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValues(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            statusText: 'Conflict',
+          })
+      ),
+      of(dispatched)
+    );
+
+    component.advanceShipmentStatus('SHIP-1');
+    const firstArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledTimes(2);
+    expect(component.orderShipments()[0].status).toBe('DISPATCHED');
+
+    component.advanceShipmentStatus('SHIP-1');
+    const secondArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(secondArgs[1]).not.toBe(firstArgs[1]);
+    expect(secondArgs[2]).toBe('DISPATCHED');
   });
 
   it('sets an error message when advancing a shipment fails', () => {

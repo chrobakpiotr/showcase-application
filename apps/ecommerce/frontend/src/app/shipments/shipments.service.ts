@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -9,6 +9,10 @@ import {
   ShipmentModel,
   ShipmentStatus,
 } from '@app/shipments/shipment.model';
+
+export function isDefinitiveShipmentAdvanceConflict(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 409;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ShipmentsService {

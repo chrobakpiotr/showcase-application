@@ -20,7 +20,10 @@ import { OrderService } from '@app/order/order.service';
 import { ReturnModel } from '@app/returns/return.model';
 import { ReturnsService } from '@app/returns/returns.service';
 import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
-import { ShipmentsService } from '@app/shipments/shipments.service';
+import {
+  isDefinitiveShipmentAdvanceConflict,
+  ShipmentsService,
+} from '@app/shipments/shipments.service';
 
 const PAGE_SIZE = 10;
 
@@ -188,11 +191,12 @@ export class OrderListComponent implements OnInit {
     );
     if (!shipment) return;
 
-    const pending =
-      this.pendingShipmentAdvanceOperations.get(shipmentNumber) ?? {
-        operationId: crypto.randomUUID(),
-        expectedStatus: shipment.status,
-      };
+    const pending = this.pendingShipmentAdvanceOperations.get(
+      shipmentNumber
+    ) ?? {
+      operationId: crypto.randomUUID(),
+      expectedStatus: shipment.status,
+    };
     this.pendingShipmentAdvanceOperations.set(shipmentNumber, pending);
 
     this.shipmentsService
@@ -207,8 +211,13 @@ export class OrderListComponent implements OnInit {
           this.shipmentSuccessMessage.set('Shipment status advanced.');
           this.loadShipmentsForOrder(orderNumber);
         },
-        error: () =>
-          this.shipmentErrorMessage.set('Failed to advance shipment status.'),
+        error: (error: unknown) => {
+          if (isDefinitiveShipmentAdvanceConflict(error)) {
+            this.pendingShipmentAdvanceOperations.delete(shipmentNumber);
+            this.loadShipmentsForOrder(orderNumber);
+          }
+          this.shipmentErrorMessage.set('Failed to advance shipment status.');
+        },
       });
   }
 

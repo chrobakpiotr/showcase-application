@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
@@ -179,6 +180,39 @@ describe('ShipmentsComponent', () => {
     expect(firstArgs[2]).toBe('PENDING');
     expect(secondArgs[1]).toBe(firstArgs[1]);
     expect(secondArgs[2]).toBe(firstArgs[2]);
+  });
+
+  it('drops a rejected shipment-page operation and retries from refreshed status after 409', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+
+    const dispatched = { ...shipment, status: 'DISPATCHED' as const };
+    shipmentsServiceSpy.listShipments.and.returnValue(
+      of({ _embedded: { shipmentResourceList: [dispatched] } })
+    );
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValues(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            statusText: 'Conflict',
+          })
+      ),
+      of(dispatched)
+    );
+
+    component.advance('SHIP-1');
+    const firstArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledTimes(2);
+    expect(component.shipments()[0].status).toBe('DISPATCHED');
+
+    component.advance('SHIP-1');
+    const secondArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(secondArgs[1]).not.toBe(firstArgs[1]);
+    expect(secondArgs[2]).toBe('DISPATCHED');
   });
 
   it('sets an error message when advancing fails', () => {

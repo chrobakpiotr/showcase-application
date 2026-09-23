@@ -20,7 +20,10 @@ import {
 
 import { AuthService } from '@app/auth/auth.service';
 import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
-import { ShipmentsService } from '@app/shipments/shipments.service';
+import {
+  isDefinitiveShipmentAdvanceConflict,
+  ShipmentsService,
+} from '@app/shipments/shipments.service';
 
 @Component({
   selector: 'app-shipments',
@@ -128,11 +131,10 @@ export class ShipmentsComponent implements OnInit {
       return;
     }
 
-    const pending =
-      this.pendingAdvanceOperations.get(shipmentNumber) ?? {
-        operationId: crypto.randomUUID(),
-        expectedStatus: current.status,
-      };
+    const pending = this.pendingAdvanceOperations.get(shipmentNumber) ?? {
+      operationId: crypto.randomUUID(),
+      expectedStatus: current.status,
+    };
     this.pendingAdvanceOperations.set(shipmentNumber, pending);
 
     this.shipmentsService
@@ -150,8 +152,13 @@ export class ShipmentsComponent implements OnInit {
           this.pendingAdvanceOperations.delete(shipmentNumber);
           this.filterChanges.next(this.selectedStatus());
         },
-        error: () =>
-          this.actionErrorMessage.set('Failed to advance shipment status.'),
+        error: (error: unknown) => {
+          if (isDefinitiveShipmentAdvanceConflict(error)) {
+            this.pendingAdvanceOperations.delete(shipmentNumber);
+            this.filterChanges.next(this.selectedStatus());
+          }
+          this.actionErrorMessage.set('Failed to advance shipment status.');
+        },
       });
   }
 }
