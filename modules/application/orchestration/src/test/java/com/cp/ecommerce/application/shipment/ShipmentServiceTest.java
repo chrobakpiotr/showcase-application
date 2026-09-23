@@ -156,6 +156,7 @@ class ShipmentServiceTest {
         final Order order = order(OrderStatus.CONFIRMED, "RES-1");
         given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(shipment);
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
         final Shipment result = service.advanceShipment(SHIPMENT_NUMBER);
 
@@ -176,10 +177,42 @@ class ShipmentServiceTest {
         final Order order = order(OrderStatus.CONFIRMED, null);
         given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(shipment);
         given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.CAPTURED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
 
         service.advanceShipment(SHIPMENT_NUMBER);
 
         verify(manageStockInPort).fulfillStock(ORDER_NUMBER, SKU);
+    }
+
+    @Test
+    void shouldRejectLegacyDispatchForNonConfirmedOrderWithoutSideEffects() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        final Order cancelledOrder = order(OrderStatus.CANCELLED, "RES-LEGACY-CANCELLED");
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(shipment);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(cancelledOrder);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER)).isInstanceOf(ApplicationConflictException.class)
+                .hasMessageContaining("Only CONFIRMED orders can be dispatched");
+
+        verify(manageStockInPort, never()).fulfillStock(anyString(), anyString());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldRejectLegacyDispatchWhenPaymentIsNoLongerCapturedWithoutSideEffects() {
+
+        final Shipment shipment = shipment(ShipmentStatus.DISPATCHED);
+        final Order order = order(OrderStatus.CONFIRMED, "RES-LEGACY-REFUND");
+        given(advanceShipmentStatusInPort.advanceShipmentStatus(SHIPMENT_NUMBER)).willReturn(shipment);
+        given(manageOrderUseCase.findOrder(ORDER_NUMBER)).willReturn(order);
+        org.mockito.Mockito.doReturn(payment(PaymentStatus.PARTIALLY_REFUNDED)).when(getPaymentInPort).getPayment(ORDER_NUMBER);
+
+        assertThatThrownBy(() -> service.advanceShipment(SHIPMENT_NUMBER)).isInstanceOf(ApplicationConflictException.class)
+                .hasMessageContaining("Only CAPTURED orders can be dispatched");
+
+        verify(manageStockInPort, never()).fulfillStock(anyString(), anyString());
+        verify(sendNotificationInPort, never()).sendNotification(anyString(), any(), any(), any(), any());
     }
 
     @Test

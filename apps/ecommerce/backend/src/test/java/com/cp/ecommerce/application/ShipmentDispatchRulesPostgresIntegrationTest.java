@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEntity;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationEntityRepository;
 import com.cp.ecommerce.adapter.persistence.inventory.entity.StockReservationStatus;
 import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentEntityRepository;
@@ -19,10 +18,11 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
-import com.cp.ecommerce.domain.shipment.port.incoming.CreateShipmentInPort;
+import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -48,9 +48,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
                 "outbox.publisher.enabled=false",
                 "resilience4j.ratelimiter.instances.placeOrder.limit-for-period=1000",
                 "resilience4j.ratelimiter.instances.cancelOrder.limit-for-period=1000" })
-class ShipmentAtomicityPostgresIntegrationTest {
+class ShipmentDispatchRulesPostgresIntegrationTest {
 
-    private static final BigDecimal UNIT_PRICE = new BigDecimal("20.00");
+    private static final BigDecimal PRICE = new BigDecimal("20.00");
+    private static final BigDecimal PARTIAL_REFUND = new BigDecimal("5.00");
 
     @Container
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6").withDatabaseName("test_db")
@@ -70,106 +71,85 @@ class ShipmentAtomicityPostgresIntegrationTest {
     private ManageStockInPort manageStockInPort;
 
     @Autowired
-    private ManageOrderUseCase manageOrderUseCase;
-
-    @Autowired
     private ManagePaymentInPort managePaymentInPort;
 
     @Autowired
-    private CreateShipmentInPort createShipmentInPort;
+    private ManageOrderUseCase manageOrderUseCase;
 
     @Autowired
     private ShipmentWorkflow shipmentWorkflow;
 
     @Autowired
-    private ShipmentEntityRepository shipmentEntityRepository;
+    private ShipmentEntityRepository shipmentRepository;
 
     @Autowired
-    private StockReservationEntityRepository stockReservationEntityRepository;
+    private StockReservationEntityRepository stockReservationRepository;
 
     @DynamicPropertySource
     static void database(final DynamicPropertyRegistry registry) {
-
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
     @Test
-    void legacyDispatchMustRollbackShipmentAndEarlierSkuWhenLaterSkuFails() {
+    void legacyDispatchMustRejectPartiallyRefundedPaymentWithoutMutatingShipmentOrStock() {
+        final String sku = shortSku("S24A");
+        catalogProductFixture.ensureActiveProduct(sku, "S22-04a dispatch rules", PRICE);
+        manageStockInPort.receiveStock(sku, 1);
 
-        final String firstSku = shortSku("B04A");
-        final String secondSku = shortSku("B04B");
-
-        catalogProductFixture.ensureActiveProduct(firstSku, "B04 first", UNIT_PRICE);
-        catalogProductFixture.ensureActiveProduct(secondSku, "B04 second", UNIT_PRICE);
-        manageStockInPort.receiveStock(firstSku, 1);
-        manageStockInPort.receiveStock(secondSku, 1);
-
-        final String orderNumber = orderController.placeOrder(orderRequest(firstSku, secondSku), UUID.randomUUID().toString())
-                .orderNumber();
-        managePaymentInPort.capturePayment(orderNumber, UNIT_PRICE.multiply(BigDecimal.valueOf(2)), PaymentMethod.CARD);
+        final String orderNumber = orderController.placeOrder(orderRequest(sku), UUID.randomUUID().toString()).orderNumber();
+        managePaymentInPort.capturePayment(orderNumber, PRICE, PaymentMethod.CARD);
 
         final Order order = manageOrderUseCase.findOrder(orderNumber);
         assertThat(order).isNotNull();
         assertThat(order.getStockReservationId()).isNotBlank();
 
-        final String reservationId = order.getStockReservationId();
-        final String firstKey = reservationId + ":" + firstSku;
-        final String secondKey = reservationId + ":" + secondSku;
-
-        final StockReservationEntity firstBefore = stockReservationEntityRepository.findById(firstKey).orElseThrow();
-        final StockReservationEntity secondBefore = stockReservationEntityRepository.findById(secondKey).orElseThrow();
-
-        assertThat(firstBefore.getStatus()).isEqualTo(StockReservationStatus.RESERVED);
-        assertThat(secondBefore.getStatus()).isEqualTo(StockReservationStatus.RESERVED);
-
-        final Shipment shipment = createShipmentInPort.createShipment(orderNumber, "B04-CARRIER");
+        final Shipment shipment = shipmentWorkflow.createShipment(orderNumber, "S22-04A-CARRIER");
         assertThat(shipment.getStatus()).isEqualTo(ShipmentStatus.PENDING);
 
-        secondBefore.setStatus(StockReservationStatus.RELEASED);
-        stockReservationEntityRepository.saveAndFlush(secondBefore);
+        assertThat(managePaymentInPort.refundPayment(orderNumber, "S24-REF-" + compactUuid(), PARTIAL_REFUND).getStatus())
+                .isEqualTo(PaymentStatus.PARTIALLY_REFUNDED);
+
+        final String reservationKey = order.getStockReservationId() + ":" + sku;
+        assertThat(stockReservationRepository.findById(reservationKey).orElseThrow().getStatus())
+                .isEqualTo(StockReservationStatus.RESERVED);
 
         assertThatThrownBy(() -> shipmentWorkflow.advanceShipment(shipment.getShipmentNumber()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Only RESERVED stock can be fulfilled");
+                .as("legacy dispatch must enforce the same CAPTURED-payment rule as operation-aware dispatch")
+                .isInstanceOf(ApplicationConflictException.class)
+                .hasMessageContaining("Only CAPTURED orders can be dispatched");
 
-        assertThat(shipmentEntityRepository.findByShipmentNumber(shipment.getShipmentNumber()).getStatus())
-                .as("legacy dispatch must roll back shipment state when a later SKU cannot be fulfilled")
+        assertThat(shipmentRepository.findByShipmentNumber(shipment.getShipmentNumber()).getStatus())
+                .as("rejected legacy dispatch must roll back shipment transition")
                 .isEqualTo(ShipmentStatus.PENDING);
-
-        assertThat(stockReservationEntityRepository.findById(firstKey).orElseThrow().getStatus())
-                .as("legacy dispatch must roll back earlier SKU fulfillment when a later SKU fails")
+        assertThat(stockReservationRepository.findById(reservationKey).orElseThrow().getStatus())
+                .as("rejected legacy dispatch must keep reservation stock untouched")
                 .isEqualTo(StockReservationStatus.RESERVED);
     }
 
-    private static OrderResource orderRequest(final String firstSku, final String secondSku) {
-
+    private static OrderResource orderRequest(final String sku) {
         return new OrderResource(
-                "B04 shipment atomicity",
+                "S22-04a dispatch rules",
                 Instant.ofEpochMilli(Instant.now().toEpochMilli()),
                 new CustomerResource(
-                        "B04 Buyer",
+                        "S22-04a Buyer",
                         compactUuid() + "@example.com",
                         "123",
                         "Test Street 1",
                         "00-001",
                         "Warsaw",
                         "PL"),
-                List.of(
-                        new OrderLineItemResource(firstSku, "B04 first", UNIT_PRICE, 1, null),
-                        new OrderLineItemResource(secondSku, "B04 second", UNIT_PRICE, 1, null)),
+                List.of(new OrderLineItemResource(sku, "S22-04a dispatch rules", PRICE, 1, null)),
                 PaymentMethod.CARD,
                 null);
     }
 
     private static String shortSku(final String prefix) {
-
         return prefix + "-" + compactUuid();
     }
 
     private static String compactUuid() {
-
         return UUID.randomUUID().toString().replace("-", "");
     }
 }

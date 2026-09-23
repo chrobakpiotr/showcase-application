@@ -66,12 +66,7 @@ public class ShipmentService implements ShipmentWorkflow {
             throw new ApplicationNotFoundException("Shipment not found");
         }
         if (advanced.getStatus() == ShipmentStatus.DISPATCHED) {
-            final Order order = requireOrder(advanced.getOrderNumber());
-            final String reservationId = order.getStockReservationId() == null
-                    ? order.getOrderNumber()
-                    : order.getStockReservationId();
-            order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
-            notify(advanced, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
+            dispatch(advanced);
         }
         if (advanced.getStatus() == ShipmentStatus.DELIVERED) {
             notify(advanced, NotificationType.SHIPMENT_DELIVERED, "delivered");
@@ -97,18 +92,7 @@ public class ShipmentService implements ShipmentWorkflow {
         }
 
         if (expectedStatus == ShipmentStatus.PENDING) {
-            final Order order = requireOrder(advanced.getOrderNumber());
-            if (order.getStatus() != OrderStatus.CONFIRMED) {
-                throw new ApplicationConflictException("Only CONFIRMED orders can be dispatched");
-            }
-            if (getPaymentInPort.getPayment(order.getOrderNumber()).getStatus() != PaymentStatus.CAPTURED) {
-                throw new ApplicationConflictException("Only CAPTURED orders can be dispatched");
-            }
-            final String reservationId = order.getStockReservationId() == null
-                    ? order.getOrderNumber()
-                    : order.getStockReservationId();
-            order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
-            notify(advanced, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
+            dispatch(advanced);
             return advanced;
         }
 
@@ -116,6 +100,22 @@ public class ShipmentService implements ShipmentWorkflow {
             notify(advanced, NotificationType.SHIPMENT_DELIVERED, "delivered");
         }
         return advanced;
+    }
+
+    private void dispatch(final Shipment shipment) {
+
+        final Order order = requireOrder(shipment.getOrderNumber());
+        if (order.getStatus() != OrderStatus.CONFIRMED) {
+            throw new ApplicationConflictException("Only CONFIRMED orders can be dispatched");
+        }
+        if (getPaymentInPort.getPayment(order.getOrderNumber()).getStatus() != PaymentStatus.CAPTURED) {
+            throw new ApplicationConflictException("Only CAPTURED orders can be dispatched");
+        }
+        final String reservationId = order.getStockReservationId() == null
+                ? order.getOrderNumber()
+                : order.getStockReservationId();
+        order.getItems().forEach(item -> manageStockInPort.fulfillStock(reservationId, item.getSku()));
+        notify(shipment, NotificationType.SHIPMENT_DISPATCHED, "dispatched");
     }
 
     private void notify(final Shipment shipment, final NotificationType type, final String state) {

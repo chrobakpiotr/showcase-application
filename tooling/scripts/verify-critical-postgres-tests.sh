@@ -23,6 +23,7 @@ TESTS=(
   "com.cp.ecommerce.adapter.persistence.payment.reconciliation.RefundReturnContinuationFairnessPostgresIntegrationTest"
   "com.cp.ecommerce.application.OrderCancellationFinalizationPostgresIntegrationTest"
   "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest"
+  "com.cp.ecommerce.application.ShipmentDispatchRulesPostgresIntegrationTest"
 )
 
 RESULT_ROOT="apps/ecommerce/backend/build/test-results/test"
