@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
-import { ShipmentModel } from '@app/shipments/shipment.model';
+import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
 import { ShipmentsComponent } from '@app/shipments/shipments.component';
 import { ShipmentsService } from '@app/shipments/shipments.service';
 
@@ -26,12 +26,40 @@ describe('ShipmentsComponent', () => {
     _links: { 'advance-status': { href: '/api/shipments/SHIP-1/advance' } },
   };
 
-  function setup(roles: string[] = []): void {
-    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
+  function createShipmentsServiceSpy(): jasmine.SpyObj<ShipmentsService> {
+    const spy = jasmine.createSpyObj<ShipmentsService>('ShipmentsService', [
       'listShipments',
       'listShipmentsByStatus',
       'advanceShipmentStatus',
+      'getOrCreatePendingAdvanceOperation',
+      'clearPendingAdvanceOperation',
     ]);
+    const pending = new Map<
+      string,
+      { operationId: string; expectedStatus: ShipmentStatus }
+    >();
+
+    spy.getOrCreatePendingAdvanceOperation.and.callFake(
+      (shipmentNumber, expectedStatus) => {
+        const existing = pending.get(shipmentNumber);
+        if (existing) return existing;
+        const created = {
+          operationId: crypto.randomUUID(),
+          expectedStatus,
+        };
+        pending.set(shipmentNumber, created);
+        return created;
+      }
+    );
+    spy.clearPendingAdvanceOperation.and.callFake((shipmentNumber) => {
+      pending.delete(shipmentNumber);
+    });
+
+    return spy;
+  }
+
+  function setup(roles: string[] = []): void {
+    shipmentsServiceSpy = createShipmentsServiceSpy();
     shipmentsServiceSpy.listShipments.and.returnValue(
       of({ _embedded: { shipmentResourceList: [shipment] } })
     );
@@ -74,11 +102,7 @@ describe('ShipmentsComponent', () => {
   });
 
   it('defaults the list to an empty array when embedded collection is missing', () => {
-    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
-      'listShipments',
-      'listShipmentsByStatus',
-      'advanceShipmentStatus',
-    ]);
+    shipmentsServiceSpy = createShipmentsServiceSpy();
     shipmentsServiceSpy.listShipments.and.returnValue(of({}));
     shipmentsServiceSpy.listShipmentsByStatus.and.returnValue(of({}));
 
@@ -119,11 +143,7 @@ describe('ShipmentsComponent', () => {
   });
 
   it('sets an error message when loading shipments fails', () => {
-    shipmentsServiceSpy = jasmine.createSpyObj('ShipmentsService', [
-      'listShipments',
-      'listShipmentsByStatus',
-      'advanceShipmentStatus',
-    ]);
+    shipmentsServiceSpy = createShipmentsServiceSpy();
     shipmentsServiceSpy.listShipments.and.returnValue(
       throwError(() => new Error('failed'))
     );
@@ -180,6 +200,30 @@ describe('ShipmentsComponent', () => {
     expect(firstArgs[2]).toBe('PENDING');
     expect(secondArgs[1]).toBe(firstArgs[1]);
     expect(secondArgs[2]).toBe(firstArgs[2]);
+  });
+
+  it('retains unresolved operation identity after component recreation', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(
+      throwError(() => new Error('committed but response lost'))
+    );
+
+    component.advance('SHIP-1');
+    const firstArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(ShipmentsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.advance('SHIP-1');
+    const retryArgs =
+      shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+
+    expect(retryArgs[1]).toBe(firstArgs[1]);
+    expect(retryArgs[2]).toBe(firstArgs[2]);
+    expect(retryArgs[2]).toBe('PENDING');
   });
 
   it('drops a rejected shipment-page operation and retries from refreshed status after 409', () => {

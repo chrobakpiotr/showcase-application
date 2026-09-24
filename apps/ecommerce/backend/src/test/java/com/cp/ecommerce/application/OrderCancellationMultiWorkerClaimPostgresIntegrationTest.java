@@ -40,6 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "order.cancellation.recovery.poll-interval-ms=3600000" })
 class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
 
+    private static final long SCHEDULER_ISOLATION_SECONDS = 86_400L;
+
     @Container
     private static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.6").withDatabaseName("test_db")
             .withUsername("sa")
@@ -63,21 +65,22 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
     @Test
     void staleWorkerMustNotMutateSuccessOrFailureAfterLeaseTakeover() {
 
-        final Instant now = Instant.now();
+        final Instant wallClockNow = Instant.now();
+        final Instant firstClaimAt = wallClockNow.plusSeconds(SCHEDULER_ISOLATION_SECONDS);
         final String orderNumber = "B01-" + UUID.randomUUID().toString().replace("-", "");
         repository.saveAndFlush(
                 OutboxEventEntity.builder()
                         .orderNumber(orderNumber)
                         .status(OutboxEventStatus.CANCELLING)
-                        .createdDate(now.minusSeconds(1))
-                        .nextAttemptDate(now.minusSeconds(1))
-                        .cancellationNextAttemptDate(now.minusSeconds(1))
+                        .createdDate(wallClockNow.minusSeconds(1))
+                        .nextAttemptDate(wallClockNow.minusSeconds(1))
+                        .cancellationNextAttemptDate(firstClaimAt)
                         .build());
 
-        final OrderCancellationRecoveryClaim ownerA = recoveryOutPort.claim(orderNumber, now);
+        final OrderCancellationRecoveryClaim ownerA = recoveryOutPort.claim(orderNumber, firstClaimAt);
         assertThat(ownerA).isNotNull();
 
-        final Instant afterLeaseExpiry = now.plusSeconds(31);
+        final Instant afterLeaseExpiry = firstClaimAt.plusSeconds(31);
         final OrderCancellationRecoveryClaim ownerB = recoveryOutPort.claim(orderNumber, afterLeaseExpiry);
         assertThat(ownerB).isNotNull();
         assertThat(ownerB.claimId()).isNotEqualTo(ownerA.claimId());
@@ -99,18 +102,19 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
 
     @Test
     void shouldAllowOnlyOneWorkerToOwnCancellationRecoveryLease() throws Exception {
-        final Instant now = Instant.now();
+        final Instant wallClockNow = Instant.now();
+        final Instant claimAt = wallClockNow.plusSeconds(SCHEDULER_ISOLATION_SECONDS);
         final String orderNumber = "N15-" + UUID.randomUUID();
         repository.saveAndFlush(
                 OutboxEventEntity.builder()
                         .orderNumber(orderNumber)
                         .status(OutboxEventStatus.CANCELLING)
-                        .createdDate(now.minusSeconds(1))
-                        .nextAttemptDate(now.minusSeconds(1))
-                        .cancellationNextAttemptDate(now.minusSeconds(1))
+                        .createdDate(wallClockNow.minusSeconds(1))
+                        .nextAttemptDate(wallClockNow.minusSeconds(1))
+                        .cancellationNextAttemptDate(claimAt)
                         .build());
 
-        final Callable<OrderCancellationRecoveryClaim> claim = () -> recoveryOutPort.claim(orderNumber, now);
+        final Callable<OrderCancellationRecoveryClaim> claim = () -> recoveryOutPort.claim(orderNumber, claimAt);
         final List<OrderCancellationRecoveryClaim> results = new ArrayList<>();
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             final var firstWorker = executor.submit(claim);
@@ -121,7 +125,7 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
 
         assertThat(results.stream().filter(Objects::nonNull).count()).isEqualTo(1L);
         final OrderCancellationRecoveryClaim winner = results.stream().filter(Objects::nonNull).findFirst().orElseThrow();
-        recoveryOutPort.recordFailure(orderNumber, winner.claimId(), "retry", now);
+        recoveryOutPort.recordFailure(orderNumber, winner.claimId(), "retry", claimAt);
 
         final OutboxEventEntity persisted = repository.findAll()
                 .stream()

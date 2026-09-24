@@ -38,10 +38,6 @@ export class ShipmentsComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly filterChanges = new Subject<'ALL' | ShipmentStatus>();
   private readonly pageSize = 20;
-  private readonly pendingAdvanceOperations = new Map<
-    string,
-    { operationId: string; expectedStatus: ShipmentStatus }
-  >();
 
   readonly shipments = signal<ShipmentModel[]>([]);
   readonly loading = signal(false);
@@ -131,11 +127,10 @@ export class ShipmentsComponent implements OnInit {
       return;
     }
 
-    const pending = this.pendingAdvanceOperations.get(shipmentNumber) ?? {
-      operationId: crypto.randomUUID(),
-      expectedStatus: current.status,
-    };
-    this.pendingAdvanceOperations.set(shipmentNumber, pending);
+    const pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(
+      shipmentNumber,
+      current.status
+    );
 
     this.shipmentsService
       .advanceShipmentStatus(
@@ -149,12 +144,12 @@ export class ShipmentsComponent implements OnInit {
       )
       .subscribe({
         next: () => {
-          this.pendingAdvanceOperations.delete(shipmentNumber);
+          this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber);
           this.filterChanges.next(this.selectedStatus());
         },
         error: (error: unknown) => {
           if (isDefinitiveShipmentAdvanceConflict(error)) {
-            this.pendingAdvanceOperations.delete(shipmentNumber);
+            this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber);
             this.filterChanges.next(this.selectedStatus());
           }
           this.actionErrorMessage.set('Failed to advance shipment status.');

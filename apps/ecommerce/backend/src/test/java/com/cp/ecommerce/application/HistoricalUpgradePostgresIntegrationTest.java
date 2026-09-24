@@ -14,6 +14,7 @@ import java.util.Objects;
 
 import javax.sql.DataSource;
 
+import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.payment.PaymentRefundStatus;
 import com.cp.ecommerce.domain.payment.RefundReturnContinuationIntent;
@@ -21,7 +22,6 @@ import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
-import com.cp.ecommerce.domain.shipment.port.incoming.AdvanceShipmentStatusInPort;
 import com.cp.ecommerce.domain.shipment.port.incoming.GetShipmentInPort;
 import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 
@@ -199,7 +199,7 @@ class HistoricalUpgradePostgresIntegrationTest {
                     .isEqualTo(PaymentRefundStatus.COMPLETED.name());
 
             final GetShipmentInPort getShipment = context.getBean(GetShipmentInPort.class);
-            final AdvanceShipmentStatusInPort advanceShipment = context.getBean(AdvanceShipmentStatusInPort.class);
+            final ShipmentWorkflow shipmentWorkflow = context.getBean(ShipmentWorkflow.class);
 
             assertThat(getShipment.getShipment(SHIPMENT_NUMBER).getLastOperationId()).isEqualTo(LEGACY_OPERATION);
             assertThat(
@@ -210,8 +210,7 @@ class HistoricalUpgradePostgresIntegrationTest {
                     .isZero();
 
             assertThatThrownBy(
-                    () -> advanceShipment
-                            .advanceShipmentStatusWithResult(SHIPMENT_NUMBER, LEGACY_OPERATION, ShipmentStatus.PENDING))
+                    () -> shipmentWorkflow.advanceShipment(SHIPMENT_NUMBER, LEGACY_OPERATION, ShipmentStatus.PENDING))
                     .isInstanceOf(ShipmentConflictException.class)
                     .hasMessageContaining("expected PENDING but is DISPATCHED");
         }

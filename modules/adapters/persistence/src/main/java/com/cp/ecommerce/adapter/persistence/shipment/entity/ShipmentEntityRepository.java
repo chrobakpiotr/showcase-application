@@ -7,6 +7,11 @@ import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 /**
  * Spring Data repository for {@link ShipmentEntity}.
@@ -14,6 +19,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ShipmentEntityRepository extends JpaRepository<ShipmentEntity, String> {
 
     ShipmentEntity findByShipmentNumber(String shipmentNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select shipment from ShipmentEntity shipment where shipment.shipmentNumber = :shipmentNumber")
+    ShipmentEntity findByShipmentNumberForUpdate(@Param("shipmentNumber") String shipmentNumber);
 
     ShipmentEntity findByOrderNumber(String orderNumber);
 

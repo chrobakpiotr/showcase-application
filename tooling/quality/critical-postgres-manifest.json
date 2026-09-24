@@ -427,6 +427,18 @@
       "scenario": "recovery timeline exact order scope resists SQL wildcards and excludes sensitive recovery fields",
       "suite": "com.cp.ecommerce.adapter.persistence.order.recovery.OrderRecoveryTimelinePostgresIntegrationTest",
       "testMethod": "exactOrderScopeMustResistSqlWildcardsAndExcludeSensitiveFields"
+    },
+    {
+      "ac": "AC-OUTBOX-MULTIWORKER-04",
+      "scenario": "late capture is compensated when durable cancellation wins before payment preparation",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "cancellationWinningBeforeCapturePrepareMustCompensateLateCapture"
+    },
+    {
+      "ac": "AC-SHIPMENT-OPERATION-IDENTITY-03",
+      "scenario": "concurrent identical shipment commands serialize and both return canonical replay",
+      "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",
+      "testMethod": "concurrentIdenticalCommandsMustBothReplayCanonicalResult"
     }
   ]
 }

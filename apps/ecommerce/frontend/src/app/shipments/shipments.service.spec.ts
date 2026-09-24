@@ -54,6 +54,29 @@ describe('ShipmentsService', () => {
     expect(shipmentsService).toBeTruthy();
   });
 
+  it('retains unresolved operation identity until explicitly cleared', () => {
+    const first = shipmentsService.getOrCreatePendingAdvanceOperation(
+      'SHIP-1',
+      'PENDING'
+    );
+    const replay = shipmentsService.getOrCreatePendingAdvanceOperation(
+      'SHIP-1',
+      'DISPATCHED'
+    );
+
+    expect(replay.operationId).toBe(first.operationId);
+    expect(replay.expectedStatus).toBe('PENDING');
+
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1');
+    const next = shipmentsService.getOrCreatePendingAdvanceOperation(
+      'SHIP-1',
+      'DISPATCHED'
+    );
+
+    expect(next.operationId).not.toBe(first.operationId);
+    expect(next.expectedStatus).toBe('DISPATCHED');
+  });
+
   it('lists shipments', () => {
     const response: ShipmentCollectionModel = {
       _embedded: { shipmentResourceList: [shipment] },

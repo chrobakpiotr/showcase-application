@@ -23,6 +23,7 @@ import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.application.order.CancelOrderWorkflow;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.PaymentMethod;
@@ -73,6 +74,9 @@ import static org.mockito.Mockito.verify;
 @TestPropertySource(
         properties = {
                 "outbox.publisher.enabled=false",
+                "payment.reconciliation.enabled=false",
+                "order.cancellation.recovery.poll-interval-ms=3600000",
+                "notification.retry.enabled=false",
                 "resilience4j.ratelimiter.instances.placeOrder.limit-for-period=1000" })
 class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
@@ -86,6 +90,9 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
     @Autowired
     private OrderController orderController;
+
+    @Autowired
+    private CancelOrderWorkflow cancelOrderWorkflow;
 
     @Autowired
     private CatalogProductFixture catalogProductFixture;
@@ -211,6 +218,54 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
         assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
         verify(managePaymentInPort, never()).refundPayment(orderNumber);
         verify(fulfillment, times(1)).sendMessage(any(Order.class));
+    }
+
+    @Test
+    void cancellationWinningBeforeCapturePrepareMustCompensateLateCapture() throws Exception {
+
+        final String sku = "S22-F1-" + compactUuid();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+
+        final CountDownLatch beforePrepare = new CountDownLatch(1);
+        final CountDownLatch resumeCapture = new CountDownLatch(1);
+
+        doAnswer(invocation -> {
+            beforePrepare.countDown();
+            if (!resumeCapture.await(20, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to resume late capture");
+            }
+            return invocation.callRealMethod();
+        }).when(managePaymentInPort).capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
+
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        final OrderPlacementSagaOrchestrator worker = newOrchestrator(fulfillment);
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<?> running = executor.submit(worker::publishPendingEvents);
+            try {
+                assertThat(beforePrepare.await(10, TimeUnit.SECONDS)).isTrue();
+
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    final OutboxEventEntity row = outboxEventEntityRepository.findByOrderNumberForUpdate(orderNumber)
+                            .orElseThrow();
+                    row.setClaimUntil(Instant.EPOCH);
+                    outboxEventEntityRepository.save(row);
+                });
+
+                cancelOrderWorkflow.cancelOrder(orderNumber);
+                assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+            } finally {
+                resumeCapture.countDown();
+            }
+            running.get(20, TimeUnit.SECONDS);
+        }
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus())
+                .as("late capture must be compensated when durable cancellation already won")
+                .isEqualTo(PaymentStatus.REFUNDED);
+        assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+        verify(fulfillment, never()).sendMessage(any(Order.class));
     }
 
     @Test

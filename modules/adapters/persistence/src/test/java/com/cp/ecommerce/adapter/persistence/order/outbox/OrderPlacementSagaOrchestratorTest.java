@@ -700,6 +700,47 @@ class OrderPlacementSagaOrchestratorTest {
     }
 
     @Test
+    void shouldRefundLateCaptureWhenDurableCancellationAlreadyWon() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(58L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity cancelled = OutboxEventEntity.builder()
+                .id(58L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.CANCELLED)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate), Optional.of(cancelled), Optional.of(cancelled))
+                .when(outboxEventEntityRepository)
+                .findByIdForUpdate(58L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .method(order.getPaymentMethod())
+                        .status(PaymentStatus.CAPTURED)
+                        .gatewayReference("gw-cancelled")
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verify(managePaymentInPort).refundPayment(order.getOrderNumber());
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(cancelled.getStatus()).isEqualTo(OutboxEventStatus.CANCELLED);
+    }
+
+    @Test
     void shouldNotRefundLateCaptureWhenHealthyWorkerTakesOver() {
 
         final Order order = OrderBuilder.mockOrder();
@@ -740,6 +781,46 @@ class OrderPlacementSagaOrchestratorTest {
         verifyNoInteractions(sendMessageInPort);
         assertThat(newerOwner.getStatus()).isEqualTo(OutboxEventStatus.PROCESSING);
         assertThat(newerOwner.getClaimId()).isEqualTo(NEWER_WORKER_CLAIM_ID);
+    }
+
+    @Test
+    void shouldNotAttemptCompensationForLateCaptureThatIsAlreadyRefunded() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity candidate = OutboxEventEntity.builder()
+                .id(59L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+        final OutboxEventEntity cancelled = OutboxEventEntity.builder()
+                .id(59L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.CANCELLED)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(candidate));
+        doReturn(Optional.of(candidate), Optional.of(candidate), Optional.of(cancelled)).when(outboxEventEntityRepository)
+                .findByIdForUpdate(59L);
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(managePaymentInPort.capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod())).thenReturn(
+                PaymentTransaction.builder()
+                        .orderNumber(order.getOrderNumber())
+                        .amount(order.getTotal())
+                        .method(order.getPaymentMethod())
+                        .status(PaymentStatus.REFUNDED)
+                        .gatewayReference("gw-refunded")
+                        .build());
+
+        newOrchestrator().publishPendingEvents();
+
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+        verifyNoInteractions(sendMessageInPort);
+        assertThat(cancelled.getStatus()).isEqualTo(OutboxEventStatus.CANCELLED);
     }
 
     @Test

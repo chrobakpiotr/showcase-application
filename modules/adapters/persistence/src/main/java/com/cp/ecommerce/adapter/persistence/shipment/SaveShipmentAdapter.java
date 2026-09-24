@@ -48,6 +48,12 @@ class SaveShipmentAdapter implements SaveShipmentOutPort {
     }
 
     @Override
+    public void lockShipment(final String shipmentNumber) {
+
+        shipmentEntityRepository.findByShipmentNumberForUpdate(shipmentNumber);
+    }
+
+    @Override
     public ShipmentOperation findOperation(final String operationId) {
 
         return shipmentOperationEntityRepository.findById(operationId).map(SaveShipmentAdapter::toOperation).orElse(null);

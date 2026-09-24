@@ -10,6 +10,11 @@ import {
   ShipmentStatus,
 } from '@app/shipments/shipment.model';
 
+export interface PendingShipmentAdvanceOperation {
+  operationId: string;
+  expectedStatus: ShipmentStatus;
+}
+
 export function isDefinitiveShipmentAdvanceConflict(error: unknown): boolean {
   return error instanceof HttpErrorResponse && error.status === 409;
 }
@@ -17,6 +22,29 @@ export function isDefinitiveShipmentAdvanceConflict(error: unknown): boolean {
 @Injectable({ providedIn: 'root' })
 export class ShipmentsService {
   private readonly httpClient = inject(HttpClient);
+  private readonly pendingAdvanceOperations = new Map<
+    string,
+    PendingShipmentAdvanceOperation
+  >();
+
+  getOrCreatePendingAdvanceOperation(
+    shipmentNumber: string,
+    expectedStatus: ShipmentStatus
+  ): PendingShipmentAdvanceOperation {
+    const existing = this.pendingAdvanceOperations.get(shipmentNumber);
+    if (existing) return existing;
+
+    const created = {
+      operationId: crypto.randomUUID(),
+      expectedStatus,
+    };
+    this.pendingAdvanceOperations.set(shipmentNumber, created);
+    return created;
+  }
+
+  clearPendingAdvanceOperation(shipmentNumber: string): void {
+    this.pendingAdvanceOperations.delete(shipmentNumber);
+  }
 
   listShipments(
     page?: number,

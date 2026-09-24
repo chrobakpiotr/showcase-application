@@ -13,7 +13,9 @@ import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentEntity;
 import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentEntityRepository;
 import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentOperationEntity;
 import com.cp.ecommerce.adapter.persistence.shipment.entity.ShipmentOperationEntityRepository;
+import com.cp.ecommerce.application.shipment.ShipmentWorkflow;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.domain.shipment.Shipment;
 import com.cp.ecommerce.domain.shipment.ShipmentOperation;
 import com.cp.ecommerce.domain.shipment.ShipmentStatus;
 import com.cp.ecommerce.domain.shipment.port.outgoing.SaveShipmentOutPort;
@@ -54,6 +56,9 @@ class ShipmentOperationIdentityRacePostgresIntegrationTest {
 
     @Autowired
     private SaveShipmentOutPort saveShipmentOutPort;
+
+    @Autowired
+    private ShipmentWorkflow shipmentWorkflow;
 
     @Autowired
     private ShipmentEntityRepository shipmentRepository;
@@ -110,6 +115,36 @@ class ShipmentOperationIdentityRacePostgresIntegrationTest {
         }
     }
 
+    @Test
+    void concurrentIdenticalCommandsMustBothReplayCanonicalResult() throws Exception {
+
+        final String operationId = "s22-f2-same-" + compactUuid();
+        final String shipmentNumber = persistShipment(ShipmentStatus.DISPATCHED);
+        final CyclicBarrier start = new CyclicBarrier(2);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            final Future<Shipment> first = executor.submit(() -> {
+                start.await(10, TimeUnit.SECONDS);
+                return shipmentWorkflow.advanceShipment(shipmentNumber, operationId, ShipmentStatus.DISPATCHED);
+            });
+            final Future<Shipment> second = executor.submit(() -> {
+                start.await(10, TimeUnit.SECONDS);
+                return shipmentWorkflow.advanceShipment(shipmentNumber, operationId, ShipmentStatus.DISPATCHED);
+            });
+
+            final List<Shipment> results = List.of(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+
+            assertThat(results).extracting(Shipment::getStatus).containsOnly(ShipmentStatus.IN_TRANSIT);
+            assertThat(results).extracting(Shipment::getLastOperationId).containsOnly(operationId);
+            assertThat(operationRepository.findById(operationId)).isPresent();
+            assertThat(shipmentRepository.findByShipmentNumber(shipmentNumber).getStatus())
+                    .isEqualTo(ShipmentStatus.IN_TRANSIT);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private Attempt saveAfterBarrier(final CyclicBarrier start, final ShipmentOperation operation) throws Exception {
         start.await(10, TimeUnit.SECONDS);
         try {
@@ -121,6 +156,12 @@ class ShipmentOperationIdentityRacePostgresIntegrationTest {
     }
 
     private String persistShipment() {
+
+        return persistShipment(ShipmentStatus.PENDING);
+    }
+
+    private String persistShipment(final ShipmentStatus status) {
+
         final String shipmentNumber = "SHIP-" + UUID.randomUUID();
         final String orderNumber = "ORD-" + UUID.randomUUID();
         shipmentRepository.saveAndFlush(
@@ -129,7 +170,9 @@ class ShipmentOperationIdentityRacePostgresIntegrationTest {
                         .orderNumber(orderNumber)
                         .carrier("S22-03-CARRIER")
                         .trackingNumber("TRACK-" + compactUuid())
-                        .status(ShipmentStatus.PENDING)
+                        .status(status)
+                        .dispatchedDate(status == ShipmentStatus.PENDING ? null : DISPATCHED)
+                        .estimatedDeliveryDate(status == ShipmentStatus.PENDING ? null : ESTIMATED)
                         .createdDate(DISPATCHED.minusSeconds(60))
                         .version(0)
                         .build());

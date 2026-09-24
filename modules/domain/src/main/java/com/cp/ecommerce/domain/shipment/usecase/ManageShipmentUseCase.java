@@ -90,6 +90,7 @@ public class ManageShipmentUseCase
             final String operationId,
             final ShipmentStatus expectedStatus) {
 
+        saveShipmentOutPort.lockShipment(shipmentNumber);
         final Shipment existing = findShipmentOutPort.findByShipmentNumber(shipmentNumber);
         if (existing == null) {
             return null;

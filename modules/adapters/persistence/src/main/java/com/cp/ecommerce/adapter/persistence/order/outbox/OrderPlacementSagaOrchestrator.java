@@ -177,6 +177,7 @@ public class OrderPlacementSagaOrchestrator {
             if (!ownsPlacementClaim(claim)) {
                 sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
                 log.warn("Placement claim was lost during payment capture for order: {}", order.getOrderNumber());
+                compensateLateCaptureIfCancellationWon(order, claim, payment);
                 return false;
             }
 
@@ -226,6 +227,36 @@ public class OrderPlacementSagaOrchestrator {
                         })
                         .orElse(false));
         return Boolean.TRUE.equals(renewed);
+    }
+
+    private void compensateLateCaptureIfCancellationWon(
+            final Order order,
+            final SagaClaim claim,
+            final PaymentTransaction payment) {
+
+        if (payment.getStatus() != PaymentStatus.CAPTURED && payment.getStatus() != PaymentStatus.PARTIALLY_REFUNDED) {
+            return;
+        }
+
+        final Boolean cancellationWon = transactionOperations.execute(
+                status -> outboxEventEntityRepository.findByIdForUpdate(claim.eventId())
+                        .map(event -> cancellationOrCompensationWon(event.getStatus()))
+                        .orElse(false));
+
+        if (Boolean.TRUE.equals(cancellationWon)) {
+            log.warn(
+                    "Compensating late payment capture after durable cancellation/compensation won for order: {}",
+                    order.getOrderNumber());
+            managePaymentInPort.refundPayment(order.getOrderNumber());
+        }
+    }
+
+    private static boolean cancellationOrCompensationWon(final OutboxEventStatus status) {
+
+        return switch (status) {
+        case CANCELLING, CANCELLED, COMPENSATING, COMPENSATED -> true;
+        default -> false;
+        };
     }
 
     // Pivot/compensable saga step: bounded-retry, and once exhausted, compensates instead of retrying forever.

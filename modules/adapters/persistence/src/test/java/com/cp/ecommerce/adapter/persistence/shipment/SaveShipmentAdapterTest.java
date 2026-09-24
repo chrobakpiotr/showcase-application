@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 
 /**
  * Test class for {@link SaveShipmentAdapter}.
@@ -47,6 +48,14 @@ class SaveShipmentAdapterTest {
         final Shipment result = saveShipmentAdapter.save(shipment);
 
         assertEquals(shipment, result);
+    }
+
+    @Test
+    void shouldAcquireShipmentRowLockForOperationAwareCommand() {
+
+        saveShipmentAdapter.lockShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
+
+        verify(shipmentEntityRepository).findByShipmentNumberForUpdate(ShipmentBuilder.TEST_SHIPMENT_NUMBER);
     }
 
     @Test

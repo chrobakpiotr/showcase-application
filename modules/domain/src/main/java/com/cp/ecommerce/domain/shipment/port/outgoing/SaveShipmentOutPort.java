@@ -10,6 +10,11 @@ public interface SaveShipmentOutPort {
 
     Shipment save(Shipment shipment);
 
+    /**
+     * Serializes one operation-aware shipment command inside the caller's transaction.
+     */
+    void lockShipment(String shipmentNumber);
+
     ShipmentOperation findOperation(String operationId);
 
     void saveOperation(ShipmentOperation operation);
