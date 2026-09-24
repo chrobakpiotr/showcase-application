@@ -34,7 +34,7 @@ document-only and not selected by `harness.py validate-all`.
 | Q03 cancellation | IMPLEMENTED + TESTED; terminal fencing plus notification enqueue are one transaction and WAITING_FOR_REFUND is retryable; independent review remains pending |
 | Q04 shipment | IMPLEMENTED + TESTED; immutable operation identity, dispatch rule parity, atomic rollback and UI 409 retry semantics are covered; independent review remains pending |
 | Q05 refund entitlement | IMPLEMENTED + TESTED; persisted refund entitlement is conserved and rejected allocation is released exactly; independent review remains pending |
-| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap, transactional cancellation rollback, durable AMQP consumer receipts and real-broker republish/redelivery evidence are covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
+| Q06 notification | CORE + placement dispatch IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap, transactional cancellation rollback, durable AMQP consumer receipts, real-broker republish/redelivery evidence, and durable SMTP/Camel dispatch ownership are covered. SMTP is at-least-once under ambiguous outcome and Camel is a local durable-handoff demo; no provider-level exactly-once SMTP/Camel delivery is claimed |
 
 Key implementation corrections now reflected by the contract:
 
@@ -55,6 +55,8 @@ Key implementation corrections now reflected by the contract:
 - Q06 core evidence now includes PostgreSQL enqueue/delivery overlap: re-enqueue during an active delivery claim/finalize
   preserves one durable row and cannot regress SENT delivery state. Cancellation finalization already proves that terminal
   business state plus notification enqueue roll back together on notification persistence failure.
+- S22-08d1 moves placement confirmation email and Camel routing behind durable dispatch rows with stable identity, short owner claims, external I/O outside the claim transaction, and owner-fenced finalization. The SMTP/Camel adapters execute one attempt; durable worker recovery owns retries.
+- S22-08d2 makes the external boundary explicit: SMTP is at-least-once when outcome is ambiguous, the stable `Message-ID` is correlation only, and Camel's local `file:` route is showcase handoff evidence rather than a provider-level exactly-once guarantee. See `docs/runbooks/order-placement-external-delivery.md`.
 - Q06 AMQP evidence uses real PostgreSQL plus RabbitMQ: a broker-accepted publish can be repeated after placement owner loss under the same `operationId`, and a committed consumer receipt can be redelivered after connection loss before ACK. Both paths converge on one durable fulfillment receipt and preserve captured-payment state; broker acceptance is not consumer business commit.
 
 ## Goal
@@ -283,11 +285,22 @@ Concurrent enqueue and delivery leave one durable record and an already `SENT` r
 cannot become `PENDING`.
 
 ### AC-Q06-PLACEMENT-REPLAY
-If placement loses its lease after a customer-facing notification became externally
-visible but before the placement outbox row is durably completed, takeover/replay does
-not create a second logical customer notification. Placement confirmation email and
-routed customer notification must either use the durable Q06 event identity or an
-equivalent provider-level idempotency contract. A1 does not own this change.
+If placement loses its lease after the placement tail begins, takeover/replay uses the
+same durable dispatch identity for the same order and dispatch type. Only one worker may
+own a dispatch attempt at a time, stale owners cannot finalize another worker's claim,
+and a durably `SENT` dispatch is not reopened by placement replay.
+
+This local protocol does not upgrade an external provider contract. SMTP has no
+provider idempotency/query capability in this repository, so an ambiguous send is
+at-least-once and may be externally duplicated; its stable `Message-ID` is correlation
+evidence, not exactly-once proof. Camel currently demonstrates a local `file:` handoff
+and likewise carries no provider-level exactly-once claim. A1 does not own this change.
+
+### AC-Q06-EXTERNAL-CONTRACT
+The adapter performs one external attempt per durable dispatch attempt. Retry ownership
+belongs to the durable placement-dispatch worker, not a nested adapter retry loop.
+Documentation and operational evidence distinguish accepted/rejected/ambiguous outcomes
+and never infer that absence of a local `SENT` record proves the provider did not act.
 
 ## Required evidence before this feature can be called complete
 

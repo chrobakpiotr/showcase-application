@@ -204,6 +204,8 @@ top of Apache Camel:
   under the `routeOrderNotification` circuit breaker/retry instance.
 - Enabled via `service.camel.enabled` (default `true`, see `application-camel.yml`); when disabled,
   `DoNotRouteOrderNotificationAdapter` is used instead and no `CamelContext` is created.
+- The local `file:` terminal endpoints are showcase handoff evidence, not a provider-level exactly-once guarantee.
+- See [the placement external-delivery runbook](docs/runbooks/order-placement-external-delivery.md) for retry and ambiguity semantics.
 - See [ADR 0008](docs/adr/0008-apache-camel-for-order-notification-routing.md) for the full
   rationale.
 
@@ -507,11 +509,11 @@ ECS-formatted JSON, correctly parsed by Alloy, and searchable/cross-linkable in 
 
 ## Resilience
 
-The outbound integrations that talk to external systems - RabbitMQ (`SendOrderMessageAdapter`), SMTP
-(`SendEmailAdapter`), AWS SQS (`PublishOrderAuditEventAdapter`), Kafka (`PublishOrderAnalyticsEventAdapter`) and
-Apache Camel (`RouteOrderNotificationAdapter`) -
-are wrapped with a circuit breaker and retry, implemented with
-[resilience4j](https://resilience4j.readme.io/). The registries and the reusable `ResilientExecutor` helper live in
+Outbound resilience is intentionally integration-specific. RabbitMQ and selected best-effort/cloud
+adapters still use resilience4j where their contract calls for it. Placement confirmation SMTP
+(`SendEmailAdapter`) and Camel routing (`RouteOrderNotificationAdapter`) are different: each adapter performs
+one external attempt, while the durable placement-dispatch worker owns retries and stable replay identity.
+This avoids a hidden retry loop inside a durable retry loop. The registries and the reusable `ResilientExecutor` helper live in
 `adapter:common` (`com.cp.ecommerce.adapter.common.resilience`), so all adapters share the same defaults:
 
 - Retry: up to 3 attempts with exponential backoff starting at 500ms (2x multiplier), ±25% jitter to avoid synchronized retry storms, and a 5s cap.

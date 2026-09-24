@@ -106,7 +106,9 @@ operations:
     action: receive
     channel:
       $ref: '#/channels/order-topic'
-    summary: Consumed by MessageListener (adapter:amqp) through a durable operationId-keyed fulfillment receipt/inbox.
+    summary: >
+      Consumed by MessageListener (adapter:amqp) through a durable operationId-keyed fulfillment
+      receipt/inbox. Broker delivery/ACK semantics are not the business exactly-once boundary.
     messages:
       - $ref: '#/channels/order-topic/messages/orderPlaced'
 
@@ -181,11 +183,17 @@ components:
       properties:
         schemaVersion:
           type: string
-          description: Schema version of this message payload, for forward-compatible evolution.
+          description: >
+            Exact wire-contract version. The current consumer accepts `1.0`; a missing or different
+            version is rejected rather than silently upgraded. Compatibility changes require an
+            explicit versioned migration and matching producer/consumer contract tests.
           example: '1.0'
         operationId:
           type: string
-          description: Stable logical fulfillment identity used for consumer deduplication and replay.
+          description: >
+            Required stable logical fulfillment identity. The same logical fulfillment is replayed
+            with the same operationId; the consumer persists an operationId-keyed receipt/inbox and
+            rejects missing identity instead of synthesizing a legacy one.
         created:
           type: string
           format: date-time

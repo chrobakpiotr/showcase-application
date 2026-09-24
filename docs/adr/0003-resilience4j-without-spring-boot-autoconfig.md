@@ -2,9 +2,10 @@
 
 ## Context
 
-The two outbound integrations that talk to external systems synchronously from a request/scheduled
-context - RabbitMQ (`SendOrderMessageAdapter`) and SMTP (`SendEmailAdapter`) - needed circuit
-breaker and retry protection, since a slow/unavailable broker or mail server should not be able to
+Historically the synchronous RabbitMQ (`SendOrderMessageAdapter`) and SMTP (`SendEmailAdapter`)
+paths both used circuit-breaker/retry protection. After durable placement dispatch was introduced,
+SMTP intentionally became one-attempt at the adapter boundary; its retries are now owned by the
+durable placement-dispatch worker. RabbitMQ retains its own publisher resilience contract, since a slow/unavailable broker or mail server should not be able to
 degrade the whole application. Resilience4j offers a `spring-boot-3` autoconfiguration starter that
 wires registries, AOP aspects and Micrometer binding automatically from YAML properties.
 

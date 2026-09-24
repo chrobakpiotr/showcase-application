@@ -54,3 +54,13 @@ Introduce a new `adapter:camel` module that follows the exact same opt-in adapte
   0007.
 - Adds `camel-spring-boot-starter` and `camel-file-starter` as new dependencies, pinned via the
   `camel-spring-boot-bom` (version chosen to match this repo's Spring Boot version exactly).
+
+## Delivery semantics after durable placement dispatch
+
+The route remains an opt-in showcase for Camel EIPs, but placement replay is now driven by the
+durable placement-dispatch worker. `RouteOrderNotificationAdapter` performs one handoff attempt per
+dispatch attempt; it does not add a nested resilience retry loop.
+
+The terminal local `file:` endpoints demonstrate routing and local handoff only. They are not a
+provider idempotency/query contract and must not be cited as provider-level exactly-once evidence.
+See `docs/runbooks/order-placement-external-delivery.md`.
