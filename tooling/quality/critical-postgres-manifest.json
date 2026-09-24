@@ -355,6 +355,24 @@
       "scenario": "frozen d702f9c schema upgrades through current master with safe refund and shipment recovery semantics",
       "suite": "com.cp.ecommerce.application.HistoricalUpgradePostgresIntegrationTest",
       "testMethod": "shouldUpgradeFrozenD702f9cDataAndExposeSafeRecoveryContract"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-07",
+      "scenario": "historical active refund amount remains immutable while only the remaining minor units are allocated",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldPreserveHistoricalActiveAmountAndAllocateOnlyRemainingMinorUnits"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-08",
+      "scenario": "reject releases its persisted amount across mixed requested approved and refunded active states",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldReleaseRejectedAmountAcrossMixedActiveStates"
+    },
+    {
+      "ac": "AC-RETURN-CONCURRENCY-09",
+      "scenario": "two concurrent entitlement requests conserve the same minor-unit total",
+      "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
+      "testMethod": "shouldConserveMinorUnitsAcrossTwoConcurrentEntitlementRequests"
     }
   ]
 }

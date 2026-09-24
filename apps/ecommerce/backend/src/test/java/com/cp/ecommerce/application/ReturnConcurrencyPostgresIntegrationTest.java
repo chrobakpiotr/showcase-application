@@ -207,6 +207,77 @@ class ReturnConcurrencyPostgresIntegrationTest {
     }
 
     @Test
+    void shouldPreserveHistoricalActiveAmountAndAllocateOnlyRemainingMinorUnits() {
+
+        final String sku = shortSku("Q07H");
+        final String orderNumber = placeOrder(sku, 3);
+        final BigDecimal entitlement = new BigDecimal("0.05");
+
+        final ReturnRequest historical = requestReturnInPort.requestReturn(
+                new ReturnRequestCommand(orderNumber, sku, 1, 3, "historical persisted amount", new BigDecimal("0.01")));
+        final ReturnRequest remaining = requestFromLineEntitlement(orderNumber, sku, 2, 3, entitlement);
+
+        assertThat(historical.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertThat(remaining.getRefundAmount()).isEqualByComparingTo("0.04");
+        assertIndependentLedgerModel(orderNumber, 3, entitlement);
+    }
+
+    @Test
+    void shouldReleaseRejectedAmountAcrossMixedActiveStates() {
+
+        final String sku = shortSku("Q07M");
+        final String orderNumber = placeOrder(sku, 4);
+        final BigDecimal entitlement = new BigDecimal("0.05");
+
+        final ReturnRequest first = requestFromLineEntitlement(orderNumber, sku, 1, 4, entitlement);
+        final ReturnRequest second = requestFromLineEntitlement(orderNumber, sku, 1, 4, entitlement);
+        final ReturnRequest third = requestFromLineEntitlement(orderNumber, sku, 1, 4, entitlement);
+
+        returnModerationInPort.approveReturn(first.getReturnNumber());
+        returnModerationInPort.markRefunded(first.getReturnNumber());
+        returnModerationInPort.approveReturn(third.getReturnNumber());
+        final ReturnRequest rejected = returnModerationInPort.rejectReturn(second.getReturnNumber());
+
+        final ReturnRequest replacement = requestFromLineEntitlement(orderNumber, sku, 1, 4, entitlement);
+        final ReturnRequest finalUnit = requestFromLineEntitlement(orderNumber, sku, 1, 4, entitlement);
+
+        assertThat(rejected.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertThat(replacement.getRefundAmount()).isEqualByComparingTo(rejected.getRefundAmount());
+        assertThat(finalUnit.getRefundAmount()).isEqualByComparingTo("0.01");
+        assertIndependentLedgerModel(orderNumber, 4, entitlement);
+    }
+
+    @Test
+    void shouldConserveMinorUnitsAcrossTwoConcurrentEntitlementRequests() throws Exception {
+
+        final String sku = shortSku("Q07C");
+        final String orderNumber = placeOrder(sku, 2);
+        final BigDecimal entitlement = new BigDecimal("0.01");
+        final CountDownLatch ready = new CountDownLatch(2);
+        final CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<ReturnRequest> first = executor
+                    .submit(() -> requestEntitlementAfterBarrier(orderNumber, sku, 2, entitlement, ready, start));
+            final Future<ReturnRequest> second = executor
+                    .submit(() -> requestEntitlementAfterBarrier(orderNumber, sku, 2, entitlement, ready, start));
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            final ReturnRequest firstResult = first.get(10, TimeUnit.SECONDS);
+            final ReturnRequest secondResult = second.get(10, TimeUnit.SECONDS);
+
+            assertThat(firstResult.getRefundAmount().add(secondResult.getRefundAmount())).isEqualByComparingTo(entitlement);
+            assertThat(List.of(firstResult.getRefundAmount(), secondResult.getRefundAmount()))
+                    .anySatisfy(amount -> assertThat(amount).isEqualByComparingTo("0.01"))
+                    .anySatisfy(amount -> assertThat(amount).isEqualByComparingTo("0.00"));
+        }
+
+        assertIndependentLedgerModel(orderNumber, 2, entitlement);
+    }
+
+    @Test
     void shouldAllowOnlyOneConcurrentApproveOrRejectDecision() throws Exception {
 
         final String sku = shortSku("R05C");
@@ -305,14 +376,57 @@ class ReturnConcurrencyPostgresIntegrationTest {
             final int orderedQuantity,
             final BigDecimal fullLineEntitlement) {
 
+        return requestFromLineEntitlement(orderNumber, sku, 1, orderedQuantity, fullLineEntitlement);
+    }
+
+    private ReturnRequest requestFromLineEntitlement(
+            final String orderNumber,
+            final String sku,
+            final int requestedQuantity,
+            final int orderedQuantity,
+            final BigDecimal fullLineEntitlement) {
+
         return requestReturnInPort.requestReturnFromLineEntitlement(
                 new ReturnRequestCommand(
                         orderNumber,
                         sku,
-                        1,
+                        requestedQuantity,
                         orderedQuantity,
-                        "Q05 entitlement conservation",
+                        "Q05/Q07 entitlement conservation",
                         fullLineEntitlement));
+    }
+
+    private ReturnRequest requestEntitlementAfterBarrier(
+            final String orderNumber,
+            final String sku,
+            final int orderedQuantity,
+            final BigDecimal fullLineEntitlement,
+            final CountDownLatch ready,
+            final CountDownLatch start) {
+
+        awaitBarrier(ready, start);
+        return requestFromLineEntitlement(orderNumber, sku, 1, orderedQuantity, fullLineEntitlement);
+    }
+
+    private void assertIndependentLedgerModel(
+            final String orderNumber,
+            final int orderedQuantity,
+            final BigDecimal fullLineEntitlement) {
+
+        final List<ReturnRequest> active = listReturnsInPort.listReturnsForOrder(orderNumber)
+                .stream()
+                .filter(candidate -> candidate.getStatus() != ReturnStatus.REJECTED)
+                .toList();
+        final int activeQuantity = active.stream().mapToInt(ReturnRequest::getQuantity).sum();
+        final BigDecimal activeAmount = active.stream()
+                .map(ReturnRequest::getRefundAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        assertThat(activeQuantity).isLessThanOrEqualTo(orderedQuantity);
+        assertThat(activeAmount).isLessThanOrEqualTo(fullLineEntitlement);
+        if (activeQuantity == orderedQuantity) {
+            assertThat(activeAmount).isEqualByComparingTo(fullLineEntitlement);
+        }
     }
 
     private String placeOrder(final String sku, final int quantity) {

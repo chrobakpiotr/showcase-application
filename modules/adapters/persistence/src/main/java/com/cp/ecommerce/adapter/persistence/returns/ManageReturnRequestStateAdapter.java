@@ -13,6 +13,7 @@ import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.domain.returns.port.outgoing.ManageReturnRequestStateOutPort;
 import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRefundEntitlementConflictException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
@@ -76,11 +77,7 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
                                         + returnRequest.getReturnNumber()));
         if (allocateFromLineEntitlement) {
             entity.setRefundAmount(
-                    allocateRemainingEntitlement(
-                            returnRequest.getRefundAmount(),
-                            activeRefundAmount,
-                            Math.toIntExact(remainingQuantity),
-                            returnRequest.getQuantity()));
+                    allocateRemainingEntitlement(returnRequest, activeRefundAmount, Math.toIntExact(remainingQuantity)));
         }
         return mapToDomain(returnRequestEntityRepository.saveAndFlush(entity));
     }
@@ -164,16 +161,21 @@ class ManageReturnRequestStateAdapter implements ManageReturnRequestStateOutPort
     }
 
     private static BigDecimal allocateRemainingEntitlement(
-            final BigDecimal fullLineEntitlement,
+            final ReturnRequest returnRequest,
             final BigDecimal activeRefundAmount,
-            final int remainingQuantity,
-            final int requestedQuantity) {
+            final int remainingQuantity) {
 
+        final BigDecimal fullLineEntitlement = returnRequest.getRefundAmount();
+        final int requestedQuantity = returnRequest.getQuantity();
         final long fullMinor = fullLineEntitlement.movePointRight(2).longValueExact();
         final long activeMinor = activeRefundAmount.movePointRight(2).longValueExact();
         final long remainingMinor = fullMinor - activeMinor;
         if (remainingMinor < 0L) {
-            throw new IllegalStateException("Persisted active return refunds exceed the line entitlement");
+            throw new ReturnRefundEntitlementConflictException(
+                    returnRequest.getOrderNumber(),
+                    returnRequest.getSku(),
+                    activeRefundAmount,
+                    fullLineEntitlement);
         }
 
         final long base = remainingMinor / remainingQuantity;

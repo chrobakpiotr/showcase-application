@@ -13,6 +13,7 @@ import com.cp.ecommerce.adapter.persistence.utils.ReturnRequestEntityBuilder;
 import com.cp.ecommerce.domain.returns.ReturnRequest;
 import com.cp.ecommerce.domain.returns.ReturnStatus;
 import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
+import com.cp.ecommerce.foundation.exception.ReturnRefundEntitlementConflictException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotApprovableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRefundableException;
 import com.cp.ecommerce.foundation.exception.ReturnRequestNotRejectableException;
@@ -201,8 +202,50 @@ class ManageReturnRequestStateAdapterTest {
 
         given(returnRequestPersistenceMapper.mapToEntity(corruptRequest)).willReturn(Optional.of(entity));
 
-        assertThatThrownBy(() -> adapter.createFromLineEntitlement(corruptRequest, 3)).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("exceed");
+        assertThatThrownBy(() -> adapter.createFromLineEntitlement(corruptRequest, 3))
+                .isInstanceOf(ReturnRefundEntitlementConflictException.class)
+                .hasMessageContaining(corruptRequest.getOrderNumber())
+                .hasMessageContaining(corruptRequest.getSku())
+                .hasMessageContaining("0.02")
+                .hasMessageContaining("0.01")
+                .hasMessageContaining("manual review");
+    }
+
+    @Test
+    void shouldAllocateMultiUnitRequestFromRemainingPersistedSnapshot() {
+
+        final BigDecimal fullLineEntitlement = new BigDecimal("0.05");
+        final ReturnRequest multiUnitRequest = ReturnRequest.builder()
+                .returnNumber(request.getReturnNumber())
+                .orderNumber(request.getOrderNumber())
+                .sku(request.getSku())
+                .quantity(2)
+                .reason(request.getReason())
+                .status(ReturnStatus.REQUESTED)
+                .requestedDate(request.getRequestedDate())
+                .refundAmount(fullLineEntitlement)
+                .build();
+        final ReturnRequestEntity multiUnitEntity = ReturnRequestEntityBuilder.mockReturnRequestEntity();
+
+        given(orderEntityRepository.findByOrderNumberForUpdate(multiUnitRequest.getOrderNumber()))
+                .willReturn(mock(OrderEntity.class));
+        given(
+                returnRequestEntityRepository
+                        .sumActiveQuantity(multiUnitRequest.getOrderNumber(), multiUnitRequest.getSku(), ReturnStatus.REJECTED))
+                .willReturn(1L);
+        given(
+                returnRequestEntityRepository.sumActiveRefundAmount(
+                        multiUnitRequest.getOrderNumber(),
+                        multiUnitRequest.getSku(),
+                        ReturnStatus.REJECTED))
+                .willReturn(new BigDecimal("0.01"));
+        given(returnRequestPersistenceMapper.mapToEntity(multiUnitRequest)).willReturn(Optional.of(multiUnitEntity));
+        given(returnRequestEntityRepository.saveAndFlush(multiUnitEntity)).willReturn(multiUnitEntity);
+        given(returnRequestPersistenceMapper.mapToDomainObject(multiUnitEntity)).willReturn(Optional.of(multiUnitRequest));
+
+        adapter.createFromLineEntitlement(multiUnitRequest, 4);
+
+        assertThat(multiUnitEntity.getRefundAmount()).isEqualByComparingTo("0.03");
     }
 
     @Test

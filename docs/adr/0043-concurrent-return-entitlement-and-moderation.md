@@ -61,6 +61,39 @@ Therefore the first `REQUESTED -> REJECTED` transition releases that quantity.
 Repeating reject returns the already rejected row and cannot release anything a
 second time.
 
+### Refund amounts are conserved from persisted active snapshots
+
+For the line-entitlement path, a previously persisted non-`REJECTED` RMA owns its
+persisted refund amount. A later request does not recompute or rewrite that amount.
+Instead, the allocator subtracts the sum of active persisted refund amounts from the
+full immutable line entitlement and divides only the remaining minor units across the
+remaining returnable quantity.
+
+The policy is therefore:
+
+- remaining minor units are allocated from the remaining amount across the remaining
+  quantity;
+- an active RMA's persisted refund amount is immutable;
+- `REQUESTED`, `APPROVED` and `REFUNDED` rows all consume quantity and monetary
+  entitlement;
+- `REJECTED` releases exactly its own persisted quantity and amount;
+- when the full ordered quantity is active, the sum of active refund amounts equals
+  the line entitlement;
+- a historical state whose active refund sum already exceeds the line entitlement is
+  not clamped or silently repaired. Automatic allocation stops with a conflict that
+  identifies the order and SKU and requires manual review.
+
+### SKU is the stable order-line identity and minor-unit tie-break
+
+`ORDER_LINE_ITEM` is keyed by `(ORDER_ID, SKU)`, and order placement rejects duplicate
+SKUs before the snapshot is persisted. S22-07b therefore keeps SKU as line identity;
+it does not introduce a second line identifier.
+
+When proportional line allocation leaves minor-unit remainder, SKU sort order is the
+stable tie-break for new calculations. Historical RMA refund amounts are still
+authoritative once persisted: changing iteration order or recalculating a line
+entitlement never retroactively moves cents between existing RMAs.
+
 ### Payment remains outside the RMA transaction
 
 Approval commits before the controller invokes the R04 partial-refund operation.

@@ -22,6 +22,8 @@ class RefundEntitlementCalculatorTest {
 
     private static final String ONE_HUNDRED = "100.00";
 
+    private static final String ZERO = "0.00";
+
     private static final String ONE_CENT = "0.01";
 
     private static final String TWO_CENTS = "0.02";
@@ -63,11 +65,22 @@ class RefundEntitlementCalculatorTest {
     }
 
     @Test
+    void shouldUseSkuAsStableMinorUnitTieBreak() {
+
+        final OrderLineItem skuTwo = line(SKU_TWO, ONE_CENT);
+        final OrderLineItem skuOne = line(SKU_ONE, ONE_CENT);
+        final Order historicalIterationOrder = order(TWO_CENTS, ONE_CENT, skuTwo, skuOne);
+
+        assertThat(calculator.lineEntitlement(historicalIterationOrder, SKU_ONE)).isEqualByComparingTo(ONE_CENT);
+        assertThat(calculator.lineEntitlement(historicalIterationOrder, SKU_TWO)).isEqualByComparingTo(ZERO);
+    }
+
+    @Test
     void shouldReturnZeroForFullyDiscountedExistingLine() {
         final OrderLineItem line = line(SKU_ONE, ONE_HUNDRED);
-        final Order order = order(ONE_HUNDRED, "0.00", line);
+        final Order order = order(ONE_HUNDRED, ZERO, line);
 
-        assertThat(calculator.lineEntitlement(order, SKU_ONE)).isEqualByComparingTo("0.00");
+        assertThat(calculator.lineEntitlement(order, SKU_ONE)).isEqualByComparingTo(ZERO);
     }
 
     @Test
@@ -95,7 +108,7 @@ class RefundEntitlementCalculatorTest {
     @Test
     void shouldRejectMissingSkuForFullyDiscountedOrder() {
 
-        final Order order = order(ONE_HUNDRED, "0.00", line(SKU_ONE, ONE_HUNDRED));
+        final Order order = order(ONE_HUNDRED, ZERO, line(SKU_ONE, ONE_HUNDRED));
 
         assertThatThrownBy(() -> calculator.lineEntitlement(order, "OTHER")).isInstanceOf(ApplicationNotFoundException.class);
     }
