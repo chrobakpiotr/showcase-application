@@ -158,6 +158,52 @@ describe('OrderService', () => {
     req.flush(orderDetails);
   });
 
+  it('reads a bounded recovery timeline page', () => {
+    const timeline = {
+      orderNumber: 'ORD-1001',
+      page: 0,
+      size: 50,
+      items: [],
+    };
+
+    orderService
+      .findRecoveryTimeline('ORD-1001')
+      .subscribe((data) => expect(data).toBe(timeline));
+
+    const req = httpTestingController.expectOne(
+      (request) =>
+        request.url ===
+          `${environment.apiPrefix}/order/ORD-1001/recovery-timeline` &&
+        request.params.get('page') === '0' &&
+        request.params.get('size') === '50'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(timeline);
+  });
+
+  it('reads an explicit recovery timeline page', () => {
+    const timeline = {
+      orderNumber: 'ORD-1001',
+      page: 2,
+      size: 25,
+      items: [],
+    };
+
+    orderService
+      .findRecoveryTimeline('ORD-1001', 2, 25)
+      .subscribe((data) => expect(data).toBe(timeline));
+
+    const req = httpTestingController.expectOne(
+      (request) =>
+        request.url ===
+          `${environment.apiPrefix}/order/ORD-1001/recovery-timeline` &&
+        request.params.get('page') === '2' &&
+        request.params.get('size') === '25'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(timeline);
+  });
+
   it('cancels an order', () => {
     const orderDetails = { orderNumber: '20220915123015' } as OrderDetailsModel;
 

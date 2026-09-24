@@ -828,3 +828,23 @@ For a compact end-to-end walkthrough, see [docs/showcase-demo.md](docs/showcase-
 The browser login uses Keycloak Authorization Code + PKCE. The backend is a stateless OAuth2 Resource Server and remains the authorization authority. Order placement, cancellation, partial refunds, stock reservation recovery and notification retry use durable identities and recovery state rather than assuming exactly-once external side effects.
 
 Security scans are enforcement gates for unacceptable HIGH/CRITICAL findings. Critical PostgreSQL concurrency/recovery tests are required to execute in CI rather than being accepted as skipped.
+
+### Order recovery timeline
+
+`GET /api/order/{orderNumber}/recovery-timeline?page=0&size=50` exposes a
+read-only operator projection over the durable recovery records for that order.
+It remains behind the existing `ORDER_READ` matcher because it is a `GET` under
+`/api/order/**`.
+
+The timeline is intentionally **not** an event-sourcing history. It projects
+current durable recovery/milestone evidence from placement, payment,
+fulfillment, placement dispatch, order notifications and shipment state. One
+bounded SQL query serves each page with stable ordering, so the query count does
+not grow with the number of timeline rows.
+
+The response excludes claim tokens, last-error/stack-trace contents,
+notification recipient/body/subject and shipment tracking number. The Order UI
+renders this projection after successful placement and exposes only a refresh
+action; S22-09 adds no recovery redrive/mutation control.
+
+See `docs/specs/RECOVERY-TIMELINE-001/spec.md` for the exact contract.

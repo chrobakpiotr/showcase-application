@@ -7,6 +7,7 @@ import {
   OrderDetailsModel,
   OrderPageModel,
 } from '@app/order/order-details.model';
+import { OrderRecoveryTimelineModel } from '@app/order/order-recovery-timeline.model';
 import { OrderRequestModel } from '@app/order/order-request.model';
 import { OrderResponseModel } from '@app/order/order-response.model';
 
@@ -46,6 +47,17 @@ export class OrderService {
   findOrder(orderNumber: string): Observable<OrderDetailsModel> {
     return this.httpClient.get<OrderDetailsModel>(
       `${environment.apiPrefix}/order/${orderNumber}`
+    );
+  }
+
+  findRecoveryTimeline(
+    orderNumber: string,
+    page = 0,
+    size = 50
+  ): Observable<OrderRecoveryTimelineModel> {
+    return this.httpClient.get<OrderRecoveryTimelineModel>(
+      `${environment.apiPrefix}/order/${orderNumber}/recovery-timeline`,
+      { params: { page, size } }
     );
   }
 

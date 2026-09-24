@@ -23,6 +23,7 @@ import {
 } from '@app/order/order-attempt.store';
 import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { OrderRecoveryTimelineEntryModel } from '@app/order/order-recovery-timeline.model';
 import { OrderRequestModel } from '@app/order/order-request.model';
 import { OrderService } from '@app/order/order.service';
 import {
@@ -82,6 +83,9 @@ export class OrderComponent implements OnInit {
   readonly submitting = signal(false);
   readonly orderNumber = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
+  readonly recoveryTimeline = signal<OrderRecoveryTimelineEntryModel[]>([]);
+  readonly recoveryTimelineLoading = signal(false);
+  readonly recoveryTimelineError = signal<string | null>(null);
   readonly paymentMethods = PAYMENT_METHODS;
 
   readonly orderForm = new FormGroup({
@@ -210,6 +214,8 @@ export class OrderComponent implements OnInit {
     this.orderNumber.set(null);
     this.errorMessage.set(null);
     this.uncertain.set(false);
+    this.recoveryTimeline.set([]);
+    this.recoveryTimelineError.set(null);
   }
 
   placeOrder(): void {
@@ -251,6 +257,7 @@ export class OrderComponent implements OnInit {
             this.uncertain.set(false);
             this.orderNumber.set(response.orderNumber);
             this.attemptStore.clear();
+            this.loadRecoveryTimeline(response.orderNumber);
           }
         },
         error: (error: unknown) => {
@@ -277,6 +284,32 @@ export class OrderComponent implements OnInit {
               error,
               'Failed to place order. Please try again.'
             )
+          );
+        },
+      });
+  }
+
+  refreshRecoveryTimeline(): void {
+    const currentOrderNumber = this.orderNumber();
+    if (!currentOrderNumber || this.recoveryTimelineLoading()) return;
+    this.loadRecoveryTimeline(currentOrderNumber);
+  }
+
+  private loadRecoveryTimeline(orderNumber: string): void {
+    this.recoveryTimelineLoading.set(true);
+    this.recoveryTimelineError.set(null);
+    this.orderService
+      .findRecoveryTimeline(orderNumber)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (timeline) => {
+          this.recoveryTimelineLoading.set(false);
+          this.recoveryTimeline.set(timeline.items ?? []);
+        },
+        error: () => {
+          this.recoveryTimelineLoading.set(false);
+          this.recoveryTimelineError.set(
+            'Recovery timeline is temporarily unavailable.'
           );
         },
       });

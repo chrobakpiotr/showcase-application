@@ -320,6 +320,61 @@
         New order
       </button>
     </div>
+    } @if (orderNumber()) {
+    <section
+      class="recovery-timeline"
+      aria-labelledby="recovery-timeline-title"
+      data-testid="recovery-timeline"
+    >
+      <div class="recovery-timeline__header">
+        <div>
+          <p class="eyebrow">Durable recovery projection</p>
+          <h2 id="recovery-timeline-title">Recovery timeline</h2>
+          <p>
+            Current durable workflow evidence. This is not an event-sourcing
+            history.
+          </p>
+        </div>
+        <button
+          class="secondary-button"
+          type="button"
+          (click)="refreshRecoveryTimeline()"
+          [disabled]="recoveryTimelineLoading()"
+          data-testid="recovery-timeline-refresh"
+        >
+          {{ recoveryTimelineLoading() ? 'Refreshing...' : 'Refresh' }}
+        </button>
+      </div>
+
+      @if (recoveryTimelineError()) {
+      <p class="error-message" role="alert">
+        {{ recoveryTimelineError() }}
+      </p>
+      } @else if (recoveryTimelineLoading() && recoveryTimeline().length === 0)
+      {
+      <p class="loading">Loading recovery timeline...</p>
+      } @else if (recoveryTimeline().length === 0) {
+      <p class="recovery-timeline__empty">
+        No durable recovery records are visible yet.
+      </p>
+      } @else {
+      <ol class="recovery-timeline__list">
+        @for (entry of recoveryTimeline(); track entry.source + ':' + entry.type
+        + ':' + entry.referenceId + ':' + entry.occurredAt) {
+        <li class="recovery-timeline__entry">
+          <div class="recovery-timeline__meta">
+            <strong>{{ entry.source }} / {{ entry.type }}</strong>
+            <span class="recovery-state" [attr.data-state]="entry.state">{{
+              entry.state
+            }}</span>
+          </div>
+          <p>{{ entry.summary }}</p>
+          <small>{{ entry.occurredAt }} · {{ entry.referenceId }}</small>
+        </li>
+        }
+      </ol>
+      }
+    </section>
     } @if (errorMessage()) {
     <div class="error-message" role="alert">{{ errorMessage() }}</div>
     }

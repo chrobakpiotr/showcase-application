@@ -36,15 +36,24 @@ describe('OrderComponent', () => {
   let fixture: ComponentFixture<OrderComponent>;
   let component: OrderComponent;
   let placeOrderSpy: jasmine.Spy;
+  let timelineSpy: jasmine.Spy;
 
   function setup(): void {
     placeOrderSpy = jasmine.createSpy('placeOrder');
+    timelineSpy = jasmine
+      .createSpy('findRecoveryTimeline')
+      .and.returnValue(
+        of({ orderNumber: 'ORD-DEFAULT', page: 0, size: 50, items: [] })
+      );
     TestBed.configureTestingModule({
       imports: [OrderComponent],
       providers: [
         {
           provide: OrderService,
-          useValue: { placeOrder: placeOrderSpy },
+          useValue: {
+            placeOrder: placeOrderSpy,
+            findRecoveryTimeline: timelineSpy,
+          },
         },
         {
           // The embedded <app-support-assistant /> widget injects SupportAssistantService, which itself needs
@@ -159,6 +168,129 @@ describe('OrderComponent', () => {
       '[data-testid="order-number"]'
     );
     expect(orderNumberEl?.textContent).toContain('ORD-001');
+  }));
+
+  it('loads and renders the read-only recovery timeline after placement', fakeAsync(() => {
+    setup();
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-RECOVERY' }));
+    timelineSpy.and.returnValue(
+      of({
+        orderNumber: 'ORD-RECOVERY',
+        page: 0,
+        size: 50,
+        items: [
+          {
+            source: 'PLACEMENT_DISPATCH',
+            type: 'CONFIRMATION_EMAIL',
+            state: 'COMPLETED',
+            occurredAt: '2026-09-24T12:00:00Z',
+            referenceId: 'ORDER-CONFIRMATION:ORD-RECOVERY',
+            summary: 'PLACEMENT_DISPATCH CONFIRMATION_EMAIL state SENT',
+          },
+        ],
+      })
+    );
+
+    fillValidForm('timeline');
+    component.placeOrder();
+    tick();
+    fixture.detectChanges();
+
+    expect(timelineSpy).toHaveBeenCalledWith('ORD-RECOVERY');
+    expect(component.recoveryTimeline()).toHaveSize(1);
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('[data-testid="recovery-timeline"]')?.textContent
+    ).toContain('CONFIRMATION_EMAIL');
+    expect(compiled.textContent).not.toContain('claim');
+    expect(compiled.textContent).not.toContain('stack trace');
+  }));
+
+  it('guards refresh without an order and while a timeline request is already running', fakeAsync(() => {
+    setup();
+    timelineSpy.calls.reset();
+
+    component.refreshRecoveryTimeline();
+    tick();
+    expect(timelineSpy).not.toHaveBeenCalled();
+
+    component.orderNumber.set('ORD-REFRESH');
+    component.recoveryTimelineLoading.set(true);
+    component.refreshRecoveryTimeline();
+    tick();
+    expect(timelineSpy).not.toHaveBeenCalled();
+
+    component.recoveryTimelineLoading.set(false);
+    timelineSpy.and.returnValue(
+      of({
+        orderNumber: 'ORD-REFRESH',
+        page: 0,
+        size: 50,
+        items: [
+          {
+            source: 'FULFILLMENT',
+            type: 'RABBITMQ',
+            state: 'COMPLETED',
+            occurredAt: '2026-09-24T12:00:00Z',
+            referenceId: 'ORDER-FULFILLMENT:ORD-REFRESH',
+            summary: 'FULFILLMENT RABBITMQ state RECEIVED',
+          },
+        ],
+      })
+    );
+
+    component.refreshRecoveryTimeline();
+    tick();
+
+    expect(timelineSpy).toHaveBeenCalledTimes(1);
+    expect(timelineSpy).toHaveBeenCalledWith('ORD-REFRESH');
+    expect(component.recoveryTimelineLoading()).toBeFalse();
+    expect(component.recoveryTimeline()).toHaveSize(1);
+  }));
+
+  it('treats a missing timeline items collection as an empty projection', fakeAsync(() => {
+    setup();
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-EMPTY-TIMELINE' }));
+    timelineSpy.and.returnValue(
+      of({
+        orderNumber: 'ORD-EMPTY-TIMELINE',
+        page: 0,
+        size: 50,
+        items: undefined,
+      })
+    );
+    fillValidForm('empty timeline fallback');
+
+    component.placeOrder();
+    tick();
+
+    expect(component.recoveryTimelineLoading()).toBeFalse();
+    expect(component.recoveryTimeline()).toEqual([]);
+    expect(component.recoveryTimelineError()).toBeNull();
+  }));
+
+  it('surfaces a timeline read failure without changing the successful order result', fakeAsync(() => {
+    setup();
+    placeOrderSpy.and.returnValue(of({ orderNumber: 'ORD-TIMELINE-ERROR' }));
+    timelineSpy.and.returnValue(
+      throwError(() => new Error('recovery projection unavailable'))
+    );
+    fillValidForm('timeline error');
+
+    component.placeOrder();
+    tick();
+    fixture.detectChanges();
+
+    expect(component.orderNumber()).toBe('ORD-TIMELINE-ERROR');
+    expect(component.recoveryTimelineLoading()).toBeFalse();
+    expect(component.recoveryTimeline()).toEqual([]);
+    expect(component.recoveryTimelineError()).toBe(
+      'Recovery timeline is temporarily unavailable.'
+    );
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      compiled.querySelector('[data-testid="recovery-timeline"]')?.textContent
+    ).toContain('Recovery timeline is temporarily unavailable.');
   }));
 
   it('on success with empty orderNumber: shows "Order outcome is unknown. Retry this same attempt." message', fakeAsync(() => {

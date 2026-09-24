@@ -247,3 +247,66 @@ legend {
   margin: 0;
   border: 0;
 }
+
+.recovery-timeline {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.25rem;
+}
+
+.recovery-timeline__header,
+.recovery-timeline__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.recovery-timeline__header h2 {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.recovery-timeline__header p,
+.recovery-timeline__entry p,
+.recovery-timeline__empty {
+  color: var(--color-muted);
+}
+
+.recovery-timeline__list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recovery-timeline__entry {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+}
+
+.recovery-timeline__entry p {
+  margin: 0.45rem 0;
+}
+
+.recovery-timeline__entry small {
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+}
+
+.recovery-state {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 640px) {
+  .recovery-timeline__header,
+  .recovery-timeline__meta {
+    flex-direction: column;
+  }
+}
