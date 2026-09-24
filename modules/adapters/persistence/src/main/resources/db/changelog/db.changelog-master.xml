@@ -48,5 +48,6 @@
     <include file="changelogs/db.changelog-shipment-operation-history.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-historical-upgrade-s22-07a.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-order-cancellation-redrive.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-payment-reconciliation-retention.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

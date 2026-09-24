@@ -22,7 +22,19 @@ Cancellation recovery is claim-fenced. Stale failure completion cannot overwrite
 
 Notification delivery remains at-least-once at transport level; provider integrations must map the durable notification id to provider idempotency.
 
-Completed payment reconciliation evidence is retained 90 days by default. Pending/manual-review rows and load-bearing notification/idempotency rows are not deleted.
+Completed payment reconciliation evidence is retained 90 days by default. The explicit local replay-safety horizon is
+also 90 days by default (`payment.reconciliation.retention.replay-horizon-days`). Configuration fails closed if
+`payment.reconciliation.retention.days` is shorter than that horizon.
+
+Retention is bounded: one scheduled run locks and deletes at most
+`payment.reconciliation.retention.batch-size` rows (default 100) in one transaction, ordered by completion time and operation
+identity. Only `COMPLETED` reconciliation rows older than the retention cutoff are eligible. `PENDING`, `FAILED`, and
+`MANUAL_REVIEW` rows are never purged by this job.
+
+The reconciliation retention job does not delete order idempotency keys, cancellation-redrive command audit rows, notification
+delivery identities, refunds, or other load-bearing replay evidence. The replay horizon is the minimum interval during which
+local completed provider-operation identity must remain available; do not configure it below the business/provider retry
+envelope.
 
 ## S22-07c read-only reconciliation tooling
 

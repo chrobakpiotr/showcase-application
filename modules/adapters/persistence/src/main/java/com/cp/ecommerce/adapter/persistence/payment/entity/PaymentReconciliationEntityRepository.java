@@ -26,7 +26,14 @@ public interface PaymentReconciliationEntityRepository extends JpaRepository<Pay
     @Query("select min(operation.created) from PaymentReconciliationEntity operation where operation.status = :status")
     Instant findOldestCreatedByStatus(@Param("status") PaymentReconciliationStatus status);
 
-    long deleteByStatusAndCompletedBefore(PaymentReconciliationStatus status, Instant completedBefore);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select operation from PaymentReconciliationEntity operation "
+            + "where operation.status = :status and operation.completed < :completedBefore "
+            + "order by operation.completed asc, operation.operationId asc")
+    List<PaymentReconciliationEntity> findRetentionCandidatesForUpdate(
+            @Param("status") PaymentReconciliationStatus status,
+            @Param("completedBefore") Instant completedBefore,
+            Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select operation from PaymentReconciliationEntity operation where operation.operationId = :operationId")

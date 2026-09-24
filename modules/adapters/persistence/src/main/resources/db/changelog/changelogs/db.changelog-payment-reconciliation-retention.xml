@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="s22-07c3-payment-reconciliation-retention-index" author="cp">
+        <createIndex schemaName="${schema_name_full}" tableName="PAYMENT_RECONCILIATION_OPERATION" indexName="IDX_PAYMENT_RECONCILIATION_RETENTION">
+            <column name="STATUS" />
+            <column name="COMPLETION_DATE" />
+            <column name="OPERATION_ID" />
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

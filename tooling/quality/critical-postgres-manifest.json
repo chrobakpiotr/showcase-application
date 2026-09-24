@@ -385,6 +385,12 @@
       "scenario": "manual-review cancellation redrive is durably audited idempotent and fenced from active ownership",
       "suite": "com.cp.ecommerce.application.OrderCancellationManualReviewRedrivePostgresIntegrationTest",
       "testMethod": "shouldDurablyAuditReplayAndFenceManualReviewRedrive"
+    },
+    {
+      "ac": "AC-PAYMENT-RETENTION-01",
+      "scenario": "completed reconciliation evidence is purged only beyond the replay horizon in bounded transactional batches",
+      "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationRetentionPostgresIntegrationTest",
+      "testMethod": "shouldDeleteCompletedEvidenceOnlyInBoundedBatchesBeyondReplayHorizon"
     }
   ]
 }
