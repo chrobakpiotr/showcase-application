@@ -28,7 +28,7 @@
 | `OUTBOX-CLAIM-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `PAYMENT-CAPTURE-IDEMP-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `PAYMENT-REFUND-001` | UNDECLARED | yes | yes | yes | executable | selected |
-| `QUALITY-HARDENING-Q01-Q06` | **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION AND RULESET DEPLOYMENT PENDING** | yes | yes | no | document-only | not selected |
+| `QUALITY-HARDENING-Q01-Q06` | **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION PENDING** | yes | yes | no | document-only | not selected |
 | `READ-PERF-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-METRICS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-OPS-001` | UNDECLARED | yes | yes | yes | executable | selected |

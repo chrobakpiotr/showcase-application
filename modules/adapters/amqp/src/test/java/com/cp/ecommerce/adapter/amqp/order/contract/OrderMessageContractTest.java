@@ -23,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>
  * This keeps the showcase self-contained by asserting the published JSON schema directly, without introducing stub brokers,
- * stub artifact publishing or other infrastructure required by a full contract-testing framework. The current listener
- * intentionally only logs raw payloads, so the contract remains focused on the producer's wire format. The expected field set
- * itself comes from {@code contracts/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than being duplicated here, so
- * the spec and the actual wire format cannot silently drift apart.
+ * stub artifact publishing or other infrastructure required by a full contract-testing framework. The consumer now persists an
+ * operationId-keyed fulfillment receipt, so operationId is part of the required wire contract. The expected field set itself
+ * comes from {@code contracts/asyncapi/asyncapi.yml} (via {@link AsyncApiSchema}) rather than being duplicated here, so the
+ * spec and the actual wire format cannot silently drift apart.
  * </p>
  */
 class OrderMessageContractTest {
@@ -37,6 +37,8 @@ class OrderMessageContractTest {
 
     private static final String ORDER_NUMBER = "orderNumber";
 
+    private static final String OPERATION_ID = "operationId";
+
     private static final String SCHEMA_VERSION = "schemaVersion";
 
     private final transient OrderMessageMapper mapper = new OrderMessageMapper();
@@ -46,12 +48,23 @@ class OrderMessageContractTest {
 
         final Order order = validOrder();
 
-        final String payload = new GsonConfiguration().gson().toJson(mapper.mapToMessage(order).orElseThrow());
+        final OrderMessage mapped = mapper.mapToMessage(order).orElseThrow();
+        final OrderMessage wireMessage = OrderMessage.builder()
+                .schemaVersion(mapped.schemaVersion())
+                .operationId("ORDER-FULFILLMENT:ORD-1001")
+                .created(mapped.created())
+                .customerId(mapped.customerId())
+                .orderNumber(mapped.orderNumber())
+                .build();
+
+        final String payload = new GsonConfiguration().gson().toJson(wireMessage);
         final JsonObject jsonPayload = JsonParser.parseString(payload).getAsJsonObject();
 
         assertEquals(AsyncApiSchema.declaredProperties("OrderMessage"), jsonPayload.keySet());
         assertTrue(jsonPayload.get(SCHEMA_VERSION).isJsonPrimitive());
         assertEquals(OrderMessage.SCHEMA_VERSION, jsonPayload.get(SCHEMA_VERSION).getAsString());
+        assertTrue(jsonPayload.get(OPERATION_ID).isJsonPrimitive());
+        assertEquals("ORDER-FULFILLMENT:ORD-1001", jsonPayload.get(OPERATION_ID).getAsString());
         assertTrue(jsonPayload.get(CREATED).isJsonPrimitive());
         assertTrue(jsonPayload.get(CREATED).getAsJsonPrimitive().isString());
         assertTrue(jsonPayload.get(CUSTOMER_ID).isJsonPrimitive());

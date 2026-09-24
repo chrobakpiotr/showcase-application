@@ -17,7 +17,7 @@ class AsyncApiSchemaTest {
 
         final Set<String> properties = AsyncApiSchema.declaredProperties("OrderMessage");
 
-        assertEquals(Set.of("schemaVersion", "created", "customerId", "orderNumber"), properties);
+        assertEquals(Set.of("schemaVersion", "operationId", "created", "customerId", "orderNumber"), properties);
     }
 
     @Test

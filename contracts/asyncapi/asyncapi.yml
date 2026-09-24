@@ -106,7 +106,7 @@ operations:
     action: receive
     channel:
       $ref: '#/channels/order-topic'
-    summary: Consumed by MessageListener (adapter:amqp) - a demonstration in-process listener.
+    summary: Consumed by MessageListener (adapter:amqp) through a durable operationId-keyed fulfillment receipt/inbox.
     messages:
       - $ref: '#/channels/order-topic/messages/orderPlaced'
 
@@ -183,6 +183,9 @@ components:
           type: string
           description: Schema version of this message payload, for forward-compatible evolution.
           example: '1.0'
+        operationId:
+          type: string
+          description: Stable logical fulfillment identity used for consumer deduplication and replay.
         created:
           type: string
           format: date-time
@@ -195,6 +198,7 @@ components:
           description: Business-facing order identifier (also the primary export/audit key).
       required:
         - schemaVersion
+        - operationId
         - created
         - customerId
         - orderNumber

@@ -397,6 +397,18 @@
       "scenario": "re-enqueue overlapping active delivery finalization preserves one durable sent record",
       "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
       "testMethod": "shouldPreserveSingleSentRecordWhenEnqueueOverlapsDeliveryFinalization"
+    },
+    {
+      "ac": "AC-AMQP-CONSUMER-IDEMP-01",
+      "scenario": "concurrent Rabbit redelivery converges on one durable fulfillment receipt",
+      "suite": "com.cp.ecommerce.application.OrderFulfillmentReceiptPostgresIntegrationTest",
+      "testMethod": "concurrentRedeliveryMustCreateOneDurableFulfillmentReceipt"
+    },
+    {
+      "ac": "AC-AMQP-CONSUMER-IDEMP-02",
+      "scenario": "fulfillment operation identity cannot be reused with conflicting immutable payload",
+      "suite": "com.cp.ecommerce.application.OrderFulfillmentReceiptPostgresIntegrationTest",
+      "testMethod": "operationIdReuseWithDifferentPayloadMustFailClosed"
     }
   ]
 }

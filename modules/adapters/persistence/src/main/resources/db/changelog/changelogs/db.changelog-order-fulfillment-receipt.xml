@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="s22-08b-order-fulfillment-receipt" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_FULFILLMENT_RECEIPT">
+            <column name="OPERATION_ID" type="VARCHAR(120)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_ORDER_FULFILLMENT_RECEIPT" />
+            </column>
+            <column name="SCHEMA_VERSION" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CUSTOMER_ID" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+            <column name="MESSAGE_CREATED" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="RECEIVED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex schemaName="${schema_name_full}" tableName="ORDER_FULFILLMENT_RECEIPT" indexName="IDX_ORDER_FULFILLMENT_RECEIPT_ORDER">
+            <column name="ORDER_NUMBER" />
+            <column name="RECEIVED_DATE" />
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
