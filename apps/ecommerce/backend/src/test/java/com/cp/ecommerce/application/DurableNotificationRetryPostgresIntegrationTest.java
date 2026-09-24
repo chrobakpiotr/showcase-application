@@ -1,5 +1,6 @@
 package com.cp.ecommerce.application;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -12,6 +13,7 @@ import com.cp.ecommerce.domain.notification.NotificationType;
 import com.cp.ecommerce.domain.notification.port.incoming.RetryNotificationDeliveryInPort;
 import com.cp.ecommerce.domain.notification.port.incoming.SendNotificationInPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.DeliverNotificationOutPort;
+import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.foundation.exception.ApplicationConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
@@ -72,6 +74,12 @@ class DurableNotificationRetryPostgresIntegrationTest {
 
     @Autowired
     private NotificationEntityRepository notificationEntityRepository;
+
+    @Autowired
+    private ManageNotificationDeliveryOutPort manageNotificationDeliveryOutPort;
+
+    @Autowired
+    private Clock clock;
 
     @DynamicPropertySource
     static void database(final DynamicPropertyRegistry registry) {
@@ -148,6 +156,53 @@ class DurableNotificationRetryPostgresIntegrationTest {
         assertThat(replay.getStatus()).isEqualTo(NotificationStatus.SENT);
         assertThat(notificationEntityRepository.findByEventKey(EVENT_KEY).orElseThrow().getStatus())
                 .isEqualTo(NotificationStatus.SENT);
+        assertThat(notificationEntityRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldPreserveSingleSentRecordWhenEnqueueOverlapsDeliveryFinalization() throws Exception {
+
+        final Notification pending = enqueue();
+        final var claim = manageNotificationDeliveryOutPort.claimDelivery(pending.getNotificationId(), clock.instant());
+
+        assertThat(claim).isNotNull();
+        assertThat(claim.notification().getStatus()).isEqualTo(NotificationStatus.DELIVERING);
+
+        final CountDownLatch ready = new CountDownLatch(2);
+        final CountDownLatch start = new CountDownLatch(1);
+
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<Notification> replayFuture = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return enqueue();
+            });
+            final Future<Notification> finalizeFuture = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return manageNotificationDeliveryOutPort
+                        .markSent(pending.getNotificationId(), claim.claimId(), clock.instant());
+            });
+
+            ready.await();
+            start.countDown();
+
+            final Notification replay = replayFuture.get();
+            final Notification finalized = finalizeFuture.get();
+
+            assertThat(replay.getNotificationId()).isEqualTo(pending.getNotificationId());
+            assertThat(replay.getStatus()).isIn(NotificationStatus.DELIVERING, NotificationStatus.SENT);
+            assertThat(finalized.getStatus()).isEqualTo(NotificationStatus.SENT);
+        }
+
+        final NotificationEntity persisted = notificationEntityRepository.findById(pending.getNotificationId()).orElseThrow();
+        assertThat(persisted.getStatus()).isEqualTo(NotificationStatus.SENT);
+        assertThat(persisted.getClaimId()).isNull();
+        assertThat(persisted.getDeliveryAttempts()).isEqualTo(1);
+        assertThat(notificationEntityRepository.count()).isEqualTo(1);
+
+        final Notification replayAfterFinalize = enqueue();
+        assertThat(replayAfterFinalize.getStatus()).isEqualTo(NotificationStatus.SENT);
         assertThat(notificationEntityRepository.count()).isEqualTo(1);
     }
 

@@ -1,6 +1,6 @@
 # QUALITY-HARDENING-Q01-Q06 — correctness before stronger claims
 
-Status: **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION AND RULESET DEPLOYMENT PENDING**
+Status: **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION PENDING**
 
 Audited baseline:
 
@@ -29,12 +29,12 @@ document-only and not selected by `harness.py validate-all`.
 
 | Contract area | Current evidence status |
 | --- | --- |
-| C01 aggregate/evidence | IMPLEMENTED + TESTED; critical PostgreSQL evidence and PIT are fail-closed; GitHub required-status deployment remains pending |
+| C01 aggregate/evidence | IMPLEMENTED + TESTED; critical PostgreSQL evidence and PIT are fail-closed; required-status ruleset is deployed; independent verification remains pending |
 | Q01/Q02 placement/payment | IMPLEMENTED + TESTED; owner-aware recovery, stable provider operation identity and manual-review preservation are covered; independent review remains pending |
 | Q03 cancellation | IMPLEMENTED + TESTED; terminal fencing plus notification enqueue are one transaction and WAITING_FOR_REFUND is retryable; independent review remains pending |
 | Q04 shipment | IMPLEMENTED + TESTED; immutable operation identity, dispatch rule parity, atomic rollback and UI 409 retry semantics are covered; independent review remains pending |
 | Q05 refund entitlement | IMPLEMENTED + TESTED; persisted refund entitlement is conserved and rejected allocation is released exactly; independent review remains pending |
-| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection is covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
+| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap and transactional cancellation rollback are covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
 
 Key implementation corrections now reflected by the contract:
 
@@ -52,6 +52,9 @@ Key implementation corrections now reflected by the contract:
   silently recomputed by reordering line items.
 - Critical PostgreSQL evidence is manifest-driven at suite and test-method level with
   no retry masking; PIT evidence is fresh, non-empty and bound to source SHA/JDK/config.
+- Q06 core evidence now includes PostgreSQL enqueue/delivery overlap: re-enqueue during an active delivery claim/finalize
+  preserves one durable row and cannot regress SENT delivery state. Cancellation finalization already proves that terminal
+  business state plus notification enqueue roll back together on notification persistence failure.
 
 ## Goal
 

@@ -391,6 +391,12 @@
       "scenario": "completed reconciliation evidence is purged only beyond the replay horizon in bounded transactional batches",
       "suite": "com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationRetentionPostgresIntegrationTest",
       "testMethod": "shouldDeleteCompletedEvidenceOnlyInBoundedBatchesBeyondReplayHorizon"
+    },
+    {
+      "ac": "AC-DURABLE-NOTIFICATION-05",
+      "scenario": "re-enqueue overlapping active delivery finalization preserves one durable sent record",
+      "suite": "com.cp.ecommerce.application.DurableNotificationRetryPostgresIntegrationTest",
+      "testMethod": "shouldPreserveSingleSentRecordWhenEnqueueOverlapsDeliveryFinalization"
     }
   ]
 }
