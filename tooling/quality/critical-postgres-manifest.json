@@ -409,6 +409,18 @@
       "scenario": "fulfillment operation identity cannot be reused with conflicting immutable payload",
       "suite": "com.cp.ecommerce.application.OrderFulfillmentReceiptPostgresIntegrationTest",
       "testMethod": "operationIdReuseWithDifferentPayloadMustFailClosed"
+    },
+    {
+      "ac": "AC-PLACEMENT-DISPATCH-01",
+      "scenario": "replayed placement enqueue creates exactly one durable email and one durable Camel dispatch intent",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
+      "testMethod": "replayedEnqueueMustCreateExactlyTwoStableDispatchIntents"
+    },
+    {
+      "ac": "AC-PLACEMENT-DISPATCH-02",
+      "scenario": "concurrent workers produce one dispatch owner and retry under the same stable dispatch identity",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
+      "testMethod": "concurrentClaimMustHaveOneOwnerAndRetrySameDispatchIdentity"
     }
   ]
 }

@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
+import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
@@ -15,8 +16,6 @@ import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
-import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
-import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -34,24 +33,19 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OrderPlacementBestEffortTail {
 
-    private final SendOrderConfirmationEmailInPort sendOrderConfirmationEmailInPort;
+    private final OrderPlacementDispatchManager orderPlacementDispatchManager;
     private final ExportOrderInPort exportOrderInPort;
     private final PublishOrderAuditEventInPort publishOrderAuditEventInPort;
     private final PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
-    private final RouteOrderNotificationInPort routeOrderNotificationInPort;
     private final ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
     private final DetectDuplicateOrderInPort detectDuplicateOrderInPort;
     private final SagaMetrics sagaMetrics;
 
     void run(final Order order) {
 
+        orderPlacementDispatchManager.enqueue(order);
+
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            executor.execute(
-                    () -> runSimple(
-                            "confirmation-email",
-                            order,
-                            sendOrderConfirmationEmailInPort::sendConfirmationEmail,
-                            "Could not send order confirmation email (best-effort): {}"));
             executor.execute(
                     () -> runSimple(
                             "s3-export",
@@ -70,12 +64,6 @@ public class OrderPlacementBestEffortTail {
                             order,
                             publishOrderAnalyticsEventInPort::publishAnalyticsEvent,
                             "Could not publish Kafka analytics event (best-effort): {}"));
-            executor.execute(
-                    () -> runSimple(
-                            "camel-routing",
-                            order,
-                            routeOrderNotificationInPort::routeNotification,
-                            "Could not route order notification via Camel (best-effort): {}"));
             executor.execute(() -> classifyRemarks(order));
             executor.execute(() -> detectDuplicateOrder(order));
         }

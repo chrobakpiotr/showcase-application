@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
@@ -11,8 +12,6 @@ import com.cp.ecommerce.domain.order.port.incoming.DetectDuplicateOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
-import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
-import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,7 @@ import static org.mockito.Mockito.verify;
 class OrderPlacementBestEffortTailTest {
 
     @Mock
-    private SendOrderConfirmationEmailInPort sendOrderConfirmationEmailInPort;
+    private OrderPlacementDispatchManager orderPlacementDispatchManager;
 
     @Mock
     private ExportOrderInPort exportOrderInPort;
@@ -40,9 +39,6 @@ class OrderPlacementBestEffortTailTest {
 
     @Mock
     private PublishOrderAnalyticsEventInPort publishOrderAnalyticsEventInPort;
-
-    @Mock
-    private RouteOrderNotificationInPort routeOrderNotificationInPort;
 
     @Mock
     private ClassifyOrderRemarksInPort classifyOrderRemarksInPort;
@@ -59,11 +55,10 @@ class OrderPlacementBestEffortTailTest {
     void setUp() {
 
         tail = new OrderPlacementBestEffortTail(
-                sendOrderConfirmationEmailInPort,
+                orderPlacementDispatchManager,
                 exportOrderInPort,
                 publishOrderAuditEventInPort,
                 publishOrderAnalyticsEventInPort,
-                routeOrderNotificationInPort,
                 classifyOrderRemarksInPort,
                 detectDuplicateOrderInPort,
                 sagaMetrics);
@@ -82,11 +77,10 @@ class OrderPlacementBestEffortTailTest {
 
         tail.run(order);
 
-        verify(sendOrderConfirmationEmailInPort).sendConfirmationEmail(order);
+        verify(orderPlacementDispatchManager).enqueue(order);
         verify(exportOrderInPort).exportOrder(order);
         verify(publishOrderAuditEventInPort).publishAuditEvent(order);
         verify(publishOrderAnalyticsEventInPort).publishAnalyticsEvent(order);
-        verify(routeOrderNotificationInPort).routeNotification(order);
         verify(classifyOrderRemarksInPort).classifyRemarks(order);
         verify(detectDuplicateOrderInPort).detectDuplicate(order);
         verify(sagaMetrics).recordRemarksClassification(RemarksTriageCategory.STANDARD);
@@ -97,21 +91,28 @@ class OrderPlacementBestEffortTailTest {
     void shouldContainEverySimpleIntegrationFailure() {
 
         final Order order = OrderBuilder.mockOrder();
-        doThrow(new IllegalStateException("mail unavailable")).when(sendOrderConfirmationEmailInPort)
-                .sendConfirmationEmail(order);
         doThrow(new IllegalStateException("s3 unavailable")).when(exportOrderInPort).exportOrder(order);
         doThrow(new IllegalStateException("sqs unavailable")).when(publishOrderAuditEventInPort).publishAuditEvent(order);
         doThrow(new IllegalStateException("kafka unavailable")).when(publishOrderAnalyticsEventInPort)
                 .publishAnalyticsEvent(order);
-        doThrow(new IllegalStateException("camel unavailable")).when(routeOrderNotificationInPort).routeNotification(order);
 
         assertDoesNotThrow(() -> tail.run(order));
 
-        verify(sagaMetrics).recordStepDuration(eq("confirmation-email"), any(), eq(false));
         verify(sagaMetrics).recordStepDuration(eq("s3-export"), any(), eq(false));
         verify(sagaMetrics).recordStepDuration(eq("sqs-audit"), any(), eq(false));
         verify(sagaMetrics).recordStepDuration(eq("kafka-analytics"), any(), eq(false));
-        verify(sagaMetrics).recordStepDuration(eq("camel-routing"), any(), eq(false));
+    }
+
+    @Test
+    void shouldPropagateDurableDispatchEnqueueFailure() {
+
+        final Order order = OrderBuilder.mockOrder();
+        doThrow(new IllegalStateException("dispatch persistence unavailable")).when(orderPlacementDispatchManager)
+                .enqueue(order);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> tail.run(order))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dispatch persistence unavailable");
     }
 
     @Test

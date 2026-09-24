@@ -89,7 +89,13 @@ def criticalRabbitGateEnabled =
 test {
     def strictEvidenceGateEnabled = criticalPostgresGateEnabled || criticalRabbitGateEnabled
 
+    // This module creates many distinct SpringBootTest/Testcontainers contexts. Bound the cache so old contexts are closed before one worker exhausts heap.
+    systemProperty 'spring.test.context.cache.maxSize', '8'
+
     if (strictEvidenceGateEnabled) {
+        // Critical recovery/concurrency evidence uses many heavyweight contexts and must remain
+        // retry-free. Recycle the worker periodically instead of masking OOM with retries.
+        forkEvery = 12
         outputs.upToDateWhen { false }
         outputs.cacheIf { false }
         reports.junitXml.outputLocation.set(layout.buildDirectory.dir(

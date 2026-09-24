@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <changeSet id="s22-08d1-order-placement-dispatch" author="PC">
+        <createTable tableName="ORDER_PLACEMENT_DISPATCH" schemaName="${schema_name_full}">
+            <column name="DISPATCH_ID" type="VARCHAR(100)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_ORDER_PLACEMENT_DISPATCH" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DISPATCH_TYPE" type="VARCHAR(30)">
+                <constraints nullable="false" />
+            </column>
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="SENT_DATE" type="TIMESTAMP" />
+            <column name="ATTEMPTS" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="NEXT_ATTEMPT_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="LAST_ERROR" type="VARCHAR(500)" />
+            <column name="CLAIM_ID" type="VARCHAR(36)" />
+            <column name="CLAIM_UNTIL" type="TIMESTAMP" />
+        </createTable>
+        <addUniqueConstraint schemaName="${schema_name_full}" tableName="ORDER_PLACEMENT_DISPATCH" columnNames="ORDER_NUMBER, DISPATCH_TYPE" constraintName="UK_ORDER_PLACEMENT_DISPATCH_ORDER_TYPE" />
+        <createIndex schemaName="${schema_name_full}" tableName="ORDER_PLACEMENT_DISPATCH" indexName="IDX_ORDER_PLACEMENT_DISPATCH_DUE">
+            <column name="STATUS" />
+            <column name="NEXT_ATTEMPT_DATE" />
+            <column name="CREATED_DATE" />
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

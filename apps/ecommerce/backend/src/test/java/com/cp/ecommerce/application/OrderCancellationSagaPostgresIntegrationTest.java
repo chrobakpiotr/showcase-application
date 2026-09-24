@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementBestEffortTail;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementSagaOrchestrator;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
@@ -33,9 +34,7 @@ import com.cp.ecommerce.domain.order.port.incoming.ExportOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
-import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
-import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
@@ -232,11 +231,10 @@ class OrderCancellationSagaPostgresIntegrationTest {
 
         final SagaMetrics metrics = new SagaMetrics(new SimpleMeterRegistry());
         final OrderPlacementBestEffortTail bestEffortTail = new OrderPlacementBestEffortTail(
-                mock(SendOrderConfirmationEmailInPort.class),
+                mock(OrderPlacementDispatchManager.class),
                 mock(ExportOrderInPort.class),
                 mock(PublishOrderAuditEventInPort.class),
                 mock(PublishOrderAnalyticsEventInPort.class),
-                mock(RouteOrderNotificationInPort.class),
                 mock(ClassifyOrderRemarksInPort.class),
                 mock(DetectDuplicateOrderInPort.class),
                 metrics);

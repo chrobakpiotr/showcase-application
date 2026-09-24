@@ -50,5 +50,6 @@
     <include file="changelogs/db.changelog-order-cancellation-redrive.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-payment-reconciliation-retention.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-order-fulfillment-receipt.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-order-placement-dispatch.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>
