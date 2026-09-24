@@ -31,7 +31,7 @@ import static org.mockito.Mockito.doThrow;
 @SpringBootTest
 @ActiveProfiles("test-postgres")
 @Testcontainers(disabledWithoutDocker = true)
-@TestPropertySource(properties = "outbox.publisher.enabled=false")
+@TestPropertySource(properties = { "outbox.publisher.enabled=false", "payment.reconciliation.enabled=false" })
 class RefundContinuationCrashPointPostgresIntegrationTest {
 
     private static final String ORDER_NUMBER = "S22-ORDER-CRASH";

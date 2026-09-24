@@ -43,7 +43,12 @@ The local backend default is `http://localhost:9080/home`; the recovery script n
 
 `DRY_RUN=1` is strictly read-only: it only verifies that the target order can be read and never sends the cancellation POST.
 
-The current `DRY_RUN=0` path still invokes the ordinary authenticated cancellation endpoint and therefore is **not** the
-durable `MANUAL_REVIEW` administrative redrive contract. Do not use it to clear a parked cancellation incident by pretending
-that a new customer/operator cancellation request is a recovery command. S22-07c2 introduces a separate audited command with
-stable `commandId`, authenticated actor, reason, and fencing/idempotency semantics.
+`DRY_RUN=0` uses the dedicated `POST /api/order/{orderNumber}/cancellation-redrive` command endpoint. The operator must
+supply a stable `commandId` and reuse it when retrying the same administrative action. The backend binds that command ID to the
+order, authenticated actor, and reason in `ORDER_CANCELLATION_REDRIVE_COMMAND`; replaying the identical command is idempotent,
+while changing any bound field conflicts.
+
+The command is accepted only for a cancellation-specific `MANUAL_REVIEW` row with no outstanding ownership marker and a
+`CANCELLED` order. Acceptance performs one transaction that writes the audit row and requeues the saga to `CANCELLING`; it does
+not execute stock/payment/notification side effects in the HTTP request. Existing recovery workers subsequently acquire the
+normal cancellation lease and continue the workflow.

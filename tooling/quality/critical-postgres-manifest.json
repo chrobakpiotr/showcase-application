@@ -379,6 +379,12 @@
       "scenario": "read-only reconciliation report queries execute against the current migrated PostgreSQL schema",
       "suite": "com.cp.ecommerce.application.OperatorRecoveryToolingPostgresIntegrationTest",
       "testMethod": "shouldExecuteReadOnlyReconciliationQueriesAgainstCurrentSchema"
+    },
+    {
+      "ac": "AC-ORDER-CANCELLATION-REDRIVE-01",
+      "scenario": "manual-review cancellation redrive is durably audited idempotent and fenced from active ownership",
+      "suite": "com.cp.ecommerce.application.OrderCancellationManualReviewRedrivePostgresIntegrationTest",
+      "testMethod": "shouldDurablyAuditReplayAndFenceManualReviewRedrive"
     }
   ]
 }

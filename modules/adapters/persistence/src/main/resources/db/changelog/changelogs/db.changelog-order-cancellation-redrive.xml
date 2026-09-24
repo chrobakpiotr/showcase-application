@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <changeSet id="s22-07c2-order-cancellation-redrive-command" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_CANCELLATION_REDRIVE_COMMAND">
+            <column name="COMMAND_ID" type="VARCHAR(80)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_ORDER_CANCELLATION_REDRIVE_COMMAND" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ACTOR" type="VARCHAR(120)">
+                <constraints nullable="false" />
+            </column>
+            <column name="REASON" type="VARCHAR(500)">
+                <constraints nullable="false" />
+            </column>
+            <column name="PREVIOUS_ERROR" type="VARCHAR(500)" />
+            <column name="STATUS" type="VARCHAR(20)">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATION_DATE" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+
+        <createIndex schemaName="${schema_name_full}" tableName="ORDER_CANCELLATION_REDRIVE_COMMAND" indexName="IDX_ORDER_CANCELLATION_REDRIVE_ORDER">
+            <column name="ORDER_NUMBER" />
+            <column name="CREATION_DATE" />
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
