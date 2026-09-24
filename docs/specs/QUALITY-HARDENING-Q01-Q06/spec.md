@@ -34,7 +34,7 @@ document-only and not selected by `harness.py validate-all`.
 | Q03 cancellation | IMPLEMENTED + TESTED; terminal fencing plus notification enqueue are one transaction and WAITING_FOR_REFUND is retryable; independent review remains pending |
 | Q04 shipment | IMPLEMENTED + TESTED; immutable operation identity, dispatch rule parity, atomic rollback and UI 409 retry semantics are covered; independent review remains pending |
 | Q05 refund entitlement | IMPLEMENTED + TESTED; persisted refund entitlement is conserved and rejected allocation is released exactly; independent review remains pending |
-| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap and transactional cancellation rollback are covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
+| Q06 notification | CORE IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap, transactional cancellation rollback, durable AMQP consumer receipts and real-broker republish/redelivery evidence are covered. This does not claim provider-level exactly-once SMTP/Camel delivery |
 
 Key implementation corrections now reflected by the contract:
 
@@ -55,6 +55,7 @@ Key implementation corrections now reflected by the contract:
 - Q06 core evidence now includes PostgreSQL enqueue/delivery overlap: re-enqueue during an active delivery claim/finalize
   preserves one durable row and cannot regress SENT delivery state. Cancellation finalization already proves that terminal
   business state plus notification enqueue roll back together on notification persistence failure.
+- Q06 AMQP evidence uses real PostgreSQL plus RabbitMQ: a broker-accepted publish can be repeated after placement owner loss under the same `operationId`, and a committed consumer receipt can be redelivered after connection loss before ACK. Both paths converge on one durable fulfillment receipt and preserve captured-payment state; broker acceptance is not consumer business commit.
 
 ## Goal
 

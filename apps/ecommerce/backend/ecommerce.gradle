@@ -50,8 +50,10 @@ dependencies {
 
     testImplementation project(path: ":adapter:common", configuration: 'testArtifacts')
     testImplementation 'jakarta.persistence:jakarta.persistence-api'
+    testImplementation 'org.springframework.boot:spring-boot-starter-amqp'
     testImplementation "org.testcontainers:testcontainers-junit-jupiter"
     testImplementation "org.testcontainers:testcontainers-postgresql"
+    testImplementation "org.testcontainers:testcontainers-rabbitmq:2.0.5"
     testRuntimeOnly 'com.h2database:h2'
     testImplementation 'org.hibernate.orm:hibernate-core'
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
@@ -81,17 +83,22 @@ rootProject.configureBootTasks(project)
 // concurrency/recovery case, so a first failure cannot disappear behind a later flaky pass.
 def criticalPostgresGateEnabled =
         providers.gradleProperty('criticalPostgresGate').getOrElse('false').toBoolean()
+def criticalRabbitGateEnabled =
+        providers.gradleProperty('criticalRabbitGate').getOrElse('false').toBoolean()
 
 test {
-    if (criticalPostgresGateEnabled) {
+    def strictEvidenceGateEnabled = criticalPostgresGateEnabled || criticalRabbitGateEnabled
+
+    if (strictEvidenceGateEnabled) {
         outputs.upToDateWhen { false }
         outputs.cacheIf { false }
-        reports.junitXml.outputLocation.set(layout.buildDirectory.dir('critical-postgres-results'))
+        reports.junitXml.outputLocation.set(layout.buildDirectory.dir(
+                criticalRabbitGateEnabled ? 'critical-rabbitmq-results' : 'critical-postgres-results'))
     }
 
     retry {
-        maxRetries = criticalPostgresGateEnabled ? 0 : 2
+        maxRetries = strictEvidenceGateEnabled ? 0 : 2
         maxFailures = 5
-        failOnPassedAfterRetry = criticalPostgresGateEnabled
+        failOnPassedAfterRetry = strictEvidenceGateEnabled
     }
 }

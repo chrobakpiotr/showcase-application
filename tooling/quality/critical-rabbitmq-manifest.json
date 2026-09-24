@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "inventoryPolicy": "explicit-rabbitmq-delivery-evidence",
+  "requirements": [
+    {
+      "ac": "AC-AMQP-BROKER-OWNER-LOSS-01",
+      "scenario": "broker-accepted fulfillment is republished under the same operation identity after placement owner loss and converges on one durable receipt",
+      "suite": "com.cp.ecommerce.application.RabbitMqFulfillmentDeliveryIntegrationTest",
+      "testMethod": "acceptedPublishCanBeRepublishedAfterOwnerLossWithoutDuplicateReceiptOrFinanceMutation"
+    },
+    {
+      "ac": "AC-AMQP-BROKER-ACK-LOSS-01",
+      "scenario": "consumer commit followed by ack loss redelivers after reconnect and converges on the same durable receipt without finance mutation",
+      "suite": "com.cp.ecommerce.application.RabbitMqFulfillmentDeliveryIntegrationTest",
+      "testMethod": "committedReceiptMustSurviveAckLossAndBrokerRedeliveryWithoutFinanceMutation"
+    }
+  ]
+}

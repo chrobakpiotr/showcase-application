@@ -56,6 +56,9 @@ jobs:
       - name: Test critical PostgreSQL evidence verifier
         run: python3 -m unittest tooling/scripts/tests/test_verify_critical_postgres_results.py -v
 
+      - name: Validate critical RabbitMQ gate shell syntax
+        run: bash -n tooling/scripts/verify-critical-rabbitmq-tests.sh
+
       - name: Test PIT evidence verifier
         run: python3 -m unittest tooling/scripts/tests/test_verify_pit_report.py -v
 
@@ -109,6 +112,18 @@ jobs:
         with:
           name: critical-postgres-evidence
           path: apps/ecommerce/backend/build/critical-postgres-results/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Verify critical RabbitMQ republish/redelivery evidence
+        run: tooling/scripts/verify-critical-rabbitmq-tests.sh
+
+      - name: Publish isolated critical RabbitMQ evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: critical-rabbitmq-evidence
+          path: apps/ecommerce/backend/build/critical-rabbitmq-results/
           retention-days: 14
           if-no-files-found: error
 
