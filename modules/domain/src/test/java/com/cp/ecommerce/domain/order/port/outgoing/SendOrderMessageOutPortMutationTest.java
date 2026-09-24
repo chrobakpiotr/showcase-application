@@ -18,7 +18,7 @@ class SendOrderMessageOutPortMutationTest {
         given(order.getOrderNumber()).willReturn("ORDER-1");
         final RecordingPort port = new RecordingPort();
 
-        port.send(order);
+        assertThat(port.send(order)).isEqualTo(OrderMessagePublishOutcome.ACCEPTED);
 
         assertThat(port.order).isSameAs(order);
         assertThat(port.operationId).isEqualTo("ORDER-FULFILLMENT:ORDER-1");
