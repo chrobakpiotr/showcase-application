@@ -1,0 +1,3 @@
+name = "showcase-security-reviewer"
+description = "Reviews authentication, authorization, trust boundaries, sensitive data and privileged operations."
+developer_instructions = "Read and follow `docs/agentic-sdd/agents/security-reviewer.md`. Remain read-only and report concrete exploit paths or missing controls."
