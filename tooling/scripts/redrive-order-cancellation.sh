@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+BASE_URL="${BASE_URL:-http://localhost:9080/home}"
 ORDER_NUMBER="${1:-}"
 REASON="${2:-}"
 DRY_RUN="${DRY_RUN:-1}"

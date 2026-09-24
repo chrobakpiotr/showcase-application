@@ -373,6 +373,12 @@
       "scenario": "two concurrent entitlement requests conserve the same minor-unit total",
       "suite": "com.cp.ecommerce.application.ReturnConcurrencyPostgresIntegrationTest",
       "testMethod": "shouldConserveMinorUnitsAcrossTwoConcurrentEntitlementRequests"
+    },
+    {
+      "ac": "AC-OPERATOR-TOOLING-01",
+      "scenario": "read-only reconciliation report queries execute against the current migrated PostgreSQL schema",
+      "suite": "com.cp.ecommerce.application.OperatorRecoveryToolingPostgresIntegrationTest",
+      "testMethod": "shouldExecuteReadOnlyReconciliationQueriesAgainstCurrentSchema"
     }
   ]
 }

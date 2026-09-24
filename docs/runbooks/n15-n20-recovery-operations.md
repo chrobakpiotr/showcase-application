@@ -23,3 +23,11 @@ Cancellation recovery is claim-fenced. Stale failure completion cannot overwrite
 Notification delivery remains at-least-once at transport level; provider integrations must map the durable notification id to provider idempotency.
 
 Completed payment reconciliation evidence is retained 90 days by default. Pending/manual-review rows and load-bearing notification/idempotency rows are not deleted.
+
+## S22-07c read-only reconciliation tooling
+
+`report-data-reconciliation.sh` is schema-checked against the current Liquibase master by
+`OperatorRecoveryToolingPostgresIntegrationTest`. The payment reconciliation table uses `CREATION_DATE`; operational queries
+must not use the unrelated `CREATED_DATE` spelling used by other tables.
+
+For local execution the application listens on port `9080` with servlet context path `/home`.
