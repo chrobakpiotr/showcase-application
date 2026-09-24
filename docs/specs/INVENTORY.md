@@ -32,6 +32,7 @@
 | `READ-PERF-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-METRICS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-OPS-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `RECOVERY-TIMELINE-001` | **IMPLEMENTED + TESTED / INDEPENDENT REVIEW PENDING** | yes | no | no | document-only | not selected |
 | `RMA-CONCURRENCY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SDD-001` | ACCEPTED | yes | yes | yes | executable | selected |
 | `SECURITY-GATES-001` | UNDECLARED | yes | yes | yes | executable | selected |
