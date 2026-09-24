@@ -421,6 +421,12 @@
       "scenario": "concurrent workers produce one dispatch owner and retry under the same stable dispatch identity",
       "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
       "testMethod": "concurrentClaimMustHaveOneOwnerAndRetrySameDispatchIdentity"
+    },
+    {
+      "ac": "AC-S22-09-READ-SAFE-01",
+      "scenario": "recovery timeline exact order scope resists SQL wildcards and excludes sensitive recovery fields",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.recovery.OrderRecoveryTimelinePostgresIntegrationTest",
+      "testMethod": "exactOrderScopeMustResistSqlWildcardsAndExcludeSensitiveFields"
     }
   ]
 }

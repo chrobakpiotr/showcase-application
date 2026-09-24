@@ -148,6 +148,20 @@ class FindOrderRecoveryTimelineAdapterTest {
     }
 
     @Test
+    void queryMustUseRepositoryPostgresSchemaForEveryDurableSource() {
+
+        final String sql = FindOrderRecoveryTimelineAdapter.TIMELINE_SQL.toUpperCase(Locale.ROOT);
+
+        assertThat(sql).contains("FROM TEST_DB.OUTBOX_EVENT");
+        assertThat(sql).contains("FROM TEST_DB.PAYMENT_RECONCILIATION_OPERATION");
+        assertThat(sql).contains("FROM TEST_DB.PAYMENT_REFUND");
+        assertThat(sql).contains("FROM TEST_DB.ORDER_FULFILLMENT_RECEIPT");
+        assertThat(sql).contains("FROM TEST_DB.ORDER_PLACEMENT_DISPATCH");
+        assertThat(sql).contains("FROM TEST_DB.NOTIFICATION");
+        assertThat(sql).contains("FROM TEST_DB.SHIPMENT");
+    }
+
+    @Test
     void notificationScopeMustUseLiteralFormalPrefixInsteadOfSqlWildcardMatch() {
 
         final String sql = FindOrderRecoveryTimelineAdapter.TIMELINE_SQL.toUpperCase(Locale.ROOT);

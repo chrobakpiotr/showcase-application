@@ -44,7 +44,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    END occurred_at,
                    CAST(ID AS VARCHAR(120)) reference_id,
                    CAST(STATUS AS VARCHAR(40)) raw_status
-              FROM OUTBOX_EVENT
+              FROM test_db.OUTBOX_EVENT
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'PAYMENT_RECONCILIATION',
@@ -58,7 +58,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    COALESCE(COMPLETION_DATE, CREATION_DATE),
                    OPERATION_ID,
                    CAST(STATUS AS VARCHAR(40))
-              FROM PAYMENT_RECONCILIATION_OPERATION
+              FROM test_db.PAYMENT_RECONCILIATION_OPERATION
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'PAYMENT',
@@ -67,7 +67,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    COALESCE(COMPLETION_DATE, CREATION_DATE),
                    REFUND_ID,
                    CAST(STATUS AS VARCHAR(40))
-              FROM PAYMENT_REFUND
+              FROM test_db.PAYMENT_REFUND
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'FULFILLMENT',
@@ -76,7 +76,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    RECEIVED_DATE,
                    OPERATION_ID,
                    'RECEIVED'
-              FROM ORDER_FULFILLMENT_RECEIPT
+              FROM test_db.ORDER_FULFILLMENT_RECEIPT
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'PLACEMENT_DISPATCH',
@@ -89,7 +89,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    COALESCE(SENT_DATE, CREATED_DATE),
                    DISPATCH_ID,
                    CAST(STATUS AS VARCHAR(40))
-              FROM ORDER_PLACEMENT_DISPATCH
+              FROM test_db.ORDER_PLACEMENT_DISPATCH
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'NOTIFICATION',
@@ -102,7 +102,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    COALESCE(SENT_DATE, CREATED_DATE),
                    NOTIFICATION_ID,
                    CAST(STATUS AS VARCHAR(40))
-              FROM NOTIFICATION
+              FROM test_db.NOTIFICATION
              WHERE LEFT(EVENT_KEY, LENGTH(CONCAT('order:', :orderNumber, ':')))
                    = CONCAT('order:', :orderNumber, ':')
             UNION ALL
@@ -112,7 +112,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    CREATED_DATE,
                    SHIPMENT_NUMBER,
                    CAST(STATUS AS VARCHAR(40))
-              FROM SHIPMENT
+              FROM test_db.SHIPMENT
              WHERE ORDER_NUMBER = :orderNumber
             UNION ALL
             SELECT 'SHIPMENT',
@@ -121,7 +121,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    DISPATCHED_DATE,
                    SHIPMENT_NUMBER,
                    CAST(STATUS AS VARCHAR(40))
-              FROM SHIPMENT
+              FROM test_db.SHIPMENT
              WHERE ORDER_NUMBER = :orderNumber
                AND DISPATCHED_DATE IS NOT NULL
             UNION ALL
@@ -131,7 +131,7 @@ class FindOrderRecoveryTimelineAdapter implements FindOrderRecoveryTimelineOutPo
                    DELIVERED_DATE,
                    SHIPMENT_NUMBER,
                    CAST(STATUS AS VARCHAR(40))
-              FROM SHIPMENT
+              FROM test_db.SHIPMENT
              WHERE ORDER_NUMBER = :orderNumber
                AND DELIVERED_DATE IS NOT NULL
             ORDER BY occurred_at DESC, source_name ASC, type_name ASC, reference_id ASC

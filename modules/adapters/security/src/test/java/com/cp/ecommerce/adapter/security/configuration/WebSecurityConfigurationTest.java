@@ -32,6 +32,8 @@ class WebSecurityConfigurationTest {
 
     private static final String ORDER_READ_AUTHORITY = "ROLE_ORDER_READ";
 
+    private static final String ORDER_RECOVERY_TIMELINE_ENDPOINT = ORDER_ENDPOINT + "/some-order/recovery-timeline";
+
     private static final String CATALOG_PRODUCTS_ENDPOINT = "/api/catalog/products";
 
     private static final String INVENTORY_ENDPOINT = "/api/inventory/SKU-1234";
@@ -114,6 +116,23 @@ class WebSecurityConfigurationTest {
                 .getStatus();
 
         assertThat(status).isNotIn(401, 403);
+    }
+
+    @Test
+    void shouldProtectRecoveryTimelineWithOrderReadRole() throws Exception {
+
+        mockMvc.perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT)).andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+                .andExpect(status().isForbidden());
+
+        final int authorizedStatus = mockMvc
+                .perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(authorizedStatus).isNotIn(401, 403);
     }
 
     @Test
