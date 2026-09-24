@@ -4,63 +4,128 @@ import java.text.ParseException;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.amqp.order.mapper.OrderMessageMapper;
-import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.google.gson.Gson;
 
-import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.core.ReturnedMessage;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
 
 import static com.cp.ecommerce.adapter.amqp.configuration.MessagingConfiguration.ROUTING_KEY;
 import static com.cp.ecommerce.adapter.amqp.configuration.MessagingConfiguration.TOPIC_EXCHANGE_NAME;
 import static com.cp.ecommerce.adapter.amqp.order.utils.OrderMessageBuilder.mockOrderMessage;
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 
-/**
- * Unit tests for {@link SendOrderMessageAdapter}.
- */
 @ExtendWith(MockitoExtension.class)
 class SendOrderMessageAdapterTest {
 
-    @Mock
-    transient RabbitTemplate rabbitTemplate;
+    private static final String OPERATION_ID = "ORDER-FULFILLMENT:1234";
 
     @Mock
-    transient OrderMessageMapper mapper;
-
+    private RabbitTemplate rabbitTemplate;
     @Mock
-    transient ResilientExecutor resilientExecutor;
-
+    private OrderMessageMapper mapper;
     @Mock
-    transient Gson gson;
+    private Gson gson;
 
-    @InjectMocks
-    transient SendOrderMessageAdapter adapter;
+    private SendOrderMessageAdapter adapter;
+
+    @BeforeEach
+    void setUp() {
+        adapter = new SendOrderMessageAdapter(mapper, rabbitTemplate, gson);
+    }
 
     @Test
-    void shouldSendRabbitMessage() throws ParseException {
+    void shouldReturnAcceptedAfterPositiveBrokerConfirm() throws ParseException {
 
-        final Order order = mockOrder();
-        given(mapper.mapToMessage(order)).willReturn(Optional.ofNullable(mockOrderMessage()));
-        given(gson.toJson(any(Object.class))).willReturn("{}");
-        runResilientActionEagerly();
+        final Order order = prepareMappedOrder();
+        completeConfirm(true, null, false);
 
-        adapter.send(order);
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.ACCEPTED);
+    }
 
-        verify(rabbitTemplate).convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), any(String.class));
+    @Test
+    void shouldReturnRejectedAfterBrokerNack() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        completeConfirm(false, "broker nack", false);
+
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.REJECTED);
+    }
+
+    @Test
+    void shouldReturnRejectedWhenMandatoryPublishIsReturned() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        completeConfirm(true, null, true);
+
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.REJECTED);
+    }
+
+    @Test
+    void shouldReturnUnknownWhenConfirmTimesOut() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        adapter.confirmTimeoutMillis = 1L;
+
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.UNKNOWN);
+    }
+
+    @Test
+    void shouldReturnUnknownWhenPublishThrowsAmqpException() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        doThrow(new AmqpException("connection lost")).when(rabbitTemplate)
+                .convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), anyString(), any(CorrelationData.class));
+
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.UNKNOWN);
+    }
+
+    @Test
+    void shouldReturnUnknownWhenConfirmCompletesExceptionally() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        doAnswer(invocation -> {
+            final CorrelationData correlationData = invocation.getArgument(3);
+            correlationData.getFuture().completeExceptionally(new IllegalStateException("confirm channel closed"));
+            return null;
+        }).when(rabbitTemplate)
+                .convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), anyString(), any(CorrelationData.class));
+
+        assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.UNKNOWN);
+    }
+
+    @Test
+    void shouldRestoreInterruptAndReturnUnknown() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+
+        Thread.currentThread().interrupt();
+        try {
+            assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.UNKNOWN);
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test
@@ -69,16 +134,33 @@ class SendOrderMessageAdapterTest {
         final Order order = mockOrder();
         given(mapper.mapToMessage(order)).willReturn(Optional.empty());
 
-        Assertions.assertThatThrownBy(() -> adapter.send(order)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> adapter.send(order, OPERATION_ID)).isInstanceOf(IllegalStateException.class);
     }
 
-    private void runResilientActionEagerly() {
+    private Order prepareMappedOrder() throws ParseException {
+
+        final Order order = mockOrder();
+        given(mapper.mapToMessage(order)).willReturn(Optional.of(mockOrderMessage()));
+        given(gson.toJson(any(Object.class))).willReturn("{}");
+        return order;
+    }
+
+    private void completeConfirm(final boolean ack, final String reason, final boolean returned) {
 
         doAnswer(invocation -> {
-            final Runnable action = invocation.getArgument(1);
-            action.run();
+            final CorrelationData correlationData = invocation.getArgument(3);
+            if (returned) {
+                correlationData.setReturned(
+                        new ReturnedMessage(
+                                new Message(new byte[0], new MessageProperties()),
+                                312,
+                                "NO_ROUTE",
+                                TOPIC_EXCHANGE_NAME,
+                                ROUTING_KEY));
+            }
+            correlationData.getFuture().complete(new CorrelationData.Confirm(ack, reason));
             return null;
-        }).when(resilientExecutor).runResilient(anyString(), any(Runnable.class));
+        }).when(rabbitTemplate)
+                .convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), anyString(), any(CorrelationData.class));
     }
-
 }

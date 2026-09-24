@@ -10,6 +10,7 @@ import java.util.UUID;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
@@ -236,7 +237,15 @@ public class OrderPlacementSagaOrchestrator {
                 sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
                 return false;
             }
-            sendMessageInPort.sendMessage(order);
+            final OrderMessagePublishOutcome publishOutcome = sendMessageInPort.sendMessage(order);
+            if (publishOutcome == OrderMessagePublishOutcome.UNKNOWN) {
+                sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
+                releasePlacementClaim(claim, "Fulfillment publish outcome is unknown");
+                return false;
+            }
+            if (publishOutcome == OrderMessagePublishOutcome.REJECTED) {
+                throw new IllegalStateException("RabbitMQ rejected fulfillment publish");
+            }
             if (!ownsPlacementClaim(claim)) {
                 sagaMetrics.recordStepDuration(FULFILLMENT_STEP, elapsedSince(startNanos), false);
                 return false;

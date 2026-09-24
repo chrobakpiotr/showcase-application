@@ -1,28 +1,14 @@
 package com.cp.ecommerce.domain.order.port.outgoing;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 
-/**
- * Send order message outgoing port.
- */
+/** Publishes one logical fulfillment command under a stable replay identity. */
 public interface SendOrderMessageOutPort {
 
-    /**
-     * Sending email.
-     *
-     * @param order {@link Order} object.
-     */
-    default void send(final Order order) {
-
-        send(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
+    default OrderMessagePublishOutcome send(final Order order) {
+        return send(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
     }
 
-    /**
-     * Sends one logical fulfillment command under a stable replay identity.
-     *
-     * @param order order to fulfill
-     * @param operationId stable logical fulfillment identity
-     */
-    void send(Order order, String operationId);
-
+    OrderMessagePublishOutcome send(Order order, String operationId);
 }

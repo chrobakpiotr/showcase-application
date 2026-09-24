@@ -6,6 +6,7 @@ import java.util.Arrays;
 
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.OrderMessage;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.SendOrderMessageOutPort;
 
@@ -37,6 +38,15 @@ class FulfillmentReplayIdentityRedTest {
         assertThat(Arrays.stream(OrderMessage.class.getRecordComponents()).map(RecordComponent::getName))
                 .as("broker redelivery/takeover needs a durable logical operation id in the payload")
                 .contains("operationId");
+    }
+
+    @Test
+    void publisherPortsMustExposeAmbiguousOutcomeExplicitly() throws NoSuchMethodException {
+
+        assertThat(SendMessageInPort.class.getMethod("sendMessage", Order.class, String.class).getReturnType())
+                .isEqualTo(OrderMessagePublishOutcome.class);
+        assertThat(SendOrderMessageOutPort.class.getMethod("send", Order.class, String.class).getReturnType())
+                .isEqualTo(OrderMessagePublishOutcome.class);
     }
 
     private static boolean hasOrderAndOperationIdentityMethod(final Class<?> type, final String methodName) {

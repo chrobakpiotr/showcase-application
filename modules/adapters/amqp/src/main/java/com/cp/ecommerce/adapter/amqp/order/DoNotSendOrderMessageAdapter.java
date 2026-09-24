@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.amqp.order;
 
 import com.cp.ecommerce.adapter.common.annotation.WebAdapter;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.cp.ecommerce.domain.order.port.outgoing.SendOrderMessageOutPort;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,9 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 public class DoNotSendOrderMessageAdapter implements SendOrderMessageOutPort {
 
     @Override
-    public void send(final Order order, final String operationId) {
+    public OrderMessagePublishOutcome send(final Order order, final String operationId) {
 
         log.info("RabbitMQ disabled for order, messages will not be sent.");
+        return OrderMessagePublishOutcome.ACCEPTED;
     }
 
 }

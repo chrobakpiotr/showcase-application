@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.order.port.outgoing;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,10 +30,11 @@ class SendOrderMessageOutPortMutationTest {
         private String operationId;
 
         @Override
-        public void send(final Order order, final String operationId) {
+        public OrderMessagePublishOutcome send(final Order order, final String operationId) {
 
             this.order = order;
             this.operationId = operationId;
+            return OrderMessagePublishOutcome.ACCEPTED;
         }
     }
 }

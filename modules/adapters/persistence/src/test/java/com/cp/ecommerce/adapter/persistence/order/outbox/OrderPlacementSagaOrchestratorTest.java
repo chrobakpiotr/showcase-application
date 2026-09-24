@@ -11,6 +11,7 @@ import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.cp.ecommerce.domain.order.port.incoming.CancelOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
@@ -124,6 +125,7 @@ class OrderPlacementSagaOrchestratorTest {
                     .filter(event -> id.equals(event.getId()))
                     .findFirst();
         });
+        lenient().when(sendMessageInPort.sendMessage(any())).thenReturn(OrderMessagePublishOutcome.ACCEPTED);
         lenient().when(managePaymentInPort.capturePayment(any(), any(), any()))
                 .thenAnswer(
                         invocation -> PaymentTransaction.builder()
@@ -329,6 +331,60 @@ class OrderPlacementSagaOrchestratorTest {
         assertThat(event.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
         assertThat(event.getCompensatedDate()).isNull();
         assertThat(compensationCount()).isZero();
+    }
+
+    @Test
+    void shouldRetryUnknownFulfillmentOutcomeWithoutConsumingFulfillmentBudgetOrCompensating() {
+
+        final Order order = OrderBuilder.mockOrder();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(66L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(sendMessageInPort.sendMessage(order)).thenReturn(OrderMessagePublishOutcome.UNKNOWN);
+
+        newOrchestrator().publishPendingEvents();
+
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
+        assertThat(event.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS - 1);
+        assertThat(event.getProcessingAttempts()).isEqualTo(1);
+        assertThat(event.getLastError()).contains("unknown");
+        verifyNoInteractions(cancelOrderInPort);
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
+    }
+
+    @Test
+    void shouldTreatDefinitivePublisherRejectionAsFulfillmentFailure() {
+
+        final Order order = orderWithReservationIdentity();
+        final OutboxEventEntity event = OutboxEventEntity.builder()
+                .id(67L)
+                .orderNumber(order.getOrderNumber())
+                .status(OutboxEventStatus.PENDING)
+                .createdDate(FIXED_CLOCK.instant())
+                .nextAttemptDate(FIXED_CLOCK.instant())
+                .attempts(MAX_FULFILLMENT_ATTEMPTS - 1)
+                .build();
+
+        when(outboxEventEntityRepository.findAllByStatusOrderByCreatedDateAsc(OutboxEventStatus.PENDING))
+                .thenReturn(List.of(event));
+        when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
+        when(sendMessageInPort.sendMessage(order)).thenReturn(OrderMessagePublishOutcome.REJECTED);
+
+        newOrchestrator().publishPendingEvents();
+
+        assertThat(event.getAttempts()).isEqualTo(MAX_FULFILLMENT_ATTEMPTS);
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
+        verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
+        verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
     }
 
     @Test

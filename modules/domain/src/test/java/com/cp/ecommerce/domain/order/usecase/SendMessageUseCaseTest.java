@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.order.usecase;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderMessagePublishOutcome;
 import com.cp.ecommerce.domain.order.port.outgoing.SendOrderMessageOutPort;
 import com.cp.ecommerce.domain.support.TestDomainObjectFactory;
 
@@ -10,6 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -29,9 +32,12 @@ class SendMessageUseCaseTest {
 
         final Order order = TestDomainObjectFactory.validOrder();
 
-        sendMessageUseCase.sendMessage(order);
+        final String operationId = "ORDER-FULFILLMENT:" + order.getOrderNumber();
+        given(sendOrderMessageOutPort.send(order, operationId)).willReturn(OrderMessagePublishOutcome.ACCEPTED);
 
-        verify(sendOrderMessageOutPort).send(order, "ORDER-FULFILLMENT:" + order.getOrderNumber());
+        assertThat(sendMessageUseCase.sendMessage(order)).isEqualTo(OrderMessagePublishOutcome.ACCEPTED);
+
+        verify(sendOrderMessageOutPort).send(order, operationId);
     }
 
 }
