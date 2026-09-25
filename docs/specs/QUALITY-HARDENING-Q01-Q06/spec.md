@@ -1,6 +1,6 @@
 # QUALITY-HARDENING-Q01-Q06 — correctness before stronger claims
 
-Status: **IMPLEMENTED + TESTED SLICES / INDEPENDENT VERIFICATION PENDING**
+Status: **CLOSED**
 
 Audited baseline:
 
@@ -29,12 +29,12 @@ document-only and not selected by `harness.py validate-all`.
 
 | Contract area | Current evidence status |
 | --- | --- |
-| C01 aggregate/evidence | IMPLEMENTED + TESTED; critical PostgreSQL evidence and PIT are fail-closed; required-status ruleset is deployed; independent verification remains pending |
-| Q01/Q02 placement/payment | IMPLEMENTED + TESTED; owner-aware recovery, stable provider operation identity and manual-review preservation are covered; independent review remains pending |
-| Q03 cancellation | IMPLEMENTED + TESTED; terminal fencing plus notification enqueue are one transaction and WAITING_FOR_REFUND is retryable; independent review remains pending |
-| Q04 shipment | IMPLEMENTED + TESTED; immutable operation identity, dispatch rule parity, atomic rollback and UI 409 retry semantics are covered; independent review remains pending |
-| Q05 refund entitlement | IMPLEMENTED + TESTED; persisted refund entitlement is conserved and rejected allocation is released exactly; independent review remains pending |
-| Q06 notification | CORE + placement dispatch IMPLEMENTED + TESTED; durable event identity/insert-once/replay protection, enqueue/delivery overlap, transactional cancellation rollback, durable AMQP consumer receipts, real-broker republish/redelivery evidence, and durable SMTP/Camel dispatch ownership are covered. SMTP is at-least-once under ambiguous outcome and Camel is a local durable-handoff demo; no provider-level exactly-once SMTP/Camel delivery is claimed |
+| C01 aggregate/evidence | CLOSED; fail-closed critical evidence and required-status policy are verified, including active remote repository ruleset requiring `CI quality gate` and `Agentic SDD quality gate` |
+| Q01/Q02 placement/payment | CLOSED; independent adversarial review passes late-capture recovery, stale-owner refund fencing, immutable identity, decline/unknown semantics and current-owner continuation |
+| Q03 cancellation | CLOSED; independent evidence retains terminal cancellation, takeover fencing, retryable waiting and transactional notification finalization |
+| Q04 shipment | CLOSED; independent PostgreSQL/browser evidence retains canonical replay, rollback, global operation identity and pending-operation lifecycle semantics |
+| Q05 refund entitlement | CLOSED; independent evidence retains monetary conservation, partial-refund continuation and concurrent allocation/arbitration guarantees |
+| Q06 notification | CLOSED within documented local guarantees; independent PostgreSQL/RabbitMQ evidence retains durable identity, insert-once/replay protection, delivery overlap, receipts and dispatch ownership. SMTP remains at-least-once for ambiguous outcome; Camel remains local handoff evidence; no provider-level exactly-once claim is made |
 
 Key implementation corrections now reflected by the contract:
 
@@ -58,6 +58,24 @@ Key implementation corrections now reflected by the contract:
 - S22-08d1 moves placement confirmation email and Camel routing behind durable dispatch rows with stable identity, short owner claims, external I/O outside the claim transaction, and owner-fenced finalization. The SMTP/Camel adapters execute one attempt; durable worker recovery owns retries.
 - S22-08d2 makes the external boundary explicit: SMTP is at-least-once when outcome is ambiguous, the stable `Message-ID` is correlation only, and Camel's local `file:` route is showcase handoff evidence rather than a provider-level exactly-once guarantee. See `docs/runbooks/order-placement-external-delivery.md`.
 - Q06 AMQP evidence uses real PostgreSQL plus RabbitMQ: a broker-accepted publish can be repeated after placement owner loss under the same `operationId`, and a committed consumer receipt can be redelivered after connection loss before ACK. Both paths converge on one durable fulfillment receipt and preserve captured-payment state; broker acceptance is not consumer business commit.
+
+## Independent closure — 2026-09-25
+
+Fresh independent adversarial evaluation of exact checkpoint
+`1d5314fd6d2f009d851161356b2382fcf83db6cf` returned **PASS**. The evaluator reproduced the previous RF1-C takeover
+counterexample against real PostgreSQL arbitration and observed zero stale-owner
+refund-provider calls and zero refund reservations after ownership transferred to B;
+B then completed the durable refund/reconciliation path.
+
+All mandatory gates passed fresh in the evaluator session, including critical
+PostgreSQL/RabbitMQ, frontend Chrome coverage, domain PIT at 440/440 and the broad
+repository aggregate. Historical FAIL and builder-readiness artifacts remain preserved
+as history; the closure authority is [`docs/reviews/S22-final-independent-rereview-1d5314fd-2026-09-25.md`](../../reviews/S22-final-independent-rereview-1d5314fd-2026-09-25.md).
+
+A read-only GitHub ruleset check on 2026-09-25 also confirmed active repository ruleset
+`Admin rules` (id `21939086`) with strict required status checks for
+`CI quality gate` and `Agentic SDD quality gate`. This closure does not claim provider
+exactly-once semantics beyond the documented local guarantees.
 
 ## Goal
 

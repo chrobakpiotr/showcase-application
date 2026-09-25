@@ -1,6 +1,6 @@
 # RECOVERY-TIMELINE-001 — read-only order recovery timeline
 
-Status: **IMPLEMENTED + TESTED / INDEPENDENT REVIEW PENDING**
+Status: **CLOSED**
 
 S22 package: **S22-09**
 
@@ -10,6 +10,17 @@ Baseline:
 41ef69f0b1a820a9abfa78f10f5a1bd69cc078ca
 docs(order): define external delivery guarantees
 ```
+
+## Independent closure — 2026-09-25
+
+Fresh independent evaluation of `1d5314fd6d2f009d851161356b2382fcf83db6cf` returned **PASS** for S22-09:
+authorization, exact order scoping, sensitive-field exclusion, deterministic ordering,
+bounded pagination, one-query page loading, state semantics and read-only UI behavior
+all retained fresh evidence.
+
+The closure authority is [`docs/reviews/S22-final-independent-rereview-1d5314fd-2026-09-25.md`](../../reviews/S22-final-independent-rereview-1d5314fd-2026-09-25.md).
+The accepted limitation remains unchanged: this is a current-state recovery projection,
+not an event store or complete historical audit log.
 
 ## Goal
 
