@@ -65,7 +65,9 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
     @Test
     void staleWorkerMustNotMutateSuccessOrFailureAfterLeaseTakeover() {
 
-        final Instant wallClockNow = Instant.now();
+        // Normalize before the PostgreSQL round-trip: PostgreSQL/JDBC timestamp precision
+        // can round nanoseconds upward, making an otherwise equal due-time appear future-due.
+        final Instant wallClockNow = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final Instant firstClaimAt = wallClockNow.plusSeconds(SCHEDULER_ISOLATION_SECONDS);
         final String orderNumber = "B01-" + UUID.randomUUID().toString().replace("-", "");
         repository.saveAndFlush(
@@ -102,7 +104,9 @@ class OrderCancellationMultiWorkerClaimPostgresIntegrationTest {
 
     @Test
     void shouldAllowOnlyOneWorkerToOwnCancellationRecoveryLease() throws Exception {
-        final Instant wallClockNow = Instant.now();
+        // Normalize before the PostgreSQL round-trip: PostgreSQL/JDBC timestamp precision
+        // can round nanoseconds upward, making an otherwise equal due-time appear future-due.
+        final Instant wallClockNow = Instant.ofEpochMilli(Instant.now().toEpochMilli());
         final Instant claimAt = wallClockNow.plusSeconds(SCHEDULER_ISOLATION_SECONDS);
         final String orderNumber = "N15-" + UUID.randomUUID();
         repository.saveAndFlush(

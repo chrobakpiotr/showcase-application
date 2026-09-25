@@ -46,8 +46,10 @@ feature REVIEWED or CLOSED.
   application boundary required by the PostgreSQL pessimistic row lock.
 
 - cancellation multi-worker PostgreSQL fixture is isolated from the live scheduler
-  using a future durable due-time plus synthetic worker claim-time; no sleep,
-  retry, timeout inflation, or scheduler disablement is used.
+  using a future durable due-time plus synthetic worker claim-time; the fixture clock
+  is normalized to millisecond precision before the PostgreSQL timestamp round-trip
+  so database precision cannot make an equal due-time appear slightly future-due;
+  no sleep, retry, timeout inflation, or scheduler disablement is used.
 
 A fresh independent evaluator must review the new checkpoint before any
 REVIEWED/CLOSED status change.
