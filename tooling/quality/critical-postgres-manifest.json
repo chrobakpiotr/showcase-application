@@ -441,6 +441,12 @@
       "testMethod": "captureFinalizationFailureAfterCancellationMustRecoverAndRefund"
     },
     {
+      "ac": "AC-OUTBOX-MULTIWORKER-06",
+      "scenario": "stale capture recovery owner cannot prepare refund after reconciliation takeover",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "staleCaptureRecoveryOwnerMustNotStartRefundAfterTakeover"
+    },
+    {
       "ac": "AC-SHIPMENT-OPERATION-IDENTITY-03",
       "scenario": "concurrent identical shipment commands serialize and both return canonical replay",
       "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",

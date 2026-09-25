@@ -72,3 +72,39 @@ ports and PostgreSQL state. No sleep, retry, lease inflation or production sched
 RF1 quality follow-up: the capture use case was decomposed into small completion helpers to restore the repository NPath contract without changing recovery semantics. Scheduler tests use canonical payment constants and explicitly cover PARTIALLY_REFUNDED and non-refundable recovered capture outcomes so persistence instruction coverage remains 100%.
 
 Terminal owner-aware capture replay revalidates the canonical fingerprint after prepare, so a recovery owner cannot accept a changed amount/method returned by canonical preparation. Deferred provider decline is also explicitly covered and remains reconciliation-pending until the scheduler owns final completion.
+
+## Independent re-review RF1-C follow-up
+
+The fresh independent re-review at
+`f44ed24c56d97d56a6bd1f54b745b4322dda626d` returned **FAIL** for RF1-C:
+a capture-recovery worker could lose its capture claim after owner-aware capture recovery
+and still invoke the ordinary whole-order refund path.
+
+The correction fences the authorization boundary at durable refund preparation.
+The current capture recovery owner must still own the capture reconciliation while
+the whole-order refund intent is prepared. That ownership check and refund
+reservation/reconciliation preparation occur in one short local transaction.
+Provider refund I/O remains outside the capture-row lock and is authorized by the
+durable refund operation created while capture ownership was current.
+
+If another worker takes over before this preparation boundary, the stale worker fails
+closed before refund reservation or provider I/O. The new current owner can retry and
+make progress.
+
+Critical PostgreSQL case `AC-OUTBOX-MULTIWORKER-06` reproduces the evaluator takeover
+and requires zero refund-provider calls from the stale owner before the new owner
+continues.
+
+Status remains **IMPLEMENTED + TESTED / INDEPENDENT RE-REVIEW PENDING**.
+
+### RF1-C local fixture correction
+
+The first local execution of `AC-OUTBOX-MULTIWORKER-06` stopped before the ownership
+scenario because its generated inventory SKU used the prefix `S22-RF1C-` plus the
+32-character compact UUID (41 characters total), exceeding the domain's
+`INVENTORY_SKU_MAX = 40`. The fixture prefix was shortened to `RF1C-` (37 characters
+total). This is test-fixture correction only and does not change production behavior.
+
+The focused RF1-C PostgreSQL evidence run is executed with
+`-PcriticalPostgresGate=true`, which disables the backend's normal test retry policy
+for critical evidence.

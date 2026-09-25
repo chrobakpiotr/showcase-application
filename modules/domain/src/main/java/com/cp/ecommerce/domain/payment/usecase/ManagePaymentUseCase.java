@@ -215,6 +215,19 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     }
 
     @Override
+    public PaymentTransaction refundPaymentAfterCaptureRecovery(
+            final String orderNumber,
+            final PaymentRecoveryContext captureRecoveryContext) {
+
+        final String captureOperationId = ORDER_CAPTURE_PREFIX + orderNumber;
+        validateRecoveryContext(captureRecoveryContext, captureOperationId);
+        final String refundId = ORDER_REFUND_PREFIX + orderNumber;
+        final PaymentRefundClaim claim = preparePaymentProviderOperationOutPort
+                .prepareRefundAfterCaptureRecovery(refundId, orderNumber, captureRecoveryContext);
+        return executeRefund(claim, null);
+    }
+
+    @Override
     public PaymentTransaction refundPayment(final String orderNumber, final String refundId, final BigDecimal amount) {
 
         return refundPayment(orderNumber, refundId, amount, null);

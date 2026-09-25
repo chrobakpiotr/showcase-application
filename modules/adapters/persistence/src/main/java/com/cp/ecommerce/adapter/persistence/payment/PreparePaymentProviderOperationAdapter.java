@@ -73,6 +73,22 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
 
     @Override
     @Transactional
+    public PaymentRefundClaim prepareRefundAfterCaptureRecovery(
+            final String refundId,
+            final String orderNumber,
+            final PaymentRecoveryContext captureRecoveryContext) {
+
+        final PaymentRecoveryContext context = Objects.requireNonNull(captureRecoveryContext, "captureRecoveryContext");
+        validateCaptureOperationId(context.operationId(), orderNumber);
+        requireCurrentCaptureRecoveryOwner(
+                managePaymentReconciliationOutPort
+                        .startOwned(context.operationId(), orderNumber, PaymentProviderOperationType.CAPTURE, null, context),
+                context.operationId());
+        return prepareRefund(refundId, orderNumber, null);
+    }
+
+    @Override
+    @Transactional
     public PaymentRefundClaim prepareRefund(
             final String refundId,
             final String orderNumber,
@@ -133,6 +149,16 @@ class PreparePaymentProviderOperationAdapter implements PreparePaymentProviderOp
         if (outcome != PaymentReconciliationStartOutcome.READY && outcome != PaymentReconciliationStartOutcome.CURRENT_OWNER) {
             throw new PaymentOperationConflictException(
                     "Payment provider operation " + operationId + " is not eligible for automatic replay: " + outcome);
+        }
+    }
+
+    private static void requireCurrentCaptureRecoveryOwner(
+            final PaymentReconciliationStartOutcome outcome,
+            final String captureOperationId) {
+
+        if (outcome != PaymentReconciliationStartOutcome.CURRENT_OWNER) {
+            throw new PaymentOperationConflictException(
+                    "Capture recovery " + captureOperationId + " lost ownership before refund continuation: " + outcome);
         }
     }
 

@@ -39,6 +39,7 @@ class ManagePaymentRecoveryContextTest {
     private static final String ORDER = "ORDER-S22";
     private static final String CAPTURE_ID = "ORDER-CAPTURE:" + ORDER;
     private static final String REFUND_ID = "RETURN-S22";
+    private static final String ORDER_REFUND_ID = "ORDER-REFUND:" + ORDER;
     private static final String CLAIM = "claim-s22";
     private static final String GATEWAY = "gateway-s22";
     private static final BigDecimal AMOUNT = new BigDecimal("10.00");
@@ -176,6 +177,41 @@ class ManagePaymentRecoveryContextTest {
         verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
         verify(managePaymentReconciliationOutPort, never()).completeOwned(any());
         verify(managePaymentReconciliationOutPort, never()).complete(any());
+    }
+
+    @Test
+    void shouldPrepareCancelledCaptureRefundUnderCaptureOwnerBeforeProviderIo() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentTransaction captured = payment(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        final PaymentTransaction refunded = payment(PaymentStatus.REFUNDED, AMOUNT);
+        given(preparePaymentProviderOperationOutPort.prepareRefundAfterCaptureRecovery(ORDER_REFUND_ID, ORDER, context))
+                .willReturn(
+                        new PaymentRefundClaim(
+                                PaymentRefundOutcome.RESERVED,
+                                ORDER_REFUND_ID,
+                                ORDER,
+                                AMOUNT,
+                                GATEWAY,
+                                captured));
+        given(managePaymentRefundOutPort.complete(ORDER_REFUND_ID)).willReturn(refunded);
+
+        assertThat(useCase.refundPaymentAfterCaptureRecovery(ORDER, context)).isSameAs(refunded);
+
+        verify(preparePaymentProviderOperationOutPort).prepareRefundAfterCaptureRecovery(ORDER_REFUND_ID, ORDER, context);
+        verify(refundPaymentOutPort).refund(ORDER, GATEWAY, ORDER_REFUND_ID, AMOUNT);
+        verify(managePaymentReconciliationOutPort).complete(ORDER_REFUND_ID);
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(context);
+    }
+
+    @Test
+    void shouldRejectMismatchedCaptureRecoveryIdentityBeforePreparingRefund() {
+        final PaymentRecoveryContext wrong = new PaymentRecoveryContext("OTHER", CLAIM);
+
+        assertThatThrownBy(() -> useCase.refundPaymentAfterCaptureRecovery(ORDER, wrong))
+                .isInstanceOf(PaymentOperationConflictException.class);
+
+        verify(preparePaymentProviderOperationOutPort, never()).prepareRefundAfterCaptureRecovery(any(), any(), any());
+        verify(refundPaymentOutPort, never()).refund(any(), any(), any(), any());
     }
 
     @Test

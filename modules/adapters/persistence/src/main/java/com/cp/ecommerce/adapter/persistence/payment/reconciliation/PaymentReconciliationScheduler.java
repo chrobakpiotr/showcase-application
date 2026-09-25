@@ -85,7 +85,7 @@ class PaymentReconciliationScheduler {
                     payment.getAmount(),
                     payment.getMethod(),
                     recoveryContext);
-            compensateRecoveredCaptureIfCancelled(operation.getOrderNumber(), recovered);
+            compensateRecoveredCaptureIfCancelled(operation.getOrderNumber(), recovered, recoveryContext);
         } else {
             final PaymentRefundEntity refund = refundRepository.findById(operation.getRefundId())
                     .orElseThrow(
@@ -100,7 +100,10 @@ class PaymentReconciliationScheduler {
         arbitrator.complete(operationId, claimId);
     }
 
-    private void compensateRecoveredCaptureIfCancelled(final String orderNumber, final PaymentTransaction recoveredPayment) {
+    private void compensateRecoveredCaptureIfCancelled(
+            final String orderNumber,
+            final PaymentTransaction recoveredPayment,
+            final PaymentRecoveryContext captureRecoveryContext) {
 
         if (recoveredPayment == null || recoveredPayment.getStatus() != PaymentStatus.CAPTURED
                 && recoveredPayment.getStatus() != PaymentStatus.PARTIALLY_REFUNDED) {
@@ -108,7 +111,7 @@ class PaymentReconciliationScheduler {
         }
         final Order order = manageOrderInPort.findOrder(orderNumber);
         if (order != null && order.getStatus() == OrderStatus.CANCELLED) {
-            managePaymentInPort.refundPayment(orderNumber);
+            managePaymentInPort.refundPaymentAfterCaptureRecovery(orderNumber, captureRecoveryContext);
         }
     }
 }

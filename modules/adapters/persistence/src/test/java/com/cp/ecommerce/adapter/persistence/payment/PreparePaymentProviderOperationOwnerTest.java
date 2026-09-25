@@ -23,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,7 +33,9 @@ class PreparePaymentProviderOperationOwnerTest {
     private static final String ORDER = "ORDER-S22";
     private static final String CAPTURE_ID = "ORDER-CAPTURE:" + ORDER;
     private static final String REFUND_ID = "RETURN-S22";
+    private static final String ORDER_REFUND_ID = "ORDER-REFUND:" + ORDER;
     private static final String CLAIM = "claim-s22";
+    private static final String GATEWAY = "gateway";
     private static final BigDecimal AMOUNT = new BigDecimal("10.00");
     private static final BigDecimal REFUND = new BigDecimal("4.00");
 
@@ -77,6 +81,54 @@ class PreparePaymentProviderOperationOwnerTest {
     }
 
     @Test
+    void shouldAtomicallyPrepareWholeOrderRefundOnlyForCurrentCaptureOwner() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentRefundClaim claim = new PaymentRefundClaim(
+                PaymentRefundOutcome.RESERVED,
+                ORDER_REFUND_ID,
+                ORDER,
+                AMOUNT,
+                GATEWAY,
+                captured());
+        given(
+                managePaymentReconciliationOutPort
+                        .startOwned(CAPTURE_ID, ORDER, PaymentProviderOperationType.CAPTURE, null, context))
+                .willReturn(PaymentReconciliationStartOutcome.CURRENT_OWNER);
+        given(managePaymentRefundOutPort.reserveRemaining(ORDER_REFUND_ID, ORDER)).willReturn(claim);
+        given(
+                managePaymentReconciliationOutPort
+                        .start(ORDER_REFUND_ID, ORDER, PaymentProviderOperationType.REFUND, ORDER_REFUND_ID))
+                .willReturn(PaymentReconciliationStartOutcome.READY);
+
+        assertThat(adapter().prepareRefundAfterCaptureRecovery(ORDER_REFUND_ID, ORDER, context)).isSameAs(claim);
+
+        final var calls = inOrder(managePaymentReconciliationOutPort, managePaymentRefundOutPort);
+        calls.verify(managePaymentReconciliationOutPort)
+                .startOwned(CAPTURE_ID, ORDER, PaymentProviderOperationType.CAPTURE, null, context);
+        calls.verify(managePaymentRefundOutPort).reserveRemaining(ORDER_REFUND_ID, ORDER);
+        calls.verify(managePaymentReconciliationOutPort)
+                .start(ORDER_REFUND_ID, ORDER, PaymentProviderOperationType.REFUND, ORDER_REFUND_ID);
+    }
+
+    @Test
+    void shouldRejectLostCaptureOwnerBeforeWholeOrderRefundReservation() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        given(
+                managePaymentReconciliationOutPort
+                        .startOwned(CAPTURE_ID, ORDER, PaymentProviderOperationType.CAPTURE, null, context))
+                .willReturn(PaymentReconciliationStartOutcome.LOST_CLAIM);
+
+        assertThatThrownBy(() -> adapter().prepareRefundAfterCaptureRecovery(ORDER_REFUND_ID, ORDER, context))
+                .isInstanceOf(PaymentOperationConflictException.class)
+                .hasMessageContaining("lost ownership")
+                .hasMessageContaining("LOST_CLAIM");
+
+        verify(managePaymentRefundOutPort, never()).reserveRemaining(ORDER_REFUND_ID, ORDER);
+        verify(managePaymentReconciliationOutPort, never())
+                .start(ORDER_REFUND_ID, ORDER, PaymentProviderOperationType.REFUND, ORDER_REFUND_ID);
+    }
+
+    @Test
     void shouldAuthorizeCurrentOwnerRefund() {
         final PaymentRecoveryContext context = new PaymentRecoveryContext(REFUND_ID, CLAIM);
         final PaymentRefundClaim claim = new PaymentRefundClaim(
@@ -84,7 +136,7 @@ class PreparePaymentProviderOperationOwnerTest {
                 REFUND_ID,
                 ORDER,
                 REFUND,
-                "gateway",
+                GATEWAY,
                 captured());
         given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER, REFUND)).willReturn(claim);
         given(
@@ -103,7 +155,7 @@ class PreparePaymentProviderOperationOwnerTest {
                 REFUND_ID,
                 ORDER,
                 REFUND,
-                "gateway",
+                GATEWAY,
                 captured());
         given(managePaymentRefundOutPort.reserve(REFUND_ID, ORDER, REFUND)).willReturn(claim);
         given(
@@ -143,7 +195,7 @@ class PreparePaymentProviderOperationOwnerTest {
                 .refundedAmount(BigDecimal.ZERO)
                 .method(PaymentMethod.CARD)
                 .status(PaymentStatus.CAPTURED)
-                .gatewayReference("gateway")
+                .gatewayReference(GATEWAY)
                 .build();
     }
 }

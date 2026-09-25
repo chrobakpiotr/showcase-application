@@ -148,7 +148,8 @@ class PaymentReconciliationSchedulerTest {
                         PaymentMethod.CARD,
                         new PaymentRecoveryContext(operationId, claimId));
         calls.verify(manageOrderInPort).findOrder(ORDER_1);
-        calls.verify(managePaymentInPort).refundPayment(ORDER_1);
+        calls.verify(managePaymentInPort)
+                .refundPaymentAfterCaptureRecovery(ORDER_1, new PaymentRecoveryContext(operationId, claimId));
         calls.verify(arbitrator).complete(operationId, claimId);
     }
 
@@ -184,7 +185,7 @@ class PaymentReconciliationSchedulerTest {
         given(cancelled.getStatus()).willReturn(OrderStatus.CANCELLED);
         org.mockito.BDDMockito.willThrow(new IllegalStateException("refund continuation unavailable"))
                 .given(managePaymentInPort)
-                .refundPayment(ORDER_1);
+                .refundPaymentAfterCaptureRecovery(ORDER_1, new PaymentRecoveryContext(operationId, claimId));
 
         scheduler().reconcileDueOperations();
 
@@ -225,7 +226,7 @@ class PaymentReconciliationSchedulerTest {
 
         scheduler().reconcileDueOperations();
 
-        verify(managePaymentInPort).refundPayment(ORDER_1);
+        verify(managePaymentInPort).refundPaymentAfterCaptureRecovery(ORDER_1, new PaymentRecoveryContext(CAPTURE_ID, claimId));
         verify(arbitrator).complete(CAPTURE_ID, claimId);
     }
 

@@ -44,6 +44,15 @@ public interface ManagePaymentInPort {
     PaymentTransaction refundPayment(String orderNumber);
 
     /**
+     * Refunds the remaining order amount only when the supplied worker still owns the capture reconciliation.
+     *
+     * <p>
+     * The capture ownership check and durable whole-order refund preparation form one short local transaction; provider I/O
+     * happens only after that authorization has been durably transferred to the refund operation.
+     */
+    PaymentTransaction refundPaymentAfterCaptureRecovery(String orderNumber, PaymentRecoveryContext captureRecoveryContext);
+
+    /**
      * Refunds a specific amount under a durable idempotency identity, e.g. one return/RMA number.
      */
     PaymentTransaction refundPayment(String orderNumber, String refundId, BigDecimal amount);

@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OrderPlacementBestEffortTail;
@@ -43,6 +44,7 @@ import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -115,6 +117,9 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
     @MockitoSpyBean
     private ManagePaymentReconciliationOutPort paymentReconciliationOutPort;
+
+    @MockitoSpyBean
+    private RefundPaymentOutPort refundPaymentOutPort;
 
     @Autowired
     private PaymentReconciliationEntityRepository paymentReconciliationRepository;
@@ -348,6 +353,99 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
     }
 
     @Test
+    void staleCaptureRecoveryOwnerMustNotStartRefundAfterTakeover() throws Exception {
+        final String sku = "RF1C-" + compactUuid();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+        final String captureOperationId = "ORDER-CAPTURE:" + orderNumber;
+        final CountDownLatch beforePrepare = new CountDownLatch(1);
+        final CountDownLatch resumeCapture = new CountDownLatch(1);
+        final AtomicInteger completionCalls = new AtomicInteger();
+
+        doAnswer(invocation -> {
+            if (completionCalls.incrementAndGet() == 1) {
+                throw new IllegalStateException("injected capture completion persistence outage");
+            }
+            return invocation.callRealMethod();
+        }).when(paymentReconciliationOutPort).complete(captureOperationId);
+        doAnswer(invocation -> {
+            beforePrepare.countDown();
+            if (!resumeCapture.await(20, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to resume RF1-C capture");
+            }
+            return invocation.callRealMethod();
+        }).when(managePaymentInPort).capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
+
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        final OrderPlacementSagaOrchestrator worker = newOrchestrator(fulfillment);
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<?> running = executor.submit(worker::publishPendingEvents);
+            try {
+                assertThat(beforePrepare.await(10, TimeUnit.SECONDS)).isTrue();
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    final OutboxEventEntity row = outboxEventEntityRepository.findByOrderNumberForUpdate(orderNumber)
+                            .orElseThrow();
+                    row.setClaimUntil(Instant.EPOCH);
+                    outboxEventEntityRepository.save(row);
+                });
+                cancelOrderWorkflow.cancelOrder(orderNumber);
+                assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+            } finally {
+                resumeCapture.countDown();
+            }
+            running.get(20, TimeUnit.SECONDS);
+        }
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        final var pending = paymentReconciliationRepository.findById(captureOperationId).orElseThrow();
+        assertThat(pending.getStatus()).isEqualTo(PaymentReconciliationStatus.PENDING);
+        pending.setNextAttemptDate(Instant.EPOCH);
+        paymentReconciliationRepository.saveAndFlush(pending);
+
+        final Object scheduler = newPaymentReconciliationScheduler();
+        final AtomicReference<String> ownerB = new AtomicReference<>();
+        doAnswer(invocation -> {
+            final PaymentTransaction recovered = (PaymentTransaction) invocation.callRealMethod();
+            if (ownerB.get() == null) {
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    final var row = paymentReconciliationRepository.findById(captureOperationId).orElseThrow();
+                    row.setNextAttemptDate(Instant.EPOCH);
+                    row.setClaimUntil(Instant.EPOCH);
+                    paymentReconciliationRepository.saveAndFlush(row);
+                });
+                final Class<?> arbitratorType = Class
+                        .forName("com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationArbitrator");
+                final Object arbitrator = applicationContext.getBean(arbitratorType);
+                final String nextOwner = ReflectionTestUtils.invokeMethod(arbitrator, "claim", captureOperationId);
+                assertThat(nextOwner).isNotNull();
+                ownerB.set(nextOwner);
+            }
+            return recovered;
+        }).when(managePaymentInPort)
+                .recoverCapturePaymentPendingCompletion(
+                        eq(orderNumber),
+                        any(BigDecimal.class),
+                        any(PaymentMethod.class),
+                        any());
+
+        ReflectionTestUtils.invokeMethod(scheduler, "reconcileDueOperations");
+
+        final var takenOver = paymentReconciliationRepository.findById(captureOperationId).orElseThrow();
+        assertThat(takenOver.getStatus()).isEqualTo(PaymentReconciliationStatus.PENDING);
+        assertThat(takenOver.getClaimId()).isEqualTo(ownerB.get());
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        verify(refundPaymentOutPort, never()).refund(eq(orderNumber), any(), any(), any());
+
+        ReflectionTestUtils.invokeMethod(scheduler, "reconcileClaimed", captureOperationId, ownerB.get());
+
+        assertThat(paymentReconciliationRepository.findById(captureOperationId).orElseThrow().getStatus())
+                .isEqualTo(PaymentReconciliationStatus.COMPLETED);
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(refundPaymentOutPort, times(1)).refund(eq(orderNumber), any(), any(), any());
+        verify(fulfillment, never()).sendMessage(any(Order.class));
+    }
+
+    @Test
     void shouldRecoverExpiredPlacementLeaseAfterWorkerDeath() {
 
         final String sku = "R03B-" + compactUuid();
@@ -384,6 +482,11 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
     private void reconcilePaymentsOnce() throws ReflectiveOperationException {
 
+        ReflectionTestUtils.invokeMethod(newPaymentReconciliationScheduler(), "reconcileDueOperations");
+    }
+
+    private Object newPaymentReconciliationScheduler() throws ReflectiveOperationException {
+
         final Class<?> type = Class
                 .forName("com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationScheduler");
         final java.lang.reflect.Constructor<?> constructor = type.getDeclaredConstructors()[0];
@@ -393,8 +496,7 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
         for (int index = 0; index < parameterTypes.length; index++) {
             dependencies[index] = applicationContext.getBean(parameterTypes[index]);
         }
-        final Object scheduler = constructor.newInstance(dependencies);
-        ReflectionTestUtils.invokeMethod(scheduler, "reconcileDueOperations");
+        return constructor.newInstance(dependencies);
     }
 
     private String place(final String sku) {

@@ -30,6 +30,14 @@ public interface PreparePaymentProviderOperationOutPort {
     PaymentRefundClaim prepareRefund(String refundId, String orderNumber, BigDecimal amount);
 
     /**
+     * Atomically verifies capture-recovery ownership and prepares a new whole-order refund operation.
+     */
+    PaymentRefundClaim prepareRefundAfterCaptureRecovery(
+            String refundId,
+            String orderNumber,
+            PaymentRecoveryContext captureRecoveryContext);
+
+    /**
      * Reuses the current owner's reconciliation claim while preparing a refund replay.
      */
     PaymentRefundClaim prepareRefund(
