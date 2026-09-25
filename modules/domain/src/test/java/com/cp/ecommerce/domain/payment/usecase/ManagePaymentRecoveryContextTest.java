@@ -16,6 +16,7 @@ import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentRefundOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.PreparePaymentProviderOperationOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.RefundPaymentOutPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.SavePaymentTransactionOutPort;
+import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 import com.cp.ecommerce.foundation.exception.PaymentOperationConflictException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -88,6 +89,93 @@ class ManagePaymentRecoveryContextTest {
         verify(preparePaymentProviderOperationOutPort).prepareCapture(CAPTURE_ID, pending, context);
         verify(managePaymentReconciliationOutPort).completeOwned(context);
         verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_ID);
+    }
+
+    @Test
+    void shouldDeferCaptureCompletionForDurableContinuation() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentTransaction pending = payment(PaymentStatus.PENDING, BigDecimal.ZERO);
+        given(findPaymentTransactionOutPort.find(ORDER)).willReturn(pending);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_ID, pending, context)).willReturn(pending);
+        given(chargePaymentOutPort.charge(ORDER, CAPTURE_ID, AMOUNT, PaymentMethod.CARD)).willReturn(GATEWAY);
+        given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(inv -> inv.getArgument(0));
+
+        final PaymentTransaction result = useCase
+                .recoverCapturePaymentPendingCompletion(ORDER, AMOUNT, PaymentMethod.CARD, context);
+
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        verify(preparePaymentProviderOperationOutPort).prepareCapture(CAPTURE_ID, pending, context);
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(context);
+        verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_ID);
+    }
+
+    @Test
+    void shouldValidateRecoveryOwnerBeforeDeferredTerminalCaptureContinuation() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentTransaction captured = payment(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        given(findPaymentTransactionOutPort.find(ORDER)).willReturn(captured);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_ID, captured, context)).willReturn(captured);
+
+        assertThat(useCase.recoverCapturePaymentPendingCompletion(ORDER, AMOUNT, PaymentMethod.CARD, context))
+                .isSameAs(captured);
+
+        verify(preparePaymentProviderOperationOutPort).prepareCapture(CAPTURE_ID, captured, context);
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(context);
+    }
+
+    @Test
+    void shouldRejectDeferredTerminalReplayWhenOwnerPrepareChangesFingerprint() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentTransaction captured = payment(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        final PaymentTransaction conflicting = PaymentTransaction.builder()
+                .orderNumber(ORDER)
+                .amount(AMOUNT.add(BigDecimal.ONE))
+                .refundedAmount(BigDecimal.ZERO)
+                .method(PaymentMethod.CARD)
+                .status(PaymentStatus.CAPTURED)
+                .gatewayReference(GATEWAY)
+                .created(CREATED)
+                .build();
+        given(findPaymentTransactionOutPort.find(ORDER)).willReturn(captured);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_ID, captured, context)).willReturn(conflicting);
+
+        assertThatThrownBy(() -> useCase.recoverCapturePaymentPendingCompletion(ORDER, AMOUNT, PaymentMethod.CARD, context))
+                .isInstanceOf(PaymentOperationConflictException.class);
+
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(context);
+        verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_ID);
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldReturnDeferredDeclineWithoutClosingReconciliation() {
+        final PaymentRecoveryContext context = new PaymentRecoveryContext(CAPTURE_ID, CLAIM);
+        final PaymentTransaction pending = payment(PaymentStatus.PENDING, BigDecimal.ZERO);
+        given(findPaymentTransactionOutPort.find(ORDER)).willReturn(pending);
+        given(preparePaymentProviderOperationOutPort.prepareCapture(CAPTURE_ID, pending, context)).willReturn(pending);
+        given(chargePaymentOutPort.charge(ORDER, CAPTURE_ID, AMOUNT, PaymentMethod.CARD))
+                .willThrow(new PaymentDeclinedException("declined"));
+        given(savePaymentTransactionOutPort.saveCaptureResult(any())).willAnswer(invocation -> invocation.getArgument(0));
+
+        final PaymentTransaction result = useCase
+                .recoverCapturePaymentPendingCompletion(ORDER, AMOUNT, PaymentMethod.CARD, context);
+
+        assertThat(result.getStatus()).isEqualTo(PaymentStatus.DECLINED);
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(context);
+        verify(managePaymentReconciliationOutPort, never()).complete(CAPTURE_ID);
+    }
+
+    @Test
+    void shouldRejectMismatchedRecoveryIdentityBeforeDeferredCaptureContinuation() {
+        final PaymentRecoveryContext wrong = new PaymentRecoveryContext("OTHER", CLAIM);
+
+        assertThatThrownBy(() -> useCase.recoverCapturePaymentPendingCompletion(ORDER, AMOUNT, PaymentMethod.CARD, wrong))
+                .isInstanceOf(PaymentOperationConflictException.class);
+
+        verify(chargePaymentOutPort, never()).charge(any(), any(), any(), any());
+        verify(managePaymentReconciliationOutPort, never()).completeOwned(any());
+        verify(managePaymentReconciliationOutPort, never()).complete(any());
     }
 
     @Test

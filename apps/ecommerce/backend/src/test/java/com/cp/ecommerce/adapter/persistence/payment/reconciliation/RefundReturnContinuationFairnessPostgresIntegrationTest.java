@@ -11,6 +11,7 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEnt
 import com.cp.ecommerce.adapter.persistence.returns.entity.ReturnRequestEntity;
 import com.cp.ecommerce.adapter.persistence.returns.entity.ReturnRequestEntityRepository;
 import com.cp.ecommerce.application.EcommerceApplication;
+import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
@@ -67,6 +68,8 @@ class RefundReturnContinuationFairnessPostgresIntegrationTest {
     private PaymentRefundEntityRepository refundRepository;
     @Autowired
     private ReturnRequestEntityRepository returnRepository;
+    @Autowired
+    private ManageOrderInPort manageOrderInPort;
     @Autowired
     private ManagePaymentInPort managePaymentInPort;
     @Autowired
@@ -132,6 +135,7 @@ class RefundReturnContinuationFairnessPostgresIntegrationTest {
                 reconciliationRepository,
                 paymentRepository,
                 refundRepository,
+                manageOrderInPort,
                 managePaymentInPort,
                 continuationOutPort,
                 completionInPort);

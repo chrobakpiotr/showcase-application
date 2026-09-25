@@ -6,8 +6,13 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntityRepository;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntity;
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntityRepository;
+import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.OrderStatus;
+import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.payment.PaymentProviderOperationType;
 import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
+import com.cp.ecommerce.domain.payment.PaymentStatus;
+import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
@@ -36,6 +41,7 @@ class PaymentReconciliationScheduler {
     private final PaymentReconciliationEntityRepository reconciliationRepository;
     private final PaymentTransactionEntityRepository paymentRepository;
     private final PaymentRefundEntityRepository refundRepository;
+    private final ManageOrderInPort manageOrderInPort;
     private final ManagePaymentInPort managePaymentInPort;
     private final ManageRefundReturnContinuationOutPort refundReturnContinuationOutPort;
     private final CompleteRefundReturnContinuationInPort completeRefundReturnContinuationInPort;
@@ -74,11 +80,12 @@ class PaymentReconciliationScheduler {
                     .orElseThrow(
                             () -> new IllegalStateException(
                                     "Payment disappeared during capture reconciliation: " + operation.getOrderNumber()));
-            managePaymentInPort.recoverCapturePayment(
+            final PaymentTransaction recovered = managePaymentInPort.recoverCapturePaymentPendingCompletion(
                     operation.getOrderNumber(),
                     payment.getAmount(),
                     payment.getMethod(),
                     recoveryContext);
+            compensateRecoveredCaptureIfCancelled(operation.getOrderNumber(), recovered);
         } else {
             final PaymentRefundEntity refund = refundRepository.findById(operation.getRefundId())
                     .orElseThrow(
@@ -91,5 +98,17 @@ class PaymentReconciliationScheduler {
                     recoveryContext);
         }
         arbitrator.complete(operationId, claimId);
+    }
+
+    private void compensateRecoveredCaptureIfCancelled(final String orderNumber, final PaymentTransaction recoveredPayment) {
+
+        if (recoveredPayment == null || recoveredPayment.getStatus() != PaymentStatus.CAPTURED
+                && recoveredPayment.getStatus() != PaymentStatus.PARTIALLY_REFUNDED) {
+            return;
+        }
+        final Order order = manageOrderInPort.findOrder(orderNumber);
+        if (order != null && order.getStatus() == OrderStatus.CANCELLED) {
+            managePaymentInPort.refundPayment(orderNumber);
+        }
     }
 }

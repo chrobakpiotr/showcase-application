@@ -435,6 +435,12 @@
       "testMethod": "cancellationWinningBeforeCapturePrepareMustCompensateLateCapture"
     },
     {
+      "ac": "AC-OUTBOX-MULTIWORKER-05",
+      "scenario": "capture reconciliation completion failure after terminal cancellation recovers into refund",
+      "suite": "com.cp.ecommerce.application.OutboxMultiWorkerClaimPostgresIntegrationTest",
+      "testMethod": "captureFinalizationFailureAfterCancellationMustRecoverAndRefund"
+    },
+    {
       "ac": "AC-SHIPMENT-OPERATION-IDENTITY-03",
       "scenario": "concurrent identical shipment commands serialize and both return canonical replay",
       "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",

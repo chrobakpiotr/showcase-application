@@ -77,7 +77,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
     @Override
     public PaymentTransaction capturePayment(final String orderNumber, final BigDecimal amount, final PaymentMethod method) {
 
-        return capturePayment(orderNumber, amount, method, null);
+        return capturePayment(orderNumber, amount, method, null, true);
     }
 
     @Override
@@ -89,22 +89,34 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
 
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         validateRecoveryContext(recoveryContext, operationId);
-        return capturePayment(orderNumber, amount, method, recoveryContext);
+        return capturePayment(orderNumber, amount, method, recoveryContext, true);
     }
 
-    private PaymentTransaction capturePayment(
+    @Override
+    public PaymentTransaction recoverCapturePaymentPendingCompletion(
             final String orderNumber,
             final BigDecimal amount,
             final PaymentMethod method,
             final PaymentRecoveryContext recoveryContext) {
 
         final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
+        validateRecoveryContext(recoveryContext, operationId);
+        return capturePayment(orderNumber, amount, method, recoveryContext, false);
+    }
+
+    private PaymentTransaction capturePayment(
+            final String orderNumber,
+            final BigDecimal amount,
+            final PaymentMethod method,
+            final PaymentRecoveryContext recoveryContext,
+            final boolean completeReconciliationHere) {
+
+        final String operationId = ORDER_CAPTURE_PREFIX + orderNumber;
         PaymentTransaction current = getPayment(orderNumber);
         validateCaptureIdentity(current, amount, method);
         if (captureAlreadyResolved(current)) {
 
-            completeReconciliation(operationId, recoveryContext);
-            return current;
+            return replayResolvedCapture(operationId, current, amount, method, recoveryContext, completeReconciliationHere);
         }
 
         if (current.getCreated() == null) {
@@ -123,8 +135,7 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
         validateCaptureIdentity(current, amount, method);
         if (captureAlreadyResolved(current)) {
 
-            completeReconciliation(operationId, recoveryContext);
-            return current;
+            return finishCaptureReconciliation(operationId, current, recoveryContext, completeReconciliationHere);
         }
 
         try {
@@ -139,10 +150,9 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .gatewayReference(gatewayReference)
                             .created(current.getCreated())
                             .build());
-            completeReconciliation(operationId, recoveryContext);
-            return captured;
+            return finishCaptureReconciliation(operationId, captured, recoveryContext, completeReconciliationHere);
         } catch (final PaymentDeclinedException declined) {
-            savePaymentTransactionOutPort.saveCaptureResult(
+            final PaymentTransaction declinedPayment = savePaymentTransactionOutPort.saveCaptureResult(
                     PaymentTransaction.builder()
                             .orderNumber(orderNumber)
                             .amount(amount)
@@ -151,9 +161,50 @@ public class ManagePaymentUseCase implements GetPaymentInPort, ManagePaymentInPo
                             .status(PaymentStatus.DECLINED)
                             .created(current.getCreated())
                             .build());
-            completeReconciliation(operationId, recoveryContext);
-            throw declined;
+            return finishDeclinedCapture(operationId, declinedPayment, recoveryContext, completeReconciliationHere, declined);
         }
+    }
+
+    private PaymentTransaction replayResolvedCapture(
+            final String operationId,
+            final PaymentTransaction current,
+            final BigDecimal amount,
+            final PaymentMethod method,
+            final PaymentRecoveryContext recoveryContext,
+            final boolean completeReconciliationHere) {
+
+        PaymentTransaction resolved = current;
+        if (!completeReconciliationHere && recoveryContext != null) {
+            resolved = preparePaymentProviderOperationOutPort.prepareCapture(operationId, current, recoveryContext);
+            validateCaptureIdentity(resolved, amount, method);
+        }
+        return finishCaptureReconciliation(operationId, resolved, recoveryContext, completeReconciliationHere);
+    }
+
+    private PaymentTransaction finishCaptureReconciliation(
+            final String operationId,
+            final PaymentTransaction payment,
+            final PaymentRecoveryContext recoveryContext,
+            final boolean completeReconciliationHere) {
+
+        if (completeReconciliationHere) {
+            completeReconciliation(operationId, recoveryContext);
+        }
+        return payment;
+    }
+
+    private PaymentTransaction finishDeclinedCapture(
+            final String operationId,
+            final PaymentTransaction declinedPayment,
+            final PaymentRecoveryContext recoveryContext,
+            final boolean completeReconciliationHere,
+            final PaymentDeclinedException declined) {
+
+        if (!completeReconciliationHere) {
+            return declinedPayment;
+        }
+        completeReconciliation(operationId, recoveryContext);
+        throw declined;
     }
 
     @Override

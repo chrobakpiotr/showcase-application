@@ -29,6 +29,16 @@ public interface ManagePaymentInPort {
             PaymentRecoveryContext recoveryContext);
 
     /**
+     * Replays capture as the durable reconciliation owner but leaves completion to the caller so post-capture durable
+     * continuations can finish first.
+     */
+    PaymentTransaction recoverCapturePaymentPendingCompletion(
+            String orderNumber,
+            BigDecimal amount,
+            PaymentMethod method,
+            PaymentRecoveryContext recoveryContext);
+
+    /**
      * Refunds the remaining refundable amount for an order. Safe to retry.
      */
     PaymentTransaction refundPayment(String orderNumber);

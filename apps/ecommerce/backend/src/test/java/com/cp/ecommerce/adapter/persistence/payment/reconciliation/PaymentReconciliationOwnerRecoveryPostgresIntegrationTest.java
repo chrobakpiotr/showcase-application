@@ -12,6 +12,7 @@ import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentRefundEntityRe
 import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentTransactionEntityRepository;
 import com.cp.ecommerce.application.EcommerceApplication;
 import com.cp.ecommerce.domain.order.PaymentMethod;
+import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
 import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
 import com.cp.ecommerce.domain.payment.PaymentRecoveryContext;
@@ -91,6 +92,8 @@ class PaymentReconciliationOwnerRecoveryPostgresIntegrationTest {
     @Autowired
     private PaymentRefundEntityRepository refundRepository;
 
+    @Autowired
+    private ManageOrderInPort manageOrderInPort;
     @Autowired
     private ManagePaymentInPort managePaymentInPort;
 
@@ -292,6 +295,7 @@ class PaymentReconciliationOwnerRecoveryPostgresIntegrationTest {
                 reconciliationRepository,
                 paymentRepository,
                 refundRepository,
+                manageOrderInPort,
                 managePaymentInPort,
                 refundReturnContinuationOutPort,
                 completeRefundReturnContinuationInPort);

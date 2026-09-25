@@ -19,6 +19,7 @@ import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntity;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventEntityRepository;
 import com.cp.ecommerce.adapter.persistence.order.outbox.OutboxEventStatus;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
+import com.cp.ecommerce.adapter.persistence.payment.entity.PaymentReconciliationEntityRepository;
 import com.cp.ecommerce.adapter.web.order.OrderController;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderLineItemResource;
@@ -36,10 +37,12 @@ import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAnalyticsEventInP
 import com.cp.ecommerce.domain.order.port.incoming.PublishOrderAuditEventInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.domain.payment.PaymentReconciliationStatus;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.GetPaymentInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.domain.payment.port.outgoing.ManagePaymentReconciliationOutPort;
 
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -48,12 +51,14 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -107,6 +112,15 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
 
     @Autowired
     private GetPaymentInPort getPaymentInPort;
+
+    @MockitoSpyBean
+    private ManagePaymentReconciliationOutPort paymentReconciliationOutPort;
+
+    @Autowired
+    private PaymentReconciliationEntityRepository paymentReconciliationRepository;
+
+    @Autowired
+    private ApplicationContext applicationContext;
 
     @Autowired
     private OutboxEventEntityRepository outboxEventEntityRepository;
@@ -269,6 +283,71 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
     }
 
     @Test
+    void captureFinalizationFailureAfterCancellationMustRecoverAndRefund() throws Exception {
+        final String sku = "S22-RF1-" + compactUuid();
+        manageStockInPort.receiveStock(sku, 1);
+        final String orderNumber = place(sku);
+        final String captureOperationId = "ORDER-CAPTURE:" + orderNumber;
+        final CountDownLatch beforePrepare = new CountDownLatch(1);
+        final CountDownLatch resumeCapture = new CountDownLatch(1);
+        final AtomicInteger completionCalls = new AtomicInteger();
+
+        doAnswer(invocation -> {
+            if (completionCalls.incrementAndGet() == 1) {
+                throw new IllegalStateException("injected capture completion persistence outage");
+            }
+            return invocation.callRealMethod();
+        }).when(paymentReconciliationOutPort).complete(captureOperationId);
+        doAnswer(invocation -> {
+            beforePrepare.countDown();
+            if (!resumeCapture.await(20, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out waiting to resume RF1 capture");
+            }
+            return invocation.callRealMethod();
+        }).when(managePaymentInPort).capturePayment(eq(orderNumber), any(BigDecimal.class), any(PaymentMethod.class));
+
+        final SendMessageInPort fulfillment = mock(SendMessageInPort.class);
+        final OrderPlacementSagaOrchestrator worker = newOrchestrator(fulfillment);
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            final Future<?> running = executor.submit(worker::publishPendingEvents);
+            try {
+                assertThat(beforePrepare.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(getPaymentInPort.getPayment(orderNumber).getCreated()).isNull();
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    final OutboxEventEntity row = outboxEventEntityRepository.findByOrderNumberForUpdate(orderNumber)
+                            .orElseThrow();
+                    row.setClaimUntil(Instant.EPOCH);
+                    outboxEventEntityRepository.save(row);
+                });
+                cancelOrderWorkflow.cancelOrder(orderNumber);
+                assertThat(statusContains(OutboxEventStatus.CANCELLED, orderNumber)).isTrue();
+            } finally {
+                resumeCapture.countDown();
+            }
+            running.get(20, TimeUnit.SECONDS);
+        }
+
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        assertThat(paymentReconciliationRepository.findById(captureOperationId).orElseThrow().getStatus())
+                .isEqualTo(PaymentReconciliationStatus.PENDING);
+        final var due = paymentReconciliationRepository.findById(captureOperationId).orElseThrow();
+        due.setNextAttemptDate(Instant.EPOCH);
+        paymentReconciliationRepository.saveAndFlush(due);
+
+        reconcilePaymentsOnce();
+
+        assertThat(paymentReconciliationRepository.findById(captureOperationId).orElseThrow().getStatus())
+                .isEqualTo(PaymentReconciliationStatus.COMPLETED);
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus())
+                .as("recovered capture must refund a durably cancelled order before capture reconciliation closes")
+                .isEqualTo(PaymentStatus.REFUNDED);
+        worker.publishPendingEvents();
+        cancelOrderWorkflow.cancelOrder(orderNumber);
+        assertThat(getPaymentInPort.getPayment(orderNumber).getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(fulfillment, never()).sendMessage(any(Order.class));
+    }
+
+    @Test
     void shouldRecoverExpiredPlacementLeaseAfterWorkerDeath() {
 
         final String sku = "R03B-" + compactUuid();
@@ -301,6 +380,21 @@ class OutboxMultiWorkerClaimPostgresIntegrationTest {
         assertThat(sent.getClaimId()).isNull();
         assertThat(sent.getClaimUntil()).isNull();
         verify(fulfillment).sendMessage(any(Order.class));
+    }
+
+    private void reconcilePaymentsOnce() throws ReflectiveOperationException {
+
+        final Class<?> type = Class
+                .forName("com.cp.ecommerce.adapter.persistence.payment.reconciliation.PaymentReconciliationScheduler");
+        final java.lang.reflect.Constructor<?> constructor = type.getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        final Class<?>[] parameterTypes = constructor.getParameterTypes();
+        final Object[] dependencies = new Object[parameterTypes.length];
+        for (int index = 0; index < parameterTypes.length; index++) {
+            dependencies[index] = applicationContext.getBean(parameterTypes[index]);
+        }
+        final Object scheduler = constructor.newInstance(dependencies);
+        ReflectionTestUtils.invokeMethod(scheduler, "reconcileDueOperations");
     }
 
     private String place(final String sku) {
