@@ -1,0 +1,54 @@
+{
+  "assumptions": [
+    "This is a fresh independent architecture review; earlier review artifacts were evidence, not resumed reviewer context.",
+    "The PASS specification and accepted SDD-001 contracts remain authoritative.",
+    "Supervisor failure can leave descendant drainage uncertain, as explicitly contemplated by the revised plan; strong containment is not assumed to imply synchronous kill-on-supervisor-death.",
+    "Review was static and read-only. Additional cat, sed and rg reads covered the requested specifications, resolutions, implementation and relevant tests. No tests, prototypes or mutation commands were executed."
+  ],
+  "blocking_questions": [
+    "R3-AG-01 — How does an unresolved execution journal prevent a replacement supervisor from admitting another repository-wide verification? Plan §6 explicitly quarantines the target worktree and guards checkpoint/remove/replacement/reopen, but its launch sequence acquires the repository lock without specifying reconciliation of other started-without-drained executions. Concrete failure: supervisor S1 durably registers execution E1 in worktree W1, launches a contained descendant, then dies before drained.json. Its process-owned lock becomes available while the descendant remains alive or drainage is uncertain. S2 acquires that lock and launches E2 in W2; W1's mutation guard does not reject a launch in W2. This violates accepted repository-wide serialization and can overlap shared verification artifacts. Strong containment does not, by itself, mean synchronous termination and proven drainage upon supervisor death. Smallest required change: make validated unresolved execution journals repository-wide admission barriers, checked under the canonical lock before ready-gate decisions, grant consumption or launch. Require authoritative backend drainage reconciliation before admitting another execution; otherwise return verification-owned/needs-human without launching. State explicitly that this may block unrelated repository verification until reconciliation. A free OS lock, a different worktree, PID absence/reuse or lease expiry must not substitute for drainage proof."
+  ],
+  "changed_paths": [],
+  "commands": [
+    "cat /private/tmp/sdd-obs-001-architecture-grill-r3.prompt.md",
+    "cat docs/agentic-sdd/constitution.md",
+    "cat AGENTS.md docs/agentic-sdd/agents/architecture-reviewer.md docs/agentic-sdd/runtime-choice.md tooling/agent-harness/schemas/design-result.schema.json",
+    "cat docs/specs/SDD-001/plan.md docs/specs/SDD-001/verification-contract.json",
+    "cat docs/specs/SDD-OBS-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/design/architecture-grill-round1.json docs/specs/SDD-OBS-001/design/architecture-grill-round1-resolution.md",
+    "cat tooling/agent-harness/verification_sandbox.py tooling/agent-harness/trust.py",
+    "cat tooling/agent-harness/telemetry.py tooling/agent-harness/eval.py",
+    "git rev-parse --path-format=absolute --git-common-dir",
+    "git worktree list --porcelain"
+  ],
+  "findings": [
+    "Q1 / R2-AG-01: Not fully resolved because of R3-AG-01. Canonical root resolution, durable pre-launch registration, caller-independent supervision, target-worktree quarantine and mutation ordering are otherwise coherent.",
+    "Q2 / Supervisor model: Implementable for the accepted single-machine threat model once repository admission is closed over unresolved journals. The separate protected-path and descendant_containment=strong capabilities are meaningful contracts. Qualification must prove containment and drainage, not merely recognize an executable or strong_isolation flag. Unsupported backends correctly fail before launch, including auto/off requests.",
+    "Canonical root: The plan rejects bare, missing and ambiguous primary-worktree layouts and forbids caller-local fallback. Read-only Git inspection confirms this reviewer checkout is linked to a distinct primary checkout. Separate Git-directory layouts that cannot satisfy the prescribed primary-directory test fail closed; supporting them is not necessary for safety. Relocation must preserve or explicitly reconcile authority history rather than silently initialize an empty store.",
+    "Launch/crash boundaries: Death before durable started.json cannot leave a launched verification child under the prescribed ordering. Death after started.json but before launch conservatively quarantines the execution. Caller death or direct CLI cancellation does not release supervisor ownership. Death after actual drainage but before durable drained.json remains uncertain until authoritative reconciliation. Durable drained.json followed by a crash before lock release is safe to recover. The complete identity and launch-intent payload must be part of the create-once started record before launch.",
+    "Q3 / Lock ordering: Repository guard -> feature state lock -> worktree mutation is coherent with the current harness. Repository identity can be resolved from the trusted feature/control checkout before acquiring task state; task-dependent targets can then be resolved and checked under both locks. Existing recovery, complete, fail, release, reopen/prune, reset, worktree creation/failure cleanup and explicit removal paths fall within the plan's universal mutation rule. Their current implementation is refactoring scope, not an additional architecture blocker.",
+    "Q4 / R2-AG-02: Resolved. Terminal critical FAIL and its fence are one immutable publication. A crash after receipt durability but before any projection update cannot create an unfenced durable failure. Deleting derived indexes cannot erase the failure. A crash before terminal publication has no terminal PASS/FAIL authority and follows the accepted abandoned/uncertain contract; execution still requires safe ownership reconciliation.",
+    "Q5 / Fence scope: Repository + trusted policy hash + gate policy identity + fingerprint excludes family, run and task-attempt identity. failure_id identifies one failed receipt solely for audit and authorization. Command text alone is not the gate policy identity. The accepted exact-profile hash means even metadata edits can change scope, but trusted policy changes require deliberate replanning; silently normalizing those edits away would change the accepted specification.",
+    "Q6 / Reconstruction and grants: Immutable receipts and consumption events are sufficient without a second failure store. Consumption before launch burns the selected grant even if launch never occurs or terminal publication fails. A subsequent authorized FAIL becomes the new target, making grants for the earlier failure ineligible. Multiple grants must remain individually identifiable and consumable; an unused grant cannot follow a different failure_id. When no new failure receipt exists, a separately issued unconsumed grant for the still-current failure is explicit authorization, not restoration of the consumed grant. Generic restore_attempt_authorization cannot affect verification grants.",
+    "Authorized PASS: PASS may authorize permitted reuse and must retain earlier FAIL references. It is not a reusable execution grant. A later mandatory fresh task-completion launch for the same fenced key still needs an unconsumed explicit verification grant; the earlier successful retry cannot authorize another launch automatically.",
+    "Q7 / AG-03: Remains resolved. If producer P reruns after artifact loss, evaluate_ready_gate reloads P's new receipt and current artifact manifest before consumer C, recomputes C's fingerprint and RUN/REUSE decision, and discards stale advisory bindings. Supervisor and fence checks do not replace that boundary. All entry points consume the same engine decision.",
+    "Authority protection: Control storage, locks and grants are no-access to verification children; trusted policy remains readable but write-protected. Existing runner whole-worktree mutation checks remain independent. Backend qualification must cover writable-ancestor rename, alternate path access and daemonized descendants. Trusted supervisor code, imports, executable resolution, cwd and environment must originate from the control plane rather than provider-controlled execution context.",
+    "Q8–Q10: No empirical prototype or LangGraph/workflow database is required. The remaining change is a local journal-based repository admission rule and its recovery outcome. It preserves accepted SDD-001 freshness and SDD-OBS-001 serialization semantics."
+  ],
+  "non_blocking_risks": [
+    "Persist deterministic receipt succession for repeated authorized failures; reconstruct the current target from validated immutable history, not directory iteration order or wall-clock timestamps alone.",
+    "Validate schema, receipt integrity, ownership and references before reconstruction. Legacy v1 data must not become v2 authority; unreadable authoritative history must not be interpreted as an empty fence set.",
+    "Create-once collisions after restart must fail closed or recognize the identical already-published event; never overwrite history or launch again merely to obtain a new path.",
+    "Durability must include newly created directory ancestry as needed. Cleanup may discard projections and diagnostic logs, but must preserve authoritative failures, grants, consumptions and unresolved ownership journals.",
+    "Adversarial implementation tests must exercise supervisor death, PID reuse, backend misadvertisement, cancellation, ancestor rename, duplicate grants and fresh execution after authorized PASS. Existing sandbox tests establish command construction and environment filtering, not the new containment guarantees."
+  ],
+  "prototype_recommendations": [],
+  "recommendation": "Amend plan §6 to make unresolved execution journals repository-wide admission barriers, then obtain a fresh architecture review before design PASS and independent verification-contract authoring.",
+  "residual_risks": [
+    "Fail-closed repository quarantine can block unrelated verification until authoritative drainage or explicit human reconciliation; this is an availability cost of the accepted repository-wide serialization contract.",
+    "Backend enforcement, trusted supervisor bootstrap, crash durability and fingerprint completeness require independent implementation evidence.",
+    "Hostile local OS-owner tampering and transient external A-to-B-to-A writes remain outside the accepted guarantee."
+  ],
+  "status": "needs-human",
+  "summary": "R2-AG-02 is resolved: the immutable critical FAIL receipt provides crash-atomic fencing. AG-03 remains resolved. R2-AG-01 is substantially resolved, but one load-bearing decision remains: repository-wide execution admission after supervisor death. Worktree quarantine alone does not establish continued repository-wide serialization. No prototype, framework migration or specification change is required."
+}

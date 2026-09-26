@@ -1,0 +1,66 @@
+{
+  "assumptions": [
+    "The PASS Spec Grill and accepted SDD-001 contracts remain authoritative; this review does not reopen their WHAT/WHY.",
+    "Provider-controlled commands are within the threat model; hostile local OS-owner tampering is outside it.",
+    "This was static, read-only architecture review. No tests, providers, prototypes or implementation commands were executed."
+  ],
+  "blocking_questions": [
+    "R2-AG-01 — How does verification ownership survive executor death and coordinate with task recovery/cleanup? Plan §6 requires holding ownership until every descendant terminates, but does not select a containment/recovery mechanism or make worktree mutation paths participate. Concrete failure: the executor dies while a verification descendant survives; its task lease expires; harness.recover_stale_leases checkpoints the live worktree and subsequent recovery/reopen/removal can mutate or remove it. A parent-owned OS lock can disappear on parent death, while a persistent lock needs an explicit safe reclamation rule. Neither lease expiry nor immediate-child exit proves descendant termination. Smallest design change: specify the supervisor/containment and durable ownership protocol, including launch-registration ordering, parent-death handling, escaped descendants, and fail-closed treatment of uncertain liveness. Require recovery, checkpointing, replacement and cleanup to consult the same ownership boundary before touching that worktree, with an explicit ordering relative to task-state locks. This extends the selected architecture rather than requiring the current sandbox implementation already to support it.",
+    "R2-AG-02 — What makes critical terminal failure and its execution fence crash-atomic? Plan §§5–8 describe separate immutable terminal evidence and failure records, but the publication sequence persists terminal evidence and the derived index without defining fence publication/reconstruction. Concrete failure: a critical FAIL terminal becomes durable, the executor crashes before creating its failure record, and a new run sees no fence and launches the same fingerprint automatically. Publishing the fence first creates the opposite case: a fence references missing terminal evidence, with unspecified authorization/recovery behavior. Smallest design change: make the immutable failed terminal receipt itself the authoritative fence, or define a journal/recovery transaction that cannot admit another launch until all durable failures have been reconciled. Specify that the fence lookup uses the spec's repository/policy/gate/fingerprint scope across families and task attempts; the richer failure_id identifies the audit/grant target rather than narrowing that lookup. Preserve durable grant consumption independently of terminal publication and never restore it during reconstruction."
+  ],
+  "changed_paths": [],
+  "commands": [
+    "cat /private/tmp/sdd-obs-001-architecture-grill-r2.prompt.md",
+    "cat docs/agentic-sdd/constitution.md",
+    "cat AGENTS.md docs/agentic-sdd/agents/architecture-reviewer.md docs/agentic-sdd/runtime-choice.md docs/specs/SDD-001/spec.md docs/specs/SDD-001/plan.md docs/specs/SDD-001/verification-contract.json",
+    "cat docs/specs/SDD-OBS-001/spec.md docs/specs/SDD-OBS-001/plan.md docs/specs/SDD-OBS-001/design.json docs/specs/SDD-OBS-001/design/spec-grill.json docs/specs/SDD-OBS-001/design/architecture-grill-round1.json docs/specs/SDD-OBS-001/design/architecture-grill-round1-resolution.md tooling/agent-harness/schemas/design-result.schema.json",
+    "cat tooling/agent-harness/verification_sandbox.py tooling/agent-harness/trust.py",
+    "cat tooling/agent-harness/telemetry.py tooling/agent-harness/eval.py",
+    "rg -n '^(def |class )|verification|kill|terminate|lock|cleanup|human_resume' tooling/agent-harness/runner.py tooling/agent-harness/orchestrate.py tooling/agent-harness/harness.py",
+    "sed -n '195,323p' tooling/agent-harness/orchestrate.py",
+    "sed -n '434,511p' tooling/agent-harness/runner.py",
+    "sed -n '580,685p' tooling/agent-harness/runner.py",
+    "sed -n '653,688p' tooling/agent-harness/harness.py",
+    "sed -n '1107,1238p' tooling/agent-harness/harness.py",
+    "sed -n '1551,1587p' tooling/agent-harness/harness.py",
+    "rg -n '^    def test_' tooling/agent-harness/tests/test_{harness,runner,orchestrate,telemetry,verification_sandbox,eval,trust}.py",
+    "cat tooling/agent-harness/tests/test_verification_sandbox.py tooling/agent-harness/evals/baseline.json docs/specs/SDD-OBS-001/design.json",
+    "sed -n '375,570p' docs/specs/SDD-OBS-001/spec.md",
+    "sed -n '570,710p' docs/specs/SDD-OBS-001/spec.md",
+    "cat docs/adr/README.md",
+    "git rev-parse --path-format=absolute --git-common-dir",
+    "git worktree list --porcelain",
+    "rg -n 'AC-|FR-' docs/specs/SDD-001/spec.md"
+  ],
+  "findings": [
+    "AG-01 authority protection: The revised design explicitly denies verification children access to the canonical control store, requires read-only authoritative policy, rejects insufficient isolation as environment-blocked even for auto/off, and retains runner whole-worktree mutation checks. Direct execution in the primary checkout therefore no longer intentionally grants authority-store writes. Existing sandbox limitations are implementation work, not independently a blocker.",
+    "Sandbox feasibility: The current backend construction provides places to introduce explicit protected-path capabilities. A backend must demonstrate control-store denial and policy write denial, including deletion/rename through writable ancestors and alternate accessible paths. Merely reporting strong_isolation or finding a Codex executable is insufficient. Backends unable to enforce the requested protection must be rejected or skipped for a capable backend.",
+    "Canonical repository identity: The reviewed checkout is itself linked; read-only Git inspection resolves its common directory to the primary repository's .git. Using one shared canonical resolver is coherent. Unusual common-directory layouts still need deterministic control-checkout resolution and fail-closed handling; common_dir.parent must not be assumed to be a checkout.",
+    "AG-02 authorization: Exact failure-bound grants, durable pre-launch consumption, separate task-rework authority and integration-only authorization are coherent extensions of existing SDD-001 audit concepts. Wrong-gate and generic task grants cannot authorize execution. Crash after consumption, including before launch, burns the grant; repeated human authorization creates another explicit audit event. Deleting the index cannot restore consumption.",
+    "AG-02 lifecycle mapping: Plan §§8 and 10 correctly prohibit automatic builder relaunch and rework-budget spending for fenced verification, busy, stale-input and environment-blocked. Implementation must preserve the successful builder attempt and resume its verification family rather than route these outcomes through the existing generic fail/retry path.",
+    "AG-03 producer/consumer counterexample: The initial plan is advisory. If P loses its artifact and reruns, evaluate_ready_gate reloads P's new receipt and current manifest before C, rebuilds C's dependency binding/pre-fingerprint, and recomputes RUN/REUSE under repository ownership. The old planned receipt cannot authorize C.",
+    "AG-03 supporting cases: Focused artifact overwrites and non-cacheable dependencies invalidate reuse; continuation repeats ready-gate evaluation; trusted policy drift requires replanning. Direct CLI, runner and orchestrator consume the same engine API. Pre/post validation covers persistent artifact changes between observation and execution under the accepted single-writer model; transient external A-to-B-to-A mutation remains explicitly excluded.",
+    "Package graph: Thin verify.py, the small verification package and neutral verification_command.py form a coherent dependency direction. Neither the command bridge nor verification core needs to import runner. Keep serializer/model dependencies below telemetry and entry points to avoid introducing a new cycle.",
+    "Control-store separation: Immutable per-attempt terminal paths, failures and consumption records are distinct from rebuildable state and summary projections. Safe occurrence encoding prevents logical ids becoming arbitrary paths. Reconstruction must validate schemas, receipt integrity, ownership and dependency references before reuse.",
+    "Identity and privacy: Plan §13 assigns role, attempt, lineage and required-review identity to control-plane state and requires one safe serializer before v2 persistence and rendering. This addresses current arbitrary provider usage dictionaries, command strings, provider paths, exception messages and eval tails. Legacy v1 records must pass that boundary when included in v2 reports.",
+    "Manual chronology: Completed at is an asserted review completion time, separate from registration. It cannot establish a qualifying metric endpoint when trusted scope or chronological ordering is unprovable. Tests should cover future timestamps and completion preceding the relevant builder lineage.",
+    "Compatibility: Fresh initial task-command dependency closure, distinct duplicate occurrences, unmapped non-cacheable legacy commands and runner mutation checks preserve SDD-001 verification semantics. V1 remains readable without migration and cannot authorize reuse. Protocol/profile upgrades may require deliberate replanning; rollback can ignore the separate v2 subtree.",
+    "Runtime choice: Neither blocker requires LangGraph or a workflow database. Both concern local process ownership and durable publication within the chosen store. No empirical prototype is required; explicit design decisions followed by deterministic crash and adversarial backend tests are sufficient."
+  ],
+  "non_blocking_risks": [
+    "Clarify plan verification item 25: authoritative policy must remain readable but write-protected; the control store is no-access. Its current wording groups both under cannot read/write.",
+    "Ensure direct CLI and runner resolve identical authority roots when the control checkout is linked, relocated, missing or associated with a separate Git directory. Never silently fall back to caller-local authority.",
+    "Use durable create-once publication for immutable records, including directory durability where required; the existing replace-based JSON helper alone does not establish immutability.",
+    "Keep the new failure-grant transaction separate from restore_attempt_authorization, which intentionally restores an unexecuted generic task grant.",
+    "Add adversarial tests for parent death, surviving descendants, worktree cleanup races, both failure/fence publication orders, consumed-grant reconstruction and producer receipt rebinding.",
+    "Verify command failure and harness error retain separate outcomes alongside the newly distinguished blockage categories."
+  ],
+  "prototype_recommendations": [],
+  "residual_risks": [
+    "Sandbox enforcement and process-lifetime ownership require implementation evidence on every enabled backend.",
+    "Fingerprint correctness depends on independently reviewed profile input completeness.",
+    "Architecture approval would not constitute implementation approval or replace the hash-bound design gate and independent verification contract."
+  ],
+  "status": "needs-human",
+  "summary": "AG-03 is resolved. AG-01 and AG-02 now define substantially stronger boundaries, but crash recovery still lacks two load-bearing decisions: descendant ownership coordinated with worktree recovery, and atomic critical-failure fencing. These require focused plan amendments, not specification changes, a workflow framework, or a prototype."
+}

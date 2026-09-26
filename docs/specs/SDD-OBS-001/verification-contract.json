@@ -1,0 +1,418 @@
+{
+  "assumptions": [
+    "The current hash-bound design PASS governs authoring despite residual DRAFT labels. SHA-256 checks matched spec.md, plan.md and design.json to design/gate.json.",
+    "These criteria supplement all accepted AC-OBS requirements; they do not replace them or authorize changes to product behavior.",
+    "Verification hints describe evidence required during implementation and independent evaluation. This authoring pass was read-only; no implementation tests, providers, repository writes or external mutations were performed.",
+    "The accepted threat model excludes hostile local OS-owner modification and transient external A-to-B-to-A writes. Provider-controlled verification code, ordinary corruption and interrupted publication remain in scope.",
+    "Backend support must be established by implementation evidence. A backend unable to prove both authority protection and descendant drainage remains unavailable for v2 execution.",
+    "Existing trusted local task checkpoint composition remains permitted under SDD-001; no new autonomous agent commit, remote mutation or integration authority is granted."
+  ],
+  "authored_by": {
+    "profile": "verification-author",
+    "provider": "codex",
+    "run_id": "manual-import-20260926T081914Z"
+  },
+  "criteria": [
+    {
+      "id": "VC-001",
+      "origin": "spec-derived",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/plan.md \u00a75",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round4.json"
+      ],
+      "statement": "All verification entry points resolve one repository authority namespace across primary and linked worktrees; unresolved or changed primary-worktree identity cannot silently create an empty replacement store.",
+      "verification_hint": "Use disposable primary/linked-worktree fixtures and compare resolved repository identity, control root and lock. Exercise bare repositories, missing or ambiguous primary ownership, unusual common-dir layouts and primary relocation with retained unresolved history. Require canonical identity or fail-closed environment blockage, never caller-local fallback."
+    },
+    {
+      "id": "VC-002",
+      "origin": "spec-derived",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/plan.md \u00a75a",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round3-resolution.md"
+      ],
+      "statement": "Any unresolved or unverifiable authoritative execution journal blocks repository-wide verification admission before authoritative ready-gate evaluation, reuse, grant consumption or launch.",
+      "verification_hint": "Leave started-without-drained history in W1 and request verification in W2 under another profile, family and task. Instrument ready-gate, consumption and launch seams and assert zero calls. Repeat with a free lock, absent/reused PID, expired lease, old timestamp, corrupt/unreadable/unknown-version started or closure records, and missing/incompatible reconciliation backend. Require verification-owned/needs-human without treating invalid history as empty."
+    },
+    {
+      "id": "VC-003",
+      "origin": "spec-derived",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a75a\u20136",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round3-resolution.md"
+      ],
+      "statement": "Replacement supervisors admit work only after serialized backend-authoritative reconciliation and durable publication of valid drainage closure for every unresolved execution.",
+      "verification_hint": "Race two replacement supervisors using barriers. Return drained, still-active and uncertain from a controlled backend; kill reconciliation before closure publication and restart. Assert only proven, durably closed scopes cease blocking, the complete unresolved set is rescanned, and launches never overlap. Exercise explicit human reconciliation and verify its immutable audit targets the exact execution and drainage decision while preserving conflicting evidence."
+    },
+    {
+      "id": "VC-004",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md \u00a7\u00a712,25",
+        "tooling/agent-harness/verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round4.json"
+      ],
+      "statement": "A backend qualifies for v2 execution only when real execution demonstrates both authoritative-path protection and containment of the full descendant lifetime; a capability flag or legacy strong_isolation value alone cannot qualify it.",
+      "verification_hint": "For each advertised v2 backend, run an independent OS integration fixture that attempts control-store reads/writes, lock/grant deletion, policy writes, writable-ancestor rename and alternate-path access while confirming required policy reads work. Exercise forked descendants, daemonization, cancellation, caller death and supervisor death. Observe that no descendant can mutate after proven drainage. Backends without this evidence must return environment-blocked before launch, including auto/off requests; mocks establish lifecycle logic only."
+    },
+    {
+      "id": "VC-005",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "tooling/agent-harness/harness.py: recover_stale_leases, checkpoint_worktree, cmd_complete, cmd_fail, cmd_release, cmd_reopen, cmd_reset, prune_task_workspace, prepare_task_worktree, cmd_worktree_remove",
+        "tooling/agent-harness/tests/test_harness.py",
+        "docs/specs/SDD-OBS-001/plan.md \u00a76"
+      ],
+      "statement": "Every harness worktree mutation respects verification ownership and acquires the repository guard before task-state locks.",
+      "verification_hint": "With active and uncertain verification ownership, invoke each checkpoint, stale-recovery, complete/fail/release, reopen, reset, prune/remove and replacement path in disposable fixtures. Assert unchanged worktree bytes, HEAD and workspace existence. Trace lock acquisition and race recovery against execution with bounded timeouts to expose inverted locking. Proven drainage must subsequently permit normal authorized recovery without erasing attempt history."
+    },
+    {
+      "id": "VC-006",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: GREEN provenance and threat model",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a75\u20136,18",
+        "tooling/agent-harness/telemetry.py: atomic_write_json"
+      ],
+      "statement": "Only validated immutable terminal receipts establish gate outcomes; publication interruption, projection corruption or cleanup cannot manufacture authority or erase retained execution, failure or grant history.",
+      "verification_hint": "Fault-inject each started, launch, terminal, projection and drained publication boundary, including file/directory durability failures. Missing terminal evidence must never yield GREEN; a valid terminal PASS without an index must be recoverable after admission reconciliation without rerunning the command when reuse is permitted. Tamper ownership, integrity and dependency references. Verify identical create-once replay is idempotent, different-content collision fails without relaunch, and cleanup removes only permitted projections/logs."
+    },
+    {
+      "id": "VC-007",
+      "origin": "spec-derived",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/plan.md \u00a78",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round2-resolution.md"
+      ],
+      "statement": "A durable critical FAIL receipt reconstructs the same failure fence across families, runs and task attempts regardless of derived indexes or the failure_id supplied by a caller.",
+      "verification_hint": "Crash immediately after durable FAIL publication, remove every derived projection, then invoke direct, runner and orchestrator paths with new family/task/attempt identities and alternate failure ids. Assert zero same-fingerprint launches without valid authorization. Shuffle directory iteration and timestamps across repeated authorized failures; explicit immutable succession must reconstruct the same current blocking receipt and retain all earlier failures."
+    },
+    {
+      "id": "VC-008",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md \u00a711",
+        "tooling/agent-harness/harness.py: consume_attempt_authorization, restore_attempt_authorization, cmd_human_resolve",
+        "tooling/agent-harness/tests/test_harness.py: test_rollback_restores_consumed_human_resume_grant",
+        "docs/specs/SDD-OBS-001/plan.md \u00a78"
+      ],
+      "statement": "Verification retry permission is failure-specific and one-shot, durably consumed before launch, and cannot be restored or transferred by task authorization helpers, duplicate grants or later successful execution.",
+      "verification_hint": "Consume a verification grant and crash before launch; rebuild projections and call generic task restore/human-resolve helpers, then assert the grant remains burned. Test wrong gate/fingerprint/failure, concurrent consumption, duplicate grants, a newer failed receipt and integration-only authorization without a DAG task. After authorized PASS, allow valid integration reuse but require new authorization for a later mandatory fresh execution of the unchanged fenced scope; the old grant cannot become reusable permission."
+    },
+    {
+      "id": "VC-009",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Retry-free critical evidence",
+        "apps/ecommerce/backend/ecommerce.gradle",
+        "tooling/scripts/verify-critical-postgres-tests.sh",
+        "tooling/scripts/verify-critical-rabbitmq-tests.sh"
+      ],
+      "statement": "A retry-forbidden critical attempt invokes its command at most once and cannot claim retry-free evidence unless the declared tool-internal retry controls are established.",
+      "verification_hint": "Count actual process invocations for failing, timed-out and successful critical attempts. Exercise the backend Gradle test-retry configuration with strict evidence properties enabled and disabled. Missing or unverifiable disablement must produce retry-policy-violation; a fail-then-pass internal retry must not produce accepted retry-free evidence."
+    },
+    {
+      "id": "VC-010",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: FR-012, AC-014",
+        "docs/agentic-sdd/constitution.md \u00a712",
+        "tooling/agent-harness/runner.py: run_verification",
+        "docs/specs/SDD-OBS-001/spec.md: Invocation policies and continuation"
+      ],
+      "statement": "Initial task-completion verification independently executes every declared command occurrence and its full dependency closure freshly, while continuation reuse is limited to still-valid fresh evidence from that same family.",
+      "verification_hint": "Seed valid integration and other-family task evidence, then submit builder PASS with repeated identical mapped commands, unmapped legacy commands and shared dependencies. Count ordered executions and assert every occurrence and dependency runs freshly. Fail a later gate and continue the family: only valid earlier same-family fresh evidence may be reused. Changing origin policy, base or bound profile must not silently convert the continuation."
+    },
+    {
+      "id": "VC-011",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Authoritative required gate set; Changed-surface baseline, applicability and command identity",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a72\u20134,8b"
+      ],
+      "statement": "Required gate selection and ordering are deterministic under exact command-plus-cwd occurrence identity and the immutable base-relative changed surface.",
+      "verification_hint": "Use table-driven fixtures for zero/one/ambiguous mappings, whitespace/quoting/argument-order differences, duplicate occurrences, cycles, duplicate ids and composition conflicts. Assert task-plus-mandatory-plus-dependency union and exact ready-node order. Cover committed, staged, unstaged, deleted and untracked changes; renames must contribute deletion/addition independently of similarity settings. Reject missing/non-commit/non-ancestor bases and invalid mini-globs; verify case-sensitive *, ?, ** behavior and unusual valid filenames."
+    },
+    {
+      "id": "VC-012",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Fingerprint and reusable-evidence contract",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round1.json"
+      ],
+      "statement": "Reusable fingerprints distinguish every declared result-sensitive input and policy dimension, and persistent pre/post drift prevents reusable PASS even when size and timestamps are unchanged.",
+      "verification_hint": "Starting from reusable PASS, independently mutate each normative fingerprint dimension, matched file addition/deletion/content/kind/executable bit, dependency receipt and safe probe. Require invalidation/RUN; an unrelated unmatched edit must preserve eligibility. During execution replace an input with equal-length bytes and restore its mtime; require stale-input and no GREEN publication. Cross-worktree reuse must require complete matching identity and artifacts; another repository must never reuse the receipt."
+    },
+    {
+      "id": "VC-013",
+      "origin": "spec-derived",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Fingerprint and reusable-evidence contract; Security / privacy field policy",
+        "tooling/agent-harness/tests/test_runner.py: symlink fingerprint regressions"
+      ],
+      "statement": "Symlink-affected, opaque or unsafe sensitive identities never become reusable through empty manifests, redaction or hashing isolated secrets.",
+      "verification_hint": "Test matched links, broken links, literal descendants under linked directories and glob traversal through linked ancestors. Assert non-following inspection and non-cacheable-symlink-input. Test two secret-bearing names with identical contents, unsafe probes and opaque environment dependencies; require non-cacheable-sensitive-identity or invalid-policy as specified, never a shared redacted cache key or isolated-secret hash."
+    },
+    {
+      "id": "VC-014",
+      "origin": "spec-derived",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a71,6\u20137",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round1-resolution.md: AG-03"
+      ],
+      "statement": "Every RUN or REUSE binds current dependency receipts and artifact bytes immediately before action through the shared ready-gate API.",
+      "verification_hint": "Plan a producer/consumer pair, delete the producer artifact, rerun the producer, then evaluate the consumer. Require binding to the new receipt without false stale-input from the advisory plan. Insert a focused-test overwrite before coverage; require full-producer regeneration. Test byte-identical restoration, missing/mismatched artifacts, non-cacheable producers, artifact symlink/escape and source overlap. Compare direct/runner/orchestrator decisions and instrument that each uses the same ready-gate seam."
+    },
+    {
+      "id": "VC-015",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "tooling/agent-harness/runner.py: worktree_content_fingerprint, run_verification, enforce_postconditions",
+        "tooling/agent-harness/tests/test_runner.py: test_verification_rejects_content_mutation_when_changed_paths_are_unchanged",
+        "docs/specs/SDD-OBS-001/plan.md \u00a79"
+      ],
+      "statement": "Selective verification fingerprints do not replace the runner's existing whole-worktree mutation postcondition.",
+      "verification_hint": "Run an allowed command that exits zero but changes an unmatched tracked file, an already-dirty file without changing its path list, or an untracked file/link. Assert outer verification rejection even when all declared gate inputs remain equal. Preserve reviewer read-only, HEAD/remotes and allowed-path regression tests; declared generated artifacts must not weaken source mutation detection."
+    },
+    {
+      "id": "VC-016",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/SDD-001/verification-contract.json: VC-002",
+        "tooling/agent-harness/trust.py",
+        "tooling/agent-harness/runner.py: validate_packet_integrity",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a76,9\u201310,13"
+      ],
+      "statement": "Untrusted worktree, provider, tracker and runtime content cannot select or weaken verification policy or control-plane execution code.",
+      "verification_hint": "Modify task-worktree profiles, forge local GREEN-looking files, tamper packet context_trust and inject gate/sandbox/retry instructions into provider or tracker data. Attempt supervisor/backend resolution through malicious cwd, environment and import/executable paths. Assert control-repository code and bound policy remain authoritative. Change live trusted policy after planning and require explicit replanning; dirty/untracked active policy must not silently authorize reuse."
+    },
+    {
+      "id": "VC-017",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md \u00a712",
+        "tooling/agent-harness/runner.py: verification_argv",
+        "tooling/agent-harness/verification_sandbox.py",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a71,3"
+      ],
+      "statement": "The shared verification bridge preserves command authorization and sandbox enforcement without granting a secondary execution channel through probes, retry controls or wrappers.",
+      "verification_hint": "Run the existing allowlist/environment tests against direct and runner execution through the neutral bridge. Submit shell composition, substitutions, disallowed commands and equivalent payloads in probe/retry fields. Assert rejection before execution and no shell fallback. Check the import graph: verification core and command bridge must not import runner, and wrappers must not maintain separate authorization algorithms."
+    },
+    {
+      "id": "VC-018",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "tooling/agent-harness/orchestrate.py: run_started_task, apply_outcome",
+        "tooling/agent-harness/harness.py: consume_attempt_authorization",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a78\u201310"
+      ],
+      "statement": "Verification blockage preserves the successful builder attempt and its verification family rather than spending provider rework budget or automatically launching the builder again.",
+      "verification_hint": "Inject busy, stale-input, environment-blocked and fenced needs-human after builder PASS. Across repeated orchestration invocations, assert no additional provider launch, task-grant consumption or builder-attempt increment. Verify structured reason preservation and resumption of the originating family. Separately test command failure and harness error, and assert the specified CLI exit mapping without falsely reporting blocked required gates GREEN."
+    },
+    {
+      "id": "VC-019",
+      "origin": "spec-derived",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Security / privacy field policy",
+        "docs/specs/SDD-OBS-001/plan.md \u00a713",
+        "tooling/agent-harness/telemetry.py: parse_codex_jsonl, parse_claude_envelope",
+        "tooling/agent-harness/runner.py: provenance finalization"
+      ],
+      "statement": "Every structured v2 persistence and report path enforces the same safe serialization boundary, including nested provider metadata and error paths.",
+      "verification_hint": "Seed distinct canaries into environment, prompt, trusted command definition, expanded arguments, filenames, probes, diagnostics, report bodies and nested provider usage keys/values. Exercise success, rejection, timeout, parse failure and recovery. Scan all structured receipts, provenance, summaries and JSON/Markdown/terminal reports for canaries and prohibited isolated-secret hashes. Assert unsafe reports are rejected, unsafe identity disables reuse, and arbitrary provider dictionaries cannot bypass field/type validation."
+    },
+    {
+      "id": "VC-020",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: GREEN provenance and threat model",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a78a,13",
+        "tooling/agent-harness/eval.py: run_case"
+      ],
+      "statement": "Raw diagnostic logs and eval output hashes/tails are excluded from reusable GREEN authority and safe structured receipts.",
+      "verification_hint": "Produce valid terminal PASS, delete or alter raw logs and verify unchanged reuse eligibility. Assert receipt hashes cover only safe structured terminal fields and contain no stdout/stderr content hash or excerpts. Attempt importing an eval diagnostic record as gate evidence and require rejection unless independently validated gate authority exists."
+    },
+    {
+      "id": "VC-021",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Manual reviewer/evaluator registration",
+        "docs/specs/SDD-OBS-001/plan.md \u00a712",
+        "docs/agentic-sdd/constitution.md \u00a73"
+      ],
+      "statement": "Manual registration creates only validated, idempotent observations and cannot launch providers or authorize workflow transitions.",
+      "verification_hint": "Exercise real clean commit/report fixtures with exact canonical markers. Reject missing/duplicate/conflicting markers, markers only inside fences/quotes/HTML/indented code, wrong/nonexistent/non-commit SHA, dirty reviewed checkout, incompatible task scope, escaping/symlink reports and secret-bearing bodies. Repeat identical registration and conflicting external-id/path/hash registrations. Compare task/spec/design state before and after and spy on provider dispatch: only the accepted observation may be added."
+    },
+    {
+      "id": "VC-022",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Telemetry metric semantics",
+        "docs/specs/SDD-OBS-001/plan.md \u00a713",
+        "tooling/agent-harness/orchestrate.py",
+        "tooling/agent-harness/telemetry.py"
+      ],
+      "statement": "Telemetry derives attempts, roles, required observations and first-pass/rework results from trusted scope and complete history, never from provider claims or surviving later successes.",
+      "verification_hint": "Use golden histories with specialist profile overrides, multiple provider runs per task attempt, continuations, repeated manual registration, two required rejections before one next builder attempt, abandoned/running records and an unbound manual PASS. Assert distinct counting units, two rejections but one rework cycle, UNKNOWN exclusion from the first-pass denominator and immutable first-attempt FAIL after eventual PASS. Prepend incomplete legacy history and require UNKNOWN rather than inferred success; falsified provider/CLI role or required flags must not change results."
+    },
+    {
+      "id": "VC-023",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Telemetry metric semantics",
+        "docs/specs/SDD-OBS-001/plan.md \u00a718",
+        "docs/specs/SDD-001/spec.md: INV-008",
+        "tooling/agent-harness/tests/test_telemetry.py"
+      ],
+      "statement": "Time to independent PASS uses validated review completion within one trusted implementation lineage, and unknown usage or cost remains explicitly unknown.",
+      "verification_hint": "Use builder start 09:00, qualifying review completion 10:00 and registration 14:00; require a one-hour metric. Test earlier/later qualifying observations, equal-time tie-breaking, wrong lineage, future Completed-at, completion before builder start and incomplete legacy endpoints. Reject invalid registration chronology and never emit a fabricated interval. Supply partial/no token and cost metadata and assert completeness counts, unknown values and no default saved-cost/time estimate."
+    },
+    {
+      "id": "VC-024",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: FR-012\u2013FR-013",
+        "tooling/agent-harness/telemetry.py: summarize",
+        "tooling/agent-harness/runner.py: run_verification",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round4.json"
+      ],
+      "statement": "Legacy provenance and verification arrays remain compatible without becoming v2 reuse authority, and version switching never assumes an older harness participates in v2 ownership.",
+      "verification_hint": "Read mixed v1/v2/future-version fixtures and compare supported legacy aggregate totals without rewriting v1 files. Assert v1/future records never authorize reuse and legacy command arrays retain every occurrence. Review and exercise the documented upgrade/rollback procedure in disposable fixtures: quiescence and proven drainage precede switching, unresolved history remains retained, and protocol drift requires deliberate replanning. Guidance must not promise concurrent old/new harness safety."
+    },
+    {
+      "id": "VC-025",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/runtime-choice.md",
+        "docs/specs/SDD-OBS-001/plan.md \u00a7\u00a75a,15",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round3-resolution.md"
+      ],
+      "statement": "Read-only status, reporting and advisory planning during quarantine cannot clear ownership, consume authorization or present an advisory decision as permission to execute.",
+      "verification_hint": "Snapshot immutable history and task state around status/report/advisory-plan requests with unresolved or corrupt journals. Assert no mutation, reconciliation side effects, grant consumption or subprocess launch; output must expose blockage or uncertainty. Feeding a previously emitted ALREADY_GREEN advisory plan into execution must still encounter repository admission."
+    },
+    {
+      "id": "VC-026",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "AGENTS.md: Mandatory invariants 1,4",
+        "tooling/scripts/verify-before-push.sh",
+        "tooling/scripts/verify-domain-pitest.sh",
+        "tooling/scripts/verify-critical-postgres-tests.sh",
+        "tooling/quality/jacoco/jacoco.gradle",
+        "tooling/quality/pitest/pitest.gradle",
+        "modules/domain/domain.gradle",
+        "apps/ecommerce/frontend/karma.conf.js",
+        "docs/specs/SDD-OBS-001/spec.md: Fingerprint and reusable-evidence contract"
+      ],
+      "statement": "Independent profile review establishes gate completeness against current executable repository quality gates; fingerprint equality alone is never evidence that the profile declares all result-sensitive inputs.",
+      "verification_hint": "Independently map each shipped gate to its actual command, cwd, build/config/test/lockfile/script inputs, applicability and generated evidence. Mutate representative upstream build rules and quality scripts and assert selection/invalidation. Include the current 100% domain PIT setting, coverage thresholds, strict retry controls and focused-test artifact overwrite seams; do not substitute the older ADR's 90% PIT text. An omitted sensitive input is a profile defect even when the implementation correctly hashes its declarations."
+    },
+    {
+      "id": "VC-027",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md \u00a7\u00a73,23\u201324",
+        "docs/specs/SDD-001/verification-contract.json: VC-004\u2013VC-005",
+        "tooling/agent-harness/tests/test_verification_contract.py",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "statement": "The feature preserves independent evaluation, hash-bound design/verification gates and human-only exemption authority.",
+      "verification_hint": "Run existing stale/missing contract, self-approved exemption, AC/VC coverage, reviewer read-only and TDD evidence regressions. Add fixtures where cached verification PASS or manual registration is offered instead of independent evaluator coverage, or bound inputs change after authoring. Require rejection without reducing review coverage or accepting the builder's claimed verification as outer evidence."
+    },
+    {
+      "id": "VC-028",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/SDD-001/verification-contract.json: VC-001",
+        "docs/specs/SDD-001/spec.md: INV-002, INV-006",
+        "tooling/agent-harness/control_plane.py",
+        "tooling/agent-harness/eval.py: validate_suite",
+        "tooling/agent-harness/runner.py: enforce_postconditions"
+      ],
+      "statement": "No new verification, recovery, reporting or manual-registration path expands autonomous remote or Git mutation authority.",
+      "verification_hint": "Inspect and instrument new entry points and their subprocess/network seams. Submit commit/push/merge/rebase/remote-change, PR, deploy and tracker-write requests through command, probe, report and runtime payloads; assert no authorization or dispatch. Preserve existing control-plane read-only and eval forbidden-command tests. Existing trusted task-local checkpoint composition remains bounded and must not become provider-controlled or remote authority."
+    },
+    {
+      "id": "VC-029",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        ".github/workflows/agentic-sdd.yml",
+        "tooling/agent-harness/evals/baseline.json",
+        "tooling/agent-harness/evals/adversarial.json",
+        "tooling/agent-harness/evals/shipping-preflight.json",
+        "tooling/agent-harness/evals/shipping-post-handoff.json",
+        "docs/agentic-sdd/constitution.md \u00a7\u00a75,26"
+      ],
+      "statement": "The implemented contract is exercised by checked-in deterministic regressions and the existing CI aggregate gate without weakening SDD-001 suites or silently skipping v2 security qualification.",
+      "verification_hint": "Run unittest discovery, validate-all, SDD-001 contract validation, maintained example previews and baseline/adversarial/shipping-preflight evals; run post-handoff against a valid accepted target. Require reproducible fixtures for admission, crash, grants, artifacts and privacy rather than reviewer prose alone. Inspect CI discovery and aggregate dependencies so new tests/benchmark failures fail the gate; unavailable backend qualification must be reported explicitly and cannot certify that backend."
+    },
+    {
+      "id": "VC-030",
+      "origin": "spec-derived",
+      "source_type": "performance",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Performance / reliability NFRs",
+        "docs/specs/SDD-OBS-001/plan.md \u00a716",
+        "docs/specs/SDD-OBS-001/design/architecture-grill-round4.json",
+        ".github/workflows/agentic-sdd.yml"
+      ],
+      "statement": "Planning meets the accepted deterministic operation and Linux CI timing contract without weakening input observation or authoritative-history scans.",
+      "verification_hint": "Instrument Git/subprocess calls and hashing over increasing gates, associations and bytes; assert no subprocess-per-file behavior and no reuse of pre-execution content observations for the required post-check. Generate the exact 100-gate, 5,000-file, 256-byte, 50-disjoint-files-per-gate fixture before timing; perform one warm-up and three in-process full planner runs in Linux CI, requiring median <=10 seconds and maximum <=20 seconds. Add old unresolved history beyond normal index windows and require complete admission scanning."
+    },
+    {
+      "id": "VC-031",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Documentation / handbook contract",
+        "docs/specs/SDD-OBS-001/plan.md \u00a717",
+        "docs/agentic-sdd/README.md",
+        "README.md"
+      ],
+      "statement": "Canonical handbook Markdown remains the protocol source of truth, with synchronized README guidance and content/visual validation of the generated PDF.",
+      "verification_hint": "Compare the implemented CLI and canonical handbook.md against both READMEs and extracted PDF text for freshness, reuse, retry fencing, quarantine/reconciliation, backend prerequisites, rollback drainage, metric completeness and no-remote authority. Generate the PDF through the documented path and inspect rendered pages for missing/clipped content and usable commands; byte equality is not the oracle. Verify MANUAL TELEMETRY REQUIRED includes exact registration commands and audit all post-availability manual reviews used for this feature's closure; omissions mark telemetry partial and block only its observability DoD."
+    }
+  ],
+  "exemptions": [],
+  "feature": "SDD-OBS-001",
+  "generated_at": "2026-09-26T08:19:14+00:00",
+  "inputs": {
+    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079",
+    "design_gate_sha256": "74aeb057e91865f1981aa949dd9e61155dccf99c314fba906128b0b8145ac37d",
+    "plan_sha256": "d82907da3effc3d1d81b6d89bea23f2eff4c173796b50c9896850ff72e41abe8",
+    "spec_sha256": "8ef470b0dbea0f981298a88c19be6058eb5b3b2910488a731bbc143e738ed62d"
+  },
+  "schema_version": 1,
+  "status": "accepted",
+  "summary": "Independent falsification contract sufficient for implementation gating. Criteria cover repository admission, execution authority, immutable failure and authorization history, fresh verification, artifact rebinding, privacy, compatibility and operational evidence. PASS approves this contract, not the implementation."
+}

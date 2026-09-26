@@ -1,0 +1,32 @@
+{
+  "decision": "pass",
+  "design_config_sha256": "796e31861fe5351806b766a566f02779bf01daa684fa4d126fcacc15d6942b04",
+  "feature": "SDD-OBS-001",
+  "generated_at": "2026-09-26T08:10:38+00:00",
+  "modes": {
+    "architecture_grill": "always",
+    "grill": "always",
+    "prototype": "auto"
+  },
+  "plan_sha256": "d82907da3effc3d1d81b6d89bea23f2eff4c173796b50c9896850ff72e41abe8",
+  "prototype_recommendations": [],
+  "provider": "codex",
+  "risk": "high",
+  "run_id": "manual-design-preflight-20260926T081038Z",
+  "schema_version": 1,
+  "spec_sha256": "8ef470b0dbea0f981298a88c19be6058eb5b3b2910488a731bbc143e738ed62d",
+  "stages": {
+    "architecture_grill": {
+      "artifact": "design/architecture-grill.json",
+      "status": "pass"
+    },
+    "prototype": {
+      "status": "skipped"
+    },
+    "spec_grill": {
+      "artifact": "design/spec-grill.json",
+      "status": "pass"
+    }
+  },
+  "waiver_reason": null
+}

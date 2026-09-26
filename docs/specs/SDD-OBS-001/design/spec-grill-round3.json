@@ -1,0 +1,72 @@
+{
+  "assumptions": [
+    "The constitution and accepted SDD-001 remain authoritative.",
+    "All blocker line references refer to docs/specs/SDD-OBS-001/spec.md.",
+    "Prior review results were used to identify questions for independent rechecking, not as evidence of correctness.",
+    "Plan prose does not substitute for normative behavioral requirements.",
+    "Counterexamples describe permitted or ambiguous specification-level outcomes, not observed implementation defects.",
+    "No files were modified, tests executed, tasks created or external systems mutated."
+  ],
+  "blocking_questions": [
+    "R3-01 — Log provenance conflicts with privacy policy. Missing/contradictory contract: spec.md:245–262 requires a log hash in reusable terminal evidence, while :541–544 prohibits content-hashing raw verification logs into structured telemetry absent a future sanitization policy. Retention requirements are also undefined. Counterexample: an otherwise valid gate PASS has only its raw execution log available; including its hash violates the privacy rule, while omitting it prohibits reuse. Later deleting that log leaves a hash-bearing terminal record whose reuse eligibility is unspecified. Smallest decision: define which permitted log representation, if any, is hashed in this version, reconcile both requirements, and state whether missing or changed log bytes invalidate reuse or whether terminal metadata alone suffices.",
+    "R3-02 — Directory-symlink prefixes can evade the matched-symlink rule. Missing contract: spec.md:222–225 makes a gate non-cacheable when a matched path is a symlink and prohibits traversal, but does not define the outcome when a symlink is an ancestor of declared inputs rather than itself matching the pattern. Counterexample: config/current is a directory symlink to config/v1, and the complete declared input is config/current/*.json. A non-traversing matcher finds no files; config/current itself does not match. Editing config/v1/settings.json can leave an empty manifest unchanged although the command reads different bytes. Smallest decision: require detection of symlink components affecting declared input expansion and specify non-cacheable or invalid-policy behavior instead of silently treating the subtree as empty. Cover literal descendant paths as well as globs.",
+    "R3-03 — Mapping cardinality and mixed ordering are not fully specified. Missing contract: spec.md:127–135 defines exact command mapping and ordering within synthetic gates, but not ambiguous mappings, repeated mapped command occurrences, or the relative order of synthetic and profile gates; :148–149 assumes every tie has a profile declaration order. Counterexample: one ready mandatory profile gate and two ready unmapped task commands can execute in different relative orders while preserving both stated internal orders. A task declaring the same mapped command twice can either execute once after set deduplication or twice as declared commands. Two profile gates with identical command/cwd but different dependencies also lack a unique mapping rule. Smallest decision: specify a total ordering across both gate classes, mapping cardinality validation, and whether duplicate command occurrences are rejected, deduplicated, or independently executed, preserving accepted SDD-001 freshness semantics.",
+    "R3-04 — Redaction of result-sensitive identity lacks a reuse outcome. Missing contract: spec.md:208–211 requires actual matched paths and dependency identity in fingerprints, while :526–532 permits unsafe paths/probes to be omitted or replaced by a fixed token and forbids hashing them as a workaround. It does not specify what happens to cache eligibility when required identity cannot be represented safely. Counterexample: a gate reads configuration selected by filenames; two different secret-bearing filenames contain identical bytes. Redacting both names to <redacted> or omitting them can collapse distinct input manifests, while hashing the original names violates the privacy rule. Smallest decision: explicitly require non-cacheable or fail-closed behavior whenever safe redaction would remove result-sensitive identity, and define the execution outcome. Redacted display metadata must not become a substitute cache identity.",
+    "R3-05 — time_to_independent_pass has no measurement interval. Missing contract: spec.md:456–457 specifies eligibility for the metric but neither its start event nor which PASS timestamp ends it, including delayed manual registration and legacy history. Counterexample: the first builder begins at 09:00, an evaluator passes at 10:00, and its manual report is registered at 14:00. Measuring builder-to-review, builder-to-registration, or evaluator-start-to-review produces different valid-looking values. A legacy first attempt followed by v2 PASS can additionally omit earlier elapsed time. Smallest decision: define the trusted scope, start event, first qualifying endpoint, manual timestamp treatment, and UNKNOWN behavior when either endpoint or ordering is unavailable."
+  ],
+  "changed_paths": [],
+  "commands": [
+    "cat /private/tmp/sdd-obs-001-spec-grill-r3.prompt.md",
+    "cat docs/agentic-sdd/constitution.md",
+    "cat docs/agentic-sdd/agents/grill-reviewer.md",
+    "cat docs/specs/SDD-001/spec.md",
+    "cat docs/specs/SDD-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/spec.md",
+    "cat docs/specs/SDD-OBS-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/design.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round1.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round1-resolution.md",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round2.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round2-resolution.md",
+    "cat tooling/agent-harness/schemas/design-result.schema.json",
+    "sed -n '145,280p' docs/specs/SDD-001/spec.md",
+    "nl -ba docs/specs/SDD-OBS-001/spec.md | sed -n '335,455p'",
+    "nl -ba docs/specs/SDD-OBS-001/spec.md | sed -n '95,160p'",
+    "nl -ba docs/specs/SDD-OBS-001/spec.md | sed -n '201,321p'",
+    "nl -ba docs/specs/SDD-OBS-001/spec.md | sed -n '453,566p'"
+  ],
+  "findings": [
+    "R2-01 — Substantially resolved: immutable base, committed/staged/unstaged/deleted/untracked coverage, case-sensitive canonical applicability, exact UTF-8 command/cwd identity and indexed synthetic ids are normative. Differently quoted commands remain distinct. Total mixed ordering and mapping cardinality remain open under R3-03.",
+    "R2-02 — Substantially resolved: a harness-owned mini-glob grammar, case/separator rules, additions/deletions, direct matched-symlink non-cacheability, containment and profile completeness are explicit. Directory-symlink ancestors remain open under R3-02.",
+    "R2-03 — Resolved at specification level: continuation inherits the originating family, policy, base, profile and applicability; it is not a third fingerprint policy. It cannot convert task-completion into integration. Bound control-policy changes require replanning rather than silently changing that family.",
+    "R2-04 — Resolved: initial task-completion freshly executes the complete dependency closure of task commands. A dependency that prepares local state cannot be skipped using an earlier cached PASS.",
+    "R2-05 — Resolved: artifact consumers bind exact producer evidence and byte manifests; contained non-symlink paths, missing/mismatched artifacts, full-producer regeneration and byte-identical restoration are addressed. Context beyond bytes must be declared or non-cacheable.",
+    "R2-06 — Resolved at specification level: same-fingerprint critical FAIL fences span direct CLI, runner, orchestrator and wrappers. New run ids cannot bypass them. Human authorization is explicitly one-shot and failure-specific, so replay is prohibited; prior failure references remain visible after later PASS.",
+    "R2-07 — Resolved: command execution requires repository-wide ownership across profiles and entry points. The supported single-writer model and pre/post drift behavior are explicit; transient external A→B→A mutation is expressly outside the guarantee.",
+    "R2-08 — Resolved at specification level: canonical unique markers, task binding when supplied, fenced-example exclusion, real clean-commit identity, contained regular non-symlink reports, metadata-only telemetry and conflicting-registration rejection are normative.",
+    "R2-09 — Substantially resolved: tri-state first-pass, UNKNOWN for incomplete legacy ordering, trusted reviewer scope, grouped rework cycles and immutable first-pass failure are explicit. UNKNOWN must be separately reported and excluded from the rate denominator. The time-to-independent-pass interval remains undefined under R3-05.",
+    "R2-10 — Substantially resolved: narrow structured fields, command-definition preflight, runtime argument/environment exclusions, unsafe report rejection and channel-wide seeded-secret tests are explicit. Log hashing contradicts that policy under R3-01, and redaction-induced loss of fingerprint identity remains open under R3-04.",
+    "R2-11 — Resolved: G/M/B dimensions, fixed 100-gate and 5,000-file fixture, 256-byte files, disjoint associations, measurement boundary, warm-up, three in-process runs and median/max thresholds are explicit. Timing is a regression alarm alongside primary deterministic operation-count/no-subprocess checks.",
+    "Round-1 recheck: the original mandatory outer-runner conflict is resolved, as are required-gate union, INVALIDATED-to-RUN behavior, trusted evidence ownership, artifact regeneration, retry controls, crash publication boundaries, manual telemetry authority, policy binding, v1 compatibility, CLI outcomes and documentation obligations. Remaining blockers are the specific refinements above, not a reopening of all earlier questions.",
+    "No prototype is justified. The remaining issues require normative decisions; empirical experiments cannot choose their intended behavior."
+  ],
+  "non_blocking_risks": [
+    "The exact profile-content hash deliberately makes even unrelated accepted profile edits change fingerprints and critical-failure fence keys. This is a broad invalidation policy, but it follows the stated contract rather than requiring a new decision.",
+    "The non-ancestor-base case should receive an explicit verification example: the current wording permits an existing commit and describes changes from that base to HEAD, without an ancestry prerequisite. Rename coverage should assert both affected paths so applicability cannot depend on Git rename-detection presentation.",
+    "Acyclic profile validation is normative. Duplicate gate ids and composition conflicts should be rejected consistently with gate identity and invalid-policy requirements; no new profile-composition mechanism is required by this spec.",
+    "Artifact/source overlap cannot authorize source mutation: verification commands are already contractually forbidden from mutating declared source inputs. Architecture review should assess enforcement and diagnostics.",
+    "For declared artifact consumers, non-cacheable producer evidence cannot satisfy the requirement that producer evidence remain reusable. Verification should also exercise ordinary dependency chains and prevent stale planned reuse after dependencies execute.",
+    "Manual marker parsing should be tested against blockquotes, HTML blocks, fenced examples and duplicate markers. Report contents and CLI metadata remain evidence, not policy; registration cannot itself satisfy independent-review requirements.",
+    "The plan retains stale per-profile locking language and an older benchmark threshold in places. The normative spec settles repository-wide serialization and the revised benchmark; align plan prose before Architecture Grill.",
+    "Handbook acceptance requires synchronized protocol content, not byte-identical PDF generation. Content checks plus the planned rendering and visual inspection are suitable evidence without inventing a reproducible-PDF requirement."
+  ],
+  "prototype_recommendations": [],
+  "residual_risks": [
+    "Implementation, architecture and runtime correctness were not assessed.",
+    "Profile completeness remains an independently evaluated authoring obligation; fingerprint equality cannot establish omitted input completeness.",
+    "Hostile local OS writers and transient external A→B→A mutations remain outside the accepted guarantee.",
+    "Architecture Grill, a current hash-bound design gate and an independently accepted verification contract remain required after specification convergence."
+  ],
+  "status": "needs-human",
+  "summary": "The contract has substantially converged, but five remaining ambiguities or contradictions prevent PASS. They concern log provenance, directory-symlink inputs, command identity/order, secret-bearing fingerprint inputs, and time-to-pass measurement. An independent verification author would still need to invent policy. This was a read-only Spec Grill; no Architecture Grill was performed."
+}

@@ -1,0 +1,60 @@
+{
+  "assumptions": [
+    "This was a fresh independent static architecture review. Earlier review artifacts were inspected as evidence.",
+    "The PASS Spec Grill, accepted SDD-001 contracts and current architecture resolutions govern the review despite DRAFT labels.",
+    "The supported control plane follows the new admission protocol; arbitrary old executables and external writers cannot be made cooperative by a v2 advisory lock.",
+    "Additional targeted sed reads covered lifecycle implementations, relevant tests and specification sections. No tests, prototypes, providers or mutation commands were executed."
+  ],
+  "blocking_questions": [],
+  "changed_paths": [],
+  "commands": [
+    "cat /private/tmp/sdd-obs-001-architecture-grill-r4.prompt.md",
+    "cat AGENTS.md docs/agentic-sdd/constitution.md docs/agentic-sdd/agents/architecture-reviewer.md docs/agentic-sdd/runtime-choice.md",
+    "cat docs/specs/SDD-001/spec.md docs/specs/SDD-001/plan.md docs/specs/SDD-001/verification-contract.json",
+    "cat docs/specs/SDD-OBS-001/spec.md docs/specs/SDD-OBS-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/design.json docs/specs/SDD-OBS-001/design/spec-grill.json",
+    "cat docs/specs/SDD-OBS-001/design/architecture-grill-round*.json docs/specs/SDD-OBS-001/design/architecture-grill-round*-resolution.md",
+    "cat tooling/agent-harness/schemas/design-result.schema.json",
+    "cat tooling/agent-harness/verification_sandbox.py tooling/agent-harness/trust.py tooling/agent-harness/telemetry.py tooling/agent-harness/eval.py",
+    "rg -n '^def |^class ' tooling/agent-harness/{harness,runner,orchestrate,verification_sandbox,telemetry,trust,eval}.py",
+    "rg -n '^    def test_' tooling/agent-harness/tests/test_{harness,runner,orchestrate,telemetry,verification_sandbox,eval,trust}.py",
+    "cat tooling/agent-harness/tests/test_verification_sandbox.py tooling/agent-harness/tests/test_trust.py tooling/agent-harness/tests/test_eval.py tooling/agent-harness/tests/test_telemetry.py",
+    "cat docs/adr/README.md"
+  ],
+  "findings": [
+    "Repository admission: Plan §5a and the round-3 resolution require validation of all started journals under the canonical repository lock, reconciliation of every unresolved execution, durable closure and a complete rescan before admission. E1 in W1 therefore blocks E2 in W2 even after the supervisor dies and its OS lock becomes free. This applies across profiles, features, families, tasks and direct CLI/runner entry points.",
+    "Ordering: The round-3 resolution explicitly places admission before failure-fence/grant selection as well as ready-gate evaluation, reuse, consumption, new journal creation and launch. An advisory ALREADY_GREEN plan cannot bypass admission, and a valid grant remains unconsumed while an older execution is unresolved.",
+    "Reconciliation: The trusted backend contract returns drained, still-active or uncertain. Only authoritative drainage permits drained.json. Free locks, supervisor or caller death, PID existence/reuse, lease expiry, elapsed age, another worktree and generic process-list absence cannot close ownership.",
+    "Backend identity: Started records are created by the trusted supervisor in child-inaccessible storage and validated for schema, integrity, repository, execution, worktree and backend identity. Reconciliation uses trusted control-plane code and the recorded containment scope, without provider-controlled cwd, environment or executable resolution. A missing backend or incompatible backend version cannot prove drainage and therefore leaves admission blocked.",
+    "Crash and race cases: Drainage followed by a crash before closure publication remains unresolved and requires authoritative reconciliation again. Durable valid closure followed by a crash before rescan is recoverable by the next admission scan. Replacement supervisors serialize through the canonical lock; create-once identical replay is idempotent, while differing publication collisions fail closed.",
+    "Invalid authority: A corrupt drained receipt does not close a valid started record. Invalid, unreadable or unsupported authoritative journal schemas block admission; they cannot be treated like disposable cache entries or ignored telemetry versions. Automated recovery cannot overwrite conflicting immutable closure content.",
+    "Availability and human reconciliation: Repository-wide blocking by one uncertain execution is explicitly accepted. Human reconciliation must be a trusted audited drainage decision retaining the journal and recording why drainage is safe. It is not journal deletion, a task retry grant or an automatic timeout bypass. A mistaken human drainage assertion remains a trust-boundary risk; an audit record alone does not make a live descendant safe.",
+    "Ownership versus mutation: Repository admission prevents every new verification action. The separate target-worktree guard prevents checkpointing, recovery, replacement, removal and reopening of an owned or uncertain worktree. The prescribed order is repository guard, then task/feature state lock, then mutation. Current recovery, complete/fail/release, reopen, reset and worktree helpers are identified implementation surfaces.",
+    "Authority and supervision: Canonical resolution uses Git common-dir and a uniquely validated primary worktree, with no caller-local fallback. Children cannot access control storage, locks or grants; required policy remains readable and write-protected. Durable started registration precedes launch. Caller death does not release supervisor ownership, and supervisor death without valid closure remains unresolved. Unsupported protection or containment is environment-blocked, including auto/off requests.",
+    "Failure fencing and HITL remain resolved: The immutable critical FAIL receipt is itself the fence, scoped across families and task attempts. failure_id selects the specific receipt for authorization. Grant consumption is immutable and durable before launch and cannot be restored by projections or generic task authorization helpers. Authorized PASS permits eligible reuse but supplies no reusable permission for a later mandatory fresh execution.",
+    "AG-03 remains resolved: Immediately before action, the shared engine rebinds current dependency receipts, artifacts, fingerprint and decision under canonical ownership. Producer reruns invalidate stale consumer bindings. Direct CLI, runner and orchestrator use the same decision API.",
+    "Storage and cleanup: Immutable history owns execution, failure and authorization facts; indexes and summaries are projections. Cleanup may remove projections and diagnostic logs, but cannot prune retained ownership, closure, failure, grant or consumption authority merely because thousands of journals are closed. Removed target worktree paths do not remove their unresolved ownership.",
+    "Read-only operations: Status, reporting and advisory planning can remain available during quarantine when they only inspect evidence and clearly expose uncertainty. They cannot authorize reuse, consume grants, reconcile by deletion or launch commands. Concurrent supported CI verifier processes use the same canonical admission lock.",
+    "Compatibility and telemetry: Initial task-completion freshness, duplicate command occurrences, legacy verification arrays and runner mutation postconditions remain intact. Trusted dispatch/state owns role, attempt, lineage and review scope. Central safe serialization gates v2 persistence/rendering; v1 reporting needs no migration and supplies no reuse or fence authority. Manual completion chronology remains bounded.",
+    "Architecture fit: The thin CLI, shared verification package, neutral command bridge and existing telemetry surface have coherent dependency boundaries. The selected local journal/lock model is implementable within the accepted single-machine threat model. Remaining work concerns implementation and qualification evidence rather than an unresolved architectural choice."
+  ],
+  "non_blocking_risks": [
+    "Backend qualification must prove descendant drainage and protected-path enforcement, including daemonization, supervisor death, writable-ancestor rename and alternate paths. Existing sandbox tests establish command construction and environment filtering, not these new guarantees.",
+    "Carry crash, incompatible-backend, corrupt-closure, concurrent-reconciliation and pre-admission grant-consumption counterexamples into the independent verification contract.",
+    "Primary-worktree relocation must preserve authority history or fail closed on unresolved identity. It cannot silently establish a fresh empty control store. Automated relocation support is unnecessary for this design.",
+    "An older harness that ignores v2 journals does not participate in the new serialization protocol. Rollback compatibility must not be presented as safe concurrent mixed-version execution; operational guidance should require quiescence and drainage before switching control-plane versions.",
+    "Keep repository admission scans complete as history grows. Performance optimization cannot make a derived index authoritative or discard retained journals.",
+    "Human reconciliation implementation must bind its audit to the exact unresolved execution and drainage decision under canonical ownership; conflicting liveness evidence must remain visible."
+  ],
+  "prototype_recommendations": [],
+  "recommendation": "Proceed to the hash-bound design gate and independent verification-contract authoring, retaining the adversarial recovery and backend qualification cases.",
+  "residual_risks": [
+    "A falsely qualified containment backend can violate the guarantee; capability declarations require independent implementation evidence.",
+    "Hostile local OS-owner deletion of authority journals is outside the accepted threat model. Provider children must be unable to perform it, and supported cleanup must preserve authority.",
+    "Incorrect trusted human drainage decisions and external transient A-to-B-to-A writes are not made safe by journal integrity.",
+    "Fingerprint correctness still depends on independently reviewed profile completeness.",
+    "This PASS approves architecture only. A current hash-bound design gate and accepted independently authored verification contract remain required before task generation."
+  ],
+  "status": "pass",
+  "summary": "R3-AG-01 is fully resolved. Repository-wide admission reconciliation precedes ready-gate, reuse, failure/grant selection, grant consumption and launch. Earlier architecture decisions remain coherent, and no new load-bearing blocker was identified. Architecture may PASS before the hash-bound design gate and independent verification contract. No prototype, workflow framework or database is required."
+}
