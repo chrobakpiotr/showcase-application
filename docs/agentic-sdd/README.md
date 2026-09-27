@@ -780,6 +780,18 @@ agent/SHOP-001/T-990
 
 These branches are local orchestration artifacts until you explicitly choose to integrate them.
 
+### Exhausted task recovery
+
+The normal attempt budget remains three attempts (`1 + max_rework_attempts`, default two rework attempts). Once a task is failed at or beyond that budget, ordinary claims are rejected. An operator may explicitly authorize one exceptional retry without resetting lifecycle history or changing the task packet:
+
+```bash
+python3 tooling/agent-harness/harness.py authorize-retry docs/specs/SHOP-001 T-002 \
+  --reason "Reviewed evidence and approved one more attempt" \
+  --by "operator label"
+```
+
+The grant is stored and audited in the repository-scoped lifecycle state. The next claim consumes it atomically with the transition to `running`; it authorizes exactly one attempt. If that attempt fails, the task returns to exhausted `failed` state and requires a new explicit authorization bound to the new attempt count. T-001/T-002 history is preserved, no reset is required, and dependent tasks remain blocked until normal completion.
+
 ## Crash recovery and leases
 
 `claim`/`start` create a renewable lease. The outer orchestrator heartbeats automatically while a provider/reviewer is

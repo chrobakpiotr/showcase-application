@@ -865,6 +865,10 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any]) -> list[str]:
         entry = state['tasks'][tid]
         if entry['status'] not in {'pending', 'failed'}:
             continue
+        if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
+            grants = entry.get('retry_authorizations', [])
+            if not isinstance(grants, list) or not any(isinstance(grant, dict) and grant.get('consumed_at') is None for grant in grants):
+                continue
         if all(state['tasks'][dep]['status'] == 'completed' for dep in task.get('depends_on', [])):
             ready.append(tid)
     return ready[:capacity]
@@ -1069,7 +1073,7 @@ def cmd_claim(args: argparse.Namespace) -> None:
         if args.task_id not in ready_ids(doc, state):
             die(f'{args.task_id} is not ready')
         entry = state['tasks'][args.task_id]
-        consume_attempt_authorization(entry, args.task_id, doc)
+        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
         now = utc_now()
         entry.update({
             'status': 'running',
@@ -1087,13 +1091,30 @@ def owner_guard(entry: dict[str, Any], owner: str) -> None:
         die(f'task is owned by {entry.get("owner")}, not {owner}')
 
 
-def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict[str, Any]) -> str | None:
+def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict[str, Any], feature_dir: pathlib.Path | None = None, state: dict[str, Any] | None = None) -> str | None:
     """Consume normal retry budget or one explicit human resume grant."""
     max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
     attempts = int(entry.get('attempts', 0))
     grants = int(entry.get('human_resume_grants', 0))
-    if attempts >= max_attempts and grants <= 0:
-        die(f'{task_id} exhausted its {max_attempts} allowed attempts')
+    if attempts >= max_attempts:
+        if entry.get('status') != 'failed':
+            die(f'RETRY_AUTHORIZATION_INVALID: {task_id} must be failed before exceptional claim')
+        if grants > 0:
+            entry['human_resume_grants'] = grants - 1
+            resolution = str(entry.get('human_resolution') or '') or None
+            entry['active_human_resume'] = resolution or 'human-resolution'
+            return resolution
+        if feature_dir is None or state is None:
+            die(f'ATTEMPTS_EXHAUSTED: {task_id} exhausted its {max_attempts} allowed attempts')
+        authorization = matching_retry_authorization(feature_dir, doc, state, task_id, attempts)
+        if authorization is None:
+            die(f'RETRY_AUTHORIZATION_REQUIRED: ATTEMPTS_EXHAUSTED: {task_id} exhausted its {max_attempts} allowed attempts')
+        authorization['consumed_at'] = utc_now().isoformat()
+        authorization['consumed_attempt'] = attempts + 1
+        entry['active_retry_authorization'] = authorization['id']
+        return str(authorization['id'])
+    if grants <= 0:
+        return None
     if grants > 0:
         entry['human_resume_grants'] = grants - 1
         resolution = str(entry.get('human_resolution') or '') or None
@@ -1102,10 +1123,101 @@ def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict
     return None
 
 
+def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any]:
+    return {
+        'repository': str(git_common_dir(feature_dir)),
+        'feature': str(doc.get('feature', feature_dir.name)),
+        'task': task_id,
+        'expected_status': 'failed',
+        'expected_attempts': attempts,
+        'feature_fingerprint': feature_fingerprint(feature_dir),
+        'packet_sha256': sha256_bytes(json.dumps(packet_payload(doc, task_index(doc)[task_id], feature_dir), sort_keys=True, separators=(',', ':')).encode()),
+        'protocol_version': protocol_version(feature_dir),
+    }
+
+
+def matching_retry_authorization(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any] | None:
+    entry = state['tasks'][task_id]
+    grants = entry.get('retry_authorizations', [])
+    if not isinstance(grants, list):
+        die('RETRY_AUTHORIZATION_INVALID: authorization ledger is malformed')
+    expected = retry_binding(feature_dir, doc, task_id, attempts)
+    if entry.get('status') != 'failed':
+        die('RETRY_AUTHORIZATION_INVALID: task is not failed')
+    matching = []
+    for grant in grants:
+        required = {'version', 'id', 'binding', 'reason', 'provenance', 'issued_at', 'consumed_at'}
+        if not isinstance(grant, dict) or not required.issubset(grant) or grant.get('version') != 1 or not isinstance(grant.get('binding'), dict):
+            die('RETRY_AUTHORIZATION_INVALID: malformed or unknown authorization')
+        if (not isinstance(grant.get('id'), str) or not grant['id'] or
+                not isinstance(grant.get('reason'), str) or not grant['reason'].strip() or
+                not isinstance(grant.get('provenance'), str) or not grant['provenance'] or
+                parse_timestamp(grant.get('issued_at')) is None or
+                (grant.get('consumed_at') is not None and parse_timestamp(grant.get('consumed_at')) is None)):
+            die('RETRY_AUTHORIZATION_INVALID: malformed audit fields')
+        if grant['binding'] == expected:
+            if grant.get('consumed_at') is not None:
+                die('RETRY_AUTHORIZATION_CONSUMED: authorization already consumed')
+            matching.append(grant)
+    if len(matching) > 1:
+        die('RETRY_AUTHORIZATION_INVALID: conflicting duplicate authorizations')
+    return matching[0] if matching else None
+
+
+def human_resolution_identity(explicit: str | None) -> str:
+    if explicit and explicit.strip():
+        return f'recorded:{explicit.strip()}'
+    name = subprocess.run(['git', 'config', 'user.name'], capture_output=True, text=True, check=False).stdout.strip()
+    email = subprocess.run(['git', 'config', 'user.email'], capture_output=True, text=True, check=False).stdout.strip()
+    return f'git-config:{name} <{email}>' if name or email else 'unverified-local-operator'
+
+
+def cmd_authorize_retry(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc):
+        die(f'unknown task {args.task_id}')
+    reason = args.reason.strip()
+    if not reason:
+        die('RETRY_AUTHORIZATION_INVALID: --reason must be non-empty')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'][args.task_id]
+        attempts = int(entry.get('attempts', 0))
+        maximum = 1 + int(doc.get('max_rework_attempts', 2))
+        if entry.get('status') != 'failed' or attempts < maximum:
+            die('RETRY_AUTHORIZATION_INVALID: task must be failed with exhausted normal attempts')
+        existing = entry.get('retry_authorizations', [])
+        if not isinstance(existing, list):
+            die('RETRY_AUTHORIZATION_INVALID: authorization ledger is malformed')
+        for item in existing:
+            required = {'version', 'id', 'binding', 'reason', 'provenance', 'issued_at', 'consumed_at'}
+            if not isinstance(item, dict) or not required.issubset(item) or item.get('version') != 1:
+                die('RETRY_AUTHORIZATION_INVALID: malformed or unknown authorization')
+            if item.get('binding', {}).get('repository') != str(git_common_dir(args.feature_dir)):
+                die('RETRY_AUTHORIZATION_STALE: repository identity differs')
+            if item.get('binding', {}).get('feature') != str(doc.get('feature', args.feature_dir.name)):
+                die('RETRY_AUTHORIZATION_STALE: feature identity differs')
+            if item.get('binding', {}).get('task') != args.task_id:
+                die('RETRY_AUTHORIZATION_STALE: task identity differs')
+        if any(isinstance(item, dict) and item.get('binding') == retry_binding(args.feature_dir, doc, args.task_id, attempts) for item in existing):
+            die('RETRY_AUTHORIZATION_INVALID: authorization already exists for this task state')
+        binding = retry_binding(args.feature_dir, doc, args.task_id, attempts)
+        grant = {'version': 1, 'id': hashlib.sha256(os.urandom(32)).hexdigest(), 'binding': binding,
+                 'reason': reason, 'provenance': human_resolution_identity(args.by), 'issued_at': utc_now().isoformat(), 'consumed_at': None}
+        entry.setdefault('retry_authorizations', []).append(grant)
+    print(f'RETRY_AUTHORIZATION_CREATED {args.task_id} id={grant["id"]}')
+
+
 def restore_attempt_authorization(entry: dict[str, Any]) -> None:
     """Return a consumed human grant when a start is rolled back before provider execution."""
     if entry.pop('active_human_resume', None) is not None:
         entry['human_resume_grants'] = int(entry.get('human_resume_grants', 0)) + 1
+    retry_id = entry.pop('active_retry_authorization', None)
+    if retry_id is not None:
+        for grant in entry.get('retry_authorizations', []):
+            if isinstance(grant, dict) and grant.get('id') == retry_id:
+                grant['consumed_at'] = None
+                grant.pop('consumed_attempt', None)
+                break
 
 
 def changed_paths(worktree: pathlib.Path) -> list[str]:
@@ -1186,6 +1298,8 @@ def cmd_complete(args: argparse.Namespace) -> None:
         })
         if entry.pop('active_human_resume', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
+        if entry.pop('active_retry_authorization', None) is not None:
+            entry['last_human_resume_used_at'] = utc_now().isoformat()
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
     print(f'COMPLETED {args.task_id}' + (f' checkpoint={checkpoint[:12]}' if checkpoint else ' (no worktree checkpoint)'))
@@ -1205,7 +1319,7 @@ def cmd_fail(args: argparse.Namespace) -> None:
             die(f'{args.task_id} is not running')
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
         attempts = int(entry.get('attempts', 0))
-        status = 'escalated' if args.escalate or attempts >= max_attempts else 'failed'
+        status = 'escalated' if args.escalate else 'failed'
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
         failed_commit = None
@@ -1220,6 +1334,8 @@ def cmd_fail(args: argparse.Namespace) -> None:
         if args.evidence:
             entry['last_failure_evidence'] = str(pathlib.Path(args.evidence))
         if entry.pop('active_human_resume', None) is not None:
+            entry['last_human_resume_used_at'] = utc_now().isoformat()
+        if entry.pop('active_retry_authorization', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
@@ -1250,6 +1366,8 @@ def cmd_release(args: argparse.Namespace) -> None:
             'last_attempt_commit': partial_commit,
         })
         if entry.pop('active_human_resume', None) is not None:
+            entry['last_human_resume_used_at'] = utc_now().isoformat()
+        if entry.pop('active_retry_authorization', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
@@ -1698,7 +1816,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         if args.task_id not in ready_ids(doc, state):
             die(f'{args.task_id} is not ready')
         entry = state['tasks'][args.task_id]
-        consume_attempt_authorization(entry, args.task_id, doc)
+        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
         target = prepare_task_worktree(args.feature_dir, doc, state, task)
         packet = write_packet(doc, task, args.feature_dir)
         now = utc_now()
@@ -1881,6 +1999,13 @@ def parser() -> argparse.ArgumentParser:
     resolution.add_argument('--decision-file', help='Path to a text/markdown file containing the accepted human decision')
     s.add_argument('--by', help='Human identity recorded in the audit artifact; defaults to git user.email/user.name')
     s.set_defaults(func=cmd_human_resolve)
+
+    s = sub.add_parser('authorize-retry')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--reason', required=True, help='Explicit human decision authorizing one exceptional attempt')
+    s.add_argument('--by', help='Operator provenance label; not authenticated by the harness')
+    s.set_defaults(func=cmd_authorize_retry)
 
     s = sub.add_parser('reopen')
     s.add_argument('feature_dir', type=pathlib.Path)
