@@ -1,0 +1,176 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+    },
+    "family_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+    },
+    "ownership_token": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+    },
+    "gate_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+    },
+    "repository_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "profile_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "command_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pre_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "post_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "receipt_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "policy_checkpoint": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "origin_policy": {
+      "enum": [
+        "integration",
+        "task-completion"
+      ]
+    },
+    "sandbox": {
+      "enum": [
+        "required",
+        "best-effort",
+        "off"
+      ]
+    },
+    "retry_policy": {
+      "enum": [
+        "forbid",
+        "allow"
+      ]
+    },
+    "process_invocations": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "exit_code": {
+      "const": 0
+    },
+    "started_at": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ended_at": {
+      "type": "number",
+      "minimum": 0
+    },
+    "status": {
+      "const": "pass"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Repository-relative mini-glob v1 validation is additionally enforced by profile.py; no absolute paths, traversal, backslashes, classes or braces."
+          },
+          "kind": {
+            "const": "file"
+          },
+          "content_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "executable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "kind",
+          "content_hash",
+          "executable"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "gate_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+          },
+          "evidence_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "gate_id",
+          "evidence_id",
+          "fingerprint"
+        ]
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "evidence_id",
+    "family_id",
+    "ownership_token",
+    "gate_id",
+    "repository_id",
+    "profile_hash",
+    "command_hash",
+    "pre_fingerprint",
+    "post_fingerprint",
+    "receipt_hash",
+    "schema_version",
+    "policy_checkpoint",
+    "origin_policy",
+    "sandbox",
+    "retry_policy",
+    "process_invocations",
+    "exit_code",
+    "started_at",
+    "ended_at",
+    "status",
+    "artifacts",
+    "dependencies"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reusable terminal verification PASS receipt v2",
+  "description": "Structural schema only. Ownership provenance, receipt digest, pre/post equality, artifact identity and same-family policy are also required. Non-PASS diagnostic lifecycle records do not authorize reuse."
+}
