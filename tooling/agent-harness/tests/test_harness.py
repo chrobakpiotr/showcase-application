@@ -70,6 +70,22 @@ class HarnessTest(unittest.TestCase):
         (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
         return feature
 
+    def add_legacy_retry_grant(self, feature, doc, task_id='T-001', *, grant_id='legacy-grant'):
+        task = harness.task_index(doc)[task_id]
+        packet = harness.packet_payload(doc, task, feature)
+        binding = {
+            'repository': str(harness.git_common_dir(feature)),
+            'feature': str(doc.get('feature', feature.name)),
+            'task': task_id,
+            'expected_status': 'failed',
+            'expected_attempts': 3,
+            'feature_fingerprint': harness.feature_fingerprint(feature),
+            'packet_sha256': packet['packet_sha256'],
+            'protocol_version': harness.protocol_version(feature),
+        }
+        return {'version': 1, 'id': grant_id, 'binding': binding, 'reason': 'legacy fixture',
+                'provenance': 'fixture-operator', 'issued_at': '2026-01-01T00:00:00Z', 'consumed_at': None}
+
     def test_exhausted_retry_authorization_is_one_shot_atomic_and_preserves_dag_history(self):
         from contextlib import redirect_stderr, redirect_stdout
         from io import StringIO
@@ -87,7 +103,7 @@ class HarnessTest(unittest.TestCase):
         harness.save_state(feature, state)
         original_packet = harness.packet_payload(doc, harness.task_index(doc)['T-002'], feature)
         self.assertEqual(3, 1 + doc['max_rework_attempts'])
-        self.assertEqual([], harness.ready_ids(doc, state))
+        self.assertEqual([], harness.ready_ids(doc, state, feature))
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-002', owner='no-grant'))
         auth_args = argparse.Namespace(feature_dir=feature, task_id='T-002', reason='Reviewed exceptional retry', by='operator-1')
@@ -98,8 +114,8 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(1, authorized['tasks']['T-001']['attempts'])
         self.assertEqual('failed', authorized['tasks']['T-002']['status'])
         self.assertEqual(3, authorized['tasks']['T-002']['attempts'])
-        self.assertEqual(['T-002'], harness.ready_ids(doc, authorized))
-        self.assertNotIn('T-003', harness.ready_ids(doc, authorized))
+        self.assertEqual(['T-002'], harness.ready_ids(doc, authorized, feature))
+        self.assertNotIn('T-003', harness.ready_ids(doc, authorized, feature))
 
         errors = []
         barrier = threading.Barrier(2)
@@ -123,13 +139,13 @@ class HarnessTest(unittest.TestCase):
         consumed = running['tasks']['T-002']['retry_authorizations'][0]
         self.assertIsNotNone(consumed['consumed_at'])
         self.assertEqual(original_packet, harness.packet_payload(doc, harness.task_index(doc)['T-002'], feature))
-        self.assertNotIn('T-003', harness.ready_ids(doc, running))
+        self.assertNotIn('T-003', harness.ready_ids(doc, running, feature))
 
         with redirect_stdout(StringIO()):
             harness.cmd_release(argparse.Namespace(feature_dir=feature, task_id='T-002', owner=running['tasks']['T-002']['owner'], reason='attempt four failed'))
         failed = harness.load_state(feature, doc)
         self.assertEqual(('failed', 4), (failed['tasks']['T-002']['status'], failed['tasks']['T-002']['attempts']))
-        self.assertNotIn('T-003', harness.ready_ids(doc, failed))
+        self.assertNotIn('T-003', harness.ready_ids(doc, failed, feature))
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-002', owner='worker-5'))
         with redirect_stdout(StringIO()):
@@ -139,10 +155,10 @@ class HarnessTest(unittest.TestCase):
         fifth = harness.load_state(feature, doc)
         self.assertEqual(5, fifth['tasks']['T-002']['attempts'])
         self.assertEqual(2, sum(g['consumed_at'] is not None for g in fifth['tasks']['T-002']['retry_authorizations']))
-        self.assertNotIn('T-003', harness.ready_ids(doc, fifth))
+        self.assertNotIn('T-003', harness.ready_ids(doc, fifth, feature))
         success_state = json.loads(json.dumps(fifth))
         success_state['tasks']['T-002'].update({'status': 'completed', 'checkpoint_commit': 'completed-normally'})
-        self.assertIn('T-003', harness.ready_ids(doc, success_state))
+        self.assertIn('T-003', harness.ready_ids(doc, success_state, feature))
         self.assertEqual(1, success_state['tasks']['T-001']['attempts'])
 
         rollback_state = json.loads(json.dumps(authorized))
@@ -165,20 +181,356 @@ class HarnessTest(unittest.TestCase):
             harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='decision', by='op'))
         state = harness.load_state(feature, doc)
         grant = state['tasks']['T-001']['retry_authorizations'][0]
-        grant['binding']['packet_sha256'] = 'changed'
+        grant['binding']['contract_sha256'] = 'changed'
         harness.save_state(feature, state)
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+
+    def test_legacy_provenance_change_is_not_ready_and_claim_explains_supersession(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        state['tasks']['T-001']['retry_authorizations'] = [self.add_legacy_retry_grant(feature, doc)]
+        harness.save_state(feature, state)
+        # RED observation on the old harness: ready_ids returned T-001 here,
+        # while cmd_claim rejected the packet hash after this provenance edit.
+        impl = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        impl.parent.mkdir(parents=True, exist_ok=True)
+        impl.write_text('compatible implementation provenance change\n')
         state = harness.load_state(feature, doc)
-        state['tasks']['T-001']['retry_authorizations'][0]['binding']['task'] = 'T-900'
-        harness.save_state(feature, state)
+        self.assertEqual([], harness.ready_ids(doc, state, feature))
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+
+    def test_unusable_legacy_requires_explicit_supersession_and_preserves_history(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
         state = harness.load_state(feature, doc)
-        state['tasks']['T-001']['retry_authorizations'] = [{'version': 99}]
+        old = self.add_legacy_retry_grant(feature, doc)
+        state['tasks']['T-001']['retry_authorizations'] = [old]
+        old['binding']['packet_sha256'] = 'f' * 64
+        # RED observation on the old harness: a normal authorization could be
+        # appended beside this unusable V1 grant, with no supersession relation.
+        original = json.dumps(old, sort_keys=True)
+        harness.save_state(feature, state)
+        self.assertEqual('legacy-unverifiable', harness.retry_authorization_status(feature, doc, state, 'T-001', 3, old['id']))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='second', by='op'))
+        old_id = old['id']
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='replace current contract', by='op', supersedes=old_id))
+        updated = harness.load_state(feature, doc)
+        grants = updated['tasks']['T-001']['retry_authorizations']
+        self.assertEqual(2, len(grants))
+        self.assertEqual(original, json.dumps(grants[0], sort_keys=True))
+        self.assertIsNone(grants[0]['consumed_at'])
+        self.assertEqual(old_id, grants[1]['supersedes'])
+        self.assertEqual('valid', harness.retry_authorization_status(feature, doc, updated, 'T-001', 3, grants[1]['id']))
+        self.assertEqual('valid', harness.classify_retry_authorizations(feature, doc, updated, 'T-001', 3)[0])
+        self.assertEqual('superseded', harness.retry_authorization_status(feature, doc, updated, 'T-001', 3, old_id))
+        self.assertEqual(1, len(updated['tasks']['T-001']['retry_authorization_supersessions']))
+        self.assertEqual(grants[1]['id'], updated['tasks']['T-001']['retry_authorization_supersessions'][0]['authorization_id'])
+
+    def test_supersession_requires_current_expected_attempt_count_and_cli_flag(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        old = self.add_legacy_retry_grant(feature, doc)
+        old['binding']['expected_attempts'] = 2
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [old]})
         harness.save_state(feature, state)
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='stale', by='op', supersedes=old['id']))
+        parsed = harness.parser().parse_args(['authorize-retry', str(feature), 'T-001', '--reason', 'explicit', '--supersedes', old['id']])
+        self.assertEqual(old['id'], parsed.supersedes)
+
+    def test_v2_survives_implementation_provenance_change_and_claims_once(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='v2 decision', by='op'))
+        state = harness.load_state(feature, doc)
+        grant = state['tasks']['T-001']['retry_authorizations'][0]
+        self.assertEqual(2, grant['version'])
+        before_contract = grant['binding']['contract_sha256']
+        old_packet_hash = harness.packet_payload(doc, harness.task_index(doc)['T-001'], feature)['packet_sha256']
+        impl = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        impl.parent.mkdir(parents=True, exist_ok=True)
+        impl.write_text('compatible implementation-only change\n')
+        self.assertEqual(before_contract, harness.retry_binding(feature, doc, 'T-001', 3)['contract_sha256'])
+        self.assertNotEqual(old_packet_hash, harness.packet_payload(doc, harness.task_index(doc)['T-001'], feature)['packet_sha256'])
+        state = harness.load_state(feature, doc)
+        self.assertEqual(['T-001'], harness.ready_ids(doc, state, feature))
+        with redirect_stdout(StringIO()):
             harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        claimed = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(4, claimed['attempts'])
+        self.assertEqual(grant['id'], claimed['active_retry_authorization'])
+        self.assertEqual('consumed', harness.retry_authorization_status(feature, doc, {'tasks': {'T-001': claimed}}, 'T-001', 3, grant['id']))
+
+    def test_v2_semantic_contract_changes_make_ready_and_claim_reject(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        mutations = [
+            ('acceptance_criteria', ['AC-002']), ('verification', ['false']),
+            ('allowed_paths', ['changed/**']), ('depends_on', ['T-900']),
+            ('objective', 'Changed objective'), ('role', 'specialist'),
+            ('test_mode', 'existing-suite'), ('test_seam', 'changed seam'),
+        ]
+        for index, (field, value) in enumerate(mutations):
+            with self.subTest(field=field):
+                feature = self.feature(root=self.root / f'semantic-{index}')
+                doc = harness.load_json(feature / 'tasks.json')
+                state = harness.initial_state(feature, doc)
+                state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+                harness.save_state(feature, state)
+                with redirect_stdout(StringIO()):
+                    harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='decision', by='op'))
+                state = harness.load_state(feature, doc)
+                grant = state['tasks']['T-001']['retry_authorizations'][0]
+                doc['tasks'][0][field] = value
+                (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
+                self.assertNotEqual(grant['binding']['contract_sha256'], harness.retry_binding(feature, doc, 'T-001', 3)['contract_sha256'])
+                self.assertEqual([], harness.ready_ids(doc, state, feature))
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.consume_attempt_authorization(state['tasks']['T-001'], 'T-001', doc, feature, state)
+
+    def test_v2_survives_linked_worktree_provenance_advance(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature_a = self.feature()
+        doc_a = harness.load_json(feature_a / 'tasks.json')
+        (self.root / 'docs' / 'agentic-sdd' / 'README.md').write_text('initial protocol audit input\n', encoding='utf-8')
+        import subprocess
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-q', '-m', 'fixture feature'], cwd=self.root, check=True)
+        state = harness.initial_state(feature_a, doc_a)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature_a, state)
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature_a, task_id='T-001', reason='linked worktree decision', by='op'))
+        worktree = self.root / 'linked-checkout'
+        subprocess.run(['git', 'worktree', 'add', '-b', 'retry-contract-linked', str(worktree), 'HEAD'], cwd=self.root, check=True, capture_output=True)
+        (worktree / 'docs' / 'agentic-sdd' / 'README.md').write_text('compatible implementation provenance advanced\n', encoding='utf-8')
+        feature_b = worktree / 'docs' / 'specs' / 'TST-001'
+        doc_b = harness.load_json(feature_b / 'tasks.json')
+        self.assertNotEqual(state['protocol_fingerprint'], harness.protocol_fingerprint(feature_b))
+        self.assertEqual(['T-001'], harness.ready_ids(doc_b, harness.load_state(feature_b, doc_b), feature_b))
+        with redirect_stdout(StringIO()):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature_b, task_id='T-001', owner='linked-worker'))
+        self.assertEqual(4, harness.load_state(feature_b, doc_b)['tasks']['T-001']['attempts'])
+
+    def test_v2_stale_consumed_malformed_and_unknown_versions_fail_closed(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        for mode in ('stale', 'attempts', 'repository', 'feature', 'task', 'protocol', 'consumed', 'malformed', 'unknown'):
+            with self.subTest(mode=mode):
+                feature = self.feature(root=self.root / f'classification-{mode}')
+                doc = harness.load_json(feature / 'tasks.json')
+                state = harness.initial_state(feature, doc)
+                entry = state['tasks']['T-001']
+                entry.update({'status': 'failed', 'attempts': 3})
+                harness.save_state(feature, state)
+                with redirect_stdout(StringIO()):
+                    harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='decision', by='op'))
+                state = harness.load_state(feature, doc)
+                grant = state['tasks']['T-001']['retry_authorizations'][0]
+                if mode == 'stale': grant['binding']['expected_attempts'] = 2
+                if mode == 'attempts': grant['binding']['expected_attempts'] = 2
+                if mode == 'repository': grant['binding']['repository'] = '/wrong/.git'
+                if mode == 'feature': grant['binding']['feature'] = 'OTHER'
+                if mode == 'task': grant['binding']['task'] = 'T-900'
+                if mode == 'protocol': grant['binding']['protocol_version'] = 99
+                if mode == 'consumed':
+                    grant['consumed_at'] = '2026-01-02T00:00:00Z'
+                    grant['consumed_attempt'] = 4
+                if mode == 'malformed': grant['binding'].pop('contract_sha256')
+                if mode == 'unknown': grant['binding']['binding_version'] = 99
+                classification = None
+                if mode in {'malformed', 'unknown'}:
+                    with self.assertRaises(SystemExit):
+                        harness.ready_ids(doc, state, feature)
+                else:
+                    classification = harness.classify_retry_authorizations(feature, doc, state, 'T-001', 3)[0]
+                    self.assertEqual('consumed' if mode == 'consumed' else 'stale', classification)
+                    self.assertEqual([], harness.ready_ids(doc, state, feature))
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.consume_attempt_authorization(entry, 'T-001', doc, feature, state)
+
+    def test_supersession_wrong_ids_cross_task_and_duplicate_are_rejected(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature, doc)]})
+        state['tasks']['T-900'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        for target_task, ident in [('T-001', 'wrong-id'), ('T-900', 'legacy-grant')]:
+            with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id=target_task, reason='reject', by='op', supersedes=ident))
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='replace', by='op', supersedes='legacy-grant'))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='again', by='op', supersedes='legacy-grant'))
+
+    def test_supersession_rejects_cross_feature_and_cross_repository_grants(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        import shutil
+        feature_a = self.feature()
+        doc_a = harness.load_json(feature_a / 'tasks.json')
+        state_a = harness.initial_state(feature_a, doc_a)
+        state_a['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature_a, doc_a)]})
+        harness.save_state(feature_a, state_a)
+
+        feature_b = self.root / 'docs' / 'specs' / 'TST-002'
+        shutil.copytree(feature_a, feature_b)
+        doc_b = harness.load_json(feature_b / 'tasks.json')
+        doc_b['feature'] = 'TST-002'
+        (feature_b / 'tasks.json').write_text(json.dumps(doc_b), encoding='utf-8')
+        state_b = harness.initial_state(feature_b, doc_b)
+        state_b['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature_a, doc_a)]})
+        harness.save_state(feature_b, state_b)
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature_b, task_id='T-001', reason='cross feature', by='op', supersedes='legacy-grant'))
+
+        other_root = self.root / 'other-repository'
+        other_root.mkdir()
+        import subprocess
+        subprocess.run(['git', 'init', '-q'], cwd=other_root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--allow-empty', '-q', '-m', 'base'], cwd=other_root, check=True)
+        feature_c = self.feature(root=other_root)
+        doc_c = harness.load_json(feature_c / 'tasks.json')
+        state_c = harness.initial_state(feature_c, doc_c)
+        state_c['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature_a, doc_a)]})
+        harness.save_state(feature_c, state_c)
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature_c, task_id='T-001', reason='cross repository', by='op', supersedes='legacy-grant'))
+
+    def test_consumed_authorization_cannot_be_superseded(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='v2', by='op'))
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            harness.cmd_release(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker', reason='attempt four failed'))
+        state = harness.load_state(feature, doc)
+        grant = state['tasks']['T-001']['retry_authorizations'][0]
+        self.assertEqual('consumed', harness.retry_authorization_status(feature, doc, state, 'T-001', 4, grant['id']))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='invalid replacement', by='op', supersedes=grant['id']))
+
+    def test_supersession_racing_legacy_claim_keeps_attempt_exhausted(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature, doc)]})
+        harness.save_state(feature, state)
+        barrier = threading.Barrier(2)
+        errors = []
+        def claim():
+            barrier.wait()
+            try:
+                with redirect_stderr(StringIO()):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            except SystemExit as exc:
+                errors.append(exc.code)
+        def supersede():
+            barrier.wait()
+            try:
+                with redirect_stdout(StringIO()):
+                    harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='explicit replacement', by='op', supersedes='legacy-grant'))
+            except SystemExit as exc:
+                errors.append(exc.code)
+        threads = [threading.Thread(target=claim), threading.Thread(target=supersede)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        current = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(1, len(current.get('retry_authorization_supersessions', [])))
+        if current['status'] == 'running':
+            self.assertEqual(0, len(errors))
+            self.assertEqual(4, current['attempts'])
+            replacement = current['retry_authorizations'][1]
+            self.assertEqual(2, replacement['version'])
+            self.assertIsNotNone(replacement['consumed_at'])
+        else:
+            self.assertEqual(1, len(errors))
+            self.assertEqual('failed', current['status'])
+            self.assertEqual(3, current['attempts'])
+
+    def test_concurrent_supersession_and_ordinary_authorization_have_one_transition(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature, doc)]})
+        harness.save_state(feature, state)
+        errors = []
+        barrier = threading.Barrier(2)
+        def authorize(supersedes):
+            barrier.wait()
+            try:
+                with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                    harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='serialized decision', by='op', supersedes=supersedes))
+            except SystemExit as exc:
+                errors.append(exc.code)
+        threads = [threading.Thread(target=authorize, args=(None,)), threading.Thread(target=authorize, args=('legacy-grant',))]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        current = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(1, len(errors))
+        self.assertEqual(2, len(current['retry_authorizations']))
+        self.assertEqual(1, len(current.get('retry_authorization_supersessions', [])))
+
+    def test_concurrent_supersession_has_one_winner(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3, 'retry_authorizations': [self.add_legacy_retry_grant(feature, doc)]})
+        harness.save_state(feature, state)
+        errors = []
+        barrier = threading.Barrier(2)
+        def supersede():
+            barrier.wait()
+            try:
+                with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                    harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001', reason='one decision', by='op', supersedes='legacy-grant'))
+            except SystemExit as exc:
+                errors.append(exc.code)
+        threads = [threading.Thread(target=supersede) for _ in range(2)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        current = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(1, len(errors))
+        self.assertEqual(2, len(current['retry_authorizations']))
+        self.assertEqual(1, len(current['retry_authorization_supersessions']))
 
     def test_protocol_fingerprint_is_audit_only_and_state_schema_controls_compatibility(self):
         feature = self.feature()
@@ -227,7 +579,7 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual([{'attempt': 1, 'result': 'pass'}], migrated['tasks']['T-A']['attempt_history'])
         self.assertEqual('pending', migrated['tasks']['T-B']['status'])
         self.assertEqual(2, migrated['tasks']['T-B']['attempts'])
-        self.assertEqual(['T-B'], harness.ready_ids(doc, migrated))
+        self.assertEqual(['T-B'], harness.ready_ids(doc, migrated, feature))
         harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
 
     def test_migrate_state_resolves_old_path_key_used_by_status_and_ready(self):
@@ -923,7 +1275,7 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual('contract ambiguous', payload['prior_reason'])
         self.assertEqual('.agent-runs/TST-001/T-001/result.json', payload['prior_evidence'])
         self.assertEqual('Use SKU as the stable inventory key.', payload['decision'])
-        self.assertIn('T-001', harness.ready_ids(doc, updated))
+        self.assertIn('T-001', harness.ready_ids(doc, updated, feature))
 
         # The explicit grant permits exactly one start beyond the automatic attempt budget.
         used = harness.consume_attempt_authorization(entry, 'T-001', doc)

@@ -252,7 +252,7 @@ def start_ready_batch(
     feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace
 ) -> list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]]:
     state = h.load_state(feature_dir, doc)
-    ids = h.ready_ids(doc, state)
+    ids = h.ready_ids(doc, state, feature_dir)
     idx = h.task_index(doc)
     started: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
     try:
@@ -428,7 +428,7 @@ def main() -> None:
             print(f'PASS: {doc["feature"]} DAG completed in {round_no - 1} orchestration rounds run_id={args.run_id}')
             return
 
-        ready = h.ready_ids(doc, state)
+        ready = h.ready_ids(doc, state, feature_dir)
         if not ready:
             running = [tid for tid, status in statuses.items() if status == 'running']
             if running:
