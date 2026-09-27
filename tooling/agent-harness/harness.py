@@ -1298,16 +1298,16 @@ def cmd_recover_claim(args: argparse.Namespace) -> None:
             die('CLAIM_RECOVERY_INVALID: exact authorization ID must occur once in this task ledger')
         grant = matching[0]
         expected_binding = retry_binding(args.feature_dir, doc, args.task_id, 3)
-        if (grant.get('version') != 2 or grant.get('binding') != expected_binding or
-                grant.get('binding', {}).get('repository') != str(git_common_dir(args.feature_dir)) or
-                grant.get('binding', {}).get('feature') != str(doc.get('feature', args.feature_dir.name)) or
-                grant.get('binding', {}).get('task') != args.task_id or
-                grant.get('binding', {}).get('expected_status') != 'failed' or
-                grant.get('binding', {}).get('expected_attempts') != 3 or
-                grant.get('binding', {}).get('protocol_version') != protocol_version(args.feature_dir) or
+        binding = grant.get('binding')
+        if (grant.get('version') != 2 or not isinstance(binding, dict) or binding != expected_binding or
+                binding.get('binding_version') != 2 or binding.get('expected_status') != 'failed' or
+                binding.get('expected_attempts') != args.attempt - 1 or
+                binding.get('repository') != str(git_common_dir(args.feature_dir)) or
+                binding.get('feature') != str(doc.get('feature', args.feature_dir.name)) or
+                binding.get('task') != args.task_id or
+                binding.get('protocol_version') != protocol_version(args.feature_dir) or
                 grant.get('consumed_at') is None or grant.get('consumed_attempt') != args.attempt or
-                entry.get('active_retry_authorization') != args.authorization or
-                grant.get('supersedes') is not None):
+                entry.get('active_retry_authorization') != args.authorization):
             die('CLAIM_RECOVERY_INVALID: V2 grant must bind failed attempt 3 and be consumed into attempt 4')
         if (not isinstance(grant.get('reason'), str) or not grant['reason'].strip() or
                 not isinstance(grant.get('provenance'), str) or not grant['provenance']):
@@ -1319,15 +1319,50 @@ def cmd_recover_claim(args: argparse.Namespace) -> None:
         supersessions = entry.get('retry_authorization_supersessions', [])
         if not isinstance(supersessions, list) or any(
                 not isinstance(rel, dict) or not isinstance(rel.get('supersedes'), str) or
-                not isinstance(rel.get('authorization_id'), str) for rel in supersessions):
+                not isinstance(rel.get('authorization_id'), str) or
+                not isinstance(rel.get('reason'), str) or not rel['reason'].strip() or
+                not isinstance(rel.get('provenance'), str) or not rel['provenance'] or
+                parse_timestamp(rel.get('issued_at')) is None or rel.get('supersedes') == rel.get('authorization_id')
+                for rel in supersessions):
             die('CLAIM_RECOVERY_INVALID: supersession history is malformed or ambiguous')
-        if any(rel.get('supersedes') == args.authorization or rel.get('authorization_id') == args.authorization
-               for rel in supersessions):
+        superseded_ids = {rel['supersedes'] for rel in supersessions}
+        if len(superseded_ids) != len(supersessions):
+            die('CLAIM_RECOVERY_INVALID: supersession history is malformed or ambiguous')
+        superseding_grants = [g for g in grants if isinstance(g, dict) and g.get('supersedes') == args.authorization]
+        grant_supersedes = grant.get('supersedes')
+        lineage = []
+        if grant_supersedes is not None:
+            lineage = [rel for rel in supersessions if rel.get('supersedes') == grant_supersedes and
+                       rel.get('authorization_id') == args.authorization]
+            old_grants = [g for g in grants if isinstance(g, dict) and g.get('id') == grant_supersedes]
+            old = old_grants[0] if len(old_grants) == 1 else {}
+            old_binding = old.get('binding') if isinstance(old.get('binding'), dict) else {}
+            old_required = {'repository', 'feature', 'task', 'expected_status', 'expected_attempts',
+                            'feature_fingerprint', 'packet_sha256', 'protocol_version'}
+            same_old_identity = all(old_binding.get(key) == expected_binding.get(key)
+                                    for key in ('repository', 'feature', 'task', 'protocol_version'))
+            valid_old = (
+                old.get('version') == 1 and set(old_binding) == old_required and same_old_identity and
+                old_binding.get('expected_status') == 'failed' and old_binding.get('expected_attempts') == 3 and
+                isinstance(old_binding.get('feature_fingerprint'), str) and
+                re.fullmatch(r'[0-9a-f]{64}', old_binding['feature_fingerprint']) is not None and
+                isinstance(old_binding.get('packet_sha256'), str) and
+                re.fullmatch(r'[0-9a-f]{64}', old_binding['packet_sha256']) is not None and
+                isinstance(old.get('reason'), str) and bool(old['reason'].strip()) and
+                isinstance(old.get('provenance'), str) and bool(old['provenance']) and
+                parse_timestamp(old.get('issued_at')) is not None and old.get('consumed_at') is None
+            )
+            if (len(lineage) != 1 or len(old_grants) != 1 or not valid_old or superseding_grants):
+                die('CLAIM_RECOVERY_INVALID: authorization supersession history is malformed or ambiguous')
+        if (args.authorization in superseded_ids or
+                any(rel.get('authorization_id') == args.authorization for rel in supersessions) != bool(lineage)):
             die('CLAIM_RECOVERY_INVALID: authorization is superseded or involved in a supersession')
-        if any(not isinstance(g, dict) or g.get('version') != 2 or
+        allowed_legacy_ids = {grant_supersedes} if lineage else set()
+        if any(not isinstance(g, dict) or
+               (g.get('version') != 2 and not (g.get('version') == 1 and g.get('id') in allowed_legacy_ids)) or
                (g is not grant and g.get('consumed_at') is not None) for g in grants):
             die('CLAIM_RECOVERY_INVALID: mixed/legacy or conflicting consumed authorization history')
-        if any(g.get('consumed_at') is None and g is not grant for g in grants):
+        if any(g.get('consumed_at') is None and g is not grant and g.get('id') not in superseded_ids for g in grants):
             die('CLAIM_RECOVERY_INVALID: another effective unconsumed authorization is ambiguous')
         now = utc_now()
         entry['claim_recovery'] = {
