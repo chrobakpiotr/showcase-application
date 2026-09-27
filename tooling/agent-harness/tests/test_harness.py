@@ -218,6 +218,43 @@ class HarnessTest(unittest.TestCase):
         self.assertGreater(harness.parse_timestamp(state['lease_expires_at']), harness.utc_now())
         self.assertEqual([], harness.ready_ids(doc, harness.load_state(feature, doc), feature))
 
+    def test_recover_claim_accepts_exact_consumed_v2_supersession_shape(self):
+        """RED regression for a valid V2 retry that replaced an unusable V1 grant."""
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature, doc, _, args = self.recovered_claim_fixture()
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        replacement = entry['retry_authorizations'][0]
+        replacement.update({
+            'version': 2,
+            'binding': harness.retry_binding(feature, doc, 'T-001', 3),
+            'consumed_at': '2026-09-27T10:00:00+00:00',
+            'consumed_attempt': 4,
+            'supersedes': 'legacy-v1-grant',
+        })
+        replacement['id'] = 'replacement-v2-grant'
+        entry['retry_authorizations'].insert(0, {
+            'version': 1, 'id': 'legacy-v1-grant',
+            'binding': self.add_legacy_retry_grant(feature, doc, grant_id='legacy-v1-grant')['binding'],
+            'reason': 'historical authorization', 'provenance': 'fixture-operator',
+            'issued_at': '2026-09-27T09:00:00+00:00', 'consumed_at': None,
+        })
+        entry['active_retry_authorization'] = replacement['id']
+        entry['retry_authorization_supersessions'] = [{
+            'supersedes': 'legacy-v1-grant', 'authorization_id': replacement['id'],
+            'reason': 'replace unverifiable V1 grant', 'provenance': 'fixture-operator',
+            'issued_at': '2026-09-27T09:59:00+00:00',
+        }]
+        args.authorization = replacement['id']
+        harness.save_state(feature, state)
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(args)
+        recovered = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(4, recovered['attempts'])
+        self.assertEqual(replacement['id'], recovered['active_retry_authorization'])
+        self.assertEqual('no_execution_started', recovered['claim_recovery']['attestation'])
+
     def test_recover_claim_is_idempotent_and_conflicting_assertion_fails(self):
         from contextlib import redirect_stderr, redirect_stdout
         from io import StringIO
@@ -245,6 +282,41 @@ class HarnessTest(unittest.TestCase):
                 mutate(args)
                 from contextlib import redirect_stderr
                 from io import StringIO
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_recover_claim(args)
+
+    def test_recover_claim_v2_grant_predicates_fail_independently(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        mutations = {
+            'version': lambda e, g: g.update(version=1),
+            'binding version': lambda e, g: g['binding'].update(binding_version=1),
+            'expected status': lambda e, g: g['binding'].update(expected_status='running'),
+            'expected attempts': lambda e, g: g['binding'].update(expected_attempts=4),
+            'consumed attempt': lambda e, g: g.update(consumed_attempt=3),
+            'consumed at absent': lambda e, g: g.update(consumed_at=None),
+            'wrong task': lambda e, g: g['binding'].update(task='T-900'),
+            'wrong feature': lambda e, g: g['binding'].update(feature='OTHER'),
+            'wrong repository': lambda e, g: g['binding'].update(repository='/wrong/.git'),
+            'wrong protocol': lambda e, g: g['binding'].update(protocol_version=99),
+            'wrong active grant': lambda e, g: e.update(active_retry_authorization='other'),
+            'malformed binding': lambda e, g: g['binding'].pop('contract_sha256'),
+            'unconsumed': lambda e, g: (g.update(consumed_at=None), g.pop('consumed_attempt', None)),
+            'consumed into another attempt': lambda e, g: g.update(consumed_attempt=5),
+            'grant itself superseded': lambda e, g: e.update(retry_authorization_supersessions=[{
+                'supersedes': g['id'], 'authorization_id': 'later-grant', 'reason': 'replacement',
+                'provenance': 'fixture-operator', 'issued_at': '2026-09-27T10:01:00+00:00'}]),
+            'ambiguous supersession': lambda e, g: e.update(retry_authorization_supersessions=[{
+                'supersedes': 'other', 'authorization_id': g['id'], 'reason': 'replacement',
+                'provenance': 'fixture-operator', 'issued_at': '2026-09-27T10:01:00+00:00'}]),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(predicate=name):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                state = harness.load_state(feature, doc)
+                entry = state['tasks']['T-001']
+                mutate(entry, entry['retry_authorizations'][0])
+                harness.save_state(feature, state)
                 with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
                     harness.cmd_recover_claim(args)
 
