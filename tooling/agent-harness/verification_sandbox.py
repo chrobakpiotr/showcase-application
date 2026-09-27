@@ -26,6 +26,30 @@ class SandboxPlan:
     backend: str
     strong_isolation: bool
     details: dict[str, Any]
+    qualification: dict[str, Any] | None = None
+
+
+class BackendProtocol:
+    """Trusted interface required of a v2 execution backend."""
+
+    name: str
+
+    def qualify(self, worktree: pathlib.Path, authority_paths: tuple[pathlib.Path, ...]) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def launch(self, plan: SandboxPlan, *, cwd: pathlib.Path, env: dict[str, str]):
+        raise NotImplementedError
+
+    def drain(self, process, timeout: float) -> bool:
+        raise NotImplementedError
+
+
+def qualifies_v2(plan: SandboxPlan) -> bool:
+    """Only a concrete qualification record can authorize v2 launch."""
+    proof = plan.qualification
+    return bool(isinstance(proof, dict) and proof.get('backend') == plan.backend and
+                proof.get('protected_paths') is True and proof.get('descendant_containment') == 'strong' and
+                proof.get('qualification') == 'integration-fixture-pass')
 
 
 def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, str]:
@@ -75,7 +99,7 @@ def _codex_helper(argv: list[str], worktree: pathlib.Path, env: dict[str, str]) 
         env,
         f'codex-{platform_name}',
         True,
-        {'network': 'disabled', 'filesystem': 'workspace-write'},
+        {'network': 'disabled', 'filesystem': 'workspace-write'}, None,
     )
 
 
@@ -97,7 +121,9 @@ def _bubblewrap(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.P
         if key in env:
             cmd += ['--setenv', key, env[key]]
     cmd += ['--', *argv]
-    return SandboxPlan(cmd, env, 'bubblewrap', True, {'network': 'unshared', 'root': 'read-only', 'worktree': 'writable'})
+    # Current bwrap setup shares the entire worktree; it does not protect nested
+    # authority paths nor provide a persistent descendant supervisor.
+    return SandboxPlan(cmd, env, 'bubblewrap', True, {'network': 'unshared', 'root': 'read-only', 'worktree': 'writable'}, None)
 
 
 def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str]) -> SandboxPlan | None:
@@ -123,7 +149,7 @@ def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: p
     )
     return SandboxPlan(
         [sandbox_exec, '-f', str(profile), *argv], env, 'macos-sandbox-exec', True,
-        {'network': 'denied-by-default', 'write_roots': [str(worktree), str(sandbox_home)]},
+        {'network': 'denied-by-default', 'write_roots': [str(worktree), str(sandbox_home)]}, None,
     )
 
 

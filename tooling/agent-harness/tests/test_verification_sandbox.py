@@ -14,6 +14,29 @@ spec.loader.exec_module(vs)
 
 
 class VerificationSandboxTest(unittest.TestCase):
+    def test_legacy_strong_isolation_is_not_v2_qualification(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(vs, '_codex_helper', return_value=vs.SandboxPlan(
+                 ['sandbox','python3','-V'], {}, 'claimed', True, {'network':'disabled'})), \
+             mock.patch.object(vs, '_bubblewrap', return_value=None), \
+             mock.patch.object(vs, '_macos_sandbox_exec', return_value=None):
+            root = pathlib.Path(tmp)
+            plan = vs.build_plan(['python3', '-V'], root, root / 'run', 'auto')
+            self.assertFalse(vs.qualifies_v2(plan))
+
+    def test_unsupported_backend_fails_closed_for_every_mode(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(vs, '_codex_helper', return_value=None), \
+             mock.patch.object(vs, '_bubblewrap', return_value=None), \
+             mock.patch.object(vs, '_macos_sandbox_exec', return_value=None):
+            root = pathlib.Path(tmp)
+            for mode in ('auto', 'off', 'required'):
+                if mode == 'required':
+                    with self.assertRaises(RuntimeError):
+                        vs.build_plan(['python3', '-V'], root, root / mode, mode)
+                else:
+                    plan = vs.build_plan(['python3', '-V'], root, root / mode, mode)
+                    self.assertFalse(vs.qualifies_v2(plan))
     def test_off_is_explicit_and_not_strong(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
