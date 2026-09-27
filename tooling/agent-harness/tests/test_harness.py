@@ -20,6 +20,10 @@ class HarnessTest(unittest.TestCase):
         self.old_cwd = pathlib.Path.cwd()
         os.chdir(self.root)
         harness.STATE_DIR = self.root / '.agent-state'
+        import subprocess
+        subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
 
     def tearDown(self):
         os.chdir(self.old_cwd)
@@ -66,6 +70,65 @@ class HarnessTest(unittest.TestCase):
 
     def test_valid_feature(self):
         self.assertEqual([], harness.validate(self.feature()))
+
+    def test_lifecycle_cli_cross_worktree_manual_exercise(self):
+        import subprocess
+        import shutil
+
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['a.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-B', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': ['T-A'],
+             'allowed_paths': ['b.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'E', 'objective': 'E', 'role': 'evaluator', 'depends_on': ['T-A', 'T-B'],
+             'allowed_paths': ['docs/specs/TST-001/evidence/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+        ])
+        harness_path = pathlib.Path(__file__).resolve().parents[1] / 'harness.py'
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        agents = self.root / 'docs' / 'agentic-sdd' / 'agents'
+        agents.mkdir(parents=True, exist_ok=True)
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        for role in ('builder', 'evaluator'):
+            (agents / f'{role}.md').write_text(f'# {role}\n')
+        (self.root / 'tooling' / 'agent-harness').mkdir(parents=True, exist_ok=True)
+        (self.root / 'tooling' / 'agent-harness' / 'harness.py').write_bytes(harness_path.read_bytes())
+        (self.root / '.gitignore').write_text('.agent-state/\n.agent-runs/\ndocs/specs/*/packets/\n')
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'base'], cwd=self.root, check=True)
+        t_b = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-B'
+
+        def cli(worktree, *args):
+            return subprocess.run(['python3', str(harness_path), *map(str, args)], cwd=worktree,
+                                  capture_output=True, text=True, check=True).stdout.strip()
+
+        try:
+            cli(self.root, 'worktree-create', feature.relative_to(self.root), 'T-A')
+            t_b.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(['git', 'worktree', 'add', '--quiet', str(t_b), '-b', 'agent/TST-001/T-B', 'HEAD'],
+                           cwd=self.root, check=True)
+            cli(self.root, 'start', feature.relative_to(self.root), 'T-A', '--owner', 'worker-a')
+            t_a = harness.worktree_path('TST-001', 'T-A')
+            (t_a / 'a.txt').write_text('A output\n')
+            evidence = self.root / 'a-evidence.json'
+            evidence.write_text(json.dumps({'status': 'pass', 'summary': 'ok', 'changed_paths': ['a.txt'],
+                                            'commands': ['true'], 'assumptions': [], 'residual_risks': []}))
+            cli(self.root, 'complete', feature.relative_to(self.root), 'T-A', '--owner', 'worker-a',
+                '--evidence', evidence)
+
+            self.assertEqual('completed', json.loads(cli(t_b, 'status',
+                              t_b / 'docs/specs/TST-001', '--json'))['tasks']['T-A']['status'])
+            self.assertIn('T-B', json.loads(cli(t_b, 'ready', t_b / 'docs/specs/TST-001', '--json')))
+            cli(t_b, 'claim', t_b / 'docs/specs/TST-001', 'T-B', '--owner', 'worker-b')
+            main_state = json.loads(cli(self.root, 'status', feature.relative_to(self.root), '--json'))
+            self.assertEqual('running', main_state['tasks']['T-B']['status'])
+            self.assertEqual('worker-b', main_state['tasks']['T-B']['owner'])
+        finally:
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(t_b)], cwd=self.root, check=False)
+            t_a = harness.worktree_path('TST-001', 'T-A')
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(t_a)], cwd=self.root, check=False)
+            shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
 
     def test_active_design_feature_requires_fresh_gate(self):
         feature = self.feature()
@@ -257,6 +320,167 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(attempts, after['attempts'])
         with self.assertRaises(SystemExit):
             harness.heartbeat(feature, doc, 'T-001', 'worker-b')
+
+    def test_real_git_worktrees_share_lifecycle_store_lock_and_claim_state(self):
+        import subprocess
+        import shutil
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['a.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-B', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': ['T-A'],
+             'allowed_paths': ['b.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'E', 'objective': 'E', 'role': 'evaluator', 'depends_on': ['T-A', 'T-B'],
+             'allowed_paths': ['docs/specs/TST-001/evidence/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        (self.root / 'tooling' / 'agent-harness').mkdir(parents=True, exist_ok=True)
+        (self.root / 'tooling' / 'agent-harness' / 'harness.py').write_text('# actual protocol file\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n.agent-runs/\ndocs/specs/*/packets/\n')
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'base'], cwd=self.root, check=True)
+        t_b = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-B'
+        try:
+            # Create B from the pre-completion protocol/spec snapshot, as an existing task worktree.
+            state = harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+            harness.save_state(feature, state)
+            subprocess.run(['git', 'worktree', 'add', '--quiet', str(t_b), '-b', 'agent/TST-001/T-B', 'HEAD'],
+                           cwd=self.root, check=True)
+            feature_b = t_b / 'docs/specs/TST-001'
+            self.assertEqual(harness.state_path(feature), harness.state_path(feature_b))
+            self.assertEqual(harness.lock_path(feature), harness.lock_path(feature_b))
+
+            harness.cmd_worktree_create(argparse.Namespace(feature_dir=feature, task_id='T-A'))
+            harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+            t_a = harness.worktree_path('TST-001', 'T-A')
+            (t_a / 'a.txt').write_text('dependency output\n')
+            evidence = self.root / 'result-a.json'
+            evidence.write_text(json.dumps({'status': 'pass', 'summary': 'ok', 'changed_paths': ['a.txt'],
+                                            'commands': ['true'], 'assumptions': [], 'residual_risks': []}))
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a',
+                                                    evidence=str(evidence)))
+
+            out = StringIO()
+            with redirect_stdout(out):
+                harness.cmd_status(argparse.Namespace(feature_dir=feature_b, json=True))
+            self.assertEqual('completed', json.loads(out.getvalue())['tasks']['T-A']['status'])
+            out = StringIO()
+            with redirect_stdout(out):
+                harness.cmd_ready(argparse.Namespace(feature_dir=feature_b, json=True))
+            self.assertIn('T-B', json.loads(out.getvalue()))
+
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature_b, task_id='T-B', owner='worker-b'))
+            claimed_b = harness.load_state(feature_b, harness.load_json(feature_b / 'tasks.json'))
+            claimed_main = harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+            self.assertEqual('running', claimed_b['tasks']['T-B']['status'])
+            self.assertEqual('worker-b', claimed_main['tasks']['T-B']['owner'])
+            with self.assertRaises(SystemExit):
+                harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-B', owner='worker-c'))
+            self.assertTrue(harness.heartbeat(feature_b, harness.load_json(feature_b / 'tasks.json'), 'T-B', 'worker-b'))
+            with harness.locked_state(feature, harness.load_json(feature / 'tasks.json')) as state:
+                self.assertEqual('running', state['tasks']['T-B']['status'])
+                state['tasks']['T-B']['status'] = 'completed'
+                state['tasks']['T-B'].pop('owner', None)
+            with self.assertRaises(SystemExit):
+                harness.heartbeat(feature_b, harness.load_json(feature_b / 'tasks.json'), 'T-B', 'worker-b')
+        finally:
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(t_b)], cwd=self.root, check=False)
+            t_a = harness.worktree_path('TST-001', 'T-A')
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(t_a)], cwd=self.root, check=False)
+            shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
+
+    def test_stale_worktree_legacy_state_cannot_override_or_seed_authority(self):
+        import subprocess
+        feature = self.feature()
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'base'], cwd=self.root, check=True)
+        worktree = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-001'
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(worktree), '-b', 'agent/TST-001/T-001', 'HEAD'],
+                       cwd=self.root, check=True)
+        stale = harness.initial_state(feature, harness.load_json(feature / 'tasks.json'))
+        stale['tasks']['T-001']['status'] = 'completed'
+        legacy = harness.legacy_worktree_state_candidates(feature)[0]
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(json.dumps(stale))
+        with self.assertRaises(SystemExit):
+            harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+        self.assertFalse(harness.state_path(feature).exists())
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(worktree)], cwd=self.root, check=True)
+
+    def test_legacy_main_state_is_adopted_and_conflicting_worktree_copy_fails_safe(self):
+        import subprocess
+        feature = self.feature()
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'base'], cwd=self.root, check=True)
+        worktree = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-001'
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(worktree), '-b', 'agent/TST-001/T-001', 'HEAD'],
+                       cwd=self.root, check=True)
+        main_legacy = harness.main_legacy_state_path(feature)
+        main_legacy.parent.mkdir(parents=True, exist_ok=True)
+        state = harness.initial_state(feature, harness.load_json(feature / 'tasks.json'))
+        state['tasks']['T-001']['status'] = 'failed'
+        main_legacy.write_text(json.dumps(state))
+        adopted = harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+        self.assertEqual('failed', adopted['tasks']['T-001']['status'])
+        canonical_before = harness.state_path(feature).read_text()
+        stale = dict(state)
+        stale['tasks'] = dict(state['tasks'])
+        stale['tasks']['T-001'] = {'status': 'completed', 'attempts': 1}
+        legacy = harness.legacy_worktree_state_candidates(feature)[0]
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(json.dumps(stale))
+        self.assertEqual('failed', harness.load_state(feature, harness.load_json(feature / 'tasks.json'))['tasks']['T-001']['status'])
+        self.assertEqual(canonical_before, harness.state_path(feature).read_text())
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(worktree)], cwd=self.root, check=True)
+
+    def test_concurrent_worktree_updates_are_not_lost(self):
+        import subprocess
+        import threading
+        import shutil
+        feature = self.feature()
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'base'], cwd=self.root, check=True)
+        worktree = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-001'
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(worktree), '-b', 'agent/TST-001/T-001', 'HEAD'],
+                       cwd=self.root, check=True)
+        feature_wt = worktree / 'docs/specs/TST-001'
+        errors = []
+
+        def mutate(path, key):
+            try:
+                doc = harness.load_json(path / 'tasks.json')
+                with harness.locked_state(path, doc) as state:
+                    state['tasks']['T-001'][key] = key
+                    # Hold the shared lock long enough to force contention with the other checkout.
+                    import time
+                    time.sleep(0.05)
+            except BaseException as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=mutate, args=(feature, 'main_mark')),
+                   threading.Thread(target=mutate, args=(feature_wt, 'worktree_mark'))]
+        try:
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            self.assertEqual([], errors)
+            final = harness.load_state(feature, harness.load_json(feature / 'tasks.json'))['tasks']['T-001']
+            self.assertEqual('main_mark', final['main_mark'])
+            self.assertEqual('worktree_mark', final['worktree_mark'])
+        finally:
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(worktree)], cwd=self.root, check=False)
+            shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
+
 
     def test_expired_lease_is_recovered_for_resume(self):
         import subprocess

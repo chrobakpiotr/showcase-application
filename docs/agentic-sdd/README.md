@@ -379,7 +379,7 @@ python3 tooling/agent-harness/telemetry.py --feature INV-LOW-001
 git worktree list
 ```
 
-The harness creates ignored local state under `.agent-state/` and `.agent-runs/`. Builder work happens in sibling worktrees,
+The harness creates ignored local state under `.agent-state/` and `.agent-runs/`. Lifecycle state belongs to the common Git repository: every worktree for the same SDD resolves one authoritative state file and one lock using Git's `--git-common-dir` identity plus the feature ID. Builder work happens in sibling worktrees,
 not directly in the primary checkout.
 
 ### 6. Inspect the final result
