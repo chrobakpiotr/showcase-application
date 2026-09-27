@@ -575,38 +575,72 @@ def load_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         state = _load_state_unlocked(feature_dir, doc)
-        if not state_path(feature_dir).exists():
-            save_state(feature_dir, state)
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
     return state
 
 
+def _resolve_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Resolve canonical or exact historical main-checkout state under the shared lock."""
+    canonical = state_path(feature_dir)
+    legacy = main_legacy_state_path(feature_dir)
+    candidates: list[tuple[pathlib.Path, dict[str, Any], bool]] = []
+    for path, is_legacy in ((canonical, False), (legacy, True)):
+        if path.exists():
+            state = load_json(path)
+            validate_state_identity(feature_dir, doc, state)
+            candidates.append((path, state, is_legacy))
+
+    if len(candidates) > 1:
+        first_path, first_state, _ = candidates[0]
+        for other_path, other_state, _ in candidates[1:]:
+            if other_state != first_state:
+                die(
+                    'conflicting valid lifecycle states exist at '
+                    f'{first_path} and {other_path}; preserve both and resolve the conflict explicitly'
+                )
+        # Byte-equivalent duplicate state resolves deterministically to canonical.
+        return candidates[0][1], False
+    if candidates:
+        _, state, is_legacy = candidates[0]
+        return state, is_legacy
+
+    return initial_state(feature_dir, doc), False
+
+
 def _load_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
-    path = state_path(feature_dir)
-    if not path.exists():
-        main_legacy = main_legacy_state_path(feature_dir)
-        if not main_legacy.exists():
-            worktree_legacy = legacy_worktree_state_candidates(feature_dir)
-            if any(candidate.exists() for candidate in worktree_legacy):
-                die('legacy task-worktree lifecycle state has no canonical main-checkout state; refusing stale-state adoption')
-            state = initial_state(feature_dir, doc)
-            return state
-        state = load_json(main_legacy)
+    state, legacy_path = _resolve_state_unlocked(feature_dir, doc)
+    if legacy_path:
         validate_loaded_state(feature_dir, doc, state)
+    elif not state_path(feature_dir).exists():
+        # Fresh state is returned to the caller and persisted only after its lifecycle
+        # operation succeeds. A validation error must never leave a shadow authority.
         return state
-    state = load_json(path)
-    validate_loaded_state(feature_dir, doc, state)
+    else:
+        validate_loaded_state(feature_dir, doc, state)
+        legacy = main_legacy_state_path(feature_dir)
+        if legacy.exists():
+            # Resolver established byte-equivalent identity; remove the redundant exact
+            # historical copy only after canonical compatibility validation succeeds.
+            legacy.unlink()
     return state
 
 
-def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
+def validate_state_identity(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
     expected = feature_fingerprint(feature_dir)
     if state.get('fingerprint') != expected:
-        die(
-            'feature spec/plan/tasks changed after runtime state was created; '
-            f'run `harness.py reset {feature_dir}` deliberately before continuing'
-        )
+        die('feature spec/plan/tasks fingerprint differs; refusing lifecycle state adoption/migration')
+    if state.get('feature', feature_dir.name) != doc.get('feature', feature_dir.name):
+        die('runtime state logical feature identity differs from tasks.json; refusing lifecycle state adoption/migration')
+    expected_ids = set(task_index(doc))
+    tasks = state.get('tasks')
+    if not isinstance(tasks, dict) or set(tasks) != expected_ids:
+        die('runtime state task set differs from tasks.json; refusing lifecycle state adoption/migration')
+
+
+def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
+    validate_state_identity(feature_dir, doc, state)
+    expected = feature_fingerprint(feature_dir)
     expected_version = protocol_version(feature_dir)
     stored_version = state.get('protocol_version')
     if stored_version is None and state.get('state_version') == 2:
@@ -633,20 +667,18 @@ def cmd_migrate_state(args: argparse.Namespace) -> None:
     with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        path = state_path(args.feature_dir)
-        if not path.exists():
-            die(f'no authoritative lifecycle state exists at {path}; migration will not create state')
-        state = load_json(path)
-        if state.get('fingerprint') != feature_fingerprint(args.feature_dir):
-            die('feature spec/plan/tasks fingerprint differs; refusing lifecycle state migration')
-        expected_ids = set(task_index(doc))
-        tasks = state.get('tasks')
-        if not isinstance(tasks, dict) or set(tasks) != expected_ids:
-            die('runtime state task set differs from tasks.json; refusing lifecycle state migration')
+        state, legacy_path = _resolve_state_unlocked(args.feature_dir, doc)
+        if not state_path(args.feature_dir).exists() and not legacy_path:
+            die(f'no authoritative lifecycle state exists for {args.feature_dir}; migration will not create state')
+        validate_state_identity(args.feature_dir, doc, state)
+        tasks = state['tasks']
         old_version = state.get('protocol_version')
         legacy_version = old_version is None and state.get('state_version') == 2
         if old_version == protocol_version(args.feature_dir):
             validate_loaded_state(args.feature_dir, doc, state)
+            if legacy_path:
+                save_state(args.feature_dir, state)
+            main_legacy_state_path(args.feature_dir).unlink(missing_ok=True)
             print(f'ALREADY_CURRENT {args.feature_dir} protocol_version={old_version}')
         elif legacy_version:
             # Explicit known edge: pre-versioning state v2 -> semantic protocol v1.
@@ -663,6 +695,7 @@ def cmd_migrate_state(args: argparse.Namespace) -> None:
                 die('legacy runtime state has no protocol audit fingerprint; refusing migration')
             state['protocol_version'] = protocol_version(args.feature_dir)
             save_state(args.feature_dir, state)
+            main_legacy_state_path(args.feature_dir).unlink(missing_ok=True)
             print(
                 f'MIGRATED {args.feature_dir} protocol_version={old_version or "legacy-state-v2"}'
                 f'->{state["protocol_version"]} tasks={len(tasks)} '
@@ -675,25 +708,17 @@ def cmd_migrate_state(args: argparse.Namespace) -> None:
 
 
 def legacy_state_name(feature_dir: pathlib.Path) -> str:
-    name = f'{feature_dir.name}-{sha256_bytes(str(feature_dir.resolve()).encode())[:20]}.json'
+    # Historical key: SHA-256 of the main checkout's resolved feature path.
+    repo_root = git_common_dir(feature_dir).parent
+    main_feature = repo_root / 'docs' / 'specs' / feature_dir.name
+    name = f'{feature_dir.name}-{sha256_bytes(str(main_feature.resolve()).encode())[:20]}.json'
     return name
 
 
 def main_legacy_state_path(feature_dir: pathlib.Path) -> pathlib.Path:
     """Old main-checkout file; the only legacy snapshot safe to adopt automatically."""
-    root = feature_repo_base(feature_dir)
+    root = git_common_dir(feature_dir).parent
     return root / '.agent-state' / legacy_state_name(feature_dir)
-
-
-def legacy_worktree_state_candidates(feature_dir: pathlib.Path) -> list[pathlib.Path]:
-    root = feature_repo_base(feature_dir)
-    name = legacy_state_name(feature_dir)
-    candidates = [
-        path / '.agent-state' / name
-        for path in sorted(root.parent.glob(f'{root.name}{WORKTREE_ROOT_SUFFIX}/**'))
-        if path.is_dir() and (path / '.git').exists()
-    ]
-    return list(dict.fromkeys(candidate.resolve() for candidate in candidates))
 
 
 def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
