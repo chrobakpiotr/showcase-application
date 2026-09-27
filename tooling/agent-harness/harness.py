@@ -851,7 +851,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
 
 
 
-def ready_ids(doc: dict[str, Any], state: dict[str, Any]) -> list[str]:
+def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.Path | None = None) -> list[str]:
     max_parallel = int(doc.get('max_parallel', 4))
     running = sum(1 for entry in state['tasks'].values() if entry.get('status') == 'running')
     capacity = max(0, max_parallel - running)
@@ -866,8 +866,7 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any]) -> list[str]:
         if entry['status'] not in {'pending', 'failed'}:
             continue
         if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
-            grants = entry.get('retry_authorizations', [])
-            if not isinstance(grants, list) or not any(isinstance(grant, dict) and grant.get('consumed_at') is None for grant in grants):
+            if feature_dir is None or classify_retry_authorizations(feature_dir, doc, state, tid, int(entry.get('attempts', 0)))[0] != 'valid':
                 continue
         if all(state['tasks'][dep]['status'] == 'completed' for dep in task.get('depends_on', [])):
             ready.append(tid)
@@ -1040,7 +1039,7 @@ def cmd_validate_all(args: argparse.Namespace) -> None:
 def cmd_ready(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
-        ids = ready_ids(doc, state)
+        ids = ready_ids(doc, state, args.feature_dir)
     if args.json:
         print(json.dumps(ids))
     else:
@@ -1070,7 +1069,17 @@ def cmd_reviewers(args: argparse.Namespace) -> None:
 def cmd_claim(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
-        if args.task_id not in ready_ids(doc, state):
+        entry = state['tasks'].get(args.task_id)
+        if (entry and entry.get('status') == 'failed' and
+                int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and
+                int(entry.get('human_resume_grants', 0)) <= 0):
+            classification, grant = classify_retry_authorizations(
+                args.feature_dir, doc, state, args.task_id, int(entry.get('attempts', 0)))
+            if classification != 'valid':
+                if classification == 'legacy-unverifiable' and grant:
+                    die(f'RETRY_AUTHORIZATION_LEGACY_UNVERIFIABLE: use --supersedes {grant["id"]}')
+                die(f'RETRY_AUTHORIZATION_REQUIRED: {args.task_id} has no valid retry authorization ({classification})')
+        if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         entry = state['tasks'][args.task_id]
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
@@ -1106,9 +1115,11 @@ def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict
             return resolution
         if feature_dir is None or state is None:
             die(f'ATTEMPTS_EXHAUSTED: {task_id} exhausted its {max_attempts} allowed attempts')
-        authorization = matching_retry_authorization(feature_dir, doc, state, task_id, attempts)
-        if authorization is None:
-            die(f'RETRY_AUTHORIZATION_REQUIRED: ATTEMPTS_EXHAUSTED: {task_id} exhausted its {max_attempts} allowed attempts')
+        classification, authorization = classify_retry_authorizations(feature_dir, doc, state, task_id, attempts)
+        if authorization is None or classification != 'valid':
+            if classification == 'legacy-unverifiable':
+                die(f'RETRY_AUTHORIZATION_LEGACY_UNVERIFIABLE: {task_id} requires explicit --supersedes {authorization["id"]}')
+            die(f'RETRY_AUTHORIZATION_REQUIRED: ATTEMPTS_EXHAUSTED: {task_id} exhausted its {max_attempts} allowed attempts ({classification})')
         authorization['consumed_at'] = utc_now().isoformat()
         authorization['consumed_attempt'] = attempts + 1
         entry['active_retry_authorization'] = authorization['id']
@@ -1124,19 +1135,31 @@ def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict
 
 
 def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any]:
+    task = task_index(doc)[task_id]
+    contract_fields = (
+        'id', 'title', 'objective', 'role', 'agent_profile', 'depends_on',
+        'allowed_paths', 'acceptance_criteria', 'risk_tags', 'verification',
+        'test_mode', 'test_seam',
+    )
+    semantic = {
+        'feature': doc.get('feature', feature_dir.name),
+        'feature_contract_sha256': feature_fingerprint(feature_dir),
+        'task_contract': {key: task[key] for key in contract_fields if key in task},
+        'test_policy': doc.get('test_policy', 'legacy'),
+    }
     return {
+        'binding_version': 2,
         'repository': str(git_common_dir(feature_dir)),
         'feature': str(doc.get('feature', feature_dir.name)),
         'task': task_id,
         'expected_status': 'failed',
         'expected_attempts': attempts,
-        'feature_fingerprint': feature_fingerprint(feature_dir),
-        'packet_sha256': sha256_bytes(json.dumps(packet_payload(doc, task_index(doc)[task_id], feature_dir), sort_keys=True, separators=(',', ':')).encode()),
+        'contract_sha256': sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode()),
         'protocol_version': protocol_version(feature_dir),
     }
 
 
-def matching_retry_authorization(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any] | None:
+def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task_id: str, attempts: int) -> tuple[str, dict[str, Any] | None]:
     entry = state['tasks'][task_id]
     grants = entry.get('retry_authorizations', [])
     if not isinstance(grants, list):
@@ -1144,10 +1167,32 @@ def matching_retry_authorization(feature_dir: pathlib.Path, doc: dict[str, Any],
     expected = retry_binding(feature_dir, doc, task_id, attempts)
     if entry.get('status') != 'failed':
         die('RETRY_AUTHORIZATION_INVALID: task is not failed')
-    matching = []
+    relations = entry.get('retry_authorization_supersessions', [])
+    if not isinstance(relations, list):
+        die('RETRY_AUTHORIZATION_INVALID: supersession ledger is malformed')
+    superseded_ids: set[str] = set()
+    supersession_target: dict[str, str] = {}
+    for relation in relations:
+        if (not isinstance(relation, dict) or not isinstance(relation.get('supersedes'), str) or
+                not isinstance(relation.get('authorization_id'), str) or
+                not isinstance(relation.get('reason'), str) or not relation['reason'].strip() or
+                not isinstance(relation.get('provenance'), str) or not relation['provenance'] or
+                parse_timestamp(relation.get('issued_at')) is None):
+            die('RETRY_AUTHORIZATION_INVALID: malformed supersession relation')
+        if relation['supersedes'] in superseded_ids:
+            die('RETRY_AUTHORIZATION_INVALID: authorization superseded more than once')
+        if relation['supersedes'] == relation['authorization_id']:
+            die('RETRY_AUTHORIZATION_INVALID: self-supersession is not allowed')
+        superseded_ids.add(relation['supersedes'])
+        supersession_target[relation['supersedes']] = relation['authorization_id']
+    valid: list[dict[str, Any]] = []
+    legacy: list[dict[str, Any]] = []
+    consumed: list[dict[str, Any]] = []
+    stale: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
     for grant in grants:
         required = {'version', 'id', 'binding', 'reason', 'provenance', 'issued_at', 'consumed_at'}
-        if not isinstance(grant, dict) or not required.issubset(grant) or grant.get('version') != 1 or not isinstance(grant.get('binding'), dict):
+        if not isinstance(grant, dict) or not required.issubset(grant) or grant.get('version') not in {1, 2} or not isinstance(grant.get('binding'), dict):
             die('RETRY_AUTHORIZATION_INVALID: malformed or unknown authorization')
         if (not isinstance(grant.get('id'), str) or not grant['id'] or
                 not isinstance(grant.get('reason'), str) or not grant['reason'].strip() or
@@ -1155,13 +1200,100 @@ def matching_retry_authorization(feature_dir: pathlib.Path, doc: dict[str, Any],
                 parse_timestamp(grant.get('issued_at')) is None or
                 (grant.get('consumed_at') is not None and parse_timestamp(grant.get('consumed_at')) is None)):
             die('RETRY_AUTHORIZATION_INVALID: malformed audit fields')
-        if grant['binding'] == expected:
-            if grant.get('consumed_at') is not None:
-                die('RETRY_AUTHORIZATION_CONSUMED: authorization already consumed')
-            matching.append(grant)
-    if len(matching) > 1:
-        die('RETRY_AUTHORIZATION_INVALID: conflicting duplicate authorizations')
-    return matching[0] if matching else None
+        consumed_attempt = grant.get('consumed_attempt')
+        if grant.get('consumed_at') is not None and (not isinstance(consumed_attempt, int) or isinstance(consumed_attempt, bool) or consumed_attempt < 1):
+            die('RETRY_AUTHORIZATION_INVALID: consumed authorization has no valid consumed_attempt')
+        if grant['id'] in seen_ids:
+            die('RETRY_AUTHORIZATION_INVALID: duplicate authorization ID')
+        seen_ids.add(grant['id'])
+        binding = grant['binding']
+        binding_version = binding.get('binding_version', 1)
+        if not ((binding_version == 2 and grant.get('version') == 2) or
+                (binding_version == 1 and grant.get('version') == 1)):
+            die('RETRY_AUTHORIZATION_INVALID: unknown authorization binding version')
+        if binding_version == 2 and grant.get('version') == 2:
+            required_binding = {'binding_version', 'repository', 'feature', 'task', 'expected_status',
+                                'expected_attempts', 'contract_sha256', 'protocol_version'}
+            if set(binding) != required_binding or not isinstance(binding.get('contract_sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256']):
+                die('RETRY_AUTHORIZATION_INVALID: malformed v2 semantic binding')
+        elif binding_version == 1 and grant.get('version') == 1:
+            required_binding = {'repository', 'feature', 'task', 'expected_status', 'expected_attempts',
+                                'feature_fingerprint', 'packet_sha256', 'protocol_version'}
+            if (set(binding) != required_binding or not isinstance(binding.get('packet_sha256'), str) or
+                    not re.fullmatch(r'[0-9a-f]{64}', binding['packet_sha256'])):
+                die('RETRY_AUTHORIZATION_INVALID: malformed v1 packet binding')
+        if grant['id'] in superseded_ids:
+            continue
+        if grant.get('consumed_at') is not None:
+            consumed.append(grant)
+            continue
+        if binding_version == 2 and grant.get('version') == 2:
+            if binding == expected:
+                valid.append(grant)
+            else:
+                stale.append(grant)
+        elif binding_version == 1 and grant.get('version') == 1:
+            same_identity = all(binding.get(key) == expected.get(key) for key in ('repository', 'feature', 'task'))
+            if (same_identity and binding.get('expected_status') == 'failed' and
+                    binding.get('expected_attempts') == attempts and
+                    binding.get('protocol_version') == expected['protocol_version']):
+                legacy.append(grant)
+            else:
+                stale.append(grant)
+        else:
+            die('RETRY_AUTHORIZATION_INVALID: unknown authorization binding version')
+    grants_by_id = {grant['id']: grant for grant in grants if isinstance(grant, dict) and isinstance(grant.get('id'), str)}
+    for old_id, new_id in supersession_target.items():
+        old = grants_by_id.get(old_id)
+        new = grants_by_id.get(new_id)
+        if (old is None or new is None or old.get('version') != 1 or old.get('consumed_at') is not None or
+                new.get('version') != 2 or new.get('supersedes') != old_id or
+                new.get('binding', {}).get('repository') != expected['repository'] or
+                new.get('binding', {}).get('feature') != expected['feature'] or
+                new.get('binding', {}).get('task') != task_id or
+                new.get('binding', {}).get('expected_status') != 'failed' or
+                new.get('binding', {}).get('expected_attempts') != attempts):
+            die('RETRY_AUTHORIZATION_INVALID: supersession relation does not match immutable grant history')
+    if len(valid) > 1 or len(legacy) > 1 or (valid and legacy):
+        die('RETRY_AUTHORIZATION_INVALID: conflicting eligible authorization history')
+    if valid:
+        return 'valid', valid[0]
+    if legacy:
+        return 'legacy-unverifiable', legacy[0]
+    if consumed:
+        return 'consumed', consumed[0]
+    if stale:
+        return 'stale', stale[0]
+    if superseded_ids:
+        return 'superseded', None
+    return 'absent', None
+
+
+def matching_retry_authorization(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any] | None:
+    classification, grant = classify_retry_authorizations(feature_dir, doc, state, task_id, attempts)
+    return grant if classification == 'valid' else None
+
+
+def retry_authorization_status(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any],
+                              task_id: str, attempts: int, authorization_id: str) -> str:
+    entry = state['tasks'][task_id]
+    grant = next((item for item in entry.get('retry_authorizations', [])
+                  if isinstance(item, dict) and item.get('id') == authorization_id), None)
+    if grant is None:
+        return 'absent'
+    if any(isinstance(rel, dict) and rel.get('supersedes') == authorization_id
+           for rel in entry.get('retry_authorization_supersessions', [])):
+        return 'superseded'
+    if grant.get('consumed_at') is not None:
+        return 'consumed'
+    binding = grant.get('binding', {})
+    if grant.get('version') == 1 or binding.get('binding_version', 1) == 1:
+        expected = retry_binding(feature_dir, doc, task_id, attempts)
+        same_identity = all(binding.get(key) == expected.get(key) for key in ('repository', 'feature', 'task'))
+        return ('legacy-unverifiable' if same_identity and binding.get('expected_attempts') == attempts and
+                binding.get('protocol_version') == expected['protocol_version'] else 'stale')
+    expected = retry_binding(feature_dir, doc, task_id, attempts)
+    return 'valid' if binding == expected else 'stale'
 
 
 def human_resolution_identity(explicit: str | None) -> str:
@@ -1188,21 +1320,44 @@ def cmd_authorize_retry(args: argparse.Namespace) -> None:
         existing = entry.get('retry_authorizations', [])
         if not isinstance(existing, list):
             die('RETRY_AUTHORIZATION_INVALID: authorization ledger is malformed')
-        for item in existing:
-            required = {'version', 'id', 'binding', 'reason', 'provenance', 'issued_at', 'consumed_at'}
-            if not isinstance(item, dict) or not required.issubset(item) or item.get('version') != 1:
-                die('RETRY_AUTHORIZATION_INVALID: malformed or unknown authorization')
-            if item.get('binding', {}).get('repository') != str(git_common_dir(args.feature_dir)):
-                die('RETRY_AUTHORIZATION_STALE: repository identity differs')
-            if item.get('binding', {}).get('feature') != str(doc.get('feature', args.feature_dir.name)):
-                die('RETRY_AUTHORIZATION_STALE: feature identity differs')
-            if item.get('binding', {}).get('task') != args.task_id:
-                die('RETRY_AUTHORIZATION_STALE: task identity differs')
-        if any(isinstance(item, dict) and item.get('binding') == retry_binding(args.feature_dir, doc, args.task_id, attempts) for item in existing):
-            die('RETRY_AUTHORIZATION_INVALID: authorization already exists for this task state')
+        classification, prior = classify_retry_authorizations(args.feature_dir, doc, state, args.task_id, attempts)
+        supersedes = getattr(args, 'supersedes', None)
+        if supersedes is not None and (not isinstance(supersedes, str) or not supersedes.strip()):
+            die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: --supersedes must be a non-empty authorization ID')
+        if supersedes is not None:
+            old = next((item for item in existing if isinstance(item, dict) and item.get('id') == supersedes), None)
+            if old is None:
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: exact authorization ID was not found for this task')
+            if old.get('consumed_at') is not None:
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: consumed authorization cannot be superseded')
+            if any(rel.get('supersedes') == supersedes for rel in entry.get('retry_authorization_supersessions', []) if isinstance(rel, dict)):
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: authorization is already superseded')
+            old_binding = old.get('binding', {})
+            if (old_binding.get('repository') != str(git_common_dir(args.feature_dir)) or
+                    old_binding.get('feature') != str(doc.get('feature', args.feature_dir.name)) or
+                    old_binding.get('task') != args.task_id):
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: repository, feature, or task identity differs')
+            if old_binding.get('expected_status') != 'failed' or old_binding.get('expected_attempts') != attempts:
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: current failed status or attempt count differs')
+            if old.get('version') != 1 or old_binding.get('binding_version', 1) != 1 or classification != 'legacy-unverifiable' or not prior or prior.get('id') != supersedes:
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: only the current unverifiable legacy grant may be superseded')
+            if classification == 'valid':
+                die('RETRY_AUTHORIZATION_SUPERSESSION_INVALID: legacy authorization is not unusable')
+        else:
+            if classification == 'valid':
+                die('RETRY_AUTHORIZATION_INVALID: a valid authorization already exists for this task state')
+            if classification == 'legacy-unverifiable':
+                die(f'RETRY_AUTHORIZATION_SUPERSESSION_REQUIRED: specify --supersedes {prior["id"]}')
         binding = retry_binding(args.feature_dir, doc, args.task_id, attempts)
-        grant = {'version': 1, 'id': hashlib.sha256(os.urandom(32)).hexdigest(), 'binding': binding,
-                 'reason': reason, 'provenance': human_resolution_identity(args.by), 'issued_at': utc_now().isoformat(), 'consumed_at': None}
+        grant_id = hashlib.sha256(os.urandom(32)).hexdigest()
+        grant = {'version': 2, 'id': grant_id, 'binding': binding,
+                 'reason': reason, 'provenance': human_resolution_identity(args.by),
+                 'issued_at': utc_now().isoformat(), 'consumed_at': None}
+        if supersedes:
+            grant['supersedes'] = supersedes
+            relation = {'supersedes': supersedes, 'authorization_id': grant_id,
+                        'reason': reason, 'provenance': grant['provenance'], 'issued_at': grant['issued_at']}
+            entry.setdefault('retry_authorization_supersessions', []).append(relation)
         entry.setdefault('retry_authorizations', []).append(grant)
     print(f'RETRY_AUTHORIZATION_CREATED {args.task_id} id={grant["id"]}')
 
@@ -1800,7 +1955,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
     if not task:
         die(f'unknown task {args.task_id}')
     with locked_state(args.feature_dir, doc) as state:
-        if args.task_id not in ready_ids(doc, state):
+        if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         target = prepare_task_worktree(args.feature_dir, doc, state, task)
     print(target)
@@ -1813,7 +1968,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     if not task:
         die(f'unknown task {args.task_id}')
     with locked_state(args.feature_dir, doc) as state:
-        if args.task_id not in ready_ids(doc, state):
+        if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         entry = state['tasks'][args.task_id]
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
@@ -2005,6 +2160,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('task_id')
     s.add_argument('--reason', required=True, help='Explicit human decision authorizing one exceptional attempt')
     s.add_argument('--by', help='Operator provenance label; not authenticated by the harness')
+    s.add_argument('--supersedes', help='Exact unusable legacy authorization ID to supersede explicitly')
     s.set_defaults(func=cmd_authorize_retry)
 
     s = sub.add_parser('reopen')

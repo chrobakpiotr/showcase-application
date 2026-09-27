@@ -792,6 +792,19 @@ python3 tooling/agent-harness/harness.py authorize-retry docs/specs/SHOP-001 T-0
 
 The grant is stored and audited in the repository-scoped lifecycle state. The next claim consumes it atomically with the transition to `running`; it authorizes exactly one attempt. If that attempt fails, the task returns to exhausted `failed` state and requires a new explicit authorization bound to the new attempt count. T-001/T-002 history is preserved, no reset is required, and dependent tasks remain blocked until normal completion.
 
+New retry grants use authorization and binding version 2. Their validity binds repository, feature, task, failed status, expected attempt count, lifecycle compatibility version and a canonical SHA-256 semantic task-contract fingerprint. The fingerprint hashes `spec.md`, `plan.md`, `tasks.json`, and present `design.json`, `design/gate.json`, `verification-contract.json` and `wayfinder-handoff.json` inputs, plus the task's `id`, `title`, `objective`, `role`, `agent_profile`, `depends_on`, `allowed_paths`, `acceptance_criteria`, `risk_tags`, `verification`, `test_mode`, `test_seam`, and feature `test_policy`. Harness source, guide contents, Git revision, timestamps and generated packet provenance remain audit-only. Existing version 1 packet-bound grants are preserved as historical records; when their semantic contract cannot be proven, they do not make a task ready and cannot be claimed.
+
+To replace an unusable, unconsumed version 1 grant, an operator must identify it explicitly. The old grant remains unchanged and a separate immutable supersession relation records the decision:
+
+```bash
+python3 tooling/agent-harness/harness.py authorize-retry docs/specs/SHOP-001 T-002 \
+  --reason "Reviewed the current task contract and approved one exceptional attempt" \
+  --by "operator label" \
+  --supersedes <legacy-authorization-id>
+```
+
+An ordinary `authorize-retry` fails when an unresolved legacy grant requires explicit supersession. The version 2 grant supersedes exactly that historical ID and can then be consumed once.
+
 ## Crash recovery and leases
 
 `claim`/`start` create a renewable lease. The outer orchestrator heartbeats automatically while a provider/reviewer is
