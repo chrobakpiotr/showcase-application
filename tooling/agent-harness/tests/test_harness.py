@@ -87,7 +87,7 @@ class HarnessTest(unittest.TestCase):
         return {'version': 1, 'id': grant_id, 'binding': binding, 'reason': 'legacy fixture',
                 'provenance': 'fixture-operator', 'issued_at': '2026-01-01T00:00:00Z', 'consumed_at': None}
 
-    def exhausted_authorized_task(self):
+    def exhausted_authorized_task(self, *, root=None):
         feature = self.feature([
             {'id': 'T-001', 'title': 'Build', 'objective': 'Implement it', 'role': 'builder',
              'depends_on': [], 'allowed_paths': ['modules/domain/**'], 'risk_tags': [],
@@ -96,7 +96,7 @@ class HarnessTest(unittest.TestCase):
             {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Falsify it', 'role': 'evaluator',
              'depends_on': ['T-001'], 'allowed_paths': ['evidence/**'], 'risk_tags': [],
              'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['./gradlew test']},
-        ])
+        ], root=root)
         doc = harness.load_json(feature / 'tasks.json')
         state = harness.initial_state(feature, doc)
         state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
@@ -120,6 +120,247 @@ class HarnessTest(unittest.TestCase):
         self.assertIsNone(grant['consumed_at'])
         self.assertNotIn('active_retry_authorization', entry)
         self.assertEqual(['T-001'], harness.ready_ids(doc, state, feature))
+
+    def historical_partial_claim_fixture(self):
+        """Build the exact failed-attempt-3 -> committed running-attempt-4 incident."""
+        root = pathlib.Path(tempfile.mkdtemp(dir=self.root))
+        import subprocess
+        subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=root, check=True)
+        feature, doc = self.exhausted_authorized_task(root=root)
+        task = harness.task_index(doc)['T-001']
+        harness.write_packet(doc, task, feature)
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        grant = entry['retry_authorizations'][0]
+        grant['issued_at'] = '2026-09-27T09:59:00+00:00'
+        grant['consumed_at'] = '2026-09-27T10:00:00+00:00'
+        grant['consumed_attempt'] = 4
+        entry.update({
+            'status': 'running', 'attempts': 4, 'owner': 'codex-t002',
+            'claimed_at': '2026-09-27T10:00:01+00:00',
+            'active_retry_authorization': grant['id'],
+            'heartbeat_at': '2026-09-27T10:00:01+00:00',
+            'lease_expires_at': '2000-01-01T00:00:00+00:00',
+        })
+        harness.save_state(feature, state)
+        return feature, doc, grant['id']
+
+    def test_recovery_cli_and_partial_claim_are_explicitly_recoverable(self):
+        feature, doc, grant_id = self.historical_partial_claim_fixture()
+        state = harness.load_state(feature, doc)
+        self.assertEqual(('running', 4, 'codex-t002'), (
+            state['tasks']['T-001']['status'], state['tasks']['T-001']['attempts'],
+            state['tasks']['T-001']['owner']))
+        self.assertEqual(grant_id, state['tasks']['T-001']['active_retry_authorization'])
+        self.assertNotIn('claim_recovery', state['tasks']['T-001'])
+        self.assertTrue(harness.lease_expired(state['tasks']['T-001']))
+        self.assertNotIn('claim_recovery', state['tasks']['T-001'])
+        self.assertTrue(hasattr(harness, 'cmd_recover_claim'))
+
+    def test_red_expired_partial_claim_is_auto_failed_by_stale_lease_recovery(self):
+        feature, doc, _ = self.historical_partial_claim_fixture()
+        from contextlib import redirect_stderr
+        from io import StringIO
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.recover_stale_leases(feature, doc)
+        state = harness.load_state(feature, doc)
+        self.assertEqual('running', state['tasks']['T-001']['status'])
+
+    def recovered_claim_fixture(self):
+        feature, doc, grant_id = self.historical_partial_claim_fixture()
+        args = argparse.Namespace(
+            feature_dir=feature, task_id='T-001', attempt=4, authorization=grant_id,
+            owner='codex-t002', reason='claim returned error before execution', by='Piotr',
+            attest_no_execution_started=True,
+        )
+        return feature, doc, grant_id, args
+
+    def test_recover_claim_requires_explicit_attestation(self):
+        feature, doc, grant_id, args = self.recovered_claim_fixture()
+        args.attest_no_execution_started = False
+        from contextlib import redirect_stderr
+        from io import StringIO
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_recover_claim(args)
+        state = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertNotIn('claim_recovery', state)
+        self.assertEqual(grant_id, state['active_retry_authorization'])
+
+    def test_recover_claim_preserves_attempt_grant_packet_and_renews_expired_lease(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature, doc, grant_id, args = self.recovered_claim_fixture()
+        packet_path = feature / 'packets' / 'T-001.json'
+        packet_bytes = packet_path.read_bytes()
+        before = harness.load_state(feature, doc)['tasks']['T-001']
+        original_grants = json.loads(json.dumps(before['retry_authorizations']))
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(args)
+        state = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(('running', 4, 'codex-t002'), (state['status'], state['attempts'], state['owner']))
+        self.assertEqual(grant_id, state['active_retry_authorization'])
+        self.assertEqual(original_grants, state['retry_authorizations'])
+        self.assertEqual(packet_bytes, packet_path.read_bytes())
+        self.assertEqual('no_execution_started', state['claim_recovery']['attestation'])
+        self.assertEqual(4, state['claim_recovery']['attempt'])
+        self.assertGreater(harness.parse_timestamp(state['lease_expires_at']), harness.utc_now())
+        self.assertEqual([], harness.ready_ids(doc, harness.load_state(feature, doc), feature))
+
+    def test_recover_claim_is_idempotent_and_conflicting_assertion_fails(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature, doc, _, args = self.recovered_claim_fixture()
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(args)
+        first = harness.load_state(feature, doc)['tasks']['T-001']['claim_recovery']
+        with redirect_stdout(StringIO()) as output:
+            harness.cmd_recover_claim(args)
+        self.assertIn('ALREADY_RECOVERED', output.getvalue())
+        self.assertEqual(first, harness.load_state(feature, doc)['tasks']['T-001']['claim_recovery'])
+        args.reason = 'a different assertion'
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_recover_claim(args)
+
+    def test_recover_claim_rejects_wrong_bindings_and_authorization_history(self):
+        mutations = {
+            'attempt': lambda a: setattr(a, 'attempt', 5),
+            'owner': lambda a: setattr(a, 'owner', 'other'),
+            'authorization': lambda a: setattr(a, 'authorization', 'wrong-grant'),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                mutate(args)
+                from contextlib import redirect_stderr
+                from io import StringIO
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_recover_claim(args)
+
+        for name, mutate in {
+            'unconsumed': lambda entry, grant: (grant.update(consumed_at=None), grant.pop('consumed_attempt', None)),
+            'wrong boundary': lambda entry, grant: grant['binding'].update(expected_attempts=2),
+            'wrong task': lambda entry, grant: grant['binding'].update(task='T-900'),
+            'ambiguous': lambda entry, grant: entry['retry_authorizations'].append(json.loads(json.dumps(grant))),
+        }.items():
+            with self.subTest(history=name):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                state = harness.load_state(feature, doc)
+                entry = state['tasks']['T-001']
+                mutate(entry, entry['retry_authorizations'][0])
+                harness.save_state(feature, state)
+                from contextlib import redirect_stderr
+                from io import StringIO
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_recover_claim(args)
+
+    def test_recover_claim_rejects_semantic_packet_mismatch_but_accepts_provenance(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature, doc, _, args = self.recovered_claim_fixture()
+        packet = json.loads((feature / 'packets' / 'T-001.json').read_text())
+        packet['objective'] = 'semantic mismatch'
+        body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
+        packet['packet_sha256'] = harness.sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+        packet_path = feature / 'packets' / 'T-001.json'
+        packet_path.write_text(json.dumps(packet))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_recover_claim(args)
+
+        feature, doc, _, args = self.recovered_claim_fixture()
+        packet_path = feature / 'packets' / 'T-001.json'
+        packet = json.loads(packet_path.read_text())
+        packet['protocol_fingerprint'] = '0' * 64
+        body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
+        packet['packet_sha256'] = harness.sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+        packet_path.write_text(json.dumps(packet))
+        original = packet_path.read_bytes()
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(args)
+        self.assertEqual(original, packet_path.read_bytes())
+
+    def test_recover_claim_rejects_execution_checkpoint_completion_and_legacy_unidentified_states(self):
+        cases = {
+            'checkpoint': lambda e: e.update(checkpoint_commit='a' * 40),
+            'execution': lambda e: e.update(execution_started_at='2026-09-27T10:01:00Z'),
+            'completion': lambda e: e.update(released_at='2026-09-27T10:01:00Z'),
+            'malformed active authorization': lambda e: e.update(active_retry_authorization='other'),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(evidence=name):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                state = harness.load_state(feature, doc)
+                mutate(state['tasks']['T-001'])
+                harness.save_state(feature, state)
+                from contextlib import redirect_stderr
+                from io import StringIO
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_recover_claim(args)
+
+    def test_recover_claim_rejects_runner_journal_and_wrong_feature_repository(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature, doc, _, args = self.recovered_claim_fixture()
+        run = feature.parents[2] / '.agent-runs' / doc['feature'] / 'task-attempt' / 'orchestration' / 'provenance.json'
+        run.parent.mkdir(parents=True)
+        evidence_file = run
+        evidence_file.write_text(json.dumps({'task': 'T-001', 'status': 'running'}))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_recover_claim(args)
+
+        repository = self.root / 'another-repo'
+        repository.mkdir()
+        import subprocess
+        subprocess.run(['git', 'init', '-q'], cwd=repository, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=repository, check=True)
+        feature, doc = self.exhausted_authorized_task_at(repository)
+        task = harness.task_index(doc)['T-001']
+        harness.write_packet(doc, task, feature)
+        state = harness.load_state(feature, doc)
+        grant = state['tasks']['T-001']['retry_authorizations'][0]
+        grant['issued_at'] = '2026-09-27T09:59:00+00:00'
+        grant['consumed_at'] = '2026-09-27T10:00:00+00:00'
+        grant['consumed_attempt'] = 4
+        state['tasks']['T-001'].update({
+            'status': 'running', 'attempts': 4, 'owner': 'codex-t002',
+            'active_retry_authorization': grant['id'], 'worktree': None,
+        })
+        harness.save_state(feature, state)
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', attempt=4,
+                                  authorization=grant['id'], owner='codex-t002', reason='r', by='op',
+                                  attest_no_execution_started=True)
+        other = self.root / 'other'
+        other.mkdir()
+        original_git_common = harness.git_common_dir
+        try:
+            harness.git_common_dir = lambda _feature: other
+            with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                harness.cmd_recover_claim(args)
+        finally:
+            harness.git_common_dir = original_git_common
+
+    def test_normal_atomic_claim_does_not_require_recovery(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature, doc = self.exhausted_authorized_task()
+        with redirect_stdout(StringIO()):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        entry = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(('running', 4), (entry['status'], entry['attempts']))
+        self.assertNotIn('claim_recovery', entry)
+
+    def test_recovered_attempt_stays_running_and_blocks_dependent_ready_task(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature, doc, _, args = self.recovered_claim_fixture()
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(args)
+        state = harness.load_state(feature, doc)
+        self.assertEqual('running', state['tasks']['T-001']['status'])
+        self.assertEqual(4, state['tasks']['T-001']['attempts'])
+        self.assertNotIn('T-900', harness.ready_ids(doc, state, feature))
 
     def test_claim_accepts_provenance_only_packet_change_without_rewriting_packet(self):
         from contextlib import redirect_stderr, redirect_stdout
@@ -1421,6 +1662,7 @@ class HarnessTest(unittest.TestCase):
             'lease_expires_at': '2000-01-01T00:00:00+00:00',
             'heartbeat_at': '2000-01-01T00:00:00+00:00',
         })
+        state['tasks']['T-900']['status'] = 'pending'
         harness.save_state(feature, state)
         recovered = harness.recover_stale_leases(feature, doc)
         self.assertEqual(['T-001'], recovered)
