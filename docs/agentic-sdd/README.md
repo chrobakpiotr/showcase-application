@@ -734,6 +734,12 @@ python3 tooling/agent-harness/harness.py status docs/specs/SHOP-001
 Manual completion evidence must be JSON conforming to `tooling/agent-harness/schemas/task-result.schema.json`. Start from
 `docs/agentic-sdd/templates/task-result.json`.
 
+A claim validates or atomically publishes its immutable task packet before committing authorization consumption,
+attempt increment, owner and lease. If claim returns `ERROR` before that lifecycle commit, the task remains in its
+previous state. Existing packets are compared by their canonical semantic task contract; changes to protocol or
+generation provenance do not rewrite or invalidate an otherwise equivalent historical packet. A newly published
+packet may remain as harmless planning evidence if the later lifecycle-state commit fails.
+
 ## Orchestration policy
 
 Use the smallest team that matches the DAG. A typical backend feature should need one planning/architecture phase, two to four

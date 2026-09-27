@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import datetime as dt
 import hashlib
 import json
@@ -893,6 +894,7 @@ def packet_payload(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathl
         'protocol_version': 4,
         'feature': doc.get('feature', feature_dir.name),
         'feature_fingerprint': feature_fingerprint(feature_dir),
+        'semantic_contract_sha256': semantic_task_contract_sha256(feature_dir, doc, task),
         'protocol_fingerprint': protocol_fingerprint(feature_dir),
         'task': task['id'],
         'title': task['title'],
@@ -941,15 +943,82 @@ def packet_payload(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathl
 
 
 def write_packet(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathlib.Path) -> pathlib.Path:
-    payload = packet_payload(doc, task, feature_dir)
+    try:
+        payload = packet_payload(doc, task, feature_dir)
+        encoded = json.dumps(payload, indent=2, sort_keys=True) + '\n'
+    except Exception as exc:
+        die(f'cannot serialize task packet for {task.get("id", "unknown")}: {exc}')
     out_dir = feature_dir / 'packets'
-    out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / f'{task["id"]}.json'
-    encoded = json.dumps(payload, indent=2, sort_keys=True) + '\n'
-    if out.exists() and out.read_text(encoding='utf-8') != encoded:
-        die(f'immutable task packet already exists with different content: {out}; remove it deliberately after re-planning')
-    out.write_text(encoded, encoding='utf-8')
+    if out.exists():
+        try:
+            existing = json.loads(out.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'immutable task packet cannot be validated: {out}: {exc}')
+        if not isinstance(existing, dict) or not packet_matches_semantic_contract(existing, doc, task, feature_dir):
+            die(f'immutable task packet has a different semantic contract: {out}; re-plan the task before replacing it')
+        # Preserve the original bytes as historical packet/provenance evidence.
+        return out
+
+    try:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix=f'.{out.name}.', dir=out_dir)
+    except OSError as exc:
+        die(f'cannot prepare immutable task packet {out}: {exc}')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Hard-link publication is atomic and refuses to overwrite a concurrent winner.
+        # A packet orphaned by a later state-save failure is harmless immutable planning
+        # evidence and is reusable on the next claim.
+        try:
+            os.link(temporary, out)
+        except FileExistsError:
+            existing = json.loads(out.read_text(encoding='utf-8'))
+            if not isinstance(existing, dict) or not packet_matches_semantic_contract(existing, doc, task, feature_dir):
+                die(f'immutable task packet has a different semantic contract: {out}; re-plan the task before replacing it')
+        dir_fd = os.open(out_dir, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError as exc:
+        die(f'cannot atomically publish task packet {out}: {exc}')
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
     return out
+
+
+def packet_matches_semantic_contract(packet: dict[str, Any], doc: dict[str, Any],
+                                     task: dict[str, Any], feature_dir: pathlib.Path) -> bool:
+    """Validate packet integrity and execution identity, ignoring generation provenance."""
+    stored_hash = packet.get('packet_sha256')
+    body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
+    if (not isinstance(stored_hash, str) or
+            stored_hash != sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())):
+        return False
+    packet_task = {field: packet[field] for field in TASK_CONTRACT_FIELDS
+                   if field in task and field in packet}
+    if 'id' in task and 'id' not in packet_task and isinstance(packet.get('task'), str):
+        packet_task['id'] = packet['task']
+    # Older immutable packets predate semantic_contract_sha256. Their task projection is
+    # sufficient when bound to the unchanged feature contract fingerprint.
+    semantic = semantic_task_contract(
+        feature_dir, doc, packet_task,
+        feature_sha256=packet.get('feature_fingerprint'),
+        test_policy=packet.get('test_policy', 'legacy'))
+    packet_contract_hash = sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode())
+    current_contract_hash = semantic_task_contract_sha256(feature_dir, doc, task)
+    if packet.get('semantic_contract_sha256') not in (None, packet_contract_hash):
+        return False
+    current = packet_payload(doc, task, feature_dir)
+    provenance_only = {'packet_sha256', 'protocol_fingerprint', 'semantic_contract_sha256'}
+    existing_contract = {key: value for key, value in packet.items() if key not in provenance_only}
+    current_contract = {key: value for key, value in current.items() if key not in provenance_only}
+    return packet_contract_hash == current_contract_hash and existing_contract == current_contract
 
 
 def validate_evidence(path: pathlib.Path, *, require_pass: bool = False) -> list[str]:
@@ -1081,8 +1150,12 @@ def cmd_claim(args: argparse.Namespace) -> None:
                 die(f'RETRY_AUTHORIZATION_REQUIRED: {args.task_id} has no valid retry authorization ({classification})')
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
-        entry = state['tasks'][args.task_id]
-        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
+        # Packet validation/publication is a precondition, not part of the claim commit.
+        # If it fails, locked_state's exception-saving behavior persists an unchanged state.
+        write_packet(doc, task_index(doc)[args.task_id], args.feature_dir)
+        staged_state = copy.deepcopy(state)
+        entry = staged_state['tasks'][args.task_id]
+        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
         now = utc_now()
         entry.update({
             'status': 'running',
@@ -1091,8 +1164,16 @@ def cmd_claim(args: argparse.Namespace) -> None:
             'claimed_at': now.isoformat(),
         })
         refresh_lease(entry, doc, now=now)
-        write_packet(doc, task_index(doc)[args.task_id], args.feature_dir)
-    print(f'CLAIMED {args.task_id} by {args.owner}')
+        # This single in-memory publication is the final operation in the body. The durable
+        # claim commit is locked_state's atomic state-file replacement; all preparation ran
+        # against a detached copy, so exceptions before publication preserve the old state.
+        state['tasks'][args.task_id] = entry
+    try:
+        print(f'CLAIMED {args.task_id} by {args.owner}')
+    except OSError:
+        # Lifecycle commit already succeeded. Do not turn an output-channel failure into
+        # a non-zero claim result that falsely suggests the task was left unclaimed.
+        return
 
 
 def owner_guard(entry: dict[str, Any], owner: str) -> None:
@@ -1135,18 +1216,7 @@ def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict
 
 
 def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any]:
-    task = task_index(doc)[task_id]
-    contract_fields = (
-        'id', 'title', 'objective', 'role', 'agent_profile', 'depends_on',
-        'allowed_paths', 'acceptance_criteria', 'risk_tags', 'verification',
-        'test_mode', 'test_seam',
-    )
-    semantic = {
-        'feature': doc.get('feature', feature_dir.name),
-        'feature_contract_sha256': feature_fingerprint(feature_dir),
-        'task_contract': {key: task[key] for key in contract_fields if key in task},
-        'test_policy': doc.get('test_policy', 'legacy'),
-    }
+    semantic = semantic_task_contract(feature_dir, doc, task_index(doc)[task_id])
     return {
         'binding_version': 2,
         'repository': str(git_common_dir(feature_dir)),
@@ -1157,6 +1227,33 @@ def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, 
         'contract_sha256': sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode()),
         'protocol_version': protocol_version(feature_dir),
     }
+
+
+TASK_CONTRACT_FIELDS = (
+    'id', 'title', 'objective', 'role', 'agent_profile', 'depends_on',
+    'allowed_paths', 'acceptance_criteria', 'risk_tags', 'verification',
+    'test_mode', 'test_seam',
+)
+
+
+def semantic_task_contract(feature_dir: pathlib.Path, doc: dict[str, Any], task: dict[str, Any], *,
+                           feature_sha256: str | None = None,
+                           test_policy: str | None = None) -> dict[str, Any]:
+    """Canonical execution contract shared by retry authorization and packet identity."""
+    return {
+        'feature': doc.get('feature', feature_dir.name),
+        'feature_contract_sha256': feature_sha256 or feature_fingerprint(feature_dir),
+        'task_contract': {key: task[key] for key in TASK_CONTRACT_FIELDS if key in task},
+        'test_policy': test_policy if test_policy is not None else doc.get('test_policy', 'legacy'),
+    }
+
+
+def semantic_task_contract_sha256(feature_dir: pathlib.Path, doc: dict[str, Any], task: dict[str, Any], *,
+                                 feature_sha256: str | None = None,
+                                 test_policy: str | None = None) -> str:
+    semantic = semantic_task_contract(feature_dir, doc, task, feature_sha256=feature_sha256,
+                                      test_policy=test_policy)
+    return sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode())
 
 
 def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task_id: str, attempts: int) -> tuple[str, dict[str, Any] | None]:

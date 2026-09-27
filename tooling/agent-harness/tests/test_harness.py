@@ -6,6 +6,7 @@ import pathlib
 import tempfile
 import threading
 import unittest
+from unittest import mock
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / 'harness.py'
 spec = importlib.util.spec_from_file_location('sdd_harness', MODULE_PATH)
@@ -85,6 +86,249 @@ class HarnessTest(unittest.TestCase):
         }
         return {'version': 1, 'id': grant_id, 'binding': binding, 'reason': 'legacy fixture',
                 'provenance': 'fixture-operator', 'issued_at': '2026-01-01T00:00:00Z', 'consumed_at': None}
+
+    def exhausted_authorized_task(self):
+        feature = self.feature([
+            {'id': 'T-001', 'title': 'Build', 'objective': 'Implement it', 'role': 'builder',
+             'depends_on': [], 'allowed_paths': ['modules/domain/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['./gradlew test'],
+             'test_mode': 'red-green-refactor', 'test_seam': 'fixture seam'},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Falsify it', 'role': 'evaluator',
+             'depends_on': ['T-001'], 'allowed_paths': ['evidence/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['./gradlew test']},
+        ])
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        from contextlib import redirect_stdout
+        from io import StringIO
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', reason='fixture exceptional retry', by='fixture-operator'))
+        return feature, doc
+
+    def assert_precommit_claim_state(self, feature, doc, grant_id):
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        self.assertEqual('failed', entry['status'])
+        self.assertEqual(3, entry['attempts'])
+        self.assertNotIn('owner', entry)
+        self.assertNotIn('lease_expires_at', entry)
+        self.assertNotIn('heartbeat_at', entry)
+        grant = next(item for item in entry['retry_authorizations'] if item['id'] == grant_id)
+        self.assertIsNone(grant['consumed_at'])
+        self.assertNotIn('active_retry_authorization', entry)
+        self.assertEqual(['T-001'], harness.ready_ids(doc, state, feature))
+
+    def test_claim_accepts_provenance_only_packet_change_without_rewriting_packet(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        feature, doc = self.exhausted_authorized_task()
+        task = harness.task_index(doc)['T-001']
+        packet_path = harness.write_packet(doc, task, feature)
+        legacy_packet = json.loads(packet_path.read_text())
+        packet_contract_hash = legacy_packet['semantic_contract_sha256']
+        legacy_packet.pop('semantic_contract_sha256')
+        legacy_body = {key: value for key, value in legacy_packet.items() if key != 'packet_sha256'}
+        legacy_packet['packet_sha256'] = harness.sha256_bytes(
+            json.dumps(legacy_body, sort_keys=True, separators=(',', ':')).encode())
+        packet_path.write_text(json.dumps(legacy_packet, indent=2, sort_keys=True) + '\n')
+        original_bytes = packet_path.read_bytes()
+        packet = json.loads(original_bytes)
+        before = harness.load_state(feature, doc)
+        grant = before['tasks']['T-001']['retry_authorizations'][0]
+        grant_id = grant['id']
+        self.assertEqual(grant['binding']['contract_sha256'], packet_contract_hash)
+        original_protocol_fingerprint = harness.protocol_fingerprint
+        try:
+            harness.protocol_fingerprint = lambda _feature: 'f' * 64
+            with redirect_stdout(StringIO()):
+                harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        finally:
+            harness.protocol_fingerprint = original_protocol_fingerprint
+        self.assertEqual(original_bytes, packet_path.read_bytes())
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        self.assertEqual(('running', 4, 'worker'), (entry['status'], entry['attempts'], entry['owner']))
+        grant = next(item for item in entry['retry_authorizations'] if item['id'] == grant_id)
+        self.assertEqual(4, grant['consumed_attempt'])
+        self.assertIsNotNone(grant['consumed_at'])
+        self.assertEqual(packet['protocol_fingerprint'], json.loads(packet_path.read_text())['protocol_fingerprint'])
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='duplicate'))
+        reloaded = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(('running', 4, 'worker'), (reloaded['status'], reloaded['attempts'], reloaded['owner']))
+
+    def test_claim_semantic_packet_mismatch_fails_before_authorization_commit(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature, doc = self.exhausted_authorized_task()
+        task = harness.task_index(doc)['T-001']
+        packet_path = harness.write_packet(doc, task, feature)
+        existing = json.loads(packet_path.read_text())
+        existing['objective'] = 'A different immutable objective'
+        without_hash = {key: value for key, value in existing.items() if key != 'packet_sha256'}
+        existing['packet_sha256'] = harness.sha256_bytes(json.dumps(without_hash, sort_keys=True, separators=(',', ':')).encode())
+        packet_path.write_text(json.dumps(existing, indent=2, sort_keys=True) + '\n')
+        grant_id = harness.load_state(feature, doc)['tasks']['T-001']['retry_authorizations'][0]['id']
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        self.assert_precommit_claim_state(feature, doc, grant_id)
+
+    def test_claim_rejects_each_changed_execution_contract_field_before_commit(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        changes = {
+            'objective': 'different objective',
+            'acceptance_criteria': ['AC-002'],
+            'verification': ['./gradlew other-test'],
+            'allowed_paths': ['different/**'],
+            'depends_on': ['T-900'],
+            'test_seam': 'different seam',
+        }
+        for field, value in changes.items():
+            with self.subTest(field=field):
+                repo = self.root / field
+                repo.mkdir()
+                import subprocess
+                subprocess.run(['git', 'init', '-q'], cwd=repo, check=True)
+                subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                                'commit', '--allow-empty', '-q', '-m', 'base'], cwd=repo, check=True)
+                feature, doc = self.exhausted_authorized_task_at(repo)
+                task = harness.task_index(doc)['T-001']
+                path = harness.write_packet(doc, task, feature)
+                packet = json.loads(path.read_text())
+                packet[field] = value
+                body = {key: item for key, item in packet.items() if key != 'packet_sha256'}
+                packet['packet_sha256'] = harness.sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+                path.write_text(json.dumps(packet, indent=2, sort_keys=True) + '\n')
+                grant_id = harness.load_state(feature, doc)['tasks']['T-001']['retry_authorizations'][0]['id']
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+                self.assert_precommit_claim_state(feature, doc, grant_id)
+
+    def test_claim_packet_precommit_failure_injection_preserves_retry_state(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature, doc = self.exhausted_authorized_task()
+        grant_id = harness.load_state(feature, doc)['tasks']['T-001']['retry_authorizations'][0]['id']
+        original = harness.packet_payload
+        try:
+            harness.packet_payload = lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError('serialize failure'))
+            with self.assertRaises(SystemExit):
+                harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+            harness.packet_payload = original
+            class FailingPacketWriter:
+                def __init__(self, fd): self.fd = fd
+                def __enter__(self): return self
+                def __exit__(self, *_args): os.close(self.fd)
+                def write(self, _value): raise OSError('packet write failure')
+                def flush(self): pass
+                def fileno(self): return self.fd
+            original_fdopen = harness.os.fdopen
+            fdopen_calls = []
+            def fail_first_fdopen(fd, *args, **kwargs):
+                fdopen_calls.append(fd)
+                if len(fdopen_calls) == 1:
+                    return FailingPacketWriter(fd)
+                return original_fdopen(fd, *args, **kwargs)
+            with mock.patch.object(harness.os, 'fdopen', side_effect=fail_first_fdopen):
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+            original_mkstemp = harness.tempfile.mkstemp
+            mkstemp_calls = []
+            def fail_first_packet_create(*args, **kwargs):
+                mkstemp_calls.append(True)
+                if len(mkstemp_calls) == 1:
+                    raise OSError('packet file creation failure')
+                return original_mkstemp(*args, **kwargs)
+            with mock.patch.object(harness.tempfile, 'mkstemp', side_effect=fail_first_packet_create):
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+            original_fsync = harness.os.fsync
+            fsync_calls = []
+            def fail_packet_fsync_once(fd):
+                fsync_calls.append(fd)
+                if len(fsync_calls) == 1:
+                    raise OSError('file fsync failure')
+                return original_fsync(fd)
+            with mock.patch.object(harness.os, 'fsync', side_effect=fail_packet_fsync_once):
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+            packet_dir_fsync_calls = []
+            def fail_directory_fsync_once(fd):
+                packet_dir_fsync_calls.append(fd)
+                if len(packet_dir_fsync_calls) == 2:
+                    raise OSError('directory fsync failure')
+                return original_fsync(fd)
+            with mock.patch.object(harness.os, 'fsync', side_effect=fail_directory_fsync_once):
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+            packet_path = feature / 'packets' / 'T-001.json'
+            packet_path.unlink()
+            original_link = harness.os.link
+            def fail_packet_link(source, destination):
+                if pathlib.Path(destination) == packet_path:
+                    raise OSError('atomic publication failure')
+                return original_link(source, destination)
+            with mock.patch.object(harness.os, 'link', side_effect=fail_packet_link):
+                with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+            self.assert_precommit_claim_state(feature, doc, grant_id)
+        finally:
+            harness.packet_payload = original
+
+    def exhausted_authorized_task_at(self, repo):
+        feature = self.feature([
+            {'id': 'T-001', 'title': 'Build', 'objective': 'Implement it', 'role': 'builder',
+             'depends_on': [], 'allowed_paths': ['modules/domain/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['./gradlew test'],
+             'test_mode': 'red-green-refactor', 'test_seam': 'fixture seam'},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Falsify it', 'role': 'evaluator',
+             'depends_on': ['T-001'], 'allowed_paths': ['evidence/**'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['./gradlew test']},
+        ], root=repo)
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        from contextlib import redirect_stdout
+        from io import StringIO
+        with redirect_stdout(StringIO()):
+            harness.cmd_authorize_retry(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', reason='fixture exceptional retry', by='fixture-operator'))
+        return feature, doc
+
+    def test_claim_exception_immediately_before_publication_preserves_state(self):
+        feature, doc = self.exhausted_authorized_task()
+        grant_id = harness.load_state(feature, doc)['tasks']['T-001']['retry_authorizations'][0]['id']
+        with mock.patch.object(harness, 'refresh_lease', side_effect=RuntimeError('precommit injection')):
+            with self.assertRaises(RuntimeError):
+                harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        self.assert_precommit_claim_state(feature, doc, grant_id)
+
+    def test_claim_state_commit_failure_is_read_back_as_unclaimed_after_restart(self):
+        feature, doc = self.exhausted_authorized_task()
+        grant_id = harness.load_state(feature, doc)['tasks']['T-001']['retry_authorizations'][0]['id']
+        with mock.patch.object(harness, 'save_state', side_effect=OSError('state commit failure')):
+            with self.assertRaises(OSError):
+                harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        # A fresh load resolves persisted state rather than the detached in-memory claim copy.
+        self.assert_precommit_claim_state(feature, doc, grant_id)
+        self.assertTrue((feature / 'packets' / 'T-001.json').exists())
+
+    def test_claim_output_failure_after_commit_keeps_success_exit_contract(self):
+        feature, doc = self.exhausted_authorized_task()
+        with mock.patch('builtins.print', side_effect=OSError('closed output')):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker'))
+        entry = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual(('running', 4, 'worker'), (entry['status'], entry['attempts'], entry['owner']))
 
     def test_exhausted_retry_authorization_is_one_shot_atomic_and_preserves_dag_history(self):
         from contextlib import redirect_stderr, redirect_stdout
