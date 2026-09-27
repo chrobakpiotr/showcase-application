@@ -512,19 +512,38 @@ def validate(feature_dir: pathlib.Path) -> list[str]:
 
 
 def state_key(feature_dir: pathlib.Path) -> str:
-    return sha256_bytes(str(feature_dir.resolve()).encode())[:20]
+    return sha256_bytes(f'{git_common_dir(feature_dir)}\0{feature_dir.name}'.encode())[:20]
 
 
-def runtime_state_dir() -> pathlib.Path:
-    return STATE_DIR if STATE_DIR.is_absolute() else repo_root() / STATE_DIR
+def git_common_dir(feature_dir: pathlib.Path) -> pathlib.Path:
+    """Return Git's canonical common directory for this checkout/worktree."""
+    result = subprocess.run(
+        ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+        cwd=feature_repo_base(feature_dir), capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        die('cannot resolve the common Git directory for lifecycle state')
+    common = pathlib.Path(result.stdout.strip()).resolve()
+    if not common.is_dir():
+        die(f'Git common directory does not exist: {common}')
+    return common
+
+
+def runtime_state_dir(feature_dir: pathlib.Path) -> pathlib.Path:
+    if STATE_DIR.is_absolute():
+        return STATE_DIR
+    # Store lifecycle state next to the common Git directory so all linked worktrees
+    # resolve the same location while preserving <main-checkout>/.agent-state.
+    common = git_common_dir(feature_dir)
+    return common.parent / STATE_DIR
 
 
 def state_path(feature_dir: pathlib.Path) -> pathlib.Path:
-    return runtime_state_dir() / f'{feature_dir.name}-{state_key(feature_dir)}.json'
+    return runtime_state_dir(feature_dir) / f'{feature_dir.name}-{state_key(feature_dir)}.json'
 
 
 def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
-    return runtime_state_dir() / f'{feature_dir.name}-{state_key(feature_dir)}.lock'
+    return runtime_state_dir(feature_dir) / f'{feature_dir.name}-{state_key(feature_dir)}.lock'
 
 
 def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
@@ -542,10 +561,37 @@ def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, A
 
 
 def load_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _load_state_unlocked(feature_dir, doc)
+        if not state_path(feature_dir).exists():
+            save_state(feature_dir, state)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    return state
+
+
+def _load_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
     path = state_path(feature_dir)
     if not path.exists():
-        return initial_state(feature_dir, doc)
+        main_legacy = main_legacy_state_path(feature_dir)
+        if not main_legacy.exists():
+            worktree_legacy = legacy_worktree_state_candidates(feature_dir)
+            if any(candidate.exists() for candidate in worktree_legacy):
+                die('legacy task-worktree lifecycle state has no canonical main-checkout state; refusing stale-state adoption')
+            state = initial_state(feature_dir, doc)
+            return state
+        state = load_json(main_legacy)
+        validate_loaded_state(feature_dir, doc, state)
+        return state
     state = load_json(path)
+    validate_loaded_state(feature_dir, doc, state)
+    return state
+
+
+def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
     expected = feature_fingerprint(feature_dir)
     if state.get('fingerprint') != expected:
         die(
@@ -562,11 +608,32 @@ def load_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]
     actual_ids = set(state.get('tasks', {}))
     if expected_ids != actual_ids:
         die('runtime state task set differs from tasks.json; reset the feature state')
-    return state
+
+
+def legacy_state_name(feature_dir: pathlib.Path) -> str:
+    name = f'{feature_dir.name}-{sha256_bytes(str(feature_dir.resolve()).encode())[:20]}.json'
+    return name
+
+
+def main_legacy_state_path(feature_dir: pathlib.Path) -> pathlib.Path:
+    """Old main-checkout file; the only legacy snapshot safe to adopt automatically."""
+    root = feature_repo_base(feature_dir)
+    return root / '.agent-state' / legacy_state_name(feature_dir)
+
+
+def legacy_worktree_state_candidates(feature_dir: pathlib.Path) -> list[pathlib.Path]:
+    root = feature_repo_base(feature_dir)
+    name = legacy_state_name(feature_dir)
+    candidates = [
+        path / '.agent-state' / name
+        for path in sorted(root.parent.glob(f'{root.name}{WORKTREE_ROOT_SUFFIX}/**'))
+        if path.is_dir() and (path / '.git').exists()
+    ]
+    return list(dict.fromkeys(candidate.resolve() for candidate in candidates))
 
 
 def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
-    state_dir = runtime_state_dir()
+    state_dir = runtime_state_dir(feature_dir)
     state_dir.mkdir(parents=True, exist_ok=True)
     path = state_path(feature_dir)
     fd, tmp_name = tempfile.mkstemp(prefix=path.name + '.', dir=state_dir)
@@ -582,13 +649,23 @@ def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
             os.unlink(tmp_name)
 
 
-@contextlib.contextmanager
-def locked_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> Iterator[dict[str, Any]]:
-    runtime_state_dir().mkdir(parents=True, exist_ok=True)
+def remove_state_locked(feature_dir: pathlib.Path) -> None:
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
     with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        state = load_state(feature_dir, doc)
+        state_path(feature_dir).unlink(missing_ok=True)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+@contextlib.contextmanager
+def locked_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _load_state_unlocked(feature_dir, doc)
         try:
             yield state
         finally:
@@ -869,8 +946,8 @@ def cmd_validate_all(args: argparse.Namespace) -> None:
 
 def cmd_ready(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
-    state = load_state(args.feature_dir, doc)
-    ids = ready_ids(doc, state)
+    with locked_state(args.feature_dir, doc) as state:
+        ids = ready_ids(doc, state)
     if args.json:
         print(json.dumps(ids))
     else:
@@ -1303,7 +1380,8 @@ def cmd_reopen(args: argparse.Namespace) -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
-    state = load_state(args.feature_dir, doc)
+    with locked_state(args.feature_dir, doc) as state:
+        state = json.loads(json.dumps(state))
     idx = task_index(doc)
     if args.json:
         print(json.dumps(state, indent=2, sort_keys=True))
@@ -1335,12 +1413,7 @@ def cmd_reset(args: argparse.Namespace) -> None:
                 prune_task_workspace(feature, task['id'])
     if args.full or args.remove_packets:
         shutil.rmtree(args.feature_dir / 'packets', ignore_errors=True)
-    path = state_path(args.feature_dir)
-    lock = lock_path(args.feature_dir)
-    if path.exists():
-        path.unlink()
-    if lock.exists():
-        lock.unlink()
+    remove_state_locked(args.feature_dir)
     suffix = ' + worktrees/packets' if args.full else ''
     print(f'RESET runtime state{suffix} for {args.feature_dir}')
 
