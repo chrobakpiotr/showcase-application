@@ -68,6 +68,96 @@ class HarnessTest(unittest.TestCase):
         (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
         return feature
 
+    def test_protocol_fingerprint_is_audit_only_and_state_schema_controls_compatibility(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        before = state['protocol_fingerprint']
+        guide = self.root / 'docs' / 'agentic-sdd' / 'README.md'
+        guide.parent.mkdir(parents=True, exist_ok=True)
+        guide.write_text('documentation-only change\n')
+        self.assertNotEqual(before, harness.protocol_fingerprint(feature))
+        state['protocol_fingerprint'] = before
+        harness.validate_loaded_state(feature, doc, state)
+        (self.root / 'tooling' / 'agent-harness').mkdir(parents=True, exist_ok=True)
+        impl = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        impl.write_text('implementation refactor with same state contract\n')
+        harness.validate_loaded_state(feature, doc, state)
+        state['protocol_version'] = 999
+        with self.assertRaises(SystemExit):
+            harness.validate_loaded_state(feature, doc, state)
+
+    def test_explicit_migrate_state_preserves_legacy_history_and_is_idempotent(self):
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['a.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-B', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': ['T-A'],
+             'allowed_paths': ['b.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'E', 'objective': 'E', 'role': 'evaluator', 'depends_on': ['T-A', 'T-B'],
+             'allowed_paths': ['evidence/**'], 'risk_tags': [], 'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+        ])
+        doc = harness.load_json(feature / 'tasks.json')
+        old = harness.initial_state(feature, doc)
+        old.pop('protocol_version')
+        old['protocol_fingerprint'] = 'older-protocol-audit-fingerprint'
+        old['tasks']['T-A'].update({
+            'status': 'completed', 'attempts': 1, 'checkpoint_commit': 'a' * 40,
+            'attempt_history': [{'attempt': 1, 'result': 'pass'}],
+        })
+        old['tasks']['T-B']['attempts'] = 2
+        harness.save_state(feature, old)
+        with self.assertRaises(SystemExit):
+            harness.validate_loaded_state(feature, doc, old)
+        harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+        migrated = harness.load_state(feature, doc)
+        self.assertEqual('completed', migrated['tasks']['T-A']['status'])
+        self.assertEqual('a' * 40, migrated['tasks']['T-A']['checkpoint_commit'])
+        self.assertEqual([{'attempt': 1, 'result': 'pass'}], migrated['tasks']['T-A']['attempt_history'])
+        self.assertEqual('pending', migrated['tasks']['T-B']['status'])
+        self.assertEqual(2, migrated['tasks']['T-B']['attempts'])
+        self.assertEqual(['T-B'], harness.ready_ids(doc, migrated))
+        harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+
+    def test_migration_fails_closed_for_dag_change_corruption_and_unknown_version(self):
+        import subprocess
+        feature = self.feature()
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'fixture'], cwd=self.root, check=True)
+        doc = harness.load_json(feature / 'tasks.json')
+        old = harness.initial_state(feature, doc)
+        old.pop('protocol_version')
+        harness.save_state(feature, old)
+        tasks_file = feature / 'tasks.json'
+        original = tasks_file.read_text()
+        changed = json.loads(original)
+        changed['tasks'][0]['title'] = 'Changed DAG input'
+        tasks_file.write_text(json.dumps(changed))
+        with self.assertRaises(SystemExit):
+            harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+        tasks_file.write_text(original)
+        state_path = harness.state_path(feature)
+        state_path.write_text('{broken')
+        with self.assertRaises(SystemExit):
+            harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+        state_path.write_text(json.dumps(old))
+        old['protocol_version'] = 777
+        state_path.write_text(json.dumps(old))
+        with self.assertRaises(SystemExit):
+            harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+
+    def test_migration_never_infers_completion_from_git_ancestry(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        old = harness.initial_state(feature, doc)
+        old.pop('protocol_version')
+        old['tasks']['T-001']['status'] = 'pending'
+        old['tasks']['T-001']['checkpoint_commit'] = 'f' * 40
+        harness.save_state(feature, old)
+        harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
+        migrated = harness.load_state(feature, doc)
+        self.assertEqual('pending', migrated['tasks']['T-001']['status'])
+
     def test_valid_feature(self):
         self.assertEqual([], harness.validate(self.feature()))
 

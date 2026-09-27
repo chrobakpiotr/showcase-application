@@ -1,0 +1,61 @@
+{
+  "assumptions": [
+    "The constitution and accepted SDD-001 remain authoritative.",
+    "Resolution summaries were independently checked against normative specification text; plan prose did not substitute for requirements.",
+    "Counterexamples were assessed at specification level, without asserting implementation behavior.",
+    "No files were modified, tests executed, tasks created or external systems mutated."
+  ],
+  "blocking_questions": [],
+  "changed_paths": [],
+  "commands": [
+    "cat /private/tmp/sdd-obs-001-spec-grill-r4.prompt.md",
+    "cat docs/agentic-sdd/constitution.md",
+    "cat docs/agentic-sdd/agents/grill-reviewer.md",
+    "cat docs/specs/SDD-001/spec.md",
+    "cat docs/specs/SDD-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/spec.md",
+    "cat docs/specs/SDD-OBS-001/plan.md",
+    "cat docs/specs/SDD-OBS-001/design.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round1.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round1-resolution.md",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round2.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round2-resolution.md",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round3.json",
+    "cat docs/specs/SDD-OBS-001/design/spec-grill-round3-resolution.md",
+    "cat tooling/agent-harness/schemas/design-result.schema.json",
+    "sed -n '110,360p' docs/specs/SDD-OBS-001/spec.md",
+    "sed -n '360,535p' docs/specs/SDD-OBS-001/spec.md",
+    "sed -n '145,260p' docs/specs/SDD-001/spec.md",
+    "sed -n '35,120p' docs/specs/SDD-OBS-001/design/spec-grill-round1.json",
+    "sed -n '1,105p' docs/specs/SDD-OBS-001/spec.md"
+  ],
+  "findings": [
+    "R3-01 resolved: raw stdout/stderr is diagnostic only, never content-hashed into structured GREEN evidence and unnecessary for reuse. PASS with deleted or unretained logs remains reusable when terminal evidence is complete. Terminal PASS without an index is recovered by index reconstruction.",
+    "R3-02 resolved: matched symlinks, literal descendants through symlink ancestors and glob traversal through symlink directories make the gate non-cacheable. Non-following component inspection prevents an empty reusable manifest from silently replacing a symlink-affected subtree. Escaping paths cannot authorize reuse.",
+    "R3-03 resolved: task commands have ordinal occurrence identities; exact command-plus-cwd mapping is zero-or-one; duplicate profile mappings are invalid-policy. Identical task occurrences remain distinct and fresh. Sequence edges and mixed-node priorities define ordering; quoting and whitespace are not normalized.",
+    "R3-04 resolved: redaction is presentation-only. Unsafe result-sensitive identity disables reuse, unsafe trusted command policy fails validation, and runtime-expanded secret arguments/environment are neither persisted nor hashed. Whole-artifact hashes require secret-minimization preflight and do not exempt isolated secrets.",
+    "R3-05 resolved: time_to_independent_pass spans the earliest trusted v2 builder start to the earliest qualifying required evaluator completion within one accepted feature lineage. Manual Completed at is separate from registration time. Legacy/incomplete endpoints or unprovable ordering yield UNKNOWN; unbound manual observations do not qualify.",
+    "Selection and policy checks remain resolved: a non-ancestor base is rejected at family creation; renames contribute deletion and addition paths; changed surface includes committed, staged, unstaged, deleted and untracked paths. Continuation inherits base/profile/origin policy, and control-policy changes require replanning.",
+    "Dependency and artifact checks remain resolved: cycles, duplicate ids and mapping conflicts are invalid-policy. Consumers cannot indirectly reuse non-cacheable dependency evidence. Artifact identity binds exact producer evidence and bytes; missing or mismatched output requires regeneration, and source/artifact overlap is rejected.",
+    "Retry and concurrency checks remain resolved: critical failure fences survive new run ids across entry points, human authorization is failure-specific and one-shot, and later PASS retains earlier FAIL references. Execution is serialized repository-wide. Incomplete publication cannot authorize GREEN.",
+    "Manual evidence checks remain resolved: canonical unique top-level markers exclude fenced code, blockquotes, HTML and indented code. Registration requires a contained regular non-symlink report and a real clean reviewed repository commit. Conflicting identities are rejected; registration remains telemetry only.",
+    "Reporting and compatibility checks remain resolved: v1 and unsupported records cannot authorize reuse; incomplete history cannot manufacture first-pass success; multiple required rejections before one subsequent builder attempt form one rework cycle. Unknown provider cost remains unknown.",
+    "Recoverable invalid-cache diagnostics permit safe reconstruction/fresh execution; corruption is fatal only when safe execution or policy reconstruction is impossible. Benchmark timing is measurable but supplementary to deterministic checks. Documentation acceptance is synchronized content plus PDF visual validation, not byte-reproducible generation.",
+    "Accepted SDD-001 freshness, sandbox, trust and remote-authority boundaries remain intact. No remaining empirical uncertainty justifies a prototype."
+  ],
+  "non_blocking_risks": [
+    "Command-occurrence tests should cover duplicate mapped commands, shared dependencies, mixed ready-node classes and exact whitespace/quoting differences across all three entry points.",
+    "Crash tests should exercise every publication boundary, including terminal PASS without an index and missing diagnostic logs.",
+    "Secret-canary tests should cover every permitted structured channel and verify that redaction never supplies reusable identity.",
+    "Profile completeness requires independent evaluation: fingerprint equality cannot detect an omitted result-sensitive input.",
+    "Conservative symlink and sensitive-identity handling can reduce reuse; performance improvements must preserve these rules."
+  ],
+  "prototype_recommendations": [],
+  "residual_risks": [
+    "Architecture suitability and implementation correctness remain unassessed.",
+    "Hostile local OS modification and transient external A-to-B-to-A writes remain outside the explicitly supported guarantee.",
+    "Architecture Grill, a current hash-bound design gate and an accepted independently authored verification contract remain required before executable task generation."
+  ],
+  "status": "pass",
+  "summary": "The specification passes this fresh read-only Spec Grill. R3-01 through R3-05 are normatively resolved, earlier resolutions remain intact, and no new contract-affecting blocker was identified. Independent verification criteria can be derived without inventing policy. This is not architecture or implementation approval."
+}

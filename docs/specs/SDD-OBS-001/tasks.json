@@ -1,0 +1,555 @@
+{
+  "feature": "SDD-OBS-001",
+  "max_parallel": 3,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Build verification planning core",
+      "objective": "Implement the shared verification model, profile loading, changed-surface semantics, deterministic mini-glob matching, fingerprints, command occurrences, advisory planning, ready-gate rebinding primitives and safe structured serialization without integrating runner/orchestrator execution yet.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/verify.py",
+        "tooling/agent-harness/verification/__init__.py",
+        "tooling/agent-harness/verification/model.py",
+        "tooling/agent-harness/verification/profile.py",
+        "tooling/agent-harness/verification/fingerprint.py",
+        "tooling/agent-harness/verification/planner.py",
+        "tooling/agent-harness/verification/serialization.py",
+        "tooling/agent-harness/schemas/verification-profile.schema.json",
+        "tooling/agent-harness/schemas/verification-evidence.schema.json",
+        "tooling/agent-harness/tests/test_verify.py",
+        "tooling/agent-harness/tests/test_verification_profile.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security",
+        "performance"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-002",
+        "AC-OBS-003",
+        "AC-OBS-004",
+        "AC-OBS-005",
+        "AC-OBS-006",
+        "AC-OBS-007",
+        "AC-OBS-008",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-023",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "AC-OBS-036",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-019"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_verify.py tooling/agent-harness/tests/test_verification_profile.py -v",
+        "python3 -m py_compile tooling/agent-harness/verify.py tooling/agent-harness/verification/model.py tooling/agent-harness/verification/profile.py tooling/agent-harness/verification/fingerprint.py tooling/agent-harness/verification/planner.py tooling/agent-harness/verification/serialization.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Table-driven unit fixtures must first fail for changed-surface, mini-glob, exact command occurrence mapping, symlink/sensitive identity, dependency/artifact rebinding and direct-plan parity before the planner/fingerprint implementation is added."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement authoritative verification execution",
+      "objective": "Implement canonical control-store resolution, immutable evidence/index projections, repository admission, supervisor lifecycle, descendant containment contract, failure fences/grants and the neutral allowlist+sandbox command bridge.",
+      "role": "builder",
+      "depends_on": [
+        "T-001"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/verification/store.py",
+        "tooling/agent-harness/verification/executor.py",
+        "tooling/agent-harness/verification/supervisor.py",
+        "tooling/agent-harness/verification_command.py",
+        "tooling/agent-harness/verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_store.py",
+        "tooling/agent-harness/tests/test_verification_executor.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py",
+        "tooling/agent-harness/tests/test_verification_command.py",
+        "tooling/agent-harness/tests/test_verification_sandbox.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security",
+        "concurrency",
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-009",
+        "AC-OBS-010",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-014",
+        "AC-OBS-018",
+        "AC-OBS-024",
+        "AC-OBS-029",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-006",
+        "VC-007",
+        "VC-008",
+        "VC-009",
+        "VC-017",
+        "VC-020"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Fault-injection and process-lifecycle fixtures must demonstrate RED for unresolved started-without-drained admission, crash publication, critical FAIL reconstruction, one-shot grant consumption, protected-path enforcement and descendant drainage before the control-store/supervisor implementation is written."
+    },
+    {
+      "id": "T-003",
+      "title": "Integrate shared verifier with runner",
+      "objective": "Refactor runner task-completion verification to the shared verification engine while preserving fresh execution of every declared command occurrence and dependency closure, existing allowlist/sandbox enforcement and whole-worktree mutation postconditions.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/runner.py",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security",
+        "concurrency"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-001",
+        "AC-OBS-006",
+        "AC-OBS-015",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-029",
+        "AC-OBS-035",
+        "VC-010",
+        "VC-015",
+        "VC-016",
+        "VC-017"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Runner regression tests must first show that cached integration evidence, duplicate mapped commands, unmapped legacy commands and selective fingerprints cannot replace fresh outer task-completion execution or whole-worktree mutation detection."
+    },
+    {
+      "id": "T-004",
+      "title": "Integrate HITL recovery and orchestration outcomes",
+      "objective": "Wire verification ownership guards, failure-scoped human authorization, worktree recovery ordering and structured busy/stale/environment-blocked/needs-human outcomes through harness and orchestrator without spending builder rework attempts incorrectly.",
+      "role": "builder",
+      "depends_on": [
+        "T-002",
+        "T-003"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/orchestrate.py",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_orchestrate.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security",
+        "concurrency",
+        "observability"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-014",
+        "AC-OBS-016",
+        "AC-OBS-018",
+        "AC-OBS-029",
+        "AC-OBS-032",
+        "VC-005",
+        "VC-008",
+        "VC-016",
+        "VC-018",
+        "VC-025"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_orchestrate.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Recovery/orchestration tests must first fail for active/uncertain verification ownership, lock-order inversion, generic task grant misuse and blockage that accidentally relaunches or increments a builder attempt."
+    },
+    {
+      "id": "T-005",
+      "title": "Implement observability v2 and manual evidence",
+      "objective": "Extend telemetry with gate events, role/attempt/rework metrics, safe reports and record-manual validation while preserving v1 readability, unknown cost semantics and the rule that manual observations never authorize workflow transitions.",
+      "role": "builder",
+      "depends_on": [
+        "T-001",
+        "T-002"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/telemetry.py",
+        "tooling/agent-harness/tests/test_telemetry.py"
+      ],
+      "risk_tags": [
+        "observability",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-026",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Golden-history and seeded-secret fixtures must first fail for PASS/FAIL/UNKNOWN metrics, grouped rework cycles, delayed Completed-at registration, conflicting manual observations, nested provider metadata and unknown cost handling."
+    },
+    {
+      "id": "T-006",
+      "title": "Ship Showcase verification profile and benchmark",
+      "objective": "Create the declarative Showcase gate profile, profile-completeness regressions, direct/runner/orchestrator parity coverage and the accepted deterministic planning benchmark without embedding Showcase-specific behavior in the generic engine.",
+      "role": "builder",
+      "depends_on": [
+        "T-003",
+        "T-004",
+        "T-005"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/verification-profiles/**",
+        "tooling/agent-harness/benchmarks/**",
+        "tooling/agent-harness/tests/test_verification_profile_showcase.py",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "tooling/agent-harness/tests/test_verification_parity.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "performance",
+        "infra",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-005",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-027",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "VC-009",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-026",
+        "VC-030"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_benchmark.py tooling/agent-harness/tests/test_verification_parity.py -v"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Profile fixtures must first expose omitted build/config/test inputs, focused-test artifact overwrite, retry-control gaps, entry-point plan divergence and subprocess-per-file planning before the shipped profile and benchmark are accepted."
+    },
+    {
+      "id": "T-007",
+      "title": "Make verification v2 self-validating in CI",
+      "objective": "Extend Agentic SDD CI/eval coverage so the new deterministic regressions, compatibility checks and security qualification cannot be silently skipped while keeping existing SDD-001 suites green.",
+      "role": "builder",
+      "depends_on": [
+        "T-006"
+      ],
+      "allowed_paths": [
+        ".github/workflows/agentic-sdd.yml",
+        "tooling/agent-harness/evals/**",
+        "tooling/agent-harness/tests/test_eval.py"
+      ],
+      "risk_tags": [
+        "infra",
+        "security"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+        "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "CI/eval manifests must discover and fail on the checked-in verification-v2 regressions and benchmark while existing SDD-001 validator/eval behavior remains unchanged."
+    },
+    {
+      "id": "T-008",
+      "title": "Document verification v2 and generate handbook PDF",
+      "objective": "Synchronize root and Agentic SDD README guidance with the canonical handbook source, document manual telemetry/rollback/quarantine workflows, provide deterministic handbook generation tooling and produce/visually validate AI_Harness_Agentic_SDD.pdf.",
+      "role": "builder",
+      "depends_on": [
+        "T-007"
+      ],
+      "allowed_paths": [
+        "README.md",
+        "docs/agentic-sdd/README.md",
+        "docs/agentic-sdd/handbook.md",
+        "docs/agentic-sdd/AI_Harness_Agentic_SDD.pdf",
+        "tooling/scripts/generate-agentic-sdd-handbook-pdf.py",
+        "docs/specs/SDD-OBS-001/evidence/handbook/**"
+      ],
+      "risk_tags": [
+        "observability",
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-028",
+        "VC-031"
+      ],
+      "verification": [
+        "python3 tooling/scripts/check_markdown_links.py",
+        "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+      ],
+      "test_mode": "not-applicable",
+      "test_seam": "This is documentation/generated-artifact work: correctness is checked by source/README consistency, generator --check output, extracted PDF content and explicit rendered-page visual inspection rather than red-green application tests."
+    },
+    {
+      "id": "T-900",
+      "title": "Independent verification v2 evaluation",
+      "objective": "Independently try to falsify the complete SDD-OBS-001 implementation against every accepted AC-OBS and VC criterion, including OS-level backend qualification, crash/admission/grant/artifact/privacy fixtures, compatibility, CI discovery, performance and handbook/PDF evidence.",
+      "role": "evaluator",
+      "depends_on": [
+        "T-001",
+        "T-002",
+        "T-003",
+        "T-004",
+        "T-005",
+        "T-006",
+        "T-007",
+        "T-008"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/tests/**",
+        "docs/specs/SDD-OBS-001/evidence/**"
+      ],
+      "risk_tags": [
+        "evaluation"
+      ],
+      "acceptance_criteria": [
+        "AC-014",
+        "AC-OBS-001",
+        "AC-OBS-002",
+        "AC-OBS-003",
+        "AC-OBS-004",
+        "AC-OBS-005",
+        "AC-OBS-006",
+        "AC-OBS-007",
+        "AC-OBS-008",
+        "AC-OBS-009",
+        "AC-OBS-010",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-014",
+        "AC-OBS-015",
+        "AC-OBS-016",
+        "AC-OBS-017",
+        "AC-OBS-018",
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-024",
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "AC-OBS-038",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-005",
+        "VC-006",
+        "VC-007",
+        "VC-008",
+        "VC-009",
+        "VC-010",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-015",
+        "VC-016",
+        "VC-017",
+        "VC-018",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025",
+        "VC-026",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030",
+        "VC-031"
+      ],
+      "verification": [
+        "python3 -m unittest discover -s tooling/agent-harness/tests -v",
+        "python3 tooling/agent-harness/harness.py validate-all docs/specs",
+        "python3 tooling/agent-harness/orchestrate.py docs/specs/SDD-OBS-001 --plan",
+        "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+        "python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1",
+        "python3 tooling/agent-harness/eval.py run --suite adversarial --repeat 1",
+        "python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1",
+        "python3 tooling/scripts/check_markdown_links.py",
+        "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+      ]
+    },
+    {
+      "id": "T-990",
+      "title": "Integration and human-ready gate",
+      "objective": "Confirm the independent evaluator evidence, preserve the accepted design/VC bindings, assemble deterministic closure evidence and hand the local patch to the human without autonomous commit, push, merge, deployment or remote mutation.",
+      "role": "integration",
+      "depends_on": [
+        "T-900"
+      ],
+      "allowed_paths": [
+        "docs/specs/SDD-OBS-001/evidence/**"
+      ],
+      "risk_tags": [
+        "integration"
+      ],
+      "acceptance_criteria": [
+        "AC-014",
+        "AC-OBS-001",
+        "AC-OBS-002",
+        "AC-OBS-003",
+        "AC-OBS-004",
+        "AC-OBS-005",
+        "AC-OBS-006",
+        "AC-OBS-007",
+        "AC-OBS-008",
+        "AC-OBS-009",
+        "AC-OBS-010",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-014",
+        "AC-OBS-015",
+        "AC-OBS-016",
+        "AC-OBS-017",
+        "AC-OBS-018",
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-024",
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "AC-OBS-038",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-005",
+        "VC-006",
+        "VC-007",
+        "VC-008",
+        "VC-009",
+        "VC-010",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-015",
+        "VC-016",
+        "VC-017",
+        "VC-018",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025",
+        "VC-026",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030",
+        "VC-031"
+      ],
+      "verification": [
+        "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001",
+        "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+        "python3 tooling/scripts/check_markdown_links.py",
+        "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+      ]
+    }
+  ],
+  "authoring_note": "Executable DAG created only after current Spec Grill PASS, Architecture Grill PASS, hash-bound design gate PASS and accepted independent verification contract."
+}

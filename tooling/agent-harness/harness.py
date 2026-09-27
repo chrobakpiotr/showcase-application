@@ -53,6 +53,9 @@ DEFAULT_LEASE_TTL_SECONDS = 1800
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 60
 VALID_TEST_POLICIES = {'legacy', 'risk-driven'}
 VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
+# Bump only when persisted lifecycle state semantics/schema become incompatible.
+# Implementation and documentation changes are recorded separately for audit.
+STATE_SCHEMA_VERSION = 1
 
 
 try:  # Unix/macOS/Linux - the primary targets for this repository.
@@ -176,6 +179,11 @@ def protocol_fingerprint(feature_dir: pathlib.Path) -> str:
         digest.update(path.read_bytes())
         digest.update(b'\0')
     return digest.hexdigest()
+
+
+def protocol_version(feature_dir: pathlib.Path) -> int:
+    """Compatibility contract for persisted task lifecycle state."""
+    return STATE_SCHEMA_VERSION
 
 
 def safe_relative_pattern(pattern: str) -> bool:
@@ -549,6 +557,7 @@ def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
 def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
     return {
         'state_version': 2,
+        'protocol_version': protocol_version(feature_dir),
         'feature': doc.get('feature', feature_dir.name),
         'fingerprint': feature_fingerprint(feature_dir),
         'protocol_fingerprint': protocol_fingerprint(feature_dir),
@@ -598,16 +607,71 @@ def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state:
             'feature spec/plan/tasks changed after runtime state was created; '
             f'run `harness.py reset {feature_dir}` deliberately before continuing'
         )
-    expected_protocol = protocol_fingerprint(feature_dir)
-    if state.get('protocol_fingerprint') != expected_protocol:
+    expected_version = protocol_version(feature_dir)
+    stored_version = state.get('protocol_version')
+    if stored_version is None and state.get('state_version') == 2:
         die(
-            'agent protocol changed after runtime state was created; '
-            f'run `harness.py reset {feature_dir}` deliberately before continuing'
+            'runtime state predates explicit protocol versioning; run '
+            f'`harness.py migrate-state {feature_dir}` to validate and upgrade it'
+        )
+    if stored_version != expected_version:
+        die(
+            f'runtime state protocol/schema version {stored_version!r} is incompatible with '
+            f'current version {expected_version}; use `harness.py migrate-state {feature_dir}` '
+            'when a supported migration exists, otherwise revise/re-plan deliberately'
         )
     expected_ids = set(task_index(doc))
     actual_ids = set(state.get('tasks', {}))
     if expected_ids != actual_ids:
         die('runtime state task set differs from tasks.json; reset the feature state')
+
+
+def cmd_migrate_state(args: argparse.Namespace) -> None:
+    """Validate and explicitly adopt a legacy state under the current semantic version."""
+    doc = load_validated(args.feature_dir)
+    runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        path = state_path(args.feature_dir)
+        if not path.exists():
+            die(f'no authoritative lifecycle state exists at {path}; migration will not create state')
+        state = load_json(path)
+        if state.get('fingerprint') != feature_fingerprint(args.feature_dir):
+            die('feature spec/plan/tasks fingerprint differs; refusing lifecycle state migration')
+        expected_ids = set(task_index(doc))
+        tasks = state.get('tasks')
+        if not isinstance(tasks, dict) or set(tasks) != expected_ids:
+            die('runtime state task set differs from tasks.json; refusing lifecycle state migration')
+        old_version = state.get('protocol_version')
+        legacy_version = old_version is None and state.get('state_version') == 2
+        if old_version == protocol_version(args.feature_dir):
+            validate_loaded_state(args.feature_dir, doc, state)
+            print(f'ALREADY_CURRENT {args.feature_dir} protocol_version={old_version}')
+        elif legacy_version:
+            # Explicit known edge: pre-versioning state v2 -> semantic protocol v1.
+            # Verify allowed lifecycle statuses and nonnegative attempt counters; preserve all
+            # task metadata verbatim and never consult Git history for completion.
+            valid_statuses = {'pending', 'running', 'completed', 'failed', 'escalated'}
+            for task_id, entry in tasks.items():
+                if not isinstance(entry, dict) or entry.get('status') not in valid_statuses:
+                    die(f'invalid lifecycle entry for {task_id}; refusing migration')
+                attempts = entry.get('attempts', 0)
+                if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 0:
+                    die(f'invalid attempt count for {task_id}; refusing migration')
+            if not isinstance(state.get('protocol_fingerprint'), str) or not state['protocol_fingerprint']:
+                die('legacy runtime state has no protocol audit fingerprint; refusing migration')
+            state['protocol_version'] = protocol_version(args.feature_dir)
+            save_state(args.feature_dir, state)
+            print(
+                f'MIGRATED {args.feature_dir} protocol_version={old_version or "legacy-state-v2"}'
+                f'->{state["protocol_version"]} tasks={len(tasks)} '
+                f'preserved_completed={sum(1 for entry in tasks.values() if entry.get("status") == "completed")}'
+            )
+        else:
+            die(f'no supported lifecycle-state migration from protocol version {old_version!r}')
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def legacy_state_name(feature_dir: pathlib.Path) -> str:
@@ -1514,8 +1578,10 @@ def assert_worktree_protocol_current(feature_dir: pathlib.Path, target: pathlib.
         die(f'existing task worktree is missing feature specification: {target_feature}')
     if feature_fingerprint(target_feature) != feature_fingerprint(feature_dir):
         die(f'existing task worktree contains stale spec/plan/tasks: {target}')
-    if protocol_fingerprint(target_feature) != protocol_fingerprint(feature_dir):
-        die(f'existing task worktree contains stale agent protocol: {target}')
+    # Worktree code/documentation fingerprints change during ordinary harness maintenance.
+    # State compatibility is governed by the explicit semantic protocol version.
+    if protocol_version(target_feature) != protocol_version(feature_dir):
+        die(f'existing task worktree contains incompatible lifecycle protocol: {target}')
 
 
 def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task: dict[str, Any]) -> pathlib.Path:
@@ -1815,6 +1881,10 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--remove-packets', action='store_true', help='Remove generated immutable packets after deliberate re-planning')
     s.add_argument('--full', action='store_true', help='Reset state, clean task worktrees/branches, and remove generated packets')
     s.set_defaults(func=cmd_reset)
+
+    s = sub.add_parser('migrate-state')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.set_defaults(func=cmd_migrate_state)
 
     for name in ('worktree-create', 'worktree-remove'):
         s = sub.add_parser(name)

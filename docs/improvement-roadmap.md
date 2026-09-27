@@ -6,6 +6,13 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 | Priority | Finding or opportunity | Next change and acceptance |
 |---|---|---|
 
+## Planned Agentic SDD harness work
+
+- `SDD-OBS-001` — Verification & Observability v2: deterministic gate invalidation/reuse/resume,
+  structured verification telemetry, role/rework metrics, manual evaluator registration,
+  shared runner/orchestrator verification, README/handbook synchronization and final
+  independent/master-agent review.
+
 ## Implemented in the hardening patches
 
 - Deprecated-stack migration: Angular legacy animations removed, Jackson 3 adopted end-to-end (including Redis serialization), Boot 4.1/Gradle deprecated APIs migrated, CodeQL moved to v4, and Promtail replaced by Grafana Alloy.

@@ -693,6 +693,29 @@ python3 tooling/agent-harness/harness.py status docs/specs/SHOP-001
 python3 tooling/agent-harness/telemetry.py --feature SHOP-001
 ```
 
+### Lifecycle state compatibility
+
+Lifecycle state lives in the repository-scoped `.agent-state/` beside Git's common directory, so the main checkout and
+linked worktrees share one authoritative state file and lock. State compatibility is governed by the explicit semantic
+protocol/schema version in that file. Implementation and documentation fingerprints remain audit provenance; ordinary
+harness refactors or documentation edits do not invalidate lifecycle history. Bump the semantic version only when stored
+task-state meaning or schema becomes incompatible.
+
+This is a normative harness invariant: linked worktrees must resolve the same repository-scoped state path and lock, and
+state compatibility must follow semantic schema versioning rather than a source/documentation hash.
+
+When a supported legacy state version exists, run the explicit migration command from any checkout in the repository:
+
+```bash
+python3 tooling/agent-harness/harness.py migrate-state docs/specs/SHOP-001
+```
+
+The command validates the current feature fingerprint and exact task set, checks supported legacy task records, takes the
+shared repository lock, and atomically updates only compatibility metadata. It never derives completion from Git ancestry.
+Unknown versions, corrupt records, or changed feature/task identity fail closed. If accepted spec/plan/task inputs changed,
+revise and re-plan; use `reset` only when deliberately discarding lifecycle history is intended. A successful migration is
+idempotent and reports `ALREADY_CURRENT` on a repeat call.
+
 ## Manual/debug workflow
 
 Normal multi-agent work should use `orchestrate.py`. The lower-level commands are useful for diagnosing or manually driving a

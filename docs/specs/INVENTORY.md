@@ -35,6 +35,7 @@
 | `RECOVERY-TIMELINE-001` | **CLOSED** | yes | no | no | document-only | not selected |
 | `RMA-CONCURRENCY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SDD-001` | ACCEPTED | yes | yes | yes | executable | selected |
+| `SDD-OBS-001` | DRAFT | yes | yes | yes | executable | selected |
 | `SECURITY-GATES-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHIP-FULFILL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHOWCASE-DOCS-001` | UNDECLARED | yes | yes | yes | executable | selected |

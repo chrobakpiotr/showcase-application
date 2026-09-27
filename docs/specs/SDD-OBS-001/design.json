@@ -1,0 +1,9 @@
+{
+  "required_for_orchestration": true,
+  "grill": "always",
+  "prototype": "auto",
+  "architecture_grill": "always",
+  "prototype_max_parallel": 2,
+  "prototype_questions": [],
+  "verification_contract": "required"
+}
