@@ -144,6 +144,12 @@ class HarnessTest(unittest.TestCase):
             'heartbeat_at': '2026-09-27T10:00:01+00:00',
             'lease_expires_at': '2000-01-01T00:00:00+00:00',
         })
+        entry.update({
+            'released_at': '2026-09-27T09:59:59+00:00',
+            'last_attempt_commit': 'a' * 40,
+            'last_failure': 'attempt 3 failed before authorized retry',
+            'last_failure_attempt': 3,
+        })
         harness.save_state(feature, state)
         return feature, doc, grant['id']
 
@@ -205,6 +211,10 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(packet_bytes, packet_path.read_bytes())
         self.assertEqual('no_execution_started', state['claim_recovery']['attestation'])
         self.assertEqual(4, state['claim_recovery']['attempt'])
+        self.assertEqual(4, state['retry_authorizations'][0]['consumed_attempt'])
+        self.assertEqual(grant_id, state['active_retry_authorization'])
+        self.assertEqual(4, state['attempts'])
+        self.assertEqual('running', state['status'])
         self.assertGreater(harness.parse_timestamp(state['lease_expires_at']), harness.utc_now())
         self.assertEqual([], harness.ready_ids(doc, harness.load_state(feature, doc), feature))
 
@@ -297,6 +307,54 @@ class HarnessTest(unittest.TestCase):
                 from io import StringIO
                 with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
                     harness.cmd_recover_claim(args)
+
+    def test_attempt_scoped_recovery_accepts_proven_historical_fields_and_rejects_current_or_ambiguous(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        historical = self.recovered_claim_fixture()
+        with redirect_stdout(StringIO()):
+            harness.cmd_recover_claim(historical[3])
+
+        cases = {
+            'current last_attempt_commit': lambda e: e.update(last_attempt_commit_attempt=4),
+            'current release': lambda e: e.update(released_at='2026-09-27T10:01:00+00:00', released_attempt=4),
+            'ambiguous failure': lambda e: e.pop('released_at'),
+            'current completion': lambda e: e.update(completion_marker={'attempt': 4}),
+            'current checkpoint': lambda e: e.update(checkpoint_commit='b' * 40, checkpoint_attempt=4),
+            'current execution': lambda e: e.update(execution_started_at='2026-09-27T10:01:00+00:00', execution_started_attempt=4),
+            'execution journal': lambda e: e.update(execution_journal={'attempt': 4}),
+            'verification journal': lambda e: e.update(verification_journal={'attempt': 4}),
+            'ambiguous checkpoint': lambda e: e.update(checkpoint_commit='b' * 40),
+        }
+        for name, mutate in cases.items():
+            with self.subTest(evidence=name):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                state = harness.load_state(feature, doc)
+                mutate(state['tasks']['T-001'])
+                harness.save_state(feature, state)
+                err = StringIO()
+                with redirect_stderr(err), self.assertRaises(SystemExit):
+                    harness.cmd_recover_claim(args)
+                self.assertTrue('CLAIM_RECOVERY_' in err.getvalue())
+
+    def test_attempt_scoped_runtime_evidence_uses_explicit_attempt_binding(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+        for attempt, should_block in ((4, True), (3, False), (None, True)):
+            with self.subTest(attempt=attempt):
+                feature, doc, _, args = self.recovered_claim_fixture()
+                run = feature.parents[2] / '.agent-runs' / doc['feature'] / 'prior' / 'evidence.json'
+                run.parent.mkdir(parents=True)
+                obj = {'task': 'T-001'}
+                if attempt is not None:
+                    obj['attempt'] = attempt
+                run.write_text(json.dumps(obj))
+                if should_block:
+                    with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                        harness.cmd_recover_claim(args)
+                else:
+                    with redirect_stdout(StringIO()):
+                        harness.cmd_recover_claim(args)
 
     def test_recover_claim_rejects_runner_journal_and_wrong_feature_repository(self):
         from contextlib import redirect_stderr

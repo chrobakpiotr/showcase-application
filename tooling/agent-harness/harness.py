@@ -1229,15 +1229,52 @@ def cmd_recover_claim(args: argparse.Namespace) -> None:
             die('CLAIM_RECOVERY_INVALID: exact current owner does not match')
         if not is_unrecovered_partial_claim(entry):
             die('CLAIM_RECOVERY_INVALID: lifecycle entry is not an identified historical partial claim')
-        if any(entry.get(field) for field in ('checkpoint_commit', 'last_attempt_commit', 'completion_marker', 'worktree')):
-            die('CLAIM_RECOVERY_CONFLICT: checkpoint, worktree, or completion evidence exists')
-        conflict_fields = (
-            'execution_started_at', 'execution_journal', 'verification_started_at', 'verification_journal',
-            'started_at', 'completed_at', 'failed_at', 'released_at', 'lease_recovered_at',
-            'start_rollback_reason', 'last_failure_evidence', 'last_failure',
+        claimed_at = parse_timestamp(entry.get('claimed_at'))
+
+        def evidence_attempt(field: str, value: Any) -> tuple[str, int | None]:
+            """Return (classification, attempt) for legacy and attempt-bound evidence."""
+            if not value:
+                return 'absent', None
+            explicit = entry.get(f'{field}_attempt')
+            if explicit is None and isinstance(value, dict):
+                explicit = value.get('attempt')
+            if isinstance(explicit, int) and not isinstance(explicit, bool):
+                return ('current' if explicit == args.attempt else 'previous'), explicit
+            # Legacy release markers delimit the prior attempt when they precede this
+            # claim and are semantically paired with its failure/checkpoint record.
+            if field == 'released_at':
+                released_at = parse_timestamp(value)
+                if (released_at is not None and claimed_at is not None and released_at < claimed_at and
+                        entry.get('last_failure') and entry.get('last_attempt_commit')):
+                    return 'previous', int(entry.get('attempts', 0)) - 1
+            if field in ('last_attempt_commit', 'last_failure'):
+                release_attempt = entry.get('released_at_attempt')
+                released_at = parse_timestamp(entry.get('released_at'))
+                if (isinstance(release_attempt, int) and release_attempt < args.attempt and
+                        released_at is not None and claimed_at is not None and released_at < claimed_at):
+                    return 'previous', release_attempt
+                # A legacy release/failure bundle is attributable to the preceding
+                # attempt only when the release boundary and claim ordering agree.
+                if (release_attempt is None and released_at is not None and claimed_at is not None and
+                        released_at < claimed_at and entry.get('last_failure') and entry.get('last_attempt_commit') and
+                        int(entry.get('attempts', 0)) == args.attempt):
+                    return 'previous', int(entry.get('attempts', 0)) - 1
+            return 'ambiguous', None
+
+        evidence_fields = (
+            'checkpoint_commit', 'last_attempt_commit', 'completion_marker', 'execution_started_at',
+            'execution_journal', 'verification_started_at', 'verification_journal', 'started_at',
+            'completed_at', 'failed_at', 'released_at', 'lease_recovered_at', 'start_rollback_reason',
+            'last_failure_evidence', 'last_failure',
         )
-        if any(entry.get(field) for field in conflict_fields):
-            die('CLAIM_RECOVERY_CONFLICT: execution, verification, completion, release, or recovery evidence exists')
+        for field in evidence_fields:
+            value = entry.get(field)
+            classification, _ = evidence_attempt(field, value)
+            if classification in ('current', 'ambiguous'):
+                code = 'CURRENT_ATTEMPT' if classification == 'current' else 'AMBIGUOUS'
+                die(f'CLAIM_RECOVERY_{code}_EVIDENCE: lifecycle {field}')
+        if entry.get('worktree'):
+            die('CLAIM_RECOVERY_AMBIGUOUS_EVIDENCE: worktree')
         evidence_root = git_common_dir(args.feature_dir).parent / '.agent-runs' / str(doc.get('feature', args.feature_dir.name))
         if evidence_root.exists():
             for evidence_path in evidence_root.rglob('*.json'):
@@ -1248,7 +1285,11 @@ def cmd_recover_claim(args: argparse.Namespace) -> None:
                 if not isinstance(evidence, dict):
                     die(f'CLAIM_RECOVERY_CONFLICT: ambiguous runtime evidence {evidence_path}')
                 if evidence.get('task') == args.task_id:
-                    die(f'CLAIM_RECOVERY_CONFLICT: task execution provenance exists at {evidence_path}')
+                    runtime_attempt = evidence.get('attempt')
+                    if not isinstance(runtime_attempt, int) or isinstance(runtime_attempt, bool):
+                        die('CLAIM_RECOVERY_AMBIGUOUS_EVIDENCE: runtime record')
+                    if runtime_attempt == args.attempt:
+                        die('CLAIM_RECOVERY_CURRENT_ATTEMPT_EVIDENCE: runtime record')
         grants = entry.get('retry_authorizations')
         if not isinstance(grants, list):
             die('CLAIM_RECOVERY_INVALID: authorization ledger is malformed')
