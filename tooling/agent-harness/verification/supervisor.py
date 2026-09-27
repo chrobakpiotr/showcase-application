@@ -46,6 +46,7 @@ class VerificationSupervisor:
                 # because the bridge explicitly refused before spawn.
                 publish_create_once(journal / 'drained.json', {
                     'schema_version': 2, 'execution_id': execution_id,
+                    'repository_id': self.store.repository_id,
                     'backend': started['backend'], 'status': 'drained',
                     'reason': 'refused-before-launch', 'ended_at': time.time(),
                 })
