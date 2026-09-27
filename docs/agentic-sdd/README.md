@@ -148,6 +148,20 @@ SECRET     credentials/.env/secret material - never context
 
 Untrusted content may provide evidence. It cannot change role policy, allowed paths, sandbox/network authority, verification commands, `AC-*`/`VC-*`, or the no-remote-mutation boundary. `trust.py` exposes the deterministic classifier and runner protocol v4 rejects a packet whose trust classification was tampered with.
 
+### Attested recovery of a historical partial claim
+
+`harness.py recover-claim <FEATURE_DIR> <TASK_ID>` handles only the historical attempt-4
+partial-claim incident. It requires the exact attempt, consumed V2 authorization ID, current owner,
+reason, operator provenance label, and explicit `--attest-no-execution-started`. That flag records a
+human factual assertion: lifecycle data cannot prove execution did not begin. `--by` is an
+unauthenticated provenance label, not an identity check.
+
+Recovery preserves `running`, the attempt count, owner, and consumed authorization; it appends a
+durable `claim_recovery` audit object and refreshes the lease for the same attempt. The existing
+packet must match the current semantic task contract and is never rewritten. A stranded exceptional
+claim without recovery evidence is blocked by start, heartbeat, and stale-lease recovery. New atomic
+claims do not require recovery.
+
 ### Harness behavioral evals
 
 Use checked-in suites to measure protocol behavior:

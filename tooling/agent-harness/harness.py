@@ -813,6 +813,8 @@ def heartbeat(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owne
         owner_guard(entry, owner)
         if entry.get('status') != 'running':
             die(f'{task_id} is not running')
+        if is_unrecovered_partial_claim(entry):
+            die(f'CLAIM_RECOVERY_REQUIRED: {task_id} must be explicitly recovered before execution heartbeat')
         refresh_lease(entry, doc)
         return str(entry['lease_expires_at'])
 
@@ -831,6 +833,8 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
         for task_id, entry in state['tasks'].items():
             if not lease_expired(entry, now=now):
                 continue
+            if is_unrecovered_partial_claim(entry):
+                die(f'CLAIM_RECOVERY_REQUIRED: {task_id} is a stranded exceptional claim; attest with recover-claim before lease recovery')
             task = idx.get(task_id)
             if not task:
                 continue
@@ -850,6 +854,11 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
             recovered.append(task_id)
     return recovered
 
+
+def is_unrecovered_partial_claim(entry: dict[str, Any]) -> bool:
+    return (entry.get('status') == 'running' and int(entry.get('attempts', 0)) == 4 and
+            isinstance(entry.get('active_retry_authorization'), str) and
+            not entry.get('claim_recovery'))
 
 
 def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.Path | None = None) -> list[str]:
@@ -1174,6 +1183,122 @@ def cmd_claim(args: argparse.Namespace) -> None:
         # Lifecycle commit already succeeded. Do not turn an output-channel failure into
         # a non-zero claim result that falsely suggests the task was left unclaimed.
         return
+
+
+def cmd_recover_claim(args: argparse.Namespace) -> None:
+    """Human-attest that an already committed exceptional claim never began execution."""
+    doc = load_validated(args.feature_dir)
+    task = task_index(doc).get(args.task_id)
+    if task is None:
+        die(f'unknown task {args.task_id}')
+    reason = str(args.reason or '').strip()
+    operator = str(args.by or '').strip()
+    if not bool(getattr(args, 'attest_no_execution_started', False)):
+        die('CLAIM_RECOVERY_ATTESTATION_REQUIRED: pass --attest-no-execution-started')
+    if not reason or not operator:
+        die('CLAIM_RECOVERY_INVALID: --reason and --by must be non-empty')
+    if args.attempt != 4:
+        die('CLAIM_RECOVERY_INVALID: recovery is limited to the historical attempt-4 partial-claim incident')
+    packet_path = args.feature_dir / 'packets' / f'{args.task_id}.json'
+    try:
+        packet = json.loads(packet_path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'CLAIM_RECOVERY_PACKET_INVALID: existing immutable packet is unavailable: {exc}')
+    if not isinstance(packet, dict) or not packet_matches_semantic_contract(packet, doc, task, args.feature_dir):
+        die('CLAIM_RECOVERY_PACKET_INVALID: existing packet does not match the current semantic task contract')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'].get(args.task_id)
+        if not isinstance(entry, dict):
+            die('CLAIM_RECOVERY_INVALID: lifecycle entry is malformed')
+        existing = entry.get('claim_recovery')
+        if existing is not None:
+            if (not isinstance(existing, dict) or existing.get('recovery_version') != 1 or
+                    existing.get('semantic_contract_sha256') != semantic_task_contract_sha256(args.feature_dir, doc, task) or
+                    existing.get('packet_identity') != packet.get('packet_sha256')):
+                die('CLAIM_RECOVERY_CONFLICT: stored recovery evidence no longer matches current contract/packet')
+            assertion = (existing.get('attempt'), existing.get('authorization_id'), existing.get('owner'),
+                         existing.get('reason'), existing.get('operator_provenance'), existing.get('attestation'))
+            requested = (args.attempt, args.authorization, args.owner, reason, operator, 'no_execution_started')
+            if assertion == requested:
+                print(f'ALREADY_RECOVERED {args.task_id} attempt={args.attempt}')
+                return
+            die('CLAIM_RECOVERY_CONFLICT: a different recovery assertion already exists for this attempt')
+        if entry.get('status') != 'running' or entry.get('attempts') != args.attempt:
+            die('CLAIM_RECOVERY_INVALID: exact current running status and attempt must match')
+        if entry.get('owner') != args.owner:
+            die('CLAIM_RECOVERY_INVALID: exact current owner does not match')
+        if not is_unrecovered_partial_claim(entry):
+            die('CLAIM_RECOVERY_INVALID: lifecycle entry is not an identified historical partial claim')
+        if any(entry.get(field) for field in ('checkpoint_commit', 'last_attempt_commit', 'completion_marker', 'worktree')):
+            die('CLAIM_RECOVERY_CONFLICT: checkpoint, worktree, or completion evidence exists')
+        conflict_fields = (
+            'execution_started_at', 'execution_journal', 'verification_started_at', 'verification_journal',
+            'started_at', 'completed_at', 'failed_at', 'released_at', 'lease_recovered_at',
+            'start_rollback_reason', 'last_failure_evidence', 'last_failure',
+        )
+        if any(entry.get(field) for field in conflict_fields):
+            die('CLAIM_RECOVERY_CONFLICT: execution, verification, completion, release, or recovery evidence exists')
+        evidence_root = git_common_dir(args.feature_dir).parent / '.agent-runs' / str(doc.get('feature', args.feature_dir.name))
+        if evidence_root.exists():
+            for evidence_path in evidence_root.rglob('*.json'):
+                try:
+                    evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
+                except (OSError, json.JSONDecodeError):
+                    die(f'CLAIM_RECOVERY_CONFLICT: malformed runtime evidence {evidence_path}')
+                if not isinstance(evidence, dict):
+                    die(f'CLAIM_RECOVERY_CONFLICT: ambiguous runtime evidence {evidence_path}')
+                if evidence.get('task') == args.task_id:
+                    die(f'CLAIM_RECOVERY_CONFLICT: task execution provenance exists at {evidence_path}')
+        grants = entry.get('retry_authorizations')
+        if not isinstance(grants, list):
+            die('CLAIM_RECOVERY_INVALID: authorization ledger is malformed')
+        matching = [g for g in grants if isinstance(g, dict) and g.get('id') == args.authorization]
+        if len(matching) != 1:
+            die('CLAIM_RECOVERY_INVALID: exact authorization ID must occur once in this task ledger')
+        grant = matching[0]
+        expected_binding = retry_binding(args.feature_dir, doc, args.task_id, 3)
+        if (grant.get('version') != 2 or grant.get('binding') != expected_binding or
+                grant.get('binding', {}).get('repository') != str(git_common_dir(args.feature_dir)) or
+                grant.get('binding', {}).get('feature') != str(doc.get('feature', args.feature_dir.name)) or
+                grant.get('binding', {}).get('task') != args.task_id or
+                grant.get('binding', {}).get('expected_status') != 'failed' or
+                grant.get('binding', {}).get('expected_attempts') != 3 or
+                grant.get('binding', {}).get('protocol_version') != protocol_version(args.feature_dir) or
+                grant.get('consumed_at') is None or grant.get('consumed_attempt') != args.attempt or
+                entry.get('active_retry_authorization') != args.authorization or
+                grant.get('supersedes') is not None):
+            die('CLAIM_RECOVERY_INVALID: V2 grant must bind failed attempt 3 and be consumed into attempt 4')
+        if (not isinstance(grant.get('reason'), str) or not grant['reason'].strip() or
+                not isinstance(grant.get('provenance'), str) or not grant['provenance']):
+            die('CLAIM_RECOVERY_INVALID: authorization provenance is malformed')
+        issued_at = parse_timestamp(grant.get('issued_at'))
+        consumed_at = parse_timestamp(grant.get('consumed_at'))
+        if issued_at is None or consumed_at is None or consumed_at < issued_at:
+            die('CLAIM_RECOVERY_INVALID: authorization issue/consumption history is malformed')
+        supersessions = entry.get('retry_authorization_supersessions', [])
+        if not isinstance(supersessions, list) or any(
+                not isinstance(rel, dict) or not isinstance(rel.get('supersedes'), str) or
+                not isinstance(rel.get('authorization_id'), str) for rel in supersessions):
+            die('CLAIM_RECOVERY_INVALID: supersession history is malformed or ambiguous')
+        if any(rel.get('supersedes') == args.authorization or rel.get('authorization_id') == args.authorization
+               for rel in supersessions):
+            die('CLAIM_RECOVERY_INVALID: authorization is superseded or involved in a supersession')
+        if any(not isinstance(g, dict) or g.get('version') != 2 or
+               (g is not grant and g.get('consumed_at') is not None) for g in grants):
+            die('CLAIM_RECOVERY_INVALID: mixed/legacy or conflicting consumed authorization history')
+        if any(g.get('consumed_at') is None and g is not grant for g in grants):
+            die('CLAIM_RECOVERY_INVALID: another effective unconsumed authorization is ambiguous')
+        now = utc_now()
+        entry['claim_recovery'] = {
+            'task': args.task_id, 'attempt': args.attempt, 'authorization_id': args.authorization,
+            'owner': args.owner, 'reason': reason, 'operator_provenance': operator,
+            'attestation': 'no_execution_started',
+            'semantic_contract_sha256': semantic_task_contract_sha256(args.feature_dir, doc, task),
+            'packet_identity': packet['packet_sha256'], 'recovered_at': now.isoformat(),
+            'recovery_version': 1,
+        }
+        refresh_lease(entry, doc, now=now)
+    print(f'RECOVERED_CLAIM {args.task_id} attempt={args.attempt} owner={args.owner}')
 
 
 def owner_guard(entry: dict[str, Any], owner: str) -> None:
@@ -2068,6 +2193,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         entry = state['tasks'][args.task_id]
+        if is_unrecovered_partial_claim(entry):
+            die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
         target = prepare_task_worktree(args.feature_dir, doc, state, task)
         packet = write_packet(doc, task, args.feature_dir)
@@ -2219,6 +2346,18 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('task_id')
     s.add_argument('--owner', required=True)
     s.set_defaults(func=cmd_claim)
+
+    s = sub.add_parser('recover-claim')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--attempt', type=int, required=True)
+    s.add_argument('--authorization', required=True)
+    s.add_argument('--owner', required=True)
+    s.add_argument('--reason', required=True)
+    s.add_argument('--by', required=True, help='Operator provenance label; not authenticated by the harness')
+    s.add_argument('--attest-no-execution-started', action='store_true', required=True,
+                   help='Explicit factual human attestation; the harness cannot infer this condition')
+    s.set_defaults(func=cmd_recover_claim)
 
     s = sub.add_parser('complete')
     s.add_argument('feature_dir', type=pathlib.Path)
