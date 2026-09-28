@@ -314,6 +314,92 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertEqual('ambiguous', replanned['attempt_termination']['historical_binding_status'])
         self.assertNotIn('packet_revision', replanned['attempt_termination'])
 
+    def test_packet_identity_schemes_require_versioned_recomputable_proof(self):
+        task = harness.task_index(self.doc)['T-001']
+        packet = harness.packet_payload(self.doc, task, self.feature)
+        revision_id = harness.packet_revision_id(packet)
+        semantic = packet['semantic_contract_sha256']
+
+        def recovery(identity, version=1):
+            return {'attempt': 4, 'recovery_version': version, 'packet_identity': identity,
+                    'semantic_contract_sha256': semantic}
+
+        embedded = packet['packet_sha256']
+        accepted = recovery(embedded)
+        self.assertEqual('canonical-packet-payload-sha256-v1',
+                         harness.packet_identity_from_recovery(accepted).scheme)
+        self.assertEqual('canonical-packet-payload-sha256-v1',
+                         harness.packet_identity_from_embedded_checksum(packet).scheme)
+        self.assertEqual('canonical-packet-revision-sha256-v1',
+                         harness.packet_identity_from_revision(packet).scheme)
+        self.assertTrue(harness.recovery_proves_packet_binding(
+            accepted, packet, revision_id, semantic))  # I1: one packet, two proven identity schemes
+
+        self.assertFalse(harness.recovery_proves_packet_binding(
+            recovery('f' * 64), packet, revision_id, semantic))  # I2: same semantics cannot prove packet identity
+        changed_packet = dict(packet, title='Different packet')
+        changed_packet['packet_sha256'] = harness.canonical_packet_payload_sha256(changed_packet)
+        self.assertFalse(harness.recovery_proves_packet_binding(
+            accepted, changed_packet, harness.packet_revision_id(changed_packet), semantic))  # I3
+
+        provenance_changed = dict(packet, protocol_fingerprint='0' * 64)
+        provenance_changed['packet_sha256'] = harness.canonical_packet_payload_sha256(provenance_changed)
+        self.assertFalse(harness.recovery_proves_packet_binding(
+            accepted, provenance_changed, harness.packet_revision_id(provenance_changed), semantic))  # I4
+
+        self.assertIsNone(harness.packet_identity_from_recovery(
+            {'packet_identity': embedded, 'semantic_contract_sha256': semantic}))  # I5: bare/unknown scheme
+        self.assertIsNone(harness.packet_identity_from_recovery(
+            recovery('sha256:not-a-hash')))  # I6: malformed identity
+        self.assertIsNone(harness.packet_identity_from_recovery(
+            recovery(embedded, version=2)))  # I7: unsupported algorithm/record version
+
+    def test_versioned_identity_equivalence_is_read_only_and_survives_reconstruction(self):
+        task = harness.task_index(self.doc)['T-001']
+        packet_path = harness.write_packet(self.doc, task, self.feature)
+        packet_bytes = packet_path.read_bytes()
+        packet = json.loads(packet_bytes)
+        revision_id = harness.packet_revision_id(packet)
+        semantic = packet['semantic_contract_sha256']
+        recovery = {'attempt': 4, 'recovery_version': 1,
+                    'packet_identity': packet['packet_sha256'],
+                    'semantic_contract_sha256': semantic}
+        state = harness.initial_state(self.feature, self.doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 4, 'owner': 'legacy-worker',
+                                        'claim_recovery': recovery})
+        harness.save_state(self.feature, state)
+        authority = harness.runtime_state_dir(self.feature) / 'packet-revisions'
+        before_state = harness.state_path(self.feature).read_bytes()
+        before_revision_files = sorted(str(p.relative_to(authority)) for p in authority.rglob('*')) if authority.exists() else []
+        resolved = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+        self.assertEqual(revision_id, resolved['revision_id'])
+        self.assertTrue(harness.recovery_proves_packet_binding(
+            recovery, resolved['packet'], resolved['revision_id'], semantic))  # I8: reconstructable proof
+        self.assertEqual(before_state, harness.state_path(self.feature).read_bytes())
+        after_revision_files = sorted(str(p.relative_to(authority)) for p in authority.rglob('*')) if authority.exists() else []
+        self.assertEqual(before_revision_files, after_revision_files)
+        self.assertEqual(packet_bytes, packet_path.read_bytes())
+
+    def test_replan_does_not_trust_matching_bare_hash_from_unknown_recovery_version(self):
+        args, _packet, _grant_id = self.running_replan_fixture()
+        state = harness.load_state(self.feature, self.doc)
+        entry = state['tasks']['T-001']
+        entry.pop('attempt_bindings')
+        active = harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=state)
+        entry['claim_recovery'] = {'attempt': 4, 'recovery_version': 2,
+            'packet_identity': active['packet']['packet_sha256'],
+            'semantic_contract_sha256': active['contract_sha256']}
+        harness.save_state(self.feature, state)
+
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+
+        replanned = harness.load_state(self.feature, self.doc)['tasks']['T-001']
+        attempt4 = next(record for record in replanned['attempt_bindings'] if record['attempt'] == 4)
+        self.assertEqual('ambiguous', attempt4['binding_status'])
+        self.assertNotIn('packet_revision', attempt4)
+        self.assertEqual('ambiguous', replanned['attempt_termination']['historical_binding_status'])
+
     def test_legacy_history_replan_preserves_only_provable_attempt_evidence_after_restart(self):
         task = harness.task_index(self.doc)['T-001']
         packet_path = harness.write_packet(self.doc, task, self.feature)

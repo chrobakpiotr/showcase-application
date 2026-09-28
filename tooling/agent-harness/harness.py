@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import copy
+from collections import namedtuple
 import datetime as dt
 import hashlib
 import json
@@ -57,6 +58,67 @@ VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
 # Bump only when persisted lifecycle state semantics/schema become incompatible.
 # Implementation and documentation changes are recorded separately for audit.
 STATE_SCHEMA_VERSION = 1
+
+# Packet identity values occupy distinct namespaces. Recovery v1 persisted the
+# embedded checksum, while M1 revisions hash the complete normalized packet
+# (including that checksum). Never infer either scheme from an unversioned hash.
+PACKET_PAYLOAD_IDENTITY_SCHEME = 'canonical-packet-payload-sha256-v1'
+PACKET_REVISION_IDENTITY_SCHEME = 'canonical-packet-revision-sha256-v1'
+RECOVERY_PACKET_IDENTITY_SCHEMES = {1: PACKET_PAYLOAD_IDENTITY_SCHEME}
+
+
+PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
+
+
+def canonical_packet_payload_sha256(packet: dict[str, Any]) -> str:
+    """Hash the normalized packet payload, excluding its embedded checksum."""
+    body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
+    return sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+
+
+def packet_identity_from_embedded_checksum(packet: Any) -> PacketIdentity | None:
+    """Validate and name the legacy packet's canonical payload checksum."""
+    if not isinstance(packet, dict):
+        return None
+    stored = packet.get('packet_sha256')
+    if (not isinstance(stored, str) or re.fullmatch(r'[0-9a-f]{64}', stored) is None or
+            stored != canonical_packet_payload_sha256(packet)):
+        return None
+    return PacketIdentity(PACKET_PAYLOAD_IDENTITY_SCHEME, stored)
+
+
+def packet_identity_from_revision(packet: Any) -> PacketIdentity | None:
+    """Name the M1 content revision only when it derives from a valid packet."""
+    if packet_identity_from_embedded_checksum(packet) is None:
+        return None
+    return PacketIdentity(PACKET_REVISION_IDENTITY_SCHEME, packet_revision_id(packet))
+
+
+def packet_identity_from_recovery(recovery: Any) -> PacketIdentity | None:
+    """Infer a bare recovery identity's scheme only from its trusted record version."""
+    if not isinstance(recovery, dict):
+        return None
+    version = recovery.get('recovery_version')
+    scheme = (RECOVERY_PACKET_IDENTITY_SCHEMES.get(version)
+              if isinstance(version, int) and not isinstance(version, bool) else None)
+    value = recovery.get('packet_identity')
+    if scheme is None or not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{64}', value) is None:
+        return None
+    return PacketIdentity(scheme, value)
+
+
+def recovery_proves_packet_binding(recovery: Any, packet: Any,
+                                   revision_id: str, contract_sha256: str) -> bool:
+    """Prove a recovery checksum and M1 revision identify the same packet object."""
+    recovered = packet_identity_from_recovery(recovery)
+    embedded = packet_identity_from_embedded_checksum(packet)
+    revision = packet_identity_from_revision(packet)
+    expected_revision = PacketIdentity(PACKET_REVISION_IDENTITY_SCHEME, revision_id)
+    return bool(
+        recovered is not None and embedded is not None and revision is not None and
+        recovered == embedded and revision == expected_revision and
+        isinstance(recovery, dict) and recovery.get('semantic_contract_sha256') == contract_sha256
+    )
 
 
 try:  # Unix/macOS/Linux - the primary targets for this repository.
@@ -1042,8 +1104,8 @@ def legacy_revision_id(feature_dir: pathlib.Path, task_id: str) -> str:
 
 def validate_packet_integrity(packet: dict[str, Any]) -> None:
     stored = packet.get('packet_sha256')
-    body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
-    if not isinstance(stored, str) or stored != sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()):
+    if (not isinstance(stored, str) or re.fullmatch(r'[0-9a-f]{64}', stored) is None or
+            stored != canonical_packet_payload_sha256(packet)):
         die('ACTIVE_PACKET_AMBIGUOUS: packet integrity check failed')
 
 
@@ -2161,14 +2223,14 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
             recovery = staged.get('claim_recovery')
             recovered_packet_matches = (
                 isinstance(recovery, dict) and recovery.get('attempt') == attempts and
-                isinstance(active.get('packet'), dict) and
-                recovery.get('packet_identity') == active['packet'].get('packet_sha256') and
-                recovery.get('semantic_contract_sha256') == active['contract_sha256'])
+                recovery_proves_packet_binding(recovery, active.get('packet'),
+                                               active['revision_id'], active['contract_sha256']))
             if recovered_packet_matches:
                 historical_binding_status = 'proven'
                 attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
                     'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
-                    'bound_at': utc_now().isoformat(), 'evidence': 'matching claim-recovery packet identity'})
+                    'bound_at': utc_now().isoformat(),
+                    'evidence': 'versioned recovery payload identity matches the active packet and revision'})
             elif current_binding is None:
                 evidence = 'packet revision was not recorded for this historical attempt'
                 if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
