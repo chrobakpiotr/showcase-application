@@ -88,7 +88,35 @@ class VerificationSupervisor:
                 environment=None, preflight=None, terminal_publisher=None,
                 post_observer=None, recovery_observer=None, terminal_record_builder=None,
                 input_fingerprint: str | None = None, profile_hash: str | None = None,
-                critical: bool = False, failure_grant_id: str | None = None):
+                critical: bool = False, retry_policy: str = 'forbid',
+                retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None):
+        if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
+            raise SupervisorError('invalid-retry-policy')
+        if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
+            raise SupervisorError('invalid-retry-controls')
+        retry_controls = tuple(retry_controls)
+        if len(set(retry_controls)) != len(retry_controls):
+            raise SupervisorError('invalid-retry-controls')
+        # retry_controls is part of the trusted profile snapshot. The explicit
+        # marker means the tool itself has no retry layer. A declared control
+        # uses `internal-retry-disabled:<id>` or
+        # `internal-retry-bounded:<id>:<max>`; opaque legacy names prove none.
+        retry_free = False
+        retry_policy_proof = {'schema_version': 1, 'policy': retry_policy, 'critical': critical,
+                              'retry_controls': list(retry_controls), 'retry_free': False}
+        if critical and retry_policy == 'forbid':
+            if retry_controls == ('no-internal-retries',):
+                retry_free = True
+            elif retry_controls and all(
+                    (item.startswith('internal-retry-disabled:') and item.split(':', 1)[1]) or
+                    (len(item.split(':')) == 3 and item.split(':')[0] == 'internal-retry-bounded' and
+                     item.split(':')[1] and item.split(':')[2].isdigit() and int(item.split(':')[2]) > 0)
+                    for item in retry_controls):
+                retry_free = True
+            retry_policy_proof['retry_free'] = retry_free
+            if not retry_free:
+                raise SupervisorError('retry-policy-violation')
+        retry_policy_proof['retry_free'] = bool(retry_free)
         intent_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
         execution_id = hashlib.sha256(canonical({
             'repository_id': self.store.repository_id, 'family_id': family_id,
@@ -181,7 +209,8 @@ class VerificationSupervisor:
                         existing.get('family_id') != family_id or existing.get('attempt_id') != attempt_id or
                         existing.get('gate_id') != gate_id or existing.get('execution_identity') != identity or
                         existing.get('policy_identity') != policy_identity or
-                        existing.get('backend_identity') != backend_identity):
+                        existing.get('backend_identity') != backend_identity or
+                        existing.get('retry_policy_proof') != retry_policy_proof):
                     raise StoreError('immutable-record-collision')
                 terminal = self.store._read_execution_terminal(journal, existing)
                 if terminal is None:
@@ -201,6 +230,8 @@ class VerificationSupervisor:
                 'policy_identity': policy_identity, 'qualification_fingerprint': qualification or policy_identity,
                 'execution_identity': identity, 'input_fingerprint': input_fingerprint,
                 'profile_hash': profile_hash, 'critical': bool(critical),
+                'retry_policy': retry_policy, 'retry_controls': list(retry_controls),
+                'retry_policy_proof': retry_policy_proof,
                 'predecessor_failure_id': active_failure['failure_id'] if retry_consumption else None,
                 'consumption_id': retry_consumption['consumption_id'] if retry_consumption else None,
                 'retry_proof': ({'failure_id': active_failure['failure_id'],
@@ -266,6 +297,8 @@ class VerificationSupervisor:
                 'repository_id': self.store.repository_id, 'started_hash': started_hash,
                 'execution_identity': identity, 'backend_identity': backend_identity,
                 'policy_identity': policy_identity, 'command_identity': intent_hash,
+                'retry_policy_proof': retry_policy_proof,
+                'harness_invocation_upper_bound': 1,
                 'exit_code': observation['exit_code'], 'timed_out': observation['timed_out'],
                 'cancelled': cancelled, 'drainage': 'DRAINED',
                 'output_observation': 'CAPTURED',
@@ -457,6 +490,8 @@ class VerificationSupervisor:
             'backend_identity': started.get('backend_identity', started['backend']),
             'policy_identity': started.get('policy_identity', 'unqualified'),
             'command_identity': started['launch_intent_hash'],
+            'retry_policy_proof': started.get('retry_policy_proof'),
+            'harness_invocation_upper_bound': 1 if (journal / 'launching.json').exists() else 0,
             'exit_code': observation.get('exit_code'), 'timed_out': observation.get('timed_out', False),
             'cancelled': observation.get('cancelled', False), 'drainage': 'DRAINED',
             'output_observation': observation.get('output_observation', 'CAPTURED'),

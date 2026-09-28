@@ -9,6 +9,7 @@ import subprocess
 import threading
 import time
 from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from verification.store import StoreError, VerificationStore
@@ -20,6 +21,224 @@ import verification_command
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_vc009_08_unknown_tool_retry_behavior_fails_closed_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid')
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_adversary_fake_tool_internal_retries_but_unknown_is_not_proven(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            fake_tool = root / 'fake_tool.py'
+            internal_attempts = root / 'internal-attempts'
+            fake_tool.write_text("from pathlib import Path\np=Path(" + repr(str(internal_attempts)) +
+                ")\np.write_text('attempt-1\\nattempt-2\\n')\n")
+            with mock.patch('subprocess.run', wraps=subprocess.run) as harness_spawn:
+                launched = harness_spawn([sys.executable, str(fake_tool)], check=False)
+            self.assertEqual(0, launched.returncode)
+            self.assertEqual(2, len(internal_attempts.read_text().splitlines()))
+            self.assertEqual(1, harness_spawn.call_count)
+            class InternallyRetryingBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    self.events.extend(['tool-attempt-1', 'tool-attempt-2'])
+                    return super().launch(prepared, **kwargs)
+            backend = InternallyRetryingBackend(store, root/'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='g', command='fake-tool --retry-twice', cwd=root, run_dir=root/'run',
+                    timeout_seconds=2, sandbox_mode='required', critical=True, retry_policy='forbid')
+            self.assertEqual(0, backend.events.count('launch'))
+            self.assertEqual(0, backend.events.count('tool-attempt-2'))
+            self.assertFalse(any(record.get('retry_policy_proof', {}).get('retry_free') is True
+                for record in (json.loads(p.read_text()) for p in store.executions.glob('*/terminal.json'))))
+
+    def test_vc009_backend_failure_after_launch_reconciles_without_relaunch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            class LaunchThenFailBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    super().launch(prepared, **kwargs)
+                    raise RuntimeError('result-channel-failed-after-launch')
+            backend = LaunchThenFailBackend(store, root/'unit')
+            kwargs = dict(worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                command='fake-tool --internal-retry', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('no-internal-retries',))
+            with self.assertRaisesRegex(RuntimeError, 'result-channel-failed-after-launch'):
+                VerificationSupervisor(store).execute(backend, **kwargs)
+            result = VerificationSupervisor(VerificationStore(root, control_root=root/'control')).recover(
+                lambda _started: backend)
+            self.assertEqual(1, backend.events.count('launch'))
+            self.assertEqual('TERMINAL_OBSERVATION_MISSING', result[0].reason_code)
+
+    def test_vc009_01_retry_forbidden_critical_attempt_has_one_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('no-internal-retries',))
+            self.assertEqual(1, backend.events.count('launch'))
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertEqual(1, terminal['harness_invocation_upper_bound'])
+
+    def test_vc009_02_nonzero_failure_does_not_relaunch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = CriticalFailureBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c fail', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid', profile_hash='a' * 64,
+                input_fingerprint='b' * 64, retry_controls=('no-internal-retries',))
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_vc009_03_timeout_does_not_relaunch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            class TimeoutBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    result = super().launch(prepared, **kwargs); result.timed_out = True
+                    return result
+            backend = TimeoutBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c timeout', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('no-internal-retries',))
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_vc009_04_restart_reconciliation_does_not_relaunch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit'); supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-launch'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                    command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('no-internal-retries',))
+            fresh = VerificationSupervisor(VerificationStore(root, control_root=root/'control'))
+            fresh.recover(lambda _started: backend)
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_vc009_05_explicit_no_internal_retry_is_valid(self):
+        self._vc009_positive('no-internal-retries')
+
+    def test_vc009_06_internal_retries_disabled_control_is_recorded(self):
+        self._vc009_positive('internal-retry-disabled:gradle-test-retry-plugin')
+
+    def test_vc009_07_bounded_internal_retry_controls_are_recorded(self):
+        self._vc009_positive('internal-retry-bounded:tool-retry-limit:2')
+
+    def test_vc009_09_missing_required_control_fails_closed(self):
+        self.test_vc009_08_unknown_tool_retry_behavior_fails_closed_before_launch()
+
+    def test_vc009_10_retry_free_claim_is_derived_from_controls(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertTrue(terminal['retry_policy_proof']['retry_free'])
+            self.assertEqual(['no-internal-retries'], terminal['retry_policy_proof']['retry_controls'])
+
+    def test_vc009_10b_retry_free_boolean_cannot_override_declaration_facts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=False, retry_policy='allow')
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            terminal['retry_policy_proof']['retry_free'] = True
+            terminal.pop('receipt_hash')
+            terminal['receipt_hash'] = hashlib.sha256(json.dumps(terminal, sort_keys=True,
+                separators=(',', ':'), ensure_ascii=True).encode()).hexdigest()
+            terminal_path.write_text(json.dumps(terminal))
+            with self.assertRaisesRegex(StoreError, 'retry-policy-violation'):
+                store.reconstruct_execution_terminals()
+
+    def test_vc009_11_noncritical_unknown_behavior_remains_allowed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=False, retry_policy='allow')
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_vc009_12_retry_control_proof_survives_serialization(self):
+        self._vc009_positive('internal-retry-disabled:gradle-test-retry-plugin')
+
+    def test_vc009_13_stale_retry_declaration_rejected_on_execution_replay(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit'); supervisor = VerificationSupervisor(store)
+            kwargs = dict(worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
+            supervisor.execute(backend, **kwargs)
+            with self.assertRaisesRegex(StoreError, 'immutable-record-collision'):
+                supervisor.execute(backend, **{**kwargs,
+                    'retry_controls': ('internal-retry-disabled:gradle-test-retry-plugin',)})
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_vc009_14_command_identity_matches_durable_execution(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
+            started = json.loads(next(store.executions.glob('*/started.json')).read_text())
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertEqual(started['command_identity'], terminal['command_identity'])
+            self.assertEqual(started['execution_id'], terminal['execution_id'])
+
+    def test_vc009_15_projection_loss_cannot_create_retry_proof(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            expected = json.loads(terminal_path.read_text())['retry_policy_proof']
+            (terminal_path.parent / 'projection.json').unlink()
+            reconstructed = VerificationStore(root, control_root=root/'control').reconstruct_execution_terminals()
+            self.assertEqual(expected, reconstructed[0]['retry_policy_proof'])
+
+    def test_vc009_16_fresh_process_reconstruction_preserves_retry_proof(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
+            fresh = VerificationStore(root, control_root=root/'control')
+            rebuilt = fresh.reconstruct_execution_terminals()
+            self.assertEqual(['no-internal-retries'], rebuilt[0]['retry_policy_proof']['retry_controls'])
+
+    def _vc009_positive(self, declaration):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
+            backend = LifecycleBackend(store, root/'unit')
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid', retry_controls=(declaration,))
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertEqual([declaration], terminal['retry_policy_proof']['retry_controls'])
+            self.assertTrue(terminal['retry_policy_proof']['retry_free'])
+
     def test_e1_competing_repository_admission_rejects_waiting_execution_before_launch(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -127,7 +346,7 @@ class SupervisorTest(unittest.TestCase):
             first.execute(failed, worktree=root, family_id='family-1', attempt_id='attempt-1',
                 gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
-                input_fingerprint='fingerprint', critical=True)
+                input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint'}
             self.assertIsNotNone(store.current_failure(context))
@@ -148,7 +367,7 @@ class SupervisorTest(unittest.TestCase):
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
                 command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
                 sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
-                critical=True)
+                critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
@@ -183,7 +402,7 @@ class SupervisorTest(unittest.TestCase):
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
                 command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
                 sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
-                critical=True)
+                critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
@@ -220,7 +439,7 @@ class SupervisorTest(unittest.TestCase):
             supervisor.execute(first_backend, worktree=root, family_id='family-1', attempt_id='attempt-1',
                 gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
-                input_fingerprint='fingerprint', critical=True)
+                input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
@@ -241,7 +460,8 @@ class SupervisorTest(unittest.TestCase):
             supervisor.execute(second_backend, worktree=root, family_id='family-2', attempt_id='attempt-2',
                 gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-2',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
-                input_fingerprint='fingerprint', critical=True, failure_grant_id='grant-1')
+                input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',),
+                failure_grant_id='grant-1')
 
             second_failure = store.current_failure(context)
             self.assertNotEqual(first_failure['failure_id'], second_failure['failure_id'])

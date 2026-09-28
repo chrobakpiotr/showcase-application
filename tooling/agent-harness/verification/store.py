@@ -26,6 +26,21 @@ def _validate_component(value: str | None, error: str) -> None:
         raise StoreError(error)
 
 
+def _retry_policy_facts(policy, critical, controls):
+    if policy not in {'forbid', 'allow'} or type(critical) is not bool or not isinstance(controls, list):
+        return None
+    if any(not isinstance(item, str) or not item for item in controls) or len(set(controls)) != len(controls):
+        return None
+    established = (controls == ['no-internal-retries'] or bool(controls) and all(
+        (item.startswith('internal-retry-disabled:') and bool(item.split(':', 1)[1])) or
+        (len(item.split(':')) == 3 and item.split(':')[0] == 'internal-retry-bounded' and
+         bool(item.split(':')[1]) and item.split(':')[2].isdigit() and int(item.split(':')[2]) > 0)
+        for item in controls))
+    return {'schema_version': 1, 'policy': policy, 'critical': critical,
+            'retry_controls': controls,
+            'retry_free': bool(critical and policy == 'forbid' and established)}
+
+
 class ReconciliationOutcome(enum.Enum):
     """Backend assertion about the recorded execution containment scope."""
 
@@ -265,6 +280,13 @@ class VerificationStore:
                 not re.fullmatch(r'[0-9a-f]{64}', record['launch_intent_hash']) or
                 type(record.get('started_at')) not in (float, int)):
             raise StoreError('invalid-execution-history')
+        if 'retry_policy_proof' in record:
+            expected_retry = _retry_policy_facts(record.get('retry_policy'), record.get('critical'),
+                                                 record.get('retry_controls'))
+            if expected_retry is None or record.get('retry_policy_proof') != expected_retry:
+                raise StoreError('retry-policy-violation')
+        elif record.get('critical') is True and record.get('retry_policy') == 'forbid':
+            raise StoreError('retry-policy-violation')
         return record
 
     def _validate_admission(self, directory: pathlib.Path, started: dict) -> None:
@@ -491,7 +513,8 @@ class VerificationStore:
                     'exit_code', 'timed_out', 'cancelled', 'drainage', 'output_observation',
                     'stdout_hash', 'stderr_hash',
                     'post_observation', 'result', 'ended_at'}
-        if (not isinstance(record, dict) or set(record) - (required | {'receipt_hash', 'verification_evidence'}) or
+        if (not isinstance(record, dict) or set(record) - (required | {'receipt_hash', 'verification_evidence',
+                                                                       'retry_policy_proof', 'harness_invocation_upper_bound'}) or
                 not required <= set(record) or record.get('schema_version') != 1 or
                 record.get('repository_id') != self.repository_id or
                 record.get('drainage') != 'DRAINED' or type(record.get('timed_out')) is not bool or
@@ -526,6 +549,22 @@ class VerificationStore:
                 not all(isinstance(record.get(key), str) and record[key] for key in
                         ('execution_id', 'backend_identity', 'policy_identity', 'command_identity',
                          'started_hash'))):
+            raise StoreError('invalid-execution-terminal')
+        # A retry-free claim is derived from the trusted STARTED facts and a
+        # single durable terminal for its execution identity. It is never
+        # accepted as an independent boolean from the caller.
+        started = self._validated_started(self.executions / record['execution_id'])
+        proof = record.get('retry_policy_proof')
+        if started.get('critical') is True and started.get('retry_policy') == 'forbid':
+            expected = started.get('retry_policy_proof')
+            if (not isinstance(proof, dict) or proof != expected or
+                    record.get('harness_invocation_upper_bound') not in {0, 1} or
+                    proof.get('retry_free') is not True or
+                    record.get('command_identity') != started.get('command_identity') or
+                    started.get('command_identity') != started.get('launch_intent_hash') or
+                    record.get('execution_identity') != started.get('execution_identity')):
+                raise StoreError('retry-policy-violation')
+        elif proof != started.get('retry_policy_proof'):
             raise StoreError('invalid-execution-terminal')
         from .serialization import canonical
         body = dict(record)
@@ -626,6 +665,13 @@ class VerificationStore:
                     record.get('started_hash') != expected_started_hash or
                     record.get('execution_identity') != started.get('execution_identity')):
                 raise StoreError('invalid-execution-terminal')
+            if (record.get('retry_policy_proof') != started.get('retry_policy_proof') or
+                    (started.get('critical') is True and started.get('retry_policy') == 'forbid' and
+                     (record.get('harness_invocation_upper_bound') not in {0, 1} or
+                      started['retry_policy_proof'].get('retry_free') is not True or
+                      record.get('command_identity') != started.get('command_identity') or
+                      started.get('command_identity') != started.get('launch_intent_hash')))):
+                raise StoreError('retry-policy-violation')
             records.append(record)
         if rebuild:
             for record in records:

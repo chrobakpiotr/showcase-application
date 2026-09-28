@@ -188,6 +188,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 terminal_record_builder=build_terminal_evidence,
                 input_fingerprint=decision.fingerprint, profile_hash=plan.family.profile_hash,
                 critical=gate.critical,
+                retry_policy=gate.retry_policy, retry_controls=gate.retry_controls,
                 failure_grant_id=(failure_grants or {}).get(decision.node.id))
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
@@ -211,7 +212,8 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
         except RuntimeError as exc:
             code = str(exc)
             outcome = 'ERROR'
-            gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'supervisor-error',
+            reason = 'retry-policy-violation' if code == 'retry-policy-violation' else 'supervisor-error'
+            gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, reason,
                                               decision.fingerprint, gate.command_hash, error=code))
             outcomes.append(outcome)
             for rest in plan.decisions[len(gate_results):]:
