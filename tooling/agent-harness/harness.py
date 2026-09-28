@@ -1233,7 +1233,9 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
     if packet_revision_id(packet) != active_id or packet.get('task') != task_id or packet.get('feature') != doc.get('feature', feature_dir.name):
         die('ACTIVE_PACKET_AMBIGUOUS: active packet content identity mismatch')
     last = lineage[-1]
-    if packet.get('semantic_contract_sha256') != last['contract_sha256']:
+    active_contract = packet_bound_semantic_contract_sha256(feature_dir, packet)
+    if (packet.get('semantic_contract_sha256') != active_contract or
+            active_contract != last['contract_sha256']):
         die('ACTIVE_PACKET_AMBIGUOUS: active packet contract differs from lineage')
     for relation in lineage[:-1]:
         historical_path = (legacy_packet_path(feature_dir, task_id) if relation['legacy']
@@ -1249,19 +1251,9 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
                 historical.get('task') != task_id or
                 historical.get('feature') != doc.get('feature', feature_dir.name)):
             die('ACTIVE_PACKET_AMBIGUOUS: historical packet identity differs from lineage')
-        historical_contract = historical.get('semantic_contract_sha256')
-        if historical_contract is None:
-            historical_task = {field: historical[field] for field in TASK_CONTRACT_FIELDS
-                               if field in historical}
-            if 'id' not in historical_task and isinstance(historical.get('task'), str):
-                historical_task['id'] = historical['task']
-            historical_semantic = semantic_task_contract(
-                feature_dir, doc, historical_task,
-                feature_sha256=historical.get('feature_fingerprint'),
-                test_policy=historical.get('test_policy', 'legacy'))
-            historical_contract = sha256_bytes(json.dumps(
-                historical_semantic, sort_keys=True, separators=(',', ':')).encode())
-        if historical_contract != relation['contract_sha256']:
+        historical_contract = packet_bound_semantic_contract_sha256(feature_dir, historical)
+        if (historical.get('semantic_contract_sha256') not in (None, historical_contract) or
+                historical_contract != relation['contract_sha256']):
             die('ACTIVE_PACKET_AMBIGUOUS: historical contract differs from lineage')
     if entry.get('status') == 'running':
         attempts = entry.get('attempt_bindings', [])
@@ -1794,6 +1786,49 @@ TASK_CONTRACT_FIELDS = (
     'allowed_paths', 'acceptance_criteria', 'risk_tags', 'verification',
     'test_mode', 'test_seam',
 )
+
+
+def packet_bound_semantic_contract_sha256(feature_dir: pathlib.Path,
+                                          packet: dict[str, Any]) -> str:
+    """Reconstruct a materialized packet contract without consulting current planning.
+
+    Packet payloads persist ``agent_profile`` as an execution profile, defaulting it
+    to ``role`` when the planning task omits the field. That fallback is packet
+    metadata, not a task-contract field. For legacy packets without a semantic hash,
+    normalize that default away. Newer packets carry a semantic hash, so recompute
+    both shape-valid interpretations and require the embedded hash to match one.
+    This preserves explicitly supplied profiles while still validating the hash
+    from packet-bound material.
+    """
+    feature = packet.get('feature')
+    task_id = packet.get('task')
+    feature_sha256 = packet.get('feature_fingerprint')
+    test_policy = packet.get('test_policy', 'legacy')
+    if (not isinstance(feature, str) or not feature or not isinstance(task_id, str) or
+            not safe_task_id(task_id) or not isinstance(feature_sha256, str) or
+            re.fullmatch(r'[0-9a-f]{64}', feature_sha256) is None or
+            not isinstance(test_policy, str) or not test_policy):
+        die('ACTIVE_PACKET_AMBIGUOUS: packet lacks immutable semantic contract inputs')
+    task = {field: packet[field] for field in TASK_CONTRACT_FIELDS if field in packet}
+    if 'id' not in task:
+        task['id'] = task_id
+    explicit = dict(task)
+    if task.get('agent_profile') == packet.get('role'):
+        task.pop('agent_profile')
+    def fingerprint_for(contract_task: dict[str, Any]) -> str:
+        semantic = semantic_task_contract(
+            feature_dir, {'feature': feature}, contract_task,
+            feature_sha256=feature_sha256, test_policy=test_policy)
+        return sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode())
+
+    fingerprint = fingerprint_for(task)
+    stored = packet.get('semantic_contract_sha256')
+    if stored is not None:
+        candidates = {fingerprint, fingerprint_for(explicit)}
+        if not isinstance(stored, str) or stored not in candidates:
+            die('ACTIVE_PACKET_AMBIGUOUS: packet semantic contract fingerprint is inconsistent')
+        fingerprint = stored
+    return fingerprint
 
 
 def semantic_task_contract(feature_dir: pathlib.Path, doc: dict[str, Any], task: dict[str, Any], *,
