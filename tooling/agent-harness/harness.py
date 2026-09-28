@@ -2208,6 +2208,9 @@ def cmd_materialize_packet_history(args: argparse.Namespace) -> None:
     if (not isinstance(lineage, list) or not lineage or not isinstance(lineage[0], dict) or
             not lineage[0].get('legacy')):
         die('PACKET_HISTORY_MATERIALIZATION_REJECTED: task has no legacy lineage root')
+    # Prove the complete active chain from the canonical checkout before publishing
+    # any history. This validates active bytes, every audit hop, and the legacy root.
+    resolve_active_packet(feature_dir, doc, args.task_id, state=state)
     relation = lineage[0]
     path = legacy_packet_path(feature_dir, args.task_id)
     if path.is_symlink():
