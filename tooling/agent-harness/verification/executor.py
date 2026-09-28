@@ -12,12 +12,12 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from .model import Evidence
+from .model import Evidence, FileIdentity
 from .planner import evaluate_ready_gate, seal_pass
 from .serialization import default_safety, digest, evidence_record
 from .store import StoreError, VerificationStore
 from .supervisor import VerificationSupervisor
-from verification_command import run_command
+from verification_command import CommandExecutionBackend
 
 
 @dataclass(frozen=True)
@@ -131,14 +131,65 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             continue
         try:
             supervisor = VerificationSupervisor(store)
+            terminal_evidence = []
+            post_ready = []
+            def build_terminal_evidence(command_result, current_ready, post_observation):
+                if (current_ready is None or current_ready.action != 'RUN' or
+                        post_observation.get('stable') is not True or not post_ready):
+                    return None
+                evidence = seal_pass(current_ready, post_ready[0], family=plan.family,
+                    evidence_id=f'{decision.node.id}:{attempt_id}', ownership_token=attempt_id,
+                    started_at=command_result.started_at, ended_at=command_result.ended_at, artifacts=())
+                terminal_evidence.append(evidence)
+                return evidence_record(evidence, safety=safety)
+            def publish_terminal_evidence(_command_result, _current_ready, terminal):
+                record = terminal.get('verification_evidence')
+                if record is None:
+                    return None
+                store.publish_evidence_record(record)
+                store.rebuild_projection(record)
+                if terminal_evidence:
+                    evidence = terminal_evidence[0]
+                else:
+                    evidence = Evidence(**{**record,
+                        'artifacts': tuple(FileIdentity(**item) for item in record['artifacts']),
+                        'dependencies': tuple((item['gate_id'], item['evidence_id'], item['fingerprint'])
+                                              for item in record['dependencies'])})
+                    terminal_evidence.append(evidence)
+                return evidence
+            def observe_after_drain(_command_result, current_ready):
+                if current_ready is None:
+                    return {'stable': False, 'reason': 'ready-gate-missing'}
+                after = evaluate_ready_gate(repository, profile, plan.family, decision.node,
+                                            evidence=reusable, safety=safety)
+                post_ready.append(after)
+                return {'pre_fingerprint': current_ready.fingerprint,
+                        'post_fingerprint': after.fingerprint,
+                        'stable': current_ready.fingerprint == after.fingerprint and after.action == 'RUN'}
+            def observe_recovered_after_drain(started):
+                # Recovery evidence is applicable only to the exact durable
+                # run and gate. A later attempt cannot observe or close it.
+                if (started.get('family_id') != plan.family.id or
+                        started.get('attempt_id') != attempt_id or
+                        started.get('gate_id') != decision.node.id or
+                        not started.get('input_fingerprint')):
+                    return None
+                after = evaluate_ready_gate(repository, profile, plan.family, decision.node,
+                                            evidence=reusable, safety=safety)
+                return {'status': 'CAPTURED', 'fingerprint': after.fingerprint,
+                        'stable': after.fingerprint == started['input_fingerprint'] and after.action == 'RUN'}
             result, ready = supervisor.execute(
-                run_command, worktree=pathlib.Path(repository), family_id=plan.family.id,
+                CommandExecutionBackend(), worktree=pathlib.Path(repository), family_id=plan.family.id,
                 attempt_id=attempt_id, gate_id=decision.node.id, command=gate.command,
                 cwd=pathlib.Path(repository) / gate.cwd,
                 run_dir=store.root / 'runs' / plan.family.id / attempt_id / 'sandbox',
                 timeout_seconds=timeout_seconds, sandbox_mode=sandbox_mode,
                 preflight=lambda: evaluate_ready_gate(repository, profile, plan.family,
-                                                     decision.node, evidence=reusable, safety=safety))
+                                                     decision.node, evidence=reusable, safety=safety),
+                terminal_publisher=publish_terminal_evidence, post_observer=observe_after_drain,
+                recovery_observer=observe_recovered_after_drain,
+                terminal_record_builder=build_terminal_evidence,
+                input_fingerprint=decision.fingerprint)
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
             if ready.action == 'REUSE':
@@ -153,6 +204,10 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'admission-error',
                                               decision.fingerprint, gate.command_hash, error=str(exc)))
             outcomes.append(outcome)
+            for rest in plan.decisions[len(gate_results):]:
+                gate_results.append(GateExecution(rest.node.id, 'RUN', 'NOT_RUN', 'blocked-by-failure',
+                                                  rest.fingerprint, rest.node.gate.command_hash))
+                outcomes.append('NOT_RUN')
             break
         except RuntimeError as exc:
             code = str(exc)
@@ -160,6 +215,10 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'supervisor-error',
                                               decision.fingerprint, gate.command_hash, error=code))
             outcomes.append(outcome)
+            for rest in plan.decisions[len(gate_results):]:
+                gate_results.append(GateExecution(rest.node.id, 'RUN', 'NOT_RUN', 'blocked-by-failure',
+                                                  rest.fingerprint, rest.node.gate.command_hash))
+                outcomes.append('NOT_RUN')
             break
         if result.error:
             outcome = 'ERROR'
@@ -171,12 +230,13 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             outcome = 'FAIL'
         exec_evidence = None
         if outcome == 'PASS':
-            # T-001 seals identity using its single canonical receipt function.
-            exec_evidence = seal_pass(ready, ready, family=plan.family,
-                                      evidence_id=f'{decision.node.id}:{attempt_id}',
-                                      ownership_token=attempt_id, started_at=result.started_at,
-                                      ended_at=result.ended_at, artifacts=())
-            store.publish_evidence(exec_evidence)
+            if 'terminal_evidence' not in locals() or not terminal_evidence:
+                outcome = 'ERROR'
+                gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'stale-input',
+                    ready.fingerprint, gate.command_hash, result.exit_code, error='post-input-changed'))
+                outcomes.append(outcome)
+                break
+            exec_evidence = terminal_evidence[0]
             reusable[decision.node.id] = exec_evidence
         gate_results.append(GateExecution(decision.node.id, 'RUN', outcome,
                                           'completed' if outcome in {'PASS', 'FAIL'} else outcome.lower(),

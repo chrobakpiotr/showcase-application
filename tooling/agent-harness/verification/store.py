@@ -298,6 +298,23 @@ class VerificationStore:
                    ('started.json.publication-uncertain', 'drained.json.publication-uncertain',
                     'admitted.json.publication-uncertain')):
                 raise StoreError('invalid-execution-history')
+            if not (directory / 'started.json').exists():
+                # STARTED is the payload-launch barrier. A directory containing
+                # only private STARTED publication temporaries (or nothing) is
+                # a crash before authority became visible and therefore cannot
+                # represent an execution. Any other content is ambiguous.
+                if directory.is_symlink() or not directory.is_dir():
+                    raise StoreError('invalid-execution-history')
+                _assert_contained(directory, self.root)
+                try:
+                    contents = list(directory.iterdir())
+                except OSError:
+                    raise StoreError('invalid-execution-history') from None
+                if any(item.is_symlink() or not item.is_file() or
+                            not re.fullmatch(r'\.started\.json\.[0-9a-f]{32}\.tmp', item.name)
+                            for item in contents):
+                    raise StoreError('invalid-execution-history')
+                continue
             started = self._validated_started(directory)
             _assert_contained(directory, self.root)
             self._validate_admission(directory, started)
@@ -317,6 +334,11 @@ class VerificationStore:
                         closure.get('backend') != started['backend'] or closure.get('status') != 'drained' or
                         type(closure.get('ended_at')) not in (int, float)):
                     raise StoreError('invalid-execution-history')
+                if started.get('lifecycle_protocol') == 1:
+                    terminal = self._read_execution_terminal(directory, started)
+                    if (terminal is None or
+                            closure.get('terminal_receipt_hash') != terminal.get('receipt_hash')):
+                        raise StoreError('invalid-execution-history')
             executions.append((directory, started, closure))
         return executions
 
@@ -330,9 +352,20 @@ class VerificationStore:
             except Exception:
                 outcome = ReconciliationOutcome.UNCERTAIN
             if outcome == ReconciliationOutcome.PROVEN_DRAINED:
+                if started.get('lifecycle_protocol') == 1:
+                    # Phase-C execution journals are not closable from liveness
+                    # alone: immutable terminal truth and its rebuildable
+                    # projections must precede repository admission release.
+                    terminal = self._read_execution_terminal(directory, started)
+                    if terminal is None:
+                        raise StoreError('verification-owned')
+                    self.reconstruct_execution_terminals()
                 record = {'schema_version': 2, 'execution_id': started['execution_id'],
                           'repository_id': self.repository_id, 'backend': started['backend'],
-                          'status': 'drained', 'reason': 'reconciled-proven-drained', 'ended_at': time.time()}
+                          'status': 'drained', 'reason': 'reconciled-proven-drained',
+                          **({'terminal_receipt_hash': terminal['receipt_hash']}
+                             if started.get('lifecycle_protocol') == 1 else {}),
+                          'ended_at': time.time()}
                 publish_create_once(directory / 'drained.json', record, fault=self._fault)
             elif outcome in (ReconciliationOutcome.STILL_ACTIVE, ReconciliationOutcome.UNCERTAIN):
                 raise StoreError('verification-owned')
@@ -340,6 +373,23 @@ class VerificationStore:
                 raise StoreError('invalid-reconciliation-outcome')
         if any(closure is None for _, _, closure in self._scan_executions()):
             raise StoreError('verification-owned')
+
+    def _read_execution_terminal(self, directory: pathlib.Path, started: dict) -> dict | None:
+        path = directory / 'terminal.json'
+        if not path.exists():
+            return None
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            raise StoreError('invalid-execution-terminal') from None
+        supplied = record.pop('receipt_hash', None)
+        from .serialization import canonical
+        actual = hashlib.sha256(canonical(record)).hexdigest()
+        record['receipt_hash'] = supplied
+        if (supplied != actual or record.get('execution_id') != started['execution_id'] or
+                record.get('repository_id') != self.repository_id or record.get('drainage') != 'DRAINED'):
+            raise StoreError('invalid-execution-terminal')
+        return record
 
     def admit_and_reserve(self, execution_id: str, record: dict, reconciler=None) -> pathlib.Path:
         """Serialize validation, reconciliation, rescan, and immutable admission."""
@@ -428,12 +478,169 @@ class VerificationStore:
                       'status': terminal['status']}
         _atomic_replace_projection(path, projection, fault=self._fault)
 
+    def publish_execution_terminal(self, record: dict) -> str:
+        """Create once the authoritative receipt for a fully drained execution."""
+        required = {'schema_version', 'execution_id', 'repository_id', 'started_hash',
+                    'execution_identity', 'backend_identity', 'policy_identity', 'command_identity',
+                    'exit_code', 'timed_out', 'cancelled', 'drainage', 'output_observation',
+                    'stdout_hash', 'stderr_hash',
+                    'post_observation', 'result', 'ended_at'}
+        if (not isinstance(record, dict) or set(record) - (required | {'receipt_hash', 'verification_evidence'}) or
+                not required <= set(record) or record.get('schema_version') != 1 or
+                record.get('repository_id') != self.repository_id or
+                record.get('drainage') != 'DRAINED' or type(record.get('timed_out')) is not bool or
+                type(record.get('cancelled')) is not bool or
+                record.get('output_observation') not in {'CAPTURED', 'UNAVAILABLE'} or
+                record.get('result') not in {'PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'ABORTED'} or
+                type(record.get('ended_at')) not in (int, float)):
+            raise StoreError('invalid-execution-terminal')
+        captured = record.get('output_observation') == 'CAPTURED'
+        hashes = (record.get('stdout_hash'), record.get('stderr_hash'))
+        if ((captured and not all(isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value)
+                                  for value in hashes)) or
+                (not captured and (record.get('result') != 'ABORTED' or hashes != (None, None)))):
+            raise StoreError('invalid-execution-terminal')
+        _validate_component(record.get('execution_id'), 'invalid-execution-terminal')
+        evidence = record.get('verification_evidence')
+        if evidence is not None:
+            _validate_component(record.get('execution_id'), 'invalid-execution-terminal')
+            try:
+                from .serialization import validate_evidence_record
+                evidence = validate_evidence_record(evidence)
+            except Exception:
+                raise StoreError('invalid-execution-terminal') from None
+            started = self._validated_started(self.executions / record['execution_id'])
+            if (record.get('result') != 'PASS' or evidence.get('repository_id') != self.repository_id or
+                    evidence.get('family_id') != started.get('family_id') or
+                    evidence.get('gate_id') != started.get('gate_id') or
+                    evidence.get('ownership_token') != started.get('attempt_id') or
+                    evidence.get('pre_fingerprint') != started.get('input_fingerprint')):
+                raise StoreError('invalid-execution-terminal')
+        if (not isinstance(record.get('execution_identity'), dict) or
+                not all(isinstance(record.get(key), str) and record[key] for key in
+                        ('execution_id', 'backend_identity', 'policy_identity', 'command_identity',
+                         'started_hash'))):
+            raise StoreError('invalid-execution-terminal')
+        from .serialization import canonical
+        body = dict(record)
+        supplied = body.pop('receipt_hash', None)
+        receipt_hash = hashlib.sha256(canonical(body)).hexdigest()
+        if supplied is not None and supplied != receipt_hash:
+            raise StoreError('invalid-execution-terminal')
+        body['receipt_hash'] = receipt_hash
+        path = self.executions / record['execution_id'] / 'terminal.json'
+        _assert_contained(path, self.root)
+        return publish_create_once(path, body, fault=self._fault)
+
+    def publish_execution_projection(self, terminal: dict) -> None:
+        """Rebuildable per-execution view and index, always downstream of terminal truth."""
+        path = self.executions / terminal['execution_id'] / 'projection.json'
+        projection = {'schema_version': 1, 'execution_id': terminal['execution_id'],
+                      'receipt_hash': terminal['receipt_hash'], 'result': terminal['result']}
+        _atomic_replace_projection(path, projection, fault=self._fault)
+        records = self.reconstruct_execution_terminals(rebuild=False)
+        index = {'schema_version': 1, 'executions': [
+            {'execution_id': item['execution_id'], 'receipt_hash': item['receipt_hash'],
+             'result': item['result']} for item in records]}
+        _atomic_replace_projection(self.root / 'state' / 'execution-index.json', index, fault=self._fault)
+
+    def publish_evidence_record(self, record: dict) -> str:
+        """Publish a validated immutable evidence record embedded by a terminal receipt."""
+        try:
+            from .serialization import validate_evidence_record
+            validated = validate_evidence_record(record)
+        except Exception:
+            raise StoreError('invalid-terminal-evidence') from None
+        if validated.get('repository_id') != self.repository_id:
+            raise StoreError('invalid-terminal-evidence')
+        _validate_component(validated.get('family_id'), 'invalid-terminal-evidence')
+        _validate_component(validated.get('evidence_id'), 'invalid-terminal-evidence')
+        path = self.runs / validated['family_id'] / validated['evidence_id'] / 'terminal.json'
+        _assert_contained(path, self.root)
+        return publish_create_once(path, validated, fault=self._fault)
+
+    def rebuild_terminal_evidence(self, terminal: dict) -> None:
+        """Recreate evidence authority/projection from embedded terminal truth."""
+        record = terminal.get('verification_evidence')
+        if record is None:
+            return
+        self.publish_evidence_record(record)
+        self._scan_terminals()
+
+    def reconstruct_execution_terminals(self, *, rebuild: bool = True) -> list[dict]:
+        """Recover immutable execution truth and repair only derived projections."""
+        records = []
+        if not self.executions.exists():
+            return records
+        _assert_contained(self.executions, self.root)
+        for directory in sorted(self.executions.iterdir()):
+            if not directory.is_dir() or directory.is_symlink() or not (directory / 'terminal.json').exists():
+                continue
+            try:
+                record = json.loads((directory / 'terminal.json').read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                raise StoreError('invalid-execution-terminal') from None
+            supplied = record.pop('receipt_hash', None)
+            from .serialization import canonical
+            actual = hashlib.sha256(canonical(record)).hexdigest()
+            record['receipt_hash'] = supplied
+            started = self._validated_started(directory)
+            expected_started_hash = hashlib.sha256((directory / 'started.json').read_bytes()).hexdigest()
+            evidence = record.get('verification_evidence')
+            if evidence is not None:
+                try:
+                    from .serialization import validate_evidence_record
+                    evidence = validate_evidence_record(evidence)
+                except Exception:
+                    raise StoreError('invalid-execution-terminal') from None
+                if (record.get('result') != 'PASS' or evidence.get('repository_id') != self.repository_id or
+                        evidence.get('family_id') != started.get('family_id') or
+                        evidence.get('gate_id') != started.get('gate_id') or
+                        evidence.get('ownership_token') != started.get('attempt_id') or
+                        evidence.get('pre_fingerprint') != started.get('input_fingerprint')):
+                    raise StoreError('invalid-execution-terminal')
+            if (record.get('schema_version') != 1 or record.get('execution_id') != directory.name or
+                    record.get('repository_id') != self.repository_id or supplied != actual or
+                    record.get('drainage') != 'DRAINED' or
+                    record.get('output_observation') not in {'CAPTURED', 'UNAVAILABLE'} or
+                    (record.get('output_observation') == 'CAPTURED' and
+                     not all(isinstance(record.get(key), str) and
+                             re.fullmatch(r'[0-9a-f]{64}', record[key])
+                             for key in ('stdout_hash', 'stderr_hash'))) or
+                    (record.get('output_observation') == 'UNAVAILABLE' and
+                     (record.get('result') != 'ABORTED' or
+                      (record.get('stdout_hash'), record.get('stderr_hash')) != (None, None))) or
+                    record.get('started_hash') != expected_started_hash or
+                    record.get('execution_identity') != started.get('execution_identity')):
+                raise StoreError('invalid-execution-terminal')
+            records.append(record)
+        if rebuild:
+            for record in records:
+                path = self.executions / record['execution_id'] / 'projection.json'
+                expected = {'schema_version': 1, 'execution_id': record['execution_id'],
+                            'receipt_hash': record['receipt_hash'], 'result': record['result']}
+                try:
+                    current = json.loads(path.read_text(encoding='utf-8'))
+                except (OSError, ValueError):
+                    current = None
+                if current != expected:
+                    _atomic_replace_projection(path, expected, fault=self._fault)
+            # Immutable evidence receipts and their projections precede the
+            # mutable index projection during both normal publication and
+            # recovery.
+            for record in records:
+                self.rebuild_terminal_evidence(record)
+            _atomic_replace_projection(self.root / 'state' / 'execution-index.json',
+                {'schema_version': 1, 'executions': [{'execution_id': item['execution_id'],
+                    'receipt_hash': item['receipt_hash'], 'result': item['result']} for item in records]},
+                fault=self._fault)
+        return records
+
     def publish_evidence(self, evidence: Evidence) -> str:
         record = evidence_record(evidence)
         _validate_component(evidence.family_id, 'invalid-terminal-identity')
         _validate_component(evidence.evidence_id, 'invalid-terminal-identity')
-        path = self.runs / evidence.family_id / evidence.evidence_id / 'terminal.json'
-        receipt = publish_create_once(path, record, fault=self._fault)
+        receipt = self.publish_evidence_record(record)
         return receipt
 
     def iter_evidence(self):

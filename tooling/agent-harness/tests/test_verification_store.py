@@ -281,7 +281,10 @@ class StoreTest(unittest.TestCase):
                     with self.assertRaises(StoreError): fresh.admit_repository_verification()
                 else:
                     self.assertFalse(path.exists())
-                    with self.assertRaises(StoreError): fresh.admit_repository_verification()
+                    # No durable STARTED record means the launch barrier was
+                    # never crossed; the empty journal cannot describe a live
+                    # payload and admission remains recoverable.
+                    fresh.admit_repository_verification()
 
     def test_atomic_reservation_is_repository_wide_and_fresh_store_sees_it(self):
         with tempfile.TemporaryDirectory() as temp:

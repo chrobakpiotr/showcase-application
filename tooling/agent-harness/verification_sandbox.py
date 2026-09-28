@@ -151,12 +151,13 @@ class PosixProcessGroupBackend:
     def discover(self) -> bool:
         return os.name == 'posix' and hasattr(os, 'killpg')
 
-    def prepare(self, root: pathlib.Path, *, repository_id: str, policy_identity: str) -> PreparedExecution:
+    def prepare(self, root: pathlib.Path, *, repository_id: str, policy_identity: str,
+                execution_id: str | None = None, backend_identity: str | None = None) -> PreparedExecution:
         root = pathlib.Path(root).resolve()
-        unit_id = uuid.uuid4().hex
+        unit_id = execution_id or uuid.uuid4().hex
         unit_dir = root / unit_id
         unit_dir.mkdir(parents=True, exist_ok=False)
-        identity = ExecutionIdentity(unit_id, self.name, str(unit_dir), repository_id,
+        identity = ExecutionIdentity(unit_id, backend_identity or self.name, str(unit_dir), repository_id,
                                      policy_identity, uuid.uuid4().hex)
         state = {'schema_version': 1, 'identity': identity.to_dict(), 'state': 'PREPARED'}
         self._write_state(unit_dir / 'unit.json', state)
@@ -292,6 +293,10 @@ class PosixProcessGroupBackend:
                 return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'launch-state-incomplete')
             status = self._group_status(pid)
             if status == 'DRAINED':
+                # Persist the positive empty-unit observation so a fresh
+                # facade can distinguish a known drained unit from missing
+                # or stale identity state.
+                self._write_state(self._state_path(identity), {**state, 'state': 'DRAINED'})
                 return Reconciliation('DRAINED', 'GROUP_ABSENT', 'killpg-zero-returned-esrch')
             if status == 'NOT_DRAINED':
                 current_birth = self._birth_identity(pid)

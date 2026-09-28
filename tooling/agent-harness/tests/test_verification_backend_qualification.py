@@ -344,15 +344,17 @@ class BackendQualificationTest(unittest.TestCase):
                                         checks, ())
         plan = vs.SandboxPlan(['true'], {'PATH': os.environ.get('PATH', '')}, 'candidate', True,
                               {'backend_identity': 'candidate:version', 'policy_fingerprint': 'policy-B'}, proof)
-        with tempfile.TemporaryDirectory() as tmp, \
-             mock.patch.object(command.verification_sandbox, 'build_plan', return_value=plan), \
-             mock.patch.object(command.subprocess, 'Popen') as popen:
+        with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            result = command.run_command('python3 -V', cwd=root, run_dir=root / 'run',
-                                         timeout_seconds=1, sandbox_mode='auto',
-                                         required_capabilities=False)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            with mock.patch.object(command.verification_sandbox, 'build_plan', return_value=plan), \
+                 mock.patch.object(command.CommandExecutionBackend, 'launch',
+                                   side_effect=AssertionError('payload-launched')) as launch:
+                result = command.run_command('python3 -V', cwd=root, run_dir=root / 'run',
+                                             timeout_seconds=1, sandbox_mode='auto',
+                                             required_capabilities=False)
         self.assertEqual('backend-not-v2-qualified', result.error)
-        popen.assert_not_called()
+        launch.assert_not_called()
 
 
 if __name__ == '__main__':
