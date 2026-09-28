@@ -15,29 +15,38 @@ class VerificationCommandTest(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(command.CommandRejected):
                 command.verification_argv(value)
 
-    def test_capture_environment_override_and_exit(self):
+    def test_R15_unqualified_backend_never_executes_payload_even_when_sandbox_is_off(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
-            result = command.run_command(
-                "python3 -c 'import os,sys; print(os.getenv(\"VERIFY_MARK\")); print(\"err\",file=sys.stderr)'",
-                cwd=root, run_dir=root / 'run', timeout_seconds=5, sandbox_mode='off',
-                environment={'PATH': __import__('os').environ.get('PATH', ''), 'CI': 'true'},
-            )
-            self.assertEqual(0, result.exit_code)
-            self.assertIn('None', result.stdout)
-            self.assertIn('err', result.stderr)
-            failed = command.run_command("python3 -c 'raise SystemExit(7)'", cwd=root,
-                                         run_dir=root / 'run2', timeout_seconds=5, sandbox_mode='off')
-            self.assertEqual(7, failed.exit_code)
+            sentinel = root / 'sentinel'
+            with mock.patch.object(command.subprocess, 'Popen') as popen:
+                result = command.run_command(
+                    f"python3 -c 'open(\\\"{sentinel}\\\", \\\"w\\\").write(\\\"ran\\\")'",
+                    cwd=root, run_dir=root / 'run', timeout_seconds=5, sandbox_mode='off',
+                    required_capabilities=False)
+            self.assertEqual('backend-not-v2-qualified', result.error)
+            self.assertFalse(sentinel.exists())
+            popen.assert_not_called()
 
-    def test_timeout_kills_process_group_and_captures_output(self):
+    def test_R15_backend_discovery_or_prepare_failure_never_reaches_payload(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            with mock.patch.object(command.verification_sandbox, 'build_plan',
+                                   side_effect=RuntimeError('backend-prepare-failed')), \
+                 mock.patch.object(command.subprocess, 'Popen') as popen:
+                result = command.run_command('python3 -V', cwd=root, run_dir=root / 'run',
+                                             timeout_seconds=1, required_capabilities=False)
+            self.assertEqual('execution-configuration-error', result.error)
+            popen.assert_not_called()
+
+    def test_unqualified_backend_rejects_long_running_payload_before_spawn(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             result = command.run_command(
                 "python3 -c 'import time; print(\"ready\",flush=True); time.sleep(10)'",
                 cwd=root, run_dir=root / 'run', timeout_seconds=0.1, sandbox_mode='off')
-            self.assertTrue(result.timed_out)
-            self.assertIn('ready', result.stdout)
+            self.assertEqual('backend-not-v2-qualified', result.error)
+            self.assertFalse(result.timed_out)
 
     def test_invalid_cwd_and_missing_executable_are_errors(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -45,10 +54,10 @@ class VerificationCommandTest(unittest.TestCase):
             invalid_cwd = command.run_command('python3 -V', cwd=root / 'missing', run_dir=root / 'a',
                                               timeout_seconds=1, sandbox_mode='off')
             self.assertEqual('invalid-cwd', invalid_cwd.error)
-            # An allowlisted but absent explicit relative executable reaches Popen.
+            # Backend qualification precedes executable launch.
             missing = command.run_command('./gradlew test', cwd=root, run_dir=root / 'b',
                                           timeout_seconds=1, sandbox_mode='off')
-            self.assertEqual('missing-executable', missing.error)
+            self.assertEqual('backend-not-v2-qualified', missing.error)
 
     def test_v2_capability_requirement_fails_before_spawn(self):
         with tempfile.TemporaryDirectory() as temp:

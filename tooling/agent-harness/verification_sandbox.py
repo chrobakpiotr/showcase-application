@@ -9,12 +9,17 @@ backend exists; `off` is an explicit human opt-out.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import pathlib
 import platform
 import shlex
 import shutil
 import subprocess
+import signal
+import sys
+import time
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,7 +31,7 @@ class SandboxPlan:
     backend: str
     strong_isolation: bool
     details: dict[str, Any]
-    qualification: dict[str, Any] | None = None
+    qualification: 'BackendQualification | None' = None
 
 
 class BackendProtocol:
@@ -44,12 +49,872 @@ class BackendProtocol:
         raise NotImplementedError
 
 
+@dataclass(frozen=True)
+class BackendCandidate:
+    """A discovered executable; discovery alone never authorizes a launch."""
+
+    kind: str
+    version: str
+    executable: str
+    platform: str
+    state: str = 'DISCOVERED'
+    qualification: 'BackendQualification | None' = None
+
+
+@dataclass(frozen=True)
+class BackendQualification:
+    status: str
+    backend_identity: str
+    policy_identity: str
+    fingerprint: str
+    protected_paths: tuple[str, ...]
+    checks: tuple['QualificationCheck', ...]
+    reason_codes: tuple[str, ...]
+
+    @property
+    def authorizes_execution(self) -> bool:
+        names = {check.check_id for check in self.checks}
+        return (self.status == 'QUALIFIED' and names == set(QUALIFICATION_IDS) and
+                len(self.checks) == len(QUALIFICATION_IDS) and
+                all(check.status == 'PASS' and check.evidence for check in self.checks))
+
+
+@dataclass(frozen=True)
+class QualificationCheck:
+    check_id: str
+    name: str
+    status: str
+    reason_code: str
+    evidence: str
+
+
+@dataclass(frozen=True)
+class ExecutionIdentity:
+    """Strict, serializable identity for one execution-unit generation."""
+
+    execution_id: str
+    backend_identity: str
+    unit_id: str
+    repository_id: str
+    policy_identity: str
+    birth_identity: str = ''
+    schema_version: int = 1
+
+    def to_dict(self) -> dict[str, Any]:
+        return {'schema_version': self.schema_version, 'execution_id': self.execution_id,
+                'backend_identity': self.backend_identity, 'unit_id': self.unit_id,
+                'birth_identity': self.birth_identity, 'repository_id': self.repository_id,
+                'policy_identity': self.policy_identity}
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> 'ExecutionIdentity':
+        fields = {'schema_version', 'execution_id', 'backend_identity', 'unit_id',
+                  'birth_identity', 'repository_id', 'policy_identity'}
+        if not isinstance(value, dict) or set(value) != fields or value.get('schema_version') != 1:
+            raise ValueError('invalid-execution-identity')
+        if any(not isinstance(value[key], str) or not value[key] for key in fields - {'schema_version'}):
+            raise ValueError('invalid-execution-identity')
+        return cls(value['execution_id'], value['backend_identity'], value['unit_id'],
+                   value['repository_id'], value['policy_identity'], value['birth_identity'], 1)
+
+
+@dataclass(frozen=True)
+class Reconciliation:
+    status: str
+    reason_code: str
+    evidence: str
+
+
+@dataclass(frozen=True)
+class PreparedExecution:
+    identity: ExecutionIdentity
+    state_path: pathlib.Path
+
+
+@dataclass
+class RunningExecution:
+    identity: ExecutionIdentity
+    process: subprocess.Popen
+    state_path: pathlib.Path
+
+
+class PosixProcessGroupBackend:
+    """Concrete POSIX session adapter; candidate only until adversarial probes pass.
+
+    The prepared UUID is durable before launch. Process-group membership is not
+    treated as containment proof: sessions can be escaped and are rejected by
+    qualification until a host proves descendant coverage.
+    """
+
+    name = 'posix-process-group/v1'
+
+    def discover(self) -> bool:
+        return os.name == 'posix' and hasattr(os, 'killpg')
+
+    def prepare(self, root: pathlib.Path, *, repository_id: str, policy_identity: str) -> PreparedExecution:
+        root = pathlib.Path(root).resolve()
+        unit_id = uuid.uuid4().hex
+        unit_dir = root / unit_id
+        unit_dir.mkdir(parents=True, exist_ok=False)
+        identity = ExecutionIdentity(unit_id, self.name, str(unit_dir), repository_id,
+                                     policy_identity, uuid.uuid4().hex)
+        state = {'schema_version': 1, 'identity': identity.to_dict(), 'state': 'PREPARED'}
+        self._write_state(unit_dir / 'unit.json', state)
+        return PreparedExecution(identity, unit_dir / 'unit.json')
+
+    def launch(self, prepared: PreparedExecution, argv: list[str], *, cwd: pathlib.Path,
+               env: dict[str, str]) -> RunningExecution:
+        state = self._read_state(prepared.state_path)
+        if state['identity'] != prepared.identity.to_dict() or state['state'] != 'PREPARED':
+            raise RuntimeError('execution-unit-not-prepared')
+        self._write_state(prepared.state_path, {**state, 'state': 'LAUNCHING'})
+        read_gate, write_gate = os.pipe()
+        gate = ('import os,sys; fd=int(sys.argv[1]); token=os.read(fd,1); os.close(fd); '
+                'os._exit(125) if token != b"1" else os.execvpe(sys.argv[2],sys.argv[2:],os.environ)')
+        process = None
+        try:
+            process = subprocess.Popen([sys.executable, '-c', gate, str(read_gate), *argv],
+                                       cwd=cwd, env=env, start_new_session=True,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       pass_fds=(read_gate,))
+            os.close(read_gate)
+            birth = self._birth_identity(process.pid)
+            self._write_state(prepared.state_path, {**state, 'state': 'ACTIVE', 'pid': process.pid,
+                                                   'birth_identity': birth})
+            os.write(write_gate, b'1')
+            os.close(write_gate)
+        except (OSError, IndexError, ValueError):
+            # Do not leave an untracked payload running when the host cannot
+            # provide the generation marker. The trusted shim is held on a pipe
+            # until the identity is durable, so requested payload code has not
+            # executed at this point.
+            if process is not None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except OSError:
+                    pass
+                process.wait()
+                if process.stdout is not None:
+                    process.stdout.close()
+                if process.stderr is not None:
+                    process.stderr.close()
+            try:
+                os.close(read_gate)
+            except OSError:
+                pass
+            self._write_state(prepared.state_path, {**state, 'state': 'LAUNCH_FAILED'})
+            raise RuntimeError('process-birth-identity-unavailable') from None
+        finally:
+            try:
+                os.close(write_gate)
+            except OSError:
+                pass
+        return RunningExecution(prepared.identity, process, prepared.state_path)
+
+    def inspect(self, identity: ExecutionIdentity) -> Reconciliation:
+        return self.reconcile(identity)
+
+    def cancel(self, identity: ExecutionIdentity) -> str:
+        state_path = self._state_path(identity)
+        try:
+            state = self._read_state(state_path)
+            recorded = ExecutionIdentity.from_dict(state['identity'])
+        except (OSError, ValueError, KeyError, TypeError):
+            return 'UNCERTAIN'
+        if recorded != identity:
+            return 'UNCERTAIN'
+        if state.get('state') in {'PREPARED', 'LAUNCH_FAILED', 'DRAINED'}:
+            return 'DRAINED'
+        if state.get('state') not in {'ACTIVE', 'CANCELLING'} or not isinstance(state.get('pid'), int):
+            return 'UNCERTAIN'
+        try:
+            os.killpg(state['pid'], signal.SIGKILL)
+            state['state'] = 'CANCELLING'
+            self._write_state(state_path, state)
+            return 'CANCEL_REQUESTED'
+        except ProcessLookupError:
+            return self._group_status(state['pid'])
+        except OSError:
+            return 'UNCERTAIN'
+
+    def cancel_and_drain(self, identity: ExecutionIdentity, timeout: float) -> Reconciliation:
+        before = self.inspect(identity)
+        if before.status == 'DRAINED':
+            return before
+        if before.status == 'UNCERTAIN':
+            return before
+        requested = self.cancel(identity)
+        if requested == 'UNCERTAIN':
+            return Reconciliation('UNCERTAIN', 'CANCEL_UNCERTAIN', 'execution-unit-cancel-not-confirmed')
+        result = self.drain(identity, timeout)
+        return Reconciliation(result, f'CANCEL_{result}', f'cancel={requested};drain={result}')
+
+    def drain(self, identity: ExecutionIdentity, timeout: float) -> str:
+        deadline = time.monotonic() + max(0, timeout)
+        state_path = self._state_path(identity)
+        while time.monotonic() <= deadline:
+            try:
+                state = self._read_state(state_path)
+                recorded = ExecutionIdentity.from_dict(state['identity'])
+            except (OSError, ValueError, KeyError, TypeError):
+                return 'UNCERTAIN'
+            if recorded != identity:
+                return 'UNCERTAIN'
+            pid = state.get('pid')
+            if state.get('state') in {'PREPARED', 'LAUNCH_FAILED', 'DRAINED'}:
+                return 'DRAINED'
+            if not isinstance(pid, int):
+                return 'UNCERTAIN'
+            status = self._group_status(pid)
+            if status == 'DRAINED':
+                self._write_state(state_path, {**state, 'state': 'DRAINED'})
+                return 'DRAINED'
+            if status == 'UNCERTAIN':
+                return 'UNCERTAIN'
+            time.sleep(min(.05, max(0, deadline - time.monotonic())))
+        return 'NOT_DRAINED' if isinstance(self._read_state(state_path).get('pid'), int) else 'UNCERTAIN'
+
+    def reconcile(self, identity: ExecutionIdentity) -> Reconciliation:
+        try:
+            state = self._read_state(self._state_path(identity))
+            recorded = ExecutionIdentity.from_dict(state['identity'])
+            if recorded != identity:
+                return Reconciliation('UNCERTAIN', 'STALE_EXECUTION_IDENTITY', 'identity-mismatch')
+            if state['state'] == 'PREPARED':
+                return Reconciliation('DRAINED', 'NOT_LAUNCHED', 'prepared-unit-has-no-payload')
+            if state['state'] == 'LAUNCH_FAILED':
+                return Reconciliation('DRAINED', 'LAUNCH_FAILED_BEFORE_PAYLOAD', 'trusted-gate-never-released')
+            if state['state'] == 'DRAINED':
+                return Reconciliation('DRAINED', 'DRAINED_MARKER', 'previous-positive-drainage-proof')
+            pid = state.get('pid')
+            birth = state.get('birth_identity')
+            if not isinstance(pid, int) or not isinstance(birth, str):
+                return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'launch-state-incomplete')
+            status = self._group_status(pid)
+            if status == 'DRAINED':
+                return Reconciliation('DRAINED', 'GROUP_ABSENT', 'killpg-zero-returned-esrch')
+            if status == 'NOT_DRAINED':
+                current_birth = self._birth_identity(pid)
+                if current_birth != birth:
+                    return Reconciliation('UNCERTAIN', 'STALE_EXECUTION_IDENTITY', 'pid-generation-mismatch')
+                return Reconciliation('ACTIVE', 'GROUP_PRESENT', 'live-process-group-member')
+            return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'process-table-unavailable')
+        except (OSError, ValueError, KeyError, TypeError):
+            return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'identity-state-unavailable')
+
+    @staticmethod
+    def _state_path(identity: ExecutionIdentity) -> pathlib.Path:
+        # unit_id names the pre-created canonical registry directory, never a PID.
+        return pathlib.Path(identity.unit_id) / 'unit.json'
+
+    @staticmethod
+    def _write_state(path: pathlib.Path, value: dict[str, Any]) -> None:
+        temporary = path.with_suffix('.tmp')
+        payload = json.dumps(value, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        with temporary.open('wb') as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        descriptor = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @staticmethod
+    def _read_state(path: pathlib.Path) -> dict[str, Any]:
+        value = json.loads(path.read_text(encoding='utf-8'))
+        if not isinstance(value, dict) or value.get('schema_version') != 1:
+            raise ValueError('invalid-execution-unit-state')
+        return value
+
+    @staticmethod
+    def _birth_identity(pid: int) -> str:
+        # Linux exposes a kernel process-start tick; other POSIX hosts cannot
+        # provide this portable proof and therefore fail closed at qualification.
+        stat = pathlib.Path(f'/proc/{pid}/stat')
+        if not stat.exists():
+            raise OSError('process-birth-identity-unavailable')
+        fields = stat.read_text(encoding='ascii').split()
+        return f'{fields[21]}:{pid}'
+
+    @staticmethod
+    def _group_status(pgid: int) -> str:
+        # killpg(0) also reports zombies. They are no longer live execution
+        # members, so consult the process table and require positive evidence
+        # that no non-zombie member of this process group exists.
+        try:
+            rows = subprocess.check_output(['/bin/ps', '-axo', 'pgid=,stat='],
+                                           stderr=subprocess.DEVNULL, text=True)
+            for row in rows.splitlines():
+                fields = row.split()
+                if len(fields) >= 2 and fields[0].isdigit() and int(fields[0]) == pgid:
+                    if not fields[1].startswith('Z'):
+                        return 'NOT_DRAINED'
+            return 'DRAINED'
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return 'UNCERTAIN'
+
+
+_QUALIFICATION_VERSION = 'verification-backend-q-v1'
+REQUIRED_ADVERSARIAL_CHECKS = (
+    'PERMITTED_WRITE', 'PROTECTED_WRITE_DIRECT', 'PROTECTED_WRITE_CHILD',
+    'PROTECTED_WRITE_GRANDCHILD', 'CONTAINMENT_CHILD', 'CONTAINMENT_GRANDCHILD',
+    'CONTAINMENT_PARENT_EXIT', 'CONTAINMENT_NEW_PROCESS_GROUP', 'CONTAINMENT_NEW_SESSION',
+    'CONTAINMENT_BACKGROUND_SHELL', 'EXECUTION_IDENTITY_DURABLE',
+    'EXECUTION_IDENTITY_STALE_REJECTED', 'CANCEL_EXECUTION_UNIT', 'DRAIN_EXECUTION_UNIT',
+    'RESTART_ACTIVE', 'RESTART_DRAINED',
+)
+QUALIFICATION_IDS = tuple(f'Q{index:02d}' for index in range(1, 17))
+QUALIFICATION_CHECKS = tuple(zip(QUALIFICATION_IDS, REQUIRED_ADVERSARIAL_CHECKS))
+
+
+def compare_execution_identity(expected: ExecutionIdentity, observed: ExecutionIdentity) -> Reconciliation:
+    """Reject PID/unit reuse unless the backend generation marker also matches."""
+    if expected.to_dict() != observed.to_dict():
+        return Reconciliation('UNCERTAIN', 'STALE_EXECUTION_IDENTITY', 'identity-generation-mismatch')
+    return Reconciliation('ACTIVE', 'IDENTITY_MATCH', 'backend-generation-match')
+
+
+def admit_payload(qualification: BackendQualification) -> bool:
+    """Payload is admitted only by a complete, all-PASS qualification result."""
+    return qualification.authorizes_execution
+
+
+def _canonical_paths(paths) -> tuple[str, ...]:
+    return tuple(sorted({str(pathlib.Path(path).expanduser().resolve(strict=False)) for path in paths}))
+
+
+def sandbox_policy_identity(writable_paths, protected_paths) -> str:
+    """Stable identity of effective writable/protected roots and policy version."""
+    payload = json.dumps({
+        'version': 1,
+        'writable': _canonical_paths(writable_paths),
+        'protected': _canonical_paths(protected_paths),
+        'network': 'denied',
+        'descendant_policy': 'contained-unit-required',
+    }, sort_keys=True, separators=(',', ':')).encode()
+    return 'sha256:' + hashlib.sha256(payload).hexdigest()
+
+
+def derive_protected_authority_roots(repository: pathlib.Path) -> tuple[pathlib.Path, ...]:
+    """Resolve repository-wide authority from Git common-dir ownership.
+
+    This deliberately ignores the linked-worktree cwd when selecting the
+    authority owner. Any resolution ambiguity returns an empty tuple so callers
+    cannot mistake an incomplete policy for a qualified one.
+    """
+    try:
+        repo = pathlib.Path(repository).resolve(strict=True)
+        common_text = subprocess.check_output(
+            ['git', '-C', str(repo), 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+            stderr=subprocess.DEVNULL, text=True).strip()
+        common = pathlib.Path(common_text).resolve(strict=True)
+        rows = subprocess.check_output(['git', '-C', str(repo), 'worktree', 'list', '--porcelain'],
+                                       stderr=subprocess.DEVNULL, text=True)
+        owners = []
+        for line in rows.splitlines():
+            if line.startswith('worktree '):
+                try:
+                    candidate = pathlib.Path(line[9:]).resolve(strict=True)
+                except (OSError, RuntimeError):
+                    # Git may retain prunable worktree records; they are not owners.
+                    continue
+                dotgit = candidate / '.git'
+                if dotgit.is_dir() and dotgit.resolve() == common:
+                    owners.append(candidate)
+        if len(owners) != 1:
+            return ()
+        primary = owners[0]
+        roots = _canonical_paths((primary / '.agent-runs', primary / '.agent-state', primary / 'docs' / 'specs',
+                                  primary / '.git', common))
+        return tuple(pathlib.Path(path) for path in roots)
+    except (OSError, subprocess.SubprocessError, RuntimeError):
+        return ()
+
+
+def macos_sandbox_profile(writable_paths, protected_paths) -> str:
+    """Generate deterministic deny-by-default filesystem policy text."""
+    quote = lambda value: json.dumps(str(pathlib.Path(value).resolve(strict=False)))
+    rows = ['(version 1)', '(deny default)', '(allow process*)', '(allow file-read*)',
+            '(allow sysctl-read)', '(allow mach-lookup)', '(allow ipc-posix*)', '(allow signal)']
+    rows.extend(f'(deny file-write* (subpath {quote(path)}))' for path in _canonical_paths(protected_paths))
+    rows.extend(f'(allow file-write* (subpath {quote(path)}))' for path in _canonical_paths(writable_paths))
+    return '\n'.join(rows) + '\n'
+
+
+def discover_backends() -> tuple[BackendCandidate, ...]:
+    """Report host candidates without claiming their safety properties."""
+    system = platform.system().lower()
+    specs = [('codex-sandbox', 'codex'), ('bubblewrap', 'bwrap'), ('macos-sandbox-exec', 'sandbox-exec')]
+    found = []
+    for kind, command in specs:
+        executable = shutil.which(command)
+        if executable is None:
+            continue
+        if kind == 'bubblewrap' and system != 'linux':
+            continue
+        if kind == 'macos-sandbox-exec' and system != 'darwin':
+            continue
+        if kind == 'codex-sandbox' and system not in {'darwin', 'linux'}:
+            continue
+        try:
+            identity = str(pathlib.Path(executable).resolve(strict=True))
+        except (OSError, RuntimeError):
+            continue
+        found.append(BackendCandidate(kind, 'unqualified', identity, system))
+    return tuple(found)
+
+
+def _candidate_probe_argv(candidate: BackendCandidate, argv: list[str], cwd: pathlib.Path,
+                          writable: tuple[str, ...], protected: tuple[str, ...],
+                          profile_path: pathlib.Path) -> list[str] | None:
+    if candidate.kind == 'macos-sandbox-exec' and candidate.platform == 'darwin':
+        profile_path.write_text(macos_sandbox_profile(writable, protected), encoding='utf-8')
+        return [candidate.executable, '-f', str(profile_path), *argv]
+    if candidate.kind == 'codex-sandbox' and candidate.platform == 'darwin':
+        return [candidate.executable, 'sandbox', 'macos', '--full-auto', *argv]
+    return None
+
+
+def _run_probe(candidate: BackendCandidate, code: str, args: list[str], *, cwd: pathlib.Path,
+               writable: tuple[str, ...], protected: tuple[str, ...], profile_path: pathlib.Path,
+               timeout: float = 5) -> tuple[int | None, str, str]:
+    command = [sys.executable, '-c', code, *args]
+    wrapped = _candidate_probe_argv(candidate, command, cwd, writable, protected, profile_path)
+    if wrapped is None:
+        return None, '', 'candidate-probe-wrapper-unsupported'
+    env = {'PATH': os.environ.get('PATH', '/usr/bin:/bin'), 'HOME': os.environ.get('HOME', str(cwd)),
+           'TMPDIR': os.environ.get('TMPDIR', '/tmp'), 'PYTHONIOENCODING': 'utf-8'}
+    try:
+        result = subprocess.run(wrapped, cwd=cwd, env=env, capture_output=True, text=True,
+                                 timeout=timeout, check=False)
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return None, '', 'probe-timeout'
+    except OSError as exc:
+        return None, '', f'probe-launch:{type(exc).__name__}'
+    finally:
+        profile_path.unlink(missing_ok=True)
+
+
+def _sandbox_launch_unavailable(stderr: str) -> bool:
+    return ('sandbox_apply: Operation not permitted' in stderr or
+            "execvp() of 'macos' failed" in stderr)
+
+
+def _active_filesystem_probe(candidate: BackendCandidate, check_id: str, writable,
+                             protected, worktree: pathlib.Path) -> tuple[str, str, str]:
+    writable_paths = tuple(pathlib.Path(item) for item in writable)
+    protected_paths = tuple(pathlib.Path(item) for item in protected)
+    if not writable_paths or not protected_paths:
+        return 'UNCERTAIN', 'PROBE_ROOTS_UNAVAILABLE', 'writable-or-protected-root-missing'
+    writable_root = writable_paths[0]
+    try:
+        writable_root.mkdir(parents=True, exist_ok=True)
+        writable_root = writable_root.resolve(strict=True)
+    except OSError as exc:
+        return 'UNCERTAIN', 'WRITABLE_PROBE_ROOT_UNAVAILABLE', type(exc).__name__
+    profile = writable_root / f'.qualification-{uuid.uuid4().hex}.sb'
+    nonce = uuid.uuid4().hex
+    if check_id == 'Q01':
+        marker = writable_root / f'.permitted-{nonce}'
+        code = 'import pathlib,sys; pathlib.Path(sys.argv[1]).write_text("ok"); print("created")'
+        status, stdout, stderr = _run_probe(candidate, code, [str(marker)], cwd=worktree,
+                                             writable=(*writable, str(writable_root)),
+                                             protected=protected, profile_path=profile)
+        passed = status == 0 and stdout == 'created' and marker.exists()
+        marker.unlink(missing_ok=True)
+        return ('PASS', 'PERMITTED_WRITE_CONFIRMED', 'marker-created-in-writable-root') if passed else (
+            'UNSUPPORTED' if _sandbox_launch_unavailable(stderr) else
+            'FAIL' if status is not None else 'UNCERTAIN',
+            'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if _sandbox_launch_unavailable(stderr) else
+            'PERMITTED_WRITE_FAILED',
+            f'exit={status};stdout={stdout};stderr={stderr[:200]}')
+
+    authority = next((pathlib.Path(path) for path in protected
+                      if pathlib.Path(path).is_dir() and pathlib.Path(path) != worktree), None)
+    if authority is None:
+        return 'UNCERTAIN', 'PROTECTED_ROOT_UNAVAILABLE', 'no-existing-protected-directory'
+    marker = authority / f'.qualification-{nonce}'
+    alias = writable_root / f'.authority-alias-{nonce}'
+    try:
+        alias.symlink_to(authority, target_is_directory=True)
+    except OSError:
+        alias = None
+    if check_id != 'Q02' and alias is not None:
+        alias.unlink(missing_ok=True)
+        alias = None
+    direct_code = (
+        'import os,sys; p=sys.argv[1]; '
+        'exec("try:\\n fd=os.open(p,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600); os.close(fd); print(\\\"created\\\")\\nexcept OSError as e: print(\\\"denied:\\"+str(e.errno))")'
+    )
+    attempts: list[tuple[str, list[str], str]] = [('absolute', [str(marker)], direct_code)]
+    attempts.append(('relative', [os.path.relpath(marker, worktree)], direct_code))
+    if alias is not None:
+        attempts.append(('symlink', [str(alias / marker.name)], direct_code))
+    if check_id == 'Q02':
+        for label, args, code in attempts:
+            rc, stdout, stderr = _run_probe(candidate, code, args, cwd=worktree,
+                                             writable=(*writable, str(writable_root)),
+                                             protected=protected, profile_path=profile)
+            if rc != 0 or not stdout.startswith('denied:') or marker.exists():
+                marker.unlink(missing_ok=True)
+                if alias is not None:
+                    alias.unlink(missing_ok=True)
+                unavailable = _sandbox_launch_unavailable(stderr)
+                return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
+                        'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'PROTECTED_DIRECT_BYPASS',
+                        f'{label}:exit={rc};stdout={stdout};stderr={stderr[:200]}')
+        shell_code = ('import subprocess,sys; p=sys.argv[1]; '
+                      'r=subprocess.run(["/bin/sh","-c",'
+                      '"python3 -c \\\"import os,sys; os.open(sys.argv[1],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)\\\" \"$1\"",'
+                      '"probe",p],capture_output=True); print("denied" if r.returncode else "created")')
+        shell_leaf = 'import os,sys; os.open(sys.argv[1],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)'
+        shell_code = ('import subprocess,sys; r=subprocess.run(["/bin/sh","-c",'
+                      + repr('exec "$@"') + ',"probe",sys.executable,"-c",'
+                      + repr(shell_leaf) + ',sys.argv[1]],capture_output=True); '
+                      'print("denied" if r.returncode else "created")')
+        rc, stdout, stderr = _run_probe(candidate, shell_code, [str(marker)], cwd=worktree,
+                                         writable=(*writable, str(writable_root)),
+                                         protected=protected, profile_path=profile)
+        if rc != 0 or stdout != 'denied' or marker.exists():
+            marker.unlink(missing_ok=True)
+            if alias is not None:
+                alias.unlink(missing_ok=True)
+            unavailable = _sandbox_launch_unavailable(stderr)
+            return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
+                    'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'PROTECTED_SHELL_BYPASS',
+                    f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
+        if alias is not None:
+            alias.unlink(missing_ok=True)
+        return 'PASS', 'PROTECTED_DIRECT_DENIED', 'absolute-relative-symlink-shell-denied-marker-absent'
+
+    if check_id == 'Q03':
+        child_only_code = ('import subprocess,sys; r=subprocess.run([sys.executable,"-c",' +
+                           repr(direct_code) + ',sys.argv[1]],capture_output=True,text=True); print(r.stdout.strip())')
+        rc, stdout, stderr = _run_probe(candidate, child_only_code, [str(marker)], cwd=worktree,
+                                         writable=(*writable, str(writable_root)),
+                                         protected=protected, profile_path=profile)
+        marker.unlink(missing_ok=True)
+        if stdout.startswith('denied:') and not marker.exists() and rc == 0:
+            return 'PASS', 'DESCENDANT_PROTECTED_WRITE_DENIED', f'{check_id}:{stdout}'
+        unavailable = _sandbox_launch_unavailable(stderr)
+        return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
+                'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'DESCENDANT_PROTECTED_WRITE_NOT_PROVEN',
+                f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
+    code = (
+        'import subprocess,sys; p=sys.argv[1]; '
+        'leaf="import os,sys;\\ntry:\\n fd=os.open(sys.argv[1],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600); os.close(fd); print(\\\"created\\\")\\n'
+        'except OSError as e: print(\\\"denied:\\"+str(e.errno))"; '
+        'child="import subprocess,sys; r=subprocess.run([sys.executable,\'-c\',"+repr(leaf)+",sys.argv[1]],capture_output=True,text=True); print(r.stdout.strip())"; '
+        'r=subprocess.run([sys.executable,"-c",child,p],capture_output=True,text=True); print(r.stdout.strip())'
+    )
+    rc, stdout, stderr = _run_probe(candidate, code, [str(marker)], cwd=worktree,
+                                     writable=(*writable, str(writable_root)),
+                                     protected=protected, profile_path=profile)
+    marker.unlink(missing_ok=True)
+    if stdout.startswith('denied:') and not marker.exists() and rc == 0:
+        return 'PASS', 'DESCENDANT_PROTECTED_WRITE_DENIED', f'{check_id}:{stdout}'
+    unavailable = _sandbox_launch_unavailable(stderr)
+    return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
+            'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'DESCENDANT_PROTECTED_WRITE_NOT_PROVEN',
+            f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
+
+
+def _active_containment_probe(candidate: BackendCandidate, check_id: str, worktree: pathlib.Path,
+                              writable: tuple[str, ...], protected: tuple[str, ...]) -> tuple[str, str, str]:
+    if not writable:
+        return 'UNCERTAIN', 'WRITABLE_PROBE_ROOT_UNAVAILABLE', 'no-writable-root'
+    root = pathlib.Path(writable[0])
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        root = root.resolve(strict=True)
+    except OSError as exc:
+        return 'UNCERTAIN', 'WRITABLE_PROBE_ROOT_UNAVAILABLE', type(exc).__name__
+    nonce = uuid.uuid4().hex
+    pid_file = root / f'.containment-{nonce}.pid'
+    profile = root / f'.containment-{nonce}.sb'
+    mode = check_id
+    leaf = '''import os,sys,time
+mode=sys.argv[1]
+out=sys.argv[2]
+result="not-attempted"
+try:
+    if mode == "Q08":
+        os.setpgid(0, 0)
+        result="escape-succeeded"
+    elif mode == "Q09":
+        os.setsid()
+        result="escape-succeeded"
+except OSError:
+    result="escape-denied"
+with open(out,"w") as stream: stream.write(str(os.getpid())+" "+result)
+time.sleep(30)
+'''
+    child = [sys.executable, '-c', leaf, mode, str(pid_file)]
+    if check_id == 'Q06':
+        code = ('import subprocess,sys,time; p=subprocess.Popen([sys.executable,"-c",' +
+                repr('import subprocess,sys,time; p=subprocess.Popen(sys.argv[1:]); open(sys.argv[-1],"w").write(str(p.pid)); time.sleep(30)') +
+                ',*sys.argv[1:]]); time.sleep(30)')
+        argv = [sys.executable, '-c', code, *child, str(pid_file)]
+    elif check_id == 'Q10':
+        shell = 'sleep 30 & echo $! > "$1"; exit 0'
+        code = ('import subprocess,sys; subprocess.run(["/bin/sh","-c",sys.argv[1],"probe",sys.argv[2]])')
+        argv = [sys.executable, '-c', code, shell, str(pid_file)]
+    elif check_id == 'Q05':
+        parent = 'import subprocess,sys,time; p=subprocess.Popen(sys.argv[1:]); open(sys.argv[-1],"w").write(str(p.pid)); time.sleep(30)'
+        argv = [sys.executable, '-c', parent, *child, str(pid_file)]
+    elif check_id == 'Q07':
+        parent = 'import subprocess,sys; p=subprocess.Popen(sys.argv[1:]); open(sys.argv[-1],"w").write(str(p.pid))'
+        argv = [sys.executable, '-c', parent, *child, str(pid_file)]
+    elif check_id in {'Q08', 'Q09'}:
+        parent = 'import subprocess,sys,time; subprocess.Popen(sys.argv[1:]); time.sleep(30)'
+        argv = [sys.executable, '-c', parent, *child, str(pid_file)]
+    else:
+        argv = child
+    wrapped = _candidate_probe_argv(candidate, argv, worktree, (*writable, str(root)), protected, profile)
+    if wrapped is None:
+        pid_file.unlink(missing_ok=True)
+        return 'UNSUPPORTED', 'CANDIDATE_PROCESS_PROBE_UNSUPPORTED', candidate.kind
+    process = None
+    child_pid = None
+    try:
+        env = {'PATH': os.environ.get('PATH', '/usr/bin:/bin'), 'HOME': os.environ.get('HOME', str(root)),
+               'TMPDIR': os.environ.get('TMPDIR', '/tmp')}
+        process = subprocess.Popen(wrapped, cwd=worktree, env=env, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   start_new_session=True)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and not pid_file.exists():
+            if process.poll() is not None and check_id not in {'Q07', 'Q10'}:
+                break
+            time.sleep(.02)
+        if pid_file.exists():
+            try:
+                child_pid = int(pid_file.read_text().split()[0])
+            except (OSError, ValueError, IndexError):
+                child_pid = None
+        if child_pid is None:
+            exited = process.poll() if process is not None else None
+            return ('UNSUPPORTED' if exited is not None else 'UNCERTAIN',
+                    'CANDIDATE_REJECTED_PROCESS_PROBE' if exited is not None else 'DESCENDANT_PID_UNAVAILABLE',
+                    f'{check_id}:probe-did-not-publish-pid;exit={exited}')
+        try:
+            actual_group = os.getpgid(child_pid)
+            live = True
+        except (ProcessLookupError, PermissionError):
+            actual_group, live = None, False
+        if check_id in {'Q07', 'Q10'}:
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                return 'FAIL', 'PARENT_DID_NOT_EXIT', check_id
+            state = PosixProcessGroupBackend._group_status(process.pid)
+            contained = live and actual_group == process.pid and state == 'NOT_DRAINED'
+            return ('PASS', 'PARENT_EXIT_DESCENDANT_NOT_DRAINED', f'{check_id}:group={actual_group};state={state}') if contained else (
+                'FAIL' if state == 'DRAINED' or (live and actual_group != process.pid) else 'UNCERTAIN',
+                'PARENT_EXIT_DESCENDANT_NOT_VISIBLE', f'{check_id}:live={live};group={actual_group};state={state}')
+        if check_id in {'Q08', 'Q09'}:
+            outcome = pid_file.read_text().split(maxsplit=1)[1] if pid_file.exists() else ''
+            contained = live and actual_group == process.pid
+            passed = contained and outcome == 'escape-denied'
+            return ('PASS', 'DESCENDANT_REMAINS_IN_UNIT', f'{check_id}:group={actual_group};{outcome}') if passed else (
+                'FAIL' if live else 'UNCERTAIN', 'DESCENDANT_ESCAPED_EXECUTION_UNIT',
+                f'{check_id}:live={live};group={actual_group};{outcome}')
+        contained = live and actual_group == process.pid
+        return ('PASS', 'DESCENDANT_ASSOCIATED_WITH_UNIT', f'{check_id}:group={actual_group}') if contained else (
+            'FAIL' if live else 'UNCERTAIN', 'DESCENDANT_NOT_ASSOCIATED',
+            f'{check_id}:live={live};group={actual_group};leader={process.pid}')
+    except (OSError, subprocess.SubprocessError) as exc:
+        return 'UNCERTAIN', 'CONTAINMENT_PROBE_ERROR', type(exc).__name__
+    finally:
+        if process is not None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except OSError:
+                pass
+        if child_pid is not None:
+            try:
+                os.kill(child_pid, signal.SIGKILL)
+            except OSError:
+                pass
+        if process is not None:
+            try:
+                process.wait(timeout=2)
+            except (OSError, subprocess.TimeoutExpired):
+                process.kill()
+                process.wait()
+        pid_file.unlink(missing_ok=True)
+        profile.unlink(missing_ok=True)
+
+
+def _run_active_qualification_check(candidate: BackendCandidate, check_id: str, name: str,
+                                    *, worktree: pathlib.Path, writable: tuple[str, ...],
+                                    protected: tuple[str, ...], repository_id: str,
+                                    policy_identity: str) -> tuple[str, str, str]:
+    if check_id in {'Q01', 'Q02', 'Q03', 'Q04'}:
+        return _active_filesystem_probe(candidate, check_id, writable, protected, worktree)
+    if check_id == 'Q12':
+        expected = ExecutionIdentity('exec', 'backend/v1', 'unit', repository_id,
+                                     policy_identity, 'birth-a')
+        observed = ExecutionIdentity('exec', 'backend/v1', 'unit', repository_id,
+                                     policy_identity, 'birth-b')
+        result = compare_execution_identity(expected, observed)
+        return ('PASS', 'STALE_IDENTITY_REJECTED', result.reason_code) if result.status == 'UNCERTAIN' else (
+            'FAIL', 'STALE_IDENTITY_ACCEPTED', result.status)
+    if check_id in {'Q05', 'Q06', 'Q07', 'Q08', 'Q09', 'Q10'}:
+        return _active_containment_probe(candidate, check_id, worktree, writable, protected)
+    if check_id in {'Q11', 'Q13', 'Q14', 'Q15', 'Q16'}:
+        backend = PosixProcessGroupBackend()
+        unit_root = pathlib.Path(writable[0]) / f'.qualification-unit-{uuid.uuid4().hex}'
+        try:
+            prepared = backend.prepare(unit_root, repository_id=repository_id,
+                                       policy_identity=policy_identity)
+        except OSError as exc:
+            return 'UNCERTAIN', 'UNIT_PREPARE_FAILED', type(exc).__name__
+        if check_id == 'Q11':
+            valid = backend._read_state(prepared.state_path)['identity'] == prepared.identity.to_dict()
+            shutil.rmtree(unit_root, ignore_errors=True)
+            return ('PASS', 'EXECUTION_IDENTITY_DURABLE', 'prepared-identity-fsynced') if valid else (
+                'FAIL', 'EXECUTION_IDENTITY_NOT_DURABLE', 'identity-readback-mismatch')
+        if check_id == 'Q16':
+            try:
+                running = backend.launch(prepared, [sys.executable, '-c', 'import time; time.sleep(30)'],
+                                         cwd=worktree, env={'PATH': os.environ.get('PATH', '/usr/bin:/bin')})
+            except (OSError, RuntimeError) as exc:
+                shutil.rmtree(unit_root, ignore_errors=True)
+                return 'FAIL', 'EXECUTION_IDENTITY_UNAVAILABLE', str(exc)
+            identity = ExecutionIdentity.from_dict(running.identity.to_dict())
+            fresh = PosixProcessGroupBackend()
+            fresh.cancel(identity)
+            drained = fresh.drain(identity, 2)
+            later = PosixProcessGroupBackend().reconcile(identity)
+            try:
+                running.process.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                running.process.kill()
+                running.process.communicate()
+            shutil.rmtree(unit_root, ignore_errors=True)
+            return ('PASS', 'RESTART_DRAINED', later.evidence) if drained == 'DRAINED' and later.status == 'DRAINED' else (
+                'UNCERTAIN' if drained == 'UNCERTAIN' or later.status == 'UNCERTAIN' else 'FAIL',
+                'RESTART_DRAINED_UNPROVEN', f'drain={drained};reconcile={later.status}')
+        if check_id == 'Q13':
+            descendant_file = unit_root / 'descendant.pid'
+            payload = ('import subprocess,sys,time,pathlib; children=[]; end=time.monotonic()+.5; '
+                       'exec("while time.monotonic()<end:\\n p=subprocess.Popen([sys.executable,\'-c\',\'import time;time.sleep(30)\'])\\n children.append(p.pid)\\n pathlib.Path(sys.argv[1]).write_text(\',\'.join(map(str,children)))\\n time.sleep(.01)"); '
+                       'time.sleep(30)')
+            try:
+                running = backend.launch(prepared, [sys.executable, '-c', payload, str(descendant_file)],
+                                         cwd=worktree, env={'PATH': os.environ.get('PATH', '/usr/bin:/bin')})
+            except (OSError, RuntimeError) as exc:
+                shutil.rmtree(unit_root, ignore_errors=True)
+                return 'FAIL', 'EXECUTION_IDENTITY_UNAVAILABLE', str(exc)
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and not descendant_file.exists():
+                time.sleep(.01)
+            child_known = descendant_file.exists()
+            result = PosixProcessGroupBackend().cancel_and_drain(running.identity, 2)
+            try:
+                running.process.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                running.process.kill()
+                running.process.communicate()
+            shutil.rmtree(unit_root, ignore_errors=True)
+            if not child_known:
+                return 'FAIL', 'DESCENDANT_NOT_STARTED_BEFORE_CANCEL', 'cancellation-probe-race-not-established'
+            return ('PASS', 'WHOLE_UNIT_CANCELLED_AND_DRAINED', result.evidence) if result.status == 'DRAINED' else (
+                'UNCERTAIN' if result.status == 'UNCERTAIN' else 'FAIL', 'WHOLE_UNIT_CANCELLATION_UNPROVEN', result.evidence)
+        if check_id == 'Q14':
+            try:
+                running = backend.launch(prepared, [sys.executable, '-c', 'import time; time.sleep(.2)'],
+                                         cwd=worktree, env={'PATH': os.environ.get('PATH', '/usr/bin:/bin')})
+            except (OSError, RuntimeError) as exc:
+                shutil.rmtree(unit_root, ignore_errors=True)
+                return 'FAIL', 'EXECUTION_IDENTITY_UNAVAILABLE', str(exc)
+            running.process.wait(timeout=2)
+            result = backend.reconcile(running.identity)
+            running.process.communicate()
+            shutil.rmtree(unit_root, ignore_errors=True)
+            return ('PASS', 'DRAINED_WITH_PROCESS_TABLE_PROOF', result.evidence) if result.status == 'DRAINED' else (
+                'UNCERTAIN' if result.status == 'UNCERTAIN' else 'FAIL', 'DRAINAGE_NOT_PROVEN', result.evidence)
+        try:
+            running = backend.launch(prepared, [sys.executable, '-c', 'import time; time.sleep(30)'],
+                                     cwd=worktree, env={'PATH': os.environ.get('PATH', '/usr/bin:/bin')})
+        except (OSError, RuntimeError) as exc:
+            shutil.rmtree(unit_root, ignore_errors=True)
+            return 'FAIL', 'EXECUTION_IDENTITY_UNAVAILABLE', str(exc)
+        if check_id == 'Q15':
+            identity = ExecutionIdentity.from_dict(running.identity.to_dict())
+            fresh_backend = PosixProcessGroupBackend()
+            fresh = fresh_backend.reconcile(identity)
+            cleanup = fresh_backend.cancel_and_drain(identity, 2)
+            try:
+                running.process.communicate(timeout=2)
+            except subprocess.TimeoutExpired:
+                running.process.kill()
+                running.process.communicate()
+            shutil.rmtree(unit_root, ignore_errors=True)
+            return ('PASS', 'RESTART_ACTIVE', f'{fresh.evidence};cleanup={cleanup.status}') if fresh.status == 'ACTIVE' else (
+                'UNCERTAIN', 'RESTART_ACTIVE_UNPROVEN', fresh.evidence)
+        result = backend.cancel_and_drain(running.identity, 2)
+        running.process.communicate(timeout=2)
+        shutil.rmtree(unit_root, ignore_errors=True)
+        return ('PASS', 'EXECUTION_UNIT_CANCELLED_AND_DRAINED', result.evidence) if result.status == 'DRAINED' else (
+            'UNCERTAIN' if result.status == 'UNCERTAIN' else 'FAIL', 'EXECUTION_UNIT_DRAIN_NOT_PROVEN', result.evidence)
+    return 'UNSUPPORTED', 'UNKNOWN_QUALIFICATION_CHECK', name
+
+
+def qualify_backend(candidate: BackendCandidate, *, worktree: pathlib.Path, writable_paths,
+                    protected_paths, repository_id: str) -> BackendQualification:
+    """Actively run all mandatory probes; incomplete evidence always rejects."""
+    writable = _canonical_paths(writable_paths)
+    protected = _canonical_paths(protected_paths)
+    policy_id = sandbox_policy_identity(writable, protected)
+    backend_name = (f'codex-{candidate.platform}' if candidate.kind == 'codex-sandbox'
+                    else candidate.kind)
+    backend_id = f'{backend_name}:{candidate.version}:{candidate.platform}:{candidate.executable}'
+    body = {
+        'backend': backend_id, 'policy': policy_id, 'protected': protected,
+        'containment': 'strong-descendant-unit', 'repository': repository_id,
+        'qualification_version': _QUALIFICATION_VERSION,
+    }
+    fingerprint = 'sha256:' + hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    checks = []
+    for check_id, name in QUALIFICATION_CHECKS:
+        try:
+            status, reason, evidence = _run_active_qualification_check(
+                candidate, check_id, name, worktree=pathlib.Path(worktree), writable=writable,
+                protected=protected, repository_id=repository_id, policy_identity=policy_id)
+        except Exception as exc:
+            status, reason, evidence = 'UNCERTAIN', 'QUALIFICATION_PROBE_EXCEPTION', type(exc).__name__
+        checks.append(QualificationCheck(check_id, name, status, reason, evidence))
+    checks = tuple(checks)
+    status = 'QUALIFIED' if all(check.status == 'PASS' for check in checks) else 'REJECTED'
+    body['checks'] = [{'check_id': c.check_id, 'status': c.status,
+                       'reason_code': c.reason_code, 'evidence': c.evidence} for c in checks]
+    fingerprint = 'sha256:' + hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    reasons = tuple(sorted({c.reason_code for c in checks if c.status != 'PASS'}))
+    return BackendQualification(status, backend_id, policy_id, fingerprint, protected, checks, reasons)
+
+
+def reconcile_execution(identity: ExecutionIdentity) -> Reconciliation:
+    """Conservatively reconcile a persisted identity without backend proof."""
+    if (not identity.execution_id or not identity.backend_identity or not identity.unit_id or
+            not identity.birth_identity or not identity.repository_id or not identity.policy_identity):
+        return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'execution-identity-incomplete')
+    # No installed candidate currently provides a restart-stable unit oracle.
+    return Reconciliation('UNCERTAIN', 'DRAINAGE_UNCERTAIN', 'backend-reconciliation-unavailable')
+
+
 def qualifies_v2(plan: SandboxPlan) -> bool:
     """Only a concrete qualification record can authorize v2 launch."""
     proof = plan.qualification
-    return bool(isinstance(proof, dict) and proof.get('backend') == plan.backend and
-                proof.get('protected_paths') is True and proof.get('descendant_containment') == 'strong' and
-                proof.get('qualification') == 'integration-fixture-pass')
+    return bool(isinstance(proof, BackendQualification) and proof.authorizes_execution and
+                proof.backend_identity.startswith(plan.backend + ':'))
 
 
 def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, str]:
@@ -132,24 +997,17 @@ def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: p
         return None
     # Keep the policy deliberately small: read system/toolchain files, write only task workspace and
     # isolated build home, and expose no network. This is stricter than relying on shell allowlists.
-    def q(value: pathlib.Path) -> str:
-        return json.dumps(str(value))
     profile = sandbox_home / 'verification.sb'
-    profile.write_text(
-        '(version 1)\n'
-        '(deny default)\n'
-        '(allow process*)\n'
-        '(allow file-read*)\n'
-        '(allow sysctl-read)\n'
-        '(allow mach-lookup)\n'
-        '(allow ipc-posix*)\n'
-        '(allow signal)\n'
-        f'(allow file-write* (subpath {q(worktree)}) (subpath {q(sandbox_home)}))\n',
-        encoding='utf-8',
-    )
+    protected = derive_protected_authority_roots(worktree)
+    if not protected:
+        return None
+    write_roots = (worktree, sandbox_home)
+    profile.write_text(macos_sandbox_profile(write_roots, protected), encoding='utf-8')
     return SandboxPlan(
         [sandbox_exec, '-f', str(profile), *argv], env, 'macos-sandbox-exec', True,
-        {'network': 'denied-by-default', 'write_roots': [str(worktree), str(sandbox_home)]}, None,
+        {'network': 'denied-by-default', 'write_roots': [str(worktree), str(sandbox_home)],
+         'protected_roots': [str(path) for path in protected],
+         'policy_fingerprint': sandbox_policy_identity(write_roots, protected)}, None,
     )
 
 

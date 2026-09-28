@@ -80,7 +80,7 @@ def _decode(value):
 def run_command(command: str, *, cwd: pathlib.Path, run_dir: pathlib.Path,
                 timeout_seconds: float, sandbox_mode: str = 'auto',
                 environment: Mapping[str, str] | None = None,
-                required_capabilities: bool = False) -> CommandResult:
+                required_capabilities: bool = True) -> CommandResult:
     """Run one allowlisted command, capturing diagnostics and classifying failure.
 
     Shell syntax is never interpreted. `environment`, when given, may only
@@ -102,11 +102,16 @@ def run_command(command: str, *, cwd: pathlib.Path, run_dir: pathlib.Path,
             if any(not isinstance(k, str) or not isinstance(v, str) or k not in env for k, v in environment.items()):
                 raise CommandRejected('environment-override-not-allowed')
             env.update(environment)
-        # Existing backends do not expose an independently qualified v2
-        # protected-path + descendant-containment contract yet.
-        protected = bool(getattr(sandbox, 'protected_paths', False))
-        containment = getattr(sandbox, 'descendant_containment', 'none')
-        if required_capabilities and not (protected and containment == 'strong'):
+        # Every invocation is requested verification payload. A sandbox plan or
+        # capability-shaped metadata is not qualification evidence; only the
+        # complete policy-bound adversarial record can admit the command.
+        proof = getattr(sandbox, 'qualification', None)
+        protected = bool(proof is not None and proof.authorizes_execution)
+        containment = 'strong' if protected else 'none'
+        details = getattr(sandbox, 'details', {})
+        if not (protected and proof.policy_identity == details.get('policy_fingerprint') and
+                proof.backend_identity == details.get('backend_identity') and
+                proof.backend_identity.startswith(f'{sandbox.backend}:')):
             raise CommandEnvironmentBlocked('backend-not-v2-qualified')
         proc = subprocess.Popen(sandbox.argv, cwd=resolved_cwd, env=env,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
