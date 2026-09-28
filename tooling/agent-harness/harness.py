@@ -65,6 +65,9 @@ STATE_SCHEMA_VERSION = 1
 PACKET_PAYLOAD_IDENTITY_SCHEME = 'canonical-packet-payload-sha256-v1'
 PACKET_REVISION_IDENTITY_SCHEME = 'canonical-packet-revision-sha256-v1'
 RECOVERY_PACKET_IDENTITY_SCHEMES = {1: PACKET_PAYLOAD_IDENTITY_SCHEME}
+RECOVERY_RECORD_IDENTITY_SCHEME = 'canonical-recovery-record-sha256-v1'
+BRIDGE_SCHEMA_VERSION = 1
+BRIDGE_CLASSIFICATIONS = {'AUTOMATICALLY_PROVEN', 'HUMAN_ATTESTED', 'AMBIGUOUS'}
 
 
 PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
@@ -119,6 +122,16 @@ def recovery_proves_packet_binding(recovery: Any, packet: Any,
         recovered == embedded and revision == expected_revision and
         isinstance(recovery, dict) and recovery.get('semantic_contract_sha256') == contract_sha256
     )
+
+
+def canonical_json_sha256(value: Any) -> str:
+    return sha256_bytes(json.dumps(value, sort_keys=True, separators=(',', ':')).encode())
+
+
+def recovery_record_identity(recovery: Any) -> str | None:
+    if not isinstance(recovery, dict):
+        return None
+    return f'sha256:{canonical_json_sha256(recovery)}'
 
 
 try:  # Unix/macOS/Linux - the primary targets for this repository.
@@ -686,6 +699,13 @@ def _load_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict
             # Resolver established byte-equivalent identity; remove the redundant exact
             # historical copy only after canonical compatibility validation succeeds.
             legacy.unlink()
+    return state
+
+
+def _read_state_unlocked_pure(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
+    """Validate and read authority without adopting, migrating, cleaning, or writing it."""
+    state, _legacy_path = _resolve_state_unlocked(feature_dir, doc)
+    validate_loaded_state(feature_dir, doc, state)
     return state
 
 
@@ -1275,6 +1295,15 @@ def validate_attempt_binding_ledger(entry: dict[str, Any]) -> None:
                     not isinstance(binding.get('contract_sha256'), str) or
                     not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256'])):
                 die('ACTIVE_PACKET_AMBIGUOUS: proven attempt lacks packet and contract identity')
+        elif status == 'human_attested':
+            if (not isinstance(binding.get('packet_revision'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['packet_revision']) or
+                    not isinstance(binding.get('contract_sha256'), str) or
+                    not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256']) or
+                    not isinstance(binding.get('identity_bridge_id'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['identity_bridge_id']) or
+                    binding.get('classification') != 'HUMAN_ATTESTED'):
+                die('ACTIVE_PACKET_AMBIGUOUS: human-attested attempt lacks explicit bridge evidence')
         elif status == 'ambiguous':
             if ('packet_revision' in binding or 'contract_sha256' in binding or
                     not isinstance(binding.get('observed_active_packet_revision'), str) or
@@ -2122,6 +2151,237 @@ def publish_revision(feature_dir: pathlib.Path, task_id: str,
     return revision_id, path
 
 
+def packet_identity_bridge_path(feature_dir: pathlib.Path, task_id: str, attempt: int) -> pathlib.Path:
+    if not safe_task_id(task_id) or not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: invalid task or attempt')
+    root = runtime_state_dir(feature_dir) / 'packet-identity-bridges'
+    feature_root = root / feature_dir.name
+    task_root = feature_root / task_id
+    path = task_root / f'{attempt}.json'
+    if (root.is_symlink() or feature_root.is_symlink() or task_root.is_symlink() or
+            path.is_symlink() or path.resolve().parent != task_root.resolve()):
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: bridge path escapes repository authority')
+    return path
+
+
+def bridge_failpoint(_stage: str) -> None:
+    """Test seam for immutable bridge publication failure injection."""
+
+
+def publish_immutable_bridge(path: pathlib.Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(record, indent=2, sort_keys=True) + '\n'
+    if path.exists():
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: an immutable bridge already occupies this binding')
+    fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(encoded)
+            bridge_failpoint('B3')
+            handle.flush()
+            bridge_failpoint('B4')
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            die('PACKET_IDENTITY_ATTESTATION_CONFLICT: competing bridge creation')
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _bridge_request_identity(*, repository: str, feature: str, task: str, attempt: int,
+                             recovery_id: str, source_scheme: str, source_value: str,
+                             target_scheme: str, target_value: str, target_revision: str,
+                             semantic_fingerprint: str, protocol_version_value: int,
+                             operator: str, reason: str) -> dict[str, Any]:
+    return {'repository': repository, 'feature': feature, 'task': task, 'attempt': attempt,
+            'recovery_record_identity': {'scheme': RECOVERY_RECORD_IDENTITY_SCHEME, 'value': recovery_id},
+            'source_identity': {'scheme': source_scheme, 'value': source_value},
+            'target_identity': {'scheme': target_scheme, 'value': target_value},
+            'target_revision_identity': {'scheme': PACKET_REVISION_IDENTITY_SCHEME,
+                                         'value': target_revision},
+            'semantic_contract_sha256': semantic_fingerprint,
+            'protocol_version': protocol_version_value,
+            'classification': 'HUMAN_ATTESTED', 'operator': operator, 'reason': reason}
+
+
+def _read_packet_identity_bridge(feature_dir: pathlib.Path, task_id: str, attempt: int,
+                                 expected_request: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    path = packet_identity_bridge_path(feature_dir, task_id, attempt)
+    if not path.exists():
+        return None
+    try:
+        record = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: stored bridge is unreadable')
+    if (not isinstance(record, dict) or record.get('schema_version') != BRIDGE_SCHEMA_VERSION or
+            record.get('classification') != 'HUMAN_ATTESTED' or
+            record.get('bridge_id') != f"sha256:{canonical_json_sha256(record.get('request'))}" or
+            not isinstance(record.get('request'), dict) or
+            record.get('protocol_version') != record.get('request', {}).get('protocol_version') or
+            parse_timestamp(record.get('created_at')) is None):
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: stored bridge is malformed')
+    if expected_request is not None and record.get('request') != expected_request:
+        return record
+    return record
+
+
+def classify_historical_packet_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+                                        state: dict[str, Any], active: dict[str, Any],
+                                        attempt: int) -> dict[str, Any]:
+    entry = state['tasks'][task_id] if isinstance(state.get('tasks'), dict) else state
+    validate_attempt_binding_ledger(entry)
+    binding = next((item for item in entry.get('attempt_bindings', [])
+                   if isinstance(item, dict) and item.get('attempt') == attempt), None)
+    if (binding and binding.get('binding_status') == 'proven' and
+            binding.get('packet_revision') == active['revision_id'] and
+            binding.get('contract_sha256') == active['contract_sha256']):
+        return {'classification': 'AUTOMATICALLY_PROVEN', 'bridge_id': None}
+    if (binding and binding.get('binding_status') == 'proven' and
+            (binding.get('packet_revision') != active['revision_id'] or
+             binding.get('contract_sha256') != active['contract_sha256'])):
+        return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+    recovery = entry.get('claim_recovery')
+    if (isinstance(recovery, dict) and recovery.get('attempt') == attempt and
+            recovery_proves_packet_binding(recovery, active.get('packet'), active['revision_id'],
+                                           active['contract_sha256'])):
+        return {'classification': 'AUTOMATICALLY_PROVEN', 'bridge_id': None}
+    recovery_id = recovery_record_identity(recovery)
+    packet_identity = packet_identity_from_embedded_checksum(active.get('packet'))
+    revision_identity = packet_identity_from_revision(active.get('packet'))
+    bridge = _read_packet_identity_bridge(feature_dir, task_id, attempt)
+    if (bridge and isinstance(recovery, dict) and recovery.get('attempt') == attempt and
+            packet_identity is not None and revision_identity is not None):
+        request = bridge['request']
+        expected = _bridge_request_identity(
+            repository=str(git_common_dir(feature_dir)), feature=doc.get('feature', feature_dir.name),
+            task=task_id, attempt=attempt, recovery_id=recovery_id or '',
+            source_scheme=(packet_identity_from_recovery(recovery).scheme
+                           if packet_identity_from_recovery(recovery) else ''),
+            source_value=(packet_identity_from_recovery(recovery).value
+                          if packet_identity_from_recovery(recovery) else ''),
+            target_scheme=packet_identity.scheme, target_value=packet_identity.value,
+            target_revision=revision_identity.value,
+            semantic_fingerprint=active['contract_sha256'],
+            protocol_version_value=protocol_version(feature_dir),
+            operator=request.get('operator', ''), reason=request.get('reason', ''))
+        if request == expected:
+            if (binding and binding.get('binding_status') == 'human_attested' and
+                    binding.get('identity_bridge_id') != bridge['bridge_id']):
+                return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+            return {'classification': 'HUMAN_ATTESTED', 'bridge_id': bridge['bridge_id']}
+    return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+
+
+def attest_packet_identity(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
+    feature_dir = args.feature_dir
+    doc = load_validated(feature_dir)
+    operator = str(args.by or '').strip()
+    reason = str(args.reason or '').strip()
+    if not operator or not reason:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: operator and reason are required')
+    if args.source_scheme != PACKET_PAYLOAD_IDENTITY_SCHEME or args.target_scheme != PACKET_PAYLOAD_IDENTITY_SCHEME:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: unsupported packet identity scheme')
+    if args.target_revision_scheme != PACKET_REVISION_IDENTITY_SCHEME:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: unsupported target revision identity scheme')
+    for value in (args.source_value, args.target_value, args.expected_semantic_fingerprint):
+        if not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{64}', value) is None:
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed SHA-256 identity')
+    if re.fullmatch(r'sha256:[0-9a-f]{64}', args.target_revision) is None:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed target revision identity')
+    if args.expected_recovery_identity_scheme != RECOVERY_RECORD_IDENTITY_SCHEME or re.fullmatch(
+            r'sha256:[0-9a-f]{64}', args.expected_recovery_identity) is None:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed recovery record identity')
+    if args.expected_protocol_version != protocol_version(feature_dir):
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: protocol version changed')
+    bridge_failpoint('B1')
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _read_state_unlocked_pure(feature_dir, doc)
+        entry = state['tasks'].get(args.task_id)
+        if not isinstance(entry, dict):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: unknown task')
+        if (str(git_common_dir(feature_dir)) != args.expected_repository or
+                doc.get('feature', feature_dir.name) != args.expected_feature or
+                args.task_id != args.expected_task or entry.get('status') != args.expected_status or
+                entry.get('status') != 'running' or entry.get('attempts') != args.expected_attempts or
+                entry.get('owner') != args.expected_owner or args.expected_attempts < 1):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: lifecycle compare-and-swap failed')
+        recovery = entry.get('claim_recovery')
+        recovery_identity = recovery_record_identity(recovery)
+        if (not isinstance(recovery, dict) or recovery.get('attempt') != args.expected_attempts or
+                recovery_identity != args.expected_recovery_identity):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: recovery record compare-and-swap failed')
+        existing_binding = next((item for item in entry.get('attempt_bindings', [])
+                                 if isinstance(item, dict) and item.get('attempt') == args.expected_attempts), None)
+        if (existing_binding and existing_binding.get('binding_status') == 'proven' and
+                (existing_binding.get('packet_revision') != args.target_revision or
+                 existing_binding.get('contract_sha256') != args.expected_semantic_fingerprint)):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: conflicting proven attempt binding exists')
+        active = resolve_active_packet(feature_dir, doc, args.task_id, state=state)
+        embedded = packet_identity_from_embedded_checksum(active.get('packet'))
+        revision = packet_identity_from_revision(active.get('packet'))
+        recovered = packet_identity_from_recovery(recovery)
+        if (active['revision_id'] != args.target_revision or
+                active['contract_sha256'] != args.expected_semantic_fingerprint or
+                recovered is None or recovered.scheme != args.source_scheme or
+                recovered.value != args.source_value or embedded is None or
+                embedded.scheme != args.target_scheme or embedded.value != args.target_value or
+                revision is None or revision.value != args.target_revision or
+                recovery.get('semantic_contract_sha256') != args.expected_semantic_fingerprint):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: packet identity compare-and-swap failed')
+        request = _bridge_request_identity(
+            repository=args.expected_repository, feature=args.expected_feature, task=args.expected_task,
+            attempt=args.expected_attempts, recovery_id=args.expected_recovery_identity,
+            source_scheme=args.source_scheme, source_value=args.source_value,
+            target_scheme=args.target_scheme, target_value=args.target_value,
+            target_revision=args.target_revision,
+            semantic_fingerprint=args.expected_semantic_fingerprint,
+            protocol_version_value=args.expected_protocol_version, operator=operator, reason=reason)
+        path = packet_identity_bridge_path(feature_dir, args.task_id, args.expected_attempts)
+        prior = _read_packet_identity_bridge(feature_dir, args.task_id, args.expected_attempts)
+        if prior:
+            if prior.get('request') == request:
+                if fcntl is not None:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+                return 'ALREADY_ATTESTED', prior
+            die('PACKET_IDENTITY_ATTESTATION_CONFLICT: conflicting bridge already exists')
+        bridge_failpoint('B2')
+        bridge_id = f'sha256:{canonical_json_sha256(request)}'
+        record = {'schema_version': BRIDGE_SCHEMA_VERSION,
+                  'protocol_version': args.expected_protocol_version,
+                  'classification': 'HUMAN_ATTESTED', 'bridge_id': bridge_id,
+                  'request': request, 'created_at': utc_now().isoformat()}
+        publish_immutable_bridge(path, record)
+        bridge_failpoint('B5')
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        return 'ATTESTED', record
+
+
+def cmd_attest_packet_identity(args: argparse.Namespace) -> None:
+    result, record = attest_packet_identity(args)
+    print(f'{result} {args.task_id} bridge={record["bridge_id"]} classification=HUMAN_ATTESTED')
+
+
+def cmd_packet_identity_binding(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    # Read-only: this command deliberately does not enter locked_state/save_state.
+    state = _read_state_unlocked_pure(args.feature_dir, doc)
+    active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+    result = classify_historical_packet_binding(args.feature_dir, doc, args.task_id,
+                                                state, active, args.attempt)
+    print(json.dumps(result, sort_keys=True))
+
+
 def cmd_replan_task(args: argparse.Namespace) -> None:
     feature_dir = args.feature_dir.resolve()
     doc = load_validated(feature_dir)
@@ -2214,31 +2474,39 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         validate_attempt_binding_ledger(staged)
         current_binding = next((record for record in attempt_history
                                 if isinstance(record, dict) and record.get('attempt') == attempts), None)
-        historical_binding_status = 'ambiguous'
-        if (current_binding and current_binding.get('binding_status') == 'proven' and
-                current_binding.get('packet_revision') == active['revision_id'] and
-                current_binding.get('contract_sha256') == active['contract_sha256']):
-            historical_binding_status = 'proven'
-        else:
+        binding_result = classify_historical_packet_binding(feature_dir, doc, args.task_id,
+                                                            staged, active, attempts)
+        historical_binding_classification = binding_result['classification']
+        historical_binding_status = {
+            'AUTOMATICALLY_PROVEN': 'proven', 'HUMAN_ATTESTED': 'human_attested',
+            'AMBIGUOUS': 'ambiguous'}[historical_binding_classification]
+        if current_binding is None and historical_binding_classification == 'AUTOMATICALLY_PROVEN':
+            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'versioned recovery payload identity matches the active packet and revision'})
+        elif current_binding is None and historical_binding_classification == 'HUMAN_ATTESTED':
+            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'explicit immutable human packet identity bridge'})
+        elif (current_binding is not None and current_binding.get('binding_status') == 'ambiguous' and
+              historical_binding_classification == 'HUMAN_ATTESTED'):
+            current_binding.update({'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'explicit immutable human packet identity bridge'})
+        elif current_binding is None and historical_binding_classification == 'AMBIGUOUS':
             recovery = staged.get('claim_recovery')
-            recovered_packet_matches = (
-                isinstance(recovery, dict) and recovery.get('attempt') == attempts and
-                recovery_proves_packet_binding(recovery, active.get('packet'),
-                                               active['revision_id'], active['contract_sha256']))
-            if recovered_packet_matches:
-                historical_binding_status = 'proven'
-                attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
-                    'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
-                    'bound_at': utc_now().isoformat(),
-                    'evidence': 'versioned recovery payload identity matches the active packet and revision'})
-            elif current_binding is None:
-                evidence = 'packet revision was not recorded for this historical attempt'
-                if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
-                    evidence = 'claim-recovery packet identity differs from the current active packet'
-                attempt_history.append({'attempt': attempts, 'binding_status': 'ambiguous',
-                    'observed_active_packet_revision': active['revision_id'],
-                    'observed_contract_sha256': active['contract_sha256'],
-                    'evidence': evidence, 'recorded_at': utc_now().isoformat()})
+            evidence = 'packet revision was not recorded for this historical attempt'
+            if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
+                evidence = 'claim-recovery packet identity differs from the current active packet'
+            attempt_history.append({'attempt': attempts, 'binding_status': 'ambiguous',
+                'observed_active_packet_revision': active['revision_id'],
+                'observed_contract_sha256': active['contract_sha256'],
+                'evidence': evidence, 'recorded_at': utc_now().isoformat()})
         if attempts > 1:
             staged['unbound_historical_attempts'] = [n for n in range(1, attempts)
                 if not any(isinstance(x, dict) and x.get('attempt') == n for x in attempt_history)]
@@ -2248,10 +2516,13 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
             'active_revision_at_termination': active['revision_id'],
             'contract_sha256_at_termination': active['contract_sha256'],
             'historical_binding_status': historical_binding_status,
+            'historical_binding_classification': historical_binding_classification,
             'verification': 'NOT_RUN_BY_REPLAN'}
-        if historical_binding_status == 'proven':
+        if historical_binding_status in {'proven', 'human_attested'}:
             staged['attempt_termination']['packet_revision'] = active['revision_id']
             staged['attempt_termination']['contract_sha256'] = active['contract_sha256']
+        if historical_binding_classification == 'HUMAN_ATTESTED':
+            staged['attempt_termination']['identity_bridge_id'] = binding_result['bridge_id']
         staged['status'] = 'failed'
         staged['replanned_at'] = timestamp
         staged['replan_requests'] = [*prior_requests, {'request_id': request_id,
@@ -2259,7 +2530,9 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
             'old_revision': active['revision_id'], 'new_revision': revision_id,
             'old_contract_sha256': active['contract_sha256'], 'new_contract_sha256': new_contract,
             'expected_status': 'running', 'expected_attempts': attempts, 'reason': reason,
-            'provenance': operator, 'checkpoint': args.checkpoint, 'committed_at': timestamp}]
+            'provenance': operator, 'checkpoint': args.checkpoint,
+            'historical_binding_classification': historical_binding_classification,
+            'identity_bridge_id': binding_result['bridge_id'], 'committed_at': timestamp}]
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             staged.pop(key, None)
         replan_failpoint('R5')
@@ -2664,7 +2937,20 @@ def cmd_status(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         state = json.loads(json.dumps(state))
+    bridge_records = []
+    for task_id in state.get('tasks', {}):
+        task_root = runtime_state_dir(args.feature_dir) / 'packet-identity-bridges' / args.feature_dir.name / task_id
+        if task_root.exists() and task_root.is_dir() and not task_root.is_symlink():
+            for bridge_path in sorted(task_root.glob('*.json')):
+                try:
+                    bridge = json.loads(bridge_path.read_text(encoding='utf-8'))
+                except (OSError, json.JSONDecodeError):
+                    die(f'PACKET_IDENTITY_ATTESTATION_CONFLICT: unreadable bridge {bridge_path.name}')
+                if not isinstance(bridge, dict) or bridge.get('classification') != 'HUMAN_ATTESTED':
+                    die(f'PACKET_IDENTITY_ATTESTATION_CONFLICT: malformed bridge {bridge_path.name}')
+                bridge_records.append(bridge)
     if args.json:
+        state['packet_identity_bridges'] = bridge_records
         print(json.dumps(state, indent=2, sort_keys=True))
         return
     now = utc_now()
@@ -2683,6 +2969,16 @@ def cmd_status(args: argparse.Namespace) -> None:
             f'{tid:9} {entry["status"]:10} {task["role"]:11} '
             f'attempts={entry.get("attempts", 0)} owner={owner} lease={lease}  {task["title"]}'
         )
+    for bridge in bridge_records:
+        request = bridge['request']
+        print(f"PACKET_IDENTITY_BRIDGE {bridge['bridge_id']} classification=HUMAN_ATTESTED "
+              f"task={request['task']} attempt={request['attempt']} "
+              f"source={request['source_identity']['scheme']}:{request['source_identity']['value']} "
+              f"target={request['target_identity']['scheme']}:{request['target_identity']['value']} "
+              f"revision={request['target_revision_identity']['value']} operator={request['operator']} "
+              f"semantic={request['semantic_contract_sha256']} "
+              f"recovery={request['recovery_record_identity']['scheme']}:{request['recovery_record_identity']['value']} "
+              f"reason={request['reason']} created_at={bridge['created_at']}")
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
@@ -3066,6 +3362,26 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--attest-no-execution-started', action='store_true', required=True,
                    help='Explicit factual human attestation; the harness cannot infer this condition')
     s.set_defaults(func=cmd_recover_claim)
+
+    s = sub.add_parser('attest-packet-identity')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    for flag in ('expected-repository', 'expected-feature', 'expected-task', 'expected-status',
+                 'expected-owner', 'expected-recovery-identity-scheme', 'expected-recovery-identity',
+                 'source-scheme', 'source-value', 'target-scheme', 'target-value',
+                 'target-revision-scheme', 'target-revision', 'expected-semantic-fingerprint'):
+        s.add_argument(f'--{flag}', required=True)
+    s.add_argument('--expected-attempts', type=int, required=True)
+    s.add_argument('--expected-protocol-version', type=int, required=True)
+    s.add_argument('--by', required=True, help='Human operator provenance label; not authenticated by the harness')
+    s.add_argument('--reason', required=True)
+    s.set_defaults(func=cmd_attest_packet_identity)
+
+    s = sub.add_parser('packet-identity-binding')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--attempt', type=int, required=True)
+    s.set_defaults(func=cmd_packet_identity_binding)
 
     s = sub.add_parser('complete')
     s.add_argument('feature_dir', type=pathlib.Path)
