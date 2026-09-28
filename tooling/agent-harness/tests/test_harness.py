@@ -8,6 +8,7 @@ import pathlib
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from unittest import mock
 
@@ -2277,8 +2278,8 @@ class CompletionCorrectionTest(unittest.TestCase):
         evidence = self.evidence_doc(feature, doc, mutate=mutate)
         path = self.write_evidence(evidence)
         with contextlib.redirect_stdout(io.StringIO()):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner=owner,
-                                                    evidence=str(path)))
+            harness.cmd_complete_repair(argparse.Namespace(feature_dir=feature, task_id='T-A', owner=owner,
+                                                           evidence=str(path)))
         return harness.load_state(feature, doc)
 
     def test_m4_09_correction_preserves_historical_completion(self):
@@ -2404,7 +2405,10 @@ class CompletionCorrectionTest(unittest.TestCase):
         records = harness.completion_records(feature, 'T-A')
         self.assertIn(c1, records)
         self.assertIn(correction, harness.correction_records(feature, 'T-A'))
-        self.assertEqual(2, len(records))
+        c2 = harness.repaired_completion_records(feature, 'T-A')
+        self.assertEqual(1, len(c2))
+        self.assertEqual(c1['record_id'], c2[0]['historical_completion_id'])
+        self.assertEqual(correction['record_id'], c2[0]['correction_id'])
 
     def test_m4_23_repaired_completion_restores_dependency_satisfaction(self):
         feature, doc = self._completed_fixture()
@@ -2502,12 +2506,12 @@ class CompletionCorrectionTest(unittest.TestCase):
         authorization = self._authorize_repair(feature, correction)
         self._claim_repair(feature, authorization)
         harness._completion_fault_injector = lambda boundary: (_ for _ in ()).throw(RuntimeError('crash')) \
-            if boundary == 'completion-published' else None
+            if boundary == 'repair-completion-published' else None
         try:
             evidence = self.write_evidence(self.evidence_doc(feature, doc))
             with self.assertRaises(RuntimeError):
-                harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='repair-worker',
-                                                        evidence=str(evidence)))
+                harness.cmd_complete_repair(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='repair-worker',
+                                                               evidence=str(evidence)))
         finally:
             harness._completion_fault_injector = None
         fresh_state = harness.load_state(feature, doc)
@@ -2520,6 +2524,255 @@ class CompletionCorrectionTest(unittest.TestCase):
         self._claim_repair(feature, authorization)
         state = self._complete_repair(feature, doc)
         self.assertEqual(5, state['tasks']['T-A']['attempts'])
+
+
+class CanonicalCompletionRepairTests(CompletionCorrectionTest):
+    """M4.2 C2 protocol tests use only disposable fixture repositories."""
+
+    def setUp(self):
+        HarnessTest.setUp(self)
+        self.fixture_index = 0
+
+    def _setup_repair(self):
+        self.fixture_index += 1
+        fixture_root = self.root / f'fixture-{self.fixture_index}'
+        fixture_root.mkdir()
+        subprocess.run(['git', 'init', '-q'], cwd=fixture_root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=fixture_root, check=True)
+        self.root = fixture_root
+        os.chdir(fixture_root)
+        harness.STATE_DIR = pathlib.Path('.agent-state')
+        feature, doc = self._completed_fixture()
+        correction = self._correct(feature)
+        authorization = self._authorize_repair(feature, correction)
+        self._claim_repair(feature, authorization)
+        evidence = self.evidence_doc(feature, doc)
+        path = self.write_evidence(evidence)
+        return feature, doc, correction, authorization, evidence, path
+
+    def _complete(self, feature, evidence_path, *, owner='repair-worker'):
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete_repair(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner=owner, evidence=str(evidence_path)))
+
+    def test_m42_01_to_08_c2_binds_chain_and_preserves_attempt(self):
+        feature, doc, correction, authorization, evidence, path = self._setup_repair()
+        c1 = harness.completion_records(feature, 'T-A')[0]
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        before = harness.load_state(feature, doc)['tasks']['T-A']['attempts']
+        self._complete(feature, path)
+        c2, = harness.repaired_completion_records(feature, 'T-A')
+        self.assertEqual(c1['record_id'], c2['historical_completion_id'])
+        self.assertEqual(correction['record_id'], c2['correction_id'])
+        self.assertEqual(authorization['record_id'], c2['repair_authorization_id'])
+        self.assertEqual(claim['record_id'], c2['repair_claim_id'])
+        self.assertEqual(before, c2['attempt'])
+        state = harness.load_state(feature, doc)
+        self.assertEqual(before, state['tasks']['T-A']['attempts'])
+        self.assertFalse(any(x.get('attempt') == 6 for x in state['tasks']['T-A'].get('attempt_history', [])))
+
+    def test_m42_09_to_15_effective_restore_and_history_preserved(self):
+        feature, doc, correction, authorization, _, path = self._setup_repair()
+        c1 = harness.completion_records(feature, 'T-A')[0]
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        self._complete(feature, path)
+        state = harness.load_state(feature, doc)
+        self.assertEqual('completed', harness.effective_task_status(feature, 'T-A', state['tasks']['T-A']))
+        self.assertIn('T-B', harness.ready_ids(doc, state, feature))
+        self.assertIn(c1, harness.completion_records(feature, 'T-A'))
+        self.assertIn(correction, harness.correction_records(feature, 'T-A'))
+        self.assertIn(authorization, harness.repair_authorization_records(feature, 'T-A'))
+        self.assertIn(claim, harness.repair_claim_records(feature, 'T-A'))
+        self.assertTrue(harness.correction_is_repaired(feature, 'T-A', correction))
+
+    def test_m42_16_exact_replay_is_idempotent(self):
+        feature, _, _, _, _, path = self._setup_repair()
+        self._complete(feature, path)
+        before = harness.repaired_completion_records(feature, 'T-A')
+        self._complete(feature, path)
+        self.assertEqual(before, harness.repaired_completion_records(feature, 'T-A'))
+
+    def test_m42_17_18_conflicting_evidence_and_checkpoint_rejected(self):
+        feature, _, _, _, evidence, path = self._setup_repair()
+        self._complete(feature, path)
+        changed = dict(evidence); changed['summary'] = 'different evidence'
+        with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(changed))
+        feature, _, _, _, evidence, path = self._setup_repair()
+        self._complete(feature, path)
+        changed = dict(evidence); changed['checkpoint'] = 'f' * 40
+        with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(changed))
+
+    def test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected(self):
+        cases = ['correction', 'authorization', 'claim', 'owner', 'attempt']
+        for case in cases:
+            with self.subTest(case=case):
+                feature, doc, _, _, _, path = self._setup_repair()
+                if case == 'owner':
+                    owner = 'other-owner'
+                else:
+                    owner = 'repair-worker'
+                    state = harness.load_state(feature, doc)
+                    if case == 'attempt': state['tasks']['T-A']['attempts'] = 6
+                    if case == 'correction': state['tasks']['T-A']['completion_repair_claim']['correction_id'] = 'wrong'
+                    if case == 'authorization': state['tasks']['T-A']['completion_repair_claim']['authorization_id'] = 'wrong'
+                    if case == 'claim': state['tasks']['T-A']['completion_repair_claim']['claim_id'] = 'wrong'
+                    harness.save_state(feature, state)
+                with self.assertRaises(SystemExit):
+                    self._complete(feature, path, owner=owner)
+
+    def test_m42_24_25_stale_packet_identity_rejected(self):
+        for field in ('packet_revision', 'contract_fingerprint'):
+            feature, _, _, _, evidence, path = self._setup_repair()
+            evidence[field] = 'sha256:' + '0' * 64 if field == 'packet_revision' else '0' * 64
+            changed = self.write_evidence(evidence)
+            with self.assertRaises(SystemExit): self._complete(feature, changed)
+
+    def test_m42_26_29_missing_coverage_invalid_evidence_or_checkpoint_rejected(self):
+        mutations = [
+            lambda e: e['criterion_results'].pop('VC-009'),
+            lambda e: (e['criterion_results'].pop('AC-001'), e['proofs'][0]['criteria'].remove('AC-001')),
+            lambda e: e.update(schema_version=999),
+            lambda e: e.update(checkpoint='f' * 40),
+        ]
+        for mutate in mutations:
+            feature, doc, _, _, _, _ = self._setup_repair()
+            evidence = self.evidence_doc(feature, doc, mutate=mutate)
+            path = self.write_evidence(evidence)
+            with self.assertRaises(SystemExit): self._complete(feature, path)
+            self.assertEqual([], harness.repaired_completion_records(feature, 'T-A'))
+
+    def test_m42_30_identical_concurrency_has_one_record(self):
+        feature, _, _, _, _, path = self._setup_repair()
+        barrier = threading.Barrier(2)
+        errors = []
+        def run():
+            barrier.wait()
+            try: self._complete(feature, path)
+            except SystemExit as exc: errors.append(exc)
+        threads = [threading.Thread(target=run) for _ in range(2)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        self.assertFalse(errors)
+        self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
+
+    def test_m42_31_conflicting_concurrency_fails_closed(self):
+        feature, doc, _, _, evidence, path = self._setup_repair()
+        other = dict(evidence); other['summary'] = 'second evidence'
+        other['assumptions'] = ['distinct repaired evidence']
+        other_output = self.root / '.agent-runs' / 'T-A' / 'verify' / 'stdout-other.log'
+        other_output.write_text('fixture command passed with distinct evidence\n', encoding='utf-8')
+        other['harness_verification'][0]['stdout'] = str(other_output)
+        receipt = {'command': other['commands'][0], 'exit_code': 0,
+                   'stdout_sha256': harness.sha256_bytes(other_output.read_bytes()),
+                   'stderr_sha256': harness.sha256_bytes(pathlib.Path(other['harness_verification'][0]['stderr']).read_bytes()),
+                   'sandbox_backend': other['harness_verification'][0]['sandbox_backend'], 'strong_isolation': True}
+        other['proofs'][0]['result_sha256'] = harness.canonical_json_sha256(receipt)
+        # Keep each contender's evidence immutable and distinct. write_evidence
+        # uses one convenience path, which would otherwise make both subprocesses
+        # read the last document written and turn this into an identical replay.
+        other_path = self.root / 'completion-evidence-conflict.json'
+        other_path.write_text(json.dumps(other), encoding='utf-8')
+        barrier = threading.Barrier(2); outcomes = []
+        def run(is_first):
+            barrier.wait()
+            local_env = dict(os.environ)
+            if is_first:
+                time.sleep(0.3)
+            if is_first:
+                time.sleep(0.25)
+            candidate_path = path if is_first else other_path
+            result = subprocess.run([os.sys.executable, str(MODULE_PATH), 'complete-repair', str(feature), 'T-A',
+                                     '--owner', 'repair-worker', '--evidence', str(candidate_path)],
+                                    cwd=self.root, capture_output=True, text=True,
+                                    env={**local_env, 'PYTHONPATH': str(MODULE_PATH.parent)})
+            outcomes.append((result.returncode, result.stderr, is_first))
+        threads = [threading.Thread(target=run, args=(is_first,)) for is_first in (True, False)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        self.assertEqual(1, sum(item[0] == 0 for item in outcomes), outcomes)
+        self.assertEqual(1, sum(item[0] != 0 for item in outcomes), outcomes)
+        self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
+        self.assertEqual(5, harness.load_state(feature, doc)['tasks']['T-A']['attempts'])
+
+    def test_m42_32_33_publication_crash_recovery(self):
+        feature, doc, _, _, _, path = self._setup_repair()
+        harness._completion_fault_injector = lambda boundary: (_ for _ in ()).throw(RuntimeError('crash')) \
+            if boundary == 'repair-completion-published' else None
+        try:
+            with self.assertRaises(RuntimeError): self._complete(feature, path)
+        finally: harness._completion_fault_injector = None
+        state = harness.load_state(feature, doc)
+        self.assertTrue(harness.task_has_effective_completion(feature, 'T-A', state['tasks']['T-A']))
+        self._complete(feature, path)
+        self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
+
+    def test_m42_34_35_projection_loss_preserves_repair(self):
+        feature, doc, _, _, _, path = self._setup_repair()
+        self._complete(feature, path)
+        harness.remove_state_locked(feature)
+        rebuilt = harness.load_state(feature, doc)
+        self.assertEqual('completed', harness.effective_task_status(feature, 'T-A', rebuilt['tasks']['T-A']))
+        self.assertEqual(5, rebuilt['tasks']['T-A']['attempts'])
+        with self.assertRaises(SystemExit): self._claim_repair(feature, harness.repair_authorization_records(feature, 'T-A')[0])
+
+    def test_m42_36_fresh_process_reconstruction(self):
+        feature, _, _, _, _, path = self._setup_repair(); self._complete(feature, path)
+        result = subprocess.run([os.sys.executable, str(MODULE_PATH), 'status', str(feature), '--json'],
+                                cwd=self.root, capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual('completed', json.loads(result.stdout)['tasks']['T-A']['status'])
+
+    def test_m42_37_cross_worktree_resolution(self):
+        import shutil
+        feature, doc, _, _, _, path = self._setup_repair(); self._complete(feature, path)
+        linked = self.root / 'linked-c2'
+        subprocess.run(['git', 'worktree', 'add', '--detach', str(linked), 'HEAD'], cwd=self.root, check=True,
+                       stdout=subprocess.DEVNULL)
+        try:
+            linked_feature = linked / 'docs/specs/TST-001'; linked_feature.mkdir(parents=True)
+            for name in ('spec.md', 'plan.md', 'tasks.json', 'verification-contract.json'):
+                shutil.copy2(feature / name, linked_feature / name)
+            linked_state = harness.load_state(linked_feature, doc)
+            self.assertEqual(harness.repaired_completion_records(feature, 'T-A'),
+                             harness.repaired_completion_records(linked_feature, 'T-A'))
+            self.assertEqual(harness.ready_ids(doc, harness.load_state(feature, doc), feature),
+                             harness.ready_ids(doc, linked_state, linked_feature))
+        finally:
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(linked)], cwd=self.root, check=True,
+                           stdout=subprocess.DEVNULL)
+
+    def test_m42_38_cli_help_discovery(self):
+        help_text = harness.parser().format_help()
+        self.assertIn('complete-repair', help_text)
+        result = subprocess.run([os.sys.executable, str(MODULE_PATH), 'complete-repair', '--help'],
+                                capture_output=True, text=True)
+        self.assertEqual(0, result.returncode)
+        self.assertIn('--evidence', result.stdout); self.assertNotIn('--force', result.stdout)
+
+    def test_m42_39_40_cli_valid_and_invalid(self):
+        feature, _, _, _, _, path = self._setup_repair()
+        env = dict(os.environ); env['PYTHONPATH'] = str(MODULE_PATH.parent)
+        valid = subprocess.run([os.sys.executable, str(MODULE_PATH), 'complete-repair', str(feature), 'T-A',
+                                '--owner', 'repair-worker', '--evidence', str(path)], cwd=self.root,
+                               capture_output=True, text=True, env=env)
+        self.assertEqual(0, valid.returncode, valid.stderr)
+        self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
+        invalid = subprocess.run([os.sys.executable, str(MODULE_PATH), 'complete-repair', str(feature), 'T-A',
+                                  '--owner', 'repair-worker', '--evidence', str(self.root / 'missing.json')],
+                                 cwd=self.root, capture_output=True, text=True)
+        self.assertNotEqual(0, invalid.returncode)
+
+    def test_m42_41_to_48_no_retry_special_case_or_stale_worktree_dependency(self):
+        feature, doc, _, _, _, path = self._setup_repair()
+        before = harness.load_state(feature, doc)['tasks']['T-A'].get('retry_authorizations', [])
+        with mock.patch.object(harness, 'cmd_claim', side_effect=AssertionError('ordinary claim called')):
+            self._complete(feature, path)
+        state = harness.load_state(feature, doc)
+        self.assertEqual(before, state['tasks']['T-A'].get('retry_authorizations', []))
+        self.assertNotIn('active_retry_authorization', state['tasks']['T-A'])
+        self.assertTrue(harness.task_has_effective_completion(feature, 'T-A', state['tasks']['T-A']))
+        self.assertIn('T-B', harness.ready_ids(doc, state, feature))
 
 
 class LegacyCompletionBindingTests(unittest.TestCase):
