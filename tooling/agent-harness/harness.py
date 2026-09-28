@@ -1149,14 +1149,19 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
     if not safe_task_id(task_id) or task_id not in task_index(doc):
         die(f'ACTIVE_PACKET_AMBIGUOUS: unknown or unsafe task identity {task_id!r}')
     if state is None:
-        state = load_state(feature_dir, doc)
+        # Lifecycle snapshots are atomically replaced. Readers validate one snapshot
+        # without creating/acquiring the repository-wide writer lock.
+        state = _read_state_unlocked_pure(feature_dir, doc)
     entry = state['tasks'][task_id]
     validate_attempt_binding_ledger(entry)
     active_id = entry.get('active_packet_revision')
     if active_id is None:
         path = legacy_packet_path(feature_dir, task_id)
         if not path.exists():
-            # Preserve lazy packet creation for tasks that have never been claimed.
+            # Preserve supported lazy materialization before a running attempt exists.
+            if (entry.get('status') == 'running' and
+                    (entry.get('active_packet_revision') is not None or entry.get('attempt_bindings'))):
+                die('ACTIVE_PACKET_AMBIGUOUS: required legacy packet is missing')
             fingerprint = semantic_task_contract_sha256(feature_dir, doc, task_index(doc)[task_id])
             return {'revision_id': 'unpublished', 'contract_sha256': fingerprint,
                     'packet': None, 'path': str(path), 'legacy': True}
@@ -1238,8 +1243,12 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
             active_contract != last['contract_sha256']):
         die('ACTIVE_PACKET_AMBIGUOUS: active packet contract differs from lineage')
     for relation in lineage[:-1]:
-        historical_path = (legacy_packet_path(feature_dir, task_id) if relation['legacy']
-                           else revision_path(feature_dir, task_id, relation['revision_id']))
+        canonical_history = revision_path(feature_dir, task_id, relation['revision_id'])
+        # Legacy roots are copied into immutable repository authority during replan.
+        # Keep the local legacy fallback only for already-supported old lineages
+        # that predate canonical historical materialization.
+        historical_path = (canonical_history if canonical_history.exists() or not relation['legacy']
+                           else legacy_packet_path(feature_dir, task_id))
         try:
             historical = json.loads(historical_path.read_text(encoding='utf-8'))
         except (OSError, json.JSONDecodeError) as exc:
@@ -1453,8 +1462,8 @@ def cmd_validate_all(args: argparse.Namespace) -> None:
 
 def cmd_ready(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
-    with locked_state(args.feature_dir, doc) as state:
-        ids = ready_ids(doc, state, args.feature_dir)
+    state = _read_state_unlocked_pure(args.feature_dir, doc)
+    ids = ready_ids(doc, state, args.feature_dir)
     if args.json:
         print(json.dumps(ids))
     else:
@@ -2186,6 +2195,41 @@ def publish_revision(feature_dir: pathlib.Path, task_id: str,
     return revision_id, path
 
 
+def cmd_materialize_packet_history(args: argparse.Namespace) -> None:
+    """Publish a validated canonical legacy root into immutable repository authority."""
+    feature_dir = args.feature_dir.resolve()
+    doc = load_validated(feature_dir)
+    canonical_feature = git_common_dir(feature_dir).parent / 'docs' / 'specs' / feature_dir.name
+    if feature_dir != canonical_feature.resolve():
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: run from the canonical repository feature path')
+    state = _read_state_unlocked_pure(feature_dir, doc)
+    entry = state['tasks'].get(args.task_id)
+    lineage = entry.get('packet_lineage') if isinstance(entry, dict) else None
+    if (not isinstance(lineage, list) or not lineage or not isinstance(lineage[0], dict) or
+            not lineage[0].get('legacy')):
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: task has no legacy lineage root')
+    relation = lineage[0]
+    path = legacy_packet_path(feature_dir, args.task_id)
+    if path.is_symlink():
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet is a symlink')
+    try:
+        raw = path.read_bytes()
+        packet = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet unavailable: {exc}')
+    if (not isinstance(packet, dict) or packet.get('feature') != doc.get('feature', feature_dir.name) or
+            packet.get('task') != args.task_id):
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet identity mismatch')
+    validate_packet_integrity(packet)
+    if (packet_revision_id(packet) != relation.get('revision_id') or
+            packet_bound_semantic_contract_sha256(feature_dir, packet) != relation.get('contract_sha256')):
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet does not prove lineage root')
+    revision, published = publish_revision(feature_dir, args.task_id, packet)
+    if revision != relation['revision_id']:
+        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: published revision differs from lineage root')
+    print(f'MATERIALIZED {args.task_id} revision={revision} raw_sha256={sha256_bytes(raw)} path={published}')
+
+
 def packet_identity_bridge_path(feature_dir: pathlib.Path, task_id: str, attempt: int) -> pathlib.Path:
     if not safe_task_id(task_id) or not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
         die('PACKET_IDENTITY_ATTESTATION_REJECTED: invalid task or attempt')
@@ -2490,6 +2534,11 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         packet = packet_payload(proposed_doc, proposed, feature_dir)
         if packet.get('semantic_contract_sha256') != new_contract:
             die('TASK_REPLAN_NOT_ALLOWED: packet fingerprint differs from proposed planning contract')
+        # Publish validated legacy root bytes to the common repository authority
+        # before publishing/activating a lineage that depends on them. Immutable
+        # publication is idempotent and rejects identity collisions.
+        if active.get('legacy') and active.get('packet') is not None:
+            publish_revision(feature_dir, args.task_id, active['packet'])
         revision_id, _packet_path = publish_revision(feature_dir, args.task_id, packet)
         replan_failpoint('R4')
         staged = copy.deepcopy(entry)
@@ -2970,8 +3019,7 @@ def cmd_reopen(args: argparse.Namespace) -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
-    with locked_state(args.feature_dir, doc) as state:
-        state = json.loads(json.dumps(state))
+    state = _read_state_unlocked_pure(args.feature_dir, doc)
     bridge_records = []
     for task_id in state.get('tasks', {}):
         task_root = runtime_state_dir(args.feature_dir) / 'packet-identity-bridges' / args.feature_dir.name / task_id
@@ -3368,6 +3416,11 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--stdout', action='store_true')
     s.add_argument('--identity', action='store_true', help='Print active packet revision and semantic contract fingerprint')
     s.set_defaults(func=cmd_packet)
+
+    s = sub.add_parser('materialize-packet-history')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.set_defaults(func=cmd_materialize_packet_history)
 
     s = sub.add_parser('reviewers')
     s.add_argument('feature_dir', type=pathlib.Path)
