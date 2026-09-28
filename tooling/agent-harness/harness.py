@@ -58,6 +58,11 @@ VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
 # Bump only when persisted lifecycle state semantics/schema become incompatible.
 # Implementation and documentation changes are recorded separately for audit.
 STATE_SCHEMA_VERSION = 1
+COMPLETION_EVIDENCE_SCHEMA_VERSION = 1
+COMPLETION_AUTHORITY_SCHEMA_VERSION = 1
+LEGACY_COMPLETION_BINDING_VERSION = 1
+COMPLETION_CORRECTION_REASON = 'COMPLETION_SEMANTICALLY_INVALID'
+_completion_fault_injector = None
 
 # Packet identity values occupy distinct namespaces. Recovery v1 persisted the
 # embedded checksum, while M1 revisions hash the complete normalized packet
@@ -631,7 +636,7 @@ def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
 
 
 def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
-    return {
+    state = {
         'state_version': 2,
         'protocol_version': protocol_version(feature_dir),
         'feature': doc.get('feature', feature_dir.name),
@@ -643,6 +648,23 @@ def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, A
             for t in doc['tasks'] if isinstance(t, dict) and isinstance(t.get('id'), str)
         },
     }
+    # Rebuild completion projection from immutable C1/C2 authority when the
+    # mutable lifecycle snapshot was lost. Preserve the historical attempt.
+    for task_id, entry in state['tasks'].items():
+        c2 = repaired_completion_records(feature_dir, task_id)
+        if c2:
+            latest = c2[-1]
+            entry.update({'status': 'completed', 'attempts': latest['attempt'],
+                          'checkpoint_commit': latest['checkpoint'],
+                          'completion_repair_record_id': latest['record_id']})
+            continue
+        c1 = completion_records(feature_dir, task_id)
+        if c1:
+            latest = c1[-1]
+            entry.update({'status': 'completed', 'attempts': latest['attempt'],
+                          'checkpoint_commit': latest['checkpoint'],
+                          'completion_record_id': latest['record_id']})
+    return state
 
 
 def load_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
@@ -826,6 +848,401 @@ def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
             os.unlink(tmp_name)
 
 
+def completion_authority_dir(feature_dir: pathlib.Path, kind: str, task_id: str) -> pathlib.Path:
+    if not safe_task_id(task_id) or kind not in {
+        'completion-records', 'completion-corrections', 'completion-repair-authorizations',
+        'completion-repair-claims', 'completion-repair-records', 'legacy-completion-bindings',
+    }:
+        die('COMPLETION_AUTHORITY_INVALID: unsafe authority path')
+    return runtime_state_dir(feature_dir) / kind / feature_dir.name / task_id
+
+
+def legacy_completion_binding_id(binding: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in binding.items()
+                if key not in {'binding_id', 'created_at'}}
+    return f'legacy-completion-binding-v1:sha256:{canonical_json_sha256(semantic)}'
+
+
+def legacy_completion_source_id(source: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in source.items() if key != 'source_id'}
+    return f'legacy-completion-source-v1:sha256:{canonical_json_sha256(semantic)}'
+
+
+def publish_legacy_source(feature_dir: pathlib.Path, task_id: str,
+                          source: dict[str, Any]) -> bool:
+    source = dict(source)
+    source['schema_version'] = 1
+    source['source_id'] = legacy_completion_source_id(source)
+    path = runtime_state_dir(feature_dir) / 'legacy-completion-sources' / feature_dir.name / task_id / \
+        f"{source['source_id'].rsplit(':', 1)[-1]}.json"
+    return publish_completion_authority(path, source)
+
+
+def validate_legacy_binding_shape(binding: Any, feature_dir: pathlib.Path,
+                                  task_id: str) -> bool:
+    if (not isinstance(binding, dict) or binding.get('schema_version') != 1 or
+            binding.get('binding_version') != LEGACY_COMPLETION_BINDING_VERSION or
+            binding.get('binding_type') != 'historical-legacy-completion' or
+            binding.get('binding_id') != legacy_completion_binding_id(binding) or
+            binding.get('repository_id') != str(git_common_dir(feature_dir)) or
+            binding.get('feature') != feature_dir.name or binding.get('task') != task_id or
+            binding.get('mode') not in {'AUTO_VERIFIED', 'HUMAN_ATTESTED'} or
+            type(binding.get('attempt')) is not int or binding['attempt'] < 1 or
+            binding.get('historical_status') != 'completed' or
+            not _valid_completion_commit(binding.get('checkpoint')) or
+            binding.get('checkpoint') != binding.get('evidence_checkpoint') or
+            not _valid_completion_revision(binding.get('packet_revision')) or
+            not _valid_completion_hash(binding.get('contract_fingerprint')) or
+            not _valid_completion_hash(binding.get('evidence_sha256')) or
+            not _valid_completion_commit(binding.get('evidence_checkpoint')) or
+            not isinstance(binding.get('source_material'), list) or not binding['source_material'] or
+            not isinstance(binding.get('attempt_identity'), str) or
+            re.fullmatch(r'sha256:[0-9a-f]{64}', binding['attempt_identity']) is None or
+            any(not isinstance(source, dict) or not isinstance(source.get('identity'), str) or
+                not source['identity'] or source.get('immutable') is not True or
+                not _valid_completion_hash(source.get('sha256'))
+                for source in binding['source_material']) or
+            not isinstance(binding.get('created_at'), str) or not binding['created_at'].strip()):
+        return False
+    if binding['mode'] == 'HUMAN_ATTESTED':
+        fields = binding.get('attested_fields')
+        required = {'checkpoint': binding['checkpoint'], 'packet_revision': binding['packet_revision'],
+                    'contract_fingerprint': binding['contract_fingerprint'],
+                    'repository': binding['repository_id'], 'feature': binding['feature'],
+                    'task': task_id, 'attempt': binding['attempt']}
+        return (isinstance(binding.get('operator'), str) and bool(binding['operator'].strip()) and
+                isinstance(binding.get('reason'), str) and bool(binding['reason'].strip()) and
+                isinstance(fields, dict) and all(fields.get(key) == value for key, value in required.items()))
+    kinds = {source.get('kind') for source in binding['source_material']
+             if isinstance(source, dict) and isinstance(source.get('kind'), str)}
+    return len(binding['source_material']) >= 2 and len(kinds) >= 2
+
+
+def legacy_completion_bindings(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    directory = completion_authority_dir(feature_dir, 'legacy-completion-bindings', task_id)
+    if not directory.exists():
+        return []
+    if directory.is_symlink() or not directory.is_dir():
+        die('LEGACY_COMPLETION_INVALID: unsafe binding directory')
+    bindings = []
+    for path in sorted(directory.glob('*.json')):
+        if path.is_symlink() or not path.is_file():
+            die('LEGACY_COMPLETION_INVALID: binding authority is not a regular file')
+        try:
+            binding = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'LEGACY_COMPLETION_INVALID: unreadable binding: {exc}')
+        if path.name != 'binding.json' or not validate_legacy_binding_shape(binding, feature_dir, task_id):
+            die('LEGACY_COMPLETION_INVALID: malformed or unsupported binding')
+        bindings.append(binding)
+    if len(bindings) > 1:
+        die('LEGACY_COMPLETION_CONFLICT: multiple immutable bindings exist')
+    return bindings
+
+
+def legacy_binding_as_completion(feature_dir: pathlib.Path, task_id: str,
+                                 binding: dict[str, Any]) -> dict[str, Any]:
+    body = {
+        'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION, 'record_type': 'completion',
+        'repository_id': binding['repository_id'], 'feature': binding['feature'],
+        'task': task_id, 'attempt': binding['attempt'], 'checkpoint': binding['checkpoint'],
+        'packet_revision': binding['packet_revision'],
+        'contract_fingerprint': binding['contract_fingerprint'],
+        'evidence_reference_sha256': binding['evidence_sha256'],
+        'correction_id': None, 'repair_authorization_id': None,
+        'legacy_binding_id': binding['binding_id'],
+    }
+    body['record_id'] = completion_record_id('completion', body)
+    body['created_at'] = binding['created_at']
+    if not validate_completion_authority_shape(body, 'completion'):
+        die('LEGACY_COMPLETION_INVALID: reconstructed completion shape is invalid')
+    return body
+
+
+def completion_record_id(scheme: str, record: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in record.items() if key not in {'record_id', 'created_at'}}
+    return f'{scheme}:sha256:{canonical_json_sha256(semantic)}'
+
+
+def _completion_record_semantics(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in record.items() if key != 'created_at'}
+
+
+def _valid_completion_hash(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value) is not None
+
+
+def _valid_completion_commit(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', value) is not None
+
+
+def _valid_completion_revision(value: Any) -> bool:
+    return value == 'unpublished' or (isinstance(value, str) and
+                                      re.fullmatch(r'sha256:[0-9a-f]{64}', value) is not None)
+
+
+def validate_completion_authority_shape(record: dict[str, Any], record_type: str) -> bool:
+    if record_type == 'completion':
+        return (type(record.get('attempt')) is int and record['attempt'] > 0 and
+                _valid_completion_commit(record.get('checkpoint')) and
+                _valid_completion_revision(record.get('packet_revision')) and
+                _valid_completion_hash(record.get('contract_fingerprint')) and
+                _valid_completion_hash(record.get('evidence_reference_sha256')) and
+                ((record.get('correction_id') is None and record.get('repair_authorization_id') is None and
+                  'supersedes_completion_id' not in record) or
+                 (isinstance(record.get('correction_id'), str) and
+                  isinstance(record.get('repair_authorization_id'), str) and
+                  isinstance(record.get('supersedes_completion_id'), str))))
+    if record_type == 'completion-correction':
+        return (type(record.get('completed_attempt')) is int and record['completed_attempt'] > 0 and
+                isinstance(record.get('original_completion_id'), str) and
+                _valid_completion_commit(record.get('original_completion_checkpoint')) and
+                _valid_completion_revision(record.get('packet_revision')) and
+                _valid_completion_hash(record.get('contract_fingerprint')) and
+                record.get('reason_code') == COMPLETION_CORRECTION_REASON and
+                isinstance(record.get('reason'), str) and bool(record['reason'].strip()) and
+                _valid_completion_hash(record.get('defect_evidence_sha256')) and
+                isinstance(record.get('operator'), str) and bool(record['operator'].strip()))
+    if record_type == 'completion-repair-authorization':
+        return (type(record.get('attempt')) is int and record['attempt'] > 0 and
+                isinstance(record.get('correction_id'), str) and
+                isinstance(record.get('original_completion_id'), str) and
+                _valid_completion_revision(record.get('packet_revision')) and
+                _valid_completion_hash(record.get('contract_fingerprint')) and
+                isinstance(record.get('reason'), str) and bool(record['reason'].strip()) and
+                isinstance(record.get('operator'), str) and bool(record['operator'].strip()))
+    if record_type == 'completion-repair-claim':
+        return (type(record.get('attempt')) is int and record['attempt'] > 0 and
+                isinstance(record.get('correction_id'), str) and
+                isinstance(record.get('authorization_id'), str) and
+                isinstance(record.get('owner'), str) and bool(record['owner'].strip()) and
+                type(record.get('generation')) is int and record['generation'] > 0)
+    if record_type == 'completion-repair':
+        return (type(record.get('attempt')) is int and record['attempt'] > 0 and
+                all(isinstance(record.get(key), str) and record[key] for key in (
+                    'historical_completion_id', 'correction_id', 'repair_authorization_id',
+                    'repair_claim_id', 'owner')) and
+                _valid_completion_commit(record.get('checkpoint')) and
+                _valid_completion_revision(record.get('packet_revision')) and
+                _valid_completion_hash(record.get('contract_fingerprint')) and
+                _valid_completion_hash(record.get('evidence_reference_sha256')) and
+                record.get('protocol_version') == 1 and
+                isinstance(record.get('created_at'), str) and bool(record['created_at']))
+    return False
+
+
+def publish_completion_authority(path: pathlib.Path, record: dict[str, Any]) -> bool:
+    """Durably publish an immutable record. Return False for exact idempotent replay."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.parent.is_symlink() or path.parent.resolve().parent != path.parent.parent.resolve():
+        die('COMPLETION_AUTHORITY_INVALID: authority path is not canonical')
+    payload = json.dumps(record, indent=2, sort_keys=True) + '\n'
+    if path.parent.name == 'completion-repair-records' and path.name.startswith('claim-'):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            if path.is_symlink() or not path.is_file():
+                die('COMPLETION_REPAIR_CONFLICT: claim finalization slot is unsafe')
+            try:
+                existing = json.loads(path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError) as exc:
+                die(f'COMPLETION_REPAIR_CONFLICT: unreadable claim finalization slot: {exc}')
+            if (not isinstance(existing, dict) or
+                    completion_record_id('completion-repair', existing) != record.get('record_id')):
+                die('COMPLETION_REPAIR_CONFLICT: repair claim finalized by conflicting completion')
+            return False
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(payload); handle.flush(); os.fsync(handle.fileno())
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try: os.fsync(directory_fd)
+        finally: os.close(directory_fd)
+        return True
+    fd, tmp_name = tempfile.mkstemp(prefix=path.name + '.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(tmp_name, path)
+        except FileExistsError:
+            if path.is_symlink() or not path.is_file():
+                die('COMPLETION_AUTHORITY_CONFLICT: existing authority is not a regular file')
+            try:
+                existing = json.loads(path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError) as exc:
+                die(f'COMPLETION_AUTHORITY_CONFLICT: existing record is unreadable: {exc}')
+            if (not isinstance(existing, dict) or
+                    _completion_record_semantics(existing) != _completion_record_semantics(record)):
+                die('COMPLETION_AUTHORITY_CONFLICT: immutable record identity has different content')
+            return False
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+        return True
+    finally:
+        pathlib.Path(tmp_name).unlink(missing_ok=True)
+
+
+def read_completion_authority(feature_dir: pathlib.Path, kind: str, task_id: str,
+                              *, record_type: str) -> list[dict[str, Any]]:
+    directory = completion_authority_dir(feature_dir, kind, task_id)
+    if not directory.exists():
+        return []
+    if directory.is_symlink() or not directory.is_dir():
+        die('COMPLETION_AUTHORITY_INVALID: authority directory is unsafe')
+    records = []
+    for path in sorted(directory.glob('*.json')):
+        if record_type == 'completion-repair' and path.name.startswith('claim-'):
+            continue
+        if path.is_symlink() or not path.is_file():
+            die('COMPLETION_AUTHORITY_INVALID: authority record is not a regular file')
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'COMPLETION_AUTHORITY_INVALID: unreadable {record_type} record: {exc}')
+        if (not isinstance(record, dict) or record.get('schema_version') != COMPLETION_AUTHORITY_SCHEMA_VERSION or
+                record.get('record_type') != record_type or not isinstance(record.get('record_id'), str) or
+                record.get('record_id') != completion_record_id(record_type, record) or
+                path.stem != record['record_id'].rsplit(':', 1)[-1]):
+            die(f'COMPLETION_AUTHORITY_INVALID: malformed or unsupported {record_type} record')
+        if (record.get('repository_id') != str(git_common_dir(feature_dir)) or
+                record.get('feature') != feature_dir.name or record.get('task') != task_id or
+                not validate_completion_authority_shape(record, record_type)):
+            die(f'COMPLETION_AUTHORITY_INVALID: {record_type} scope does not match canonical repository/task')
+        records.append(record)
+    return records
+
+
+def _completion_failpoint(boundary: str) -> None:
+    if callable(_completion_fault_injector):
+        _completion_fault_injector(boundary)
+
+
+def completion_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    records = read_completion_authority(feature_dir, 'completion-records', task_id,
+                                        record_type='completion')
+    bindings = legacy_completion_bindings(feature_dir, task_id)
+    if bindings:
+        reconstructed = legacy_binding_as_completion(feature_dir, task_id, bindings[0])
+        if all(item.get('record_id') != reconstructed['record_id'] for item in records):
+            records.append(reconstructed)
+    return records
+
+
+def correction_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    return read_completion_authority(feature_dir, 'completion-corrections', task_id,
+                                     record_type='completion-correction')
+
+
+def repair_authorization_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    return read_completion_authority(feature_dir, 'completion-repair-authorizations', task_id,
+                                     record_type='completion-repair-authorization')
+
+
+def repair_claim_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    return read_completion_authority(feature_dir, 'completion-repair-claims', task_id,
+                                     record_type='completion-repair-claim')
+
+
+def repaired_completion_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    directory = completion_authority_dir(feature_dir, 'completion-repair-records', task_id)
+    if not directory.exists():
+        return []
+    records = []
+    for path in sorted(directory.glob('claim-*.json')):
+        if path.is_symlink() or not path.is_file():
+            die('COMPLETION_REPAIR_INVALID: claim finalization slot is not a regular file')
+        try:
+            item = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'COMPLETION_REPAIR_INVALID: unreadable claim finalization slot: {exc}')
+        if (not isinstance(item, dict) or item.get('record_type') != 'completion-repair' or
+                item.get('record_id') != completion_record_id('completion-repair', item) or
+                not validate_completion_authority_shape(item, 'completion-repair') or
+                item.get('repository_id') != str(git_common_dir(feature_dir)) or
+                item.get('feature') != feature_dir.name or item.get('task') != task_id or
+                path.stem != 'claim-' + item.get('repair_claim_id', '').rsplit(':', 1)[-1]):
+            die('COMPLETION_REPAIR_INVALID: malformed claim finalization slot')
+        records.append(item)
+    return records
+
+
+def correction_is_repaired(feature_dir: pathlib.Path, task_id: str,
+                           correction: dict[str, Any]) -> bool:
+    authorizations = {record['record_id']: record for record in repair_authorization_records(feature_dir, task_id)}
+    claims = {record['record_id']: record for record in repair_claim_records(feature_dir, task_id)}
+    histories = {record['record_id']: record for record in completion_records(feature_dir, task_id)}
+    for record in repaired_completion_records(feature_dir, task_id):
+        if record.get('correction_id') != correction['record_id']:
+            continue
+        authorization = authorizations.get(record.get('repair_authorization_id'))
+        claim = claims.get(record.get('repair_claim_id'))
+        historical = histories.get(record.get('historical_completion_id'))
+        if (authorization and authorization.get('correction_id') == correction['record_id'] and
+                claim and historical and
+                historical.get('record_id') == correction.get('original_completion_id') and
+                claim.get('authorization_id') == authorization['record_id'] and
+                claim.get('correction_id') == correction['record_id'] and
+                claim.get('owner') == record.get('owner') and
+                claim.get('attempt') == record.get('attempt') and
+                authorization.get('task') == task_id and authorization.get('attempt') == correction.get('completed_attempt') and
+                authorization.get('original_completion_id') == correction.get('original_completion_id') and
+                authorization.get('repository_id') == correction.get('repository_id') and
+                authorization.get('packet_revision') == correction.get('packet_revision') and
+                authorization.get('contract_fingerprint') == correction.get('contract_fingerprint') and
+                record.get('repository_id') == correction.get('repository_id') and
+                record.get('task') == task_id and record.get('attempt') == correction.get('completed_attempt') and
+                record.get('packet_revision') == correction.get('packet_revision') and
+                record.get('contract_fingerprint') == correction.get('contract_fingerprint')):
+            return True
+    # Read pre-M4.2 repair completions for historical compatibility. New repairs
+    # are published only as distinct completion-repair records above.
+    for record in completion_records(feature_dir, task_id):
+        if record.get('correction_id') != correction['record_id']:
+            continue
+        authorization = authorizations.get(record.get('repair_authorization_id'))
+        if (authorization and authorization.get('correction_id') == correction['record_id'] and
+                authorization.get('task') == task_id and authorization.get('attempt') == correction.get('completed_attempt') and
+                record.get('attempt') == correction.get('completed_attempt') and
+                record.get('supersedes_completion_id') == correction.get('original_completion_id') and
+                record.get('packet_revision') == correction.get('packet_revision') and
+                record.get('contract_fingerprint') == correction.get('contract_fingerprint')):
+            return True
+    return False
+
+
+def task_has_effective_completion(feature_dir: pathlib.Path, task_id: str,
+                                  entry: dict[str, Any]) -> bool:
+    corrections = correction_records(feature_dir, task_id)
+    if any(not correction_is_repaired(feature_dir, task_id, item) for item in corrections):
+        return False
+    repaired = [record for record in repaired_completion_records(feature_dir, task_id)
+                if record.get('attempt') == entry.get('attempts')]
+    if repaired:
+        return True
+    if entry.get('status') == 'completed':
+        return True
+    # A fresh reader can observe a durable completion record written just before the
+    # lifecycle snapshot. Match the attempt before treating that crash window as complete.
+    return any(record.get('attempt') == entry.get('attempts') and
+               (entry.get('status') == 'running' or entry.get('status') == 'correction_required')
+               for record in completion_records(feature_dir, task_id))
+
+
+def effective_task_status(feature_dir: pathlib.Path, task_id: str,
+                          entry: dict[str, Any]) -> str:
+    corrections = correction_records(feature_dir, task_id)
+    if any(not correction_is_repaired(feature_dir, task_id, item) for item in corrections):
+        return 'correction_required'
+    if task_has_effective_completion(feature_dir, task_id, entry):
+        return 'completed'
+    return str(entry.get('status', 'pending'))
+
+
 def remove_state_locked(feature_dir: pathlib.Path) -> None:
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
     with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
@@ -919,6 +1336,16 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
         for task_id, entry in state['tasks'].items():
             if not lease_expired(entry, now=now):
                 continue
+            if isinstance(entry.get('completion_repair_claim'), dict):
+                entry['status'] = 'correction_required'
+                entry.setdefault('completion_repair_claim_history', []).append({
+                    **entry.pop('completion_repair_claim'), 'recovered_at': now.isoformat(),
+                    'recovery_reason': reason,
+                })
+                for key in ('owner', 'heartbeat_at', 'lease_expires_at', 'claimed_at'):
+                    entry.pop(key, None)
+                recovered.append(task_id)
+                continue
             if is_unrecovered_partial_claim(entry):
                 die(f'CLAIM_RECOVERY_REQUIRED: {task_id} is a stranded exceptional claim; attest with recover-claim before lease recovery')
             task = active_task_contract(feature_dir, doc, task_id, state=state)
@@ -966,7 +1393,9 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
         if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
             if feature_dir is None or classify_retry_authorizations(feature_dir, doc, state, tid, int(entry.get('attempts', 0)))[0] != 'valid':
                 continue
-        if all(state['tasks'][dep]['status'] == 'completed' for dep in contract_task.get('depends_on', [])):
+        if all(task_has_effective_completion(feature_dir, dep, state['tasks'][dep])
+               if feature_dir is not None else state['tasks'][dep]['status'] == 'completed'
+               for dep in contract_task.get('depends_on', [])):
             ready.append(tid)
     return ready[:capacity]
 
@@ -1404,6 +1833,135 @@ def validate_evidence(path: pathlib.Path, *, require_pass: bool = False) -> list
                 errors.append(f'evidence.{field} must be an array')
             elif any(not isinstance(item, str) for item in doc[field]):
                 errors.append(f'evidence.{field} must contain only strings')
+    return errors
+
+
+def required_completion_criteria(task: dict[str, Any]) -> set[str]:
+    acceptance = task.get('acceptance_criteria')
+    if (not isinstance(acceptance, list) or not acceptance or
+            any(not isinstance(value, str) or re.fullmatch(r'(?:AC|VC)-[A-Z0-9._-]+', value) is None
+                for value in acceptance)):
+        return set()
+    return set(acceptance)
+
+
+def completion_verification_artifact(feature_dir: pathlib.Path, value: Any) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError('verification output path must be a non-empty string')
+    candidate = pathlib.Path(value)
+    if not candidate.is_absolute():
+        candidate = feature_repo_base(feature_dir) / candidate
+    root = feature_repo_base(feature_dir).resolve()
+    try:
+        resolved = candidate.resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f'verification output cannot be safely resolved: {exc}') from exc
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError('verification output must remain inside the canonical repository') from exc
+    if not resolved.is_file():
+        raise ValueError('verification output must be a regular file')
+    return sha256_bytes(resolved.read_bytes())
+
+
+def validate_completion_proofs(evidence: dict[str, Any], task: dict[str, Any],
+                               required: set[str], feature_dir: pathlib.Path) -> list[str]:
+    errors: list[str] = []
+    commands = evidence.get('commands')
+    proofs = evidence.get('proofs')
+    results = evidence.get('criterion_results')
+    verification_results = evidence.get('harness_verification')
+    if type(evidence.get('schema_version')) is not int or evidence.get('schema_version') != COMPLETION_EVIDENCE_SCHEMA_VERSION:
+        errors.append('completion evidence schema_version must be supported version 1')
+    if not required:
+        errors.append('active packet must declare at least one well-formed AC/VC completion criterion')
+    if not isinstance(commands, list) or not commands or any(not isinstance(x, str) or not x.strip() for x in commands):
+        errors.append('completion evidence commands must be non-empty command strings')
+        commands = []
+    allowed_commands = task.get('verification', [])
+    if any(command not in allowed_commands for command in commands):
+        errors.append('completion evidence contains a command not declared by the active packet')
+    if commands != allowed_commands:
+        errors.append('completion evidence must include the active packet verification command sequence')
+    if not isinstance(verification_results, list) or len(verification_results) != len(commands):
+        errors.append('completion evidence must include a harness result for every verification command')
+        verification_results = []
+    verified_results: dict[int, dict[str, Any]] = {}
+    for index, record in enumerate(verification_results):
+        if (not isinstance(record, dict) or record.get('command') != (commands[index] if index < len(commands) else None) or
+                type(record.get('exit_code')) is not int or record.get('exit_code') != 0):
+            errors.append(f'verification command {index} has no successful harness execution record')
+            continue
+        try:
+            stdout_sha = completion_verification_artifact(feature_dir, record.get('stdout'))
+            stderr_sha = completion_verification_artifact(feature_dir, record.get('stderr'))
+        except (OSError, ValueError) as exc:
+            errors.append(f'verification command {index} output evidence is invalid: {exc}')
+            continue
+        if not isinstance(record.get('sandbox_backend'), str) or not record['sandbox_backend']:
+            errors.append(f'verification command {index} is missing sandbox provenance')
+            continue
+        verified_results[index] = {
+            'command': record['command'], 'exit_code': record['exit_code'],
+            'stdout_sha256': stdout_sha, 'stderr_sha256': stderr_sha,
+            'sandbox_backend': record['sandbox_backend'],
+            'strong_isolation': record.get('strong_isolation') is True,
+        }
+    if not isinstance(proofs, list) or not proofs:
+        errors.append('completion evidence proofs must contain command-linked results')
+        proofs = []
+    proof_index: dict[str, dict[str, Any]] = {}
+    for proof in proofs:
+        if not isinstance(proof, dict) or set(proof) != {
+                'proof_id', 'command_index', 'command_sha256', 'status', 'exit_code', 'result_sha256', 'criteria'}:
+            errors.append('completion proof record has an invalid shape')
+            continue
+        proof_id = proof.get('proof_id')
+        index = proof.get('command_index')
+        criteria = proof.get('criteria')
+        if (not isinstance(proof_id, str) or not proof_id or proof_id in proof_index or
+                type(index) is not int or index < 0 or index >= len(commands)):
+            errors.append('completion proof identity or command index is invalid')
+            continue
+        if (proof.get('status') != 'PASS' or type(proof.get('exit_code')) is not int or proof['exit_code'] != 0 or
+                not isinstance(proof.get('command_sha256'), str) or
+                proof.get('command_sha256') != sha256_bytes(commands[index].encode()) or
+                not isinstance(proof.get('result_sha256'), str) or
+                re.fullmatch(r'[0-9a-f]{64}', proof['result_sha256']) is None):
+            errors.append(f'completion proof {proof_id} is not a valid successful command receipt')
+        receipt = verified_results.get(index)
+        if (receipt is None or proof.get('result_sha256') != canonical_json_sha256(receipt)):
+            errors.append(f'completion proof {proof_id} does not match durable harness command-output evidence')
+        if (not isinstance(criteria, list) or not criteria or
+                any(not isinstance(item, str) for item in criteria) or
+                (all(isinstance(item, str) for item in criteria) and
+                 (len(criteria) != len(set(criteria)) or any(item not in required for item in criteria)))):
+            errors.append(f'completion proof {proof_id} has invalid criterion links')
+        proof_index[proof_id] = proof
+    if not isinstance(results, dict):
+        errors.append('completion evidence criterion_results must be an object')
+        results = {}
+    if set(results) != required:
+        missing = sorted(required - set(results))
+        extra = sorted(set(results) - required)
+        if missing:
+            errors.append(f'completion evidence missing required criteria: {missing}')
+        if extra:
+            errors.append(f'completion evidence contains criteria outside the active packet: {extra}')
+    for criterion in required & set(results):
+        result = results[criterion]
+        if not isinstance(result, dict) or set(result) != {'status', 'proof_ids'} or result.get('status') != 'PASS':
+            errors.append(f'{criterion} is not marked PASS with linked command proof')
+            continue
+        proof_ids = result.get('proof_ids')
+        if (not isinstance(proof_ids, list) or not proof_ids or
+                any(not isinstance(proof_id, str) for proof_id in proof_ids) or
+                (all(isinstance(proof_id, str) for proof_id in proof_ids) and
+                 (len(proof_ids) != len(set(proof_ids)) or
+                  any(proof_id not in proof_index or criterion not in proof_index[proof_id].get('criteria', [])
+                      for proof_id in proof_ids)))):
+            errors.append(f'{criterion} has no valid passing command proof')
     return errors
 
 
@@ -2686,42 +3244,395 @@ def checkpoint_worktree(doc: dict[str, Any], task: dict[str, Any], target: pathl
     ).stdout.strip()
 
 
+def completion_record_for_entry(feature_dir: pathlib.Path, task_id: str, entry: dict[str, Any],
+                                active: dict[str, Any]) -> dict[str, Any]:
+    bindings = legacy_completion_bindings(feature_dir, task_id)
+    if bindings:
+        binding = bindings[0]
+        if binding.get('attempt') != entry.get('attempts'):
+            die('LEGACY_COMPLETION_CONFLICT: binding attempt differs from lifecycle')
+        return legacy_binding_as_completion(feature_dir, task_id, binding)
+    if (entry.get('status') == 'completed' and
+            not _valid_completion_commit(entry.get('checkpoint_commit'))):
+        die('LEGACY_COMPLETION_ATTESTATION_REQUIRED: historical checkpoint is not bound')
+    if entry.get('status') == 'completed':
+        die('LEGACY_COMPLETION_ATTESTATION_REQUIRED: completed legacy state requires immutable binding')
+    recorded_id = entry.get('completion_record_id')
+    if recorded_id:
+        existing = next((item for item in completion_records(feature_dir, task_id)
+                         if item.get('record_id') == recorded_id), None)
+        if existing:
+            return existing
+    evidence_ref = entry.get('evidence')
+    body = {
+        'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION, 'record_type': 'completion',
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': int(entry.get('attempts', 0)),
+        'checkpoint': entry.get('checkpoint_commit'),
+        'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+        'evidence_reference_sha256': sha256_bytes(str(evidence_ref or '').encode()),
+        'correction_id': None, 'repair_authorization_id': None,
+    }
+    body['record_id'] = completion_record_id('completion', body)
+    body['created_at'] = entry.get('completed_at') or utc_now().isoformat()
+    return body
+
+
+def legacy_attempt_identity(feature_dir: pathlib.Path, task_id: str,
+                            entry: dict[str, Any]) -> str:
+    binding = next((item for item in entry.get('attempt_bindings', [])
+                    if item.get('attempt') == entry.get('attempts')), {})
+    return 'sha256:' + canonical_json_sha256({
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry.get('attempts'),
+        'claimed_at': entry.get('claimed_at'), 'attempt_binding': binding,
+    })
+
+
+def classify_legacy_completion(feature_dir: pathlib.Path, doc: dict[str, Any],
+                               task_id: str) -> tuple[str, dict[str, Any] | None, list[str]]:
+    """Read-only classifier; AUTO requires two independent immutable source records."""
+    state = _read_state_unlocked_pure(feature_dir, doc)
+    entry = state.get('tasks', {}).get(task_id)
+    if not isinstance(entry, dict) or entry.get('status') != 'completed':
+        return 'CONFLICT', None, ['stored lifecycle status is not completed']
+    binding_dir = completion_authority_dir(feature_dir, 'legacy-completion-bindings', task_id)
+    if binding_dir.exists() and (binding_dir.is_symlink() or not binding_dir.is_dir()):
+        return 'CONFLICT', None, ['legacy binding authority path is unsafe']
+    if binding_dir.exists():
+        for binding_path in binding_dir.glob('*.json'):
+            try:
+                candidate = json.loads(binding_path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError):
+                return 'CONFLICT', None, ['existing legacy binding is malformed']
+            if (isinstance(candidate, dict) and
+                    (candidate.get('schema_version') != 1 or
+                     candidate.get('binding_version') != LEGACY_COMPLETION_BINDING_VERSION)):
+                return 'UNSUPPORTED', None, ['existing legacy binding schema/version is unsupported']
+    try:
+        existing = read_completion_authority(feature_dir, 'completion-records', task_id,
+                                             record_type='completion')
+        existing_bindings = legacy_completion_bindings(feature_dir, task_id)
+    except SystemExit:
+        return 'CONFLICT', None, ['existing completion authority is malformed or contradictory']
+    if existing or existing_bindings:
+        return 'CONFLICT', None, ['canonical completion or legacy binding already exists']
+    active = resolve_active_packet(feature_dir, doc, task_id, state=state)
+    evidence_path = pathlib.Path(str(entry.get('evidence', '')))
+    if not evidence_path.is_file() or evidence_path.is_symlink():
+        return 'HUMAN_ATTESTATION_REQUIRED', None, ['historical evidence artifact is unavailable']
+    try:
+        evidence_bytes = evidence_path.read_bytes()
+        evidence = json.loads(evidence_bytes)
+    except (OSError, json.JSONDecodeError):
+        return 'CONFLICT', None, ['historical evidence artifact is malformed']
+    evidence_hash = sha256_bytes(evidence_bytes)
+    expected = {
+        'repository': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry.get('attempts'),
+        'packet_revision': active['revision_id'],
+        'contract_fingerprint': active['contract_sha256'],
+    }
+    if not isinstance(evidence, dict):
+        return 'CONFLICT', None, ['historical evidence artifact is not an object']
+    if any(key in evidence and evidence[key] != value for key, value in expected.items()):
+        return 'CONFLICT', None, ['historical evidence scope conflicts with current immutable task identity']
+    missing_scope = [key for key in expected if key not in evidence]
+    evidence_checkpoint = evidence.get('checkpoint')
+    if not _valid_completion_commit(evidence_checkpoint):
+        return 'CONFLICT', None, ['evidence checkpoint is malformed']
+    if _valid_completion_commit(entry.get('checkpoint_commit')) and entry['checkpoint_commit'] != evidence_checkpoint:
+        return 'CONFLICT', None, ['lifecycle and evidence checkpoints conflict']
+
+    sources_dir = runtime_state_dir(feature_dir) / 'legacy-completion-sources' / feature_dir.name / task_id
+    sources = []
+    if sources_dir.is_dir() and not sources_dir.is_symlink():
+        for source_path in sorted(sources_dir.glob('*.json')):
+            try:
+                source_bytes = source_path.read_bytes()
+                source = json.loads(source_bytes)
+            except (OSError, json.JSONDecodeError):
+                return 'CONFLICT', None, [f'malformed immutable source record: {source_path.name}']
+            if (source_path.is_symlink() or not isinstance(source, dict) or source.get('schema_version') != 1 or
+                    source.get('source_id') != legacy_completion_source_id(source) or
+                    source_path.stem != source['source_id'].rsplit(':', 1)[-1] or
+                    source.get('repository_id') != str(git_common_dir(feature_dir)) or
+                    source.get('feature') != feature_dir.name or source.get('task') != task_id or
+                    source.get('attempt') != entry.get('attempts') or
+                    source.get('checkpoint') != evidence_checkpoint or
+                    source.get('evidence_sha256') != evidence_hash or
+                    source.get('packet_revision') != active['revision_id'] or
+                    source.get('contract_fingerprint') != active['contract_sha256'] or
+                    source.get('attempt_identity') != legacy_attempt_identity(feature_dir, task_id, entry) or
+                    source.get('historical_status') != 'completed'):
+                return 'CONFLICT', None, [f'contradictory immutable source record: {source_path.name}']
+            sources.append({'identity': source['source_id'],
+                            'sha256': sha256_bytes(source_bytes),
+                            'kind': source.get('kind'), 'immutable': True})
+    independent_kinds = {s['kind'] for s in sources if isinstance(s['kind'], str)}
+    if len(sources) < 2 or len(independent_kinds) < 2:
+        reasons = []
+        if missing_scope:
+            reasons.append('historical evidence omits task-binding fields requiring explicit attestation: ' + ', '.join(missing_scope))
+        reasons.append('fewer than two independent immutable historical records corroborate completion checkpoint')
+        return 'HUMAN_ATTESTATION_REQUIRED', None, reasons
+    binding = {
+        'schema_version': 1, 'binding_version': LEGACY_COMPLETION_BINDING_VERSION,
+        'binding_type': 'historical-legacy-completion',
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry['attempts'], 'historical_status': 'completed',
+        'attempt_identity': legacy_attempt_identity(feature_dir, task_id, entry),
+        'checkpoint': evidence_checkpoint, 'packet_revision': active['revision_id'],
+        'contract_fingerprint': active['contract_sha256'], 'evidence_sha256': evidence_hash,
+        'evidence_checkpoint': evidence_checkpoint, 'source_material': sources,
+        'mode': 'AUTO_VERIFIED',
+    }
+    binding['binding_id'] = legacy_completion_binding_id(binding)
+    return 'AUTO_VERIFIED', binding, []
+
+
+def publish_legacy_binding(feature_dir: pathlib.Path, binding: dict[str, Any]) -> bool:
+    if not validate_legacy_binding_shape(binding, feature_dir, str(binding.get('task', ''))):
+        die('LEGACY_COMPLETION_INVALID: refusing to publish malformed binding')
+    path = completion_authority_dir(feature_dir, 'legacy-completion-bindings', binding['task']) / 'binding.json'
+    return publish_completion_authority(path, binding)
+
+
+def cmd_classify_legacy_completion(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    classification, binding, reasons = classify_legacy_completion(args.feature_dir, doc, args.task_id)
+    print(json.dumps({'classification': classification, 'reasons': reasons,
+                      'proposed_binding': binding}, indent=2, sort_keys=True))
+
+
+def cmd_bind_legacy_completion_auto(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        existing = legacy_completion_bindings(args.feature_dir, args.task_id)
+        if existing:
+            if existing[0].get('mode') != 'AUTO_VERIFIED':
+                die('LEGACY_COMPLETION_AUTO_REJECTED: a different binding mode is already authoritative')
+            print(f"ALREADY_BOUND {args.task_id} binding={existing[0]['binding_id']}")
+            return
+        classification, binding, reasons = classify_legacy_completion(args.feature_dir, doc, args.task_id)
+        if classification != 'AUTO_VERIFIED' or binding is None:
+            die('LEGACY_COMPLETION_AUTO_REJECTED: ' + '; '.join(reasons or [classification]))
+        binding['created_at'] = utc_now().isoformat()
+        created = publish_legacy_binding(args.feature_dir, binding)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(('BOUND' if created else 'ALREADY_BOUND') + f" {args.task_id} binding={binding['binding_id']}")
+
+
+def cmd_attest_legacy_completion(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc):
+        die(f'unknown task {args.task_id}')
+    operator, reason = str(args.operator or '').strip(), str(args.reason or '').strip()
+    if not operator or not reason:
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicit operator and reason are required')
+    if not args.attested_fields or not args.sources:
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicit attested fields and source references are required')
+    raw_evidence_path = pathlib.Path(args.evidence)
+    if raw_evidence_path.is_symlink() or not raw_evidence_path.is_file():
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: evidence must be a regular file')
+    evidence_path = raw_evidence_path.resolve()
+    evidence_bytes = evidence_path.read_bytes()
+    evidence_hash = sha256_bytes(evidence_bytes)
+    try:
+        evidence = json.loads(evidence_bytes)
+        attested_fields = json.loads(args.attested_fields)
+        source_refs = json.loads(args.sources)
+    except (json.JSONDecodeError, TypeError) as exc:
+        die(f'LEGACY_COMPLETION_ATTESTATION_INVALID: malformed JSON input: {exc}')
+    if (not isinstance(attested_fields, dict) or not isinstance(source_refs, list) or not source_refs or
+            any(not isinstance(item, dict) or not isinstance(item.get('identity'), str) or
+                not item['identity'] or item.get('immutable') is not True or
+                not _valid_completion_hash(item.get('sha256'))
+                for item in source_refs)):
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: attested fields must be an object and sources a nonempty array')
+    runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _read_state_unlocked_pure(args.feature_dir, doc)
+        entry = state['tasks'][args.task_id]
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        repo_id = str(git_common_dir(args.feature_dir))
+        expected_projection = {
+            'stored_status': 'completed', 'attempts': entry.get('attempts'),
+            'attempt_identity': legacy_attempt_identity(args.feature_dir, args.task_id, entry),
+            'canonical_completion_absent': True,
+            'legacy_checkpoint': entry.get('checkpoint_commit'),
+            'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'],
+            'evidence_sha256': evidence_hash,
+            'evidence_checkpoint': evidence.get('checkpoint') if isinstance(evidence, dict) else None,
+            'repository_id': repo_id, 'feature': args.feature_dir.name, 'task': args.task_id,
+        }
+        for key, actual in expected_projection.items():
+            # The structured precondition must explicitly contain every CAS value.
+            if key not in args.expected or args.expected[key] != actual:
+                die(f'LEGACY_COMPLETION_CAS_REJECTED: expected precondition mismatch for {key}')
+        if entry.get('status') != 'completed':
+            die('LEGACY_COMPLETION_CAS_REJECTED: lifecycle status no longer matches legacy state')
+        if (_valid_completion_commit(entry.get('checkpoint_commit')) and isinstance(evidence, dict) and
+                entry['checkpoint_commit'] != evidence.get('checkpoint')):
+            die('LEGACY_COMPLETION_CAS_REJECTED: lifecycle and evidence checkpoints conflict')
+        if read_completion_authority(args.feature_dir, 'completion-records', args.task_id,
+                                     record_type='completion'):
+            die('LEGACY_COMPLETION_CAS_REJECTED: canonical completion already exists')
+        if not isinstance(evidence, dict):
+            die('LEGACY_COMPLETION_CAS_REJECTED: evidence is not a JSON object')
+        evidence_binding_values = {
+            'checkpoint': evidence.get('checkpoint'), 'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'], 'repository': repo_id,
+            'feature': args.feature_dir.name, 'task': args.task_id, 'attempt': entry.get('attempts'),
+        }
+        if any(key in evidence and evidence[key] != value for key, value in evidence_binding_values.items()):
+            die('LEGACY_COMPLETION_CAS_REJECTED: evidence scope conflicts with current task binding')
+        if not set(evidence_binding_values).issubset(attested_fields) or any(
+                attested_fields[key] != value for key, value in evidence_binding_values.items()):
+            die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicitly attested fields do not bind evidence, task and current packet')
+        binding = {
+            'schema_version': 1, 'binding_version': LEGACY_COMPLETION_BINDING_VERSION,
+            'binding_type': 'historical-legacy-completion', 'repository_id': repo_id,
+            'feature': args.feature_dir.name, 'task': args.task_id, 'attempt': entry['attempts'],
+            'historical_status': 'completed',
+            'attempt_identity': expected_projection['attempt_identity'],
+            'checkpoint': evidence['checkpoint'], 'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'], 'evidence_sha256': evidence_hash,
+            'evidence_checkpoint': evidence['checkpoint'], 'source_material': source_refs,
+            'mode': 'HUMAN_ATTESTED', 'operator': operator, 'reason': reason,
+            'attested_fields': attested_fields,
+        }
+        binding['binding_id'] = legacy_completion_binding_id(binding)
+        binding['created_at'] = utc_now().isoformat()
+        created = publish_legacy_binding(args.feature_dir, binding)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(('BOUND' if created else 'ALREADY_BOUND') + f" {args.task_id} binding={binding['binding_id']}")
+
+
+def add_completion_record(feature_dir: pathlib.Path, record: dict[str, Any]) -> None:
+    path = completion_authority_dir(feature_dir, 'completion-records', record['task']) / \
+        f"{record['record_id'].rsplit(':', 1)[-1]}.json"
+    publish_completion_authority(path, record)
+
+
+def validate_completion_binding(evidence: dict[str, Any], feature_dir: pathlib.Path, task_id: str,
+                                entry: dict[str, Any], active: dict[str, Any]) -> list[str]:
+    expected = {
+        'repository': str(git_common_dir(feature_dir)), 'feature': feature_dir.name, 'task': task_id,
+        'attempt': entry.get('attempts'), 'packet_revision': active['revision_id'],
+        'contract_fingerprint': active['contract_sha256'],
+    }
+    errors = [f'completion evidence {key} does not match current authority'
+              for key, value in expected.items() if evidence.get(key) != value]
+    if (not isinstance(evidence.get('checkpoint'), str) or
+            re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', evidence['checkpoint']) is None):
+        errors.append('completion evidence checkpoint must be a full Git commit id')
+    if not isinstance(evidence.get('changed_paths'), list) or any(not isinstance(p, str) for p in evidence['changed_paths']):
+        errors.append('completion evidence changed_paths must be a string array')
+    return errors
+
+
 def cmd_complete(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     idx = task_index(doc)
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
-    evidence = pathlib.Path(args.evidence)
-    evidence_errors = validate_evidence(evidence, require_pass=True)
+    evidence_path = pathlib.Path(args.evidence)
+    evidence_errors = validate_evidence(evidence_path, require_pass=True)
     if evidence_errors:
         die('; '.join(evidence_errors))
+    evidence_doc = load_json(evidence_path)
 
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
             die(f'unknown task {args.task_id}')
+        if entry.get('status') == 'completed':
+            active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+            binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
+            proof_errors = validate_completion_proofs(
+                evidence_doc, active_task_contract(args.feature_dir, doc, args.task_id, state=state),
+                required_completion_criteria(active_task_contract(
+                    args.feature_dir, doc, args.task_id, state=state)), args.feature_dir)
+            existing = next((item for item in completion_records(args.feature_dir, args.task_id)
+                             if item.get('record_id') == entry.get('completion_record_id')), None)
+            evidence_hash = sha256_bytes(evidence_path.read_bytes())
+            if (not binding_errors and not proof_errors and existing and
+                    existing.get('evidence_reference_sha256') == evidence_hash and
+                    existing.get('checkpoint') == evidence_doc.get('checkpoint')):
+                print(f'ALREADY_COMPLETED {args.task_id} checkpoint={existing["checkpoint"][:12]}')
+                return
+            die('COMPLETION_CONFLICT: task already has a different authoritative completion')
         owner_guard(entry, args.owner)
+        repair_claim = entry.get('completion_repair_claim')
+        is_repair = isinstance(repair_claim, dict)
+        if is_repair:
+            die('COMPLETION_REPAIR_REQUIRES_CANONICAL_OPERATION: use complete-repair')
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
+        if binding_errors:
+            die('; '.join(binding_errors))
+        required = required_completion_criteria(task)
+        proof_errors = validate_completion_proofs(evidence_doc, task, required, args.feature_dir)
+        if proof_errors:
+            die('; '.join(proof_errors))
+
+        repair_authorization = None
+        correction_id = None
+        if correction_records(args.feature_dir, args.task_id):
+            die('COMPLETION_CORRECTION_REQUIRED: corrected completion requires explicit repair claim')
 
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
-        checkpoint = None
+        reported = sorted(set(evidence_doc['changed_paths']))
         if target.exists():
-            evidence_doc = load_json(evidence)
             actual = changed_paths(target)
-            reported = sorted(set(str(p) for p in evidence_doc.get('changed_paths', [])))
             if reported != actual:
                 die(f'evidence changed_paths differs from task worktree; reported={reported}, actual={actual}')
             checkpoint = checkpoint_worktree(doc, task, target)
+            if changed_paths(target):
+                die('COMPLETION_WORKTREE_DIRTY: checkpoint worktree is not clean')
+        else:
+            checkpoint = evidence_doc['checkpoint']
+            if checkpoint != entry.get('checkpoint_commit'):
+                die('COMPLETION_CHECKPOINT_MISMATCH: no task worktree exists and evidence checkpoint differs from lifecycle checkpoint')
+            exists = subprocess.run(['git', 'cat-file', '-e', f'{checkpoint}^{{commit}}'],
+                                    cwd=feature_repo_base(args.feature_dir), capture_output=True).returncode == 0
+            if not exists:
+                die('COMPLETION_CHECKPOINT_INVALID: checkpoint is not available in the repository')
+        if evidence_doc['checkpoint'] != checkpoint:
+            die('COMPLETION_CHECKPOINT_MISMATCH: evidence checkpoint differs from verified task checkpoint')
+
+        record = {
+            'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION, 'record_type': 'completion',
+            'repository_id': str(git_common_dir(args.feature_dir)), 'feature': args.feature_dir.name,
+            'task': args.task_id, 'attempt': int(entry.get('attempts', 0)),
+            'checkpoint': checkpoint, 'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'],
+            'evidence_reference_sha256': sha256_bytes(evidence_path.read_bytes()),
+            'correction_id': None, 'repair_authorization_id': None,
+        }
+        record['record_id'] = completion_record_id('completion', record)
+        record['created_at'] = utc_now().isoformat()
+        add_completion_record(args.feature_dir, record)
+        _completion_failpoint('completion-published')
 
         entry.update({
-            'status': 'completed',
-            'completed_at': utc_now().isoformat(),
-            'evidence': str(evidence),
-            'checkpoint_commit': checkpoint,
+            'status': 'completed', 'completed_at': utc_now().isoformat(),
+            'evidence': str(evidence_path), 'checkpoint_commit': checkpoint,
+            'completion_record_id': record['record_id'],
         })
         if entry.pop('active_human_resume', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
@@ -2730,7 +3641,313 @@ def cmd_complete(args: argparse.Namespace) -> None:
         entry.pop('start_origin_status', None)
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
-    print(f'COMPLETED {args.task_id}' + (f' checkpoint={checkpoint[:12]}' if checkpoint else ' (no worktree checkpoint)'))
+    print(f'COMPLETED {args.task_id} checkpoint={checkpoint[:12]}')
+
+
+def cmd_complete_repair(args: argparse.Namespace) -> None:
+    """Publish canonical C2 for an already authorized repair on the same attempt."""
+    args.feature_dir = pathlib.Path(args.feature_dir)
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc) or not str(args.owner or '').strip():
+        die('COMPLETION_REPAIR_INVALID: task and owner are required')
+    evidence_path = pathlib.Path(args.evidence)
+    evidence_errors = validate_evidence(evidence_path, require_pass=True)
+    if evidence_errors:
+        die('COMPLETION_EVIDENCE_INVALID: ' + '; '.join(evidence_errors))
+    try:
+        evidence_doc = json.loads(evidence_path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'COMPLETION_EVIDENCE_INVALID: {exc}')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'].get(args.task_id)
+        if not entry:
+            die(f'unknown task {args.task_id}')
+        claim_projection = entry.get('completion_repair_claim')
+        # A replay after publication is resolved from immutable history even if
+        # the first publisher already cleared the mutable active-claim projection.
+        all_repair_records = repaired_completion_records(args.feature_dir, args.task_id)
+        if all_repair_records:
+            existing = all_repair_records[-1]
+            if isinstance(claim_projection, dict):
+                existing = next((item for item in all_repair_records
+                                 if item.get('repair_claim_id') == claim_projection.get('claim_id')), existing)
+            active_now = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+            binding_now = validate_completion_binding(
+                evidence_doc, args.feature_dir, args.task_id, entry, active_now)
+            proofs_now = validate_completion_proofs(
+                evidence_doc, active_task_contract(args.feature_dir, doc, args.task_id, state=state),
+                required_completion_criteria(active_task_contract(args.feature_dir, doc, args.task_id, state=state)),
+                args.feature_dir)
+            replay_hash = sha256_bytes(evidence_path.read_bytes())
+            if (not binding_now and not proofs_now and existing.get('evidence_reference_sha256') == replay_hash and
+                    existing.get('checkpoint') == evidence_doc.get('checkpoint')):
+                print(f'ALREADY_COMPLETED_REPAIR {args.task_id} c2={existing["record_id"]}')
+                return
+            die('COMPLETION_REPAIR_CONFLICT: finalized claim was replayed with different evidence')
+        if (entry.get('status') != 'running' or not isinstance(claim_projection, dict) or
+                claim_projection.get('owner') != args.owner):
+            die('COMPLETION_REPAIR_OWNER_MISMATCH: active repair claim does not match caller')
+        owner_guard(entry, args.owner)
+        attempt = entry.get('attempts')
+        if type(attempt) is not int or attempt < 1:
+            die('COMPLETION_REPAIR_ATTEMPT_INVALID: existing attempt is absent')
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
+        binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
+        if evidence_doc.get('checkpoint') != entry.get('checkpoint_commit'):
+            binding_errors.append('completion evidence checkpoint does not match repaired checkpoint')
+        if binding_errors:
+            die('COMPLETION_EVIDENCE_BINDING_INVALID: ' + '; '.join(binding_errors))
+        proof_errors = validate_completion_proofs(
+            evidence_doc, task, required_completion_criteria(task), args.feature_dir)
+        if proof_errors:
+            die('COMPLETION_EVIDENCE_INVALID: ' + '; '.join(proof_errors))
+
+        claim_id = claim_projection.get('claim_id')
+        claims = repair_claim_records(args.feature_dir, args.task_id)
+        claim = next((item for item in claims if item.get('record_id') == claim_id), None)
+        authorization_id = claim_projection.get('authorization_id')
+        authorization = next((item for item in repair_authorization_records(args.feature_dir, args.task_id)
+                              if item.get('record_id') == authorization_id), None)
+        correction_id = claim_projection.get('correction_id')
+        correction = next((item for item in correction_records(args.feature_dir, args.task_id)
+                           if item.get('record_id') == correction_id), None)
+        historical_id = correction.get('original_completion_id') if correction else None
+        historical = next((item for item in completion_records(args.feature_dir, args.task_id)
+                           if item.get('record_id') == historical_id), None)
+        if not all((claim, authorization, correction, historical)):
+            die('COMPLETION_REPAIR_AUTHORITY_INVALID: C1/K1/A1/claim chain is incomplete')
+        if (claim.get('owner') != args.owner or claim.get('attempt') != attempt or
+                claim.get('correction_id') != correction_id or claim.get('authorization_id') != authorization_id or
+                authorization.get('correction_id') != correction_id or
+                authorization.get('original_completion_id') != historical_id or
+                authorization.get('attempt') != attempt or correction.get('completed_attempt') != attempt or
+                correction.get('original_completion_id') != historical_id or
+                historical.get('attempt') != attempt or
+                authorization.get('packet_revision') != active['revision_id'] or
+                correction.get('packet_revision') != active['revision_id'] or
+                authorization.get('contract_fingerprint') != active['contract_sha256'] or
+                correction.get('contract_fingerprint') != active['contract_sha256']):
+            die('COMPLETION_REPAIR_AUTHORITY_INVALID: exact repair authority mismatch')
+        if (effective_task_status(args.feature_dir, args.task_id, entry) != 'correction_required' and
+                not all_repair_records):
+            die('COMPLETION_REPAIR_STATE_INVALID: task is not awaiting repair completion')
+        prior = [item for item in all_repair_records
+                 if item.get('repair_claim_id') == claim_id]
+        evidence_hash = sha256_bytes(evidence_path.read_bytes())
+        record = {
+            'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION,
+            'record_type': 'completion-repair', 'protocol_version': 1,
+            'repository_id': str(git_common_dir(args.feature_dir)), 'feature': args.feature_dir.name,
+            'task': args.task_id, 'attempt': attempt,
+            'historical_completion_id': historical_id, 'correction_id': correction_id,
+            'repair_authorization_id': authorization_id, 'repair_claim_id': claim_id,
+            'owner': args.owner, 'checkpoint': evidence_doc['checkpoint'],
+            'evidence_reference_sha256': evidence_hash,
+            'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'],
+        }
+        record['record_id'] = completion_record_id('completion-repair', record)
+        record['created_at'] = utc_now().isoformat()
+        if prior and all(item.get('record_id') != record['record_id'] for item in prior):
+            die('COMPLETION_REPAIR_CONFLICT: repair claim already finalized with different evidence')
+        if prior:
+            if prior[0].get('record_id') == record['record_id']:
+                print(f'ALREADY_COMPLETED_REPAIR {args.task_id} c2={prior[0]["record_id"]}')
+                return
+            die('COMPLETION_REPAIR_CONFLICT: repair claim already finalized with different evidence')
+        path = completion_authority_dir(args.feature_dir, 'completion-repair-records', args.task_id) / \
+            f"{record['record_id'].rsplit(':', 1)[-1]}.json"
+        claim_slot = path.parent / f"claim-{claim_id.rsplit(':', 1)[-1]}.json"
+        slot_record = {key: value for key, value in record.items()
+                       if key not in {'record_id', 'created_at'}}
+        slot_record['record_id'] = record['record_id']
+        slot_record['created_at'] = record['created_at']
+        _completion_failpoint('repair-completion-before-publication')
+        created = publish_completion_authority(claim_slot, slot_record)
+        if not created:
+            winner = json.loads(claim_slot.read_text(encoding='utf-8'))
+            if winner.get('record_id') != record['record_id']:
+                die('COMPLETION_REPAIR_CONFLICT: repair claim finalized by a different C2')
+        _completion_failpoint('repair-completion-published')
+        entry.update({
+            'status': 'completed', 'completed_at': utc_now().isoformat(),
+            'checkpoint_commit': record['checkpoint'], 'completion_repair_record_id': record['record_id'],
+        })
+        entry.setdefault('completion_repair_history', []).append({
+            'repair_claim_id': claim_id, 'completion_id': record['record_id'],
+            'attempt': attempt, 'completed_at': entry['completed_at'],
+        })
+        entry.pop('completion_repair_claim', None)
+        for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
+            entry.pop(key, None)
+    print(('COMPLETED_REPAIR' if created else 'ALREADY_COMPLETED_REPAIR') +
+          f' {args.task_id} c2={record["record_id"]}')
+
+
+def cmd_correct_completion(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc):
+        die(f'unknown task {args.task_id}')
+    operator = str(args.by or '').strip()
+    reason = str(args.reason or '').strip()
+    if not operator or not reason or args.reason_code != COMPLETION_CORRECTION_REASON:
+        die('COMPLETION_CORRECTION_INVALID: explicit operator, reason and supported reason code are required')
+    evidence_path = pathlib.Path(args.evidence)
+    if not evidence_path.is_file() or evidence_path.is_symlink():
+        die('COMPLETION_CORRECTION_INVALID: defect evidence must be an existing regular file')
+    evidence_hash = sha256_bytes(evidence_path.read_bytes())
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'][args.task_id]
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        current = correction_records(args.feature_dir, args.task_id)
+        if entry.get('status') not in {'completed', 'correction_required'}:
+            die('COMPLETION_CORRECTION_INVALID: task has no completed lifecycle event to correct')
+        completions = completion_records(args.feature_dir, args.task_id)
+        current_completion = next((item for item in completions
+                                   if item.get('record_id') == entry.get('completion_record_id')), None)
+        existing_for_current = next((item for item in current
+                                     if current_completion and
+                                     item.get('original_completion_id') == current_completion['record_id']), None)
+        original = current_completion
+        if existing_for_current:
+            original = next((item for item in completions
+                             if item.get('record_id') == existing_for_current.get('original_completion_id')), None)
+        if original is None:
+            original = completion_record_for_entry(args.feature_dir, args.task_id, entry, active)
+        original['record_id'] = completion_record_id('completion', original)
+        existing_for_original = [item for item in current
+                                 if item.get('original_completion_id') == original['record_id']]
+        correction = {
+            'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION,
+            'record_type': 'completion-correction', 'repository_id': str(git_common_dir(args.feature_dir)),
+            'feature': args.feature_dir.name, 'task': args.task_id,
+            'completed_attempt': int(entry.get('attempts', 0)),
+            'original_completion_id': original['record_id'],
+            'original_completion_checkpoint': original.get('checkpoint'),
+            'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+            'reason_code': args.reason_code, 'reason': reason, 'defect_evidence_sha256': evidence_hash,
+            'operator': operator,
+        }
+        correction['record_id'] = completion_record_id('completion-correction', correction)
+        correction['created_at'] = utc_now().isoformat()
+        if existing_for_original and all(item['record_id'] != correction['record_id'] for item in existing_for_original):
+            die('COMPLETION_CORRECTION_CONFLICT: original completion already has a different correction')
+        add_completion_record(args.feature_dir, original)
+        path = completion_authority_dir(args.feature_dir, 'completion-corrections', args.task_id) / \
+            f"{correction['record_id'].rsplit(':', 1)[-1]}.json"
+        created = publish_completion_authority(path, correction)
+        _completion_failpoint('correction-published')
+        if not correction_is_repaired(args.feature_dir, args.task_id, correction):
+            entry.update({'status': 'correction_required', 'active_completion_correction_id': correction['record_id']})
+    print(('CORRECTED' if created else 'ALREADY_CORRECTED') +
+          f" {args.task_id} correction={correction['record_id']}")
+
+
+def cmd_authorize_completion_repair(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc):
+        die(f'unknown task {args.task_id}')
+    operator = str(args.by or '').strip()
+    reason = str(args.reason or '').strip()
+    if not operator or not reason:
+        die('COMPLETION_REPAIR_AUTHORIZATION_INVALID: explicit operator and reason are required')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'][args.task_id]
+        correction = next((x for x in correction_records(args.feature_dir, args.task_id)
+                           if x.get('record_id') == args.correction_id), None)
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        if not correction:
+            die('COMPLETION_REPAIR_AUTHORIZATION_INVALID: correction is absent')
+        existing = [x for x in repair_authorization_records(args.feature_dir, args.task_id)
+                    if x.get('correction_id') == correction['record_id']]
+        authorization = {
+            'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION,
+            'record_type': 'completion-repair-authorization',
+            'repository_id': str(git_common_dir(args.feature_dir)), 'feature': args.feature_dir.name,
+            'task': args.task_id, 'attempt': int(entry.get('attempts', 0)),
+            'correction_id': correction['record_id'],
+            'original_completion_id': correction['original_completion_id'],
+            'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+            'reason': reason, 'operator': operator,
+        }
+        authorization['record_id'] = completion_record_id('completion-repair-authorization', authorization)
+        authorization['created_at'] = utc_now().isoformat()
+        if any(item['record_id'] == authorization['record_id'] for item in existing):
+            print(f"ALREADY_AUTHORIZED {args.task_id} authorization={authorization['record_id']}")
+            return
+        if (correction_is_repaired(args.feature_dir, args.task_id, correction) or
+                correction['completed_attempt'] != entry.get('attempts') or
+                correction['packet_revision'] != active['revision_id'] or
+                correction['contract_fingerprint'] != active['contract_sha256']):
+            die('COMPLETION_REPAIR_AUTHORIZATION_INVALID: correction is repaired or stale')
+        if existing and all(item['record_id'] != authorization['record_id'] for item in existing):
+            die('COMPLETION_REPAIR_AUTHORIZATION_CONFLICT: correction already has different repair authority')
+        path = completion_authority_dir(args.feature_dir, 'completion-repair-authorizations', args.task_id) / \
+            f"{authorization['record_id'].rsplit(':', 1)[-1]}.json"
+        created = publish_completion_authority(path, authorization)
+        _completion_failpoint('repair-authorization-published')
+        entry['active_completion_repair_authorization'] = authorization['record_id']
+    print(('AUTHORIZED' if created else 'ALREADY_AUTHORIZED') +
+          f" {args.task_id} authorization={authorization['record_id']}")
+
+
+def cmd_claim_completion_repair(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc) or not str(args.owner or '').strip():
+        die('COMPLETION_REPAIR_CLAIM_INVALID: task and owner are required')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'][args.task_id]
+        authorization = next((x for x in repair_authorization_records(args.feature_dir, args.task_id)
+                              if x.get('record_id') == args.authorization), None)
+        correction = (next((x for x in correction_records(args.feature_dir, args.task_id)
+                            if authorization and x.get('record_id') == authorization.get('correction_id')), None))
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        if (not authorization or not correction or correction_is_repaired(args.feature_dir, args.task_id, correction) or
+                authorization.get('task') != args.task_id or authorization.get('attempt') != entry.get('attempts') or
+                authorization.get('packet_revision') != active['revision_id'] or
+                authorization.get('contract_fingerprint') != active['contract_sha256']):
+            die('COMPLETION_REPAIR_AUTHORIZATION_INVALID: exact current authority is absent')
+        if entry.get('status') == 'running':
+            existing = entry.get('completion_repair_claim')
+            if isinstance(existing, dict) and existing.get('authorization_id') == args.authorization and existing.get('owner') == args.owner:
+                print(f"ALREADY_CLAIMED {args.task_id} attempt={entry['attempts']}")
+                return
+            die('COMPLETION_REPAIR_ALREADY_OWNED: another repair continuation is active')
+        if effective_task_status(args.feature_dir, args.task_id, entry) != 'correction_required':
+            die('COMPLETION_REPAIR_CLAIM_INVALID: task is not awaiting a completion repair')
+        prior_claims = read_completion_authority(args.feature_dir, 'completion-repair-claims', args.task_id,
+                                                 record_type='completion-repair-claim')
+        claim = next((item for item in prior_claims
+                      if item.get('correction_id') == correction['record_id'] and
+                      item.get('authorization_id') == authorization['record_id']), None)
+        if claim and claim.get('owner') != args.owner:
+            die('COMPLETION_REPAIR_ALREADY_OWNED: durable repair claim belongs to another owner')
+        if claim is None:
+            generation = 1 + max((int(item.get('generation', 0)) for item in prior_claims
+                                  if item.get('correction_id') == correction['record_id']), default=0)
+            claim = {
+                'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION,
+                'record_type': 'completion-repair-claim', 'repository_id': str(git_common_dir(args.feature_dir)),
+                'feature': args.feature_dir.name, 'task': args.task_id, 'attempt': int(entry.get('attempts', 0)),
+                'correction_id': correction['record_id'], 'authorization_id': authorization['record_id'],
+                'owner': args.owner, 'generation': generation,
+            }
+            claim['record_id'] = completion_record_id('completion-repair-claim', claim)
+            claim['created_at'] = utc_now().isoformat()
+            claim_path = completion_authority_dir(args.feature_dir, 'completion-repair-claims', args.task_id) / \
+                f"{claim['record_id'].rsplit(':', 1)[-1]}.json"
+            publish_completion_authority(claim_path, claim)
+            _completion_failpoint('repair-claim-published')
+        entry.update({
+            'status': 'running', 'owner': args.owner, 'completion_repair_claim': {
+                'claim_id': claim['record_id'], 'correction_id': correction['record_id'],
+                'authorization_id': authorization['record_id'], 'owner': args.owner,
+                'generation': claim['generation'],
+            },
+        })
+        refresh_lease(entry, doc)
+    print(f"CLAIMED_REPAIR {args.task_id} owner={args.owner} attempt={entry['attempts']}")
 
 def cmd_fail(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
@@ -2745,6 +3962,17 @@ def cmd_fail(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        if isinstance(entry.get('completion_repair_claim'), dict):
+            entry['status'] = 'correction_required'
+            entry['completion_repair_last_failure'] = args.reason
+            entry.setdefault('completion_repair_claim_history', []).append({
+                **entry.pop('completion_repair_claim'), 'ended_at': utc_now().isoformat(),
+                'result': 'failed',
+            })
+            for key in ('owner', 'heartbeat_at', 'lease_expires_at', 'claimed_at'):
+                entry.pop(key, None)
+            print(f'REPAIR_FAILED {args.task_id} attempt={entry["attempts"]}; authorization remains scoped')
+            return
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
         attempts = int(entry.get('attempts', 0))
@@ -2784,6 +4012,17 @@ def cmd_release(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        if isinstance(entry.get('completion_repair_claim'), dict):
+            entry['status'] = 'correction_required'
+            entry['completion_repair_last_release'] = args.reason
+            entry.setdefault('completion_repair_claim_history', []).append({
+                **entry.pop('completion_repair_claim'), 'ended_at': utc_now().isoformat(),
+                'result': 'released',
+            })
+            for key in ('owner', 'heartbeat_at', 'lease_expires_at', 'claimed_at'):
+                entry.pop(key, None)
+            print(f'REPAIR_RELEASED {args.task_id} attempt={entry["attempts"]}')
+            return
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
@@ -3037,6 +4276,10 @@ def cmd_status(args: argparse.Namespace) -> None:
                 bridge_records.append(bridge)
     if args.json:
         state['packet_identity_bridges'] = bridge_records
+        for tid, entry in state['tasks'].items():
+            entry['historical_status'] = entry.get('status')
+            entry['effective_status'] = effective_task_status(args.feature_dir, tid, entry)
+            entry['status'] = entry['effective_status']
         print(json.dumps(state, indent=2, sort_keys=True))
         return
     now = utc_now()
@@ -3051,8 +4294,9 @@ def cmd_status(args: argparse.Namespace) -> None:
             else:
                 remaining = max(0, int((expires - now).total_seconds()))
                 lease = f'{remaining}s'
+        status = effective_task_status(args.feature_dir, tid, entry)
         print(
-            f'{tid:9} {entry["status"]:10} {task["role"]:11} '
+            f'{tid:9} {status:18} {task["role"]:11} '
             f'attempts={entry.get("attempts", 0)} owner={owner} lease={lease}  {task["title"]}'
         )
     for bridge in bridge_records:
@@ -3480,6 +4724,69 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--owner', required=True)
     s.add_argument('--evidence', required=True)
     s.set_defaults(func=cmd_complete)
+
+    s = sub.add_parser('complete-repair', help='Publish canonical repaired completion C2 for an authorized repair')
+    s.add_argument('feature_dir')
+    s.add_argument('task_id')
+    s.add_argument('--owner', required=True, help='Must match the active immutable repair claim owner')
+    s.add_argument('--evidence', required=True, help='Passing completion evidence bound to the active packet and attempt')
+    s.set_defaults(func=cmd_complete_repair)
+
+    s = sub.add_parser('correct-completion')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--reason-code', required=True, choices=[COMPLETION_CORRECTION_REASON])
+    s.add_argument('--reason', required=True)
+    s.add_argument('--evidence', required=True, help='Existing defect evidence file; its content hash is recorded')
+    s.add_argument('--by', required=True, help='Operator provenance label')
+    s.set_defaults(func=cmd_correct_completion)
+
+    s = sub.add_parser('classify-legacy-completion')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.set_defaults(func=cmd_classify_legacy_completion)
+
+    s = sub.add_parser('bind-legacy-completion-auto')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.set_defaults(func=cmd_bind_legacy_completion_auto)
+
+    s = sub.add_parser('attest-legacy-completion')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--evidence', required=True)
+    s.add_argument('--attested-fields', required=True,
+                   help='JSON object explicitly attesting checkpoint, repository/task/attempt and packet binding')
+    s.add_argument('--sources', required=True,
+                   help='JSON array of immutable historical source references with identity and SHA-256')
+    s.add_argument('--operator', required=True)
+    s.add_argument('--reason', required=True)
+    def parse_json_argument(value: str) -> dict[str, Any]:
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise argparse.ArgumentTypeError(str(exc)) from exc
+        if not isinstance(parsed, dict):
+            raise argparse.ArgumentTypeError('expected a JSON object')
+        return parsed
+    s.set_defaults(func=cmd_attest_legacy_completion)
+    # Keep explicit CAS JSON structured at the CLI boundary.
+    s.add_argument('--expected-cas', dest='expected', type=parse_json_argument, required=True)
+
+    s = sub.add_parser('authorize-completion-repair')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--correction-id', required=True)
+    s.add_argument('--reason', required=True)
+    s.add_argument('--by', required=True, help='Operator provenance label')
+    s.set_defaults(func=cmd_authorize_completion_repair)
+
+    s = sub.add_parser('claim-completion-repair')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--authorization', required=True)
+    s.add_argument('--owner', required=True)
+    s.set_defaults(func=cmd_claim_completion_repair)
 
     s = sub.add_parser('fail')
     s.add_argument('feature_dir', type=pathlib.Path)

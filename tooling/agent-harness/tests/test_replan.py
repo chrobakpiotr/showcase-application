@@ -961,9 +961,50 @@ class ReplanInfrastructureTest(unittest.TestCase):
                 feature, doc = self.create_additional_feature(f'REPLAN-{suffix}')
                 args, _packet, _grant_id = self.running_replan_fixture(feature=feature, doc=doc)
                 if operation == 'complete':
+                    state = harness.load_state(feature, doc)
+                    entry = state['tasks']['T-001']
+                    active = harness.resolve_active_packet(feature, doc, 'T-001', state=state)
+                    verification_task = harness.active_task_contract(feature, doc, 'T-001', state=state)
+                    checkpoint = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+                    entry['checkpoint_commit'] = checkpoint
+                    harness.save_state(feature, state)
+                    criteria = verification_task['acceptance_criteria']
+                    commands = verification_task['verification']
+                    run_dir = self.root / '.agent-runs' / f'{suffix}-complete'
+                    run_dir.mkdir(parents=True, exist_ok=True)
+                    verification_results = []
+                    proofs = []
+                    proof_ids = []
+                    for index, command in enumerate(commands):
+                        stdout, stderr = run_dir / f'{index}.out', run_dir / f'{index}.err'
+                        stdout.write_text('pass\n', encoding='utf-8')
+                        stderr.write_text('', encoding='utf-8')
+                        backend = 'deterministic-test-backend'
+                        verification_results.append({'command': command, 'exit_code': 0,
+                            'stdout': str(stdout), 'stderr': str(stderr), 'sandbox_backend': backend,
+                            'strong_isolation': True})
+                        receipt = {'command': command, 'exit_code': 0,
+                            'stdout_sha256': harness.sha256_bytes(stdout.read_bytes()),
+                            'stderr_sha256': harness.sha256_bytes(stderr.read_bytes()),
+                            'sandbox_backend': backend, 'strong_isolation': True}
+                        proof_id = f'race-proof-{index}'
+                        proof_ids.append(proof_id)
+                        proofs.append({'proof_id': proof_id, 'command_index': index,
+                            'command_sha256': harness.sha256_bytes(command.encode()),
+                            'status': 'PASS', 'exit_code': 0,
+                            'result_sha256': harness.canonical_json_sha256(receipt), 'criteria': criteria})
                     evidence = feature / 'pass.json'
-                    evidence.write_text(json.dumps({'status': 'pass', 'summary': 'verified fixture',
-                        'changed_paths': [], 'commands': [], 'assumptions': [], 'residual_risks': []}))
+                    evidence.write_text(json.dumps({
+                        'schema_version': 1, 'status': 'pass', 'summary': 'verified fixture',
+                        'repository': str(harness.git_common_dir(feature)), 'feature': feature.name,
+                        'task': 'T-001', 'attempt': entry['attempts'], 'checkpoint': checkpoint,
+                        'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+                        'changed_paths': [], 'commands': commands,
+                        'harness_verification': verification_results, 'proofs': proofs,
+                        'criterion_results': {criterion: {'status': 'PASS', 'proof_ids': proof_ids}
+                                              for criterion in criteria},
+                        'assumptions': [], 'residual_risks': [],
+                    }))
                 barrier = threading.Barrier(2)
                 outcomes = []
                 def replan():
