@@ -60,6 +60,7 @@ VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
 STATE_SCHEMA_VERSION = 1
 COMPLETION_EVIDENCE_SCHEMA_VERSION = 1
 COMPLETION_AUTHORITY_SCHEMA_VERSION = 1
+LEGACY_COMPLETION_BINDING_VERSION = 1
 COMPLETION_CORRECTION_REASON = 'COMPLETION_SEMANTICALLY_INVALID'
 _completion_fault_injector = None
 
@@ -833,10 +834,112 @@ def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
 def completion_authority_dir(feature_dir: pathlib.Path, kind: str, task_id: str) -> pathlib.Path:
     if not safe_task_id(task_id) or kind not in {
         'completion-records', 'completion-corrections', 'completion-repair-authorizations',
-        'completion-repair-claims',
+        'completion-repair-claims', 'legacy-completion-bindings',
     }:
         die('COMPLETION_AUTHORITY_INVALID: unsafe authority path')
     return runtime_state_dir(feature_dir) / kind / feature_dir.name / task_id
+
+
+def legacy_completion_binding_id(binding: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in binding.items()
+                if key not in {'binding_id', 'created_at'}}
+    return f'legacy-completion-binding-v1:sha256:{canonical_json_sha256(semantic)}'
+
+
+def legacy_completion_source_id(source: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in source.items() if key != 'source_id'}
+    return f'legacy-completion-source-v1:sha256:{canonical_json_sha256(semantic)}'
+
+
+def publish_legacy_source(feature_dir: pathlib.Path, task_id: str,
+                          source: dict[str, Any]) -> bool:
+    source = dict(source)
+    source['schema_version'] = 1
+    source['source_id'] = legacy_completion_source_id(source)
+    path = runtime_state_dir(feature_dir) / 'legacy-completion-sources' / feature_dir.name / task_id / \
+        f"{source['source_id'].rsplit(':', 1)[-1]}.json"
+    return publish_completion_authority(path, source)
+
+
+def validate_legacy_binding_shape(binding: Any, feature_dir: pathlib.Path,
+                                  task_id: str) -> bool:
+    if (not isinstance(binding, dict) or binding.get('schema_version') != 1 or
+            binding.get('binding_version') != LEGACY_COMPLETION_BINDING_VERSION or
+            binding.get('binding_type') != 'historical-legacy-completion' or
+            binding.get('binding_id') != legacy_completion_binding_id(binding) or
+            binding.get('repository_id') != str(git_common_dir(feature_dir)) or
+            binding.get('feature') != feature_dir.name or binding.get('task') != task_id or
+            binding.get('mode') not in {'AUTO_VERIFIED', 'HUMAN_ATTESTED'} or
+            type(binding.get('attempt')) is not int or binding['attempt'] < 1 or
+            binding.get('historical_status') != 'completed' or
+            not _valid_completion_commit(binding.get('checkpoint')) or
+            binding.get('checkpoint') != binding.get('evidence_checkpoint') or
+            not _valid_completion_revision(binding.get('packet_revision')) or
+            not _valid_completion_hash(binding.get('contract_fingerprint')) or
+            not _valid_completion_hash(binding.get('evidence_sha256')) or
+            not _valid_completion_commit(binding.get('evidence_checkpoint')) or
+            not isinstance(binding.get('source_material'), list) or not binding['source_material'] or
+            not isinstance(binding.get('attempt_identity'), str) or
+            re.fullmatch(r'sha256:[0-9a-f]{64}', binding['attempt_identity']) is None or
+            any(not isinstance(source, dict) or not isinstance(source.get('identity'), str) or
+                not source['identity'] or source.get('immutable') is not True or
+                not _valid_completion_hash(source.get('sha256'))
+                for source in binding['source_material']) or
+            not isinstance(binding.get('created_at'), str) or not binding['created_at'].strip()):
+        return False
+    if binding['mode'] == 'HUMAN_ATTESTED':
+        fields = binding.get('attested_fields')
+        required = {'checkpoint': binding['checkpoint'], 'packet_revision': binding['packet_revision'],
+                    'contract_fingerprint': binding['contract_fingerprint'],
+                    'repository': binding['repository_id'], 'feature': binding['feature'],
+                    'task': task_id, 'attempt': binding['attempt']}
+        return (isinstance(binding.get('operator'), str) and bool(binding['operator'].strip()) and
+                isinstance(binding.get('reason'), str) and bool(binding['reason'].strip()) and
+                isinstance(fields, dict) and all(fields.get(key) == value for key, value in required.items()))
+    kinds = {source.get('kind') for source in binding['source_material']
+             if isinstance(source, dict) and isinstance(source.get('kind'), str)}
+    return len(binding['source_material']) >= 2 and len(kinds) >= 2
+
+
+def legacy_completion_bindings(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    directory = completion_authority_dir(feature_dir, 'legacy-completion-bindings', task_id)
+    if not directory.exists():
+        return []
+    if directory.is_symlink() or not directory.is_dir():
+        die('LEGACY_COMPLETION_INVALID: unsafe binding directory')
+    bindings = []
+    for path in sorted(directory.glob('*.json')):
+        if path.is_symlink() or not path.is_file():
+            die('LEGACY_COMPLETION_INVALID: binding authority is not a regular file')
+        try:
+            binding = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'LEGACY_COMPLETION_INVALID: unreadable binding: {exc}')
+        if path.name != 'binding.json' or not validate_legacy_binding_shape(binding, feature_dir, task_id):
+            die('LEGACY_COMPLETION_INVALID: malformed or unsupported binding')
+        bindings.append(binding)
+    if len(bindings) > 1:
+        die('LEGACY_COMPLETION_CONFLICT: multiple immutable bindings exist')
+    return bindings
+
+
+def legacy_binding_as_completion(feature_dir: pathlib.Path, task_id: str,
+                                 binding: dict[str, Any]) -> dict[str, Any]:
+    body = {
+        'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION, 'record_type': 'completion',
+        'repository_id': binding['repository_id'], 'feature': binding['feature'],
+        'task': task_id, 'attempt': binding['attempt'], 'checkpoint': binding['checkpoint'],
+        'packet_revision': binding['packet_revision'],
+        'contract_fingerprint': binding['contract_fingerprint'],
+        'evidence_reference_sha256': binding['evidence_sha256'],
+        'correction_id': None, 'repair_authorization_id': None,
+        'legacy_binding_id': binding['binding_id'],
+    }
+    body['record_id'] = completion_record_id('completion', body)
+    body['created_at'] = binding['created_at']
+    if not validate_completion_authority_shape(body, 'completion'):
+        die('LEGACY_COMPLETION_INVALID: reconstructed completion shape is invalid')
+    return body
 
 
 def completion_record_id(scheme: str, record: dict[str, Any]) -> str:
@@ -915,6 +1018,8 @@ def publish_completion_authority(path: pathlib.Path, record: dict[str, Any]) -> 
         try:
             os.link(tmp_name, path)
         except FileExistsError:
+            if path.is_symlink() or not path.is_file():
+                die('COMPLETION_AUTHORITY_CONFLICT: existing authority is not a regular file')
             try:
                 existing = json.loads(path.read_text(encoding='utf-8'))
             except (OSError, json.JSONDecodeError) as exc:
@@ -967,8 +1072,14 @@ def _completion_failpoint(boundary: str) -> None:
 
 
 def completion_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
-    return read_completion_authority(feature_dir, 'completion-records', task_id,
-                                     record_type='completion')
+    records = read_completion_authority(feature_dir, 'completion-records', task_id,
+                                        record_type='completion')
+    bindings = legacy_completion_bindings(feature_dir, task_id)
+    if bindings:
+        reconstructed = legacy_binding_as_completion(feature_dir, task_id, bindings[0])
+        if all(item.get('record_id') != reconstructed['record_id'] for item in records):
+            records.append(reconstructed)
+    return records
 
 
 def correction_records(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
@@ -3030,6 +3141,17 @@ def checkpoint_worktree(doc: dict[str, Any], task: dict[str, Any], target: pathl
 
 def completion_record_for_entry(feature_dir: pathlib.Path, task_id: str, entry: dict[str, Any],
                                 active: dict[str, Any]) -> dict[str, Any]:
+    bindings = legacy_completion_bindings(feature_dir, task_id)
+    if bindings:
+        binding = bindings[0]
+        if binding.get('attempt') != entry.get('attempts'):
+            die('LEGACY_COMPLETION_CONFLICT: binding attempt differs from lifecycle')
+        return legacy_binding_as_completion(feature_dir, task_id, binding)
+    if (entry.get('status') == 'completed' and
+            not _valid_completion_commit(entry.get('checkpoint_commit'))):
+        die('LEGACY_COMPLETION_ATTESTATION_REQUIRED: historical checkpoint is not bound')
+    if entry.get('status') == 'completed':
+        die('LEGACY_COMPLETION_ATTESTATION_REQUIRED: completed legacy state requires immutable binding')
     recorded_id = entry.get('completion_record_id')
     if recorded_id:
         existing = next((item for item in completion_records(feature_dir, task_id)
@@ -3049,6 +3171,245 @@ def completion_record_for_entry(feature_dir: pathlib.Path, task_id: str, entry: 
     body['record_id'] = completion_record_id('completion', body)
     body['created_at'] = entry.get('completed_at') or utc_now().isoformat()
     return body
+
+
+def legacy_attempt_identity(feature_dir: pathlib.Path, task_id: str,
+                            entry: dict[str, Any]) -> str:
+    binding = next((item for item in entry.get('attempt_bindings', [])
+                    if item.get('attempt') == entry.get('attempts')), {})
+    return 'sha256:' + canonical_json_sha256({
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry.get('attempts'),
+        'claimed_at': entry.get('claimed_at'), 'attempt_binding': binding,
+    })
+
+
+def classify_legacy_completion(feature_dir: pathlib.Path, doc: dict[str, Any],
+                               task_id: str) -> tuple[str, dict[str, Any] | None, list[str]]:
+    """Read-only classifier; AUTO requires two independent immutable source records."""
+    state = _read_state_unlocked_pure(feature_dir, doc)
+    entry = state.get('tasks', {}).get(task_id)
+    if not isinstance(entry, dict) or entry.get('status') != 'completed':
+        return 'CONFLICT', None, ['stored lifecycle status is not completed']
+    binding_dir = completion_authority_dir(feature_dir, 'legacy-completion-bindings', task_id)
+    if binding_dir.exists() and (binding_dir.is_symlink() or not binding_dir.is_dir()):
+        return 'CONFLICT', None, ['legacy binding authority path is unsafe']
+    if binding_dir.exists():
+        for binding_path in binding_dir.glob('*.json'):
+            try:
+                candidate = json.loads(binding_path.read_text(encoding='utf-8'))
+            except (OSError, json.JSONDecodeError):
+                return 'CONFLICT', None, ['existing legacy binding is malformed']
+            if (isinstance(candidate, dict) and
+                    (candidate.get('schema_version') != 1 or
+                     candidate.get('binding_version') != LEGACY_COMPLETION_BINDING_VERSION)):
+                return 'UNSUPPORTED', None, ['existing legacy binding schema/version is unsupported']
+    try:
+        existing = read_completion_authority(feature_dir, 'completion-records', task_id,
+                                             record_type='completion')
+        existing_bindings = legacy_completion_bindings(feature_dir, task_id)
+    except SystemExit:
+        return 'CONFLICT', None, ['existing completion authority is malformed or contradictory']
+    if existing or existing_bindings:
+        return 'CONFLICT', None, ['canonical completion or legacy binding already exists']
+    active = resolve_active_packet(feature_dir, doc, task_id, state=state)
+    evidence_path = pathlib.Path(str(entry.get('evidence', '')))
+    if not evidence_path.is_file() or evidence_path.is_symlink():
+        return 'HUMAN_ATTESTATION_REQUIRED', None, ['historical evidence artifact is unavailable']
+    try:
+        evidence_bytes = evidence_path.read_bytes()
+        evidence = json.loads(evidence_bytes)
+    except (OSError, json.JSONDecodeError):
+        return 'CONFLICT', None, ['historical evidence artifact is malformed']
+    evidence_hash = sha256_bytes(evidence_bytes)
+    expected = {
+        'repository': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry.get('attempts'),
+        'packet_revision': active['revision_id'],
+        'contract_fingerprint': active['contract_sha256'],
+    }
+    if not isinstance(evidence, dict):
+        return 'CONFLICT', None, ['historical evidence artifact is not an object']
+    if any(key in evidence and evidence[key] != value for key, value in expected.items()):
+        return 'CONFLICT', None, ['historical evidence scope conflicts with current immutable task identity']
+    missing_scope = [key for key in expected if key not in evidence]
+    evidence_checkpoint = evidence.get('checkpoint')
+    if not _valid_completion_commit(evidence_checkpoint):
+        return 'CONFLICT', None, ['evidence checkpoint is malformed']
+    if _valid_completion_commit(entry.get('checkpoint_commit')) and entry['checkpoint_commit'] != evidence_checkpoint:
+        return 'CONFLICT', None, ['lifecycle and evidence checkpoints conflict']
+
+    sources_dir = runtime_state_dir(feature_dir) / 'legacy-completion-sources' / feature_dir.name / task_id
+    sources = []
+    if sources_dir.is_dir() and not sources_dir.is_symlink():
+        for source_path in sorted(sources_dir.glob('*.json')):
+            try:
+                source_bytes = source_path.read_bytes()
+                source = json.loads(source_bytes)
+            except (OSError, json.JSONDecodeError):
+                return 'CONFLICT', None, [f'malformed immutable source record: {source_path.name}']
+            if (source_path.is_symlink() or not isinstance(source, dict) or source.get('schema_version') != 1 or
+                    source.get('source_id') != legacy_completion_source_id(source) or
+                    source_path.stem != source['source_id'].rsplit(':', 1)[-1] or
+                    source.get('repository_id') != str(git_common_dir(feature_dir)) or
+                    source.get('feature') != feature_dir.name or source.get('task') != task_id or
+                    source.get('attempt') != entry.get('attempts') or
+                    source.get('checkpoint') != evidence_checkpoint or
+                    source.get('evidence_sha256') != evidence_hash or
+                    source.get('packet_revision') != active['revision_id'] or
+                    source.get('contract_fingerprint') != active['contract_sha256'] or
+                    source.get('attempt_identity') != legacy_attempt_identity(feature_dir, task_id, entry) or
+                    source.get('historical_status') != 'completed'):
+                return 'CONFLICT', None, [f'contradictory immutable source record: {source_path.name}']
+            sources.append({'identity': source['source_id'],
+                            'sha256': sha256_bytes(source_bytes),
+                            'kind': source.get('kind'), 'immutable': True})
+    independent_kinds = {s['kind'] for s in sources if isinstance(s['kind'], str)}
+    if len(sources) < 2 or len(independent_kinds) < 2:
+        reasons = []
+        if missing_scope:
+            reasons.append('historical evidence omits task-binding fields requiring explicit attestation: ' + ', '.join(missing_scope))
+        reasons.append('fewer than two independent immutable historical records corroborate completion checkpoint')
+        return 'HUMAN_ATTESTATION_REQUIRED', None, reasons
+    binding = {
+        'schema_version': 1, 'binding_version': LEGACY_COMPLETION_BINDING_VERSION,
+        'binding_type': 'historical-legacy-completion',
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name,
+        'task': task_id, 'attempt': entry['attempts'], 'historical_status': 'completed',
+        'attempt_identity': legacy_attempt_identity(feature_dir, task_id, entry),
+        'checkpoint': evidence_checkpoint, 'packet_revision': active['revision_id'],
+        'contract_fingerprint': active['contract_sha256'], 'evidence_sha256': evidence_hash,
+        'evidence_checkpoint': evidence_checkpoint, 'source_material': sources,
+        'mode': 'AUTO_VERIFIED',
+    }
+    binding['binding_id'] = legacy_completion_binding_id(binding)
+    return 'AUTO_VERIFIED', binding, []
+
+
+def publish_legacy_binding(feature_dir: pathlib.Path, binding: dict[str, Any]) -> bool:
+    if not validate_legacy_binding_shape(binding, feature_dir, str(binding.get('task', ''))):
+        die('LEGACY_COMPLETION_INVALID: refusing to publish malformed binding')
+    path = completion_authority_dir(feature_dir, 'legacy-completion-bindings', binding['task']) / 'binding.json'
+    return publish_completion_authority(path, binding)
+
+
+def cmd_classify_legacy_completion(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    classification, binding, reasons = classify_legacy_completion(args.feature_dir, doc, args.task_id)
+    print(json.dumps({'classification': classification, 'reasons': reasons,
+                      'proposed_binding': binding}, indent=2, sort_keys=True))
+
+
+def cmd_bind_legacy_completion_auto(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        existing = legacy_completion_bindings(args.feature_dir, args.task_id)
+        if existing:
+            if existing[0].get('mode') != 'AUTO_VERIFIED':
+                die('LEGACY_COMPLETION_AUTO_REJECTED: a different binding mode is already authoritative')
+            print(f"ALREADY_BOUND {args.task_id} binding={existing[0]['binding_id']}")
+            return
+        classification, binding, reasons = classify_legacy_completion(args.feature_dir, doc, args.task_id)
+        if classification != 'AUTO_VERIFIED' or binding is None:
+            die('LEGACY_COMPLETION_AUTO_REJECTED: ' + '; '.join(reasons or [classification]))
+        binding['created_at'] = utc_now().isoformat()
+        created = publish_legacy_binding(args.feature_dir, binding)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(('BOUND' if created else 'ALREADY_BOUND') + f" {args.task_id} binding={binding['binding_id']}")
+
+
+def cmd_attest_legacy_completion(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    if args.task_id not in task_index(doc):
+        die(f'unknown task {args.task_id}')
+    operator, reason = str(args.operator or '').strip(), str(args.reason or '').strip()
+    if not operator or not reason:
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicit operator and reason are required')
+    if not args.attested_fields or not args.sources:
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicit attested fields and source references are required')
+    raw_evidence_path = pathlib.Path(args.evidence)
+    if raw_evidence_path.is_symlink() or not raw_evidence_path.is_file():
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: evidence must be a regular file')
+    evidence_path = raw_evidence_path.resolve()
+    evidence_bytes = evidence_path.read_bytes()
+    evidence_hash = sha256_bytes(evidence_bytes)
+    try:
+        evidence = json.loads(evidence_bytes)
+        attested_fields = json.loads(args.attested_fields)
+        source_refs = json.loads(args.sources)
+    except (json.JSONDecodeError, TypeError) as exc:
+        die(f'LEGACY_COMPLETION_ATTESTATION_INVALID: malformed JSON input: {exc}')
+    if (not isinstance(attested_fields, dict) or not isinstance(source_refs, list) or not source_refs or
+            any(not isinstance(item, dict) or not isinstance(item.get('identity'), str) or
+                not item['identity'] or item.get('immutable') is not True or
+                not _valid_completion_hash(item.get('sha256'))
+                for item in source_refs)):
+        die('LEGACY_COMPLETION_ATTESTATION_INVALID: attested fields must be an object and sources a nonempty array')
+    runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _read_state_unlocked_pure(args.feature_dir, doc)
+        entry = state['tasks'][args.task_id]
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        repo_id = str(git_common_dir(args.feature_dir))
+        expected_projection = {
+            'stored_status': 'completed', 'attempts': entry.get('attempts'),
+            'attempt_identity': legacy_attempt_identity(args.feature_dir, args.task_id, entry),
+            'canonical_completion_absent': True,
+            'legacy_checkpoint': entry.get('checkpoint_commit'),
+            'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'],
+            'evidence_sha256': evidence_hash,
+            'evidence_checkpoint': evidence.get('checkpoint') if isinstance(evidence, dict) else None,
+            'repository_id': repo_id, 'feature': args.feature_dir.name, 'task': args.task_id,
+        }
+        for key, actual in expected_projection.items():
+            # The structured precondition must explicitly contain every CAS value.
+            if key not in args.expected or args.expected[key] != actual:
+                die(f'LEGACY_COMPLETION_CAS_REJECTED: expected precondition mismatch for {key}')
+        if entry.get('status') != 'completed':
+            die('LEGACY_COMPLETION_CAS_REJECTED: lifecycle status no longer matches legacy state')
+        if (_valid_completion_commit(entry.get('checkpoint_commit')) and isinstance(evidence, dict) and
+                entry['checkpoint_commit'] != evidence.get('checkpoint')):
+            die('LEGACY_COMPLETION_CAS_REJECTED: lifecycle and evidence checkpoints conflict')
+        if read_completion_authority(args.feature_dir, 'completion-records', args.task_id,
+                                     record_type='completion'):
+            die('LEGACY_COMPLETION_CAS_REJECTED: canonical completion already exists')
+        if not isinstance(evidence, dict):
+            die('LEGACY_COMPLETION_CAS_REJECTED: evidence is not a JSON object')
+        evidence_binding_values = {
+            'checkpoint': evidence.get('checkpoint'), 'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'], 'repository': repo_id,
+            'feature': args.feature_dir.name, 'task': args.task_id, 'attempt': entry.get('attempts'),
+        }
+        if any(key in evidence and evidence[key] != value for key, value in evidence_binding_values.items()):
+            die('LEGACY_COMPLETION_CAS_REJECTED: evidence scope conflicts with current task binding')
+        if not set(evidence_binding_values).issubset(attested_fields) or any(
+                attested_fields[key] != value for key, value in evidence_binding_values.items()):
+            die('LEGACY_COMPLETION_ATTESTATION_INVALID: explicitly attested fields do not bind evidence, task and current packet')
+        binding = {
+            'schema_version': 1, 'binding_version': LEGACY_COMPLETION_BINDING_VERSION,
+            'binding_type': 'historical-legacy-completion', 'repository_id': repo_id,
+            'feature': args.feature_dir.name, 'task': args.task_id, 'attempt': entry['attempts'],
+            'historical_status': 'completed',
+            'attempt_identity': expected_projection['attempt_identity'],
+            'checkpoint': evidence['checkpoint'], 'packet_revision': active['revision_id'],
+            'contract_fingerprint': active['contract_sha256'], 'evidence_sha256': evidence_hash,
+            'evidence_checkpoint': evidence['checkpoint'], 'source_material': source_refs,
+            'mode': 'HUMAN_ATTESTED', 'operator': operator, 'reason': reason,
+            'attested_fields': attested_fields,
+        }
+        binding['binding_id'] = legacy_completion_binding_id(binding)
+        binding['created_at'] = utc_now().isoformat()
+        created = publish_legacy_binding(args.feature_dir, binding)
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(('BOUND' if created else 'ALREADY_BOUND') + f" {args.task_id} binding={binding['binding_id']}")
 
 
 def add_completion_record(feature_dir: pathlib.Path, record: dict[str, Any]) -> None:
@@ -3259,7 +3620,7 @@ def cmd_correct_completion(args: argparse.Namespace) -> None:
             'feature': args.feature_dir.name, 'task': args.task_id,
             'completed_attempt': int(entry.get('attempts', 0)),
             'original_completion_id': original['record_id'],
-            'original_completion_checkpoint': entry.get('checkpoint_commit'),
+            'original_completion_checkpoint': original.get('checkpoint'),
             'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
             'reason_code': args.reason_code, 'reason': reason, 'defect_evidence_sha256': evidence_hash,
             'operator': operator,
@@ -4168,6 +4529,38 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--evidence', required=True, help='Existing defect evidence file; its content hash is recorded')
     s.add_argument('--by', required=True, help='Operator provenance label')
     s.set_defaults(func=cmd_correct_completion)
+
+    s = sub.add_parser('classify-legacy-completion')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.set_defaults(func=cmd_classify_legacy_completion)
+
+    s = sub.add_parser('bind-legacy-completion-auto')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.set_defaults(func=cmd_bind_legacy_completion_auto)
+
+    s = sub.add_parser('attest-legacy-completion')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--evidence', required=True)
+    s.add_argument('--attested-fields', required=True,
+                   help='JSON object explicitly attesting checkpoint, repository/task/attempt and packet binding')
+    s.add_argument('--sources', required=True,
+                   help='JSON array of immutable historical source references with identity and SHA-256')
+    s.add_argument('--operator', required=True)
+    s.add_argument('--reason', required=True)
+    def parse_json_argument(value: str) -> dict[str, Any]:
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise argparse.ArgumentTypeError(str(exc)) from exc
+        if not isinstance(parsed, dict):
+            raise argparse.ArgumentTypeError('expected a JSON object')
+        return parsed
+    s.set_defaults(func=cmd_attest_legacy_completion)
+    # Keep explicit CAS JSON structured at the CLI boundary.
+    s.add_argument('--expected-cas', dest='expected', type=parse_json_argument, required=True)
 
     s = sub.add_parser('authorize-completion-repair')
     s.add_argument('feature_dir', type=pathlib.Path)
