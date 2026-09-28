@@ -865,6 +865,20 @@ class ReplanInfrastructureTest(unittest.TestCase):
         linked_legacy.unlink()
         active_absent = harness.resolve_active_packet(linked_feature, self.doc, 'T-001')
         self.assertEqual(active_main['revision_id'], active_absent['revision_id'])
+        second_root = self.root.parent / f'{self.root.name}-second-stale-linked'
+        subprocess.run(['git', 'worktree', 'add', '-q', '-b', 'replan-second-stale-fixture',
+                        str(second_root), 'HEAD'], cwd=self.root, check=True)
+        second_feature = second_root / 'docs/specs/REPLAN-TEST'
+        second_legacy = harness.legacy_packet_path(second_feature, 'T-001')
+        second_legacy.parent.mkdir(parents=True, exist_ok=True)
+        second_stale = json.loads(old_bytes)
+        second_stale['objective'] = 'A different stale linked contract'
+        second_stale.pop('packet_sha256', None)
+        second_stale['packet_sha256'] = harness.canonical_packet_payload_sha256(second_stale)
+        second_legacy.write_text(json.dumps(second_stale))
+        active_second = harness.resolve_active_packet(second_feature, self.doc, 'T-001')
+        self.assertEqual(active_main['revision_id'], active_second['revision_id'])
+        self.assertEqual(active_main['contract_sha256'], active_second['contract_sha256'])
 
     def test_active_packet_and_status_reads_do_not_create_writer_lock(self):
         args, _old_bytes, _grant_id = self.running_replan_fixture()
