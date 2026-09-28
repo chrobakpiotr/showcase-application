@@ -253,16 +253,15 @@ def start_ready_batch(
 ) -> list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]]:
     state = h.load_state(feature_dir, doc)
     ids = h.ready_ids(doc, state, feature_dir)
-    idx = h.task_index(doc)
     started: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
     try:
         for task_id in ids:
             feedback = prior_feedback(feature_dir, doc, task_id)
             owner = owner_for(args, task_id)
             h.cmd_start(argparse.Namespace(feature_dir=feature_dir, task_id=task_id, owner=owner))
-            task = idx[task_id]
+            task = h.active_task_contract(feature_dir, doc, task_id)
             worktree = h.worktree_path(str(doc.get('feature', feature_dir.name)), task_id)
-            packet = feature_dir / 'packets' / f'{task_id}.json'
+            packet = pathlib.Path(h.resolve_active_packet(feature_dir, doc, task_id)['path'])
             started.append((task, worktree, packet, feedback))
     except BaseException as exc:
         for task, worktree, packet, feedback in reversed(started):
@@ -276,8 +275,7 @@ def start_ready_batch(
 
 
 def apply_outcome(feature_dir: pathlib.Path, doc: dict[str, Any], outcome: TaskOutcome, args: argparse.Namespace) -> None:
-    idx = h.task_index(doc)
-    task = idx[outcome.task_id]
+    task = h.active_task_contract(feature_dir, doc, outcome.task_id)
     owner = owner_for(args, outcome.task_id)
     evidence = str(outcome.evidence) if outcome.evidence else None
 
@@ -292,7 +290,7 @@ def apply_outcome(feature_dir: pathlib.Path, doc: dict[str, Any], outcome: TaskO
         current = h.load_state(feature_dir, doc)
         candidates = []
         for task_id in outcome.rework_tasks or []:
-            candidate = idx.get(task_id)
+            candidate = h.active_task_contract(feature_dir, doc, task_id)
             if candidate and candidate.get('role') == 'builder' and current['tasks'][task_id].get('status') == 'completed':
                 candidates.append(task_id)
         if not candidates:
@@ -325,7 +323,8 @@ def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Na
         f'feature={doc["feature"]} max_parallel={doc.get("max_parallel", 4)} '
         f'lease_ttl={h.lease_ttl_seconds(doc)}s heartbeat={h.heartbeat_interval_seconds(doc)}s'
     )
-    for task in doc['tasks']:
+    for planned in doc['tasks']:
+        task = h.active_task_contract(feature_dir, doc, planned['id'])
         choice = choice_for_role(task['role'], args)
         reviews = h.reviewers(task) if task['role'] == 'builder' else []
         deps = ','.join(task.get('depends_on', [])) or '-'

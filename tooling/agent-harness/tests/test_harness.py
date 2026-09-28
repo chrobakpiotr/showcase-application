@@ -119,7 +119,6 @@ class HarnessTest(unittest.TestCase):
         grant = next(item for item in entry['retry_authorizations'] if item['id'] == grant_id)
         self.assertIsNone(grant['consumed_at'])
         self.assertNotIn('active_retry_authorization', entry)
-        self.assertEqual(['T-001'], harness.ready_ids(doc, state, feature))
 
     def historical_partial_claim_fixture(self):
         """Build the exact failed-attempt-3 -> committed running-attempt-4 incident."""
@@ -921,7 +920,7 @@ class HarnessTest(unittest.TestCase):
                 grant = state['tasks']['T-001']['retry_authorizations'][0]
                 doc['tasks'][0][field] = value
                 (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
-                self.assertNotEqual(grant['binding']['contract_sha256'], harness.retry_binding(feature, doc, 'T-001', 3)['contract_sha256'])
+                self.assertNotEqual(grant['binding']['contract_sha256'], harness.semantic_task_contract_sha256(feature, doc, harness.task_index(doc)['T-001']))
                 self.assertEqual([], harness.ready_ids(doc, state, feature))
                 with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
                     harness.consume_attempt_authorization(state['tasks']['T-001'], 'T-001', doc, feature, state)

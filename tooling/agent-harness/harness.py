@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import copy
+from collections import namedtuple
 import datetime as dt
 import hashlib
 import json
@@ -57,6 +58,80 @@ VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
 # Bump only when persisted lifecycle state semantics/schema become incompatible.
 # Implementation and documentation changes are recorded separately for audit.
 STATE_SCHEMA_VERSION = 1
+
+# Packet identity values occupy distinct namespaces. Recovery v1 persisted the
+# embedded checksum, while M1 revisions hash the complete normalized packet
+# (including that checksum). Never infer either scheme from an unversioned hash.
+PACKET_PAYLOAD_IDENTITY_SCHEME = 'canonical-packet-payload-sha256-v1'
+PACKET_REVISION_IDENTITY_SCHEME = 'canonical-packet-revision-sha256-v1'
+RECOVERY_PACKET_IDENTITY_SCHEMES = {1: PACKET_PAYLOAD_IDENTITY_SCHEME}
+RECOVERY_RECORD_IDENTITY_SCHEME = 'canonical-recovery-record-sha256-v1'
+BRIDGE_SCHEMA_VERSION = 1
+BRIDGE_CLASSIFICATIONS = {'AUTOMATICALLY_PROVEN', 'HUMAN_ATTESTED', 'AMBIGUOUS'}
+
+
+PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
+
+
+def canonical_packet_payload_sha256(packet: dict[str, Any]) -> str:
+    """Hash the normalized packet payload, excluding its embedded checksum."""
+    body = {key: value for key, value in packet.items() if key != 'packet_sha256'}
+    return sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+
+
+def packet_identity_from_embedded_checksum(packet: Any) -> PacketIdentity | None:
+    """Validate and name the legacy packet's canonical payload checksum."""
+    if not isinstance(packet, dict):
+        return None
+    stored = packet.get('packet_sha256')
+    if (not isinstance(stored, str) or re.fullmatch(r'[0-9a-f]{64}', stored) is None or
+            stored != canonical_packet_payload_sha256(packet)):
+        return None
+    return PacketIdentity(PACKET_PAYLOAD_IDENTITY_SCHEME, stored)
+
+
+def packet_identity_from_revision(packet: Any) -> PacketIdentity | None:
+    """Name the M1 content revision only when it derives from a valid packet."""
+    if packet_identity_from_embedded_checksum(packet) is None:
+        return None
+    return PacketIdentity(PACKET_REVISION_IDENTITY_SCHEME, packet_revision_id(packet))
+
+
+def packet_identity_from_recovery(recovery: Any) -> PacketIdentity | None:
+    """Infer a bare recovery identity's scheme only from its trusted record version."""
+    if not isinstance(recovery, dict):
+        return None
+    version = recovery.get('recovery_version')
+    scheme = (RECOVERY_PACKET_IDENTITY_SCHEMES.get(version)
+              if isinstance(version, int) and not isinstance(version, bool) else None)
+    value = recovery.get('packet_identity')
+    if scheme is None or not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{64}', value) is None:
+        return None
+    return PacketIdentity(scheme, value)
+
+
+def recovery_proves_packet_binding(recovery: Any, packet: Any,
+                                   revision_id: str, contract_sha256: str) -> bool:
+    """Prove a recovery checksum and M1 revision identify the same packet object."""
+    recovered = packet_identity_from_recovery(recovery)
+    embedded = packet_identity_from_embedded_checksum(packet)
+    revision = packet_identity_from_revision(packet)
+    expected_revision = PacketIdentity(PACKET_REVISION_IDENTITY_SCHEME, revision_id)
+    return bool(
+        recovered is not None and embedded is not None and revision is not None and
+        recovered == embedded and revision == expected_revision and
+        isinstance(recovery, dict) and recovery.get('semantic_contract_sha256') == contract_sha256
+    )
+
+
+def canonical_json_sha256(value: Any) -> str:
+    return sha256_bytes(json.dumps(value, sort_keys=True, separators=(',', ':')).encode())
+
+
+def recovery_record_identity(recovery: Any) -> str | None:
+    if not isinstance(recovery, dict):
+        return None
+    return f'sha256:{canonical_json_sha256(recovery)}'
 
 
 try:  # Unix/macOS/Linux - the primary targets for this repository.
@@ -627,6 +702,13 @@ def _load_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict
     return state
 
 
+def _read_state_unlocked_pure(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
+    """Validate and read authority without adopting, migrating, cleaning, or writing it."""
+    state, _legacy_path = _resolve_state_unlocked(feature_dir, doc)
+    validate_loaded_state(feature_dir, doc, state)
+    return state
+
+
 def validate_state_identity(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
     expected = feature_fingerprint(feature_dir)
     if state.get('fingerprint') != expected:
@@ -734,6 +816,11 @@ def save_state(feature_dir: pathlib.Path, state: dict[str, Any]) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp_name, path)
+        directory_fd = os.open(state_dir, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
     finally:
         if os.path.exists(tmp_name):
             os.unlink(tmp_name)
@@ -827,7 +914,6 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
     and completed successfully.
     """
     recovered: list[str] = []
-    idx = task_index(doc)
     now = utc_now()
     with locked_state(feature_dir, doc) as state:
         for task_id, entry in state['tasks'].items():
@@ -835,7 +921,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
                 continue
             if is_unrecovered_partial_claim(entry):
                 die(f'CLAIM_RECOVERY_REQUIRED: {task_id} is a stranded exceptional claim; attest with recover-claim before lease recovery')
-            task = idx.get(task_id)
+            task = active_task_contract(feature_dir, doc, task_id, state=state)
             if not task:
                 continue
             feature = str(doc.get('feature', feature_dir.name))
@@ -849,6 +935,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
                 'lease_recovered_at': now.isoformat(),
                 'last_attempt_commit': stale_commit,
             })
+            entry.pop('start_origin_status', None)
             for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
                 entry.pop(key, None)
             recovered.append(task_id)
@@ -872,13 +959,14 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
         if not isinstance(task, dict) or not isinstance(task.get('id'), str):
             continue
         tid = task['id']
+        contract_task = active_task_contract(feature_dir, doc, tid, state=state) if feature_dir is not None else task
         entry = state['tasks'][tid]
         if entry['status'] not in {'pending', 'failed'}:
             continue
         if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
             if feature_dir is None or classify_retry_authorizations(feature_dir, doc, state, tid, int(entry.get('attempts', 0)))[0] != 'valid':
                 continue
-        if all(state['tasks'][dep]['status'] == 'completed' for dep in task.get('depends_on', [])):
+        if all(state['tasks'][dep]['status'] == 'completed' for dep in contract_task.get('depends_on', [])):
             ready.append(tid)
     return ready[:capacity]
 
@@ -951,7 +1039,11 @@ def packet_payload(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathl
     return payload
 
 
-def write_packet(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathlib.Path) -> pathlib.Path:
+def write_packet(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathlib.Path,
+                 *, state: dict[str, Any] | None = None) -> pathlib.Path:
+    active = resolve_active_packet(feature_dir, doc, task['id'], state=state)
+    if active.get('revision_id') != legacy_revision_id(feature_dir, task['id']):
+        return pathlib.Path(active['path'])
     try:
         payload = packet_payload(doc, task, feature_dir)
         encoded = json.dumps(payload, indent=2, sort_keys=True) + '\n'
@@ -999,6 +1091,251 @@ def write_packet(doc: dict[str, Any], task: dict[str, Any], feature_dir: pathlib
         if temporary and os.path.exists(temporary):
             os.unlink(temporary)
     return out
+
+
+def legacy_packet_path(feature_dir: pathlib.Path, task_id: str) -> pathlib.Path:
+    return feature_dir / 'packets' / f'{task_id}.json'
+
+
+def safe_task_id(task_id: str) -> bool:
+    return bool(isinstance(task_id, str) and TASK_ID_RE.fullmatch(task_id))
+
+
+def packet_revision_id(packet: dict[str, Any]) -> str:
+    body = {key: value for key, value in packet.items() if key != 'packet_revision_id'}
+    return 'sha256:' + sha256_bytes(json.dumps(body, sort_keys=True, separators=(',', ':')).encode())
+
+
+def legacy_revision_id(feature_dir: pathlib.Path, task_id: str) -> str:
+    path = legacy_packet_path(feature_dir, task_id)
+    if not path.exists():
+        return 'unpublished'
+    if path.is_symlink():
+        die('ACTIVE_PACKET_AMBIGUOUS: legacy packet path is a symlink')
+    try:
+        packet = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'ACTIVE_PACKET_AMBIGUOUS: cannot read legacy packet {path}: {exc}')
+    if not isinstance(packet, dict) or not safe_task_id(task_id):
+        die('ACTIVE_PACKET_AMBIGUOUS: malformed legacy packet identity')
+    validate_packet_integrity(packet)
+    return packet_revision_id(packet)
+
+
+def validate_packet_integrity(packet: dict[str, Any]) -> None:
+    stored = packet.get('packet_sha256')
+    if (not isinstance(stored, str) or re.fullmatch(r'[0-9a-f]{64}', stored) is None or
+            stored != canonical_packet_payload_sha256(packet)):
+        die('ACTIVE_PACKET_AMBIGUOUS: packet integrity check failed')
+
+
+def revision_path(feature_dir: pathlib.Path, task_id: str, revision_id: str) -> pathlib.Path:
+    if not safe_task_id(task_id) or not isinstance(revision_id, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', revision_id):
+        die('ACTIVE_PACKET_AMBIGUOUS: invalid task or packet revision identifier')
+    root = runtime_state_dir(feature_dir) / 'packet-revisions' / feature_dir.name / task_id
+    candidate = root / f'{revision_id.split(":", 1)[1]}.json'
+    authority_root = runtime_state_dir(feature_dir) / 'packet-revisions'
+    feature_root = authority_root / feature_dir.name
+    if (root.is_symlink() or feature_root.is_symlink() or candidate.is_symlink() or
+            (authority_root.exists() and authority_root.is_symlink()) or
+            candidate.resolve().parent != root.resolve()):
+        die('ACTIVE_PACKET_AMBIGUOUS: packet revision path escapes its task directory')
+    return candidate
+
+
+def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+                          *, state: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Resolve one validated active packet; legacy tasks keep their historical path."""
+    if not safe_task_id(task_id) or task_id not in task_index(doc):
+        die(f'ACTIVE_PACKET_AMBIGUOUS: unknown or unsafe task identity {task_id!r}')
+    if state is None:
+        state = load_state(feature_dir, doc)
+    entry = state['tasks'][task_id]
+    validate_attempt_binding_ledger(entry)
+    active_id = entry.get('active_packet_revision')
+    if active_id is None:
+        path = legacy_packet_path(feature_dir, task_id)
+        if not path.exists():
+            # Preserve lazy packet creation for tasks that have never been claimed.
+            fingerprint = semantic_task_contract_sha256(feature_dir, doc, task_index(doc)[task_id])
+            return {'revision_id': 'unpublished', 'contract_sha256': fingerprint,
+                    'packet': None, 'path': str(path), 'legacy': True}
+        if path.is_symlink():
+            die('ACTIVE_PACKET_AMBIGUOUS: legacy packet path is a symlink')
+        try:
+            packet = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'ACTIVE_PACKET_AMBIGUOUS: malformed legacy packet: {exc}')
+        if not isinstance(packet, dict):
+            die('ACTIVE_PACKET_AMBIGUOUS: legacy packet is not an object')
+        validate_packet_integrity(packet)
+        if packet.get('feature') != doc.get('feature', feature_dir.name) or packet.get('task') != task_id:
+            die('ACTIVE_PACKET_AMBIGUOUS: legacy packet feature/task identity mismatch')
+        current = packet_payload(doc, task_index(doc)[task_id], feature_dir)
+        # Before replanning, semantic drift is never silently accepted.
+        if not packet_matches_semantic_contract(packet, doc, task_index(doc)[task_id], feature_dir):
+            die('TASK_REPLAN_REQUIRED: active legacy packet differs from the planning contract')
+        return {'revision_id': packet_revision_id(packet),
+                'contract_sha256': packet.get('semantic_contract_sha256', current['semantic_contract_sha256']),
+                'packet': packet, 'path': str(path), 'legacy': True}
+    lineage = entry.get('packet_lineage')
+    if not isinstance(lineage, list) or not lineage:
+        die('ACTIVE_PACKET_AMBIGUOUS: active revision has no packet lineage')
+    ids: list[str] = []
+    previous = None
+    for relation in lineage:
+        if (not isinstance(relation, dict) or relation.get('previous_revision') != previous or
+                not isinstance(relation.get('revision_id'), str) or
+                not re.fullmatch(r'sha256:[0-9a-f]{64}', relation['revision_id']) or
+                not isinstance(relation.get('contract_sha256'), str) or
+                not re.fullmatch(r'[0-9a-f]{64}', relation['contract_sha256'])):
+            die('ACTIVE_PACKET_AMBIGUOUS: malformed or disconnected packet lineage')
+        if not isinstance(relation.get('legacy'), bool):
+            die('ACTIVE_PACKET_AMBIGUOUS: packet lineage is missing legacy identity evidence')
+        previous = relation['revision_id']
+        ids.append(previous)
+    if len(ids) != len(set(ids)) or ids[-1] != active_id:
+        die('ACTIVE_PACKET_AMBIGUOUS: packet lineage is cyclic or active pointer disagrees')
+    requests = entry.get('replan_requests')
+    if not isinstance(requests, list) or len(requests) != len(lineage) - 1:
+        die('ACTIVE_PACKET_AMBIGUOUS: packet supersession lineage and audit requests disagree')
+    seen_request_ids: set[str] = set()
+    repository = str(git_common_dir(feature_dir))
+    for index, request in enumerate(requests):
+        old_relation, new_relation = lineage[index], lineage[index + 1]
+        if (not isinstance(request, dict) or
+                not isinstance(request.get('request_id'), str) or
+                not re.fullmatch(r'[0-9a-f]{64}', request['request_id']) or
+                request['request_id'] in seen_request_ids or
+                request.get('repository') != repository or
+                request.get('feature') != doc.get('feature', feature_dir.name) or
+                request.get('task') != task_id or
+                request.get('old_revision') != old_relation['revision_id'] or
+                request.get('new_revision') != new_relation['revision_id'] or
+                request.get('old_contract_sha256') != old_relation['contract_sha256'] or
+                request.get('new_contract_sha256') != new_relation['contract_sha256'] or
+                request.get('expected_status') != 'running' or
+                not isinstance(request.get('expected_attempts'), int) or
+                isinstance(request.get('expected_attempts'), bool) or request['expected_attempts'] < 1 or
+                not isinstance(request.get('reason'), str) or not request['reason'].strip() or
+                not isinstance(request.get('provenance'), str) or not request['provenance'] or
+                parse_timestamp(request.get('committed_at')) is None):
+            die('ACTIVE_PACKET_AMBIGUOUS: malformed or conflicting replan audit record')
+        seen_request_ids.add(request['request_id'])
+    path = revision_path(feature_dir, task_id, active_id)
+    try:
+        packet = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'ACTIVE_PACKET_AMBIGUOUS: active immutable packet is missing or malformed: {exc}')
+    if not isinstance(packet, dict):
+        die('ACTIVE_PACKET_AMBIGUOUS: active packet is not an object')
+    validate_packet_integrity(packet)
+    if packet_revision_id(packet) != active_id or packet.get('task') != task_id or packet.get('feature') != doc.get('feature', feature_dir.name):
+        die('ACTIVE_PACKET_AMBIGUOUS: active packet content identity mismatch')
+    last = lineage[-1]
+    active_contract = packet_bound_semantic_contract_sha256(feature_dir, packet)
+    if (packet.get('semantic_contract_sha256') != active_contract or
+            active_contract != last['contract_sha256']):
+        die('ACTIVE_PACKET_AMBIGUOUS: active packet contract differs from lineage')
+    for relation in lineage[:-1]:
+        historical_path = (legacy_packet_path(feature_dir, task_id) if relation['legacy']
+                           else revision_path(feature_dir, task_id, relation['revision_id']))
+        try:
+            historical = json.loads(historical_path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'ACTIVE_PACKET_AMBIGUOUS: historical packet in lineage is unavailable: {exc}')
+        if not isinstance(historical, dict):
+            die('ACTIVE_PACKET_AMBIGUOUS: historical packet in lineage is not an object')
+        validate_packet_integrity(historical)
+        if (packet_revision_id(historical) != relation['revision_id'] or
+                historical.get('task') != task_id or
+                historical.get('feature') != doc.get('feature', feature_dir.name)):
+            die('ACTIVE_PACKET_AMBIGUOUS: historical packet identity differs from lineage')
+        historical_contract = packet_bound_semantic_contract_sha256(feature_dir, historical)
+        if (historical.get('semantic_contract_sha256') not in (None, historical_contract) or
+                historical_contract != relation['contract_sha256']):
+            die('ACTIVE_PACKET_AMBIGUOUS: historical contract differs from lineage')
+    if entry.get('status') == 'running':
+        attempts = entry.get('attempt_bindings', [])
+        latest = max((x for x in attempts if isinstance(x, dict) and isinstance(x.get('attempt'), int)),
+                     key=lambda x: x['attempt'], default=None) if isinstance(attempts, list) else None
+        if latest is None or latest.get('packet_revision') != active_id or latest.get('contract_sha256') != last['contract_sha256']:
+            die('ACTIVE_PACKET_AMBIGUOUS: running lifecycle attempt is not bound to the active packet')
+    return {'revision_id': active_id, 'contract_sha256': last['contract_sha256'],
+            'packet': packet, 'path': str(path), 'legacy': False}
+
+
+def validate_attempt_binding_ledger(entry: dict[str, Any]) -> None:
+    history = entry.get('attempt_bindings')
+    if history is None:
+        return
+    if not isinstance(history, list):
+        die('ACTIVE_PACKET_AMBIGUOUS: attempt binding ledger is malformed')
+    seen: set[int] = set()
+    for binding in history:
+        if not isinstance(binding, dict):
+            die('ACTIVE_PACKET_AMBIGUOUS: attempt binding record is not an object')
+        attempt = binding.get('attempt')
+        status = binding.get('binding_status')
+        if (not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1 or
+                attempt > int(entry.get('attempts', 0)) or attempt in seen):
+            die('ACTIVE_PACKET_AMBIGUOUS: invalid or duplicate attempt binding number')
+        seen.add(attempt)
+        if status == 'proven':
+            if (not isinstance(binding.get('packet_revision'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['packet_revision']) or
+                    not isinstance(binding.get('contract_sha256'), str) or
+                    not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256'])):
+                die('ACTIVE_PACKET_AMBIGUOUS: proven attempt lacks packet and contract identity')
+        elif status == 'human_attested':
+            if (not isinstance(binding.get('packet_revision'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['packet_revision']) or
+                    not isinstance(binding.get('contract_sha256'), str) or
+                    not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256']) or
+                    not isinstance(binding.get('identity_bridge_id'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['identity_bridge_id']) or
+                    binding.get('classification') != 'HUMAN_ATTESTED'):
+                die('ACTIVE_PACKET_AMBIGUOUS: human-attested attempt lacks explicit bridge evidence')
+        elif status == 'ambiguous':
+            if ('packet_revision' in binding or 'contract_sha256' in binding or
+                    not isinstance(binding.get('observed_active_packet_revision'), str) or
+                    not re.fullmatch(r'sha256:[0-9a-f]{64}', binding['observed_active_packet_revision']) or
+                    not isinstance(binding.get('observed_contract_sha256'), str) or
+                    not re.fullmatch(r'[0-9a-f]{64}', binding['observed_contract_sha256']) or
+                    not isinstance(binding.get('evidence'), str) or not binding['evidence'].strip()):
+                die('ACTIVE_PACKET_AMBIGUOUS: ambiguous attempt binding fabricates or omits identity evidence')
+        else:
+            die('ACTIVE_PACKET_AMBIGUOUS: attempt binding status is unknown')
+
+
+def append_attempt_binding(entry: dict[str, Any], feature_dir: pathlib.Path, doc: dict[str, Any],
+                           task_id: str, packet_path: pathlib.Path) -> None:
+    packet = json.loads(packet_path.read_text(encoding='utf-8'))
+    revision_id = packet_revision_id(packet)
+    attempt = int(entry.get('attempts', 0))
+    history = entry.setdefault('attempt_bindings', [])
+    if any(isinstance(item, dict) and item.get('attempt') == attempt for item in history):
+        die('ACTIVE_PACKET_AMBIGUOUS: attempt already has a packet binding')
+    history.append({'attempt': attempt, 'packet_revision': revision_id,
+                    'contract_sha256': packet.get('semantic_contract_sha256') or
+                    semantic_task_contract_sha256(feature_dir, doc, task_index(doc)[task_id]),
+                    'binding_status': 'proven', 'bound_at': utc_now().isoformat()})
+
+
+def active_task_contract(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+                         *, state: dict[str, Any] | None = None) -> dict[str, Any]:
+    active = resolve_active_packet(feature_dir, doc, task_id, state=state)
+    if active.get('legacy'):
+        return task_index(doc)[task_id]
+    packet = active['packet']
+    return {
+        'id': task_id, 'title': packet['title'], 'objective': packet['objective'],
+        'role': packet['role'], 'agent_profile': packet.get('agent_profile', packet['role']),
+        'depends_on': packet.get('depends_on', []), 'allowed_paths': packet.get('allowed_paths', []),
+        'acceptance_criteria': packet.get('acceptance_criteria', []),
+        'risk_tags': packet.get('risk_tags', []), 'verification': packet.get('verification', []),
+        'test_mode': packet.get('test_mode'), 'test_seam': packet.get('test_seam'),
+    }
 
 
 def packet_matches_semantic_contract(packet: dict[str, Any], doc: dict[str, Any],
@@ -1129,8 +1466,15 @@ def cmd_packet(args: argparse.Namespace) -> None:
     idx = task_index(doc)
     if args.task_id not in idx:
         die(f'unknown task {args.task_id}')
-    if args.stdout:
-        print(json.dumps(packet_payload(doc, idx[args.task_id], args.feature_dir), indent=2, sort_keys=True))
+    active = resolve_active_packet(args.feature_dir, doc, args.task_id)
+    if getattr(args, 'identity', False):
+        print(json.dumps({'revision_id': active['revision_id'],
+                          'contract_sha256': active['contract_sha256'],
+                          'path': active['path']}))
+    elif args.stdout:
+        print(json.dumps(active['packet'], indent=2, sort_keys=True))
+    elif active['packet'] is not None:
+        print(active['path'])
     else:
         print(write_packet(doc, idx[args.task_id], args.feature_dir))
 
@@ -1140,7 +1484,7 @@ def cmd_reviewers(args: argparse.Namespace) -> None:
     idx = task_index(doc)
     if args.task_id not in idx:
         die(f'unknown task {args.task_id}')
-    selected = reviewers(idx[args.task_id])
+    selected = reviewers(active_task_contract(args.feature_dir, doc, args.task_id))
     print('\n'.join(selected) if selected else 'NO_SPECIALIST_REVIEWERS')
 
 
@@ -1161,7 +1505,7 @@ def cmd_claim(args: argparse.Namespace) -> None:
             die(f'{args.task_id} is not ready')
         # Packet validation/publication is a precondition, not part of the claim commit.
         # If it fails, locked_state's exception-saving behavior persists an unchanged state.
-        write_packet(doc, task_index(doc)[args.task_id], args.feature_dir)
+        active_packet = write_packet(doc, task_index(doc)[args.task_id], args.feature_dir, state=state)
         staged_state = copy.deepcopy(state)
         entry = staged_state['tasks'][args.task_id]
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
@@ -1172,6 +1516,7 @@ def cmd_claim(args: argparse.Namespace) -> None:
             'attempts': int(entry.get('attempts', 0)) + 1,
             'claimed_at': now.isoformat(),
         })
+        append_attempt_binding(entry, args.feature_dir, doc, args.task_id, active_packet)
         refresh_lease(entry, doc, now=now)
         # This single in-memory publication is the final operation in the body. The durable
         # claim commit is locked_state's atomic state-file replacement; all preparation ran
@@ -1297,7 +1642,7 @@ def cmd_recover_claim(args: argparse.Namespace) -> None:
         if len(matching) != 1:
             die('CLAIM_RECOVERY_INVALID: exact authorization ID must occur once in this task ledger')
         grant = matching[0]
-        expected_binding = retry_binding(args.feature_dir, doc, args.task_id, 3)
+        expected_binding = retry_binding(args.feature_dir, doc, args.task_id, 3, state=state)
         binding = grant.get('binding')
         if (grant.get('version') != 2 or not isinstance(binding, dict) or binding != expected_binding or
                 binding.get('binding_version') != 2 or binding.get('expected_status') != 'failed' or
@@ -1416,18 +1761,24 @@ def consume_attempt_authorization(entry: dict[str, Any], task_id: str, doc: dict
     return None
 
 
-def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, attempts: int) -> dict[str, Any]:
-    semantic = semantic_task_contract(feature_dir, doc, task_index(doc)[task_id])
-    return {
+def retry_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, attempts: int,
+                  *, state: dict[str, Any] | None = None) -> dict[str, Any]:
+    active = resolve_active_packet(feature_dir, doc, task_id, state=state)
+    binding = {
         'binding_version': 2,
         'repository': str(git_common_dir(feature_dir)),
         'feature': str(doc.get('feature', feature_dir.name)),
         'task': task_id,
         'expected_status': 'failed',
         'expected_attempts': attempts,
-        'contract_sha256': sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode()),
+        'contract_sha256': active['contract_sha256'],
         'protocol_version': protocol_version(feature_dir),
     }
+    # Revision binding is introduced lazily. Historical v2 grants against a legacy
+    # packet retain their semantic V2 interpretation; grants after replan bind both.
+    if not active.get('legacy'):
+        binding['packet_revision'] = active['revision_id']
+    return binding
 
 
 TASK_CONTRACT_FIELDS = (
@@ -1435,6 +1786,49 @@ TASK_CONTRACT_FIELDS = (
     'allowed_paths', 'acceptance_criteria', 'risk_tags', 'verification',
     'test_mode', 'test_seam',
 )
+
+
+def packet_bound_semantic_contract_sha256(feature_dir: pathlib.Path,
+                                          packet: dict[str, Any]) -> str:
+    """Reconstruct a materialized packet contract without consulting current planning.
+
+    Packet payloads persist ``agent_profile`` as an execution profile, defaulting it
+    to ``role`` when the planning task omits the field. That fallback is packet
+    metadata, not a task-contract field. For legacy packets without a semantic hash,
+    normalize that default away. Newer packets carry a semantic hash, so recompute
+    both shape-valid interpretations and require the embedded hash to match one.
+    This preserves explicitly supplied profiles while still validating the hash
+    from packet-bound material.
+    """
+    feature = packet.get('feature')
+    task_id = packet.get('task')
+    feature_sha256 = packet.get('feature_fingerprint')
+    test_policy = packet.get('test_policy', 'legacy')
+    if (not isinstance(feature, str) or not feature or not isinstance(task_id, str) or
+            not safe_task_id(task_id) or not isinstance(feature_sha256, str) or
+            re.fullmatch(r'[0-9a-f]{64}', feature_sha256) is None or
+            not isinstance(test_policy, str) or not test_policy):
+        die('ACTIVE_PACKET_AMBIGUOUS: packet lacks immutable semantic contract inputs')
+    task = {field: packet[field] for field in TASK_CONTRACT_FIELDS if field in packet}
+    if 'id' not in task:
+        task['id'] = task_id
+    explicit = dict(task)
+    if task.get('agent_profile') == packet.get('role'):
+        task.pop('agent_profile')
+    def fingerprint_for(contract_task: dict[str, Any]) -> str:
+        semantic = semantic_task_contract(
+            feature_dir, {'feature': feature}, contract_task,
+            feature_sha256=feature_sha256, test_policy=test_policy)
+        return sha256_bytes(json.dumps(semantic, sort_keys=True, separators=(',', ':')).encode())
+
+    fingerprint = fingerprint_for(task)
+    stored = packet.get('semantic_contract_sha256')
+    if stored is not None:
+        candidates = {fingerprint, fingerprint_for(explicit)}
+        if not isinstance(stored, str) or stored not in candidates:
+            die('ACTIVE_PACKET_AMBIGUOUS: packet semantic contract fingerprint is inconsistent')
+        fingerprint = stored
+    return fingerprint
 
 
 def semantic_task_contract(feature_dir: pathlib.Path, doc: dict[str, Any], task: dict[str, Any], *,
@@ -1462,7 +1856,7 @@ def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any]
     grants = entry.get('retry_authorizations', [])
     if not isinstance(grants, list):
         die('RETRY_AUTHORIZATION_INVALID: authorization ledger is malformed')
-    expected = retry_binding(feature_dir, doc, task_id, attempts)
+    expected = retry_binding(feature_dir, doc, task_id, attempts, state=state)
     if entry.get('status') != 'failed':
         die('RETRY_AUTHORIZATION_INVALID: task is not failed')
     relations = entry.get('retry_authorization_supersessions', [])
@@ -1512,7 +1906,10 @@ def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any]
         if binding_version == 2 and grant.get('version') == 2:
             required_binding = {'binding_version', 'repository', 'feature', 'task', 'expected_status',
                                 'expected_attempts', 'contract_sha256', 'protocol_version'}
-            if set(binding) != required_binding or not isinstance(binding.get('contract_sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256']):
+            allowed_binding = required_binding | {'packet_revision'}
+            if (not required_binding.issubset(binding) or set(binding) - allowed_binding or
+                    ('packet_revision' in binding and not re.fullmatch(r'sha256:[0-9a-f]{64}', str(binding['packet_revision']))) or
+                    not isinstance(binding.get('contract_sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', binding['contract_sha256'])):
                 die('RETRY_AUTHORIZATION_INVALID: malformed v2 semantic binding')
         elif binding_version == 1 and grant.get('version') == 1:
             required_binding = {'repository', 'feature', 'task', 'expected_status', 'expected_attempts',
@@ -1550,7 +1947,12 @@ def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any]
                 new.get('binding', {}).get('feature') != expected['feature'] or
                 new.get('binding', {}).get('task') != task_id or
                 new.get('binding', {}).get('expected_status') != 'failed' or
-                new.get('binding', {}).get('expected_attempts') != attempts):
+                not isinstance(old.get('binding'), dict) or
+                old.get('binding', {}).get('expected_attempts') !=
+                    new.get('binding', {}).get('expected_attempts') or
+                not isinstance(new.get('binding', {}).get('expected_attempts'), int) or
+                isinstance(new.get('binding', {}).get('expected_attempts'), bool) or
+                new.get('binding', {}).get('expected_attempts') < 1):
             die('RETRY_AUTHORIZATION_INVALID: supersession relation does not match immutable grant history')
     if len(valid) > 1 or len(legacy) > 1 or (valid and legacy):
         die('RETRY_AUTHORIZATION_INVALID: conflicting eligible authorization history')
@@ -1586,11 +1988,11 @@ def retry_authorization_status(feature_dir: pathlib.Path, doc: dict[str, Any], s
         return 'consumed'
     binding = grant.get('binding', {})
     if grant.get('version') == 1 or binding.get('binding_version', 1) == 1:
-        expected = retry_binding(feature_dir, doc, task_id, attempts)
+        expected = retry_binding(feature_dir, doc, task_id, attempts, state=state)
         same_identity = all(binding.get(key) == expected.get(key) for key in ('repository', 'feature', 'task'))
         return ('legacy-unverifiable' if same_identity and binding.get('expected_attempts') == attempts and
                 binding.get('protocol_version') == expected['protocol_version'] else 'stale')
-    expected = retry_binding(feature_dir, doc, task_id, attempts)
+    expected = retry_binding(feature_dir, doc, task_id, attempts, state=state)
     return 'valid' if binding == expected else 'stale'
 
 
@@ -1646,7 +2048,7 @@ def cmd_authorize_retry(args: argparse.Namespace) -> None:
                 die('RETRY_AUTHORIZATION_INVALID: a valid authorization already exists for this task state')
             if classification == 'legacy-unverifiable':
                 die(f'RETRY_AUTHORIZATION_SUPERSESSION_REQUIRED: specify --supersedes {prior["id"]}')
-        binding = retry_binding(args.feature_dir, doc, args.task_id, attempts)
+        binding = retry_binding(args.feature_dir, doc, args.task_id, attempts, state=state)
         grant_id = hashlib.sha256(os.urandom(32)).hexdigest()
         grant = {'version': 2, 'id': grant_id, 'binding': binding,
                  'reason': reason, 'provenance': human_resolution_identity(args.by),
@@ -1658,6 +2060,525 @@ def cmd_authorize_retry(args: argparse.Namespace) -> None:
             entry.setdefault('retry_authorization_supersessions', []).append(relation)
         entry.setdefault('retry_authorizations', []).append(grant)
     print(f'RETRY_AUTHORIZATION_CREATED {args.task_id} id={grant["id"]}')
+
+
+def replan_failpoint(_stage: str) -> None:
+    """Test seam for durable transaction failure injection."""
+
+
+def validate_replan_task(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+                         proposed: Any) -> dict[str, Any]:
+    if not safe_task_id(task_id) or not isinstance(proposed, dict) or proposed.get('id') != task_id:
+        die('TASK_REPLAN_NOT_ALLOWED: proposed task identity must match the target task')
+    required = {'id', 'title', 'objective', 'role', 'depends_on', 'allowed_paths',
+                'risk_tags', 'acceptance_criteria', 'verification'}
+    if not required.issubset(proposed):
+        die('TASK_REPLAN_NOT_ALLOWED: proposed task is missing required planning fields')
+    if (not isinstance(proposed['title'], str) or not proposed['title'].strip() or
+            not isinstance(proposed['objective'], str) or not proposed['objective'].strip()):
+        die('TASK_REPLAN_NOT_ALLOWED: title and objective must be non-empty')
+    if proposed.get('role') not in VALID_ROLES:
+        die('TASK_REPLAN_NOT_ALLOWED: invalid task role')
+    for field in ('depends_on', 'allowed_paths', 'risk_tags', 'acceptance_criteria', 'verification'):
+        if not isinstance(proposed.get(field), list):
+            die(f'TASK_REPLAN_NOT_ALLOWED: {field} must be an array')
+    if any(not isinstance(dep, str) or dep not in task_index(doc) or dep == task_id for dep in proposed['depends_on']):
+        die('TASK_REPLAN_NOT_ALLOWED: dependencies must identify other planned tasks')
+    for pattern in proposed['allowed_paths']:
+        if (not isinstance(pattern, str) or not safe_relative_pattern(pattern) or
+                (proposed['role'] == 'builder' and not builder_pattern_has_concrete_root(pattern))):
+            die('TASK_REPLAN_NOT_ALLOWED: proposed allowed_paths contains an unsafe path')
+    if not proposed['acceptance_criteria'] or any(not isinstance(c, str) for c in proposed['acceptance_criteria']):
+        die('TASK_REPLAN_NOT_ALLOWED: acceptance criteria must be non-empty strings')
+    accepted = set(AC_RE.findall((feature_dir / 'spec.md').read_text(encoding='utf-8')))
+    accepted |= vc.criterion_ids(feature_dir)
+    if any(c not in accepted for c in proposed['acceptance_criteria']):
+        die('TASK_REPLAN_NOT_ALLOWED: criteria must exist in the accepted spec or verification contract')
+    if any(not isinstance(item, str) or not item.strip() for item in proposed['verification']):
+        die('TASK_REPLAN_NOT_ALLOWED: verification entries must be non-empty strings')
+    if any(not isinstance(item, str) or not item.strip() for item in proposed['risk_tags']):
+        die('TASK_REPLAN_NOT_ALLOWED: risk tags must be non-empty strings')
+    if 'agent_profile' in proposed and (not isinstance(proposed['agent_profile'], str) or not PROFILE_RE.fullmatch(proposed['agent_profile'])):
+        die('TASK_REPLAN_NOT_ALLOWED: invalid agent profile')
+    if set(proposed) - set(TASK_CONTRACT_FIELDS):
+        die('TASK_REPLAN_NOT_ALLOWED: proposed task contains fields outside the accepted task model')
+    replacement = copy.deepcopy(doc)
+    replacement['tasks'] = [proposed if task.get('id') == task_id else task for task in doc['tasks']]
+    graph = task_index(replacement)
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    def visit(tid: str) -> None:
+        if tid in visiting:
+            die('TASK_REPLAN_NOT_ALLOWED: proposed dependencies introduce a cycle')
+        if tid in visited:
+            return
+        visiting.add(tid)
+        for dep in graph[tid].get('depends_on', []):
+            visit(dep)
+        visiting.remove(tid)
+        visited.add(tid)
+    for tid in graph:
+        visit(tid)
+    builders = [task for task in graph.values() if task.get('role') == 'builder']
+    evaluators = [task for task in graph.values() if task.get('role') == 'evaluator']
+    if builders and not evaluators:
+        die('TASK_REPLAN_NOT_ALLOWED: builder tasks require an evaluator in the plan')
+    for builder in builders:
+        if not any(builder['id'] in evaluator.get('depends_on', []) for evaluator in evaluators):
+            die('TASK_REPLAN_NOT_ALLOWED: every builder must be directly covered by an evaluator dependency')
+    if evaluators:
+        evaluator_criteria = set().union(*(set(task.get('acceptance_criteria', [])) for task in evaluators))
+        if not accepted.issubset(evaluator_criteria):
+            die('TASK_REPLAN_NOT_ALLOWED: evaluators must cover every accepted criterion')
+    integrations = [task for task in graph.values() if task.get('role') == 'integration']
+    evaluator_ids = {task['id'] for task in evaluators}
+    if any(not evaluator_ids.intersection(task.get('depends_on', [])) for task in integrations):
+        die('TASK_REPLAN_NOT_ALLOWED: integrations must depend on an evaluator')
+    if proposed['role'] == 'builder' and doc.get('test_policy', 'legacy') == 'risk-driven':
+        if proposed.get('test_mode') not in VALID_TEST_MODES or not isinstance(proposed.get('test_seam'), str) or not proposed['test_seam'].strip():
+            die('TASK_REPLAN_NOT_ALLOWED: risk-driven builders require a valid test mode and test seam')
+    profile = proposed.get('agent_profile') or proposed['role']
+    if not (feature_repo_base(feature_dir) / 'docs/agentic-sdd/agents' / f'{profile}.md').is_file():
+        die('TASK_REPLAN_NOT_ALLOWED: proposed role profile does not exist')
+    return proposed
+
+
+def publish_revision(feature_dir: pathlib.Path, task_id: str,
+                     packet: dict[str, Any]) -> tuple[str, pathlib.Path]:
+    revision_id = packet_revision_id(packet)
+    path = revision_path(feature_dir, task_id, revision_id)
+    authority_root = runtime_state_dir(feature_dir) / 'packet-revisions'
+    feature_root = authority_root / feature_dir.name
+    task_root = path.parent
+    if task_root.is_symlink() or feature_root.is_symlink() or (authority_root.exists() and authority_root.is_symlink()):
+        die('ACTIVE_PACKET_AMBIGUOUS: symlink in immutable packet revision path')
+    task_root.mkdir(parents=True, exist_ok=True)
+    if task_root.resolve().parent != feature_root.resolve():
+        die('ACTIVE_PACKET_AMBIGUOUS: packet revision directory escapes repository authority')
+    encoded = json.dumps(packet, indent=2, sort_keys=True) + '\n'
+    if path.exists():
+        if path.read_text(encoding='utf-8') != encoded:
+            die('PACKET_SUPERSESSION_CONFLICT: revision identity collision')
+        return revision_id, path
+    fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=task_root)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(encoded)
+            replan_failpoint('R2')
+            handle.flush()
+            replan_failpoint('R3')
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if path.read_text(encoding='utf-8') != encoded:
+                die('PACKET_SUPERSESSION_CONFLICT: revision identity collision')
+        dir_fd = os.open(task_root, os.O_RDONLY)
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except OSError as exc:
+        die(f'PACKET_SUPERSESSION_CONFLICT: immutable packet publication failed: {exc}')
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return revision_id, path
+
+
+def packet_identity_bridge_path(feature_dir: pathlib.Path, task_id: str, attempt: int) -> pathlib.Path:
+    if not safe_task_id(task_id) or not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: invalid task or attempt')
+    root = runtime_state_dir(feature_dir) / 'packet-identity-bridges'
+    feature_root = root / feature_dir.name
+    task_root = feature_root / task_id
+    path = task_root / f'{attempt}.json'
+    if (root.is_symlink() or feature_root.is_symlink() or task_root.is_symlink() or
+            path.is_symlink() or path.resolve().parent != task_root.resolve()):
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: bridge path escapes repository authority')
+    return path
+
+
+def bridge_failpoint(_stage: str) -> None:
+    """Test seam for immutable bridge publication failure injection."""
+
+
+def publish_immutable_bridge(path: pathlib.Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(record, indent=2, sort_keys=True) + '\n'
+    if path.exists():
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: an immutable bridge already occupies this binding')
+    fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            handle.write(encoded)
+            bridge_failpoint('B3')
+            handle.flush()
+            bridge_failpoint('B4')
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            die('PACKET_IDENTITY_ATTESTATION_CONFLICT: competing bridge creation')
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _bridge_request_identity(*, repository: str, feature: str, task: str, attempt: int,
+                             recovery_id: str, source_scheme: str, source_value: str,
+                             target_scheme: str, target_value: str, target_revision: str,
+                             semantic_fingerprint: str, protocol_version_value: int,
+                             operator: str, reason: str) -> dict[str, Any]:
+    return {'repository': repository, 'feature': feature, 'task': task, 'attempt': attempt,
+            'recovery_record_identity': {'scheme': RECOVERY_RECORD_IDENTITY_SCHEME, 'value': recovery_id},
+            'source_identity': {'scheme': source_scheme, 'value': source_value},
+            'target_identity': {'scheme': target_scheme, 'value': target_value},
+            'target_revision_identity': {'scheme': PACKET_REVISION_IDENTITY_SCHEME,
+                                         'value': target_revision},
+            'semantic_contract_sha256': semantic_fingerprint,
+            'protocol_version': protocol_version_value,
+            'classification': 'HUMAN_ATTESTED', 'operator': operator, 'reason': reason}
+
+
+def _read_packet_identity_bridge(feature_dir: pathlib.Path, task_id: str, attempt: int,
+                                 expected_request: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    path = packet_identity_bridge_path(feature_dir, task_id, attempt)
+    if not path.exists():
+        return None
+    try:
+        record = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: stored bridge is unreadable')
+    if (not isinstance(record, dict) or record.get('schema_version') != BRIDGE_SCHEMA_VERSION or
+            record.get('classification') != 'HUMAN_ATTESTED' or
+            record.get('bridge_id') != f"sha256:{canonical_json_sha256(record.get('request'))}" or
+            not isinstance(record.get('request'), dict) or
+            record.get('protocol_version') != record.get('request', {}).get('protocol_version') or
+            parse_timestamp(record.get('created_at')) is None):
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: stored bridge is malformed')
+    if expected_request is not None and record.get('request') != expected_request:
+        return record
+    return record
+
+
+def classify_historical_packet_binding(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+                                        state: dict[str, Any], active: dict[str, Any],
+                                        attempt: int) -> dict[str, Any]:
+    entry = state['tasks'][task_id] if isinstance(state.get('tasks'), dict) else state
+    validate_attempt_binding_ledger(entry)
+    binding = next((item for item in entry.get('attempt_bindings', [])
+                   if isinstance(item, dict) and item.get('attempt') == attempt), None)
+    if (binding and binding.get('binding_status') == 'proven' and
+            binding.get('packet_revision') == active['revision_id'] and
+            binding.get('contract_sha256') == active['contract_sha256']):
+        return {'classification': 'AUTOMATICALLY_PROVEN', 'bridge_id': None}
+    if (binding and binding.get('binding_status') == 'proven' and
+            (binding.get('packet_revision') != active['revision_id'] or
+             binding.get('contract_sha256') != active['contract_sha256'])):
+        return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+    recovery = entry.get('claim_recovery')
+    if (isinstance(recovery, dict) and recovery.get('attempt') == attempt and
+            recovery_proves_packet_binding(recovery, active.get('packet'), active['revision_id'],
+                                           active['contract_sha256'])):
+        return {'classification': 'AUTOMATICALLY_PROVEN', 'bridge_id': None}
+    recovery_id = recovery_record_identity(recovery)
+    packet_identity = packet_identity_from_embedded_checksum(active.get('packet'))
+    revision_identity = packet_identity_from_revision(active.get('packet'))
+    bridge = _read_packet_identity_bridge(feature_dir, task_id, attempt)
+    if (bridge and isinstance(recovery, dict) and recovery.get('attempt') == attempt and
+            packet_identity is not None and revision_identity is not None):
+        request = bridge['request']
+        expected = _bridge_request_identity(
+            repository=str(git_common_dir(feature_dir)), feature=doc.get('feature', feature_dir.name),
+            task=task_id, attempt=attempt, recovery_id=recovery_id or '',
+            source_scheme=(packet_identity_from_recovery(recovery).scheme
+                           if packet_identity_from_recovery(recovery) else ''),
+            source_value=(packet_identity_from_recovery(recovery).value
+                          if packet_identity_from_recovery(recovery) else ''),
+            target_scheme=packet_identity.scheme, target_value=packet_identity.value,
+            target_revision=revision_identity.value,
+            semantic_fingerprint=active['contract_sha256'],
+            protocol_version_value=protocol_version(feature_dir),
+            operator=request.get('operator', ''), reason=request.get('reason', ''))
+        if request == expected:
+            if (binding and binding.get('binding_status') == 'human_attested' and
+                    binding.get('identity_bridge_id') != bridge['bridge_id']):
+                return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+            return {'classification': 'HUMAN_ATTESTED', 'bridge_id': bridge['bridge_id']}
+    return {'classification': 'AMBIGUOUS', 'bridge_id': None}
+
+
+def attest_packet_identity(args: argparse.Namespace) -> tuple[str, dict[str, Any]]:
+    feature_dir = args.feature_dir
+    doc = load_validated(feature_dir)
+    operator = str(args.by or '').strip()
+    reason = str(args.reason or '').strip()
+    if not operator or not reason:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: operator and reason are required')
+    if args.source_scheme != PACKET_PAYLOAD_IDENTITY_SCHEME or args.target_scheme != PACKET_PAYLOAD_IDENTITY_SCHEME:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: unsupported packet identity scheme')
+    if args.target_revision_scheme != PACKET_REVISION_IDENTITY_SCHEME:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: unsupported target revision identity scheme')
+    for value in (args.source_value, args.target_value, args.expected_semantic_fingerprint):
+        if not isinstance(value, str) or re.fullmatch(r'[0-9a-f]{64}', value) is None:
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed SHA-256 identity')
+    if re.fullmatch(r'sha256:[0-9a-f]{64}', args.target_revision) is None:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed target revision identity')
+    if args.expected_recovery_identity_scheme != RECOVERY_RECORD_IDENTITY_SCHEME or re.fullmatch(
+            r'sha256:[0-9a-f]{64}', args.expected_recovery_identity) is None:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: malformed recovery record identity')
+    if args.expected_protocol_version != protocol_version(feature_dir):
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: protocol version changed')
+    bridge_failpoint('B1')
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _read_state_unlocked_pure(feature_dir, doc)
+        entry = state['tasks'].get(args.task_id)
+        if not isinstance(entry, dict):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: unknown task')
+        if (str(git_common_dir(feature_dir)) != args.expected_repository or
+                doc.get('feature', feature_dir.name) != args.expected_feature or
+                args.task_id != args.expected_task or entry.get('status') != args.expected_status or
+                entry.get('status') != 'running' or entry.get('attempts') != args.expected_attempts or
+                entry.get('owner') != args.expected_owner or args.expected_attempts < 1):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: lifecycle compare-and-swap failed')
+        recovery = entry.get('claim_recovery')
+        recovery_identity = recovery_record_identity(recovery)
+        if (not isinstance(recovery, dict) or recovery.get('attempt') != args.expected_attempts or
+                recovery_identity != args.expected_recovery_identity):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: recovery record compare-and-swap failed')
+        existing_binding = next((item for item in entry.get('attempt_bindings', [])
+                                 if isinstance(item, dict) and item.get('attempt') == args.expected_attempts), None)
+        if (existing_binding and existing_binding.get('binding_status') == 'proven' and
+                (existing_binding.get('packet_revision') != args.target_revision or
+                 existing_binding.get('contract_sha256') != args.expected_semantic_fingerprint)):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: conflicting proven attempt binding exists')
+        active = resolve_active_packet(feature_dir, doc, args.task_id, state=state)
+        embedded = packet_identity_from_embedded_checksum(active.get('packet'))
+        revision = packet_identity_from_revision(active.get('packet'))
+        recovered = packet_identity_from_recovery(recovery)
+        if (active['revision_id'] != args.target_revision or
+                active['contract_sha256'] != args.expected_semantic_fingerprint or
+                recovered is None or recovered.scheme != args.source_scheme or
+                recovered.value != args.source_value or embedded is None or
+                embedded.scheme != args.target_scheme or embedded.value != args.target_value or
+                revision is None or revision.value != args.target_revision or
+                recovery.get('semantic_contract_sha256') != args.expected_semantic_fingerprint):
+            die('PACKET_IDENTITY_ATTESTATION_REJECTED: packet identity compare-and-swap failed')
+        request = _bridge_request_identity(
+            repository=args.expected_repository, feature=args.expected_feature, task=args.expected_task,
+            attempt=args.expected_attempts, recovery_id=args.expected_recovery_identity,
+            source_scheme=args.source_scheme, source_value=args.source_value,
+            target_scheme=args.target_scheme, target_value=args.target_value,
+            target_revision=args.target_revision,
+            semantic_fingerprint=args.expected_semantic_fingerprint,
+            protocol_version_value=args.expected_protocol_version, operator=operator, reason=reason)
+        path = packet_identity_bridge_path(feature_dir, args.task_id, args.expected_attempts)
+        prior = _read_packet_identity_bridge(feature_dir, args.task_id, args.expected_attempts)
+        if prior:
+            if prior.get('request') == request:
+                if fcntl is not None:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+                return 'ALREADY_ATTESTED', prior
+            die('PACKET_IDENTITY_ATTESTATION_CONFLICT: conflicting bridge already exists')
+        bridge_failpoint('B2')
+        bridge_id = f'sha256:{canonical_json_sha256(request)}'
+        record = {'schema_version': BRIDGE_SCHEMA_VERSION,
+                  'protocol_version': args.expected_protocol_version,
+                  'classification': 'HUMAN_ATTESTED', 'bridge_id': bridge_id,
+                  'request': request, 'created_at': utc_now().isoformat()}
+        publish_immutable_bridge(path, record)
+        bridge_failpoint('B5')
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        return 'ATTESTED', record
+
+
+def cmd_attest_packet_identity(args: argparse.Namespace) -> None:
+    result, record = attest_packet_identity(args)
+    print(f'{result} {args.task_id} bridge={record["bridge_id"]} classification=HUMAN_ATTESTED')
+
+
+def cmd_packet_identity_binding(args: argparse.Namespace) -> None:
+    doc = load_validated(args.feature_dir)
+    # Read-only: this command deliberately does not enter locked_state/save_state.
+    state = _read_state_unlocked_pure(args.feature_dir, doc)
+    active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+    result = classify_historical_packet_binding(args.feature_dir, doc, args.task_id,
+                                                state, active, args.attempt)
+    print(json.dumps(result, sort_keys=True))
+
+
+def cmd_replan_task(args: argparse.Namespace) -> None:
+    feature_dir = args.feature_dir.resolve()
+    doc = load_validated(feature_dir)
+    if args.task_id not in task_index(doc):
+        die('TASK_REPLAN_NOT_ALLOWED: unknown task')
+    reason = str(args.reason or '').strip()
+    operator = str(args.by or '').strip()
+    if not reason or not operator:
+        die('TASK_REPLAN_NOT_ALLOWED: reason and operator provenance are required')
+    source_path = pathlib.Path(args.proposed_task_file)
+    try:
+        resolved_source = source_path.resolve(strict=True)
+        resolved_source.relative_to(feature_dir.resolve())
+    except (OSError, ValueError):
+        die('TASK_REPLAN_NOT_ALLOWED: proposed planning input must be inside the feature directory')
+    if source_path.is_symlink() or not resolved_source.is_file():
+        die('TASK_REPLAN_NOT_ALLOWED: proposed planning input must be a regular in-feature file')
+    try:
+        proposed = validate_replan_task(feature_dir, doc, args.task_id,
+                                        json.loads(resolved_source.read_text(encoding='utf-8')))
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f'TASK_REPLAN_NOT_ALLOWED: cannot read proposed task planning input: {exc}')
+    proposed_doc = copy.deepcopy(doc)
+    proposed_doc['tasks'] = [proposed if task['id'] == args.task_id else task for task in doc['tasks']]
+    new_contract = semantic_task_contract_sha256(feature_dir, proposed_doc, proposed)
+    repo_identity = str(git_common_dir(feature_dir))
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _load_state_unlocked(feature_dir, doc)
+        entry = state['tasks'][args.task_id]
+        request_identity = {'repository': repo_identity, 'feature': doc.get('feature', feature_dir.name),
+                            'task': args.task_id, 'expected_status': args.expected_status,
+                            'expected_attempts': args.expected_attempts,
+                            'expected_active_packet_revision': args.expected_active_revision,
+                            'expected_contract_sha256': args.expected_contract_sha256,
+                            'proposed_contract_sha256': new_contract, 'proposed_task': proposed,
+                            'provenance': operator, 'reason': reason, 'checkpoint': args.checkpoint}
+        request_id = sha256_bytes(json.dumps(request_identity, sort_keys=True, separators=(',', ':')).encode())
+        prior_requests = entry.get('replan_requests', [])
+        if not isinstance(prior_requests, list):
+            die('ACTIVE_PACKET_AMBIGUOUS: malformed replan request ledger')
+        committed = next((r for r in prior_requests if isinstance(r, dict) and r.get('request_id') == request_id), None)
+        if committed:
+            print(f'ALREADY_REPLANNED {args.task_id} revision={committed["new_revision"]}')
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+            return
+        if prior_requests:
+            if entry.get('active_packet_revision') != args.expected_active_revision:
+                die('STALE_ACTIVE_PACKET: a prior replan changed the active packet revision')
+            die('REPLAN_CONCURRENT_CONFLICT: a different replan request is already recorded')
+        if entry.get('status') == 'completed':
+            die('TASK_REPLAN_NOT_ALLOWED: completed tasks cannot be replanned')
+        if entry.get('status') != args.expected_status or args.expected_status != 'running':
+            die('TASK_REPLAN_NOT_ALLOWED: only the CAS-bound running task transition is supported')
+        attempts = entry.get('attempts', 0)
+        if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts != args.expected_attempts:
+            die('REPLAN_CONCURRENT_CONFLICT: current attempt count differs from request')
+        active = resolve_active_packet(feature_dir, doc, args.task_id, state=state)
+        if active['revision_id'] != args.expected_active_revision:
+            die('STALE_ACTIVE_PACKET: active packet revision changed')
+        if active['contract_sha256'] != args.expected_contract_sha256:
+            die('STALE_CONTRACT_FINGERPRINT: active semantic contract changed')
+        if new_contract == active['contract_sha256']:
+            die('TASK_REPLAN_NOT_ALLOWED: proposed contract has no semantic change')
+        if active['revision_id'] == 'unpublished':
+            die('TASK_REPLAN_NOT_ALLOWED: running task has no published historical packet')
+        replan_failpoint('R1')
+        packet = packet_payload(proposed_doc, proposed, feature_dir)
+        if packet.get('semantic_contract_sha256') != new_contract:
+            die('TASK_REPLAN_NOT_ALLOWED: packet fingerprint differs from proposed planning contract')
+        revision_id, _packet_path = publish_revision(feature_dir, args.task_id, packet)
+        replan_failpoint('R4')
+        staged = copy.deepcopy(entry)
+        lineage = staged.get('packet_lineage', [])
+        if not isinstance(lineage, list):
+            die('ACTIVE_PACKET_AMBIGUOUS: packet lineage is malformed')
+        if not lineage:
+            lineage.append({'previous_revision': None, 'revision_id': active['revision_id'],
+                            'contract_sha256': active['contract_sha256'], 'legacy': bool(active.get('legacy'))})
+        elif lineage[-1].get('revision_id') != active['revision_id']:
+            die('ACTIVE_PACKET_AMBIGUOUS: lineage does not end at active packet')
+        lineage.append({'previous_revision': active['revision_id'], 'revision_id': revision_id,
+                        'contract_sha256': new_contract, 'legacy': False})
+        staged['packet_lineage'] = lineage
+        staged['active_packet_revision'] = revision_id
+        attempt_history = staged.setdefault('attempt_bindings', [])
+        validate_attempt_binding_ledger(staged)
+        current_binding = next((record for record in attempt_history
+                                if isinstance(record, dict) and record.get('attempt') == attempts), None)
+        binding_result = classify_historical_packet_binding(feature_dir, doc, args.task_id,
+                                                            staged, active, attempts)
+        historical_binding_classification = binding_result['classification']
+        historical_binding_status = {
+            'AUTOMATICALLY_PROVEN': 'proven', 'HUMAN_ATTESTED': 'human_attested',
+            'AMBIGUOUS': 'ambiguous'}[historical_binding_classification]
+        if current_binding is None and historical_binding_classification == 'AUTOMATICALLY_PROVEN':
+            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'versioned recovery payload identity matches the active packet and revision'})
+        elif current_binding is None and historical_binding_classification == 'HUMAN_ATTESTED':
+            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'explicit immutable human packet identity bridge'})
+        elif (current_binding is not None and current_binding.get('binding_status') == 'ambiguous' and
+              historical_binding_classification == 'HUMAN_ATTESTED'):
+            current_binding.update({'packet_revision': active['revision_id'],
+                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                'bound_at': utc_now().isoformat(),
+                'evidence': 'explicit immutable human packet identity bridge'})
+        elif current_binding is None and historical_binding_classification == 'AMBIGUOUS':
+            recovery = staged.get('claim_recovery')
+            evidence = 'packet revision was not recorded for this historical attempt'
+            if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
+                evidence = 'claim-recovery packet identity differs from the current active packet'
+            attempt_history.append({'attempt': attempts, 'binding_status': 'ambiguous',
+                'observed_active_packet_revision': active['revision_id'],
+                'observed_contract_sha256': active['contract_sha256'],
+                'evidence': evidence, 'recorded_at': utc_now().isoformat()})
+        if attempts > 1:
+            staged['unbound_historical_attempts'] = [n for n in range(1, attempts)
+                if not any(isinstance(x, dict) and x.get('attempt') == n for x in attempt_history)]
+        timestamp = utc_now().isoformat()
+        staged['attempt_termination'] = {'attempt': attempts, 'classification': 'REPLAN_SUPERSEDED',
+            'reason_code': 'TASK_REPLAN_REQUIRED', 'reason': reason, 'terminated_at': timestamp,
+            'active_revision_at_termination': active['revision_id'],
+            'contract_sha256_at_termination': active['contract_sha256'],
+            'historical_binding_status': historical_binding_status,
+            'historical_binding_classification': historical_binding_classification,
+            'verification': 'NOT_RUN_BY_REPLAN'}
+        if historical_binding_status in {'proven', 'human_attested'}:
+            staged['attempt_termination']['packet_revision'] = active['revision_id']
+            staged['attempt_termination']['contract_sha256'] = active['contract_sha256']
+        if historical_binding_classification == 'HUMAN_ATTESTED':
+            staged['attempt_termination']['identity_bridge_id'] = binding_result['bridge_id']
+        staged['status'] = 'failed'
+        staged['replanned_at'] = timestamp
+        staged['replan_requests'] = [*prior_requests, {'request_id': request_id,
+            'repository': repo_identity, 'feature': doc.get('feature', feature_dir.name), 'task': args.task_id,
+            'old_revision': active['revision_id'], 'new_revision': revision_id,
+            'old_contract_sha256': active['contract_sha256'], 'new_contract_sha256': new_contract,
+            'expected_status': 'running', 'expected_attempts': attempts, 'reason': reason,
+            'provenance': operator, 'checkpoint': args.checkpoint,
+            'historical_binding_classification': historical_binding_classification,
+            'identity_bridge_id': binding_result['bridge_id'], 'committed_at': timestamp}]
+        for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
+            staged.pop(key, None)
+        replan_failpoint('R5')
+        replan_failpoint('R6')
+        state['tasks'][args.task_id] = staged
+        replan_failpoint('R7')
+        save_state(feature_dir, state)  # atomic lifecycle state replace is the activation commit
+        replan_failpoint('R8')
+        if fcntl is not None:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(f'REPLANNED {args.task_id} revision={revision_id} attempts={attempts}')
 
 
 def restore_attempt_authorization(entry: dict[str, Any]) -> None:
@@ -1731,6 +2652,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
 
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
@@ -1753,6 +2675,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
+        entry.pop('start_origin_status', None)
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
     print(f'COMPLETED {args.task_id}' + (f' checkpoint={checkpoint[:12]}' if checkpoint else ' (no worktree checkpoint)'))
@@ -1770,6 +2693,7 @@ def cmd_fail(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
         attempts = int(entry.get('attempts', 0))
         status = 'escalated' if args.escalate else 'failed'
@@ -1790,6 +2714,7 @@ def cmd_fail(args: argparse.Namespace) -> None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
+        entry.pop('start_origin_status', None)
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
     print(f'{status.upper()} {args.task_id} attempt={attempts}/{max_attempts}')
@@ -1807,6 +2732,7 @@ def cmd_release(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
         partial_commit = None
@@ -1822,6 +2748,7 @@ def cmd_release(args: argparse.Namespace) -> None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
+        entry.pop('start_origin_status', None)
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
     print(f'RELEASED {args.task_id}')
@@ -1978,12 +2905,15 @@ def cmd_reopen(args: argparse.Namespace) -> None:
     if args.task_id not in idx:
         die(f'unknown task {args.task_id}')
     feature = str(doc.get('feature', args.feature_dir.name))
-    stale = sorted(descendants(idx, args.task_id))
+    stale: list[str] = []
 
     # Reopen and descendant invalidation are one state transition. Validate every lease/status under
     # the state lock before deleting any task-local workspace, otherwise a racing worker can lose a
     # live worktree even though the reopen itself is rejected.
     with locked_state(args.feature_dir, doc) as state:
+        active_idx = {tid: active_task_contract(args.feature_dir, doc, tid, state=state)
+                      for tid in idx}
+        stale = sorted(descendants(active_idx, args.task_id))
         target = state['tasks'][args.task_id]
         if target.get('status') != 'completed':
             die(f'{args.task_id} must be completed before it can be reopened')
@@ -2042,13 +2972,25 @@ def cmd_status(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         state = json.loads(json.dumps(state))
-    idx = task_index(doc)
+    bridge_records = []
+    for task_id in state.get('tasks', {}):
+        task_root = runtime_state_dir(args.feature_dir) / 'packet-identity-bridges' / args.feature_dir.name / task_id
+        if task_root.exists() and task_root.is_dir() and not task_root.is_symlink():
+            for bridge_path in sorted(task_root.glob('*.json')):
+                try:
+                    bridge = json.loads(bridge_path.read_text(encoding='utf-8'))
+                except (OSError, json.JSONDecodeError):
+                    die(f'PACKET_IDENTITY_ATTESTATION_CONFLICT: unreadable bridge {bridge_path.name}')
+                if not isinstance(bridge, dict) or bridge.get('classification') != 'HUMAN_ATTESTED':
+                    die(f'PACKET_IDENTITY_ATTESTATION_CONFLICT: malformed bridge {bridge_path.name}')
+                bridge_records.append(bridge)
     if args.json:
+        state['packet_identity_bridges'] = bridge_records
         print(json.dumps(state, indent=2, sort_keys=True))
         return
     now = utc_now()
     for tid, entry in state['tasks'].items():
-        task = idx[tid]
+        task = active_task_contract(args.feature_dir, doc, tid, state=state)
         owner = entry.get('owner', '-')
         lease = '-'
         if entry.get('status') == 'running':
@@ -2062,6 +3004,16 @@ def cmd_status(args: argparse.Namespace) -> None:
             f'{tid:9} {entry["status"]:10} {task["role"]:11} '
             f'attempts={entry.get("attempts", 0)} owner={owner} lease={lease}  {task["title"]}'
         )
+    for bridge in bridge_records:
+        request = bridge['request']
+        print(f"PACKET_IDENTITY_BRIDGE {bridge['bridge_id']} classification=HUMAN_ATTESTED "
+              f"task={request['task']} attempt={request['attempt']} "
+              f"source={request['source_identity']['scheme']}:{request['source_identity']['value']} "
+              f"target={request['target_identity']['scheme']}:{request['target_identity']['value']} "
+              f"revision={request['target_revision_identity']['value']} operator={request['operator']} "
+              f"semantic={request['semantic_contract_sha256']} "
+              f"recovery={request['recovery_record_identity']['scheme']}:{request['recovery_record_identity']['value']} "
+              f"reason={request['reason']} created_at={bridge['created_at']}")
 
 
 def cmd_reset(args: argparse.Namespace) -> None:
@@ -2255,6 +3207,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         target = prepare_task_worktree(args.feature_dir, doc, state, task)
     print(target)
 
@@ -2268,12 +3221,17 @@ def cmd_start(args: argparse.Namespace) -> None:
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
-        entry = state['tasks'][args.task_id]
+        original = state['tasks'][args.task_id]
+        task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
+        # Resolve and validate the packet before consuming retry authorization or changing
+        # lifecycle state. The immutable publication may safely remain orphaned on failure.
+        packet = write_packet(doc, task, args.feature_dir, state=state)
+        staged_state = copy.deepcopy(state)
+        entry = staged_state['tasks'][args.task_id]
         if is_unrecovered_partial_claim(entry):
             die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
-        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, state)
-        target = prepare_task_worktree(args.feature_dir, doc, state, task)
-        packet = write_packet(doc, task, args.feature_dir)
+        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
+        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task)
         now = utc_now()
         entry.update({
             'status': 'running',
@@ -2281,8 +3239,11 @@ def cmd_start(args: argparse.Namespace) -> None:
             'attempts': int(entry.get('attempts', 0)) + 1,
             'claimed_at': now.isoformat(),
             'worktree': str(target),
+            'start_origin_status': original.get('status'),
         })
+        append_attempt_binding(entry, args.feature_dir, doc, args.task_id, packet)
         refresh_lease(entry, doc, now=now)
+        state['tasks'][args.task_id] = entry
     print(json.dumps({'task': args.task_id, 'owner': args.owner, 'worktree': str(target), 'packet': str(packet)}, indent=2))
 
 def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:
@@ -2299,7 +3260,8 @@ def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], ta
         owner_guard(entry, owner)
         if entry.get('status') != 'running':
             die(f'{task_id} is not running')
-        entry['status'] = 'pending'
+        prior_status = entry.pop('start_origin_status', None)
+        entry['status'] = prior_status if prior_status in {'pending', 'failed'} else 'pending'
         entry['attempts'] = max(0, int(entry.get('attempts', 0)) - 1)
         restore_attempt_authorization(entry)
         entry['start_rollback_reason'] = reason
@@ -2404,6 +3366,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('feature_dir', type=pathlib.Path)
     s.add_argument('task_id')
     s.add_argument('--stdout', action='store_true')
+    s.add_argument('--identity', action='store_true', help='Print active packet revision and semantic contract fingerprint')
     s.set_defaults(func=cmd_packet)
 
     s = sub.add_parser('reviewers')
@@ -2434,6 +3397,26 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--attest-no-execution-started', action='store_true', required=True,
                    help='Explicit factual human attestation; the harness cannot infer this condition')
     s.set_defaults(func=cmd_recover_claim)
+
+    s = sub.add_parser('attest-packet-identity')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    for flag in ('expected-repository', 'expected-feature', 'expected-task', 'expected-status',
+                 'expected-owner', 'expected-recovery-identity-scheme', 'expected-recovery-identity',
+                 'source-scheme', 'source-value', 'target-scheme', 'target-value',
+                 'target-revision-scheme', 'target-revision', 'expected-semantic-fingerprint'):
+        s.add_argument(f'--{flag}', required=True)
+    s.add_argument('--expected-attempts', type=int, required=True)
+    s.add_argument('--expected-protocol-version', type=int, required=True)
+    s.add_argument('--by', required=True, help='Human operator provenance label; not authenticated by the harness')
+    s.add_argument('--reason', required=True)
+    s.set_defaults(func=cmd_attest_packet_identity)
+
+    s = sub.add_parser('packet-identity-binding')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--attempt', type=int, required=True)
+    s.set_defaults(func=cmd_packet_identity_binding)
 
     s = sub.add_parser('complete')
     s.add_argument('feature_dir', type=pathlib.Path)
@@ -2474,6 +3457,19 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--by', help='Operator provenance label; not authenticated by the harness')
     s.add_argument('--supersedes', help='Exact unusable legacy authorization ID to supersede explicitly')
     s.set_defaults(func=cmd_authorize_retry)
+
+    s = sub.add_parser('replan-task')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--expected-status', required=True)
+    s.add_argument('--expected-attempts', type=int, required=True)
+    s.add_argument('--expected-active-revision', required=True)
+    s.add_argument('--expected-contract-sha256', required=True)
+    s.add_argument('--proposed-task-file', required=True, help='Validated task-model JSON stored inside the feature folder')
+    s.add_argument('--reason', required=True)
+    s.add_argument('--by', required=True, help='Human/operator provenance label')
+    s.add_argument('--checkpoint', help='Optional implementation checkpoint provenance')
+    s.set_defaults(func=cmd_replan_task)
 
     s = sub.add_parser('reopen')
     s.add_argument('feature_dir', type=pathlib.Path)
