@@ -314,6 +314,151 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertEqual('ambiguous', replanned['attempt_termination']['historical_binding_status'])
         self.assertNotIn('packet_revision', replanned['attempt_termination'])
 
+    def test_legacy_history_replan_preserves_only_provable_attempt_evidence_after_restart(self):
+        task = harness.task_index(self.doc)['T-001']
+        packet_path = harness.write_packet(self.doc, task, self.feature)
+        packet_bytes = packet_path.read_bytes()
+        packet = json.loads(packet_bytes)
+        packet_revision = harness.packet_revision_id(packet)
+        contract_sha = packet['semantic_contract_sha256']
+        v1 = {'version': 1, 'id': 'legacy-v1', 'binding': {
+                  'repository': str(harness.git_common_dir(self.feature)), 'feature': 'REPLAN-TEST',
+                  'task': 'T-001', 'expected_status': 'failed', 'expected_attempts': 3,
+                  'feature_fingerprint': harness.feature_fingerprint(self.feature),
+                  'packet_sha256': packet['packet_sha256'], 'protocol_version': 1},
+              'reason': 'legacy authorization', 'provenance': 'fixture operator',
+              'issued_at': '2026-01-01T00:00:00Z', 'consumed_at': None}
+        v2 = {'version': 2, 'id': 'consumed-v2',
+              'binding': {'binding_version': 2, 'repository': str(harness.git_common_dir(self.feature)),
+                          'feature': 'REPLAN-TEST', 'task': 'T-001', 'expected_status': 'failed',
+                          'expected_attempts': 3, 'protocol_version': 1,
+                          'contract_sha256': contract_sha},
+              'reason': 'superseding authorization', 'provenance': 'fixture operator',
+              'issued_at': '2026-01-01T00:01:00Z', 'supersedes': 'legacy-v1',
+              'consumed_at': '2026-01-01T00:02:00Z', 'consumed_attempt': 4}
+        state = harness.initial_state(self.feature, self.doc)
+        entry = state['tasks']['T-001']
+        entry.update({'status': 'running', 'attempts': 4, 'owner': 'legacy-worker',
+            'active_retry_authorization': 'consumed-v2', 'retry_authorizations': [v1, v2],
+            'retry_authorization_supersessions': [{'authorization_id': 'consumed-v2',
+                'supersedes': 'legacy-v1', 'issued_at': '2026-01-01T00:01:00Z',
+                'provenance': 'fixture operator', 'reason': 'superseding authorization'}],
+            'last_failure': 'attempt 3 failed: synthetic historical failure',
+            'last_failure_attempt': None,
+            'claim_recovery': {'attempt': 4, 'attestation': 'no_execution_started',
+                'authorization_id': 'consumed-v2', 'operator_provenance': 'fixture operator',
+                'owner': 'legacy-worker', 'packet_identity': packet['packet_sha256'],
+                'semantic_contract_sha256': contract_sha, 'recovery_version': 1,
+                'task': 'T-001'}})
+        # This is the legacy evidence shape: attempts=4 and no per-attempt ledger.
+        self.assertNotIn('attempt_bindings', entry)
+        harness.save_state(self.feature, state)
+        before_ready = harness.ready_ids(self.doc, state, self.feature)
+        self.assertNotIn('T-001', before_ready)
+        with self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=self.feature, task_id='T-001', owner='not-ready'))
+
+        proposed = dict(task, objective='Replanned after legacy history')
+        proposal_path = self.feature / 'planning' / 'proposed-T-001.json'
+        proposal_path.parent.mkdir(parents=True)
+        proposal_path.write_text(json.dumps(proposed))
+        active = harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=state)
+        args = argparse.Namespace(feature_dir=self.feature, task_id='T-001', expected_status='running',
+            expected_attempts=4, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], proposed_task_file=str(proposal_path),
+            reason='synthetic accepted replan', by='fixture operator', checkpoint='synthetic-checkpoint')
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+
+        # Reconstruct from durable files, with no process-local state reused.
+        reloaded = harness.load_state(self.feature, self.doc)
+        replanned = reloaded['tasks']['T-001']
+        self.assertEqual(2, reloaded['state_version'])
+        self.assertEqual(1, reloaded['protocol_version'])
+        self.assertEqual(4, replanned['attempts'])
+        self.assertEqual('attempt 3 failed: synthetic historical failure', replanned['last_failure'])
+        self.assertIsNone(replanned['last_failure_attempt'])
+        self.assertEqual([1, 2, 3], replanned['unbound_historical_attempts'])
+        self.assertEqual([4], [record['attempt'] for record in replanned['attempt_bindings']])
+        attempt4 = replanned['attempt_bindings'][0]
+        self.assertEqual('proven', attempt4['binding_status'])
+        self.assertEqual(packet_revision, attempt4['packet_revision'])
+        self.assertEqual(contract_sha, attempt4['contract_sha256'])
+        self.assertEqual('REPLAN_SUPERSEDED', replanned['attempt_termination']['classification'])
+        self.assertEqual('proven', replanned['attempt_termination']['historical_binding_status'])
+        self.assertEqual('consumed', harness.retry_authorization_status(
+            self.feature, self.doc, reloaded, 'T-001', 4, 'consumed-v2'))
+        self.assertNotIn('T-001', harness.ready_ids(self.doc, reloaded, self.feature))
+        new_active = harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=reloaded)
+        self.assertNotEqual(packet_revision, new_active['revision_id'])
+        self.assertEqual('Replanned after legacy history', new_active['packet']['objective'])
+        self.assertEqual(packet_bytes, packet_path.read_bytes())
+        self.assertEqual(packet_revision, replanned['packet_lineage'][0]['revision_id'])
+        self.assertTrue(replanned['packet_lineage'][0]['legacy'])
+        self.assertEqual(packet_revision, replanned['replan_requests'][0]['old_revision'])
+        with self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=self.feature, task_id='T-001', owner='unauthorized'))
+        after_rejected_claim = harness.load_state(self.feature, self.doc)['tasks']['T-001']
+        self.assertEqual(4, after_rejected_claim['attempts'])
+        self.assertEqual('failed', after_rejected_claim['status'])
+
+    def test_legacy_packet_resolution_is_pure_read_and_first_replan_bootstraps_lineage(self):
+        task = harness.task_index(self.doc)['T-001']
+        packet_path = harness.write_packet(self.doc, task, self.feature)
+        packet_bytes = packet_path.read_bytes()
+        state = harness.initial_state(self.feature, self.doc)
+        entry = state['tasks']['T-001']
+        entry.update({'status': 'running', 'attempts': 1, 'owner': 'fixture-worker'})
+        harness.save_state(self.feature, state)
+        authority = harness.runtime_state_dir(self.feature) / 'packet-revisions'
+        before_listing = sorted(str(path.relative_to(harness.runtime_state_dir(self.feature)))
+                                for path in authority.rglob('*')) if authority.exists() else []
+        before_hashes = {str(path.relative_to(authority)): harness.sha256_bytes(path.read_bytes())
+                         for path in authority.rglob('*') if path.is_file()} if authority.exists() else {}
+
+        resolved = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+
+        after_listing = sorted(str(path.relative_to(harness.runtime_state_dir(self.feature)))
+                               for path in authority.rglob('*')) if authority.exists() else []
+        after_hashes = {str(path.relative_to(authority)): harness.sha256_bytes(path.read_bytes())
+                        for path in authority.rglob('*') if path.is_file()} if authority.exists() else {}
+        self.assertEqual(before_listing, after_listing)
+        self.assertEqual(before_hashes, after_hashes)
+        self.assertEqual(harness.packet_revision_id(json.loads(packet_bytes)), resolved['revision_id'])
+        self.assertTrue(resolved['legacy'])
+
+        proposal_path = self.feature / 'planning' / 'proposed-T-001.json'
+        proposal_path.parent.mkdir(parents=True)
+        proposal_path.write_text(json.dumps(dict(task, objective='First revisioned plan')))
+        args = argparse.Namespace(feature_dir=self.feature, task_id='T-001', expected_status='running',
+            expected_attempts=1, expected_active_revision=resolved['revision_id'],
+            expected_contract_sha256=resolved['contract_sha256'], proposed_task_file=str(proposal_path),
+            reason='bootstrap legacy lineage', by='fixture operator', checkpoint='synthetic-checkpoint')
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+        after = harness.load_state(self.feature, self.doc)
+        active = harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=after)
+        lineage = after['tasks']['T-001']['packet_lineage']
+        self.assertEqual(packet_bytes, packet_path.read_bytes())
+        self.assertEqual(resolved['revision_id'], lineage[0]['revision_id'])
+        self.assertTrue(lineage[0]['legacy'])
+        self.assertEqual(active['revision_id'], lineage[1]['revision_id'])
+        self.assertEqual(resolved['revision_id'], lineage[1]['previous_revision'])
+        self.assertEqual(1, len(list((authority / self.feature.name / 'T-001').glob('*.json'))))
+
+    def test_replan_preserves_current_state_and_protocol_schema_versions(self):
+        args, _packet, _grant_id = self.running_replan_fixture()
+        state = harness.load_state(self.feature, self.doc)
+        self.assertEqual(2, state['state_version'])
+        self.assertEqual(1, state['protocol_version'])
+        before = json.loads(json.dumps(state))
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+        reloaded = harness.load_state(self.feature, self.doc)
+        self.assertEqual(before['state_version'], reloaded['state_version'])
+        self.assertEqual(before['protocol_version'], reloaded['protocol_version'])
+        self.assertEqual(1, harness.STATE_SCHEMA_VERSION)
+
     def test_crash_boundaries_reload_old_or_committed_active_contract(self):
         args, old_packet, _grant_id = self.running_replan_fixture()
         expected_old_revision = args.expected_active_revision

@@ -1821,7 +1821,12 @@ def classify_retry_authorizations(feature_dir: pathlib.Path, doc: dict[str, Any]
                 new.get('binding', {}).get('feature') != expected['feature'] or
                 new.get('binding', {}).get('task') != task_id or
                 new.get('binding', {}).get('expected_status') != 'failed' or
-                new.get('binding', {}).get('expected_attempts') != attempts):
+                not isinstance(old.get('binding'), dict) or
+                old.get('binding', {}).get('expected_attempts') !=
+                    new.get('binding', {}).get('expected_attempts') or
+                not isinstance(new.get('binding', {}).get('expected_attempts'), int) or
+                isinstance(new.get('binding', {}).get('expected_attempts'), bool) or
+                new.get('binding', {}).get('expected_attempts') < 1):
             die('RETRY_AUTHORIZATION_INVALID: supersession relation does not match immutable grant history')
     if len(valid) > 1 or len(legacy) > 1 or (valid and legacy):
         die('RETRY_AUTHORIZATION_INVALID: conflicting eligible authorization history')
