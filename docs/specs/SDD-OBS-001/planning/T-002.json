@@ -1,0 +1,55 @@
+{
+  "id": "T-002",
+  "title": "Implement authoritative verification execution",
+  "objective": "Implement canonical control-store resolution, immutable evidence/index projections, repository admission, supervisor lifecycle, descendant containment contract, failure fences/grants and the neutral allowlist+sandbox command bridge.",
+  "role": "builder",
+  "depends_on": [
+    "T-001"
+  ],
+  "allowed_paths": [
+    "tooling/agent-harness/verification/store.py",
+    "tooling/agent-harness/verification/executor.py",
+    "tooling/agent-harness/verification/supervisor.py",
+    "tooling/agent-harness/verification_command.py",
+    "tooling/agent-harness/verification_sandbox.py",
+    "tooling/agent-harness/tests/test_verification_store.py",
+    "tooling/agent-harness/tests/test_verification_executor.py",
+    "tooling/agent-harness/tests/test_verification_supervisor.py",
+    "tooling/agent-harness/tests/test_verification_command.py",
+    "tooling/agent-harness/tests/test_verification_sandbox.py"
+  ],
+  "risk_tags": [
+    "architecture",
+    "security",
+    "concurrency",
+    "infra"
+  ],
+  "acceptance_criteria": [
+    "AC-OBS-009",
+    "AC-OBS-010",
+    "AC-OBS-011",
+    "AC-OBS-012",
+    "AC-OBS-013",
+    "AC-OBS-014",
+    "AC-OBS-018",
+    "AC-OBS-024",
+    "AC-OBS-029",
+    "AC-OBS-032",
+    "AC-OBS-033",
+    "VC-001",
+    "VC-002",
+    "VC-003",
+    "VC-004",
+    "VC-006",
+    "VC-007",
+    "VC-008",
+    "VC-009",
+    "VC-017",
+    "VC-020"
+  ],
+  "verification": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v"
+  ],
+  "test_mode": "red-green-refactor",
+  "test_seam": "Backend fixtures must discover available candidates and independently prove protected-path enforcement plus strong descendant containment with adversarial qualification checks before launch. Process-lifecycle fixtures must prove fail-closed refusal before spawn, cancellation and descendant drainage, and restart reconciliation bound to durable backend/execution identity; missing or insufficient durable identity returns UNCERTAIN and blocks admission. Preserve critical FAIL fencing, one-shot grant consumption, protected authority and repository-wide admission ordering."
+}
