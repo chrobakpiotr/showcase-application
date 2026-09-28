@@ -7,7 +7,7 @@ import json
 import pathlib
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .serialization import canonical
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
@@ -87,7 +87,8 @@ class VerificationSupervisor:
                 run_dir: pathlib.Path, timeout_seconds: float, sandbox_mode: str,
                 environment=None, preflight=None, terminal_publisher=None,
                 post_observer=None, recovery_observer=None, terminal_record_builder=None,
-                input_fingerprint: str | None = None):
+                input_fingerprint: str | None = None, profile_hash: str | None = None,
+                critical: bool = False, failure_grant_id: str | None = None):
         intent_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
         execution_id = hashlib.sha256(canonical({
             'repository_id': self.store.repository_id, 'family_id': family_id,
@@ -101,8 +102,39 @@ class VerificationSupervisor:
             self.store.admit_repository_verification()
             self._crash('after-admission')
             ready = preflight() if preflight else None
+            fence_context = {'repository_id': self.store.repository_id, 'profile_hash': profile_hash,
+                             'gate_id': gate_id, 'fingerprint': input_fingerprint}
+            has_fence_context = all(isinstance(fence_context.get(key), str) and fence_context[key]
+                                    for key in ('profile_hash', 'gate_id', 'fingerprint'))
+            active_failure = None
+            unresolved_failure = None
+            if has_fence_context:
+                unresolved_failure = self.store.current_failure(fence_context)
+                latest_failure = self.store.failure_for_scope(fence_context)
+                # A PASS-resolved failure permits exact evidence reuse, but a
+                # mandatory fresh RUN still needs a new one-shot grant.
+                is_reuse = ready is not None and ready.action == 'REUSE'
+                active_failure = unresolved_failure if is_reuse else latest_failure
+                if is_reuse and unresolved_failure is None:
+                    return None, ready
+                if active_failure is not None and not failure_grant_id:
+                    raise SupervisorError('CRITICAL_FAILURE_FENCE_ACTIVE')
+                if active_failure is None and failure_grant_id:
+                    raise SupervisorError('FAILURE_GRANT_STALE')
+            elif self.store.active_failure_fences():
+                # An entry point without trusted plan identity cannot prove it
+                # is independent of an active failure fence.
+                raise SupervisorError('CRITICAL_FAILURE_CONTEXT_REQUIRED')
+            elif failure_grant_id:
+                raise SupervisorError('FAILURE_GRANT_SCOPE_MISMATCH')
             if ready is not None and ready.action == 'REUSE':
-                return None, ready
+                # A scoped retry grant turns an otherwise reusable plan into
+                # exactly one fresh execution opportunity.
+                try:
+                    ready = replace(ready, action='RUN', reason='failure-grant-retry')
+                except TypeError:
+                    ready.action = 'RUN'
+                    ready.reason = 'failure-grant-retry'
             try:
                 prepared = backend.prepare(worktree=pathlib.Path(worktree), cwd=pathlib.Path(cwd),
                     run_dir=pathlib.Path(run_dir), repository_id=self.store.repository_id,
@@ -126,6 +158,18 @@ class VerificationSupervisor:
             if not all(isinstance(value, str) and value for value in
                        (backend_identity, policy_identity, qualification or policy_identity)):
                 raise SupervisorError('EXECUTION_IDENTITY_UNAVAILABLE')
+
+            retry_consumption = None
+            if active_failure is not None:
+                exact_context = {**fence_context, 'policy_identity': policy_identity,
+                                 'backend_identity': backend_identity}
+                try:
+                    retry_consumption = self.store.consume_failure_grant(
+                        failure_grant_id, failure_id=active_failure['failure_id'],
+                        context=exact_context, execution_id=execution_id, lock_held=True)
+                except StoreError as exc:
+                    raise SupervisorError(str(exc)) from None
+                self._crash('after-grant-consumed')
 
             journal = self.store.executions / execution_id
             existing = self._read_json(journal / 'started.json')
@@ -153,6 +197,12 @@ class VerificationSupervisor:
                 'backend': backend_identity, 'backend_identity': backend_identity,
                 'policy_identity': policy_identity, 'qualification_fingerprint': qualification or policy_identity,
                 'execution_identity': identity, 'input_fingerprint': input_fingerprint,
+                'profile_hash': profile_hash, 'critical': bool(critical),
+                'predecessor_failure_id': active_failure['failure_id'] if retry_consumption else None,
+                'consumption_id': retry_consumption['consumption_id'] if retry_consumption else None,
+                'retry_proof': ({'failure_id': active_failure['failure_id'],
+                    'grant_id': failure_grant_id, 'consumption_id': retry_consumption['consumption_id'],
+                    'grant_hash': retry_consumption['grant_hash']} if retry_consumption else None),
                 'launch_intent_hash': intent_hash, 'command_identity': intent_hash,
                 'supervisor_generation': uuid.uuid4().hex, 'protocol_version': 1,
                 'started_at': time.time(),
@@ -223,6 +273,7 @@ class VerificationSupervisor:
             if terminal_material is not None:
                 receipt['verification_evidence'] = terminal_material
             self.store.publish_execution_terminal(receipt)
+            self._reconcile_phase_d(receipt, started)
             self._crash('after-terminal')
             if terminal_publisher:
                 terminal_publisher(result, ready, receipt)
@@ -282,10 +333,19 @@ class VerificationSupervisor:
             if closure is not None:
                 continue
             execution_id = started['execution_id']
+            if (started.get('predecessor_failure_id') is not None or
+                    started.get('consumption_id') is not None or started.get('retry_proof') is not None):
+                try:
+                    self.store.validate_started_retry_proof(started)
+                except StoreError:
+                    recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                        'RETRY_PROOF_MISSING'))
+                    continue
             terminal = self._read_json(journal / 'terminal.json')
             if terminal is not None:
                 terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                                 if item['execution_id'] == execution_id)
+                self._reconcile_phase_d(terminal, started)
                 self.store.rebuild_terminal_evidence(terminal)
                 self._publish_drained(journal, started, terminal['receipt_hash'],
                                       reason='recovered-terminal-closure')
@@ -351,6 +411,7 @@ class VerificationSupervisor:
                     continue
             receipt = self._terminal_from_observation(journal, started, identity, observation)
             self.store.publish_execution_terminal(receipt)
+            self._reconcile_phase_d(receipt, started)
             terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                             if item['execution_id'] == execution_id)
             self._publish_drained(journal, started, terminal['receipt_hash'],
@@ -358,6 +419,17 @@ class VerificationSupervisor:
             recovered.append(RecoveryResult(execution_id, SupervisorState.TERMINAL,
                                              'TERMINAL_RECONSTRUCTED', terminal))
         return tuple(recovered)
+
+    def _reconcile_phase_d(self, terminal: dict, started: dict) -> None:
+        """Rebuild critical-failure authority from immutable execution truth."""
+        if (terminal.get('result') == 'FAIL' and not terminal.get('timed_out') and
+                not terminal.get('cancelled') and started.get('critical') is True):
+            self.store.publish_critical_failure(terminal['execution_id'],
+                predecessor_failure_id=started.get('predecessor_failure_id'),
+                consumption_id=started.get('consumption_id'))
+        retry = started.get('retry_proof')
+        if terminal.get('result') == 'PASS' and isinstance(retry, dict):
+            self.store.publish_failure_resolution(retry['failure_id'], terminal['execution_id'], result='PASS')
 
     def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str) -> RecoveryResult:
         execution_id = started['execution_id']

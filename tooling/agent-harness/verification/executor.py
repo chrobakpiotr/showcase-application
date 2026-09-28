@@ -109,7 +109,8 @@ def _safe_execution_record(record, *, safety):
 
 def execute_plan(repository: pathlib.Path, profile, plan, *, store: VerificationStore | None = None,
                  timeout_seconds: float = 900, sandbox_mode: str = 'auto', safety=None,
-                 evidence: dict | None = None, attempt_id: str | None = None):
+                 evidence: dict | None = None, attempt_id: str | None = None,
+                 failure_grants: dict[str, str] | None = None):
     safety = safety or default_safety()
     store = store or VerificationStore(repository)
     attempt_id = attempt_id or uuid.uuid4().hex
@@ -123,11 +124,6 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             gate_results.append(GateExecution(decision.node.id, 'RUN', 'NOT_RUN', 'blocked-by-failure',
                                               decision.fingerprint, gate.command_hash))
             outcomes.append('NOT_RUN')
-            continue
-        if decision.action == 'REUSE':
-            gate_results.append(GateExecution(decision.node.id, 'REUSE', 'PASS', decision.reason,
-                                              decision.fingerprint, gate.command_hash))
-            outcomes.append('PASS')
             continue
         try:
             supervisor = VerificationSupervisor(store)
@@ -165,7 +161,8 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 post_ready.append(after)
                 return {'pre_fingerprint': current_ready.fingerprint,
                         'post_fingerprint': after.fingerprint,
-                        'stable': current_ready.fingerprint == after.fingerprint and after.action == 'RUN'}
+                        'stable': current_ready.fingerprint == after.fingerprint and
+                                  after.action in {'RUN', 'REUSE'}}
             def observe_recovered_after_drain(started):
                 # Recovery evidence is applicable only to the exact durable
                 # run and gate. A later attempt cannot observe or close it.
@@ -189,7 +186,9 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 terminal_publisher=publish_terminal_evidence, post_observer=observe_after_drain,
                 recovery_observer=observe_recovered_after_drain,
                 terminal_record_builder=build_terminal_evidence,
-                input_fingerprint=decision.fingerprint)
+                input_fingerprint=decision.fingerprint, profile_hash=plan.family.profile_hash,
+                critical=gate.critical,
+                failure_grant_id=(failure_grants or {}).get(decision.node.id))
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
             if ready.action == 'REUSE':

@@ -18,6 +18,99 @@ import verification_command
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_pd3_unresolved_critical_failure_blocks_supervisor_before_prepare(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            failed = CriticalFailureBackend(store, root)
+            first = VerificationSupervisor(store)
+            first.execute(failed, worktree=root, family_id='family-1', attempt_id='attempt-1',
+                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
+                timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
+                input_fingerprint='fingerprint', critical=True)
+            context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
+                'gate_id': 'critical-gate', 'fingerprint': 'fingerprint'}
+            self.assertIsNotNone(store.current_failure(context))
+            retry = LifecycleBackend(store, root)
+            with self.assertRaisesRegex(RuntimeError, 'CRITICAL_FAILURE_FENCE_ACTIVE'):
+                VerificationSupervisor(store).execute(retry, worktree=root, family_id='family-2',
+                    attempt_id='attempt-2', gate_id='critical-gate', command='python3 -c pass',
+                    cwd=root, run_dir=root / 'run-2', timeout_seconds=2, sandbox_mode='required',
+                    profile_hash='profile-hash', input_fingerprint='fingerprint',
+                    preflight=lambda: SimpleNamespace(action='REUSE'))
+            self.assertEqual([], retry.events)
+
+    def test_pd4_pd5_exact_grant_is_consumed_before_retry_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
+                worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
+                command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
+                sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
+                critical=True)
+            context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
+                'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
+                'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
+            failure = store.current_failure(context)
+            store.issue_failure_grant('human-grant', failure_id=failure['failure_id'], context=context,
+                issuer='test-operator', reason='exercise-exact-one-shot-retry')
+            retry = GrantCheckingBackend(store, root)
+            result, _ = VerificationSupervisor(store).execute(retry, worktree=root,
+                family_id='family-2', attempt_id='attempt-2', gate_id='critical-gate',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run-2', timeout_seconds=2,
+                sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
+                failure_grant_id='human-grant', preflight=lambda: SimpleNamespace(action='REUSE'))
+            self.assertEqual(0, result.exit_code)
+            self.assertIn('consumption-before-launch', retry.events)
+            self.assertEqual(1, retry.events.count('launch'))
+            with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
+                store.consume_failure_grant('human-grant', failure_id=failure['failure_id'],
+                    context=context, execution_id='third-retry')
+            later = LifecycleBackend(store, root)
+            with self.assertRaisesRegex(RuntimeError, 'CRITICAL_FAILURE_FENCE_ACTIVE'):
+                VerificationSupervisor(store).execute(later, worktree=root, family_id='family-3',
+                    attempt_id='attempt-3', gate_id='critical-gate', command='python3 -c pass',
+                    cwd=root, run_dir=root / 'run-3', timeout_seconds=2, sandbox_mode='required',
+                    profile_hash='profile-hash', input_fingerprint='fingerprint')
+            self.assertEqual([], later.events)
+
+    def test_pd6_crash_after_consumption_burns_grant_without_payload(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
+                worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
+                command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
+                sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
+                critical=True)
+            context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
+                'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
+                'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
+            failure = store.current_failure(context)
+            store.issue_failure_grant('human-grant', failure_id=failure['failure_id'], context=context,
+                issuer='test-operator', reason='crash-after-consume-fixture')
+            crashed_backend = GrantCheckingBackend(store, root)
+            crashed = VerificationSupervisor(store)
+            crashed.inject_crash_at = 'after-grant-consumed'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash:after-grant-consumed'):
+                crashed.execute(crashed_backend, worktree=root, family_id='family-2',
+                    attempt_id='attempt-2', gate_id='critical-gate', command='python3 -c pass',
+                    cwd=root, run_dir=root / 'run-2', timeout_seconds=2, sandbox_mode='required',
+                    profile_hash='profile-hash', input_fingerprint='fingerprint',
+                    failure_grant_id='human-grant')
+            self.assertNotIn('launch', crashed_backend.events)
+            fresh = VerificationStore(root, control_root=root / 'control')
+            self.assertTrue(fresh.grant_consumed('human-grant'))
+            retry = GrantCheckingBackend(fresh, root)
+            with self.assertRaisesRegex(RuntimeError, 'FAILURE_GRANT_CONSUMED'):
+                VerificationSupervisor(fresh).execute(retry, worktree=root, family_id='family-2',
+                    attempt_id='attempt-2', gate_id='critical-gate', command='python3 -c pass',
+                    cwd=root, run_dir=root / 'run-2', timeout_seconds=2, sandbox_mode='required',
+                    profile_hash='profile-hash', input_fingerprint='fingerprint',
+                    failure_grant_id='human-grant')
+            self.assertNotIn('launch', retry.events)
+
     def test_pc1_callable_runner_is_rejected_before_payload(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -435,6 +528,21 @@ class LifecycleBackend:
             self.unit_state.write_text(json.dumps({'status': 'DRAINED'}))
         return type('Recon', (), {'status': self.cancel_status, 'reason_code': self.cancel_status,
                                   'evidence': 'fixture'})()
+
+
+class CriticalFailureBackend(LifecycleBackend):
+    def launch(self, prepared, **kwargs):
+        result = super().launch(prepared, **kwargs)
+        result.exit_code = 1
+        return result
+
+
+class GrantCheckingBackend(LifecycleBackend):
+    def launch(self, prepared, **kwargs):
+        if not next(self.store.consumptions.glob('*.json'), None):
+            raise AssertionError('grant-consumption-after-launch')
+        self.events.append('consumption-before-launch')
+        return super().launch(prepared, **kwargs)
 
 
 if __name__ == '__main__':

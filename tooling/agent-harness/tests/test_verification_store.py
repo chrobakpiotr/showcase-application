@@ -46,7 +46,7 @@ class StoreTest(unittest.TestCase):
             with self.assertRaisesRegex(StoreError, 'invalid-execution-history'):
                 store.admit_repository_verification()
 
-    def test_critical_failures_reconstruct_from_immutable_receipts(self):
+    def test_critical_failures_ignore_unbound_evidence_records(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             store = VerificationStore(root, control_root=root / 'store')
@@ -54,19 +54,8 @@ class StoreTest(unittest.TestCase):
             path.parent.mkdir(parents=True)
             path.write_text(json.dumps({'repository_id':'r','profile_hash':'p','gate_id':'g',
                 'pre_fingerprint':'f','status':'verification-failed','critical':True,'evidence_id':'e'}))
-            self.assertEqual(['e'], [r['evidence_id'] for r in store.critical_failures(
-                repository_id='r', profile_hash='p', gate_id='g', fingerprint='f')])
-
-    def test_grant_consumption_is_one_shot_even_for_identical_replay(self):
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            store = VerificationStore(root, control_root=root / 'store')
-            store.grants.mkdir(parents=True)
-            (store.grants / 'grant.json').write_text(json.dumps({'failure_id':'failure','key':{'gate':'g'}}))
-            key = {'gate':'g'}
-            store.consume_grant('grant', failure_id='failure', key=key)
-            with self.assertRaisesRegex(StoreError, 'grant-already-consumed'):
-                store.consume_grant('grant', failure_id='failure', key=key)
+            self.assertEqual([], store.critical_failures(
+                repository_id=store.repository_id, profile_hash='p', gate_id='g', fingerprint='f'))
 
     def test_malformed_execution_history_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:

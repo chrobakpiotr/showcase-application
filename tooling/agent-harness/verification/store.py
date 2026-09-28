@@ -37,7 +37,8 @@ class ReconciliationOutcome(enum.Enum):
 # Authority classification is explicit: these records determine restart truth.
 AUTHORITATIVE_IMMUTABLE = frozenset({
     'executions/*/started.json', 'executions/*/admitted.json', 'executions/*/drained.json',
-    'runs/*/*/terminal.json', 'grants/*.json', 'consumptions/*.json',
+    'runs/*/*/terminal.json', 'failures/*.json', 'failure-resolutions/*.json',
+    'grants/*.json', 'consumptions/*.json',
 })
 DERIVED_REBUILDABLE = frozenset({'state/**', 'runs/*/summary.json', 'runs/*/*/projection.json'})
 _SAFE_COMPONENT = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}\Z')
@@ -234,6 +235,8 @@ class VerificationStore:
         self.repository_id = repository_id
         self.executions = self.root / 'executions'
         self.runs = self.root / 'runs'
+        self.failures = self.root / 'failures'
+        self.resolutions = self.root / 'failure-resolutions'
         self.grants = self.root / 'grants'
         self.consumptions = self.root / 'consumptions'
         self._fault_injector = None
@@ -389,6 +392,9 @@ class VerificationStore:
         if (supplied != actual or record.get('execution_id') != started['execution_id'] or
                 record.get('repository_id') != self.repository_id or record.get('drainage') != 'DRAINED'):
             raise StoreError('invalid-execution-terminal')
+        if (started.get('predecessor_failure_id') is not None or
+                started.get('consumption_id') is not None or started.get('retry_proof') is not None):
+            self.validate_started_retry_proof(started)
         return record
 
     def admit_and_reserve(self, execution_id: str, record: dict, reconciler=None) -> pathlib.Path:
@@ -529,6 +535,10 @@ class VerificationStore:
             raise StoreError('invalid-execution-terminal')
         body['receipt_hash'] = receipt_hash
         path = self.executions / record['execution_id'] / 'terminal.json'
+        started = self._validated_started(self.executions / record['execution_id'])
+        if (started.get('predecessor_failure_id') is not None or
+                started.get('consumption_id') is not None or started.get('retry_proof') is not None):
+            self.validate_started_retry_proof(started)
         _assert_contained(path, self.root)
         return publish_create_once(path, body, fault=self._fault)
 
@@ -585,6 +595,9 @@ class VerificationStore:
             actual = hashlib.sha256(canonical(record)).hexdigest()
             record['receipt_hash'] = supplied
             started = self._validated_started(directory)
+            if (started.get('predecessor_failure_id') is not None or
+                    started.get('consumption_id') is not None or started.get('retry_proof') is not None):
+                self.validate_started_retry_proof(started)
             expected_started_hash = hashlib.sha256((directory / 'started.json').read_bytes()).hexdigest()
             evidence = record.get('verification_evidence')
             if evidence is not None:
@@ -647,50 +660,430 @@ class VerificationStore:
         yield from self._scan_terminals()
 
     def critical_failures(self, *, repository_id: str, profile_hash: str, gate_id: str, fingerprint: str):
-        matches = []
-        if not self.runs.exists():
-            return matches
-        for path in sorted(self.runs.glob('*/*/terminal.json')):
-            try:
-                record = json.loads(path.read_text(encoding='utf-8'))
-            except (OSError, ValueError):
-                continue
-            if (isinstance(record, dict) and record.get('repository_id') == repository_id and
-                    record.get('profile_hash') == profile_hash and record.get('gate_id') == gate_id and
-                    record.get('pre_fingerprint') == fingerprint and
-                    record.get('status') == 'verification-failed' and record.get('critical') is True):
-                matches.append(record)
-        return sorted(matches, key=lambda item: item.get('evidence_id', ''))
+        context = {'repository_id': repository_id, 'profile_hash': profile_hash,
+                   'gate_id': gate_id, 'fingerprint': fingerprint}
+        failure = self.current_failure(context)
+        return [failure] if failure is not None else []
 
-    def consume_grant(self, grant_id: str, *, failure_id: str, key: dict) -> dict:
-        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}', grant_id):
-            raise StoreError('invalid-grant-id')
-        grant_path = self.grants / f'{grant_id}.json'
+    @staticmethod
+    def _failure_id(body: dict) -> str:
+        return 'critical-failure-sha256-v1:' + hashlib.sha256(canonical(body)).hexdigest()
+
+    def _terminal_for_execution(self, execution_id: str) -> tuple[dict, dict]:
+        _validate_component(execution_id, 'invalid-terminal-evidence')
+        journal = self.executions / execution_id
+        started = self._validated_started(journal)
+        records = self.reconstruct_execution_terminals(rebuild=False)
+        terminal = next((item for item in records if item.get('execution_id') == execution_id), None)
+        if terminal is None:
+            raise StoreError('terminal-execution-not-found')
+        return terminal, started
+
+    def publish_critical_failure(self, execution_id: str, *, predecessor_failure_id: str | None = None,
+                                 consumption_id: str | None = None) -> dict:
+        """Materialize immutable failure authority from a validated Phase-C terminal."""
+        terminal, started = self._terminal_for_execution(execution_id)
+        if (terminal.get('result') != 'FAIL' or terminal.get('timed_out') is True or
+                terminal.get('cancelled') is True or terminal.get('drainage') != 'DRAINED' or
+                started.get('critical') is not True):
+            raise StoreError('not-critical-verification-failure')
+        if predecessor_failure_id is None:
+            predecessor_failure_id = started.get('predecessor_failure_id')
+        if consumption_id is None:
+            consumption_id = started.get('consumption_id')
+        context = {
+            'repository_id': self.repository_id,
+            'profile_hash': started.get('profile_hash'),
+            'gate_id': started.get('gate_id'),
+            'fingerprint': started.get('input_fingerprint'),
+            'policy_identity': terminal.get('policy_identity'),
+            'backend_identity': terminal.get('backend_identity'),
+        }
+        if not all(isinstance(context.get(key), str) and context[key] for key in context):
+            raise StoreError('invalid-critical-failure-context')
+        if predecessor_failure_id is not None:
+            predecessor = self.failure_receipt(predecessor_failure_id)
+            if (predecessor is None or predecessor['context'] != context or not consumption_id or
+                    not self._consumption_proves(consumption_id, predecessor_failure_id, execution_id)):
+                raise StoreError('RETRY_PROOF_MISSING')
+        semantic = {
+            'schema_version': 1, 'protocol': 'critical-failure-v1',
+            'context': context, 'execution_id': execution_id,
+            'terminal_receipt_hash': terminal['receipt_hash'],
+            'command_identity': terminal['command_identity'],
+            'failure_classification': 'CRITICAL_VERIFICATION_FAIL',
+            'failure_reason': 'verification-command-failed',
+            'predecessor_failure_id': predecessor_failure_id,
+            'consumption_id': consumption_id,
+        }
+        record = {'failure_id': self._failure_id(semantic), **semantic}
+        path = self.failures / f"{record['failure_id']}.json"
+        _assert_contained(path, self.root)
+        publish_create_once(path, record, fault=self._fault)
+        self._project_failures()
+        return record
+
+    def _read_failure_receipt(self, path: pathlib.Path) -> dict:
+        _assert_contained(path, self.root)
+        if path.with_name(path.name + '.publication-uncertain').exists():
+            raise StoreError('critical-failure-publication-uncertain')
         try:
-            grant = json.loads(grant_path.read_text(encoding='utf-8'))
+            record = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, ValueError):
-            raise StoreError('grant-not-found') from None
-        if grant.get('failure_id') != failure_id or grant.get('key') != key:
-            raise StoreError('grant-scope-mismatch')
-        consumption = {'schema_version': 2, 'grant_id': grant_id, 'failure_id': failure_id, 'key': key}
-        consumption_path = self.consumptions / f'{grant_id}.json'
-        if consumption_path.exists():
-            raise StoreError('grant-already-consumed')
-        try:
-            publish_create_once(consumption_path, consumption)
-        except StoreError as exc:
-            if str(exc) == 'immutable-record-collision':
-                raise StoreError('grant-already-consumed') from None
-            raise
-        return consumption
+            raise StoreError('invalid-critical-failure-receipt') from None
+        if not isinstance(record, dict):
+            raise StoreError('invalid-critical-failure-receipt')
+        required = {'failure_id', 'schema_version', 'protocol', 'context', 'execution_id',
+                    'terminal_receipt_hash', 'command_identity', 'failure_classification',
+                    'failure_reason', 'predecessor_failure_id', 'consumption_id'}
+        body = {key: value for key, value in record.items() if key != 'failure_id'}
+        if (not isinstance(record, dict) or set(record) != required or
+                record.get('schema_version') != 1 or record.get('protocol') != 'critical-failure-v1' or
+                record.get('failure_classification') != 'CRITICAL_VERIFICATION_FAIL' or
+                record.get('failure_id') != self._failure_id(body) or path.name != f"{record.get('failure_id')}.json"):
+            raise StoreError('invalid-critical-failure-receipt')
+        terminal, started = self._terminal_for_execution(record['execution_id'])
+        context = {'repository_id': self.repository_id, 'profile_hash': started.get('profile_hash'),
+                   'gate_id': started.get('gate_id'), 'fingerprint': started.get('input_fingerprint'),
+                   'policy_identity': terminal.get('policy_identity'),
+                   'backend_identity': terminal.get('backend_identity')}
+        if (terminal['receipt_hash'] != record['terminal_receipt_hash'] or terminal['result'] != 'FAIL' or
+                started.get('critical') is not True or record.get('context') != context):
+            raise StoreError('invalid-critical-failure-receipt')
+        predecessor = record.get('predecessor_failure_id')
+        if predecessor is not None:
+            prior = self.failure_receipt(predecessor)
+            if (prior is None or prior.get('context') != context or not self._consumption_proves(
+                    record.get('consumption_id'), predecessor, record['execution_id'])):
+                raise StoreError('RETRY_PROOF_MISSING')
+        return record
 
-    def publish_terminal_failure(self, record: dict) -> str:
-        """Persist a terminal failure as immutable authority before projections."""
-        required = {'schema_version', 'evidence_id', 'family_id', 'repository_id', 'profile_hash',
-                    'gate_id', 'pre_fingerprint', 'status', 'critical'}
-        if (not isinstance(record, dict) or not required <= set(record) or record.get('schema_version') != 2 or
-                record.get('status') != 'verification-failed' or type(record.get('critical')) is not bool or
-                record.get('repository_id') != self.repository_id):
-            raise StoreError('invalid-terminal-evidence')
-        path = self.runs / record['family_id'] / record['evidence_id'] / 'terminal.json'
-        return publish_create_once(path, record)
+    def failure_receipt(self, failure_id: str) -> dict | None:
+        _validate_component(failure_id, 'invalid-critical-failure-id')
+        path = self.failures / f'{failure_id}.json'
+        if not path.exists():
+            return None
+        return self._read_failure_receipt(path)
+
+    def _failure_records(self) -> list[dict]:
+        records = []
+        if self.failures.exists():
+            _assert_contained(self.failures, self.root)
+            for path in sorted(self.failures.glob('*.json')):
+                records.append(self._read_failure_receipt(path))
+        # The terminal receipt is the source of truth. Re-materialize a missing
+        # failure receipt deterministically after a crash at that boundary.
+        for terminal in self.reconstruct_execution_terminals(rebuild=False):
+            if terminal.get('result') != 'FAIL' or terminal.get('timed_out') or terminal.get('cancelled'):
+                continue
+            started = self._validated_started(self.executions / terminal['execution_id'])
+            if started.get('critical') is True:
+                expected_id = self._failure_id({
+                    'schema_version': 1, 'protocol': 'critical-failure-v1',
+                    'context': {'repository_id': self.repository_id,
+                        'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
+                        'fingerprint': started.get('input_fingerprint'),
+                        'policy_identity': terminal.get('policy_identity'),
+                        'backend_identity': terminal.get('backend_identity')},
+                    'execution_id': terminal['execution_id'],
+                    'terminal_receipt_hash': terminal['receipt_hash'],
+                    'command_identity': terminal['command_identity'],
+                    'failure_classification': 'CRITICAL_VERIFICATION_FAIL',
+                    'failure_reason': 'verification-command-failed',
+                    'predecessor_failure_id': started.get('predecessor_failure_id'),
+                    'consumption_id': started.get('consumption_id'),
+                })
+                if not (self.failures / f'{expected_id}.json').exists():
+                    self.publish_critical_failure(terminal['execution_id'],
+                        predecessor_failure_id=started.get('predecessor_failure_id'),
+                        consumption_id=started.get('consumption_id'))
+                    receipt = self.failure_receipt(expected_id)
+                    if receipt is None:
+                        raise StoreError('invalid-critical-failure-receipt')
+                    records.append(receipt)
+        return records
+
+    def _resolved_failure_ids(self) -> set[str]:
+        resolved = set()
+        if self.resolutions.exists():
+            _assert_contained(self.resolutions, self.root)
+            for path in sorted(self.resolutions.glob('*.json')):
+                _assert_contained(path, self.root)
+                if path.with_name(path.name + '.publication-uncertain').exists():
+                    raise StoreError('failure-resolution-publication-uncertain')
+                try:
+                    record = json.loads(path.read_text(encoding='utf-8'))
+                except (OSError, ValueError):
+                    raise StoreError('invalid-failure-resolution') from None
+                if (not isinstance(record, dict) or set(record) != {
+                        'schema_version', 'failure_id', 'execution_id', 'terminal_receipt_hash',
+                        'consumption_id', 'result'} or
+                        path.name != f"{record.get('failure_id')}--{record.get('consumption_id')}.json" or
+                        record.get('schema_version') != 1 or record.get('result') != 'PASS'):
+                    raise StoreError('invalid-failure-resolution')
+                failure = self.failure_receipt(record['failure_id'])
+                terminal, _started = self._terminal_for_execution(record['execution_id'])
+                proof = self.validate_retry_proof(record['execution_id'],
+                    required_failure_id=record['failure_id'])
+                if (failure is None or terminal.get('result') != 'PASS' or
+                        terminal.get('receipt_hash') != record['terminal_receipt_hash'] or
+                        proof.get('consumption_id') != record['consumption_id']):
+                    raise StoreError('invalid-failure-resolution')
+                resolved.add(record['failure_id'])
+        return resolved
+
+    def current_failure(self, context: dict) -> dict | None:
+        if not isinstance(context, dict) or context.get('repository_id') != self.repository_id:
+            return None
+        required = {'profile_hash', 'gate_id', 'fingerprint'}
+        if not required <= set(context):
+            return None
+        records = self._failure_records()
+        relevant = [record for record in records if all(record['context'].get(key) == value
+                    for key, value in context.items())]
+        predecessors = {record.get('predecessor_failure_id') for record in relevant
+                        if record.get('predecessor_failure_id')}
+        resolved = self._resolved_failure_ids() | predecessors
+        unresolved = [record for record in relevant if record['failure_id'] not in resolved]
+        if len(unresolved) > 1:
+            raise StoreError('ambiguous-critical-failure-lineage')
+        return unresolved[0] if unresolved else None
+
+    def failure_for_scope(self, context: dict) -> dict | None:
+        """Return the latest immutable failure for a scope, including a PASS-resolved fence.
+
+        A successful authorized retry resolves the current incident and permits
+        evidence reuse, but does not turn its one-shot grant into reusable
+        authority for a later mandatory fresh execution.
+        """
+        if not isinstance(context, dict) or context.get('repository_id') != self.repository_id:
+            return None
+        if not {'profile_hash', 'gate_id', 'fingerprint'} <= set(context):
+            return None
+        relevant = [record for record in self._failure_records()
+                    if all(record['context'].get(key) == value for key, value in context.items())]
+        predecessors = {record.get('predecessor_failure_id') for record in relevant
+                        if record.get('predecessor_failure_id')}
+        tips = [record for record in relevant if record['failure_id'] not in predecessors]
+        if len(tips) > 1:
+            raise StoreError('ambiguous-critical-failure-lineage')
+        return tips[0] if tips else None
+
+    def active_failure_fences(self) -> tuple[dict, ...]:
+        records = self._failure_records()
+        predecessors = {item.get('predecessor_failure_id') for item in records
+                        if item.get('predecessor_failure_id')}
+        # PASS resolution permits reuse, but leaves the historical scope
+        # fenced for a later mandatory fresh execution.
+        return tuple(item for item in records if item['failure_id'] not in predecessors)
+
+    def issue_failure_grant(self, grant_id: str, *, failure_id: str, context: dict,
+                            issuer: str, reason: str) -> dict:
+        _validate_component(grant_id, 'invalid-grant-id')
+        _validate_component(issuer, 'FAILURE_GRANT_AUTHORITY_REQUIRED')
+        _validate_component(reason, 'FAILURE_GRANT_AUTHORITY_REQUIRED')
+        failure = self.failure_receipt(failure_id)
+        current = self.failure_for_scope(context)
+        if failure is None or failure['context'] != context or current is None or current['failure_id'] != failure_id:
+            raise StoreError('FAILURE_GRANT_SCOPE_MISMATCH')
+        semantic = {'schema_version': 1, 'protocol': 'failure-grant-v1', 'grant_id': grant_id,
+                    'failure_id': failure_id, 'context': context,
+                    'terminal_receipt_hash': failure['terminal_receipt_hash'],
+                    'issued_by': issuer, 'reason': reason}
+        record = {**semantic, 'grant_hash': hashlib.sha256(canonical(semantic)).hexdigest()}
+        _assert_contained(self.grants / f'{grant_id}.json', self.root)
+        publish_create_once(self.grants / f'{grant_id}.json', record, fault=self._fault)
+        self._project_grants()
+        return record
+
+    def _grant(self, grant_id: str) -> dict:
+        _validate_component(grant_id, 'invalid-grant-id')
+        path = self.grants / f'{grant_id}.json'
+        _assert_contained(path, self.root)
+        if path.with_name(path.name + '.publication-uncertain').exists():
+            raise StoreError('FAILURE_GRANT_INVALID')
+        try:
+            grant = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            raise StoreError('FAILURE_GRANT_REQUIRED') from None
+        if not isinstance(grant, dict):
+            raise StoreError('FAILURE_GRANT_INVALID')
+        body = {key: value for key, value in grant.items() if key != 'grant_hash'}
+        if (grant.get('schema_version') != 1 or grant.get('protocol') != 'failure-grant-v1' or
+                set(grant) != {'schema_version', 'protocol', 'grant_id', 'failure_id', 'context',
+                               'terminal_receipt_hash', 'issued_by', 'reason', 'grant_hash'} or
+                grant.get('grant_id') != grant_id or grant.get('grant_hash') !=
+                hashlib.sha256(canonical(body)).hexdigest() or
+                not isinstance(grant.get('issued_by'), str) or not grant['issued_by'].strip() or
+                not isinstance(grant.get('reason'), str) or not grant['reason'].strip()):
+            raise StoreError('FAILURE_GRANT_INVALID')
+        return grant
+
+    def consume_failure_grant(self, grant_id: str | None, *, failure_id: str | None,
+                              context: dict, execution_id: str, lock_held: bool = False) -> dict:
+        if not grant_id:
+            raise StoreError('FAILURE_GRANT_REQUIRED')
+        _validate_component(execution_id, 'invalid-execution-identity')
+        with (contextlib.nullcontext() if lock_held else repository_lock(self.root)):
+            grant = self._grant(grant_id)
+            path = self.consumptions / f'{grant_id}.json'
+            if path.exists():
+                raise StoreError('FAILURE_GRANT_CONSUMED')
+            failure = self.failure_for_scope(context)
+            if failure is None:
+                raise StoreError('CRITICAL_FAILURE_FENCE_NOT_ACTIVE')
+            if (failure_id != failure['failure_id'] or grant.get('failure_id') != failure['failure_id'] or
+                    grant.get('context') != context or failure.get('context') != context or
+                    grant.get('terminal_receipt_hash') != failure.get('terminal_receipt_hash')):
+                raise StoreError('FAILURE_GRANT_SCOPE_MISMATCH')
+            semantic = {'schema_version': 1, 'protocol': 'failure-grant-consumption-v1',
+                'consumption_id': 'failure-consumption-sha256-v1:' + hashlib.sha256(canonical({
+                    'grant_id': grant_id, 'failure_id': failure['failure_id'],
+                    'execution_id': execution_id, 'context': context})).hexdigest(),
+                'grant_id': grant_id, 'grant_hash': grant['grant_hash'],
+                'failure_id': failure['failure_id'], 'terminal_receipt_hash': failure['terminal_receipt_hash'],
+                'execution_id': execution_id, 'context': context}
+            record = {**semantic, 'consumption_hash': hashlib.sha256(canonical(semantic)).hexdigest()}
+            _assert_contained(path, self.root)
+            try:
+                publish_create_once(path, record, fault=self._fault)
+            except StoreError as exc:
+                if str(exc) in {'immutable-record-collision', 'immutable-record-unreadable'}:
+                    raise StoreError('FAILURE_GRANT_CONSUMED') from None
+                raise
+            self._project_grants()
+            return record
+
+    def _consumption_proves(self, consumption_id: str, failure_id: str, execution_id: str) -> bool:
+        if not self.consumptions.exists():
+            return False
+        for path in sorted(self.consumptions.glob('*.json')):
+            record = self._read_consumption(path)
+            if (record.get('consumption_id') == consumption_id and record.get('failure_id') == failure_id and
+                    record.get('execution_id') == execution_id):
+                return True
+        return False
+
+    def _read_consumption(self, path: pathlib.Path) -> dict:
+        _assert_contained(path, self.root)
+        if path.with_name(path.name + '.publication-uncertain').exists():
+            raise StoreError('invalid-grant-consumption')
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            raise StoreError('invalid-grant-consumption') from None
+        if not isinstance(record, dict):
+            raise StoreError('invalid-grant-consumption')
+        grant = self._grant(path.stem)
+        body = {key: value for key, value in record.items() if key != 'consumption_hash'}
+        semantic_id = 'failure-consumption-sha256-v1:' + hashlib.sha256(canonical({
+            'grant_id': record.get('grant_id'), 'failure_id': record.get('failure_id'),
+            'execution_id': record.get('execution_id'), 'context': record.get('context')})).hexdigest()
+        if (record.get('schema_version') != 1 or record.get('protocol') != 'failure-grant-consumption-v1' or
+                record.get('grant_id') != path.stem or record.get('grant_hash') != grant.get('grant_hash') or
+                record.get('failure_id') != grant.get('failure_id') or
+                record.get('context') != grant.get('context') or
+                record.get('terminal_receipt_hash') != grant.get('terminal_receipt_hash') or
+                record.get('consumption_id') != semantic_id or
+                record.get('consumption_hash') != hashlib.sha256(canonical(body)).hexdigest()):
+            raise StoreError('invalid-grant-consumption')
+        _validate_component(record.get('execution_id'), 'invalid-grant-consumption')
+        return record
+
+    def grant_consumed(self, grant_id: str) -> bool:
+        self._grant(grant_id)
+        path = self.consumptions / f'{grant_id}.json'
+        if not path.exists():
+            return False
+        self._read_consumption(path)
+        return True
+
+    def validate_started_retry_proof(self, started: dict, *, required_failure_id: str | None = None) -> dict:
+        execution_id = started.get('execution_id')
+        proof = started.get('retry_proof')
+        if not isinstance(proof, dict) or not self._consumption_proves(
+                proof.get('consumption_id'), proof.get('failure_id'), execution_id):
+            raise StoreError('RETRY_PROOF_MISSING')
+        if required_failure_id is not None and proof.get('failure_id') != required_failure_id:
+            raise StoreError('RETRY_PROOF_MISSING')
+        if proof.get('grant_id') is None or not self.grant_consumed(proof['grant_id']):
+            raise StoreError('RETRY_PROOF_MISSING')
+        consumed = self._read_consumption(self.consumptions / f"{proof['grant_id']}.json")
+        expected_context = {'repository_id': self.repository_id,
+            'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
+            'fingerprint': started.get('input_fingerprint'),
+            'policy_identity': started.get('policy_identity'),
+            'backend_identity': started.get('backend_identity')}
+        if (proof.get('grant_hash') != consumed.get('grant_hash') or
+                consumed.get('context') != expected_context or
+                consumed.get('execution_id') != execution_id or
+                started.get('predecessor_failure_id') != proof.get('failure_id') or
+                started.get('consumption_id') != proof.get('consumption_id')):
+            raise StoreError('RETRY_PROOF_MISSING')
+        return proof
+
+    def validate_retry_proof(self, execution_id: str, *, required_failure_id: str | None = None) -> dict:
+        terminal, started = self._terminal_for_execution(execution_id)
+        proof = self.validate_started_retry_proof(started, required_failure_id=required_failure_id)
+        if terminal.get('repository_id') != self.repository_id:
+            raise StoreError('RETRY_PROOF_MISSING')
+        return proof
+
+    def publish_failure_resolution(self, failure_id: str, execution_id: str, *, result: str) -> dict:
+        failure = self.failure_receipt(failure_id)
+        if failure is None or result != 'PASS':
+            raise StoreError('invalid-failure-resolution')
+        terminal, _started = self._terminal_for_execution(execution_id)
+        proof = self.validate_retry_proof(execution_id, required_failure_id=failure_id)
+        if (terminal.get('result') != 'PASS' or proof.get('failure_id') != failure_id or
+                failure.get('context', {}).get('repository_id') != self.repository_id):
+            raise StoreError('RETRY_PROOF_MISSING')
+        body = {'schema_version': 1, 'failure_id': failure_id,
+                'execution_id': execution_id, 'terminal_receipt_hash': terminal['receipt_hash'],
+                'consumption_id': proof['consumption_id'], 'result': 'PASS'}
+        path = self.resolutions / f"{failure_id}--{proof['consumption_id']}.json"
+        publish_create_once(path, body, fault=self._fault)
+        self._project_failures()
+        return body
+
+    def retry_state(self, failure_id: str) -> str:
+        failure = self.failure_receipt(failure_id)
+        if failure is None:
+            raise StoreError('RETRY_PROOF_MISSING')
+        for path in sorted(self.consumptions.glob('*.json')) if self.consumptions.exists() else ():
+            item = self._read_consumption(path)
+            if item.get('failure_id') == failure_id:
+                return 'CONSUMED'
+        return 'AVAILABLE'
+
+    def _project_failures(self) -> None:
+        records = self._failure_records_without_rebuild()
+        superseded = {item.get('predecessor_failure_id') for item in records
+                      if item.get('predecessor_failure_id')}
+        resolved = self._resolved_failure_ids() | superseded
+        tips = [item['failure_id'] for item in records if item['failure_id'] not in superseded]
+        _atomic_replace_projection(self.root / 'state' / 'failure-index.json',
+            {'schema_version': 1, 'failures': [item['failure_id'] for item in records],
+             'unresolved': [item['failure_id'] for item in records
+                            if item['failure_id'] not in resolved],
+             'active_fences': tips}, fault=self._fault)
+
+    def _failure_records_without_rebuild(self) -> list[dict]:
+        if not self.failures.exists():
+            return []
+        return [self._read_failure_receipt(path) for path in sorted(self.failures.glob('*.json'))]
+
+    def _project_grants(self) -> None:
+        grants = []
+        if self.grants.exists():
+            for path in sorted(self.grants.glob('*.json')):
+                item = self._grant(path.stem)
+                grants.append({'grant_id': item['grant_id'], 'failure_id': item['failure_id'],
+                               'consumed': self.grant_consumed(item['grant_id'])})
+        _atomic_replace_projection(self.root / 'state' / 'grant-index.json',
+            {'schema_version': 1, 'grants': grants}, fault=self._fault)
+
+    def rebuild_failure_projections(self) -> None:
+        self._failure_records()
+        self._project_failures()
+        self._project_grants()
