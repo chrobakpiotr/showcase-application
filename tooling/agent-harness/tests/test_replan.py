@@ -905,9 +905,18 @@ class ReplanInfrastructureTest(unittest.TestCase):
         root_id = state['tasks']['T-001']['packet_lineage'][0]['revision_id']
         canonical = harness.revision_path(self.feature, 'T-001', root_id)
         canonical.unlink()
+        active_path = harness.revision_path(self.feature, 'T-001', state['tasks']['T-001']['active_packet_revision'])
+        active_bytes = active_path.read_bytes()
         materialize = argparse.Namespace(feature_dir=self.feature, task_id='T-001')
         expected_lineage = json.dumps(state['tasks']['T-001']['packet_lineage'], sort_keys=True)
         state_bytes = harness.state_path(self.feature).read_bytes()
+        active_packet = json.loads(active_bytes)
+        active_packet['objective'] = 'tampered active packet before materialization'
+        active_path.write_text(json.dumps(active_packet))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_materialize_packet_history(materialize)
+        self.assertFalse(canonical.exists())
+        active_path.write_bytes(active_bytes)
         with redirect_stdout(StringIO()) as first:
             harness.cmd_materialize_packet_history(materialize)
         self.assertIn(harness.sha256_bytes(old_bytes), first.getvalue())
