@@ -331,6 +331,67 @@ class FailureGrantTest(unittest.TestCase):
                 context=self.context, execution_id='retry-2')
         self.assertTrue((self.store.consumptions / 'grant-1.json').is_file())
 
+    def test_e27_tampered_authority_records_fail_closed(self):
+        failure = self.failure()
+        self.grant(failure['failure_id'])
+        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            context=self.context, execution_id='retry-1')
+        started = self.store.executions / 'execution-1' / 'started.json'
+        terminal = self.store.executions / 'execution-1' / 'terminal.json'
+        failure_path = self.store.failures / f"{failure['failure_id']}.json"
+        grant_path = self.store.grants / 'grant-1.json'
+        consumption_path = self.store.consumptions / 'grant-1.json'
+        cases = (
+            (started, lambda record: record.update(input_fingerprint='e' * 64), 'invalid-execution-terminal'),
+            (terminal, lambda record: record.update(result='PASS'), 'invalid-execution-terminal'),
+            (failure_path, lambda record: record.update(failure_reason='tampered'),
+             'invalid-critical-failure-receipt'),
+            (grant_path, lambda record: record.update(reason='tampered'), 'FAILURE_GRANT_INVALID'),
+            (consumption_path, lambda record: record.update(execution_id='other-execution'),
+             'invalid-grant-consumption'),
+        )
+        for path, mutate, reason in cases:
+            with self.subTest(path=path.name):
+                original = path.read_bytes()
+                record = json.loads(original)
+                mutate(record)
+                path.write_text(json.dumps(record))
+                try:
+                    with self.assertRaisesRegex(StoreError, reason):
+                        if path == grant_path:
+                            self.store.grant_consumed('grant-1')
+                        elif path == consumption_path:
+                            self.store.grant_consumed('grant-1')
+                        else:
+                            self.store.current_failure(self.context)
+                finally:
+                    path.write_bytes(original)
+
+    def test_e28_unknown_failure_grant_and_consumption_versions_reject(self):
+        failure = self.failure()
+        grant = self.grant(failure['failure_id'])
+        consumed = self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            context=self.context, execution_id='retry-1')
+        cases = (
+            (self.store.failures / f"{failure['failure_id']}.json", 'schema_version',
+             lambda: self.store.current_failure(self.context), 'invalid-critical-failure-receipt'),
+            (self.store.grants / 'grant-1.json', 'schema_version',
+             lambda: self.store.grant_consumed('grant-1'), 'FAILURE_GRANT_INVALID'),
+            (self.store.consumptions / 'grant-1.json', 'schema_version',
+             lambda: self.store.grant_consumed('grant-1'), 'invalid-grant-consumption'),
+        )
+        for path, field, operation, reason in cases:
+            with self.subTest(path=path.name):
+                original = path.read_bytes()
+                record = json.loads(original)
+                record[field] = 999
+                path.write_text(json.dumps(record))
+                try:
+                    with self.assertRaisesRegex(StoreError, reason):
+                        operation()
+                finally:
+                    path.write_bytes(original)
+
 
 if __name__ == '__main__':
     unittest.main()

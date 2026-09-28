@@ -97,7 +97,10 @@ class VerificationSupervisor:
         if not hasattr(backend, 'prepare'):
             raise SupervisorError('EXECUTION_BACKEND_REQUIRED')
 
-        with repository_lock(self.store.root):
+        # A competing request must observe the in-flight admission and fail
+        # before waiting long enough to become a new, sequential execution.
+        # Recovery remains an explicit operation and may take the normal lock.
+        with repository_lock(self.store.root, timeout=0):
             self._recover_locked(lambda _record: backend, recovery_observer)
             self.store.admit_repository_verification()
             self._crash('after-admission')

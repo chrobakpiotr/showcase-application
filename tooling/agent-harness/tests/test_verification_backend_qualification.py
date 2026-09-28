@@ -2,6 +2,7 @@
 import importlib.util
 import pathlib
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,36 @@ spec.loader.exec_module(vs)
 
 
 class BackendQualificationTest(unittest.TestCase):
+    def test_e33_containment_probe_kills_and_reaps_its_execution_unit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            writable = root / 'writable'
+            writable.mkdir()
+            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
+            process_groups = []
+            real_killpg = os.killpg
+
+            def record_kill(pgid, sig):
+                if sig == signal.SIGKILL:
+                    process_groups.append(pgid)
+                return real_killpg(pgid, sig)
+
+            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]), \
+                 mock.patch.object(vs.os, 'killpg', side_effect=record_kill):
+                result = vs._active_containment_probe(candidate, 'Q05', root, (str(writable),), ())
+            self.assertEqual('PASS', result[0])
+            self.assertEqual(1, len(process_groups))
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline:
+                try:
+                    real_killpg(process_groups[0], 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(.01)
+            else:
+                self.fail('qualification execution-unit process group still exists after cleanup')
+            self.assertEqual([], list(writable.iterdir()))
+
     def test_R1_R16_active_runner_returns_structured_evidence_for_all_checks(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

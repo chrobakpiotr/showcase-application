@@ -90,6 +90,12 @@ class StoreTest(unittest.TestCase):
             main_control, main_id = resolve_control_root(main)
             linked_control, linked_id = resolve_control_root(linked)
             self.assertEqual((main_control, main_id), (linked_control, linked_id))
+            stale_local = linked / '.agent-runs' / 'control' / 'verification-v2'
+            stale_local.mkdir(parents=True)
+            (stale_local / 'authority.json').write_text('stale-local-authority')
+            re_resolved_control, re_resolved_id = resolve_control_root(linked)
+            self.assertEqual((main_control, main_id), (re_resolved_control, re_resolved_id))
+            self.assertNotEqual(stale_local.resolve(), re_resolved_control)
             unrelated = base / 'other'
             unrelated.mkdir()
             subprocess.run(['git', 'init', str(unrelated)], check=True, stdout=subprocess.DEVNULL)

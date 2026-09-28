@@ -6,6 +6,8 @@ import json
 import dataclasses
 import hashlib
 import subprocess
+import threading
+import time
 from types import SimpleNamespace
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -18,6 +20,104 @@ import verification_command
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_e1_competing_repository_admission_rejects_waiting_execution_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            first_entered_launch = threading.Event()
+            release_first_launch = threading.Event()
+
+            class BlockingBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    first_entered_launch.set()
+                    if not release_first_launch.wait(5):
+                        raise AssertionError('test failed to release first launch')
+                    return super().launch(prepared, **kwargs)
+
+            backends = [BlockingBackend(store, root / 'first'), LifecycleBackend(store, root / 'second')]
+            outcomes = []
+            second_started = threading.Event()
+
+            def invoke(index):
+                try:
+                    if index == 1:
+                        second_started.set()
+                    result, _ = VerificationSupervisor(VerificationStore(root, control_root=root / 'control')).execute(
+                        backends[index], worktree=root, family_id=f'family-{index}',
+                        attempt_id=f'attempt-{index}', gate_id='gate', command='python3 -c pass',
+                        cwd=root, run_dir=root / f'run-{index}', timeout_seconds=2, sandbox_mode='required')
+                    outcomes.append(('PASS', result.exit_code))
+                except Exception as exc:
+                    outcomes.append(('REJECTED', str(exc)))
+
+            first = threading.Thread(target=invoke, args=(0,))
+            first.start()
+            self.assertTrue(first_entered_launch.wait(5))
+            second = threading.Thread(target=invoke, args=(1,))
+            second.start()
+            self.assertTrue(second_started.wait(5))
+            time.sleep(0.1)
+            release_first_launch.set()
+            first.join(5)
+            second.join(5)
+
+            self.assertFalse(first.is_alive())
+            self.assertFalse(second.is_alive())
+            self.assertEqual(1, sum(event == 'launch' for backend in backends for event in backend.events))
+            self.assertEqual(1, sum(outcome[0] == 'PASS' for outcome in outcomes))
+            self.assertEqual(1, sum(outcome[0] == 'REJECTED' for outcome in outcomes))
+            self.assertIn(('REJECTED', 'busy'), outcomes)
+            self.assertEqual([], backends[1].events)
+
+    def test_e3_start_and_publication_crashes_recover_without_duplicate_launch(self):
+        for boundary, expected_launches, expected_state in (
+                ('after-admission', 0, None),
+                ('after-started', 0, SupervisorState.ABORTED_PREPARED),
+                ('during-launch', 0, SupervisorState.ABORTED_PREPARED),
+                ('after-launch', 1, SupervisorState.UNCERTAIN),
+                ('after-terminal', 1, SupervisorState.TERMINAL),
+                ('after-evidence-projection', 1, SupervisorState.TERMINAL),
+                ('after-index-projection', 1, SupervisorState.TERMINAL)):
+            with self.subTest(boundary=boundary), tempfile.TemporaryDirectory() as temp:
+                root = pathlib.Path(temp)
+                store = VerificationStore(root, control_root=root / 'control')
+                launch_count = []
+
+                class CountingBackend(LifecycleBackend):
+                    def launch(self, prepared, **kwargs):
+                        launch_count.append('launch')
+                        return super().launch(prepared, **kwargs)
+
+                backend = CountingBackend(store, root / 'unit')
+                supervisor = VerificationSupervisor(store)
+                supervisor.inject_crash_at = boundary
+                with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                    supervisor.execute(backend, worktree=root, family_id='family', attempt_id='attempt',
+                        gate_id='gate', command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                        timeout_seconds=2, sandbox_mode='required')
+
+                fresh_store = VerificationStore(root, control_root=root / 'control')
+                fresh_backend = CountingBackend(fresh_store, root / 'unit')
+                recovery = VerificationSupervisor(fresh_store).recover(
+                    lambda _started: fresh_backend)
+                if expected_state is None:
+                    self.assertEqual((), recovery)
+                else:
+                    self.assertEqual(expected_state, recovery[0].state)
+                self.assertEqual(expected_launches, len(launch_count))
+                second_recovery = VerificationSupervisor(
+                    VerificationStore(root, control_root=root / 'control')).recover(
+                        lambda _started: fresh_backend)
+                if expected_state is SupervisorState.UNCERTAIN:
+                    self.assertEqual(SupervisorState.UNCERTAIN, second_recovery[0].state)
+                    self.assertEqual(recovery[0].reason_code, second_recovery[0].reason_code)
+                else:
+                    self.assertEqual((), second_recovery)
+                self.assertEqual(expected_launches, len(launch_count))
+                if expected_state is SupervisorState.UNCERTAIN:
+                    with self.assertRaisesRegex(StoreError, 'verification-owned'):
+                        fresh_store.admit_repository_verification()
+
     def test_pd3_unresolved_critical_failure_blocks_supervisor_before_prepare(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -110,6 +210,51 @@ class SupervisorTest(unittest.TestCase):
                     profile_hash='profile-hash', input_fingerprint='fingerprint',
                     failure_grant_id='human-grant')
             self.assertNotIn('launch', retry.events)
+
+    def test_e38_full_double_critical_failure_requires_new_grant(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            first_backend = CriticalFailureBackend(store, root / 'first')
+            supervisor.execute(first_backend, worktree=root, family_id='family-1', attempt_id='attempt-1',
+                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
+                timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
+                input_fingerprint='fingerprint', critical=True)
+            context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
+                'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
+                'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
+            first_failure = store.current_failure(context)
+            store.issue_failure_grant('grant-1', failure_id=first_failure['failure_id'], context=context,
+                issuer='test-operator', reason='first-explicit-retry')
+
+            class GrantCheckingCriticalBackend(GrantCheckingBackend):
+                def launch(self, prepared, **kwargs):
+                    if not next(self.store.consumptions.glob('*.json'), None):
+                        raise AssertionError('grant-consumption-after-launch')
+                    self.events.append('consumption-before-launch')
+                    result = LifecycleBackend.launch(self, prepared, **kwargs)
+                    result.exit_code = 1
+                    return result
+
+            second_backend = GrantCheckingCriticalBackend(store, root / 'second')
+            supervisor.execute(second_backend, worktree=root, family_id='family-2', attempt_id='attempt-2',
+                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-2',
+                timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
+                input_fingerprint='fingerprint', critical=True, failure_grant_id='grant-1')
+
+            second_failure = store.current_failure(context)
+            self.assertNotEqual(first_failure['failure_id'], second_failure['failure_id'])
+            self.assertEqual(first_failure['failure_id'], second_failure['predecessor_failure_id'])
+            self.assertTrue(store.grant_consumed('grant-1'))
+            third_backend = LifecycleBackend(store, root / 'third')
+            with self.assertRaisesRegex(RuntimeError, 'FAILURE_GRANT_CONSUMED'):
+                VerificationSupervisor(VerificationStore(root, control_root=root / 'control')).execute(
+                    third_backend, worktree=root, family_id='family-3', attempt_id='attempt-3',
+                    gate_id='critical-gate', command='python3 -c pass', cwd=root, run_dir=root / 'run-3',
+                    timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
+                    input_fingerprint='fingerprint', failure_grant_id='grant-1')
+            self.assertNotIn('launch', third_backend.events)
 
     def test_pc1_callable_runner_is_rejected_before_payload(self):
         with tempfile.TemporaryDirectory() as temp:
