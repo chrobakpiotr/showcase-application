@@ -852,6 +852,7 @@ def completion_authority_dir(feature_dir: pathlib.Path, kind: str, task_id: str)
     if not safe_task_id(task_id) or kind not in {
         'completion-records', 'completion-corrections', 'completion-repair-authorizations',
         'completion-repair-claims', 'completion-repair-records', 'legacy-completion-bindings',
+        'completion-repair-checkpoint-bindings',
     }:
         die('COMPLETION_AUTHORITY_INVALID: unsafe authority path')
     return runtime_state_dir(feature_dir) / kind / feature_dir.name / task_id
@@ -962,6 +963,76 @@ def legacy_binding_as_completion(feature_dir: pathlib.Path, task_id: str,
 def completion_record_id(scheme: str, record: dict[str, Any]) -> str:
     semantic = {key: value for key, value in record.items() if key not in {'record_id', 'created_at'}}
     return f'{scheme}:sha256:{canonical_json_sha256(semantic)}'
+
+
+REPAIR_CHECKPOINT_BINDING_SCHEME = 'completion-repair-checkpoint-binding-v1'
+
+
+def repair_checkpoint_binding_id(record: dict[str, Any]) -> str:
+    semantic = {key: value for key, value in record.items()
+                if key not in {'record_id', 'created_at'}}
+    return f'{REPAIR_CHECKPOINT_BINDING_SCHEME}:sha256:{canonical_json_sha256(semantic)}'
+
+
+def repair_checkpoint_bindings(feature_dir: pathlib.Path, task_id: str) -> list[dict[str, Any]]:
+    directory = completion_authority_dir(feature_dir, 'completion-repair-checkpoint-bindings', task_id)
+    if not directory.exists():
+        return []
+    if directory.is_symlink() or not directory.is_dir():
+        die('REPAIR_CHECKPOINT_BINDING_INVALID: authority directory is unsafe')
+    records = []
+    for path in sorted(directory.glob('*.json')):
+        try:
+            item = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            die(f'REPAIR_CHECKPOINT_BINDING_INVALID: unreadable binding: {exc}')
+        required_strings = ('historical_completion_id', 'correction_id', 'repair_authorization_id',
+                            'repair_claim_id', 'owner', 'operator', 'reason')
+        if (path.is_symlink() or not path.is_file() or not isinstance(item, dict) or
+                item.get('schema_version') != 1 or item.get('record_type') != REPAIR_CHECKPOINT_BINDING_SCHEME or
+                item.get('protocol_version') != protocol_version(feature_dir) or
+                item.get('record_id') != repair_checkpoint_binding_id(item) or
+                path.stem != item['record_id'].rsplit(':', 1)[-1] or
+                item.get('repository_id') != str(git_common_dir(feature_dir)) or
+                item.get('feature') != feature_dir.name or item.get('task') != task_id or
+                any(not isinstance(item.get(key), str) or not item[key].strip() for key in required_strings) or
+                type(item.get('attempt')) is not int or item['attempt'] < 1 or
+                not _valid_completion_commit(item.get('checkpoint')) or
+                not _valid_completion_revision(item.get('packet_revision')) or
+                not _valid_completion_hash(item.get('contract_fingerprint')) or
+                not isinstance(item.get('created_at'), str) or not item['created_at'].strip()):
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: malformed or unsupported binding')
+        records.append(item)
+    by_claim: dict[str, list[dict[str, Any]]] = {}
+    for item in records:
+        by_claim.setdefault(item['repair_claim_id'], []).append(item)
+    if any(len(items) != 1 for items in by_claim.values()):
+        die('REPAIR_CHECKPOINT_BINDING_CONFLICT: multiple bindings exist for repair claim')
+    return records
+
+
+def effective_repair_checkpoint(feature_dir: pathlib.Path, task_id: str, claim: dict[str, Any],
+                                active: dict[str, Any], historical: dict[str, Any],
+                                correction: dict[str, Any], authorization: dict[str, Any]) -> str:
+    # Newer immutable repair claims may carry the checkpoint directly.
+    checkpoint = claim.get('checkpoint')
+    if _valid_completion_commit(checkpoint):
+        return checkpoint
+    candidates = [item for item in repair_checkpoint_bindings(feature_dir, task_id)
+                  if item.get('repair_claim_id') == claim.get('record_id')]
+    if not candidates:
+        die('REPAIR_CHECKPOINT_BINDING_REQUIRED: legacy repair claim has no immutable checkpoint binding')
+    binding, = candidates
+    expected = {
+        'repository_id': str(git_common_dir(feature_dir)), 'feature': feature_dir.name, 'task': task_id,
+        'attempt': claim.get('attempt'), 'historical_completion_id': historical.get('record_id'),
+        'correction_id': correction.get('record_id'), 'repair_authorization_id': authorization.get('record_id'),
+        'repair_claim_id': claim.get('record_id'), 'owner': claim.get('owner'),
+        'packet_revision': active.get('revision_id'), 'contract_fingerprint': active.get('contract_sha256'),
+    }
+    if any(binding.get(key) != value for key, value in expected.items()):
+        die('REPAIR_CHECKPOINT_BINDING_INVALID: binding does not match current repair authority')
+    return binding['checkpoint']
 
 
 def _completion_record_semantics(record: dict[str, Any]) -> dict[str, Any]:
@@ -3679,7 +3750,20 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
                 required_completion_criteria(active_task_contract(args.feature_dir, doc, args.task_id, state=state)),
                 args.feature_dir)
             replay_hash = sha256_bytes(evidence_path.read_bytes())
-            if (not binding_now and not proofs_now and existing.get('evidence_reference_sha256') == replay_hash and
+            replay_claim_id = existing.get('repair_claim_id')
+            replay_claim = next((x for x in repair_claim_records(args.feature_dir, args.task_id)
+                                 if x.get('record_id') == replay_claim_id), None)
+            replay_authorization = next((x for x in repair_authorization_records(args.feature_dir, args.task_id)
+                                         if replay_claim and x.get('record_id') == replay_claim.get('authorization_id')), None)
+            replay_correction = next((x for x in correction_records(args.feature_dir, args.task_id)
+                                      if replay_claim and x.get('record_id') == replay_claim.get('correction_id')), None)
+            replay_historical = next((x for x in completion_records(args.feature_dir, args.task_id)
+                                      if replay_correction and x.get('record_id') == replay_correction.get('original_completion_id')), None)
+            replay_checkpoint = (effective_repair_checkpoint(args.feature_dir, args.task_id, replay_claim,
+                                active_now, replay_historical, replay_correction, replay_authorization)
+                                if all((replay_claim, replay_authorization, replay_correction, replay_historical)) else None)
+            if (not binding_now and not proofs_now and evidence_doc.get('checkpoint') == replay_checkpoint and
+                    existing.get('evidence_reference_sha256') == replay_hash and
                     existing.get('checkpoint') == evidence_doc.get('checkpoint')):
                 print(f'ALREADY_COMPLETED_REPAIR {args.task_id} c2={existing["record_id"]}')
                 return
@@ -3694,15 +3778,6 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
         active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
-        if evidence_doc.get('checkpoint') != entry.get('checkpoint_commit'):
-            binding_errors.append('completion evidence checkpoint does not match repaired checkpoint')
-        if binding_errors:
-            die('COMPLETION_EVIDENCE_BINDING_INVALID: ' + '; '.join(binding_errors))
-        proof_errors = validate_completion_proofs(
-            evidence_doc, task, required_completion_criteria(task), args.feature_dir)
-        if proof_errors:
-            die('COMPLETION_EVIDENCE_INVALID: ' + '; '.join(proof_errors))
-
         claim_id = claim_projection.get('claim_id')
         claims = repair_claim_records(args.feature_dir, args.task_id)
         claim = next((item for item in claims if item.get('record_id') == claim_id), None)
@@ -3729,6 +3804,16 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
                 authorization.get('contract_fingerprint') != active['contract_sha256'] or
                 correction.get('contract_fingerprint') != active['contract_sha256']):
             die('COMPLETION_REPAIR_AUTHORITY_INVALID: exact repair authority mismatch')
+        effective_checkpoint = effective_repair_checkpoint(
+            args.feature_dir, args.task_id, claim, active, historical, correction, authorization)
+        if evidence_doc.get('checkpoint') != effective_checkpoint:
+            binding_errors.append('REPAIR_CHECKPOINT_MISMATCH: evidence checkpoint differs from immutable repair checkpoint authority')
+        if binding_errors:
+            die('COMPLETION_EVIDENCE_BINDING_INVALID: ' + '; '.join(binding_errors))
+        proof_errors = validate_completion_proofs(
+            evidence_doc, task, required_completion_criteria(task), args.feature_dir)
+        if proof_errors:
+            die('COMPLETION_EVIDENCE_INVALID: ' + '; '.join(proof_errors))
         if (effective_task_status(args.feature_dir, args.task_id, entry) != 'correction_required' and
                 not all_repair_records):
             die('COMPLETION_REPAIR_STATE_INVALID: task is not awaiting repair completion')
@@ -3783,6 +3868,82 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
             entry.pop(key, None)
     print(('COMPLETED_REPAIR' if created else 'ALREADY_COMPLETED_REPAIR') +
           f' {args.task_id} c2={record["record_id"]}')
+
+
+def cmd_bind_repair_checkpoint(args: argparse.Namespace) -> None:
+    """Human-attest an immutable checkpoint for an existing legacy repair claim."""
+    args.feature_dir = pathlib.Path(args.feature_dir)
+    doc = load_validated(args.feature_dir)
+    operator, reason, owner = (str(args.by or '').strip(), str(args.reason or '').strip(),
+                               str(args.owner or '').strip())
+    if not operator:
+        die('REPAIR_CHECKPOINT_BINDING_INVALID: explicit operator is required')
+    if not reason:
+        die('REPAIR_CHECKPOINT_BINDING_INVALID: explicit reason is required')
+    if not owner or not _valid_completion_commit(args.checkpoint):
+        die('REPAIR_CHECKPOINT_BINDING_INVALID: owner and full checkpoint commit are required')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'].get(args.task_id)
+        if not entry or entry.get('status') != 'running' or entry.get('attempts') != args.attempt:
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: current task attempt/status differs')
+        projection = entry.get('completion_repair_claim')
+        if not isinstance(projection, dict) or projection.get('claim_id') != args.claim_id or projection.get('owner') != owner:
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: active repair claim/owner differs')
+        active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
+        claim = next((x for x in repair_claim_records(args.feature_dir, args.task_id)
+                      if x.get('record_id') == args.claim_id), None)
+        authorization = next((x for x in repair_authorization_records(args.feature_dir, args.task_id)
+                              if x.get('record_id') == args.authorization_id), None)
+        correction = next((x for x in correction_records(args.feature_dir, args.task_id)
+                           if x.get('record_id') == args.correction_id), None)
+        historical_id = correction.get('original_completion_id') if correction else None
+        historical = next((x for x in completion_records(args.feature_dir, args.task_id)
+                           if x.get('record_id') == historical_id), None)
+        if not all((claim, authorization, correction, historical)):
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: C1/K1/A1/claim chain is incomplete')
+        if (claim.get('owner') != owner or claim.get('attempt') != args.attempt or
+                historical.get('record_id') != args.historical_completion_id or
+                claim.get('correction_id') != correction['record_id'] or
+                claim.get('authorization_id') != authorization['record_id'] or
+                authorization.get('record_id') != args.authorization_id or
+                authorization.get('correction_id') != correction['record_id'] or
+                authorization.get('original_completion_id') != historical['record_id'] or
+                authorization.get('attempt') != args.attempt or
+                correction.get('record_id') != args.correction_id or correction.get('completed_attempt') != args.attempt or
+                correction.get('packet_revision') != active['revision_id'] or
+                authorization.get('packet_revision') != active['revision_id'] or
+                correction.get('contract_fingerprint') != active['contract_sha256'] or
+                authorization.get('contract_fingerprint') != active['contract_sha256']):
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: exact current authority mismatch')
+        if claim.get('checkpoint') is not None:
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: claim already has a canonical checkpoint')
+        if any(x.get('repair_claim_id') == args.claim_id for x in repaired_completion_records(args.feature_dir, args.task_id)):
+            die('REPAIR_CHECKPOINT_BINDING_INVALID: repair is already finalized')
+        existing = [x for x in repair_checkpoint_bindings(args.feature_dir, args.task_id)
+                    if x.get('repair_claim_id') == args.claim_id]
+        if existing:
+            if (existing[0].get('checkpoint') == args.checkpoint and existing[0].get('operator') == operator and
+                    existing[0].get('reason') == reason):
+                print(f'ALREADY_BOUND {args.task_id} binding={existing[0]["record_id"]}')
+                return
+            die('REPAIR_CHECKPOINT_BINDING_CONFLICT: repair claim already has a different binding')
+        record = {
+            'schema_version': 1, 'record_type': REPAIR_CHECKPOINT_BINDING_SCHEME,
+            'repository_id': str(git_common_dir(args.feature_dir)), 'feature': args.feature_dir.name,
+            'task': args.task_id, 'attempt': args.attempt, 'historical_completion_id': historical['record_id'],
+            'correction_id': correction['record_id'], 'repair_authorization_id': authorization['record_id'],
+            'repair_claim_id': claim['record_id'], 'owner': owner, 'checkpoint': args.checkpoint,
+            'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+            'protocol_version': protocol_version(args.feature_dir), 'operator': operator, 'reason': reason,
+        }
+        record['record_id'] = repair_checkpoint_binding_id(record)
+        record['created_at'] = utc_now().isoformat()
+        path = completion_authority_dir(args.feature_dir, 'completion-repair-checkpoint-bindings', args.task_id) / \
+            f"{record['record_id'].rsplit(':', 1)[-1]}.json"
+        _completion_failpoint('repair-checkpoint-binding-before-publication')
+        created = publish_completion_authority(path, record)
+        _completion_failpoint('repair-checkpoint-binding-published')
+    print(('BOUND' if created else 'ALREADY_BOUND') + f' {args.task_id} binding={record["record_id"]}')
 
 
 def cmd_correct_completion(args: argparse.Namespace) -> None:
@@ -4731,6 +4892,21 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--owner', required=True, help='Must match the active immutable repair claim owner')
     s.add_argument('--evidence', required=True, help='Passing completion evidence bound to the active packet and attempt')
     s.set_defaults(func=cmd_complete_repair)
+
+    s = sub.add_parser('bind-repair-checkpoint',
+                       help='Human-attest an immutable checkpoint for a legacy in-flight repair claim')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--attempt', type=int, required=True)
+    s.add_argument('--historical-completion-id', required=True)
+    s.add_argument('--correction-id', required=True)
+    s.add_argument('--authorization-id', required=True)
+    s.add_argument('--claim-id', required=True)
+    s.add_argument('--owner', required=True)
+    s.add_argument('--checkpoint', required=True)
+    s.add_argument('--by', required=True, help='Human operator provenance label')
+    s.add_argument('--reason', required=True)
+    s.set_defaults(func=cmd_bind_repair_checkpoint)
 
     s = sub.add_parser('correct-completion')
     s.add_argument('feature_dir', type=pathlib.Path)
