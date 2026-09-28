@@ -237,7 +237,8 @@ class ReplanInfrastructureTest(unittest.TestCase):
         state = harness._read_state_unlocked_pure(self.feature, self.doc)
         active_id = state['tasks']['T-001']['active_packet_revision']
         new_path = harness.revision_path(self.feature, 'T-001', active_id)
-        old_bytes, new_bytes = old_path.read_bytes(), new_path.read_bytes()
+        canonical_old_path = harness.revision_path(self.feature, 'T-001', state['tasks']['T-001']['packet_lineage'][0]['revision_id'])
+        old_bytes, new_bytes = canonical_old_path.read_bytes(), new_path.read_bytes()
 
         corruptions = ('old_bytes', 'new_bytes', 'old_lineage', 'new_lineage',
                        'multiple_heads', 'missing_active', 'cycle', 'bridge_corruption')
@@ -247,7 +248,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
                 if corruption == 'old_bytes':
                     tampered = json.loads(old_bytes)
                     tampered['objective'] = 'tampered historical contract'
-                    old_path.write_text(json.dumps(tampered))
+                    canonical_old_path.write_text(json.dumps(tampered))
                 elif corruption == 'new_bytes':
                     tampered = json.loads(new_bytes)
                     tampered['objective'] = 'tampered active contract'
@@ -271,10 +272,10 @@ class ReplanInfrastructureTest(unittest.TestCase):
                 with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
                     harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=candidate)
                 if corruption == 'old_bytes':
-                    old_path.write_bytes(old_bytes)
+                    canonical_old_path.write_bytes(old_bytes)
                 if corruption == 'new_bytes' or corruption == 'missing_active':
                     new_path.write_bytes(new_bytes)
-        self.assertEqual(old_bytes, old_path.read_bytes())
+        self.assertEqual(old_bytes, canonical_old_path.read_bytes())
         self.assertEqual(new_bytes, new_path.read_bytes())
 
     def test_new_retry_grant_binds_new_revision_and_only_it_claims_attempt_five(self):
@@ -665,7 +666,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertTrue(lineage[0]['legacy'])
         self.assertEqual(active['revision_id'], lineage[1]['revision_id'])
         self.assertEqual(resolved['revision_id'], lineage[1]['previous_revision'])
-        self.assertEqual(1, len(list((authority / self.feature.name / 'T-001').glob('*.json'))))
+        self.assertEqual(2, len(list((authority / self.feature.name / 'T-001').glob('*.json'))))
 
     def test_replan_preserves_current_state_and_protocol_schema_versions(self):
         args, _packet, _grant_id = self.running_replan_fixture()
@@ -732,7 +733,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertEqual(original_packet, harness.legacy_packet_path(self.feature, 'T-001').read_bytes())
         active = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
         revisions = list((harness.runtime_state_dir(self.feature) / 'packet-revisions' / self.feature.name / 'T-001').glob('*.json'))
-        self.assertEqual(1, len(revisions))
+        self.assertEqual(2, len(revisions))
         proposal = json.loads(pathlib.Path(args.proposed_task_file).read_text())
         proposal['objective'] = 'Conflicting replay'
         pathlib.Path(args.proposed_task_file).write_text(json.dumps(proposal))
@@ -770,7 +771,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertEqual(['ok', 'ok'], sorted(results))
         self.assertEqual(1, len(harness.load_state(self.feature, self.doc)['tasks']['T-001']['replan_requests']))
         revisions = list((harness.runtime_state_dir(self.feature) / 'packet-revisions' / self.feature.name / 'T-001').glob('*.json'))
-        self.assertEqual(1, len(revisions))
+        self.assertEqual(2, len(revisions))
 
     def test_conflicting_replans_serialize_and_one_loses_compare_and_swap(self):
         args, _packet, _grant_id = self.running_replan_fixture()
@@ -832,6 +833,101 @@ class ReplanInfrastructureTest(unittest.TestCase):
         active_linked = harness.resolve_active_packet(linked_feature, self.doc, 'T-001', state=linked_state)
         self.assertEqual(active_main['revision_id'], active_linked['revision_id'])
         self.assertEqual(active_main['path'], active_linked['path'])
+
+    def test_linked_worktree_stale_legacy_packet_cannot_override_materialized_lineage(self):
+        """Materialized lineage owns historical bytes repository-wide, despite local ignored copies."""
+        import subprocess
+        args, old_bytes, _grant_id = self.running_replan_fixture()
+        (self.feature / 'packets' / '.gitignore').write_text('T-001.json\n')
+        subprocess.run(['git', 'add', 'docs/specs/REPLAN-TEST', 'docs/agentic-sdd/agents'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'fixture planning input'], cwd=self.root, check=True)
+        linked_root = self.root.parent / f'{self.root.name}-stale-linked'
+        subprocess.run(['git', 'worktree', 'add', '-q', '-b', 'replan-stale-fixture',
+                        str(linked_root), 'HEAD'], cwd=self.root, check=True)
+        linked_feature = linked_root / 'docs/specs/REPLAN-TEST'
+        linked_legacy = harness.legacy_packet_path(linked_feature, 'T-001')
+        linked_legacy.parent.mkdir(parents=True, exist_ok=True)
+        linked_legacy.write_bytes(old_bytes)
+        harness.cmd_replan_task(args)
+        active_main = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+        stale = json.loads(old_bytes)
+        stale['objective'] = 'Different but internally checksummed stale contract'
+        stale.pop('packet_sha256', None)
+        stale['packet_sha256'] = harness.canonical_packet_payload_sha256(stale)
+        linked_legacy.write_text(json.dumps(stale))
+        active_linked = harness.resolve_active_packet(linked_feature, self.doc, 'T-001')
+        self.assertEqual(active_main['revision_id'], active_linked['revision_id'])
+        self.assertEqual(active_main['contract_sha256'], active_linked['contract_sha256'])
+        linked_legacy.write_text('{malformed ignored bytes')
+        active_malformed = harness.resolve_active_packet(linked_feature, self.doc, 'T-001')
+        self.assertEqual(active_main['revision_id'], active_malformed['revision_id'])
+        linked_legacy.unlink()
+        active_absent = harness.resolve_active_packet(linked_feature, self.doc, 'T-001')
+        self.assertEqual(active_main['revision_id'], active_absent['revision_id'])
+
+    def test_active_packet_and_status_reads_do_not_create_writer_lock(self):
+        args, _old_bytes, _grant_id = self.running_replan_fixture()
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+        state_file = harness.state_path(self.feature)
+        state_before = state_file.read_bytes()
+        lock = harness.lock_path(self.feature)
+        lock.unlink(missing_ok=True)
+        active = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+        self.assertNotEqual('unpublished', active['revision_id'])
+        with redirect_stdout(StringIO()):
+            harness.cmd_status(argparse.Namespace(feature_dir=self.feature, json=True))
+            harness.cmd_packet(argparse.Namespace(feature_dir=self.feature, task_id='T-001',
+                                                   identity=True, stdout=False))
+        self.assertFalse(lock.exists())
+        self.assertEqual(state_before, state_file.read_bytes())
+
+    def test_canonical_legacy_history_materialization_is_verified_and_idempotent(self):
+        args, old_bytes, _grant_id = self.running_replan_fixture()
+        with redirect_stdout(StringIO()):
+            harness.cmd_replan_task(args)
+        state = harness._read_state_unlocked_pure(self.feature, self.doc)
+        root_id = state['tasks']['T-001']['packet_lineage'][0]['revision_id']
+        canonical = harness.revision_path(self.feature, 'T-001', root_id)
+        canonical.unlink()
+        materialize = argparse.Namespace(feature_dir=self.feature, task_id='T-001')
+        expected_lineage = json.dumps(state['tasks']['T-001']['packet_lineage'], sort_keys=True)
+        state_bytes = harness.state_path(self.feature).read_bytes()
+        with redirect_stdout(StringIO()) as first:
+            harness.cmd_materialize_packet_history(materialize)
+        self.assertIn(harness.sha256_bytes(old_bytes), first.getvalue())
+        self.assertEqual(root_id, harness.packet_revision_id(json.loads(canonical.read_text())))
+        with redirect_stdout(StringIO()):
+            harness.cmd_materialize_packet_history(materialize)
+        self.assertEqual(state_bytes, harness.state_path(self.feature).read_bytes())
+        self.assertEqual(expected_lineage, json.dumps(
+            harness._read_state_unlocked_pure(self.feature, self.doc)['tasks']['T-001']['packet_lineage'],
+            sort_keys=True))
+
+    def test_required_legacy_packet_failures_remain_closed(self):
+        state = harness.initial_state(self.feature, self.doc)
+        packet_path = harness.write_packet(self.doc, harness.task_index(self.doc)['T-001'], self.feature)
+        packet = json.loads(packet_path.read_text())
+        revision = harness.packet_revision_id(packet)
+        contract = packet['semantic_contract_sha256']
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker',
+            'attempt_bindings': [{'attempt': 1, 'packet_revision': revision,
+                'contract_sha256': contract, 'binding_status': 'proven', 'bound_at': '2026-01-01T00:00:00Z'}]})
+        harness.save_state(self.feature, state)
+        legacy = harness.legacy_packet_path(self.feature, 'T-001')
+        legacy.unlink()
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+        legacy.write_text('{malformed')
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.resolve_active_packet(self.feature, self.doc, 'T-001')
+        legacy.unlink()
+        packet['objective'] = 'Semantically mismatched local authority'
+        packet['packet_sha256'] = harness.canonical_packet_payload_sha256(packet)
+        legacy.write_text(json.dumps(packet))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.resolve_active_packet(self.feature, self.doc, 'T-001')
 
     def test_replan_races_authorization_start_completion_and_release(self):
         import subprocess
