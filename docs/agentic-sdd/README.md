@@ -825,6 +825,30 @@ python3 tooling/agent-harness/harness.py authorize-retry docs/specs/SHOP-001 T-0
 
 An ordinary `authorize-retry` fails when an unresolved legacy grant requires explicit supersession. The version 2 grant supersedes exactly that historical ID and can then be consumed once.
 
+### Explicit task replan and packet revisions
+
+An accepted contract change for a running task uses `replan-task`. It does not edit the generated legacy packet or increment the attempt count. First put the proposed task object, validated against the accepted task model, in a planning file inside the feature directory. Capture the current compare-and-swap identity:
+
+```bash
+python3 tooling/agent-harness/harness.py packet docs/specs/SHOP-001 T-002 --identity
+```
+
+Then pass that revision/fingerprint and the observed status/attempt count:
+
+```bash
+python3 tooling/agent-harness/harness.py replan-task docs/specs/SHOP-001 T-002 \
+  --expected-status running --expected-attempts 4 \
+  --expected-active-revision "$ACTIVE_REVISION" \
+  --expected-contract-sha256 "$CONTRACT_SHA256" \
+  --proposed-task-file docs/specs/SHOP-001/planning/T-002.json \
+  --reason "Accepted revised execution contract" --by "operator label" \
+  --checkpoint "optional implementation checkpoint"
+```
+
+Revisions are content-addressed and stored in the repository's shared `.agent-state/packet-revisions/` authority directory so linked worktrees resolve the same bytes. Lifecycle state carries the single active revision pointer and an ordered supersession chain. The packet is durably published before that state replacement; an unactivated packet is harmless evidence. The state replacement activates the new revision and records the running attempt's `REPLAN_SUPERSEDED` termination together. Attempt count and consumed authorization history remain unchanged. The next claim requires a new V2 retry grant bound to the new revision and semantic fingerprint. Historical attempts without provable packet identity remain explicitly unbound. Completed tasks are rejected, and replan never marks task completion or unblocks dependencies.
+
+Tasks without a replan continue to use `packets/<TASK>.json`. `packet --identity`, readiness, claims, starts, retry authorization, recovery and orchestration all use the same active resolver. Lifecycle state stays schema version 1; revision and audit fields are optional additions.
+
 ## Crash recovery and leases
 
 `claim`/`start` create a renewable lease. The outer orchestrator heartbeats automatically while a provider/reviewer is
