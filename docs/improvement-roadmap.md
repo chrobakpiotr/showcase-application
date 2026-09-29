@@ -10,7 +10,7 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 
 - `SDD-OBS-001` — Verification & Observability v2: deterministic gate invalidation/reuse/resume,
   structured verification telemetry, role/rework metrics, manual evaluator registration,
-  shared runner/orchestrator verification, README/handbook synchronization and final
+  shared runner/orchestrator verification, README/operator documentation synchronization and final
   independent/master-agent review.
 
 ## Implemented in the hardening patches
