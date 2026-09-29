@@ -1,5 +1,7 @@
 # Agentic Spec-Driven Development in Showcase Application
 
+> **Verification-v2 status:** M5.3 is master-frozen after 16 Design Authority runs; the canonical M5.3 Design Gate did **not** pass. Implementation follows explicit master closure decisions and must not be described as a Design Gate pass. See the [Agentic SDD Harness Handbook](handbook.md) for the current verification-v2 authority model, operator commands, and implemented-versus-not-yet-wired status.
+
 This repository layer adapts spec-driven, multi-agent development to the application's **existing** Java/Spring/hexagonal architecture and CI rather than replacing them. Accepted repository artifacts and deterministic gates remain authoritative; models are bounded workers.
 
 **This is the consolidated Agentic SDD baseline.** It combines Wayfinder-style discovery, adversarial design review, independent verification and bounded multi-agent execution into one repository-native workflow:
