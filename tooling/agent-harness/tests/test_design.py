@@ -18,6 +18,49 @@ spec.loader.exec_module(design)
 
 
 class DesignTest(unittest.TestCase):
+    def test_codex_design_output_schema_uses_closed_objects_and_required_properties(self):
+        schema_path = MODULE_PATH.parent / 'schemas' / 'design-result.schema.json'
+        schema = json.loads(schema_path.read_text(encoding='utf-8'))
+        object_nodes = []
+
+        def visit(node):
+            if isinstance(node, dict):
+                node_type = node.get('type')
+                if node_type == 'object' or isinstance(node_type, list) and 'object' in node_type:
+                    object_nodes.append(node)
+                for value in node.values():
+                    visit(value)
+            elif isinstance(node, list):
+                for value in node:
+                    visit(value)
+
+        visit(schema)
+        self.assertEqual(3, len(object_nodes))
+        for node in object_nodes:
+            self.assertIs(node.get('additionalProperties'), False)
+            self.assertEqual(set(node.get('properties', {})), set(node.get('required', [])))
+
+    def test_design_result_contract_accepts_representative_grill_results(self):
+        base = {
+            'summary': 'Review completed.', 'blocking_questions': [], 'non_blocking_risks': [],
+            'prototype_recommendations': [], 'findings': [], 'changed_paths': [], 'commands': [],
+            'assumptions': [], 'residual_risks': [], 'recommendation': None,
+        }
+        for status in ('pass', 'fail'):
+            design.validate_design_result({'status': status, **base})
+
+        with_recommendation = {
+            **base,
+            'prototype_recommendations': [{
+                'id': None,
+                'question': 'Which approach meets the latency target?',
+                'rationale': None,
+                'decision_criteria': None,
+                'candidates': [{'id': None, 'approach': 'Measure candidate A'}],
+            }],
+        }
+        design.validate_design_result({'status': 'pass', **with_recommendation})
+
     def test_validate_config_accepts_bakeoff(self):
         config = {
             'required_for_orchestration': True,

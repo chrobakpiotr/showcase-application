@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Agentic SDD design-loop result",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
   "required": [
     "status",
     "summary",
@@ -13,7 +13,8 @@
     "changed_paths",
     "commands",
     "assumptions",
-    "residual_risks"
+    "residual_risks",
+    "recommendation"
   ],
   "properties": {
     "status": {"type": "string", "enum": ["pass", "fail", "needs-human"]},
@@ -30,26 +31,26 @@
       "type": "array",
       "items": {
         "type": "object",
-        "additionalProperties": true,
-        "required": ["question"],
+        "additionalProperties": false,
+        "required": ["id", "question", "rationale", "decision_criteria", "candidates"],
         "properties": {
-          "id": {"type": "string"},
+          "id": {"type": ["string", "null"]},
           "question": {"type": "string", "minLength": 1},
-          "rationale": {"type": "string"},
-          "decision_criteria": {"type": "array", "items": {"type": "string"}},
+          "rationale": {"type": ["string", "null"]},
+          "decision_criteria": {"type": ["array", "null"], "items": {"type": "string"}},
           "candidates": {
-            "type": "array",
+            "type": ["array", "null"],
             "items": {
-              "oneOf": [
+              "anyOf": [
                 {"type": "string"},
                 {
                   "type": "object",
-                  "required": ["approach"],
+                  "additionalProperties": false,
+                  "required": ["id", "approach"],
                   "properties": {
-                    "id": {"type": "string"},
+                    "id": {"type": ["string", "null"]},
                     "approach": {"type": "string"}
-                  },
-                  "additionalProperties": true
+                  }
                 }
               ]
             }
