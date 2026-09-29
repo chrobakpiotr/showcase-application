@@ -1,0 +1,161 @@
+{
+  "assumptions": [],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "486309bffa844f06830b18833a4368e64e05633a",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_benchmark.py tooling/agent-harness/tests/test_verification_parity.py -v"
+  ],
+  "contract_fingerprint": "78c4cb15e39a85bf9e1fa3b0b38b714c23769c94c2cfe2454efa5f7a9a9a257e",
+  "criterion_results": {
+    "AC-OBS-005": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-012": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-013": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-017": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-027": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-031": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-034": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-035": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-009": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-011": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-012": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-013": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-014": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_benchmark.py tooling/agent-harness/tests/test_verification_parity.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/final-closure/checks/T006.stderr.txt",
+      "stdout": ".agent-runs/final-closure/checks/T006.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:b01f1fa87779c7ebb375c08475c0932a20ddd124045f777296453504d03ce459",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "37ce8567c07c5998376af9657dfd05172d792c2444c66d46662efef2736a51a7",
+      "criteria": [
+        "AC-OBS-005",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-027",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "VC-009",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-026",
+        "VC-030"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "42689680cafb4cc5371a13b7ecae62c5389350644a858ee6b6088ff347ed2887",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pichroba/IdeaProjects/personal/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-006 declared verification passed on the committed implementation checkpoint.",
+  "task": "T-006"
+}

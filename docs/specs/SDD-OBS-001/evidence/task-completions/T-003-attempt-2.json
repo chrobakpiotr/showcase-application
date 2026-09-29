@@ -1,0 +1,119 @@
+{
+  "assumptions": [],
+  "attempt": 2,
+  "changed_paths": [],
+  "checkpoint": "486309bffa844f06830b18833a4368e64e05633a",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v"
+  ],
+  "contract_fingerprint": "2a884085c28c84444f549ecb7926ae8b32a4237dda6672feddedbd70ee1fbd19",
+  "criterion_results": {
+    "AC-OBS-001": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-006": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-015": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-017": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-035": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-010": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-015": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-016": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-017": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/task-verification/SDD-OBS-001/T-003/attempt-2/command-0.stderr.txt",
+      "stdout": ".agent-runs/task-verification/SDD-OBS-001/T-003/attempt-2/command-0.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:ef9a56af6a8d0fb719e3b9686343f771e7852b30f22bc4de3f769abdee3a085e",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "568d13b7f789ce4053b4b65498287b6b649d0ec34f35d25ac731daff7da66780",
+      "criteria": [
+        "AC-OBS-001",
+        "AC-OBS-006",
+        "AC-OBS-015",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-029",
+        "AC-OBS-035",
+        "VC-010",
+        "VC-015",
+        "VC-016",
+        "VC-017"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "fe82988fbd6168967a36cf6933a3832832d77e891a71f5dd17e2ce631a4bf62d",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pichroba/IdeaProjects/personal/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-003 declared verification passed on the committed implementation checkpoint.",
+  "task": "T-003"
+}

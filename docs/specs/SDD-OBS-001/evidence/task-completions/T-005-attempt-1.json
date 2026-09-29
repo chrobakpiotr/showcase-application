@@ -1,0 +1,161 @@
+{
+  "assumptions": [],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "486309bffa844f06830b18833a4368e64e05633a",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v"
+  ],
+  "contract_fingerprint": "6fb6ecb7bd9f7497aaf272a612cca07d13dac660277c9896c0a28f733f721a7b",
+  "criterion_results": {
+    "AC-OBS-019": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-020": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-021": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-022": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-023": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-032": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-033": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-036": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-037": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-019": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-020": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-021": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-022": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-023": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-025": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/task-verification/SDD-OBS-001/T-005/attempt-1/command-0.stderr.txt",
+      "stdout": ".agent-runs/task-verification/SDD-OBS-001/T-005/attempt-1/command-0.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:85f874842be7fff1c72aded2b6f4af46e00c348ce1613f78f2177b1d7d034678",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "b126f86f3cd0558e9892fd2d39eba6d909eed342acbc0a30ccae6e06809f21e2",
+      "criteria": [
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-026",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "86bb76596ecc0dcd513245e8641c4c9229eca3f119f09f1c61bd3eba70438b5d",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pichroba/IdeaProjects/personal/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-005 declared verification passed on the committed implementation checkpoint.",
+  "task": "T-005"
+}

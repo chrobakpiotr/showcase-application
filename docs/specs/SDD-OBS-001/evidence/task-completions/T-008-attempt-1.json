@@ -1,0 +1,115 @@
+{
+  "assumptions": [],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "486309bffa844f06830b18833a4368e64e05633a",
+  "commands": [
+    "python3 tooling/scripts/check_markdown_links.py",
+    "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+  ],
+  "contract_fingerprint": "f0ad1745c5b93f4f0dbffb0393de910f78d23d137ee5f060fc70bac60ceae633",
+  "criterion_results": {
+    "AC-OBS-028": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-038": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-024": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-028": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-031": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 tooling/scripts/check_markdown_links.py",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/final-closure/checks/T008-links.stderr.txt",
+      "stdout": ".agent-runs/final-closure/checks/T008-links.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/final-closure/checks/T008-pdf.stderr.txt",
+      "stdout": ".agent-runs/final-closure/checks/T008-pdf.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:c59ecd14eee5adc97a858c594eb1c969257299f3b7be72554fb2b26ff96eb11c",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "ae2828845ccc5d76463203194e87b9e939f25756a0a118fe71d130bddf8c23b1",
+      "criteria": [
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-028",
+        "VC-031"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "9cab8fc5bfd6c8c774318d472c2b2431d87e9821fa757647ca84b89ef2c9246c",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "216a4d7f19cc6111de8f5f4e41b785ec6c586547c69ae96e88d164d04d14b279",
+      "criteria": [
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-028",
+        "VC-031"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "a89fa6c7a4defd37ea1138ce2879b2e3ac9a8b98a3dbe6a9111a03bfc8b003cf",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pichroba/IdeaProjects/personal/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-008 Markdown and generated PDF validation passed.",
+  "task": "T-008"
+}
