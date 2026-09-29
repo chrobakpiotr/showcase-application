@@ -693,10 +693,10 @@ time.sleep(30)
 '''
     child = [sys.executable, '-c', leaf, mode, str(pid_file)]
     if check_id == 'Q06':
-        code = ('import subprocess,sys,time; p=subprocess.Popen([sys.executable,"-c",' +
-                repr('import subprocess,sys,time; p=subprocess.Popen(sys.argv[1:]); open(sys.argv[-1],"w").write(str(p.pid)); time.sleep(30)') +
-                ',*sys.argv[1:]]); time.sleep(30)')
-        argv = [sys.executable, '-c', code, *child, str(pid_file)]
+        inner = 'import subprocess,sys,time; subprocess.Popen(sys.argv[1:]); time.sleep(30)'
+        outer = ('import subprocess,sys,time; subprocess.Popen([sys.executable,"-c",' +
+                 repr(inner) + ',*sys.argv[1:]]); time.sleep(30)')
+        argv = [sys.executable, '-c', outer, *child]
     elif check_id == 'Q10':
         shell = 'sleep 30 & echo $! > "$1"; exit 0'
         code = ('import subprocess,sys; subprocess.run(["/bin/sh","-c",sys.argv[1],"probe",sys.argv[2]])')
