@@ -237,7 +237,8 @@ def publish_create_once(path: pathlib.Path, record: dict, *, fault=None) -> str:
 
 
 class VerificationStore:
-    def __init__(self, repository: str | pathlib.Path, *, control_root: pathlib.Path | None = None):
+    def __init__(self, repository: str | pathlib.Path, *, control_root: pathlib.Path | None = None,
+                 issuer_registry: pathlib.Path | None = None):
         # An explicit control root is only a test seam; identity always follows
         # the canonical Git common-dir model used by the repository harness.
         if control_root is None:
@@ -247,6 +248,8 @@ class VerificationStore:
             # Production entry points omit this argument and require Git identity.
             repository_id = hashlib.sha256(str(pathlib.Path(repository).resolve()).encode()).hexdigest()
         self.root = pathlib.Path(control_root).resolve()
+        self.issuer_registry = (pathlib.Path(issuer_registry) if issuer_registry is not None else
+            pathlib.Path(__file__).resolve().parents[1] / 'human-issuer-registry.json')
         self.repository_id = repository_id
         self.executions = self.root / 'executions'
         self.runs = self.root / 'runs'
@@ -254,11 +257,68 @@ class VerificationStore:
         self.resolutions = self.root / 'failure-resolutions'
         self.grants = self.root / 'grants'
         self.consumptions = self.root / 'consumptions'
+        self.plans = self.root / 'plans'
         self._fault_injector = None
 
     def _fault(self, boundary: str) -> None:
         if self._fault_injector:
             self._fault_injector(boundary)
+
+    def publish_plan_record(self, record: dict) -> dict:
+        """Publish a content-addressed immutable plan; this is subordinate only."""
+        required = {'schema_version', 'plan_id', 'feature_id', 'task_id', 'task_attempt', 'feature_fingerprint',
+                    'lifecycle_generation', 'family', 'profile_id', 'profile_hash',
+                    'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id',
+                    'origin_binding', 'obligations', 'execution_units', 'task_commands'}
+        if not isinstance(record, dict) or set(record) != required or record.get('schema_version') != 1:
+            raise StoreError('invalid-verification-plan')
+        body = {key: value for key, value in record.items() if key != 'plan_id'}
+        expected = 'verification-plan-v1:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
+        if record.get('plan_id') != expected:
+            raise StoreError('invalid-verification-plan-identity')
+        _validate_component(record['feature_id'], 'invalid-verification-plan')
+        _validate_component(record['task_id'], 'invalid-verification-plan')
+        if (type(record.get('lifecycle_generation')) is not int or record['lifecycle_generation'] < 1 or
+                type(record.get('task_attempt')) is not int or record['task_attempt'] < 1 or
+                not isinstance(record.get('obligations'), list) or not record['obligations'] or
+                not isinstance(record.get('execution_units'), list) or not record['execution_units'] or
+                not isinstance(record.get('task_commands'), list) or
+                any(not isinstance(item, dict) or set(item) != {'command', 'cwd'} or
+                    not isinstance(item['command'], str) or not isinstance(item['cwd'], str)
+                    for item in record['task_commands'])):
+            raise StoreError('invalid-verification-plan')
+        obligation_ids = [item.get('obligation_id') for item in record['obligations']
+                          if isinstance(item, dict)]
+        if (len(obligation_ids) != len(record['obligations']) or len(set(obligation_ids)) != len(obligation_ids) or
+                any(not isinstance(item, str) or not item for item in obligation_ids)):
+            raise StoreError('invalid-verification-plan-obligations')
+        member_ids = []
+        for unit in record['execution_units']:
+            if (not isinstance(unit, dict) or set(unit) != {'unit_id', 'obligation_ids'} or
+                    not isinstance(unit['unit_id'], str) or not unit['unit_id'] or
+                    not isinstance(unit['obligation_ids'], list) or not unit['obligation_ids']):
+                raise StoreError('invalid-verification-plan-unit')
+            member_ids.extend(unit['obligation_ids'])
+        if sorted(member_ids) != sorted(obligation_ids):
+            raise StoreError('invalid-verification-plan-membership')
+        path = self.plans / (hashlib.sha256(record['plan_id'].encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        publish_create_once(path, record, fault=self._fault)
+        return record
+
+    def load_plan_record(self, plan_id: str) -> dict:
+        if not isinstance(plan_id, str) or not plan_id.startswith('verification-plan-v1:sha256:'):
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_REQUIRED')
+        path = self.plans / (hashlib.sha256(plan_id.encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        try:
+            record = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            raise StoreError('ACCEPTED_PLAN_UNAVAILABLE') from None
+        self.publish_plan_record(record)
+        if record.get('plan_id') != plan_id:
+            raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
+        return record
 
     def _validated_started(self, directory: pathlib.Path) -> dict:
         if not directory.is_dir() or directory.is_symlink() or not _SAFE_COMPONENT.fullmatch(directory.name):
@@ -412,7 +472,9 @@ class VerificationStore:
         actual = hashlib.sha256(canonical(record)).hexdigest()
         record['receipt_hash'] = supplied
         if (supplied != actual or record.get('execution_id') != started['execution_id'] or
-                record.get('repository_id') != self.repository_id or record.get('drainage') != 'DRAINED'):
+                record.get('repository_id') != self.repository_id or record.get('drainage') != 'DRAINED' or
+                record.get('candidate_identity') != started.get('candidate_identity') or
+                record.get('final_changed_surface_id') != started.get('final_changed_surface_id')):
             raise StoreError('invalid-execution-terminal')
         if (started.get('predecessor_failure_id') is not None or
                 started.get('consumption_id') is not None or started.get('retry_proof') is not None):
@@ -514,7 +576,8 @@ class VerificationStore:
                     'stdout_hash', 'stderr_hash',
                     'post_observation', 'result', 'ended_at'}
         if (not isinstance(record, dict) or set(record) - (required | {'receipt_hash', 'verification_evidence',
-                                                                       'retry_policy_proof', 'harness_invocation_upper_bound'}) or
+                'retry_policy_proof', 'harness_invocation_upper_bound', 'candidate_identity',
+                'final_changed_surface_id'}) or
                 not required <= set(record) or record.get('schema_version') != 1 or
                 record.get('repository_id') != self.repository_id or
                 record.get('drainage') != 'DRAINED' or type(record.get('timed_out')) is not bool or
@@ -530,6 +593,11 @@ class VerificationStore:
                 (not captured and (record.get('result') != 'ABORTED' or hashes != (None, None)))):
             raise StoreError('invalid-execution-terminal')
         _validate_component(record.get('execution_id'), 'invalid-execution-terminal')
+        if 'candidate_identity' in record:
+            started = self._validated_started(self.executions / record['execution_id'])
+            if (record.get('candidate_identity') != started.get('candidate_identity') or
+                    record.get('final_changed_surface_id') != started.get('final_changed_surface_id')):
+                raise StoreError('invalid-execution-terminal')
         evidence = record.get('verification_evidence')
         if evidence is not None:
             _validate_component(record.get('execution_id'), 'invalid-execution-terminal')
@@ -737,16 +805,11 @@ class VerificationStore:
             predecessor_failure_id = started.get('predecessor_failure_id')
         if consumption_id is None:
             consumption_id = started.get('consumption_id')
-        context = {
-            'repository_id': self.repository_id,
-            'profile_hash': started.get('profile_hash'),
-            'gate_id': started.get('gate_id'),
+        context = {'repository_id': self.repository_id,
+            'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
             'fingerprint': started.get('input_fingerprint'),
             'policy_identity': terminal.get('policy_identity'),
-            'backend_identity': terminal.get('backend_identity'),
-        }
-        if not all(isinstance(context.get(key), str) and context[key] for key in context):
-            raise StoreError('invalid-critical-failure-context')
+            'backend_identity': terminal.get('backend_identity')}
         if predecessor_failure_id is not None:
             predecessor = self.failure_receipt(predecessor_failure_id)
             if (predecessor is None or predecessor['context'] != context or not consumption_id or
@@ -824,13 +887,14 @@ class VerificationStore:
                 continue
             started = self._validated_started(self.executions / terminal['execution_id'])
             if started.get('critical') is True:
+                context = {'repository_id': self.repository_id,
+                    'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
+                    'fingerprint': started.get('input_fingerprint'),
+                    'policy_identity': terminal.get('policy_identity'),
+                    'backend_identity': terminal.get('backend_identity')}
                 expected_id = self._failure_id({
                     'schema_version': 1, 'protocol': 'critical-failure-v1',
-                    'context': {'repository_id': self.repository_id,
-                        'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
-                        'fingerprint': started.get('input_fingerprint'),
-                        'policy_identity': terminal.get('policy_identity'),
-                        'backend_identity': terminal.get('backend_identity')},
+                    'context': context,
                     'execution_id': terminal['execution_id'],
                     'terminal_receipt_hash': terminal['receipt_hash'],
                     'command_identity': terminal['command_identity'],
@@ -886,7 +950,7 @@ class VerificationStore:
             return None
         records = self._failure_records()
         relevant = [record for record in records if all(record['context'].get(key) == value
-                    for key, value in context.items())]
+                    for key, value in context.items() if key in required)]
         predecessors = {record.get('predecessor_failure_id') for record in relevant
                         if record.get('predecessor_failure_id')}
         resolved = self._resolved_failure_ids() | predecessors
@@ -906,8 +970,10 @@ class VerificationStore:
             return None
         if not {'profile_hash', 'gate_id', 'fingerprint'} <= set(context):
             return None
+        required = {'profile_hash', 'gate_id', 'fingerprint'}
         relevant = [record for record in self._failure_records()
-                    if all(record['context'].get(key) == value for key, value in context.items())]
+                    if all(record['context'].get(key) == value for key, value in context.items()
+                           if key in required)]
         predecessors = {record.get('predecessor_failure_id') for record in relevant
                         if record.get('predecessor_failure_id')}
         tips = [record for record in relevant if record['failure_id'] not in predecessors]
@@ -923,20 +989,32 @@ class VerificationStore:
         # fenced for a later mandatory fresh execution.
         return tuple(item for item in records if item['failure_id'] not in predecessors)
 
-    def issue_failure_grant(self, grant_id: str, *, failure_id: str, context: dict,
-                            issuer: str, reason: str) -> dict:
+    def issue_failure_grant(self, *_args, **_kwargs) -> dict:
+        """Automation cannot issue grants; use import_failure_grant for a signed envelope."""
+        raise StoreError('FAILURE_GRANT_AUTHORITY_REQUIRED')
+
+    def import_failure_grant(self, envelope: dict) -> dict:
+        """Verify an externally signed human grant and publish it immutably."""
+        from .human_grants import HumanGrantError, verify_grant
+        try:
+            grant = verify_grant(envelope, self.issuer_registry)
+        except HumanGrantError as exc:
+            raise StoreError(str(exc)) from None
+        grant_id = grant.get('grant_id')
+        failure_id = grant.get('failure_id')
+        context = grant.get('context')
         _validate_component(grant_id, 'invalid-grant-id')
-        _validate_component(issuer, 'FAILURE_GRANT_AUTHORITY_REQUIRED')
-        _validate_component(reason, 'FAILURE_GRANT_AUTHORITY_REQUIRED')
         failure = self.failure_receipt(failure_id)
         current = self.failure_for_scope(context)
-        if failure is None or failure['context'] != context or current is None or current['failure_id'] != failure_id:
+        retry_scope = grant.get('retry_scope')
+        if (failure is None or failure['context'] != context or current is None or current['failure_id'] != failure_id or
+                not isinstance(retry_scope, dict) or retry_scope.get('gate_id') != context.get('gate_id') or
+                retry_scope.get('profile_hash') != context.get('profile_hash') or
+                retry_scope.get('fence_fingerprint') != context.get('fingerprint')):
             raise StoreError('FAILURE_GRANT_SCOPE_MISMATCH')
-        semantic = {'schema_version': 1, 'protocol': 'failure-grant-v1', 'grant_id': grant_id,
-                    'failure_id': failure_id, 'context': context,
-                    'terminal_receipt_hash': failure['terminal_receipt_hash'],
-                    'issued_by': issuer, 'reason': reason}
-        record = {**semantic, 'grant_hash': hashlib.sha256(canonical(semantic)).hexdigest()}
+        if grant.get('terminal_receipt_hash') != failure['terminal_receipt_hash']:
+            raise StoreError('FAILURE_GRANT_SCOPE_MISMATCH')
+        record = grant
         _assert_contained(self.grants / f'{grant_id}.json', self.root)
         publish_create_once(self.grants / f'{grant_id}.json', record, fault=self._fault)
         self._project_grants()
@@ -954,19 +1032,24 @@ class VerificationStore:
             raise StoreError('FAILURE_GRANT_REQUIRED') from None
         if not isinstance(grant, dict):
             raise StoreError('FAILURE_GRANT_INVALID')
-        body = {key: value for key, value in grant.items() if key != 'grant_hash'}
-        if (grant.get('schema_version') != 1 or grant.get('protocol') != 'failure-grant-v1' or
-                set(grant) != {'schema_version', 'protocol', 'grant_id', 'failure_id', 'context',
-                               'terminal_receipt_hash', 'issued_by', 'reason', 'grant_hash'} or
-                grant.get('grant_id') != grant_id or grant.get('grant_hash') !=
-                hashlib.sha256(canonical(body)).hexdigest() or
-                not isinstance(grant.get('issued_by'), str) or not grant['issued_by'].strip() or
-                not isinstance(grant.get('reason'), str) or not grant['reason'].strip()):
+        from .human_grants import HumanGrantError, verify_grant
+        envelope = {key: grant.get(key) for key in ('schema_version', 'protocol', 'grant_id', 'failure_id',
+            'context', 'retry_scope', 'terminal_receipt_hash', 'issuer_id', 'authorizer_principal', 'justification',
+            'issued_at', 'signature')}
+        try:
+            verified = verify_grant(envelope, self.issuer_registry)
+        except HumanGrantError:
+            raise StoreError('FAILURE_GRANT_INVALID') from None
+        if (grant.get('protocol') != 'critical-gate-retry-grant-v1' or grant.get('grant_id') != grant_id or
+                grant.get('grant_hash') != verified.get('grant_hash') or
+                grant.get('issued_by') != verified.get('issued_by') or
+                grant.get('reason') != verified.get('reason')):
             raise StoreError('FAILURE_GRANT_INVALID')
         return grant
 
     def consume_failure_grant(self, grant_id: str | None, *, failure_id: str | None,
-                              context: dict, execution_id: str, lock_held: bool = False) -> dict:
+                              context: dict, retry_scope: dict, execution_id: str,
+                              lock_held: bool = False) -> dict:
         if not grant_id:
             raise StoreError('FAILURE_GRANT_REQUIRED')
         _validate_component(execution_id, 'invalid-execution-identity')
@@ -979,16 +1062,18 @@ class VerificationStore:
             if failure is None:
                 raise StoreError('CRITICAL_FAILURE_FENCE_NOT_ACTIVE')
             if (failure_id != failure['failure_id'] or grant.get('failure_id') != failure['failure_id'] or
-                    grant.get('context') != context or failure.get('context') != context or
+                    grant.get('context') != failure.get('context') or failure.get('context') != context or
+                    grant.get('retry_scope') != retry_scope or
                     grant.get('terminal_receipt_hash') != failure.get('terminal_receipt_hash')):
                 raise StoreError('FAILURE_GRANT_SCOPE_MISMATCH')
             semantic = {'schema_version': 1, 'protocol': 'failure-grant-consumption-v1',
                 'consumption_id': 'failure-consumption-sha256-v1:' + hashlib.sha256(canonical({
                     'grant_id': grant_id, 'failure_id': failure['failure_id'],
-                    'execution_id': execution_id, 'context': context})).hexdigest(),
+                    'execution_id': execution_id, 'context': context,
+                    'retry_scope': retry_scope})).hexdigest(),
                 'grant_id': grant_id, 'grant_hash': grant['grant_hash'],
                 'failure_id': failure['failure_id'], 'terminal_receipt_hash': failure['terminal_receipt_hash'],
-                'execution_id': execution_id, 'context': context}
+                'execution_id': execution_id, 'context': context, 'retry_scope': retry_scope}
             record = {**semantic, 'consumption_hash': hashlib.sha256(canonical(semantic)).hexdigest()}
             _assert_contained(path, self.root)
             try:
@@ -1024,11 +1109,13 @@ class VerificationStore:
         body = {key: value for key, value in record.items() if key != 'consumption_hash'}
         semantic_id = 'failure-consumption-sha256-v1:' + hashlib.sha256(canonical({
             'grant_id': record.get('grant_id'), 'failure_id': record.get('failure_id'),
-            'execution_id': record.get('execution_id'), 'context': record.get('context')})).hexdigest()
+            'execution_id': record.get('execution_id'), 'context': record.get('context'),
+            'retry_scope': record.get('retry_scope')})).hexdigest()
         if (record.get('schema_version') != 1 or record.get('protocol') != 'failure-grant-consumption-v1' or
                 record.get('grant_id') != path.stem or record.get('grant_hash') != grant.get('grant_hash') or
                 record.get('failure_id') != grant.get('failure_id') or
                 record.get('context') != grant.get('context') or
+                record.get('retry_scope') != grant.get('retry_scope') or
                 record.get('terminal_receipt_hash') != grant.get('terminal_receipt_hash') or
                 record.get('consumption_id') != semantic_id or
                 record.get('consumption_hash') != hashlib.sha256(canonical(body)).hexdigest()):
@@ -1061,6 +1148,8 @@ class VerificationStore:
             'policy_identity': started.get('policy_identity'),
             'backend_identity': started.get('backend_identity')}
         if (proof.get('grant_hash') != consumed.get('grant_hash') or
+                proof.get('retry_scope') != consumed.get('retry_scope') or
+                started.get('retry_scope') != consumed.get('retry_scope') or
                 consumed.get('context') != expected_context or
                 consumed.get('execution_id') != execution_id or
                 started.get('predecessor_failure_id') != proof.get('failure_id') or

@@ -4,6 +4,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / 'runner.py'
 spec = importlib.util.spec_from_file_location('sdd_runner', MODULE_PATH)
@@ -166,7 +167,7 @@ class RunnerTest(unittest.TestCase):
             self.assertIn('Use SKU as stable key', prompt)
 
 
-    def test_verification_rejects_content_mutation_when_changed_paths_are_unchanged(self):
+    def test_runner_without_lifecycle_accepted_plan_fails_closed_before_payload(self):
         import subprocess
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as out_tmp:
             root = pathlib.Path(tmp)
@@ -189,9 +190,26 @@ class RunnerTest(unittest.TestCase):
             ok, results = runner.run_verification(packet, root, out, 30, sandbox_mode='off')
 
             self.assertFalse(ok)
-            self.assertTrue(results[-1].get('worktree_mutated'))
+            self.assertEqual('verification-blocked', results[-1]['machine_category'])
+            self.assertEqual('VERIFICATION_EXECUTION_PLAN_REQUIRED', results[-1]['reason_code'])
             self.assertEqual(['a.txt'], before_paths)
             self.assertEqual(before_paths, runner.git_changed_paths(root))
+
+    def test_runner_consumes_only_the_supplied_accepted_plan(self):
+        import json
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            completed = subprocess.CompletedProcess([], 0,
+                json.dumps({'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:test'}), '')
+            with mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
+                ok, results = runner.run_verification({}, root, root, 30,
+                    accepted_plan_id='verification-plan-v1:sha256:test')
+            self.assertTrue(ok)
+            self.assertEqual('PASS', results[0]['outcome'])
+            command = run.call_args.args[0]
+            self.assertIn('--plan-id', command)
+            self.assertNotIn('--base', command)
 
 
 

@@ -22,6 +22,12 @@ spec.loader.exec_module(vs)
 
 
 class BackendQualificationTest(unittest.TestCase):
+    def test_process_birth_identity_is_precise_on_current_host(self):
+        import os
+        identity = vs.PosixProcessGroupBackend._birth_identity(os.getpid())
+        self.assertTrue(identity.endswith(f':{os.getpid()}'))
+        self.assertGreaterEqual(len(identity.split(':')), 2)
+
     def test_e33_containment_probe_kills_and_reaps_its_execution_unit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

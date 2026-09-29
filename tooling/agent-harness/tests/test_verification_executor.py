@@ -31,14 +31,14 @@ class ExecutorTest(unittest.TestCase):
         }]})
         self.family = Family('family-1', self.base, 'integration', self.profile.content_hash, 'b' * 40)
 
-    def test_environment_requirement_is_error_and_identity_is_preserved(self):
+    def test_environment_requirement_is_blocked_and_identity_is_preserved(self):
         plan = build_plan(self.root, self.profile, self.family)
         store = VerificationStore(self.root, control_root=self.root / 'control')
         result = execute_plan(self.root, self.profile, plan, store=store, sandbox_mode='off')
-        self.assertEqual('ERROR', result.outcome)
+        self.assertEqual('verification-blocked', result.outcome)
         self.assertEqual(self.profile.content_hash, result.profile_hash)
         self.assertEqual('unit', result.gates[0].gate_id)
-        self.assertEqual('ERROR', result.gates[0].outcome)
+        self.assertEqual('verification-blocked', result.gates[0].outcome)
         record = result.to_record()
         self.assertEqual('family-1', record['family_id'])
         self.assertEqual(self.profile.content_hash, record['profile_hash'])
@@ -59,8 +59,8 @@ class ExecutorTest(unittest.TestCase):
         plan = build_plan(self.root, p, family)
         store = VerificationStore(self.root, control_root=self.root / 'control')
         result = execute_plan(self.root, p, plan, store=store, sandbox_mode='off')
-        self.assertEqual('ERROR', result.outcome)  # v2 isolation fails closed before process launch
-        self.assertEqual(['ERROR', 'NOT_RUN'], [g.outcome for g in result.gates])
+        self.assertEqual('verification-blocked', result.outcome)  # v2 isolation fails closed before process launch
+        self.assertEqual(['verification-blocked', 'NOT_RUN'], [g.outcome for g in result.gates])
         self.assertEqual('blocked-by-failure', result.gates[1].reason)
 
 

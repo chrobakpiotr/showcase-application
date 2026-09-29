@@ -1,0 +1,37 @@
+{
+  "id": "T-003",
+  "title": "Integrate shared verifier with runner",
+  "objective": "Refactor runner task-completion verification to the shared verification engine while preserving fresh execution of every declared command occurrence and dependency closure, existing allowlist/sandbox enforcement and whole-worktree mutation postconditions.",
+  "role": "builder",
+  "depends_on": [
+    "T-001",
+    "T-002"
+  ],
+  "allowed_paths": [
+    "tooling/agent-harness/runner.py",
+    "tooling/agent-harness/tests/test_runner.py"
+  ],
+  "risk_tags": [
+    "architecture",
+    "security",
+    "concurrency"
+  ],
+  "acceptance_criteria": [
+    "AC-OBS-001",
+    "AC-OBS-006",
+    "AC-OBS-015",
+    "AC-OBS-017",
+    "AC-OBS-024",
+    "AC-OBS-029",
+    "AC-OBS-035",
+    "VC-010",
+    "VC-015",
+    "VC-016",
+    "VC-017"
+  ],
+  "verification": [
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v"
+  ],
+  "test_mode": "red-green-refactor",
+  "test_seam": "Runner regression tests must first show that cached integration evidence, duplicate mapped commands, unmapped legacy commands and selective fingerprints cannot replace fresh outer task-completion execution or whole-worktree mutation detection."
+}

@@ -25,6 +25,8 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import harness as h  # noqa: E402
 import telemetry  # noqa: E402
+from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
+from verification.authority import prepare_task_plan  # noqa: E402
 
 RUNNER = HERE / 'runner.py'
 REPO = HERE.parents[1]
@@ -86,6 +88,7 @@ def runner_command(
     profile: str | None = None,
     review_existing: bool = False,
     feedback_file: pathlib.Path | None = None,
+    defer_verification: bool = False,
 ) -> list[str]:
     cmd = [
         sys.executable,
@@ -114,6 +117,8 @@ def runner_command(
         cmd += ['--skip-verification']
     if feedback_file and feedback_file.exists():
         cmd += ['--feedback-file', str(feedback_file)]
+    if defer_verification:
+        cmd += ['--skip-verification']
     return cmd
 
 
@@ -207,7 +212,8 @@ def run_started_task(
     try:
         with lease_heartbeat(feature_dir, doc, task_id, owner):
             try:
-                main_path = invoke_runner(runner_command(packet, worktree, choice, args, feedback_file=feedback))
+                main_path = invoke_runner(runner_command(packet, worktree, choice, args,
+                    feedback_file=feedback, defer_verification=True))
             except RuntimeError as exc:
                 return TaskOutcome(task_id, 'runner-error', summary=str(exc))
 
@@ -218,6 +224,46 @@ def run_started_task(
                     task_id, status, evidence=main_path, summary=str(main.get('summary', '')),
                     rework_tasks=[str(t) for t in main.get('rework_tasks', [])],
                 )
+
+            # The provider has finished; trusted orchestration now seals the
+            # candidate, creates the immutable plan and accepts it through the
+            # feature lifecycle CAS. Runner/provider output never creates this
+            # authority.
+            packet_doc = load_result(packet)
+            lifecycle = h.load_state(feature_dir, doc)
+            task_attempt = lifecycle.get('tasks', {}).get(task_id, {}).get('attempts')
+            provenance_path = pathlib.Path(str(main.get('provenance', '')))
+            try:
+                provenance = json.loads(provenance_path.read_text(encoding='utf-8'))
+                base_sha = provenance.get('base_commit')
+                if not isinstance(base_sha, str) or len(base_sha) != 40:
+                    raise ValueError('BASE_COMMIT_UNAVAILABLE')
+                plan_record = prepare_task_plan(worktree, feature_dir, task_id,
+                    task_attempt, base_sha, packet_doc.get('verification', []))
+                verify_proc = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
+                    '--mode', 'integration', '--repo', str(worktree),
+                    '--plan-id', plan_record['plan_id']], cwd=worktree, text=True,
+                    capture_output=True, timeout=args.verification_timeout, check=False)
+                verification_result = json.loads(verify_proc.stdout)
+            except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
+                return TaskOutcome(task_id, 'verification-blocked', main_path,
+                                   f'accepted verification authority unavailable: {type(exc).__name__}')
+            verification_status = verification_result.get('status')
+            verification_outcome = verification_result.get('outcome')
+            if (verify_proc.returncode != 0 or verification_status != 'PASS' and
+                    verification_outcome != 'PASS'):
+                category = verification_result.get('machine_category', verification_status)
+                if not is_control_outcome(category):
+                    category = 'fail'
+                return TaskOutcome(task_id, category, main_path,
+                    str(verification_result.get('reason_code', verification_outcome or category)))
+            main['verification_authority'] = {
+                'plan_id': plan_record['plan_id'],
+                'lifecycle_generation': plan_record['lifecycle_generation'],
+                'task_id': task_id, 'task_attempt': task_attempt,
+                'status': 'PASS',
+            }
+            main_path.write_text(json.dumps(main, indent=2, sort_keys=True) + '\n', encoding='utf-8')
 
             reviews: list[tuple[str, pathlib.Path]] = []
             if task['role'] == 'builder':
@@ -311,20 +357,28 @@ def apply_outcome(feature_dir: pathlib.Path, doc: dict[str, Any], outcome: TaskO
             ))
         return
 
-    escalate = outcome.status in {'needs-human', 'runner-error', 'reviewer-error'}
+    control = outcome.status if is_control_outcome(outcome.status) else None
+    escalate = outcome.status in {'needs-human', 'runner-error', 'reviewer-error',
+                                  'verification-blocked', 'verification-owned'}
     h.cmd_fail(argparse.Namespace(
         feature_dir=feature_dir, task_id=outcome.task_id, owner=owner,
         reason=outcome.summary or outcome.status, evidence=evidence, escalate=escalate,
+        control_outcome=control,
     ))
 
 
 def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace) -> None:
+    state = h.load_state(feature_dir, doc)
     print(
         f'feature={doc["feature"]} max_parallel={doc.get("max_parallel", 4)} '
         f'lease_ttl={h.lease_ttl_seconds(doc)}s heartbeat={h.heartbeat_interval_seconds(doc)}s'
     )
     for planned in doc['tasks']:
-        task = h.active_task_contract(feature_dir, doc, planned['id'])
+        # A completed task packet is immutable historical evidence.  A later
+        # feature replan must not make it a prerequisite for routing current
+        # work; use the validated current DAG contract for completed rows.
+        task = (planned if state.get('tasks', {}).get(planned['id'], {}).get('status') == 'completed'
+                else h.active_task_contract(feature_dir, doc, planned['id']))
         choice = choice_for_role(task['role'], args)
         reviews = h.reviewers(task) if task['role'] == 'builder' else []
         deps = ','.join(task.get('depends_on', [])) or '-'
@@ -412,6 +466,16 @@ def main() -> None:
         )
         escalated = [tid for tid, status in statuses.items() if status == 'escalated']
         if escalated:
+            state = h.load_state(feature_dir, doc)
+            control = [(tid, state['tasks'][tid].get('control_outcome')) for tid in escalated
+                       if state['tasks'][tid].get('control_outcome')]
+            if control:
+                precedence = {'needs-human': 0, 'verification-blocked': 1, 'verification-owned': 2}
+                category = min(control, key=lambda item: (precedence[item[1]], item[0]))[1]
+                write_orchestration_manifest(manifest_path, doc, args, status=category,
+                    control_outcomes={tid: value for tid, value in control},
+                    completed_at=telemetry.iso_now())
+                raise SystemExit(exit_code(category))
             write_orchestration_manifest(manifest_path, doc, args, status='needs-human', completed_at=telemetry.iso_now())
             die(f'human decision required; escalated tasks: {escalated}')
         if all(status == 'completed' for status in statuses.values()):

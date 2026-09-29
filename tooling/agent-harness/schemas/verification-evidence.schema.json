@@ -22,6 +22,14 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "candidate_identity": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "final_changed_surface_id": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "profile_hash": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
@@ -152,6 +160,8 @@
     "ownership_token",
     "gate_id",
     "repository_id",
+    "candidate_identity",
+    "final_changed_surface_id",
     "profile_hash",
     "command_hash",
     "pre_fingerprint",

@@ -1,16 +1,9 @@
 {
-  "assumptions": [
-    "The current hash-bound design PASS governs authoring despite residual DRAFT labels. SHA-256 checks matched spec.md, plan.md and design.json to design/gate.json.",
-    "These criteria supplement all accepted AC-OBS requirements; they do not replace them or authorize changes to product behavior.",
-    "Verification hints describe evidence required during implementation and independent evaluation. This authoring pass was read-only; no implementation tests, providers, repository writes or external mutations were performed.",
-    "The accepted threat model excludes hostile local OS-owner modification and transient external A-to-B-to-A writes. Provider-controlled verification code, ordinary corruption and interrupted publication remain in scope.",
-    "Backend support must be established by implementation evidence. A backend unable to prove both authority protection and descendant drainage remains unavailable for v2 execution.",
-    "Existing trusted local task checkpoint composition remains permitted under SDD-001; no new autonomous agent commit, remote mutation or integration authority is granted."
-  ],
+  "assumptions": [],
   "authored_by": {
     "profile": "verification-author",
     "provider": "codex",
-    "run_id": "manual-import-20260926T081914Z"
+    "run_id": "sdd-obs-final-contract-20260929"
   },
   "criteria": [
     {
@@ -401,18 +394,211 @@
       ],
       "statement": "Canonical handbook Markdown remains the protocol source of truth, with synchronized README guidance and content/visual validation of the generated PDF.",
       "verification_hint": "Compare the implemented CLI and canonical handbook.md against both READMEs and extracted PDF text for freshness, reuse, retry fencing, quarantine/reconciliation, backend prerequisites, rollback drainage, metric completeness and no-remote authority. Generate the PDF through the documented path and inspect rendered pages for missing/clipped content and usable commands; byte equality is not the oracle. Verify MANUAL TELEMETRY REQUIRED includes exact registration commands and audit all post-availability manual reviews used for this feature's closure; omissions mark telemetry partial and block only its observability DoD."
+    },
+    {
+      "id": "VC-032",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: FR-012, AC-014",
+        "docs/specs/SDD-001/verification-contract.json: VC-005",
+        "tooling/agent-harness/runner.py: run_verification",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "statement": "The shared verification engine must preserve the outer runner\u2019s independent re-execution of every declared task verification command after builder success; provider-reported success or a cached result cannot replace that check.",
+      "verification_hint": "Use a passing provider result with a failing declared command and a valid-looking cached receipt. Verify the outer runner still invokes the declared command through its authorized path and rejects the task when it fails."
+    },
+    {
+      "id": "VC-033",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: AC-010",
+        "tooling/agent-harness/runner.py: git_snapshot, enforce_postconditions",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "statement": "Selective fingerprinting and runtime exclusions must not weaken the runner\u2019s existing whole-worktree postcondition: candidate writes, HEAD changes, or remote-configuration changes during builder execution are detected even when the changed path is outside a gate\u2019s declared inputs.",
+      "verification_hint": "Exercise content changes with unchanged path lists, ignored and untracked writes, HEAD mutation, and remote configuration mutation. Verify the task postcondition rejects each unauthorized mutation independently of gate fingerprint results."
+    },
+    {
+      "id": "VC-034",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: FR-012, AC-014",
+        "tooling/agent-harness/runner.py: verification command validation",
+        "tooling/agent-harness/verification_command.py",
+        "tooling/agent-harness/tests/test_verification_command.py"
+      ],
+      "statement": "Verification command execution has no route around the established command allowlist and sandbox bridge, including through probes, retry controls, wrappers, or runner/orchestrator adapters.",
+      "verification_hint": "Attempt disallowed executables and shell constructs through direct CLI, runner, profile probes, retry controls, and wrapper paths. Assert rejection occurs before process creation and every permitted command uses the same policy and sandbox enforcement."
+    },
+    {
+      "id": "VC-035",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a712, \u00a725",
+        "tooling/agent-harness/verification_sandbox.py: qualifies_v2",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_backend_qualification.py"
+      ],
+      "statement": "A v2 execution backend is qualified by demonstrated protection of authoritative paths and containment through descendant drainage; advertised capability flags or legacy isolation labels alone are insufficient.",
+      "verification_hint": "For each supported backend, exercise control-store and policy read/write attempts, alternate-path access, child-process escape, caller death, cancellation, and descendant drainage. Require blocked-before-launch behavior when either protected-path enforcement or strong containment cannot be demonstrated; mocks may verify routing but do not qualify a backend."
+    },
+    {
+      "id": "VC-036",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a714, \u00a725",
+        "docs/specs/SDD-001/verification-contract.json: VC-002",
+        "tooling/agent-harness/trust.py",
+        "tooling/agent-harness/runner.py",
+        "tooling/agent-harness/tests/test_trust.py"
+      ],
+      "statement": "Verification-policy selection and execution authority remain outside provider-controlled task worktrees; untrusted repository, tracker, provider, and runtime text cannot alter commands, criteria, sandbox access, allowed paths, or remote-mutation authority.",
+      "verification_hint": "Place instruction-like content in task context, provider output, generated logs, and policy-looking files in the task worktree. Verify it remains evidence only and cannot change trusted profile resolution, execution policy, or dispatch a commit, push, merge, deploy, or tracker mutation."
+    },
+    {
+      "id": "VC-037",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a77",
+        "docs/specs/SDD-OBS-001/plan.md: M5.3 Verification Execution Plan authority protocol",
+        "tooling/agent-harness/harness.py: lifecycle state and locking",
+        "tooling/agent-harness/verification/store.py",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_verification_store.py"
+      ],
+      "statement": "Lifecycle-bound execution decisions are made through the canonical lifecycle transaction boundary; subordinate verification records, indexes, runtime locks, and caller-selected identifiers cannot independently select a plan, grant, admission, or completion.",
+      "verification_hint": "Create valid but unreferenced plan, admission, grant, and evidence records, including newer records than the lifecycle-selected ones. Restart and invoke execution/completion. Require resolution only through exact lifecycle references and fail closed on missing, corrupt, or mismatched referenced records."
+    },
+    {
+      "id": "VC-038",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a77",
+        "tooling/agent-harness/harness.py: locked_state, atomic lifecycle writes",
+        "tooling/agent-harness/telemetry.py: atomic_write_json",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_verification_store.py"
+      ],
+      "statement": "Crash-safe lifecycle publication preserves the repository\u2019s existing atomic-state durability discipline: a reported committed transition survives restart with its exact referenced immutable records, while interrupted preparation cannot appear committed.",
+      "verification_hint": "Fault-inject record creation, file fsync, directory fsync, reference publication, and response boundaries. After restart, require either the exact committed transition and verifiable references or no authority; an orphan must remain inert and must not be selected by directory order or modification time."
+    },
+    {
+      "id": "VC-039",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a711",
+        "docs/specs/SDD-OBS-001/plan.md: \u00a75a, \u00a76",
+        "tooling/agent-harness/harness.py: stale-lease recovery and worktree mutation paths",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py"
+      ],
+      "statement": "A verification ownership or recovery fence cannot be bypassed by task lease expiry, changing worktrees, removing a process lock, or invoking a task-worktree mutation path.",
+      "verification_hint": "With active and uncertain execution journals, exercise stale-lease recovery, checkpoint, reopen, reset, prune, removal, and replacement from primary and linked worktrees. Assert no mutation or ownership theft until trusted drainage/recovery permits it; trace lock order under concurrent execution and recovery."
+    },
+    {
+      "id": "VC-040",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/specs/SDD-OBS-001/spec.md: Manual reviewer/evaluator registration",
+        "docs/specs/SDD-001/spec.md: FR-023, AC-028",
+        "tooling/agent-harness/telemetry.py: record-manual",
+        "tooling/agent-harness/tests/test_telemetry.py"
+      ],
+      "statement": "Manual evidence registration remains a provenance operation: it cannot launch a provider, change task/spec/design/evaluator workflow state, or authorize a verification retry without the separate trusted lifecycle transition required for that operation.",
+      "verification_hint": "Register valid telemetry-only and plan-scoped observations while instrumenting provider launch, task state, design status, retry state, and lifecycle references. Require only the explicitly authorized coverage binding to change, with no provider launch or implicit workflow transition."
+    },
+    {
+      "id": "VC-041",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/specs/SDD-001/spec.md: AC-028",
+        "docs/specs/SDD-OBS-001/spec.md: Compatibility / rollback",
+        "docs/specs/SDD-OBS-001/plan.md: \u00a714",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_verify.py"
+      ],
+      "statement": "The new lifecycle protocol does not make older or unknown lifecycle state appear empty or writable to an incompatible harness; read-only diagnostics remain non-mutating and lifecycle-dependent operations fail closed.",
+      "verification_hint": "Present unknown lifecycle protocol IDs, unknown fields, active reservation/consumption records, and newer subordinate records to an older-version fixture. Snapshot all authoritative files before and after diagnostics and rejected commands; require no launch, cleanup, rewrite, migration, or reinterpretation."
+    },
+    {
+      "id": "VC-042",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a73, \u00a721, \u00a723",
+        "docs/specs/SDD-001/spec.md: FR-023, AC-028",
+        "tooling/agent-harness/verification_contract.py",
+        "tooling/agent-harness/design.py",
+        "tooling/agent-harness/tests/test_verification_contract.py",
+        "docs/specs/SDD-OBS-001/design/gate.json",
+        "docs/specs/SDD-OBS-001/design/master-closure.json"
+      ],
+      "statement": "The verification-contract and design-gate controls remain effective: changing bound inputs makes the contract stale, an agent cannot approve its own exemption, and master-closure metadata cannot stand in for a passing hash-bound Design Gate.",
+      "verification_hint": "Run contract/design validation against changed spec, plan, constitution, or gate hashes; attempt an exemption approved only by the authoring agent; and provide master-closure metadata without a current passing gate. Require stale/rejected outcomes and no task-generation authorization."
+    },
+    {
+      "id": "VC-043",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a79, \u00a711, \u00a723",
+        "docs/agentic-sdd/runtime-choice.md: HITL lifecycle",
+        "docs/specs/SDD-001/verification-contract.json: VC-004, VC-007, VC-008",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_verification_executor.py"
+      ],
+      "statement": "The feature preserves human-only authority for high-impact retry and exemption decisions; caller attribution, provider claims, unsigned records, or task-level resume authorization cannot impersonate the required human authority.",
+      "verification_hint": "Attempt retry and exemption paths using `--by`/`--operator`, provider booleans, unsigned grant-shaped files, stale grants, and task-level resume grants. Require rejection unless the exact trusted human authorization and lifecycle consumption conditions are met."
+    },
+    {
+      "id": "VC-044",
+      "origin": "independent",
+      "source_type": "existing-behavior",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: \u00a711",
+        "docs/specs/SDD-001/spec.md: AC-015",
+        "docs/specs/SDD-OBS-001/spec.md: M53-AC14, M53-AC31",
+        "tooling/agent-harness/harness.py: task lifecycle and checkpoint handling",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_replan.py"
+      ],
+      "statement": "Existing task completion, lease, checkpoint, and dependency history remains auditable and is not rewritten to make new verification semantics fit historical attempts.",
+      "verification_hint": "Load completed and pre-plan historical attempts, then run reporting, replan, and verification operations. Compare packet revisions, completion evidence, checkpoints, attempts, and transition history before and after; require historical records to remain readable and unchanged, with no synthesized plan or family."
+    },
+    {
+      "id": "VC-045",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/runtime-choice.md: Decision and revisit triggers",
+        "docs/agentic-sdd/constitution.md: \u00a72, \u00a77",
+        "docs/specs/SDD-OBS-001/plan.md: Architecture decision"
+      ],
+      "statement": "The canonical native harness remains the sole runtime and persistence model for this feature; adding a second workflow authority or checkpoint store would require a separately accepted architecture decision.",
+      "verification_hint": "Inspect runtime dependencies, state stores, and entry-point wiring. Verify verification lifecycle, task lifecycle, and human-resolution transitions share the accepted repository-native authorities, with no parallel workflow database or framework checkpoint state capable of authorizing progress."
     }
   ],
   "exemptions": [],
   "feature": "SDD-OBS-001",
-  "generated_at": "2026-09-26T08:19:14+00:00",
+  "generated_at": "2026-09-29T17:16:15.426556+00:00",
   "inputs": {
     "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079",
     "design_gate_sha256": "74aeb057e91865f1981aa949dd9e61155dccf99c314fba906128b0b8145ac37d",
-    "plan_sha256": "d82907da3effc3d1d81b6d89bea23f2eff4c173796b50c9896850ff72e41abe8",
-    "spec_sha256": "8ef470b0dbea0f981298a88c19be6058eb5b3b2910488a731bbc143e738ed62d"
+    "master_closure_sha256": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff",
+    "plan_sha256": "e4314a90fda1f1735878ed3fdae0e988d19a6a84930960ea07b380c8eaf8492e",
+    "spec_sha256": "c5a9398d6d2af115816e4d2ae824982f90ac445d948bfd64176b32abd5c902eb"
   },
   "schema_version": 1,
   "status": "accepted",
-  "summary": "Independent falsification contract sufficient for implementation gating. Criteria cover repository admission, execution authority, immutable failure and authorization history, fresh verification, artifact rebinding, privacy, compatibility and operational evidence. PASS approves this contract, not the implementation."
+  "summary": "Freshly authored verification criteria are added to the unchanged prior accepted VC-001 through VC-031 set so existing task-DAG bindings remain stable."
 }

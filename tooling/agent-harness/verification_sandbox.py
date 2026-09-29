@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import ctypes
 import os
 import pathlib
 import platform
@@ -336,8 +337,40 @@ class PosixProcessGroupBackend:
 
     @staticmethod
     def _birth_identity(pid: int) -> str:
-        # Linux exposes a kernel process-start tick; other POSIX hosts cannot
-        # provide this portable proof and therefore fail closed at qualification.
+        # Linux exposes the kernel process-start tick. macOS exposes the
+        # equivalent microsecond process start time through proc_pidinfo; using
+        # `ps lstart` would lose precision and is intentionally not accepted.
+        if platform.system().lower() == 'darwin':
+            class ProcBsdInfo(ctypes.Structure):
+                _fields_ = [
+                    ('pbi_flags', ctypes.c_uint32), ('pbi_status', ctypes.c_uint32),
+                    ('pbi_xstatus', ctypes.c_uint32), ('pbi_pid', ctypes.c_uint32),
+                    ('pbi_ppid', ctypes.c_uint32), ('pbi_uid', ctypes.c_uint32),
+                    ('pbi_gid', ctypes.c_uint32), ('pbi_ruid', ctypes.c_uint32),
+                    ('pbi_rgid', ctypes.c_uint32), ('pbi_svuid', ctypes.c_uint32),
+                    ('pbi_svgid', ctypes.c_uint32), ('rfu_1', ctypes.c_uint32),
+                    ('pbi_comm', ctypes.c_char * 16), ('pbi_name', ctypes.c_char * 32),
+                    ('pbi_nfiles', ctypes.c_uint32), ('pbi_pgid', ctypes.c_uint32),
+                    ('pbi_pjobc', ctypes.c_uint32), ('e_tdev', ctypes.c_uint32),
+                    ('e_tpgid', ctypes.c_uint32), ('pbi_nice', ctypes.c_int32),
+                    ('pbi_start_tvsec', ctypes.c_uint64), ('pbi_start_tvusec', ctypes.c_uint64),
+                ]
+            try:
+                libproc = ctypes.CDLL('/usr/lib/libproc.dylib', use_errno=True)
+                proc_pidinfo = libproc.proc_pidinfo
+                proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                                         ctypes.c_void_p, ctypes.c_int]
+                proc_pidinfo.restype = ctypes.c_int
+                info = ProcBsdInfo()
+                size = ctypes.sizeof(info)
+                copied = proc_pidinfo(pid, 3, 0, ctypes.byref(info), size)
+                if copied != size or info.pbi_pid != pid or not info.pbi_start_tvsec:
+                    raise OSError('process-birth-identity-unavailable')
+                return f'{info.pbi_start_tvsec}:{info.pbi_start_tvusec}:{pid}'
+            except (OSError, AttributeError):
+                raise OSError('process-birth-identity-unavailable') from None
+        # Other hosts fail closed unless an equally strong native source is
+        # implemented; a coarse process-table timestamp is not a substitute.
         stat = pathlib.Path(f'/proc/{pid}/stat')
         if not stat.exists():
             raise OSError('process-birth-identity-unavailable')

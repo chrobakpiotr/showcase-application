@@ -25,7 +25,10 @@
       "id": "A003-reopen-lease-and-history-safety",
       "command": [
         "python3",
-        "tooling/agent-harness/tests/test_harness.py"
+        "tooling/agent-harness/tests/test_harness.py",
+        "HarnessTest.test_expired_lease_is_recovered_for_resume",
+        "HarnessTest.test_reopen_archives_invalidated_descendant_attempt_history",
+        "HarnessTest.test_reopen_refuses_running_descendant_before_pruning_workspace"
       ],
       "expected_exit": 0,
       "timeout_seconds": 120

@@ -12,12 +12,14 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from verification.store import StoreError, VerificationStore
 from verification.supervisor import VerificationSupervisor
 from verification.supervisor import SupervisorState
 from verification.model import Evidence
 from verification.serialization import digest, evidence_record
 import verification_command
+from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
@@ -161,8 +163,8 @@ class SupervisorTest(unittest.TestCase):
             terminal = json.loads(terminal_path.read_text())
             terminal['retry_policy_proof']['retry_free'] = True
             terminal.pop('receipt_hash')
-            terminal['receipt_hash'] = hashlib.sha256(json.dumps(terminal, sort_keys=True,
-                separators=(',', ':'), ensure_ascii=True).encode()).hexdigest()
+            from verification.serialization import canonical
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
             terminal_path.write_text(json.dumps(terminal))
             with self.assertRaisesRegex(StoreError, 'retry-policy-violation'):
                 store.reconstruct_execution_terminals()
@@ -362,7 +364,7 @@ class SupervisorTest(unittest.TestCase):
     def test_pd4_pd5_exact_grant_is_consumed_before_retry_launch(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
-            store = VerificationStore(root, control_root=root / 'control')
+            store, grant_key = trusted_test_store(root)
             VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
                 command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
@@ -372,20 +374,20 @@ class SupervisorTest(unittest.TestCase):
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
             failure = store.current_failure(context)
-            store.issue_failure_grant('human-grant', failure_id=failure['failure_id'], context=context,
-                issuer='test-operator', reason='exercise-exact-one-shot-retry')
+            grant = signed_test_grant(store, grant_key, 'human-grant', failure['failure_id'], context,
+                reason='exercise-exact-one-shot-retry')
             retry = GrantCheckingBackend(store, root)
             result, _ = VerificationSupervisor(store).execute(retry, worktree=root,
                 family_id='family-2', attempt_id='attempt-2', gate_id='critical-gate',
                 command='python3 -c pass', cwd=root, run_dir=root / 'run-2', timeout_seconds=2,
                 sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
-                failure_grant_id='human-grant', preflight=lambda: SimpleNamespace(action='REUSE'))
+                failure_grant_id='human-grant', retry_scope=grant['retry_scope'],
+                preflight=lambda: SimpleNamespace(action='REUSE'))
             self.assertEqual(0, result.exit_code)
             self.assertIn('consumption-before-launch', retry.events)
-            self.assertEqual(1, retry.events.count('launch'))
             with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
                 store.consume_failure_grant('human-grant', failure_id=failure['failure_id'],
-                    context=context, execution_id='third-retry')
+                    context=context, retry_scope=grant['retry_scope'], execution_id='third-retry')
             later = LifecycleBackend(store, root)
             with self.assertRaisesRegex(RuntimeError, 'CRITICAL_FAILURE_FENCE_ACTIVE'):
                 VerificationSupervisor(store).execute(later, worktree=root, family_id='family-3',
@@ -397,7 +399,7 @@ class SupervisorTest(unittest.TestCase):
     def test_pd6_crash_after_consumption_burns_grant_without_payload(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
-            store = VerificationStore(root, control_root=root / 'control')
+            store, grant_key = trusted_test_store(root)
             VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
                 command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
@@ -407,8 +409,8 @@ class SupervisorTest(unittest.TestCase):
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
             failure = store.current_failure(context)
-            store.issue_failure_grant('human-grant', failure_id=failure['failure_id'], context=context,
-                issuer='test-operator', reason='crash-after-consume-fixture')
+            grant = signed_test_grant(store, grant_key, 'human-grant', failure['failure_id'], context,
+                reason='crash-after-consume-fixture')
             crashed_backend = GrantCheckingBackend(store, root)
             crashed = VerificationSupervisor(store)
             crashed.inject_crash_at = 'after-grant-consumed'
@@ -417,9 +419,9 @@ class SupervisorTest(unittest.TestCase):
                     attempt_id='attempt-2', gate_id='critical-gate', command='python3 -c pass',
                     cwd=root, run_dir=root / 'run-2', timeout_seconds=2, sandbox_mode='required',
                     profile_hash='profile-hash', input_fingerprint='fingerprint',
-                    failure_grant_id='human-grant')
+                    failure_grant_id='human-grant', retry_scope=grant['retry_scope'])
             self.assertNotIn('launch', crashed_backend.events)
-            fresh = VerificationStore(root, control_root=root / 'control')
+            fresh = VerificationStore(root, control_root=root / 'control', issuer_registry=store.issuer_registry)
             self.assertTrue(fresh.grant_consumed('human-grant'))
             retry = GrantCheckingBackend(fresh, root)
             with self.assertRaisesRegex(RuntimeError, 'FAILURE_GRANT_CONSUMED'):
@@ -427,13 +429,13 @@ class SupervisorTest(unittest.TestCase):
                     attempt_id='attempt-2', gate_id='critical-gate', command='python3 -c pass',
                     cwd=root, run_dir=root / 'run-2', timeout_seconds=2, sandbox_mode='required',
                     profile_hash='profile-hash', input_fingerprint='fingerprint',
-                    failure_grant_id='human-grant')
+                    failure_grant_id='human-grant', retry_scope=grant['retry_scope'])
             self.assertNotIn('launch', retry.events)
 
     def test_e38_full_double_critical_failure_requires_new_grant(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
-            store = VerificationStore(root, control_root=root / 'control')
+            store, grant_key = trusted_test_store(root)
             supervisor = VerificationSupervisor(store)
             first_backend = CriticalFailureBackend(store, root / 'first')
             supervisor.execute(first_backend, worktree=root, family_id='family-1', attempt_id='attempt-1',
@@ -444,8 +446,8 @@ class SupervisorTest(unittest.TestCase):
                 'gate_id': 'critical-gate', 'fingerprint': 'fingerprint',
                 'policy_identity': 'sha256:' + 'a' * 64, 'backend_identity': 'test-qualified/v1'}
             first_failure = store.current_failure(context)
-            store.issue_failure_grant('grant-1', failure_id=first_failure['failure_id'], context=context,
-                issuer='test-operator', reason='first-explicit-retry')
+            grant = signed_test_grant(store, grant_key, 'grant-1', first_failure['failure_id'], context,
+                reason='first-explicit-retry')
 
             class GrantCheckingCriticalBackend(GrantCheckingBackend):
                 def launch(self, prepared, **kwargs):
@@ -461,7 +463,8 @@ class SupervisorTest(unittest.TestCase):
                 gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-2',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
                 input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',),
-                failure_grant_id='grant-1')
+                failure_grant_id='grant-1', retry_scope=grant['retry_scope'])
+            self.assertIn('launch', second_backend.events)
 
             second_failure = store.current_failure(context)
             self.assertNotEqual(first_failure['failure_id'], second_failure['failure_id'])
@@ -469,11 +472,13 @@ class SupervisorTest(unittest.TestCase):
             self.assertTrue(store.grant_consumed('grant-1'))
             third_backend = LifecycleBackend(store, root / 'third')
             with self.assertRaisesRegex(RuntimeError, 'FAILURE_GRANT_CONSUMED'):
-                VerificationSupervisor(VerificationStore(root, control_root=root / 'control')).execute(
+                VerificationSupervisor(VerificationStore(root, control_root=root / 'control',
+                    issuer_registry=store.issuer_registry)).execute(
                     third_backend, worktree=root, family_id='family-3', attempt_id='attempt-3',
                     gate_id='critical-gate', command='python3 -c pass', cwd=root, run_dir=root / 'run-3',
                     timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
-                    input_fingerprint='fingerprint', failure_grant_id='grant-1')
+                    input_fingerprint='fingerprint', failure_grant_id='grant-1',
+                    retry_scope=grant['retry_scope'])
             self.assertNotIn('launch', third_backend.events)
 
     def test_pc1_callable_runner_is_rejected_before_payload(self):

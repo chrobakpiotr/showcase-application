@@ -39,7 +39,50 @@ def default_safety():
 
 
 def canonical(value):
+    """Legacy versioned record serialization; retained for stored receipts."""
     return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode('utf-8')
+
+
+def canonical_jcs(value):
+    """RFC 8785 serialization for Ed25519-signed human authorization data."""
+    import math
+    def encode(item):
+        if item is None:
+            return 'null'
+        if item is True:
+            return 'true'
+        if item is False:
+            return 'false'
+        if isinstance(item, int):
+            return str(item)
+        if isinstance(item, float):
+            if not math.isfinite(item):
+                raise ValueError('canonical-json-nonfinite-number')
+            # JCS uses ECMAScript shortest-roundtrip binary64 formatting.
+            number = repr(item).lower()
+            if number.endswith('.0'):
+                return number[:-2]
+            if 'e' in number:
+                mantissa, exponent = number.split('e', 1)
+                exponent_value = int(exponent)
+                if -6 <= exponent_value < 21:
+                    from decimal import Decimal
+                    return format(Decimal(number), 'f')
+                return f'{mantissa}e{"+" if exponent_value >= 0 else ""}{exponent_value}'
+            return number
+        if isinstance(item, str):
+            return json.dumps(item, ensure_ascii=False, separators=(',', ':'))
+        if isinstance(item, (list, tuple)):
+            return '[' + ','.join(encode(value) for value in item) + ']'
+        if isinstance(item, dict):
+            if any(not isinstance(key, str) for key in item):
+                raise ValueError('canonical-json-object-key-not-string')
+            # RFC 8785 orders names by UTF-16 code units.
+            keys = sorted(item, key=lambda key: key.encode('utf-16-be', errors='surrogatepass'))
+            return '{' + ','.join(encode(key) + ':' + encode(item[key]) for key in keys) + '}'
+        raise ValueError('canonical-json-type-unsupported')
+
+    return encode(value).encode('utf-8')
 
 
 def digest(value):
@@ -94,7 +137,8 @@ def sensitive_path(path):
 
 ID_FIELDS = {'gate_id', 'profile_gate_id', 'family_id', 'evidence_id', 'ownership_token', 'producer', 'id', 'failure_id'}
 HASH_FIELDS = {'fingerprint', 'pre_fingerprint', 'post_fingerprint', 'profile_hash', 'policy_checkpoint',
-               'command_hash', 'repository_id', 'receipt_hash', 'content_hash', 'base_sha'}
+               'command_hash', 'repository_id', 'receipt_hash', 'content_hash', 'base_sha',
+               'candidate_identity', 'final_changed_surface_id'}
 ENUMS = {
     'status': {'pass', 'verification-failed', 'environment-blocked', 'invalid-policy', 'invalid-cache',
                'retry-policy-violation', 'stale-input', 'busy', 'harness-error', 'abandoned', 'running'},
@@ -124,7 +168,8 @@ def safe_record(record, *, safety=None):
         if key in ID_FIELDS:
             valid = (key == 'profile_gate_id' and value is None) or (isinstance(value, str) and bool(IDENTIFIER.fullmatch(value)))
         elif key in HASH_FIELDS:
-            valid = (key in {'fingerprint', 'content_hash'} and value is None) or (isinstance(value, str) and bool(HASH.fullmatch(value)))
+            valid = (key in {'fingerprint', 'content_hash', 'candidate_identity',
+                             'final_changed_surface_id'} and value is None) or (isinstance(value, str) and bool(HASH.fullmatch(value)))
         elif key in ENUMS:
             valid = isinstance(value, str) and value in ENUMS[key]
         elif key in NUMBERS:
@@ -166,6 +211,8 @@ def validate_evidence_record(record, *, safety=None, include_receipt=True):
     result = safe_record(record, safety=safety)
     for key in required & (ID_FIELDS | HASH_FIELDS):
         value = result[key]
+        if key in {'candidate_identity', 'final_changed_surface_id'} and value is None:
+            continue
         if not isinstance(value, str): raise ValueError('invalid-terminal-evidence')
         if key in HASH_FIELDS and key != 'policy_checkpoint' and len(value) != 64:
             raise ValueError('invalid-terminal-evidence')

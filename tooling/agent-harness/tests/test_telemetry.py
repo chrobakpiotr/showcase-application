@@ -3,8 +3,11 @@ import json
 import pathlib
 import tempfile
 import unittest
+import subprocess
+import sys
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / 'telemetry.py'
+sys.path.insert(0, str(MODULE_PATH.parent))
 spec = importlib.util.spec_from_file_location('sdd_telemetry', MODULE_PATH)
 telemetry = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -12,6 +15,69 @@ spec.loader.exec_module(telemetry)
 
 
 class TelemetryTest(unittest.TestCase):
+    def test_manual_registration_records_only_safe_checkpoint_provenance(self):
+        from verification.store import VerificationStore
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            env = dict(__import__('os').environ, GIT_AUTHOR_NAME='Telemetry Test',
+                       GIT_AUTHOR_EMAIL='telemetry@example.invalid', GIT_COMMITTER_NAME='Telemetry Test',
+                       GIT_COMMITTER_EMAIL='telemetry@example.invalid')
+            (root / 'tracked.txt').write_text('safe\n', encoding='utf-8')
+            (root / '.gitignore').write_text('.agent-runs/\n', encoding='utf-8')
+            feature_dir = root / 'docs' / 'specs' / 'TST-MANUAL'
+            feature_dir.mkdir(parents=True)
+            (feature_dir / 'tasks.json').write_text(json.dumps({'feature': 'TST-MANUAL', 'tasks': []}), encoding='utf-8')
+            subprocess.run(['git', '-C', str(root), 'add', 'tracked.txt', '.gitignore', 'docs'], check=True, env=env)
+            subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'checkpoint'], check=True, env=env)
+            checkpoint = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+            store = VerificationStore(root)
+            report_path = store.root / 'manual-reports' / 'review.md'
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                f'Feature: `TST-MANUAL`\nReviewed checkpoint: `{checkpoint}`\n'
+                'Verdict: **PASS**\nCompleted at: `2026-09-29T12:00:00Z`\n', encoding='utf-8')
+            recorded = telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                provider='manual', checkpoint=checkpoint, verdict='PASS',
+                report=report_path.relative_to(root.resolve()).as_posix())
+            doc = json.loads(recorded.read_text(encoding='utf-8'))
+            self.assertEqual('manual-observation', doc['kind'])
+            self.assertEqual(checkpoint, doc['checkpoint'])
+            self.assertNotIn('Feature:', recorded.read_text(encoding='utf-8'))
+            self.assertEqual(recorded, telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                provider='manual', checkpoint=checkpoint, verdict='PASS',
+                report=report_path.relative_to(root.resolve()).as_posix()))
+
+    def test_manual_registration_rejects_untrusted_report_location_and_secret(self):
+        from verification.store import VerificationStore
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            env = dict(__import__('os').environ, GIT_AUTHOR_NAME='Telemetry Test',
+                       GIT_AUTHOR_EMAIL='telemetry@example.invalid', GIT_COMMITTER_NAME='Telemetry Test',
+                       GIT_COMMITTER_EMAIL='telemetry@example.invalid')
+            (root / 'tracked.txt').write_text('safe\n', encoding='utf-8')
+            (root / '.gitignore').write_text('.agent-runs/\n', encoding='utf-8')
+            feature_dir = root / 'docs' / 'specs' / 'TST-MANUAL'
+            feature_dir.mkdir(parents=True)
+            (feature_dir / 'tasks.json').write_text(json.dumps({'feature': 'TST-MANUAL', 'tasks': []}), encoding='utf-8')
+            subprocess.run(['git', '-C', str(root), 'add', 'tracked.txt', '.gitignore', 'docs'], check=True, env=env)
+            subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'checkpoint'], check=True, env=env)
+            checkpoint = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+            store = VerificationStore(root)
+            report_path = store.root / 'manual-reports' / 'review.md'
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(f'Feature: `TST-MANUAL`\nReviewed checkpoint: `{checkpoint}`\n'
+                                   'Verdict: **PASS**\nCompleted at: `2026-09-29T12:00:00Z`\n'
+                                   'api_key=sk-abcdefghijklmnopqrstuvwxyz0123456789\n', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_REPORT_SECRET'):
+                telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                    provider='manual', checkpoint=checkpoint, verdict='PASS',
+                    report=report_path.relative_to(root.resolve()).as_posix())
+            with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_REPORT_INVALID'):
+                telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                    provider='manual', checkpoint=checkpoint, verdict='PASS', report='README.md')
+
     def test_codex_jsonl_usage_is_extracted_without_cost_guessing(self):
         stream = '\n'.join([
             json.dumps({'type': 'thread.started', 'thread_id': 'abc'}),

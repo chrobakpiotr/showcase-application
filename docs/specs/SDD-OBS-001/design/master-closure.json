@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "feature": "SDD-OBS-001",
+  "authority": "master-closure",
+  "status": "implementation-authorized",
+  "canonical_design_gate": "not-pass",
+  "authority_runs": 16,
+  "source_spec_grill_sha256": "7930424568ed4a8b7156c295b44b997cf74be534d8768187b0bccc8fba03cd87",
+  "inputs": {
+    "spec_sha256": "c5a9398d6d2af115816e4d2ae824982f90ac445d948bfd64176b32abd5c902eb",
+    "plan_sha256": "e4314a90fda1f1735878ed3fdae0e988d19a6a84930960ea07b380c8eaf8492e",
+    "design_config_sha256": "796e31861fe5351806b766a566f02779bf01daa684fa4d126fcacc15d6942b04"
+  },
+  "master_decisions": [
+    "final-candidate-identity-v1",
+    "durable-agent-state-cas-v1",
+    "immutable-rejected-review-rework-count-v1"
+  ],
+  "verification_contract_authorized": true,
+  "commit_authorized": true,
+  "history": "Sixteen canonical Design Authority runs were performed. The final canonical Spec Grill did not pass; Architecture Grill and Design Gate did not run for that final run. This record authorizes implementation and post-implementation verification-contract refresh without claiming a canonical Design Gate pass."
+}

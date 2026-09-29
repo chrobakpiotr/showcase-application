@@ -29,6 +29,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install Agentic SDD Python dependencies
+        run: python3 -m pip install -r tooling/agent-harness/requirements.txt
+
       - name: Compile protocol modules
         run: >-
           python3 -m py_compile
@@ -44,6 +47,7 @@ jobs:
           tooling/agent-harness/trust.py
           tooling/agent-harness/verification_contract.py
           tooling/agent-harness/eval.py
+          tooling/agent-harness/verification/*.py
 
       - name: Validate installed protocol profiles and local toolchain
         run: python3 tooling/agent-harness/harness.py doctor
@@ -59,6 +63,9 @@ jobs:
 
       - name: Validate independent self verification contract
         run: python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-001
+
+      - name: Validate SDD-OBS-001 verification contract
+        run: python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001
 
       - name: Validate self-hosting orchestration plan
         run: python3 tooling/agent-harness/orchestrate.py docs/specs/SDD-001 --plan
@@ -82,6 +89,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install Agentic SDD Python dependencies
+        run: python3 -m pip install -r tooling/agent-harness/requirements.txt
+
       - name: Run Agentic SDD unit and regression tests
         run: python3 -m unittest discover -s tooling/agent-harness/tests -v
 
@@ -98,6 +108,9 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: '3.13'
+
+      - name: Install Agentic SDD Python dependencies
+        run: python3 -m pip install -r tooling/agent-harness/requirements.txt
 
       - name: Validate maintained runnable example
         run: |
@@ -128,6 +141,9 @@ jobs:
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: '3.13'
+
+      - name: Install Agentic SDD Python dependencies
+        run: python3 -m pip install -r tooling/agent-harness/requirements.txt
 
       - name: Run safe behavioral harness eval baselines
         run: |

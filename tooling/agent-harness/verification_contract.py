@@ -74,6 +74,7 @@ def input_hashes(feature_dir: pathlib.Path) -> dict[str, str]:
     # The installed harness root is reliable for constitution even if called from another cwd.
     constitution = (root or REPO) / 'docs' / 'agentic-sdd' / 'constitution.md'
     gate = feature_dir / 'design' / 'gate.json'
+    master_closure = feature_dir / 'design' / 'master-closure.json'
     result = {
         'spec_sha256': sha(feature_dir / 'spec.md'),
         'plan_sha256': sha(feature_dir / 'plan.md'),
@@ -81,6 +82,8 @@ def input_hashes(feature_dir: pathlib.Path) -> dict[str, str]:
     }
     if gate.exists():
         result['design_gate_sha256'] = sha(gate)
+    if master_closure.exists():
+        result['master_closure_sha256'] = sha(master_closure)
     return result
 
 
@@ -190,6 +193,22 @@ def prompt(feature_dir: pathlib.Path, worktree: pathlib.Path) -> str:
     rel = feature_dir.resolve().relative_to(root)
     spec = (feature_dir / 'spec.md').read_text(encoding='utf-8')
     plan = (feature_dir / 'plan.md').read_text(encoding='utf-8')
+    tasks_path = feature_dir / 'tasks.json'
+    task_doc = json.loads(tasks_path.read_text(encoding='utf-8')) if tasks_path.exists() else {'tasks': []}
+    referenced = sorted({str(item) for task in task_doc.get('tasks', []) if isinstance(task, dict)
+                         for item in task.get('acceptance_criteria', [])
+                         if isinstance(item, str) and item.startswith('VC-')})
+    historical = ''
+    baseline = subprocess.run(['git', '-C', str(root), 'show',
+        f'HEAD:{rel.as_posix()}/verification-contract.json'], capture_output=True, check=False)
+    if baseline.returncode == 0:
+        try:
+            old_contract = json.loads(baseline.stdout)
+            old_criteria = [item for item in old_contract.get('criteria', [])
+                            if isinstance(item, dict) and item.get('id') in referenced]
+            historical = json.dumps(old_criteria, indent=2, sort_keys=True)
+        except (json.JSONDecodeError, TypeError):
+            historical = ''
     profile = (worktree / 'docs' / 'agentic-sdd' / 'agents' / 'verification-author.md').read_text(encoding='utf-8')
     return f"""You are independently authoring the verification contract for feature {feature_dir.name}.
 
@@ -207,12 +226,25 @@ SPEC (trusted intent, but NOT the only source of truth):
 PLAN (trusted design decision, but verify it against repository invariants):
 {plan}
 
+TASK DAG REFERENCES
+------------------
+These stable verification criterion IDs are referenced by the executable
+task DAG and MUST remain present in your output unless the task DAG itself
+has been explicitly revised:
+{json.dumps(referenced)}
+
+Prior definitions for referenced IDs, if any, are historical guidance, not
+an instruction to preserve criteria that are disproven or obsolete:
+{historical}
+
 The same artifacts are available under `{rel}` in this isolated read-only worktree. Inspect AGENTS.md, the constitution,
 relevant ADRs, existing tests/contracts and current behavior. Derive criteria that can falsify the implementation even when
 spec.md forgot a safety/property requirement. At least one criterion MUST have origin=independent for medium/high-risk work.
+Include one criterion for every referenced task-DAG VC identifier, retaining its identifier. Add new criteria with unused IDs.
 Do not invent product behavior. Independent criteria should protect already-accepted architecture, compatibility, security,
 operability or existing behavior. Exemptions must remain status=proposed unless a pre-existing human approval is explicitly
-present in trusted repository artifacts.
+present in trusted repository artifacts. A `design/master-closure.json`, when present, authorizes implementation and
+post-implementation contract refresh only; it does not claim or substitute for a passing canonical Design Gate.
 
 Return ONLY JSON conforming to tooling/agent-harness/schemas/verification-contract.schema.json.
 """
@@ -235,7 +267,11 @@ def generate(feature_dir: pathlib.Path, args: argparse.Namespace) -> pathlib.Pat
             die(f'missing {name}')
     design_errors = h.design_gate_errors(feature_dir, feature_dir / 'spec.md', feature_dir / 'plan.md')
     if design_errors:
-        die('verification contract must be authored after a current design gate: ' + '; '.join(design_errors))
+        closure_errors = h.master_implementation_closure_errors(
+            feature_dir, feature_dir / 'spec.md', feature_dir / 'plan.md')
+        if closure_errors:
+            die('verification contract must be authored after a current design gate or valid master implementation closure: ' +
+                '; '.join(closure_errors))
     existing = feature_dir / 'verification-contract.json'
     if existing.exists() and not args.force:
         die(f'refusing to overwrite existing contract without --force: {existing}')

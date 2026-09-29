@@ -396,6 +396,51 @@ def design_gate_errors(feature_dir: pathlib.Path, spec: pathlib.Path, plan: path
     return errors
 
 
+def master_implementation_closure_errors(feature_dir: pathlib.Path, spec: pathlib.Path,
+                                         plan: pathlib.Path) -> list[str]:
+    """Validate an explicit human implementation-authority closure.
+
+    This does not rewrite, waive, or reinterpret design/gate.json. It is a
+    narrowly scoped route for continuing implementation when a human has
+    explicitly frozen a non-passing design history and authorized the
+    implementation contract separately.
+    """
+    path = feature_dir / 'design' / 'master-closure.json'
+    if not path.exists():
+        return ['fresh canonical design gate is required; no master implementation closure exists']
+    try:
+        record = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return ['master implementation closure is unreadable or invalid JSON']
+    expected = {
+        'spec_sha256': sha256_bytes(spec.read_bytes()),
+        'plan_sha256': sha256_bytes(plan.read_bytes()),
+        'design_config_sha256': sha256_bytes((feature_dir / 'design.json').read_bytes()),
+    }
+    required = {
+        'schema_version': 1,
+        'feature': feature_dir.name,
+        'authority': 'master-closure',
+        'status': 'implementation-authorized',
+        'canonical_design_gate': 'not-pass',
+        'authority_runs': 16,
+    }
+    errors = [f'master implementation closure {key} must equal {value!r}'
+              for key, value in required.items() if record.get(key) != value]
+    inputs = record.get('inputs')
+    if not isinstance(inputs, dict):
+        errors.append('master implementation closure inputs must be an object')
+    else:
+        for key, value in expected.items():
+            if inputs.get(key) != value:
+                errors.append(f'master implementation closure is stale: inputs.{key} does not match')
+    if record.get('verification_contract_authorized') is not True:
+        errors.append('master implementation closure must authorize post-implementation contract refresh')
+    if record.get('commit_authorized') is not True:
+        errors.append('master implementation closure must authorize coherent implementation commits')
+    return errors
+
+
 def validate(feature_dir: pathlib.Path) -> list[str]:
     errors: list[str] = []
     spec, plan, tasks_path = feature_files(feature_dir)
@@ -405,7 +450,12 @@ def validate(feature_dir: pathlib.Path) -> list[str]:
     if errors:
         return errors
 
-    errors.extend(design_gate_errors(feature_dir, spec, plan))
+    gate_errors = design_gate_errors(feature_dir, spec, plan)
+    if gate_errors:
+        closure_errors = master_implementation_closure_errors(feature_dir, spec, plan)
+        if closure_errors:
+            errors.extend(gate_errors)
+            errors.extend(closure_errors)
     errors.extend(vc.validate_contract(feature_dir))
 
     try:
@@ -810,6 +860,143 @@ def cmd_migrate_state(args: argparse.Namespace) -> None:
             die(f'no supported lifecycle-state migration from protocol version {old_version!r}')
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def historical_feature_fingerprint(feature_dir: pathlib.Path, commit: str) -> str:
+    """Recompute the feature fingerprint from an immutable Git checkpoint."""
+    digest = hashlib.sha256()
+    for relative in ('spec.md', 'plan.md', 'tasks.json', 'design.json',
+                     'design/gate.json', 'verification-contract.json',
+                     'wayfinder-handoff.json'):
+        result = subprocess.run(['git', 'show', f'{commit}:docs/specs/{feature_dir.name}/{relative}'],
+                                cwd=feature_repo_base(feature_dir), capture_output=True, check=False)
+        if result.returncode:
+            continue
+        digest.update(relative.encode()); digest.update(b'\0')
+        digest.update(result.stdout); digest.update(b'\0')
+    return digest.hexdigest()
+
+
+def cmd_reconcile_feature(args: argparse.Namespace) -> None:
+    """Explicitly supersede a feature fingerprint under .agent-state CAS."""
+    feature_dir = args.feature_dir.resolve()
+    doc = load_validated(feature_dir)
+    reason, operator = str(args.reason or '').strip(), str(args.by or '').strip()
+    if not reason or not operator:
+        die('FEATURE_REPLAN_REJECTED: explicit reason and operator attribution are required')
+    runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        path = state_path(feature_dir)
+        if not path.is_file() or path.is_symlink():
+            die('FEATURE_REPLAN_REJECTED: existing lifecycle state is required')
+        state = load_json(path)
+        old_fingerprint = state.get('fingerprint')
+        new_fingerprint = feature_fingerprint(feature_dir)
+        generation = state.get('feature_generation', 1)
+        if type(generation) is not int or generation != args.expected_generation:
+            die('FEATURE_REPLAN_CAS_CONFLICT: expected generation differs')
+        if old_fingerprint == new_fingerprint:
+            die('FEATURE_REPLAN_REJECTED: current feature fingerprint is unchanged')
+        if state.get('state_version') != 2 or state.get('protocol_version') != protocol_version(feature_dir):
+            die('FEATURE_REPLAN_REJECTED: unsupported lifecycle state version')
+        base = state.get('base_commit')
+        if not isinstance(base, str) or not re.fullmatch(r'[0-9a-f]{40}', base):
+            die('FEATURE_REPLAN_REJECTED: historical base checkpoint is unavailable')
+        if historical_feature_fingerprint(feature_dir, base) != old_fingerprint:
+            die('FEATURE_REPLAN_REJECTED: old fingerprint cannot be proven from its immutable checkpoint')
+        tasks = state.get('tasks')
+        if not isinstance(tasks, dict) or set(tasks) != set(task_index(doc)):
+            die('FEATURE_REPLAN_REJECTED: task identity set changed; explicit feature replacement is required')
+        record = {'schema_version': 1, 'kind': 'feature-fingerprint-replan',
+            'from_generation': generation, 'to_generation': generation + 1,
+            'old_fingerprint': old_fingerprint, 'new_fingerprint': new_fingerprint,
+            'historical_checkpoint': base, 'reason': reason, 'operator_attribution': operator,
+            'invalidated_verification_authority': True,
+            'preserved_task_history': True, 'recorded_at': dt.datetime.now(dt.timezone.utc).isoformat()}
+        history = state.setdefault('feature_replans', [])
+        if not isinstance(history, list): die('FEATURE_REPLAN_REJECTED: malformed feature replan history')
+        state['feature_replans'] = [*history, record]
+        state['fingerprint'] = new_fingerprint
+        state['feature_generation'] = generation + 1
+        state['verification_authority'] = {'accepted_plan_id': None, 'generation': generation + 1}
+        save_state(feature_dir, state)
+        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    print(f'REPLANNED feature={feature_dir.name} generation={generation + 1} fingerprint={new_fingerprint}')
+
+
+def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
+                             expected_generation: int) -> dict:
+    """Bind a published immutable plan through the sole .agent-state CAS."""
+    feature_dir = feature_dir.resolve()
+    doc = load_validated(feature_dir)
+    if (not isinstance(plan_record, dict) or
+            plan_record.get('feature_id') != doc.get('feature', feature_dir.name) or
+            plan_record.get('feature_fingerprint') != feature_fingerprint(feature_dir) or
+            type(plan_record.get('lifecycle_generation')) is not int or
+            plan_record.get('lifecycle_generation') != expected_generation):
+        die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: plan feature/generation binding differs')
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        state = _load_state_unlocked(feature_dir, doc)
+        generation = state.get('feature_generation', 1)
+        if generation != expected_generation:
+            die('VERIFICATION_PLAN_ACCEPTANCE_CAS_CONFLICT: lifecycle generation changed')
+        task_state = state.get('tasks', {}).get(plan_record.get('task_id'))
+        if (not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+                task_state.get('attempts') != plan_record.get('task_attempt')):
+            die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: task attempt is not current and running')
+        current = state.get('verification_authority')
+        if isinstance(current, dict) and current.get('accepted_plan_id') not in (None, plan_record['plan_id']):
+            old_binding = current.get('binding')
+            old_task = (state.get('tasks', {}).get(old_binding.get('task_id'))
+                        if isinstance(old_binding, dict) else None)
+            if (isinstance(old_task, dict) and old_task.get('status') == 'running' and
+                    old_task.get('attempts') == old_binding.get('task_attempt')):
+                die('VERIFICATION_PLAN_ACCEPTANCE_REPLAN_REQUIRED: prior accepted execution is still current')
+            history = state.setdefault('verification_plan_history', [])
+            if not isinstance(history, list):
+                die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: malformed plan history')
+            history.append({'prior_authority': current, 'superseded_by': plan_record['plan_id'],
+                'superseded_at': dt.datetime.now(dt.timezone.utc).isoformat(),
+                'reason': 'new trusted task-attempt plan accepted through lifecycle CAS'})
+        binding = {key: plan_record.get(key) for key in (
+            'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint', 'lifecycle_generation', 'family',
+            'profile_hash', 'policy_checkpoint', 'candidate_identity',
+            'final_changed_surface_id', 'origin_binding')}
+        state['verification_authority'] = {'accepted_plan_id': plan_record['plan_id'],
+            'generation': generation, 'binding': binding,
+            'accepted_at': dt.datetime.now(dt.timezone.utc).isoformat()}
+        save_state(feature_dir, state)
+        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    return state['verification_authority']
+
+
+def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str) -> dict:
+    """Resolve subordinate plan bytes and prove current .agent-state acceptance."""
+    from verification.store import VerificationStore, StoreError
+    store = VerificationStore(repository)
+    record = store.load_plan_record(plan_id)
+    feature_dir = pathlib.Path(repository) / 'docs' / 'specs' / record['feature_id']
+    try:
+        doc = load_validated(feature_dir)
+        state = _read_state_unlocked_pure(feature_dir, doc)
+    except SystemExit:
+        raise StoreError('ACCEPTED_PLAN_UNAVAILABLE') from None
+    current = state.get('verification_authority')
+    generation = state.get('feature_generation', 1)
+    task_state = state.get('tasks', {}).get(record.get('task_id'))
+    expected = {key: record.get(key) for key in ('plan_id', 'task_id', 'task_attempt', 'feature_fingerprint',
+        'lifecycle_generation', 'family', 'profile_hash', 'policy_checkpoint',
+        'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
+    if (not isinstance(current, dict) or current.get('accepted_plan_id') != plan_id or
+            current.get('generation') != generation or generation != record.get('lifecycle_generation') or
+            record.get('feature_fingerprint') != feature_fingerprint(feature_dir) or
+            not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+            task_state.get('attempts') != record.get('task_attempt') or
+            current.get('binding') != expected):
+        raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
+    return record
 
 
 def legacy_state_name(feature_dir: pathlib.Path) -> str:
@@ -1457,10 +1644,10 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
         if not isinstance(task, dict) or not isinstance(task.get('id'), str):
             continue
         tid = task['id']
-        contract_task = active_task_contract(feature_dir, doc, tid, state=state) if feature_dir is not None else task
         entry = state['tasks'][tid]
         if entry['status'] not in {'pending', 'failed'}:
             continue
+        contract_task = active_task_contract(feature_dir, doc, tid, state=state) if feature_dir is not None else task
         if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
             if feature_dir is None or classify_retry_authorizations(feature_dir, doc, state, tid, int(entry.get('attempts', 0)))[0] != 'valid':
                 continue
@@ -1679,7 +1866,17 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
         current = packet_payload(doc, task_index(doc)[task_id], feature_dir)
         # Before replanning, semantic drift is never silently accepted.
         if not packet_matches_semantic_contract(packet, doc, task_index(doc)[task_id], feature_dir):
-            die('TASK_REPLAN_REQUIRED: active legacy packet differs from the planning contract')
+            # A feature-level explicit replan may supersede a legacy packet
+            # only when its old feature fingerprint is exactly the prior
+            # fingerprint recorded by the durable feature-replan CAS. Expose
+            # it as history for cmd_replan_task; consumers still reject it
+            # against the current semantic task contract.
+            replans = state.get('feature_replans', [])
+            prior = next((item for item in reversed(replans) if isinstance(item, dict) and
+                          item.get('new_fingerprint') == feature_fingerprint(feature_dir)), None)
+            if (prior is None or packet.get('feature_fingerprint') != prior.get('old_fingerprint') or
+                    entry.get('status') not in {'running', 'failed'}):
+                die('TASK_REPLAN_REQUIRED: active legacy packet differs from the planning contract')
         return {'revision_id': packet_revision_id(packet),
                 'contract_sha256': packet.get('semantic_contract_sha256', current['semantic_contract_sha256']),
                 'packet': packet, 'path': str(path), 'legacy': True}
@@ -4149,6 +4346,9 @@ def cmd_fail(args: argparse.Namespace) -> None:
             'failed_at': utc_now().isoformat(),
             'last_attempt_commit': failed_commit,
         })
+        control_outcome = getattr(args, 'control_outcome', None)
+        if control_outcome in {'needs-human', 'verification-blocked', 'verification-owned'}:
+            entry['control_outcome'] = control_outcome
         if args.evidence:
             entry['last_failure_evidence'] = str(pathlib.Path(args.evidence))
         if entry.pop('active_human_resume', None) is not None:
@@ -4971,6 +5171,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--reason', required=True)
     s.add_argument('--evidence', help='Optional structured runner evidence for the failed attempt')
     s.add_argument('--escalate', action='store_true', help='Stop immediately for a human decision instead of retrying')
+    s.add_argument('--control-outcome', choices=['needs-human', 'verification-blocked', 'verification-owned'])
     s.set_defaults(func=cmd_fail)
 
     s = sub.add_parser('release')
@@ -5038,6 +5239,13 @@ def parser() -> argparse.ArgumentParser:
     s = sub.add_parser('migrate-state')
     s.add_argument('feature_dir', type=pathlib.Path)
     s.set_defaults(func=cmd_migrate_state)
+
+    s = sub.add_parser('reconcile-feature')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('--expected-generation', type=int, required=True)
+    s.add_argument('--reason', required=True)
+    s.add_argument('--by', required=True, help='audit attribution only')
+    s.set_defaults(func=cmd_reconcile_feature)
 
     for name in ('worktree-create', 'worktree-remove'):
         s = sub.add_parser(name)

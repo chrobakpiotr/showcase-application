@@ -17,7 +17,9 @@
       "enum": [
         "pass",
         "fail",
-        "needs-human"
+        "needs-human",
+        "verification-blocked",
+        "verification-owned"
       ]
     },
     "summary": {

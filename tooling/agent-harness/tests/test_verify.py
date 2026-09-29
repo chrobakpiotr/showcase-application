@@ -60,6 +60,21 @@ class PlannerTest(unittest.TestCase):
         for bad in ['missing', self.git('rev-parse', 'HEAD:src/renamed.py').strip()]:
             with self.assertRaises(InvalidPolicy): changed_surface(self.root, bad)
 
+    def test_ignored_candidate_files_are_visible_but_only_exact_runtime_is_excluded(self):
+        (self.root / '.gitignore').write_text('ignored-output/\n', encoding='utf-8')
+        ignored = self.root / 'ignored-output' / 'report.json'
+        ignored.parent.mkdir(); ignored.write_text('{}', encoding='utf-8')
+        other_runtime = self.root / '.agent-runs' / 'untrusted-output' / 'result.log'
+        other_runtime.parent.mkdir(parents=True); other_runtime.write_text('x', encoding='utf-8')
+        from verification.store import resolve_control_root
+        canonical_runtime, _ = resolve_control_root(self.root)
+        canonical_runtime.mkdir(parents=True, exist_ok=True)
+        (canonical_runtime / 'run.log').write_text('runtime', encoding='utf-8')
+        surface = changed_surface(self.root, self.base)
+        self.assertIn('ignored-output/report.json', surface.paths)
+        self.assertIn('.agent-runs/untrusted-output/result.log', surface.paths)
+        self.assertNotIn('.agent-runs/control/verification-v2/run.log', surface.paths)
+
     def test_occurrences_preserve_duplicates_and_order(self):
         p = profile(gate('dep', command='python3 -V', mandatory=False),
                     gate('unit', depends_on=['dep']))
@@ -620,19 +635,68 @@ class PlannerTest(unittest.TestCase):
             good = self.receipt(self.plan(control).decisions[0], control)
             self.assertEqual('ALREADY_GREEN', self.plan(control, evidence={'unit': good}).decisions[0].decision)
 
-    def test_direct_plan_parity(self):
+    def test_direct_plan_rejects_caller_selected_profile_path(self):
         path = self.root / 'profile.json'
         path.write_text(json.dumps({'schema_version': 1, 'gates': [gate()]}))
         from verification.profile import load_profile
         p = load_profile(path)
-        expected = build_plan(self.root, p, self.family(p)).to_record()
         cli = pathlib.Path(__file__).resolve().parents[1] / 'verify.py'
         result = subprocess.run([sys.executable, str(cli), 'plan', '--repo', str(self.root),
                                  '--profile', str(path), '--base-sha', self.base,
                                  '--family-id', 'family-1', '--policy-checkpoint', 'a'*40],
                                 capture_output=True, text=True)
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual(expected, json.loads(result.stdout))
+        self.assertEqual(2, result.returncode)
+        self.assertEqual({'status': 'invalid-policy'}, json.loads(result.stdout))
+
+
+class VerificationGrantCliTest(unittest.TestCase):
+    def test_signed_retry_grant_import_uses_verifier_only_store_api(self):
+        import contextlib
+        import io
+        import verify
+        envelope = {'schema_version': 1, 'protocol': 'critical-gate-retry-grant-v1',
+                    'grant_id': 'signed-grant', 'signature': 'fixture'}
+        with tempfile.TemporaryDirectory() as temp:
+            grant_path = pathlib.Path(temp) / 'grant.json'
+            grant_path.write_text(json.dumps(envelope), encoding='utf-8')
+            store = mock.Mock()
+            store.import_failure_grant.return_value = {'grant_id': 'signed-grant'}
+            output = io.StringIO()
+            with mock.patch('verification.store.VerificationStore', return_value=store), \
+                 contextlib.redirect_stdout(output):
+                result = verify.main(['grant-import', '--repo', temp,
+                                      '--grant-file', str(grant_path)])
+            self.assertEqual(0, result)
+            self.assertEqual({'status': 'grant-imported', 'grant_id': 'signed-grant'},
+                             json.loads(output.getvalue()))
+            store.import_failure_grant.assert_called_once_with(envelope)
+
+    def test_integration_cli_resolves_exact_plan_before_executor(self):
+        import contextlib
+        import io
+        import types
+        import verify
+        record = {'plan_id': 'verification-plan-v1:sha256:' + 'a' * 64,
+                  'lifecycle_generation': 4}
+        profile = object()
+        plan = object()
+        unit = {'unit_id': 'unit-current', 'obligation_ids': ['obligation-current']}
+        result = types.SimpleNamespace(outcome='PASS', to_record=lambda: {'outcome': 'PASS'})
+        output = io.StringIO()
+        with mock.patch('verification.authority.resolve_execution',
+                        return_value=(record, profile, plan, [unit])) as resolve, \
+             mock.patch('verification.executor.execute_plan', return_value=result) as execute, \
+             mock.patch('verification.store.VerificationStore'), \
+             contextlib.redirect_stdout(output):
+            code = verify.main(['run', '--mode', 'integration', '--repo', '.',
+                '--plan-id', record['plan_id'], '--unit-id', 'unit-current'])
+        self.assertEqual(0, code)
+        resolve.assert_called_once()
+        self.assertEqual(record['plan_id'], resolve.call_args.args[1])
+        self.assertEqual('unit-current', resolve.call_args.kwargs['unit_id'])
+        execute.assert_called_once()
+        self.assertEqual(record, execute.call_args.kwargs['authority_context'])
+        self.assertEqual([unit['unit_id']], json.loads(output.getvalue())['execution_units'])
 
 
 if __name__ == '__main__': unittest.main()

@@ -89,7 +89,9 @@ class VerificationSupervisor:
                 post_observer=None, recovery_observer=None, terminal_record_builder=None,
                 input_fingerprint: str | None = None, profile_hash: str | None = None,
                 critical: bool = False, retry_policy: str = 'forbid',
-                retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None):
+                retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None,
+                candidate_identity: str | None = None, final_changed_surface_id: str | None = None,
+                plan_id: str | None = None, retry_scope: dict | None = None):
         if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
             raise SupervisorError('invalid-retry-policy')
         if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
@@ -194,10 +196,13 @@ class VerificationSupervisor:
             if active_failure is not None:
                 exact_context = {**fence_context, 'policy_identity': policy_identity,
                                  'backend_identity': backend_identity}
+                if not isinstance(retry_scope, dict):
+                    raise SupervisorError('FAILURE_GRANT_SCOPE_MISMATCH')
                 try:
                     retry_consumption = self.store.consume_failure_grant(
                         failure_grant_id, failure_id=active_failure['failure_id'],
-                        context=exact_context, execution_id=execution_id, lock_held=True)
+                        context=exact_context, retry_scope=retry_scope, execution_id=execution_id,
+                        lock_held=True)
                 except StoreError as exc:
                     raise SupervisorError(str(exc)) from None
                 self._crash('after-grant-consumed')
@@ -210,6 +215,8 @@ class VerificationSupervisor:
                         existing.get('gate_id') != gate_id or existing.get('execution_identity') != identity or
                         existing.get('policy_identity') != policy_identity or
                         existing.get('backend_identity') != backend_identity or
+                        existing.get('candidate_identity') != candidate_identity or
+                        existing.get('final_changed_surface_id') != final_changed_surface_id or
                         existing.get('retry_policy_proof') != retry_policy_proof):
                     raise StoreError('immutable-record-collision')
                 terminal = self.store._read_execution_terminal(journal, existing)
@@ -229,14 +236,19 @@ class VerificationSupervisor:
                 'backend': backend_identity, 'backend_identity': backend_identity,
                 'policy_identity': policy_identity, 'qualification_fingerprint': qualification or policy_identity,
                 'execution_identity': identity, 'input_fingerprint': input_fingerprint,
+                'candidate_identity': candidate_identity,
+                'final_changed_surface_id': final_changed_surface_id,
                 'profile_hash': profile_hash, 'critical': bool(critical),
+                'plan_id': plan_id,
                 'retry_policy': retry_policy, 'retry_controls': list(retry_controls),
                 'retry_policy_proof': retry_policy_proof,
                 'predecessor_failure_id': active_failure['failure_id'] if retry_consumption else None,
                 'consumption_id': retry_consumption['consumption_id'] if retry_consumption else None,
                 'retry_proof': ({'failure_id': active_failure['failure_id'],
                     'grant_id': failure_grant_id, 'consumption_id': retry_consumption['consumption_id'],
-                    'grant_hash': retry_consumption['grant_hash']} if retry_consumption else None),
+                    'grant_hash': retry_consumption['grant_hash'], 'retry_scope': retry_scope}
+                    if retry_consumption else None),
+                'retry_scope': retry_scope if retry_consumption else None,
                 'launch_intent_hash': intent_hash, 'command_identity': intent_hash,
                 'supervisor_generation': uuid.uuid4().hex, 'protocol_version': 1,
                 'started_at': time.time(),
@@ -487,6 +499,8 @@ class VerificationSupervisor:
             'repository_id': self.store.repository_id,
             'started_hash': hashlib.sha256((journal / 'started.json').read_bytes()).hexdigest(),
             'execution_identity': identity or {'state': 'NOT_PREPARED'},
+            'candidate_identity': started.get('candidate_identity'),
+            'final_changed_surface_id': started.get('final_changed_surface_id'),
             'backend_identity': started.get('backend_identity', started['backend']),
             'policy_identity': started.get('policy_identity', 'unqualified'),
             'command_identity': started['launch_intent_hash'],

@@ -8,6 +8,7 @@ import os
 import pathlib
 import stat
 import subprocess
+from functools import lru_cache
 
 from .model import FileIdentity, InvalidPolicy, Observation, Surface
 from .profile import affects_descendants, matches, pattern_segments
@@ -26,6 +27,20 @@ def _paths(raw):
     return {os.fsdecode(p) for p in raw.split(b'\0') if p}
 
 
+@lru_cache(maxsize=32)
+def _trusted_runtime_relative(root_name: str) -> str | None:
+    """Return only the canonical verification-v2 runtime namespace if local."""
+    root = pathlib.Path(root_name).resolve()
+    try:
+        from .store import resolve_control_root
+        runtime, _ = resolve_control_root(root)
+        return runtime.resolve(strict=False).relative_to(root).as_posix()
+    except ValueError:
+        return None
+    except Exception:
+        raise InvalidPolicy('verification-runtime-namespace-unresolved') from None
+
+
 def changed_surface(root, base_sha):
     root = pathlib.Path(root)
     # Object IDs only: revision expressions/options are not accepted family identities.
@@ -38,10 +53,20 @@ def changed_surface(root, base_sha):
     paths = _paths(_git(root, 'diff', '--no-renames', '--name-only', '-z', base_sha, 'HEAD', '--'))
     paths |= _paths(_git(root, 'diff', '--no-renames', '--name-only', '-z', '--cached', '--'))
     paths |= _paths(_git(root, 'diff', '--no-renames', '--name-only', '-z', '--'))
-    untracked = _paths(_git(root, 'ls-files', '--others', '--exclude-standard', '-z'))
+    # No ignore rule is an authority exclusion. Ignored untracked candidate
+    # files remain visible to the changed-surface calculation.
+    untracked = _paths(_git(root, 'ls-files', '--others', '-z'))
     paths |= untracked
     tracked = _paths(_git(root, 'ls-files', '-z'))
     baseline = _paths(_git(root, 'ls-tree', '-r', '--name-only', '-z', base_sha))
+    runtime = _trusted_runtime_relative(str(root.resolve()))
+    def control_path(path):
+        return (path == '.git' or path.startswith('.git/') or path == '.agent-state' or
+                path.startswith('.agent-state/') or runtime is not None and
+                (path == runtime or path.startswith(runtime + '/')))
+    paths = {path for path in paths if not control_path(path)}
+    tracked = {path for path in tracked if not control_path(path)}
+    baseline = {path for path in baseline if not control_path(path)}
     deleted = tuple(sorted(p for p in paths | baseline if not os.path.lexists(root / p)))
     common = os.fsdecode(_git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir').strip())
     return Surface(tuple(sorted(paths)), deleted, tuple(sorted(tracked | baseline | untracked)),
@@ -78,8 +103,12 @@ class ObservationSession:
                 self.scan_failed = True
                 return
             for entry in entries:
-                if not prefix and entry.name in ('.git', '.agent-runs'): continue
                 relative = prefix + entry.name
+                runtime = _trusted_runtime_relative(str(self.root.resolve()))
+                if (relative == '.git' or relative == '.agent-state' or
+                        relative.startswith('.agent-state/') or
+                        runtime is not None and (relative == runtime or relative.startswith(runtime + '/'))):
+                    continue
                 self.candidates.add(relative)
                 if entry.is_dir(follow_symlinks=False): walk(entry.path, relative + '/')
         if enumerate_paths: walk(self.root)

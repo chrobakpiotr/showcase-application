@@ -58,6 +58,8 @@ class Family:
     origin_policy: str
     profile_hash: str
     policy_checkpoint: str
+    candidate_identity: str | None = None
+    final_changed_surface_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +127,8 @@ class Plan:
         return safe_record(dict(schema_version=2, advisory=True, family_id=self.family.id,
                                 base_sha=self.family.base_sha, origin_policy=self.family.origin_policy,
                                 profile_hash=self.family.profile_hash,
+                                candidate_identity=self.family.candidate_identity,
+                                final_changed_surface_id=self.family.final_changed_surface_id,
                                 decisions=[d.to_record(safety=safety) for d in self.decisions]), safety=safety)
 
 
@@ -152,6 +156,8 @@ class Evidence:
     artifacts: tuple[FileIdentity, ...]
     dependencies: tuple[tuple[str, str, str], ...]
     receipt_hash: str
+    candidate_identity: str | None = None
+    final_changed_surface_id: str | None = None
 
 
 @dataclass(frozen=True)

@@ -91,7 +91,14 @@ class CommandExecutionBackend:
     def prepare(self, *, worktree, cwd, run_dir, repository_id, command, sandbox_mode,
                 environment=None, control_root=None, **_kwargs):
         argv = verification_argv(command)
-        plan = verification_sandbox.build_plan(argv, pathlib.Path(cwd), pathlib.Path(run_dir), sandbox_mode)
+        try:
+            plan = verification_sandbox.build_plan(argv, pathlib.Path(cwd), pathlib.Path(run_dir), sandbox_mode)
+        except RuntimeError as exc:
+            # Backend discovery is not qualification. Keep the stable control
+            # outcome and never leak host-specific command diagnostics.
+            if str(exc).startswith('no strong verification sandbox available'):
+                raise CommandEnvironmentBlocked('VERIFICATION_SANDBOX_UNAVAILABLE') from None
+            raise
         proof = plan.qualification
         if not (isinstance(proof, verification_sandbox.BackendQualification) and
                 verification_sandbox.qualifies_v2(plan) and

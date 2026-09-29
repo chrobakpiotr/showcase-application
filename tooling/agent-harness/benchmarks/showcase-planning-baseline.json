@@ -1,0 +1,25 @@
+{
+  "durations_seconds": [
+    2.562445,
+    2.654265,
+    2.599045
+  ],
+  "fixture": {
+    "bytes_per_file": 256,
+    "bytes_total": 1280000,
+    "disjoint_matches_per_gate": 50,
+    "files": 5000,
+    "gates": 100
+  },
+  "git_subprocess_calls_per_run": 9.0,
+  "limits_seconds": {
+    "maximum": 20,
+    "median": 10
+  },
+  "maximum_seconds": 2.654265,
+  "median_seconds": 2.599045,
+  "operation_contract": "G+M+B; no subprocess-per-file planning",
+  "runs": 3,
+  "schema_version": 1,
+  "warmups": 1
+}

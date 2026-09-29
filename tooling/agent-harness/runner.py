@@ -29,6 +29,7 @@ RUNS = REPO / '.agent-runs'
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import telemetry  # noqa: E402
+from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
 import verification_sandbox  # noqa: E402
 import trust  # noqa: E402
 
@@ -457,57 +458,35 @@ def verification_argv(command: str) -> list[str]:
 
 
 def run_verification(
-    packet: dict[str, Any], worktree: pathlib.Path, out: pathlib.Path, timeout_seconds: int, sandbox_mode: str = 'auto',
+    packet: dict[str, Any], worktree: pathlib.Path, out: pathlib.Path, timeout_seconds: int,
+    sandbox_mode: str = 'auto', accepted_plan_id: str | None = None,
 ) -> tuple[bool, list[dict[str, Any]]]:
-    results: list[dict[str, Any]] = []
-    baseline_fingerprint = worktree_content_fingerprint(worktree)
-    for index, command in enumerate(packet.get('verification', []), start=1):
-        if not isinstance(command, str):
-            die('task packet verification entries must be strings')
-        argv = verification_argv(command)
-        try:
-            sandbox = verification_sandbox.build_plan(argv, worktree, out / f'verify-{index:02d}-sandbox', sandbox_mode)
-        except (RuntimeError, ValueError) as exc:
-            results.append({'command': command, 'sandbox_error': str(exc), 'exit_code': None})
-            return False, results
-        started = time.monotonic()
-        stdout_path = out / f'verify-{index:02d}.stdout.log'
-        stderr_path = out / f'verify-{index:02d}.stderr.log'
-        try:
-            proc = subprocess.run(
-                sandbox.argv, cwd=worktree, env=sandbox.env, text=True, capture_output=True, check=False, timeout=timeout_seconds
-            )
-            stdout_path.write_text(proc.stdout, encoding='utf-8')
-            stderr_path.write_text(proc.stderr, encoding='utf-8')
-            record = {
-                'command': command,
-                'exit_code': proc.returncode,
-                'duration_ms': round((time.monotonic() - started) * 1000),
-                'stdout': str(stdout_path),
-                'stderr': str(stderr_path),
-                'sandbox_backend': sandbox.backend,
-                'strong_isolation': sandbox.strong_isolation,
-                'sandbox_details': sandbox.details,
-            }
-            results.append(record)
-            if proc.returncode != 0:
-                return False, results
-        except subprocess.TimeoutExpired as exc:
-            stdout_path.write_text(exc.stdout or '', encoding='utf-8')
-            stderr_path.write_text(exc.stderr or '', encoding='utf-8')
-            results.append({
-                'command': command, 'exit_code': None, 'timed_out': True,
-                'duration_ms': round((time.monotonic() - started) * 1000),
-                'stdout': str(stdout_path), 'stderr': str(stderr_path),
-                'sandbox_backend': sandbox.backend, 'strong_isolation': sandbox.strong_isolation,
-            })
-            return False, results
-
-        if worktree_content_fingerprint(worktree) != baseline_fingerprint:
-            results[-1]['worktree_mutated'] = True
-            return False, results
-    return True, results
-
+    """Consume an exact orchestration-accepted plan; never plan or authorize here."""
+    if not accepted_plan_id:
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'VERIFICATION_EXECUTION_PLAN_REQUIRED'}]
+    try:
+        result = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
+            '--mode', 'integration', '--repo', str(worktree), '--plan-id', accepted_plan_id],
+            cwd=worktree, text=True, capture_output=True, timeout=timeout_seconds, check=False)
+    except subprocess.TimeoutExpired:
+        return False, [{'command': '<accepted-plan>', 'exit_code': None,
+                        'outcome': 'TIMEOUT', 'plan_id': accepted_plan_id}]
+    try:
+        authority_result = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError):
+        authority_result = {}
+    category = authority_result.get('machine_category', authority_result.get('status'))
+    if is_control_outcome(category):
+        return False, [{'command': '<accepted-plan>', 'exit_code': result.returncode,
+            'machine_category': category, 'reason_code': authority_result.get('reason_code', 'CONTROL_OUTCOME'),
+            'plan_id': accepted_plan_id}]
+    if result.returncode != 0 or authority_result.get('outcome') != 'PASS':
+        return False, [{'command': '<accepted-plan>', 'exit_code': result.returncode,
+            'outcome': authority_result.get('outcome', 'ERROR'), 'plan_id': accepted_plan_id}]
+    return True, [{'command': '<accepted-plan>', 'exit_code': 0,
+                   'outcome': 'PASS', 'plan_id': accepted_plan_id}]
 
 def cli_version(executable: str) -> str | None:
     path = shutil.which(executable)
@@ -546,6 +525,7 @@ def main() -> None:
     p.add_argument('--verification-timeout', type=int, default=900)
     p.add_argument('--verification-sandbox', choices=('auto', 'required', 'off'), default='auto')
     p.add_argument('--skip-verification', action='store_true', help='Skip outer deterministic verification (specialist review only)')
+    p.add_argument('--verification-plan-id', help='consume this lifecycle-accepted verification plan')
     p.add_argument('--orchestration-id', help='Correlate multiple task/reviewer runs in one orchestration')
     p.add_argument('--print-command', action='store_true', help='Render provider command without executing it')
     args = p.parse_args()
@@ -643,13 +623,21 @@ def main() -> None:
 
         if result['status'] == 'pass' and not args.skip_verification and not args.review_existing:
             verification_ok, verification = run_verification(
-                packet, worktree, out, args.verification_timeout, args.verification_sandbox
+                packet, worktree, out, args.verification_timeout, args.verification_sandbox,
+                accepted_plan_id=args.verification_plan_id,
             )
             result['harness_verification'] = verification
             if not verification_ok:
-                result['status'] = 'fail'
-                failed = verification[-1].get('command', '<sandbox>') if verification else '<unknown>'
-                result['summary'] = f'Outer harness verification failed: {failed}'
+                control = verification[-1].get('machine_category') if verification else None
+                if is_control_outcome(control):
+                    result['status'] = control
+                    result['machine_category'] = control
+                    result['reason_code'] = verification[-1]['reason_code']
+                    result['summary'] = f'Outer harness verification control outcome: {control}'
+                else:
+                    result['status'] = 'fail'
+                    failed = verification[-1].get('command', '<sandbox>') if verification else '<unknown>'
+                    result['summary'] = f'Outer harness verification failed: {failed}'
 
         result['provenance'] = str(out / 'provenance.json')
         result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + '\n', encoding='utf-8')

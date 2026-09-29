@@ -110,6 +110,8 @@ This structural check cannot establish control-store provenance by itself.
         return (type(value.schema_version) is int and value.schema_version == 2 and value.status == 'pass' and
                 type(value.exit_code) is int and value.exit_code == 0 and
                 bool(value.ownership_token) and value.pre_fingerprint == value.post_fingerprint and
+                ((value.candidate_identity is None and value.final_changed_surface_id is None) or
+                 (value.candidate_identity is not None and value.final_changed_surface_id is not None)) and
                 bool(value.pre_fingerprint) and 0 <= value.started_at <= value.ended_at and
                 type(value.process_invocations) is int and value.process_invocations >= 1 and
                 (value.retry_policy != 'forbid' or value.process_invocations == 1) and
@@ -191,7 +193,9 @@ class _Evaluation:
                 retry_controls=gate.retry_controls, inputs=gate.inputs,
                 manifest=[dataclasses.asdict(x) for x in observation.manifest],
                 dependencies=bindings, probes=probes, policy_checkpoint=family.policy_checkpoint,
-                repository_id=self.surface.repository_id, artifacts=consumed))
+                repository_id=self.surface.repository_id, artifacts=consumed,
+                candidate_identity=family.candidate_identity,
+                final_changed_surface_id=family.final_changed_surface_id))
         prior = self.evidence.get(node.id)
         valid, _ = self.receipt(node.id)
         artifact_valid = True
@@ -211,7 +215,9 @@ class _Evaluation:
                 and prior.profile_hash == self.profile.content_hash and prior.policy_checkpoint == family.policy_checkpoint
                 and prior.command_hash == gate.command_hash and prior.gate_id == node.id
                 and prior.origin_policy == family.origin_policy and prior.sandbox == gate.sandbox
-                and prior.retry_policy == gate.retry_policy and prior.dependencies == tuple(bindings))
+                and prior.retry_policy == gate.retry_policy and prior.dependencies == tuple(bindings)
+                and prior.candidate_identity == family.candidate_identity
+                and prior.final_changed_surface_id == family.final_changed_surface_id)
             if binding_matches and dependencies_valid and artifact_valid:
                 classification, reason = 'ALREADY_GREEN', 'exact-evidence'
             else:
@@ -233,7 +239,8 @@ def build_plan(root, profile, family, *, task_commands=(), continuation=False, e
     return Plan(family, tuple(evaluation.evaluate(n, continuation=continuation) for n in nodes))
 
 
-def evaluate_ready_gate(root, profile, family, node, *, evidence=None, probes=None, continuation=False, safety=None):
+def evaluate_ready_gate(root, profile, family, node, *, evidence=None, probes=None, continuation=False,
+                        safety=None, trusted_runtime_root=None):
     """Reobserve current files/dependencies/artifacts. Caller owns admission and lock.
 
 Never pass a fingerprint from an advisory plan as authority. This function has no
@@ -241,6 +248,21 @@ side effects and deliberately does not claim repository admission on its own.
 """
     safety = safety or default_safety()
     _family(profile, family, safety)
+    if family.candidate_identity is not None or family.final_changed_surface_id is not None:
+        if family.candidate_identity is None or family.final_changed_surface_id is None:
+            raise InvalidPolicy('candidate-binding-incomplete')
+        from .candidate import CandidateSealError, seal_candidate
+        try:
+            current_candidate = seal_candidate(root, family.base_sha, {
+                'family_id': family.id, 'profile_hash': family.profile_hash,
+                'policy_checkpoint': family.policy_checkpoint,
+                'origin_policy': family.origin_policy,
+            }, trusted_runtime_root=trusted_runtime_root)
+        except CandidateSealError as exc:
+            raise InvalidPolicy(exc.reason) from None
+        if (current_candidate.candidate_identity != family.candidate_identity or
+                current_candidate.changed_surface_id != family.final_changed_surface_id):
+            raise InvalidPolicy('sealed-candidate-mutated')
     by_id = {g.id: g for g in profile.gates}
     if node.profile_gate_id is not None:
         gate = by_id.get(node.profile_gate_id)
@@ -255,7 +277,8 @@ side effects and deliberately does not claim repository admission on its own.
 
 
 def seal_pass(before, after, *, family, evidence_id, ownership_token, started_at, ended_at,
-              artifacts, process_invocations=1, safety=None):
+              artifacts, process_invocations=1, safety=None, candidate_identity=None,
+              final_changed_surface_id=None):
     """Construct a terminal PASS only after the executor independently observes post inputs.
 
 Publication and journal validation belong to the store/executor. Non-cacheable
@@ -274,7 +297,8 @@ executions need diagnostic terminal records, not a reusable PASS from this helpe
     value = Evidence(2, evidence_id, family.id, ownership_token, before.node.id, before.repository_id,
                      family.profile_hash, family.policy_checkpoint, g.command_hash, family.origin_policy,
                      before.fingerprint, after.fingerprint, g.sandbox, g.retry_policy, process_invocations,
-                     0, started_at, ended_at, 'pass', tuple(artifacts), before.dependencies, '')
+                     0, started_at, ended_at, 'pass', tuple(artifacts), before.dependencies, '',
+                     candidate_identity, final_changed_surface_id)
     record = evidence_record(value, safety=safety, include_receipt=False)
     value = dataclasses.replace(value, receipt_hash=digest(record))
     if not valid_evidence(value, safety=safety): raise ValueError('invalid-terminal-evidence')

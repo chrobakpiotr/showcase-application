@@ -216,6 +216,7 @@ class StoreTest(unittest.TestCase):
             record = {'schema_version': 2, 'evidence_id': 'e1', 'family_id': 'f1',
                 'ownership_token': 'owner', 'gate_id': 'g1', 'repository_id': store.repository_id,
                 'profile_hash': 'a' * 64, 'policy_checkpoint': 'b' * 40, 'command_hash': 'c' * 64,
+                'candidate_identity': 'e' * 64, 'final_changed_surface_id': 'f' * 64,
                 'origin_policy': 'integration', 'pre_fingerprint': 'd' * 64, 'post_fingerprint': 'd' * 64,
                 'sandbox': 'off', 'retry_policy': 'forbid', 'process_invocations': 1, 'exit_code': 0,
                 'started_at': 1.0, 'ended_at': 2.0, 'status': 'pass', 'artifacts': [], 'dependencies': []}
@@ -236,6 +237,7 @@ class StoreTest(unittest.TestCase):
             terminal = {'schema_version': 2, 'evidence_id': 'eid', 'family_id': 'fam',
                 'ownership_token': 'owner', 'gate_id': 'gate', 'repository_id': store.repository_id,
                 'profile_hash': 'a' * 64, 'policy_checkpoint': 'b' * 40, 'command_hash': 'c' * 64,
+                'candidate_identity': 'e' * 64, 'final_changed_surface_id': 'f' * 64,
                 'origin_policy': 'integration', 'pre_fingerprint': 'd' * 64, 'post_fingerprint': 'd' * 64,
                 'sandbox': 'off', 'retry_policy': 'forbid', 'process_invocations': 1, 'exit_code': 0,
                 'started_at': 1.0, 'ended_at': 2.0, 'status': 'pass', 'artifacts': [], 'dependencies': []}
@@ -369,6 +371,7 @@ class StoreTest(unittest.TestCase):
             terminal = {'schema_version': 2, 'evidence_id': 'eid', 'family_id': 'fam',
                 'ownership_token': 'owner', 'gate_id': 'gate', 'repository_id': store.repository_id,
                 'profile_hash': 'a' * 64, 'policy_checkpoint': 'b' * 40, 'command_hash': 'c' * 64,
+                'candidate_identity': 'e' * 64, 'final_changed_surface_id': 'f' * 64,
                 'origin_policy': 'integration', 'pre_fingerprint': 'd' * 64, 'post_fingerprint': 'd' * 64,
                 'sandbox': 'off', 'retry_policy': 'forbid', 'process_invocations': 1, 'exit_code': 0,
                 'started_at': 1.0, 'ended_at': 2.0, 'status': 'pass', 'artifacts': [], 'dependencies': []}

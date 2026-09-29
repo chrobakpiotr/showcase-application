@@ -1536,6 +1536,49 @@ class HarnessTest(unittest.TestCase):
         (feature / 'plan.md').write_text('# changed plan\n')
         self.assertTrue(any('plan_sha256' in error and 'stale' in error for error in harness.validate(feature)))
 
+    def test_master_closure_authorizes_implementation_without_claiming_gate_pass(self):
+        feature = self.feature()
+        config = {'required_for_orchestration': True, 'grill': 'always', 'prototype': 'auto',
+                  'architecture_grill': 'always', 'verification_contract': 'optional'}
+        (feature / 'design.json').write_text(json.dumps(config))
+        design = feature / 'design'
+        design.mkdir()
+        closure = {
+            'schema_version': 1, 'feature': feature.name, 'authority': 'master-closure',
+            'status': 'implementation-authorized', 'canonical_design_gate': 'not-pass',
+            'authority_runs': 16,
+            'inputs': {
+                'spec_sha256': harness.sha256_bytes((feature / 'spec.md').read_bytes()),
+                'plan_sha256': harness.sha256_bytes((feature / 'plan.md').read_bytes()),
+                'design_config_sha256': harness.sha256_bytes((feature / 'design.json').read_bytes()),
+            },
+            'verification_contract_authorized': True, 'commit_authorized': True,
+        }
+        (design / 'master-closure.json').write_text(json.dumps(closure))
+        # The canonical gate remains absent; this record grants only the distinct
+        # implementation authority and cannot be mistaken for a design PASS.
+        self.assertTrue(harness.design_gate_errors(feature, feature / 'spec.md', feature / 'plan.md'))
+        self.assertEqual([], harness.validate(feature))
+        self.assertEqual('not-pass', json.loads((design / 'master-closure.json').read_text())['canonical_design_gate'])
+
+    def test_stale_master_closure_does_not_authorize_current_candidate(self):
+        feature = self.feature()
+        (feature / 'design.json').write_text(json.dumps({
+            'required_for_orchestration': True, 'grill': 'always', 'prototype': 'auto',
+            'architecture_grill': 'always', 'verification_contract': 'optional'}))
+        design = feature / 'design'
+        design.mkdir()
+        closure = {
+            'schema_version': 1, 'feature': feature.name, 'authority': 'master-closure',
+            'status': 'implementation-authorized', 'canonical_design_gate': 'not-pass',
+            'authority_runs': 16, 'inputs': {'spec_sha256': '0' * 64, 'plan_sha256': '0' * 64,
+                'design_config_sha256': harness.sha256_bytes((feature / 'design.json').read_bytes())},
+            'verification_contract_authorized': True, 'commit_authorized': True,
+        }
+        (design / 'master-closure.json').write_text(json.dumps(closure))
+        errors = harness.validate(feature)
+        self.assertTrue(any('master implementation closure is stale' in error for error in errors))
+
     def test_inactive_maintained_example_does_not_require_live_design_gate(self):
         feature = self.feature()
         inactive = self.root / 'docs' / 'agentic-sdd' / 'examples' / 'TST-001'
@@ -3321,6 +3364,78 @@ class LegacyCompletionBindingTests(unittest.TestCase):
         self.assertEqual(before['tasks']['T-001'].get('packet_lineage'), after['tasks']['T-001'].get('packet_lineage'))
         after_bridges = sorted((p.name, p.read_bytes()) for p in bridge_dir.glob('*.json')) if bridge_dir.exists() else []
         self.assertEqual(before_bridges, after_bridges)
+
+    def test_completed_historical_packet_does_not_block_current_ready_tasks_after_feature_replan(self):
+        feature = self.feature(tasks=[
+            {'id': 'T-001', 'title': 'Build', 'objective': 'Implement', 'role': 'builder',
+             'depends_on': [], 'allowed_paths': ['src/**'], 'risk_tags': ['domain'],
+             'acceptance_criteria': ['AC-001'], 'verification': ['python3 -V']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-001'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['python3 -V']},
+        ])
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', 'commit', '-qm', 'feature baseline'], cwd=self.root, check=True)
+        doc = harness.load_validated(feature)
+        state = harness.initial_state(feature, doc)
+        state['base_commit'] = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 1,
+                                        'historical_attempts': [{'attempt': 1, 'result': 'completed'}]})
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature, state=state)
+        harness.save_state(feature, state)
+        (feature / 'plan.md').write_text('# current replanned contract\n', encoding='utf-8')
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_reconcile_feature(argparse.Namespace(feature_dir=feature,
+                expected_generation=1, reason='preserve historical completed packet', by='test-operator'))
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        ready = harness.ready_ids(doc, state, feature)
+        self.assertIn('T-900', ready)
+        self.assertEqual('completed', state['tasks']['T-001']['status'])
+        self.assertEqual(1, state['tasks']['T-001']['attempts'])
+
+    def test_feature_fingerprint_replan_preserves_history_and_invalidates_plan_authority(self):
+        feature = self.feature(tasks=[
+            {'id': 'T-001', 'title': 'Build', 'objective': 'Implement', 'role': 'builder',
+             'depends_on': [], 'allowed_paths': ['modules/domain/**'], 'risk_tags': ['domain'],
+             'acceptance_criteria': ['AC-001'], 'verification': ['./gradlew test']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-001'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['./gradlew test']},
+        ])
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', 'commit', '-qm', 'feature baseline'], cwd=self.root, check=True)
+        base = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['base_commit'] = base
+        state['feature_generation'] = 1
+        state['tasks']['T-001'].update({'attempts': 1, 'status': 'failed',
+                                        'historical_attempts': [{'attempt': 1, 'result': 'failed'}]})
+        state['verification_authority'] = {'accepted_plan_id': 'old-plan', 'generation': 1}
+        harness.save_state(feature, state)
+        old_fingerprint = state['fingerprint']
+        (feature / 'plan.md').write_text('# revised plan\n', encoding='utf-8')
+        args = argparse.Namespace(feature_dir=feature, expected_generation=1,
+                                  reason='legitimate contract revision', by='test-operator')
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_reconcile_feature(args)
+        current = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual(old_fingerprint,
+                         current['feature_replans'][0]['old_fingerprint'])
+        self.assertNotEqual(old_fingerprint, current['fingerprint'])
+        self.assertEqual(2, current['feature_generation'])
+        self.assertEqual({'accepted_plan_id': None, 'generation': 2},
+                         current['verification_authority'])
+        self.assertEqual([{'attempt': 1, 'result': 'failed'}],
+                         current['tasks']['T-001']['historical_attempts'])
+        with self.assertRaises(SystemExit):
+            harness.cmd_reconcile_feature(argparse.Namespace(
+                feature_dir=feature, expected_generation=1,
+                reason='stale retry', by='test-operator'))
 
 
 if __name__ == '__main__':

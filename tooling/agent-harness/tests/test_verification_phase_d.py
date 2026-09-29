@@ -13,9 +13,11 @@ import threading
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from verification.serialization import canonical
 from verification.store import StoreError, VerificationStore, publish_create_once
 from verification.supervisor import SupervisorState, VerificationSupervisor
+from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class FailureGrantTest(unittest.TestCase):
@@ -29,12 +31,16 @@ class FailureGrantTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = pathlib.Path(self.temp.name)
-        self.store = VerificationStore(self.root, control_root=self.root / 'control')
+        self.store, self.test_signing_key = trusted_test_store(self.root)
         self.context = {**type(self).context, 'repository_id': self.store.repository_id}
 
     def publish_execution(self, execution_id='execution-1', *, result='FAIL', critical=True,
                           fingerprint=None, profile_hash=None, gate_id=None, policy='policy-v1',
                           predecessor_failure_id=None, consumption_id=None, retry_proof=None):
+        if isinstance(retry_proof, dict) and retry_proof.get('grant_id'):
+            consumed = self.store._read_consumption(
+                self.store.consumptions / f"{retry_proof['grant_id']}.json")
+            retry_proof = {**retry_proof, 'retry_scope': consumed['retry_scope']}
         identity = {'scheme': 'test-unit', 'locator': execution_id, 'backend_identity': 'test',
                     'policy_identity': policy}
         started = {
@@ -49,6 +55,7 @@ class FailureGrantTest(unittest.TestCase):
             'critical': critical, 'execution_identity': identity,
             'predecessor_failure_id': predecessor_failure_id, 'consumption_id': consumption_id,
             'retry_proof': retry_proof,
+            'retry_scope': retry_proof.get('retry_scope') if isinstance(retry_proof, dict) else None,
         }
         started_hash = publish_create_once(self.store.executions / execution_id / 'started.json', started)
         receipt = {
@@ -71,14 +78,21 @@ class FailureGrantTest(unittest.TestCase):
         return self.store.publish_critical_failure(terminal['execution_id'])
 
     def grant(self, failure_id, grant_id='grant-1', context=None):
-        return self.store.issue_failure_grant(grant_id, failure_id=failure_id,
-            context=context or self.context, issuer='test-operator', reason='isolated-retry-test')
+        return signed_test_grant(self.store, self.test_signing_key, grant_id, failure_id,
+            context or self.context, reason='isolated-retry-test')
+
+    def consume(self, grant_id, *, failure_id, context=None, execution_id, store=None):
+        store = store or self.store
+        retry_scope = store._grant(grant_id)['retry_scope'] if grant_id else {}
+        return store.consume_failure_grant(grant_id, failure_id=failure_id,
+            context=context or self.context, retry_scope=retry_scope, execution_id=execution_id)
 
     def fresh_process(self, source, *args):
         code = ("import pathlib,sys; sys.path.insert(0,sys.argv[1]); " + source)
         return subprocess.run([sys.executable, '-c', code,
             str(pathlib.Path(__file__).resolve().parents[1]), str(self.root),
-            str(self.store.root), *args], check=True, text=True, capture_output=True).stdout.strip()
+            str(self.store.root), str(self.store.issuer_registry), *args], check=True,
+            text=True, capture_output=True).stdout.strip()
 
     def test_pd1_critical_fail_creates_durable_failure_receipt(self):
         failure = self.failure()
@@ -101,37 +115,50 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd3_fence_blocks_relaunch_without_grant(self):
         self.failure()
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_REQUIRED'):
-            self.store.consume_failure_grant(None, failure_id=None, context=self.context,
-                                             execution_id='retry-1')
+            self.consume(None, failure_id=None, context=self.context, execution_id='retry-1')
 
     def test_pd4_exact_grant_permits_one_retry(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        receipt = self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-            context=self.context, execution_id='retry-1')
+        receipt = self.consume('grant-1', failure_id=failure['failure_id'], execution_id='retry-1')
         self.assertEqual('grant-1', receipt['grant_id'])
+
+    def test_retry_grant_requires_trusted_ed25519_provenance(self):
+        failure = self.failure()
+        with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_AUTHORITY_REQUIRED'):
+            self.store.issue_failure_grant('caller-minted', failure_id=failure['failure_id'],
+                context=self.context, issuer='human', reason='caller assertion')
+        signed_test_grant(self.store, self.test_signing_key, 'signed-1', failure['failure_id'], self.context)
+        invalid = {'schema_version': 1, 'protocol': 'critical-gate-retry-grant-v1',
+            'grant_id': 'signed-2', 'failure_id': failure['failure_id'], 'context': self.context,
+            'retry_scope': signed_test_grant(self.store, self.test_signing_key, 'scope-only',
+                failure['failure_id'], self.context)['retry_scope'],
+            'terminal_receipt_hash': failure['terminal_receipt_hash'], 'issuer_id': 'test-issuer',
+            'authorizer_principal': 'human:test-principal', 'justification': 'authorized retry',
+            'issued_at': 1, 'signature': 'not-a-signature'}
+        with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_SIGNATURE_INVALID'):
+            self.store.import_failure_grant(invalid)
 
     def test_pd5_grant_consumption_is_before_launch_authority(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        consumed = self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-            context=self.context, execution_id='retry-1')
+        consumed = self.consume('grant-1', failure_id=failure['failure_id'], execution_id='retry-1')
         self.assertTrue((self.store.consumptions / 'grant-1.json').is_file())
         self.assertEqual('retry-1', consumed['execution_id'])
 
     def test_pd6_crash_after_consume_burns_grant_in_fresh_store(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-            context=self.context, execution_id='retry-1')
+        self.consume('grant-1', failure_id=failure['failure_id'], execution_id='retry-1')
         output = self.fresh_process("from verification.store import VerificationStore; "
-            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3])); "
+            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3]),issuer_registry=pathlib.Path(sys.argv[4])); "
             "print(s.grant_consumed('grant-1'))")
         self.assertEqual('True', output)
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
-            VerificationStore(self.root, control_root=self.root / 'control').consume_failure_grant(
-                'grant-1', failure_id=failure['failure_id'],
-                context=self.context, execution_id='retry-2')
+            VerificationStore(self.root, control_root=self.root / 'control',
+                issuer_registry=self.store.issuer_registry).consume_failure_grant(
+                'grant-1', failure_id=failure['failure_id'], context=self.context,
+                retry_scope=self.store._grant('grant-1')['retry_scope'], execution_id='retry-2')
 
     def test_pd7_concurrent_consume_has_one_winner(self):
         failure = self.failure()
@@ -139,11 +166,12 @@ class FailureGrantTest(unittest.TestCase):
         outcomes = []
         barrier = threading.Barrier(2)
         def consume(index):
-            store = VerificationStore(self.root, control_root=self.root / 'control')
+            store = VerificationStore(self.root, control_root=self.root / 'control',
+                issuer_registry=self.store.issuer_registry)
             barrier.wait()
             try:
-                store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-                    context=self.context, execution_id=f'retry-{index}')
+                self.consume('grant-1', failure_id=failure['failure_id'],
+                    execution_id=f'retry-{index}', store=store)
                 outcomes.append('WIN')
             except StoreError:
                 outcomes.append('LOSE')
@@ -155,26 +183,23 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd8_replay_cannot_reuse_grant(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-            context=self.context, execution_id='retry-1')
+        self.consume('grant-1', failure_id=failure['failure_id'], execution_id='retry-1')
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
-                context=self.context, execution_id='retry-1')
+            self.consume('grant-1', failure_id=failure['failure_id'], execution_id='retry-1')
 
     def test_pd9_f1_grant_cannot_authorize_f2(self):
         first = self.failure('execution-1')
         self.grant(first['failure_id'])
         second = self.failure('execution-2')
         with self.assertRaises(StoreError):
-            self.store.consume_failure_grant('grant-1', failure_id=second['failure_id'],
-                context=self.context, execution_id='retry-2')
+            self.consume('grant-1', failure_id=second['failure_id'], execution_id='retry-2')
 
     def test_pd10_wrong_repository_is_rejected(self):
         failure = self.failure()
         wrong = {**self.context, 'repository_id': 'other-repository'}
         with self.assertRaises(StoreError):
             self.grant(failure['failure_id'], context=wrong)
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            self.consume('grant-1', failure_id=failure['failure_id'],
                 context=self.context, execution_id='retry-1')
 
     def test_pd11_wrong_task_or_gate_is_rejected(self):
@@ -182,14 +207,14 @@ class FailureGrantTest(unittest.TestCase):
         wrong = {**self.context, 'gate_id': 'other-gate'}
         with self.assertRaises(StoreError):
             self.grant(failure['failure_id'], context=wrong)
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            self.consume('grant-1', failure_id=failure['failure_id'],
                 context=self.context, execution_id='retry-1')
 
     def test_pd12_wrong_input_fingerprint_is_rejected(self):
         failure = self.failure()
         with self.assertRaises(StoreError):
             self.grant(failure['failure_id'], context={**self.context, 'fingerprint': 'd' * 64})
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            self.consume('grant-1', failure_id=failure['failure_id'],
                 context=self.context, execution_id='retry-1')
 
     def test_pd13_wrong_policy_is_rejected(self):
@@ -201,19 +226,19 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd14_consumed_state_reconstructs_without_projection(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         projection = self.store.root / 'state' / 'grant-index.json'
         projection.unlink(missing_ok=True)
         output = self.fresh_process("from verification.store import VerificationStore; "
-            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3])); "
+            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3]),issuer_registry=pathlib.Path(sys.argv[4])); "
             "print(s.grant_consumed('grant-1'))")
         self.assertEqual('True', output)
 
     def test_pd15_retry_success_preserves_failure_history(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        consumed = self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        consumed = self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         self.publish_execution('retry-1', result='PASS', critical=False,
             predecessor_failure_id=failure['failure_id'], consumption_id=consumed['consumption_id'],
@@ -225,9 +250,9 @@ class FailureGrantTest(unittest.TestCase):
         self.assertIsNone(self.store.current_failure(self.context))
         self.grant(failure['failure_id'], grant_id='grant-2')
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            self.consume('grant-1', failure_id=failure['failure_id'],
                 context=self.context, execution_id='retry-2')
-        second_use = self.store.consume_failure_grant('grant-2', failure_id=failure['failure_id'],
+        second_use = self.consume('grant-2', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-2')
         self.publish_execution('retry-2', result='PASS', critical=False,
             predecessor_failure_id=failure['failure_id'], consumption_id=second_use['consumption_id'],
@@ -239,7 +264,7 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd16_retry_critical_fail_creates_f2(self):
         first = self.failure()
         self.grant(first['failure_id'])
-        consumed = self.store.consume_failure_grant('grant-1', failure_id=first['failure_id'],
+        consumed = self.consume('grant-1', failure_id=first['failure_id'],
             context=self.context, execution_id='retry-1')
         second_terminal = self.publish_execution('retry-1', result='FAIL',
             predecessor_failure_id=first['failure_id'], consumption_id=consumed['consumption_id'],
@@ -252,7 +277,7 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd17_f2_requires_new_grant(self):
         first = self.failure()
         self.grant(first['failure_id'])
-        consumed = self.store.consume_failure_grant('grant-1', failure_id=first['failure_id'],
+        consumed = self.consume('grant-1', failure_id=first['failure_id'],
             context=self.context, execution_id='retry-1')
         second_terminal = self.publish_execution('retry-1', result='FAIL',
             predecessor_failure_id=first['failure_id'], consumption_id=consumed['consumption_id'],
@@ -260,7 +285,7 @@ class FailureGrantTest(unittest.TestCase):
                 'consumption_id': consumed['consumption_id'], 'grant_hash': consumed['grant_hash']})
         second = self.store.publish_critical_failure(second_terminal['execution_id'])
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_REQUIRED'):
-            self.store.consume_failure_grant(None, failure_id=second['failure_id'],
+            self.consume(None, failure_id=second['failure_id'],
                 context=self.context, execution_id='retry-2')
 
     def test_pd18_noncritical_failure_does_not_create_fence(self):
@@ -314,27 +339,27 @@ class FailureGrantTest(unittest.TestCase):
     def test_pd23_fresh_process_retry_recovery(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         output = self.fresh_process("from verification.store import VerificationStore; "
-            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3])); "
-            "print(s.retry_state(sys.argv[4]))", failure['failure_id'])
+            "s=VerificationStore(sys.argv[2],control_root=pathlib.Path(sys.argv[3]),issuer_registry=pathlib.Path(sys.argv[4])); "
+            "print(s.retry_state(sys.argv[5]))", failure['failure_id'])
         self.assertEqual('CONSUMED', output)
 
     def test_pd24_no_duplicate_retry_payload_opportunity(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         with self.assertRaisesRegex(StoreError, 'FAILURE_GRANT_CONSUMED'):
-            self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+            self.consume('grant-1', failure_id=failure['failure_id'],
                 context=self.context, execution_id='retry-2')
         self.assertTrue((self.store.consumptions / 'grant-1.json').is_file())
 
     def test_e27_tampered_authority_records_fail_closed(self):
         failure = self.failure()
         self.grant(failure['failure_id'])
-        self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         started = self.store.executions / 'execution-1' / 'started.json'
         terminal = self.store.executions / 'execution-1' / 'terminal.json'
@@ -370,7 +395,7 @@ class FailureGrantTest(unittest.TestCase):
     def test_e28_unknown_failure_grant_and_consumption_versions_reject(self):
         failure = self.failure()
         grant = self.grant(failure['failure_id'])
-        consumed = self.store.consume_failure_grant('grant-1', failure_id=failure['failure_id'],
+        consumed = self.consume('grant-1', failure_id=failure['failure_id'],
             context=self.context, execution_id='retry-1')
         cases = (
             (self.store.failures / f"{failure['failure_id']}.json", 'schema_version',
