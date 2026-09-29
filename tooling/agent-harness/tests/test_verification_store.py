@@ -99,6 +99,10 @@ class StoreTest(unittest.TestCase):
             unrelated = base / 'other'
             unrelated.mkdir()
             subprocess.run(['git', 'init', str(unrelated)], check=True, stdout=subprocess.DEVNULL)
+            subprocess.run(['git', '-C', str(unrelated), 'config', 'user.email',
+                            'test@example.invalid'], check=True)
+            subprocess.run(['git', '-C', str(unrelated), 'config', 'user.name',
+                            'Test'], check=True)
             (unrelated / 'tracked').write_text('x')
             subprocess.run(['git', '-C', str(unrelated), 'add', 'tracked'], check=True)
             subprocess.run(['git', '-C', str(unrelated), 'commit', '-m', 'init'], check=True, stdout=subprocess.DEVNULL)

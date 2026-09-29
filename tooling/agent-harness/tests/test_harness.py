@@ -28,8 +28,9 @@ class HarnessTest(unittest.TestCase):
         harness.STATE_DIR = self.root / '.agent-state'
         import subprocess
         subprocess.run(['git', 'init', '-q'], cwd=self.root, check=True)
-        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
-                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
+        subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=self.root, check=True)
+        subprocess.run(['git', 'config', 'user.email', 'test@example.invalid'], cwd=self.root, check=True)
+        subprocess.run(['git', 'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
 
     def tearDown(self):
         os.chdir(self.old_cwd)
