@@ -2274,7 +2274,26 @@ class CompletionCorrectionTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             harness.cmd_claim_completion_repair(args)
 
+    def _bind_fixture_repair_checkpoint(self, feature, *, owner='repair-worker'):
+        state = harness.load_state(feature, harness.load_validated(feature))
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        authorization = next(x for x in harness.repair_authorization_records(feature, 'T-A')
+                             if x['record_id'] == claim['authorization_id'])
+        correction = next(x for x in harness.correction_records(feature, 'T-A')
+                          if x['record_id'] == claim['correction_id'])
+        historical = next(x for x in harness.completion_records(feature, 'T-A')
+                          if x['record_id'] == correction['original_completion_id'])
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_bind_repair_checkpoint(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', attempt=claim['attempt'],
+                historical_completion_id=historical['record_id'], correction_id=correction['record_id'],
+                authorization_id=authorization['record_id'], claim_id=claim['record_id'], owner=owner,
+                checkpoint=historical['checkpoint'], by='fixture operator',
+                reason='fixture explicit repair checkpoint attestation'))
+
     def _complete_repair(self, feature, doc, owner='repair-worker', *, mutate=None):
+        if not harness.repair_checkpoint_bindings(feature, 'T-A'):
+            self._bind_fixture_repair_checkpoint(feature, owner=owner)
         evidence = self.evidence_doc(feature, doc, mutate=mutate)
         path = self.write_evidence(evidence)
         with contextlib.redirect_stdout(io.StringIO()):
@@ -2505,6 +2524,7 @@ class CompletionCorrectionTest(unittest.TestCase):
         correction = self._correct(feature)
         authorization = self._authorize_repair(feature, correction)
         self._claim_repair(feature, authorization)
+        self._bind_fixture_repair_checkpoint(feature)
         harness._completion_fault_injector = lambda boundary: (_ for _ in ()).throw(RuntimeError('crash')) \
             if boundary == 'repair-completion-published' else None
         try:
@@ -2547,6 +2567,16 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         correction = self._correct(feature)
         authorization = self._authorize_repair(feature, correction)
         self._claim_repair(feature, authorization)
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        state = harness.load_state(feature, doc)
+        active = harness.resolve_active_packet(feature, doc, 'T-A', state=state)
+        historical = harness.completion_records(feature, 'T-A')[0]
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_bind_repair_checkpoint(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', attempt=5, historical_completion_id=historical['record_id'],
+                correction_id=correction['record_id'], authorization_id=authorization['record_id'],
+                claim_id=claim['record_id'], owner='repair-worker', checkpoint=historical['checkpoint'],
+                by='fixture operator', reason='fixture explicit repair checkpoint attestation'))
         evidence = self.evidence_doc(feature, doc)
         path = self.write_evidence(evidence)
         return feature, doc, correction, authorization, evidence, path
@@ -2773,6 +2803,194 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         self.assertNotIn('active_retry_authorization', state['tasks']['T-A'])
         self.assertTrue(harness.task_has_effective_completion(feature, 'T-A', state['tasks']['T-A']))
         self.assertIn('T-B', harness.ready_ids(doc, state, feature))
+
+
+class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionTest):
+    """Focused M4.3 test coverage; uses only disposable fixture repositories."""
+
+    def setUp(self):
+        HarnessTest.setUp(self)
+        self.fixture_index = 0
+
+    def _legacy_repair(self):
+        self.fixture_index += 1
+        fixture_root = self.root / f'm43-fixture-{self.fixture_index}'
+        fixture_root.mkdir()
+        subprocess.run(['git', 'init', '-q'], cwd=fixture_root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--allow-empty', '-q', '-m', 'base'], cwd=fixture_root, check=True)
+        self.root = fixture_root; os.chdir(fixture_root); harness.STATE_DIR = pathlib.Path('.agent-state')
+        feature, doc = self._completed_fixture(); correction = self._correct(feature)
+        authorization = self._authorize_repair(feature, correction); self._claim_repair(feature, authorization)
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        historical = next(x for x in harness.completion_records(feature, 'T-A')
+                          if x['record_id'] == correction['original_completion_id'])
+        active = harness.resolve_active_packet(feature, doc, 'T-A', state=harness.load_state(feature, doc))
+        evidence = self.evidence_doc(feature, doc); evidence['checkpoint'] = 'c' * 40
+        path = self.write_evidence(evidence)
+        args = argparse.Namespace(feature_dir=feature, task_id='T-A', attempt=5,
+            historical_completion_id=historical['record_id'], correction_id=correction['record_id'],
+            authorization_id=authorization['record_id'], claim_id=claim['record_id'], owner='repair-worker',
+            checkpoint='c' * 40, by='master operator', reason='explicitly bind repaired source checkpoint')
+        return feature, doc, correction, authorization, claim, historical, active, evidence, path, args
+
+    def _bind(self, args):
+        with contextlib.redirect_stdout(io.StringIO()): harness.cmd_bind_repair_checkpoint(args)
+
+    def _complete(self, feature, evidence_path, *, owner='repair-worker'):
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete_repair(argparse.Namespace(feature_dir=feature, task_id='T-A', owner=owner,
+                                                           evidence=str(evidence_path)))
+
+    def test_m43_01_modern_claim_checkpoint_is_resolved_without_bridge(self):
+        feature, doc, _, _, _, _, _, _, _, _ = self._legacy_repair()
+        claim = harness.repair_claim_records(feature, 'T-A')[0]
+        active = harness.resolve_active_packet(feature, doc, 'T-A')
+        records = harness.completion_records(feature, 'T-A')
+        correction = harness.correction_records(feature, 'T-A')[0]
+        authorization = harness.repair_authorization_records(feature, 'T-A')[0]
+        historical = records[0]
+        modern = dict(claim, checkpoint='c' * 40)
+        self.assertEqual('c' * 40, harness.effective_repair_checkpoint(
+            feature, 'T-A', modern, active, historical, correction, authorization))
+
+    def test_m43_02_03_null_claim_requires_binding(self):
+        feature, doc, _, _, claim, _, active, _, path, _ = self._legacy_repair()
+        self.assertNotIn('checkpoint', claim)
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_complete_repair(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='repair-worker', evidence=str(path)))
+
+    def test_m43_04_18_record_shape_and_human_attestation(self):
+        feature, _, correction, authorization, claim, historical, active, _, _, args = self._legacy_repair()
+        self._bind(args); record, = harness.repair_checkpoint_bindings(feature, 'T-A')
+        self.assertEqual(harness.repair_checkpoint_binding_id(record), record['record_id'])
+        for key, value in {'repository_id': str(harness.git_common_dir(feature)), 'feature': feature.name,
+            'task': 'T-A', 'attempt': 5, 'historical_completion_id': historical['record_id'],
+            'correction_id': correction['record_id'], 'repair_authorization_id': authorization['record_id'],
+            'repair_claim_id': claim['record_id'], 'owner': claim['owner'], 'checkpoint': args.checkpoint,
+            'packet_revision': active['revision_id'], 'contract_fingerprint': active['contract_sha256'],
+            'operator': args.by, 'reason': args.reason}.items(): self.assertEqual(value, record[key])
+        for key, value in (('by', ''), ('reason', '')):
+            changed = argparse.Namespace(**vars(args)); setattr(changed, key, value)
+            with self.assertRaises(SystemExit): self._bind(changed)
+
+    def test_m43_19_20_exact_replay_and_conflict(self):
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair(); self._bind(args)
+        before = harness.repair_checkpoint_bindings(feature, 'T-A'); self._bind(args)
+        self.assertEqual(before, harness.repair_checkpoint_bindings(feature, 'T-A'))
+        changed = argparse.Namespace(**vars(args)); changed.checkpoint = 'd' * 40
+        with self.assertRaises(SystemExit): self._bind(changed)
+
+    def test_m43_21_27_wrong_cas_tuple_rejected(self):
+        for key, value in [('attempt', 4), ('historical_completion_id', 'wrong'), ('correction_id', 'wrong'),
+                           ('authorization_id', 'wrong'), ('claim_id', 'wrong'), ('owner', 'wrong')]:
+            feature, _, _, _, _, _, _, _, _, args = self._legacy_repair()
+            changed = argparse.Namespace(**vars(args)); setattr(changed, key, value)
+            with self.assertRaises(SystemExit, msg=key): self._bind(changed)
+
+    def test_m43_28_32_no_finalize_or_attempt_side_effects(self):
+        feature, doc, _, _, _, _, _, _, _, args = self._legacy_repair()
+        state = harness.load_state(feature, doc)['tasks']['T-A'].copy()
+        claims = harness.repair_claim_records(feature, 'T-A'); auth = harness.repair_authorization_records(feature, 'T-A')
+        self._bind(args)
+        self.assertEqual(state, harness.load_state(feature, doc)['tasks']['T-A'])
+        self.assertEqual(claims, harness.repair_claim_records(feature, 'T-A'))
+        self.assertEqual(auth, harness.repair_authorization_records(feature, 'T-A'))
+        self.assertEqual([], harness.repaired_completion_records(feature, 'T-A'))
+
+    def test_m43_claim_bytes_unchanged_and_projection_loss_keeps_binding(self):
+        feature, doc, _, _, claim, _, _, _, _, args = self._legacy_repair()
+        claim_path = harness.completion_authority_dir(feature, 'completion-repair-claims', 'T-A') / \
+            f"{claim['record_id'].rsplit(':', 1)[-1]}.json"
+        before = claim_path.read_bytes(); self._bind(args)
+        self.assertEqual(before, claim_path.read_bytes())
+        harness.remove_state_locked(feature)
+        rebuilt = harness.load_state(feature, doc)
+        self.assertEqual(5, rebuilt['tasks']['T-A']['attempts'])
+        self.assertEqual(args.checkpoint, harness.repair_checkpoint_bindings(feature, 'T-A')[0]['checkpoint'])
+
+    def test_m43_crash_before_publication_leaves_no_binding(self):
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair()
+        harness._completion_fault_injector = lambda boundary: (_ for _ in ()).throw(RuntimeError('crash')) \
+            if boundary == 'repair-checkpoint-binding-before-publication' else None
+        try:
+            with self.assertRaises(RuntimeError): self._bind(args)
+        finally: harness._completion_fault_injector = None
+        self.assertEqual([], harness.repair_checkpoint_bindings(feature, 'T-A'))
+
+    def test_m43_33_34_concurrent_bindings_are_single_winner(self):
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair()
+        barrier = threading.Barrier(2); result = []
+        def run(candidate):
+            barrier.wait()
+            try: self._bind(candidate); result.append('ok')
+            except SystemExit: result.append('reject')
+        other = argparse.Namespace(**vars(args)); other.checkpoint = 'd' * 40
+        ts = [threading.Thread(target=run, args=(item,)) for item in (args, other)]
+        [t.start() for t in ts]; [t.join() for t in ts]
+        self.assertEqual(1, result.count('ok')); self.assertEqual(1, result.count('reject'))
+        self.assertEqual(1, len(harness.repair_checkpoint_bindings(feature, 'T-A')))
+
+    def test_m43_35_38_publication_crash_and_fresh_resolution(self):
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair()
+        harness._completion_fault_injector = lambda boundary: (_ for _ in ()).throw(RuntimeError('crash')) \
+            if boundary == 'repair-checkpoint-binding-published' else None
+        try:
+            with self.assertRaises(RuntimeError): self._bind(args)
+        finally: harness._completion_fault_injector = None
+        self.assertEqual(1, len(harness.repair_checkpoint_bindings(feature, 'T-A')))
+        record = harness.repair_checkpoint_bindings(feature, 'T-A')[0]
+        code = (f"import pathlib,sys; sys.path.insert(0,{str(MODULE_PATH.parent)!r}); import harness; "
+                "print(harness.repair_checkpoint_bindings(pathlib.Path('docs/specs/TST-001'),'T-A')[0]['record_id'])")
+        resolved = subprocess.check_output([os.sys.executable, '-c', code], cwd=self.root, text=True).strip()
+        self.assertEqual(record['record_id'], resolved)
+
+    def test_m43_39_cross_worktree_and_40_stale_worktree_cannot_override(self):
+        import shutil
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair(); self._bind(args)
+        linked = self.root / 'linked-m43'
+        subprocess.run(['git', 'worktree', 'add', '--detach', str(linked), 'HEAD'], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
+        try:
+            other = linked / 'docs/specs/TST-001'; other.mkdir(parents=True)
+            for name in ('spec.md', 'plan.md', 'tasks.json', 'verification-contract.json'): shutil.copy2(feature / name, other / name)
+            self.assertEqual(harness.repair_checkpoint_bindings(feature, 'T-A'), harness.repair_checkpoint_bindings(other, 'T-A'))
+            self.assertEqual('c' * 40, harness.repair_checkpoint_bindings(other, 'T-A')[0]['checkpoint'])
+        finally: subprocess.run(['git', 'worktree', 'remove', '--force', str(linked)], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
+
+    def test_m43_41_49_c2_requires_checkpoint_and_keeps_other_validation(self):
+        feature, _, _, _, _, _, _, evidence, path, args = self._legacy_repair()
+        self._bind(args); self._complete(feature, path)
+        self.assertEqual('c' * 40, harness.repaired_completion_records(feature, 'T-A')[0]['checkpoint'])
+        self._complete(feature, path)  # exact C2 replay remains idempotent
+        self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
+        changed_evidence = dict(evidence); changed_evidence['checkpoint'] = 'd' * 40
+        with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(changed_evidence))
+        feature, _, _, _, _, _, _, _, path, args = self._legacy_repair(); self._bind(args)
+        invalid = dict(self.evidence_doc(feature, harness.load_validated(feature))); invalid['checkpoint'] = 'd' * 40
+        with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(invalid))
+
+    def test_m43_binding_does_not_bypass_mandatory_ac_vc_or_evidence_validation(self):
+        for mutation in (lambda e: e.get('criterion_results', {}).pop('VC-009', None),
+                         lambda e: (e['criterion_results'].pop('AC-001'), e['proofs'][0]['criteria'].remove('AC-001')),
+                         lambda e: e.update(schema_version=999)):
+            feature, doc, _, _, _, _, _, _, _, args = self._legacy_repair(); self._bind(args)
+            evidence = self.evidence_doc(feature, doc); evidence['checkpoint'] = args.checkpoint; mutation(evidence)
+            with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(evidence))
+
+    def test_m43_50_52_cli_discoverable(self):
+        parser_help = harness.parser().format_help(); self.assertIn('bind-repair-checkpoint', parser_help)
+        result = subprocess.run([os.sys.executable, str(MODULE_PATH), 'bind-repair-checkpoint', '--help'], capture_output=True, text=True)
+        self.assertEqual(0, result.returncode); self.assertIn('--checkpoint', result.stdout)
+        feature, _, _, _, _, _, _, _, _, args = self._legacy_repair()
+        def invoke(checkpoint):
+            return subprocess.run([os.sys.executable, str(MODULE_PATH), 'bind-repair-checkpoint', str(feature), 'T-A',
+                '--attempt', str(args.attempt), '--historical-completion-id', args.historical_completion_id,
+                '--correction-id', args.correction_id, '--authorization-id', args.authorization_id,
+                '--claim-id', args.claim_id, '--owner', args.owner, '--checkpoint', checkpoint,
+                '--by', args.by, '--reason', args.reason], cwd=self.root, capture_output=True, text=True)
+        first = invoke(args.checkpoint); replay = invoke(args.checkpoint); conflict = invoke('f' * 40)
+        self.assertEqual(0, first.returncode, first.stderr); self.assertEqual(0, replay.returncode, replay.stderr)
+        self.assertNotEqual(0, conflict.returncode)
 
 
 class LegacyCompletionBindingTests(unittest.TestCase):
