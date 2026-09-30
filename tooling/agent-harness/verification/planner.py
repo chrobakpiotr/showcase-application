@@ -40,7 +40,6 @@ def required_nodes(profile, family, surface, task_commands=(), *, safety=None):
             for dep in nodes[id].dependencies:
                 if dep not in fresh_ids: add_profile(dep, True)
 
-    mapped_ids = set()
     for index, command in enumerate(task_commands):
         if isinstance(command, str): command, cwd = command, '.'
         elif isinstance(command, Mapping) and set(command) == {'command', 'cwd'}:
@@ -59,7 +58,6 @@ def required_nodes(profile, family, surface, task_commands=(), *, safety=None):
         prefix = 'task-command' if mapped else 'legacy-task-command'
         id = f'{prefix}:{index:04d}:{identity[:16]}'
         if mapped:
-            mapped_ids.add(mapped.id)
             dependencies = tuple(dict.fromkeys((*mapped.depends_on, *(a.producer for a in mapped.consumes))))
             for dep in dependencies: add_profile(dep, True)
         else:
@@ -67,10 +65,12 @@ def required_nodes(profile, family, surface, task_commands=(), *, safety=None):
         g = mapped or Gate(id, command, identity, cwd=cwd, cacheable=False)
         occurrences.append(Node(id, g, mapped.id if mapped else None, dependencies, index, True, True))
     for g in profile.gates:
-        if g.mandatory and g.id not in mapped_ids and any(matches(p, path) for p in g.applicability for path in surface.paths):
+        # Mapping borrows policy; task occurrences never discharge a separately
+        # applicable mandatory profile requirement (OBLIGATION-02/03).
+        if g.mandatory and any(matches(p, path) for p in g.applicability for path in surface.paths):
             add_profile(g.id)
         # ** is the explicit unconditional applicability rule, even on a clean tree.
-        elif g.mandatory and g.id not in mapped_ids and g.applicability == ('**',):
+        elif g.mandatory and g.applicability == ('**',):
             add_profile(g.id)
     nodes = {id: dataclasses.replace(node, fresh=id in fresh_ids) for id, node in nodes.items()}
     nodes.update({n.id: n for n in occurrences})

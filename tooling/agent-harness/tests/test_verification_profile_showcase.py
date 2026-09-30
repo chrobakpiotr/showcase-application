@@ -6,14 +6,16 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 HARNESS = ROOT / 'tooling' / 'agent-harness'
 PROFILE_PATH = HARNESS / 'verification-profiles' / 'showcase.json'
 sys.path.insert(0, str(HARNESS))
 
-from verification.model import Family
-from verification.planner import build_plan
+from verification.model import Decision, Family, Plan
+from verification.planner import build_plan, required_nodes
+from verification.authority import execution_plan_record
 from verification.profile import load_profile, matches
 
 
@@ -124,6 +126,50 @@ class ShowcaseProfileTest(unittest.TestCase):
             self.assertEqual(2, len(occurrences))
             self.assertNotEqual(occurrences[0].node.id, occurrences[1].node.id)
             self.assertEqual('showcase-gradle-build', occurrences[0].node.profile_gate_id)
+
+    def test_mapped_applicable_gate_keeps_separate_profile_requirement(self):
+        family = Family('showcase-obligations', '0' * 40, 'task-completion',
+                        self.profile.content_hash, 'b' * 64)
+        command = './gradlew build --continue'
+        for count in (1, 2):
+            with self.subTest(occurrences=count):
+                nodes = required_nodes(self.profile, family,
+                    SimpleNamespace(paths=('modules/domain/src/main/java/Example.java',)),
+                    task_commands=(command,) * count)
+                builds = [n for n in nodes if n.gate.command == command]
+                self.assertEqual(count + 1, len(builds))
+                self.assertEqual(1, sum(not n.occurrence for n in builds))
+                self.assertEqual(count, sum(n.occurrence for n in builds))
+                self.assertEqual(count + 1, len({n.id for n in builds}))
+                plan = Plan(family, tuple(Decision(n, None, 'RUN_NOW', 'RUN',
+                    'non-cacheable-policy', 'fixture') for n in nodes))
+                record = execution_plan_record('fixture', 'a' * 64, 1, 'showcase',
+                    self.profile, plan, task_id='T-1', task_attempt=1,
+                    task_commands=(command,) * count, origin_binding='task-completion')
+                obligations = [o for o in record['obligations'] if o['command'] == command]
+                ids = {o['obligation_id'] for o in obligations}
+                self.assertEqual(count + 1, len(ids))
+                self.assertEqual(count + 1, sum(u['obligation_ids'][0] in ids
+                    for u in record['execution_units']))
+                self.assertTrue(all(len(u['obligation_ids']) == 1 for u in record['execution_units']))
+
+    def test_mapping_does_not_make_non_applicable_profile_gate_required(self):
+        family = Family('showcase-non-applicable', '0' * 40, 'task-completion',
+                        self.profile.content_hash, 'b' * 64)
+        nodes = required_nodes(self.profile, family, SimpleNamespace(paths=('README.md',)),
+                               task_commands=('./gradlew build --continue',))
+        self.assertEqual(1, len(nodes))
+        self.assertTrue(nodes[0].occurrence)
+
+    def test_integration_mapping_retains_one_profile_node(self):
+        family = Family('showcase-integration', '0' * 40, 'integration',
+                        self.profile.content_hash, 'b' * 64)
+        nodes = required_nodes(self.profile, family,
+            SimpleNamespace(paths=('modules/domain/src/main/java/Example.java',)),
+            task_commands=('./gradlew build --continue',) * 2)
+        builds = [n for n in nodes if n.gate.command == './gradlew build --continue']
+        self.assertEqual(1, len(builds))
+        self.assertFalse(builds[0].occurrence)
 
 
 if __name__ == '__main__':
