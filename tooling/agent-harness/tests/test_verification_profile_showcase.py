@@ -158,8 +158,9 @@ class ShowcaseProfileTest(unittest.TestCase):
                         self.profile.content_hash, 'b' * 64)
         nodes = required_nodes(self.profile, family, SimpleNamespace(paths=('README.md',)),
                                task_commands=('./gradlew build --continue',))
-        self.assertEqual(1, len(nodes))
-        self.assertTrue(nodes[0].occurrence)
+        builds = [n for n in nodes if n.gate.command == './gradlew build --continue']
+        self.assertEqual(1, len(builds))
+        self.assertTrue(builds[0].occurrence)
 
     def test_integration_mapping_retains_one_profile_node(self):
         family = Family('showcase-integration', '0' * 40, 'integration',

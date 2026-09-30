@@ -200,7 +200,64 @@ User execution preferences: local commit after each checkpoint, include the curr
 every five minutes during active work. Retry failed checks narrowly; broader checks
 require a change-specific reason. Current estimates: S30-01 35%, entire plan 4%.
 
+## S30-04a task packet: profile applicability truth table
+
+Base: `36a1022`. This independent profile-policy repair is pulled forward to
+retire F04 quickly while origin admission/qualification remain open. The supplied
+review explicitly permits independent S30-04 work before its final integration.
+Allowed paths: Showcase profile, a dedicated profile-applicability test module,
+directly affected existing Showcase profile tests, and this report. No command
+allowlist, application, workflow or historical evidence changes in this slice.
+
+Invariant: production adapter/shared-module/configuration changes select the
+dedicated mandatory gates that verify their invariants, rather than only build.
+RED truth table uses the real profile, applicability rules and `required_nodes`:
+persistence→PG; AMQP→Rabbit; domain/foundation→PIT+PG+Rabbit; orchestration→PG+Rabbit;
+actual PIT config→PIT; each critical verifier/validator/manifest→its own gate;
+wrapper/settings/build configuration and profile→a conservative required superset.
+Inputs must cover the selected production/configuration paths as well.
+Docs-only changes select protocol validation without application builds; no-op
+remains an explicit empty advisory selection and cannot publish an executable PASS.
+Deletion/rename surfaces use the same path rules and must retain required gates.
+
+Test mode: red-green table at the shared pure planner seam; no live payloads.
+Run the new table and directly affected profile/planner tests only. If a failure
+occurs, rerun that failure first. Independent review precedes the local commit.
+S30-04b command authorization remains separate, and this does not claim full S30-04.
+
 Then follow S30-02a (non-reusable terminal success), S30-02b (execution outputs),
 S30-03 (qualified-host spike and production wiring), S30-04 (command/profile policy),
 S30-05 (positive-path CI), and final S30-09 closure. S30-06–08 application work follows
 the harness delivery; S30-10 remains dependent on its operational prerequisites.
+
+## S30-04a implementation and verification
+
+Profile applicability now selects dedicated PG/Rabbit/PIT gates for production
+persistence, AMQP, orchestration, domain and foundation changes. The actual PIT
+configuration path replaces the incorrect path. Verifiers, result validators,
+their regression-test files and manifests select their dedicated gate. Shared
+wrapper/settings/root build configuration and the profile select all seven gates
+conservatively. Selected inputs cover these paths and frontend configuration.
+Docs/README select protocol doctor without implicit application builds; existing
+explicit task commands remain separate requirements. Empty advisory selection
+cannot publish a v2 executable plan. Real Git deletion/rename retains source
+requirements. No command authorization or runtime authority changed.
+
+Test-first evidence: initial truth table and real Git tests reproduced 25 failing
+subcases in 0.154 seconds; four additional orchestration/frontend input subcases
+were reproduced before their fix. Focused applicability, Showcase profile, generic
+profile and planner/verify tests passed 51 tests in 8.138 seconds. The final
+orchestration/frontend fixes passed the previously failing truth-table method
+(1 test, 0.104 seconds). Independent final verification is recorded below.
+
+Remaining S30-04 scope: exact script authorization with security review; verifier
+unit-test execution wiring (existing tests under tooling/scripts/tests are not
+run by the harness discovery command); operational integration with S30-01–03
+and positive-path CI under S30-05. This checkpoint repairs selection/input policy
+only and does not claim successful critical-gate execution.
+
+Independent evaluator: **PASS for S30-04a only**. Final source applicability,
+Showcase profile, generic profile, parity and verify suites: **54 tests PASS**,
+8.231 seconds, exit 0. `git diff --check` PASS. No application payload or broad
+repository gate rerun was needed for this profile-only checkpoint. Estimates:
+S30-04a 100%, S30-04 45%, S30-01 35%, overall plan 8%.
