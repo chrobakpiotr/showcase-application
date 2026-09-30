@@ -261,3 +261,107 @@ Showcase profile, generic profile, parity and verify suites: **54 tests PASS**,
 8.231 seconds, exit 0. `git diff --check` PASS. No application payload or broad
 repository gate rerun was needed for this profile-only checkpoint. Estimates:
 S30-04a 100%, S30-04 45%, S30-01 35%, overall plan 8%.
+
+## S30-02a task packet: non-reusable terminal success
+
+Accepted source: supplied review section 8/02a, SDD-OBS-001 spec/plan terminal
+receipt, candidate drift, retry fence and recovery rules. Base: `653918c`.
+Owner allowed paths: verification executor/planner/model/serialization/store/
+supervisor and dedicated non-cacheable tests, strictly necessary corresponding
+schema only if the existing terminal format cannot express the distinction.
+No verification_command.py or sandbox backend changes (parallel ownership).
+Root owns this report. No accepted spec/history rewrite.
+
+Separate successful execution terminal receipt from reusable GREEN evidence.
+Non-cacheable exit 0 with proven drainage and unchanged candidate must publish
+PASS without calling reusable `seal_pass`; it must execute again next attempt.
+Existing v2 origin admission/completion guards remain: this slice cannot enable
+v2 completion before S30-01 admission/coverage prerequisites. Record that
+integration acceptance remains pending rather than inventing authority.
+
+RED/GREEN at real executor/supervisor/store seam; a controlled backend may replace
+OS launch only. Do not mock outcome/receipt builders, planner, store or drift
+checks. Cover exit 0, exit 1, timeout, source mutation, drainage missing, terminal
+publication recovery and fresh rerun. Critical non-cacheable failure retains
+scoped fence/grant behavior; null cache fingerprints cannot collapse scope.
+Raw logs remain diagnostic, never cache identity. No cacheable=true workaround
+or broad ignored-output exclusion. Target new tests then affected existing
+executor/supervisor/store suites; failed reruns narrow. Independent review before
+local commit. Builder must report any schema/contract ambiguity before expansion.
+
+## S30-03a capability spike packet
+
+Independent disposable experiment only: supplied review section9; read existing
+qualification Q01–Q16, supported host discovery and accepted containment rules.
+Predeclared decision: proceed to production wiring only if one actual available
+backend passes all mandatory active probes under exact canonical roots/policy,
+then permitted marker, prohibited write, descendant launch and drainage payload
+checks. Unsupported/rejected/uncertain is evidence of missing infrastructure,
+never successful qualification. No fake qualification, flags disabling sandbox,
+process-group substitution, new platform implementation or privileged host
+configuration. Use `/private/tmp` scratch only; no production files edited.
+Identify discovered/qualification-supported/qualified/launch-ready separately.
+Return reproducible commands, bounded results/reasons and minimal infrastructure
+requirements if blocked. Root owns durable report and later independent review.
+
+## S30-04b task packet: exact script command preflight
+
+Accepted source: supplied review section10 and SDD-OBS-001 accepted-plan
+reconstruction/origin invariants. Root owns verification_command.py and new
+script-command tests. Optional supervisor context forwarding is a recorded
+dependency but is deferred until needed; parallel S30-02a owns that module.
+Independent security design recommends optional script context containing only
+plan/obligation/unit references, resolved through existing accepted lifecycle
+authority (including canonical reconstruction/profile/candidate checks).
+
+Allow only exact singleton argv for the three static gate-to-script mappings;
+canonical cwd must equal worktree root, script must be regular and contained,
+with no symlink in its root-relative ancestry. Resolve profile_gate_id from the
+exact obligation/unit membership, including mapped task occurrences. Missing
+context, relabeling, extra args, wrappers, traversal, symlink, another cwd/root,
+substituted policy, stale candidate and orphan/superseded authority reject.
+
+This is parser permission, never physical launch or independent-origin authority.
+Until S30-01 admission/one-shot capability is available, direct backend preparation
+of these newly permitted script commands explicitly blocks with the existing
+origin-admission-unavailable outcome. Keep normal v2 execution/completion guards.
+No caller-provided gate/hash labels grant authority. Tests exercise real profile,
+trusted publication, lifecycle acceptance and reconstruction without mocking them;
+controlled preparation can be observed to assert rejection before sandbox/launch.
+Run new commands and directly affected bridge/boundary tests; independent security
+review before local commit. Launch-time candidate revalidation and forwarding
+accepted references remain integration work with S30-01, not silently complete.
+
+## S30-04b implementation and verification
+
+The shared parser admits exactly the three reviewed singleton script commands
+only after resolving current accepted plan/obligation/unit references through
+real lifecycle authority and full profile/candidate reconstruction. Mapped task
+occurrences retain their origin. Cwd, pairing, membership, regular-file status
+and symlink ancestry checks are explicit. Other scripts, wrappers and arguments
+remain rejected. Backend preparation still refuses physical execution of the
+new scripts with `VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE` before sandbox
+preparation; parser permission grants no launch/independent-origin authority.
+No supervisor/executor context forwarding or launch capability was invented.
+
+RED: the real-profile parser test exposed all three missing script permissions
+(three failed subcases, 0.791 seconds). An initial fixture import error was fixed
+before collecting that product regression. Negative tests exposed uncaught
+store errors and a fixture assumption that unsafe symlinks could be accepted;
+the bridge now emits stable rejection, and tests verify the real candidate
+sealer refuses symlinks while prior permission invalidates. Failed cases were
+rerun individually. Final new-script/bridge/completion-boundary suite: **18 tests
+PASS**, 8.619 seconds. Security review follows.
+
+The parallel S30-03a first native qualification run was rejected under tool
+sandbox restrictions. An explicit tool escalation is being checked before
+concluding host capability; both evidence sets will remain distinct. All Q01–Q16
+are rerun because qualification binds the exact execution environment, unlike
+a routine retry of an unchanged product test. No weaker isolation is substituted.
+
+Independent security evaluator: **PASS for bounded S30-04b parser checkpoint**,
+18 tests independently PASS. Review verified exact lifecycle reconstruction,
+profile/candidate binding and preparation-time origin refusal. Launch-time
+revalidation, lifecycle admission, script context forwarding, retry-control
+operational integration and validator-test invocation remain open. Estimates:
+S30-04 65%, S30-02a 50%, entire plan 12%. No push.

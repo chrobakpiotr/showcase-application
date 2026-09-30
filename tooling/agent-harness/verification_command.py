@@ -11,6 +11,7 @@ import subprocess
 import time
 import hashlib
 import uuid
+import stat
 from dataclasses import dataclass
 from typing import Mapping
 
@@ -26,9 +27,55 @@ class CommandEnvironmentBlocked(RuntimeError):
 
 
 SHELL_META = {'|', '||', '&&', ';', '>', '>>', '<', '<<', '&'}
+PROFILE_SCRIPTS = {
+    'domain-mutation-threshold': './tooling/scripts/verify-domain-pitest.sh',
+    'critical-postgres-regression': './tooling/scripts/verify-critical-postgres-tests.sh',
+    'critical-rabbitmq-regression': './tooling/scripts/verify-critical-rabbitmq-tests.sh',
+}
 
 
-def verification_argv(command: str) -> list[str]:
+def _accepted_script_argv(argv, context, worktree, cwd):
+    """Parser permission only; these references never authorize physical launch."""
+    from verification.store import StoreError
+    if (not isinstance(context, dict) or
+            set(context) != {'plan_id', 'obligation_id', 'unit_id'} or
+            any(not isinstance(value, str) or not value for value in context.values()) or
+            worktree is None or cwd is None or len(argv) != 1):
+        raise CommandRejected('script-command-context-required')
+    try:
+        root = pathlib.Path(worktree).resolve(strict=True)
+        if pathlib.Path(cwd).resolve(strict=True) != root:
+            raise CommandRejected('script-command-cwd-mismatch')
+        from verification.authority import resolve_accepted
+        record = resolve_accepted(root, context['plan_id'])
+        obligation = next((item for item in record['obligations']
+                           if item['obligation_id'] == context['obligation_id']), None)
+        unit = next((item for item in record['execution_units']
+                     if item['unit_id'] == context['unit_id']), None)
+        if (obligation is None or unit is None or
+                unit['obligation_ids'] != [context['obligation_id']] or
+                unit['required_origin'] != obligation['required_origin'] or
+                unit['independent_execution_class'] != obligation['independent_execution_class'] or
+                obligation['cwd'] != '.' or obligation['command'] != argv[0] or
+                PROFILE_SCRIPTS.get(obligation['profile_gate_id']) != argv[0]):
+            raise CommandRejected('script-command-binding-mismatch')
+        relative = pathlib.PurePosixPath(argv[0][2:])
+        current = root
+        for part in relative.parts:
+            current = current / part
+            if current.is_symlink():
+                raise CommandRejected('script-command-symlink')
+        if (not stat.S_ISREG(current.stat().st_mode) or
+                current.resolve(strict=True) != root / relative):
+            raise CommandRejected('script-command-path-invalid')
+    except CommandRejected:
+        raise
+    except (OSError, ValueError, KeyError, TypeError, SystemExit, StoreError):
+        raise CommandRejected('script-command-authority-unavailable') from None
+    return argv
+
+
+def verification_argv(command: str, *, script_context=None, worktree=None, cwd=None) -> list[str]:
     if not isinstance(command, str) or not command.strip():
         raise CommandRejected('invalid-command')
     try:
@@ -39,6 +86,8 @@ def verification_argv(command: str) -> list[str]:
                         for token in argv)):
         raise CommandRejected('unsupported-command-composition')
     executable = argv[0]
+    if executable in PROFILE_SCRIPTS.values():
+        return _accepted_script_argv(argv, script_context, worktree, cwd)
     allowed = executable in {'./gradlew', 'python3', 'python', 'npm', 'npx', 'true'}
     if executable == 'docker':
         allowed = len(argv) >= 2 and (argv[1] == 'build' or argv[1:3] == ['compose', 'config'])
@@ -90,7 +139,12 @@ class CommandExecutionBackend:
 
     def prepare(self, *, worktree, cwd, run_dir, repository_id, command, sandbox_mode,
                 environment=None, control_root=None, **_kwargs):
-        argv = verification_argv(command)
+        argv = verification_argv(command, script_context=_kwargs.get('command_context'),
+                                 worktree=worktree, cwd=cwd)
+        if argv[0] in PROFILE_SCRIPTS.values():
+            # Accepted parser policy cannot replace lifecycle admission or a
+            # winning one-shot capability, which are not implemented yet.
+            raise CommandEnvironmentBlocked('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
         try:
             plan = verification_sandbox.build_plan(argv, pathlib.Path(cwd), pathlib.Path(run_dir), sandbox_mode)
         except RuntimeError as exc:
