@@ -123,6 +123,8 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                  evidence: dict | None = None, attempt_id: str | None = None,
                  failure_grants: dict[str, str] | None = None,
                  authority_context: dict | None = None):
+    if authority_context is not None:
+        raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
     safety = safety or default_safety()
     store = store or VerificationStore(repository)
     attempt_id = attempt_id or uuid.uuid4().hex

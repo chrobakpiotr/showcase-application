@@ -14,6 +14,7 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "harness-tests"
     },
     {
@@ -25,6 +26,7 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "harness-validation"
     },
     {
@@ -49,6 +51,7 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "application-build"
     },
     {
@@ -67,6 +70,7 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "frontend-build"
     },
     {
@@ -90,6 +94,7 @@
       "retry_policy": "forbid",
       "retry_controls": [],
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "mutation-testing"
     },
     {
@@ -113,6 +118,7 @@
       "retry_policy": "forbid",
       "retry_controls": ["critical-postgres-gate-disables-gradle-test-retry-v1"],
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "critical-integration"
     },
     {
@@ -135,6 +141,7 @@
       "retry_policy": "forbid",
       "retry_controls": ["critical-rabbit-gate-disables-gradle-test-retry-v1"],
       "sandbox": "required",
+      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
       "category": "critical-integration"
     }
   ]

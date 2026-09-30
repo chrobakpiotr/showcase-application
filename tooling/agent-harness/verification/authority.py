@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
+import re
 
 from .serialization import canonical
 
@@ -22,8 +23,11 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
         node, gate = decision.node, decision.node.gate
         identity = {'family_id': family['id'], 'gate_id': node.id,
                     'profile_gate_id': node.profile_gate_id,
-                    'occurrence': node.occurrence, 'ordinal': node.ordinal}
-        obligation_id = 'verification-obligation-v1:sha256:' + hashlib.sha256(canonical(identity)).hexdigest()
+                    'occurrence': node.occurrence, 'ordinal': node.ordinal,
+                    'requirement_source': 'task-command' if (node.occurrence or node.profile_gate_id is None) else 'profile',
+                    'required_origin': 'task' if (node.occurrence or node.profile_gate_id is None) else 'independent',
+                    'independent_execution_class': None if (node.occurrence or node.profile_gate_id is None) else INDEPENDENT_CLASS}
+        obligation_id = 'verification-obligation-v2:sha256:' + hashlib.sha256(canonical(identity)).hexdigest()
         obligations.append({'obligation_id': obligation_id, **identity,
             'command': gate.command, 'command_hash': gate.command_hash, 'cwd': gate.cwd,
             'dependencies': list(node.dependencies), 'critical': gate.critical,
@@ -32,9 +36,9 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
     units = []
     for obligation in obligations:
         member_ids = [obligation['obligation_id']]
-        unit_id = 'verification-unit-v1:sha256:' + hashlib.sha256(canonical(member_ids)).hexdigest()
-        units.append({'unit_id': unit_id, 'obligation_ids': member_ids})
-    body = {'schema_version': 1, 'feature_id': feature_id,
+        unit_id = 'verification-unit-v2:sha256:' + hashlib.sha256(canonical({'obligation_ids': member_ids, 'required_origin': obligation['required_origin'], 'independent_execution_class': obligation['independent_execution_class']})).hexdigest()
+        units.append({'unit_id': unit_id, 'obligation_ids': member_ids, 'required_origin': obligation['required_origin'], 'independent_execution_class': obligation['independent_execution_class']})
+    body = {'schema_version': 2, 'feature_id': feature_id,
         'task_id': task_id, 'task_attempt': task_attempt,
         'feature_fingerprint': feature_fingerprint, 'lifecycle_generation': generation,
         'family': family, 'profile_id': profile_id, 'profile_hash': profile.content_hash,
@@ -46,7 +50,7 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
         'task_commands': [dict(command=item['command'], cwd=item.get('cwd', '.'))
                           if isinstance(item, dict) else {'command': item, 'cwd': '.'}
                           for item in task_commands]}
-    body['plan_id'] = 'verification-plan-v1:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
+    body['plan_id'] = 'verification-plan-v2:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
     return body
 
 
@@ -128,7 +132,7 @@ def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | 
     decisions = tuple(item for index, item in enumerate(plan.decisions) if index in selected_indexes)
     if len(decisions) != len(selected_indexes):
         raise StoreError('PLAN_BINDING_MISMATCH')
-    return record, profile, __import__('dataclasses').replace(plan, decisions=decisions), selected_units
+    raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
 
 
 def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_id: str,
@@ -173,3 +177,97 @@ def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_
     publish_and_accept(repository, feature_dir, record,
                        expected_generation=state.get('feature_generation', 1))
     return record
+
+
+INDEPENDENT_CLASS = 'harness-managed-independent-execution-v1'
+
+
+def validate_plan_record(record, *, repository=None, reconstruct=False):
+    """One fail-closed validator for publication and lifecycle authority."""
+    from .store import StoreError, _validate_component
+    from .profile import load_profile, command_identity
+    from .model import InvalidPolicy, Family
+    required = {'schema_version', 'plan_id', 'feature_id', 'task_id', 'task_attempt',
+        'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_id', 'profile_hash',
+        'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id',
+        'origin_binding', 'obligations', 'execution_units', 'task_commands'}
+    try:
+        if not isinstance(record, dict) or set(record) != required or type(record['schema_version']) is not int or record['schema_version'] != 2:
+            raise ValueError()
+        for key in ('feature_id', 'task_id', 'profile_id'):
+            _validate_component(record[key], 'invalid-verification-plan')
+        for key in ('feature_fingerprint', 'profile_hash'):
+            if not isinstance(record[key], str) or len(record[key]) != 64 or any(c not in '0123456789abcdef' for c in record[key]): raise ValueError()
+        if not isinstance(record['policy_checkpoint'], str) or not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', record['policy_checkpoint']): raise ValueError()
+        for key in ('task_attempt', 'lifecycle_generation'):
+            if type(record[key]) is not int or record[key] < 1: raise ValueError()
+        body = {k: v for k, v in record.items() if k != 'plan_id'}
+        if record['plan_id'] != 'verification-plan-v2:sha256:' + hashlib.sha256(canonical(body)).hexdigest(): raise ValueError()
+        profile_root = pathlib.Path(__file__).resolve().parent.parent / 'verification-profiles'
+        profile_path = (profile_root / (record['profile_id'] + '.json')).resolve(strict=True)
+        if profile_path.parent != profile_root.resolve(strict=True): raise ValueError()
+        profile = load_profile(profile_path)
+        if profile.content_hash != record['profile_hash']: raise ValueError()
+        family = record['family']
+        if set(family) != {'id', 'base_sha', 'origin_policy', 'profile_hash', 'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id'}: raise ValueError()
+        _validate_component(family['id'], 'invalid-verification-plan')
+        if not isinstance(family['base_sha'], str) or not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', family['base_sha']): raise ValueError()
+        if family['origin_policy'] not in ('integration', 'task-completion'): raise ValueError()
+        for key in ('candidate_identity', 'final_changed_surface_id'):
+            if not isinstance(record[key], str) or not re.fullmatch(r'[0-9a-f]{64}', record[key]): raise ValueError()
+        for key in ('profile_hash', 'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id'):
+            if family[key] != record[key] or not isinstance(record[key], str) or not record[key]: raise ValueError()
+        if family['origin_policy'] != record['origin_binding']: raise ValueError()
+        if not isinstance(record['task_commands'], list): raise ValueError()
+        for item in record['task_commands']:
+            if not isinstance(item, dict) or set(item) != {'command', 'cwd'}: raise ValueError()
+            command_identity(item['command'], item['cwd'])
+        identity_keys = {'family_id', 'gate_id', 'profile_gate_id', 'occurrence', 'ordinal', 'requirement_source', 'required_origin', 'independent_execution_class'}
+        obligation_keys = identity_keys | {'obligation_id', 'command', 'command_hash', 'cwd', 'dependencies', 'critical', 'retry_policy', 'retry_controls', 'sandbox'}
+        obligations = record['obligations']; units = record['execution_units']
+        if not isinstance(obligations, list) or not obligations or not isinstance(units, list) or len(units) != len(obligations): raise ValueError()
+        seen = set()
+        by_gate = {g.id: g for g in profile.gates}
+        for item, unit in zip(obligations, units):
+            if not isinstance(item, dict) or set(item) != obligation_keys: raise ValueError()
+            task = item['occurrence'] or item['profile_gate_id'] is None
+            if type(item['occurrence']) is not bool or type(item['ordinal']) is not int or item['ordinal'] < 0 or item['family_id'] != family['id']: raise ValueError()
+            origin = 'task' if task else 'independent'; cls = None if task else INDEPENDENT_CLASS
+            if (item['required_origin'], item['independent_execution_class'], item['requirement_source']) != (origin, cls, 'task-command' if task else 'profile'): raise ValueError()
+            if task and not item['gate_id'].startswith(('task-command:', 'legacy-task-command:')): raise ValueError()
+            if type(item['critical']) is not bool or item['retry_policy'] not in ('allow', 'forbid') or item['sandbox'] not in ('required', 'best-effort', 'off'): raise ValueError()
+            if not isinstance(item['retry_controls'], list) or any(not isinstance(c, str) or not c for c in item['retry_controls']) or len(set(item['retry_controls'])) != len(item['retry_controls']): raise ValueError()
+            if item['critical'] and item['retry_policy'] != 'forbid': raise ValueError()
+            gate = by_gate.get(item['profile_gate_id'])
+            if not task and (gate is None or cls not in gate.independent_execution_classes or item['sandbox'] != 'required' or item['gate_id'] != gate.id): raise ValueError()
+            if item['command_hash'] != command_identity(item['command'], item['cwd']): raise ValueError()
+            if gate is not None:
+                for key in ('command', 'command_hash', 'cwd', 'critical', 'retry_policy', 'sandbox'):
+                    if item[key] != getattr(gate, key): raise ValueError()
+                if item['retry_controls'] != list(gate.retry_controls): raise ValueError()
+            if not isinstance(item['dependencies'], list) or any(not isinstance(d, str) or d not in by_gate for d in item['dependencies']) or len(set(item['dependencies'])) != len(item['dependencies']): raise ValueError()
+            expected_dependencies = list(dict.fromkeys((*gate.depends_on, *(a.producer for a in gate.consumes)))) if gate is not None else []
+            if item['dependencies'] != expected_dependencies: raise ValueError()
+            identity = {k: item[k] for k in identity_keys}
+            oid = 'verification-obligation-v2:sha256:' + hashlib.sha256(canonical(identity)).hexdigest()
+            if item['obligation_id'] != oid or oid in seen: raise ValueError()
+            seen.add(oid)
+            expected_unit = {'obligation_ids': [oid], 'required_origin': origin, 'independent_execution_class': cls}
+            uid = 'verification-unit-v2:sha256:' + hashlib.sha256(canonical(expected_unit)).hexdigest()
+            if unit != {'unit_id': uid, **expected_unit}: raise ValueError()
+        if reconstruct:
+            from .candidate import seal_candidate, CandidateSealError
+            from .planner import build_plan
+            try:
+                seal = seal_candidate(repository, family['base_sha'], {'family_id': family['id'], 'profile_hash': record['profile_hash'], 'policy_checkpoint': record['policy_checkpoint'], 'origin_policy': family['origin_policy']}, trusted_runtime_root=None)
+            except CandidateSealError:
+                raise ValueError() from None
+            if seal.candidate_identity != record['candidate_identity'] or seal.changed_surface_id != record['final_changed_surface_id']: raise ValueError()
+            plan = build_plan(repository, profile, Family(**family), task_commands=record['task_commands'])
+            expected = execution_plan_record(record['feature_id'], record['feature_fingerprint'], record['lifecycle_generation'], record['profile_id'], profile, plan, task_id=record['task_id'], task_attempt=record['task_attempt'], task_commands=record['task_commands'], origin_binding=record['origin_binding'])
+            if expected != record: raise ValueError()
+        return record
+    except StoreError:
+        raise
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        raise StoreError('invalid-verification-plan') from None

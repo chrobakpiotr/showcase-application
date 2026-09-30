@@ -42,6 +42,7 @@ class Gate:
     category: str = 'verification'
     expensive: bool = False
     aggregate: bool = False
+    independent_execution_classes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

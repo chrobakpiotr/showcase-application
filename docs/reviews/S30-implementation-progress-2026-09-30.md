@@ -49,6 +49,7 @@ Historical closure evidence and remote configuration remain unchanged.
   original omission and passed 23 relevant profile/parity/authority tests in
   Python 3.12 Docker. Full S30-01 is not approved.
 - Final SHA: none; changes are uncommitted. No new remote CI run or integration.
+- Subsequent local commit: S30-01a is `ba88c65`. Nothing was pushed.
 - `git diff --check`: exit 0.
 - Full harness discovery with the same Python 3.12 read-only container mount,
   pattern `test_*.py`: reported failures/errors; interrupted with exit 130 before
@@ -72,6 +73,132 @@ membership, explicit profile permission for the independent execution class, and
 pre-launch immutable origin binding. Tests must attack admission, terminal receipt
 and completion together, including missing/unknown origin and post-launch relabeling.
 Historical v1 plans must not gain new authority through defaults.
+
+## S30-01b task packet: origin-aware immutable plan authority
+
+Base checkpoint: `ba88c65`. User requires a local commit after each checkpoint and
+no push; include their current `.gitignore` delta in the next commit.
+
+Authority: accepted SDD-OBS-001 closed execution-origin qualification,
+M53-AC37/45/47 and OBLIGATION-01..14. This is an implementation slice of that
+existing contract, not a replacement spec or a change to historical approvals.
+
+Allowed paths: `.gitignore`, this report, `tooling/agent-harness/verification/`
+model/profile/authority/store/executor modules, `tooling/agent-harness/harness.py`
+plan acceptance/resolution only, the Showcase profile, profile and new plan schemas,
+and directly affected harness verification tests. Record any further dependency.
+
+Discovered dependency: `tooling/agent-harness/machine_outcomes.py` and its tests
+must classify unavailable origin-qualified admission as `verification-blocked`
+(exit 5), distinct from a verifier failure. Advisory inspection remains available.
+Discovered dependency: narrow guards in authoritative completion/repair/replay
+paths in `harness.py` must reject legacy proof tuples for accepted v2 plans until
+origin-qualified coverage exists. Full coverage validation remains a later slice;
+historical completion readers stay available.
+Independent review discovered a further dependency: feature fingerprint
+reconciliation must preserve prior verification authority in the existing
+`verification_plan_history` before invalidation, so it cannot erase a same-attempt
+v2 completion requirement. The regression was reproduced RED before this fix.
+
+Invariant: every newly published plan freezes the semantic requirement source,
+required origin and singleton unit execution authority. Unknown/missing origin,
+unpermitted independent class, modified membership and legacy authority fail closed.
+
+Contract: task occurrence requires `task`; profile requirements require
+`independent`. The only eligible independent class is
+`harness-managed-independent-execution-v1`, explicitly permitted by the trusted
+profile gate's optional `independent_execution_classes` list. Absent permission
+means no permission; independent gates require `sandbox=required`. No manual independence and no
+coalescing are supported in this checkpoint. Plan/obligation/unit identities move
+to v2; old records stay untouched and cannot authorize current execution.
+
+Test mode: red-green regression on real profile/planner/publication/resolution,
+with malformed but rehashed record counterexamples. Publication and lifecycle
+acceptance share validation of exact origin/membership. Pre-launch execution must
+block origin-aware plans until origin-qualified lifecycle admission is implemented;
+plan labels alone must never yield independent receipts. This checkpoint does not
+claim receipt/completion or production backend qualification is implemented.
+
+Verification: relevant authority/profile/parity/executor tests first, then full
+harness discovery with individual failure names; no live providers or real grants.
+Run commands serially when they share generated outputs. Independent security
+evaluation is required before the checkpoint commit.
+
+Serialized v2 obligation fields: `requirement_source` (`task-command` or `profile`),
+`required_origin` (`task` or `independent`), and `independent_execution_class`
+(`null` for task, the eligible class for independent). Singleton units freeze
+`required_origin` and `independent_execution_class` together with their exact member
+ID. IDs hash these bindings. These are planned predicates, not qualified actual
+`execution_origin`. Lifecycle state binds schema version and profile ID as well as
+the existing content identities. Trusted reconstruction is required for acceptance
+and resolution; publication validates profile permission and structure.
+
+Security preflight: plan-only implementation is safe with v2 execution explicitly
+blocked before launch. Current supervisor journals and critical retry consumptions
+are not lifecycle admission/reservation/physical-launch consumption. The existing
+use of profile hash as policy checkpoint does not separately bind resolver bytes;
+that remains open for the admission checkpoint rather than being silently satisfied.
+
+## S30-01b implementation and verification
+
+Implemented v2 plan/obligation/unit identities with explicit planned origins and
+singleton membership. Per-gate profile permission is optional and defaults to no
+eligible independent class. Shared validation protects publication, lifecycle
+acceptance and current-candidate reconstruction. Existing v1 plan artifacts are
+unchanged and cannot authorize the v2 execution path. Both execution and completion
+remain explicitly unavailable until qualified lifecycle admission and coverage
+exist; legacy diagnostic execution does not become independent evidence.
+
+Independent evaluation found two issues before acceptance: reconciliation could
+erase the completion boundary, and publication-mode validation accepted malformed
+but rehashed invocation-policy/base/dependency fields. Both counterexamples were
+made RED regressions and repaired within this checkpoint.
+
+Root tests exercise real trusted orchestration, publication, lifecycle acceptance,
+accepted-plan resolution and refused execution/completion without mocking those
+components. Negative fixtures exercise fabricated legacy PASS proofs, repair,
+superseded plans and actual feature reconciliation. Legacy completion behavior
+remains covered separately and grants no v2 authority.
+
+The prepared local test image is `showcase-s30-harness:local`: Python 3.12 plus
+the repository-pinned `cryptography==49.0.0`. Docker `--init` supplies child reaping
+for containment probes. Sources are copied from a frozen tar snapshot into a
+fresh container Git fixture; host build outputs are excluded from this test
+workspace, not from production candidate sealing. Logs are under
+`/private/tmp/showcase-s30-01b-results/`. This is protocol/controlled-execution
+verification, not real production backend qualification.
+
+First full snapshot: `python -m unittest discover -s tooling/agent-harness/tests
+-p 'test_*.py'` equivalent discovery via `unittest.TextTestRunner`, 590 tests,
+171.566 seconds, exit 0. This snapshot preceded the reconciliation and publication
+hardening fixes; final checkpoint verification is recorded below when complete.
+Targeted builder suite passed 32 tests; root completion-boundary suite passed six.
+Final source snapshot: **595 tests passed**, 144.447 seconds, exit 0; no skipped
+tests, failures or errors. The immediately preceding full run exposed a fixture
+configuration leak between the file-imported and canonically imported harness
+modules. Binding and restoring both real module settings fixed it; the failing
+ordering was verified with the orchestration and boundary suites (11 tests PASS).
+Independent security evaluator: **PASS for S30-01b only**, 66 focused tests PASS
+plus a no-mock publication/canonical-reconstruction probe; malformed rehashed
+policy/base/dependency inputs reject, and reconciliation preserves the boundary.
+Spec inventory and this report's local Markdown links pass; `git diff --check`
+passes. No accepted spec, VC or historical design/closure evidence was rewritten.
+The previously failed/interrupted Java gates remain unverified; no application
+source changed in S30-01b and no new remote CI run was started.
+
+Next dependency: split the rest of S30-01 into qualified lifecycle admission and
+single-use launch, then exact receipts/coverage/completion. Normal v2 execution
+must stay blocked until both are integrated. Admission needs trusted pre-builder
+source/control-policy binding, strong backend proof, immutable unit/member/origin
+bindings and lifecycle reservation/consumption CAS. Runtime guard precedes short
+lifecycle transactions; never hold the lifecycle lock during launch/drain/polling.
+Receipts must bind that authority, and completion must resolve every planned
+obligation rather than trusting actor-computable command proofs or aggregate PASS.
+
+User execution preferences: local commit after each checkpoint, include the current
+`.gitignore` delta with S30-01b, never push, and report estimated plan/step completion
+every five minutes during active work. Retry failed checks narrowly; broader checks
+require a change-specific reason. Current estimates: S30-01 35%, entire plan 4%.
 
 Then follow S30-02a (non-reusable terminal success), S30-02b (execution outputs),
 S30-03 (qualified-host spike and production wiring), S30-04 (command/profile policy),

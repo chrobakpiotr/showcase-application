@@ -160,6 +160,13 @@
           },
           "opaque_external_state": {
             "type": "boolean"
+          },
+          "independent_execution_classes": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "const": "harness-managed-independent-execution-v1"
+            }
           }
         },
         "required": [

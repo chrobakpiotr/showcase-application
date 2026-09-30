@@ -917,6 +917,15 @@ def cmd_reconcile_feature(args: argparse.Namespace) -> None:
         history = state.setdefault('feature_replans', [])
         if not isinstance(history, list): die('FEATURE_REPLAN_REJECTED: malformed feature replan history')
         state['feature_replans'] = [*history, record]
+        prior_authority = state.get('verification_authority')
+        if isinstance(prior_authority, dict) and prior_authority.get('accepted_plan_id') is not None:
+            plan_history = state.setdefault('verification_plan_history', [])
+            if not isinstance(plan_history, list):
+                die('FEATURE_REPLAN_REJECTED: malformed verification plan history')
+            plan_history.append({'prior_authority': prior_authority, 'superseded_by': None,
+                'superseded_at': record['recorded_at'],
+                'reason': 'feature fingerprint reconciled; prior verification authority invalidated',
+                'from_generation': generation, 'to_generation': generation + 1})
         state['fingerprint'] = new_fingerprint
         state['feature_generation'] = generation + 1
         state['verification_authority'] = {'accepted_plan_id': None, 'generation': generation + 1}
@@ -928,6 +937,8 @@ def cmd_reconcile_feature(args: argparse.Namespace) -> None:
 def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
                              expected_generation: int) -> dict:
     """Bind a published immutable plan through the sole .agent-state CAS."""
+    from verification.authority import validate_plan_record
+    validate_plan_record(plan_record, repository=feature_dir.resolve().parents[2], reconstruct=True)
     feature_dir = feature_dir.resolve()
     doc = load_validated(feature_dir)
     if (not isinstance(plan_record, dict) or
@@ -961,7 +972,7 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
                 'superseded_at': dt.datetime.now(dt.timezone.utc).isoformat(),
                 'reason': 'new trusted task-attempt plan accepted through lifecycle CAS'})
         binding = {key: plan_record.get(key) for key in (
-            'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint', 'lifecycle_generation', 'family',
+            'schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint', 'lifecycle_generation', 'family',
             'profile_hash', 'policy_checkpoint', 'candidate_identity',
             'final_changed_surface_id', 'origin_binding')}
         state['verification_authority'] = {'accepted_plan_id': plan_record['plan_id'],
@@ -977,6 +988,8 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str) -
     from verification.store import VerificationStore, StoreError
     store = VerificationStore(repository)
     record = store.load_plan_record(plan_id)
+    from verification.authority import validate_plan_record
+    validate_plan_record(record, repository=repository, reconstruct=True)
     feature_dir = pathlib.Path(repository) / 'docs' / 'specs' / record['feature_id']
     try:
         doc = load_validated(feature_dir)
@@ -986,7 +999,7 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str) -
     current = state.get('verification_authority')
     generation = state.get('feature_generation', 1)
     task_state = state.get('tasks', {}).get(record.get('task_id'))
-    expected = {key: record.get(key) for key in ('plan_id', 'task_id', 'task_attempt', 'feature_fingerprint',
+    expected = {key: record.get(key) for key in ('schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint',
         'lifecycle_generation', 'family', 'profile_hash', 'policy_checkpoint',
         'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
     if (not isinstance(current, dict) or current.get('accepted_plan_id') != plan_id or
@@ -3808,6 +3821,35 @@ def validate_completion_binding(evidence: dict[str, Any], feature_dir: pathlib.P
     return errors
 
 
+def require_available_completion_origin(state: dict[str, Any], task_id: str,
+                                        entry: dict[str, Any]) -> None:
+    """Keep origin-aware lineages out of the legacy command-proof pathway.
+
+    Until trusted admission and terminal coverage exist, no legacy PASS tuple
+    can authorize a v2 completion. Superseding a plan does not remove that
+    requirement from the same task attempt. Historical readers are unaffected.
+    Caller holds the lifecycle lock; no runtime lock or file mutation is needed.
+    """
+    authorities = [state.get('verification_authority')]
+    history = state.get('verification_plan_history', [])
+    if isinstance(history, list):
+        authorities.extend(item.get('prior_authority') for item in history if isinstance(item, dict))
+    for authority in authorities:
+        if not isinstance(authority, dict):
+            continue
+        binding = authority.get('binding')
+        plan_id = authority.get('accepted_plan_id')
+        is_v2 = (isinstance(plan_id, str) and plan_id.startswith('verification-plan-v2:')) or \
+            (isinstance(binding, dict) and binding.get('schema_version') == 2)
+        if not is_v2:
+            continue
+        if (not isinstance(binding, dict) or
+                not isinstance(binding.get('task_id'), str) or
+                type(binding.get('task_attempt')) is not int or
+                (binding['task_id'] == task_id and binding['task_attempt'] == entry.get('attempts'))):
+            die('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE: origin-qualified completion is not implemented')
+
+
 def cmd_complete(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     idx = task_index(doc)
@@ -3824,6 +3866,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
         entry = state['tasks'].get(args.task_id)
         if not entry:
             die(f'unknown task {args.task_id}')
+        require_available_completion_origin(state, args.task_id, entry)
         if entry.get('status') == 'completed':
             active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
             binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
@@ -3930,6 +3973,7 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
         entry = state['tasks'].get(args.task_id)
         if not entry:
             die(f'unknown task {args.task_id}')
+        require_available_completion_origin(state, args.task_id, entry)
         claim_projection = entry.get('completion_repair_claim')
         # A replay after publication is resolved from immutable history even if
         # the first publisher already cleared the mutable active-claim projection.

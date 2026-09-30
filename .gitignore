@@ -9,6 +9,7 @@ build/
 target/
 generated/
 *.db
+/adapter/ecommerce-frontend/node_modules/
 postgres-data/
 .angular/
 infra/terraform/.terraform/

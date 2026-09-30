@@ -123,7 +123,7 @@ def load_profile(source, *, safety=None):
                 if key in values and type(values[key]) is not bool: raise InvalidPolicy('invalid-boolean')
             for key in ('inputs', 'applicability'):
                 if key in values: values[key] = _strings(values[key], patterns=True)
-            for key in ('depends_on', 'retry_controls'):
+            for key in ('depends_on', 'retry_controls', 'independent_execution_classes'):
                 if key in values: values[key] = _strings(values[key])
             if 'produces' in values: values['produces'] = _strings(values['produces'], paths=True)
             if any(key in values and not isinstance(values[key], list) for key in ('probes', 'consumes')):
@@ -146,6 +146,10 @@ def load_profile(source, *, safety=None):
             g = Gate(**values)
             if g.sandbox not in ('required', 'best-effort', 'off') or g.retry_policy not in ('forbid', 'allow'):
                 raise InvalidPolicy('invalid-execution-policy')
+            if any(c != 'harness-managed-independent-execution-v1' for c in g.independent_execution_classes):
+                raise InvalidPolicy('invalid-independent-execution-class')
+            if g.independent_execution_classes and g.sandbox != 'required':
+                raise InvalidPolicy('invalid-independent-sandbox')
             if g.cacheable and any(diagnostic_provider_artifact_path(p) for p in (*g.inputs, *g.produces, *(a.path for a in g.consumes))):
                 raise InvalidPolicy('diagnostic-provider-artifact-identity')
             if g.critical and g.retry_policy != 'forbid': raise InvalidPolicy('invalid-critical-retry')

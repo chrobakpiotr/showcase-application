@@ -80,8 +80,11 @@ class PlannerTest(unittest.TestCase):
                     gate('unit', depends_on=['dep']))
         commands = ['python3 -m unittest', 'python3 -m unittest', 'python3  -m unittest']
         plan = build_plan(self.root, p, self.family(p, 'task-completion'), task_commands=commands)
-        self.assertEqual(['dep', 'unit', 'unit', None], [x.node.profile_gate_id for x in plan.decisions])
-        self.assertEqual(4, len({x.node.id for x in plan.decisions}))
+        self.assertEqual(['dep', 'unit', 'unit', 'unit', None], [x.node.profile_gate_id for x in plan.decisions])
+        self.assertEqual(5, len({x.node.id for x in plan.decisions}))
+        self.assertEqual(['dep', 'unit'], [x.node.id for x in plan.decisions if not x.node.occurrence])
+        self.assertEqual([0, 1, 2], [x.node.ordinal for x in plan.decisions if x.node.occurrence])
+        self.assertTrue(all(x.node.fresh for x in plan.decisions if x.node.occurrence))
         self.assertTrue(all(x.decision == 'RUN_NOW' for x in plan.decisions))
         self.assertTrue(plan.decisions[-1].node.id.startswith('legacy-task-command:0002:'))
 
@@ -156,16 +159,20 @@ class PlannerTest(unittest.TestCase):
     def test_continuation_and_cross_repository(self):
         family = self.family(policy='task-completion')
         plan = build_plan(self.root, self.p, family, task_commands=['python3 -m unittest'])
-        first = plan.decisions[0]
+        def occurrence(current_plan):
+            tasks = [x for x in current_plan.decisions if x.node.occurrence]
+            self.assertEqual(1, len(tasks))
+            return tasks[0]
+        first = occurrence(plan)
         receipt = seal_pass(first, first, family=family, evidence_id='r', ownership_token='o',
                             started_at=1, ended_at=2, artifacts=())
         args = dict(task_commands=['python3 -m unittest'], evidence={first.node.id: receipt})
-        self.assertEqual('RUN_NOW', build_plan(self.root, self.p, family, **args).decisions[0].decision)
-        self.assertEqual('ALREADY_GREEN', build_plan(self.root, self.p, family, continuation=True,
-                                                    **args).decisions[0].decision)
+        self.assertEqual('RUN_NOW', occurrence(build_plan(self.root, self.p, family, **args)).decision)
+        self.assertEqual('ALREADY_GREEN', occurrence(build_plan(self.root, self.p, family, continuation=True,
+                                                    **args)).decision)
         other = dataclasses.replace(family, id='other-family')
-        self.assertEqual('RUN_NOW', build_plan(self.root, self.p, other, continuation=True,
-                                              **args).decisions[0].decision)
+        self.assertEqual('RUN_NOW', occurrence(build_plan(self.root, self.p, other, continuation=True,
+                                              **args)).decision)
 
     def test_fingerprint_policy_and_probe_dimensions(self):
         baseline = self.plan().decisions[0].fingerprint

@@ -266,48 +266,15 @@ class VerificationStore:
 
     def publish_plan_record(self, record: dict) -> dict:
         """Publish a content-addressed immutable plan; this is subordinate only."""
-        required = {'schema_version', 'plan_id', 'feature_id', 'task_id', 'task_attempt', 'feature_fingerprint',
-                    'lifecycle_generation', 'family', 'profile_id', 'profile_hash',
-                    'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id',
-                    'origin_binding', 'obligations', 'execution_units', 'task_commands'}
-        if not isinstance(record, dict) or set(record) != required or record.get('schema_version') != 1:
-            raise StoreError('invalid-verification-plan')
-        body = {key: value for key, value in record.items() if key != 'plan_id'}
-        expected = 'verification-plan-v1:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
-        if record.get('plan_id') != expected:
-            raise StoreError('invalid-verification-plan-identity')
-        _validate_component(record['feature_id'], 'invalid-verification-plan')
-        _validate_component(record['task_id'], 'invalid-verification-plan')
-        if (type(record.get('lifecycle_generation')) is not int or record['lifecycle_generation'] < 1 or
-                type(record.get('task_attempt')) is not int or record['task_attempt'] < 1 or
-                not isinstance(record.get('obligations'), list) or not record['obligations'] or
-                not isinstance(record.get('execution_units'), list) or not record['execution_units'] or
-                not isinstance(record.get('task_commands'), list) or
-                any(not isinstance(item, dict) or set(item) != {'command', 'cwd'} or
-                    not isinstance(item['command'], str) or not isinstance(item['cwd'], str)
-                    for item in record['task_commands'])):
-            raise StoreError('invalid-verification-plan')
-        obligation_ids = [item.get('obligation_id') for item in record['obligations']
-                          if isinstance(item, dict)]
-        if (len(obligation_ids) != len(record['obligations']) or len(set(obligation_ids)) != len(obligation_ids) or
-                any(not isinstance(item, str) or not item for item in obligation_ids)):
-            raise StoreError('invalid-verification-plan-obligations')
-        member_ids = []
-        for unit in record['execution_units']:
-            if (not isinstance(unit, dict) or set(unit) != {'unit_id', 'obligation_ids'} or
-                    not isinstance(unit['unit_id'], str) or not unit['unit_id'] or
-                    not isinstance(unit['obligation_ids'], list) or not unit['obligation_ids']):
-                raise StoreError('invalid-verification-plan-unit')
-            member_ids.extend(unit['obligation_ids'])
-        if sorted(member_ids) != sorted(obligation_ids):
-            raise StoreError('invalid-verification-plan-membership')
+        from .authority import validate_plan_record
+        validate_plan_record(record)
         path = self.plans / (hashlib.sha256(record['plan_id'].encode()).hexdigest() + '.json')
         _assert_contained(path, self.root)
         publish_create_once(path, record, fault=self._fault)
         return record
 
     def load_plan_record(self, plan_id: str) -> dict:
-        if not isinstance(plan_id, str) or not plan_id.startswith('verification-plan-v1:sha256:'):
+        if not isinstance(plan_id, str) or not plan_id.startswith('verification-plan-v2:sha256:'):
             raise StoreError('VERIFICATION_EXECUTION_PLAN_REQUIRED')
         path = self.plans / (hashlib.sha256(plan_id.encode()).hexdigest() + '.json')
         _assert_contained(path, self.root)
@@ -315,7 +282,8 @@ class VerificationStore:
             record = json.loads(path.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             raise StoreError('ACCEPTED_PLAN_UNAVAILABLE') from None
-        self.publish_plan_record(record)
+        from .authority import validate_plan_record
+        validate_plan_record(record)
         if record.get('plan_id') != plan_id:
             raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
         return record
