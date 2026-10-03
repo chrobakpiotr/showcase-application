@@ -565,6 +565,20 @@ all-source collection default preserves current candidate behavior. Target new
 workspace and existing candidate tests, independent review before local commit.
 Keep every v2 launch/completion guard; qualified integrated build remains open.
 
+## S30-02b1 final checkpoint
+
+Diagnostic workspace materialization and validation are implemented. The final
+19 affected tests passed in 5.150 seconds. Independent security review reproduced
+an external manifest symlink bypass before the repair, then independently passed
+the manifest-link and descriptor-substitution regressions and approved this
+bounded primitive. Manifest reads now require a unique regular file without
+following links; descriptor validation binds the exact canonical root/source and
+repository, candidate, surface, HEAD, base and lifecycle identifiers.
+
+This checkpoint grants no launch or PASS authority. Qualified containment,
+read-only Git metadata for Git-dependent gates, writable-root policy and
+producer/consumer integration remain open. Existing launch guards stay active.
+
 ## S30-07a task packet: complete shipment header contract
 
 Accepted source: supplied review section13.1 recommendation now adopted for
@@ -611,3 +625,28 @@ before the profile repair. Independent security review: **PASS**, 13 targeted
 tests, profile truth table, shell syntax and diff-check PASS. No broker/app/event/
 manifest requirement change. Exact-script production execution remains blocked
 until origin admission/qualified containment prerequisites.
+
+## S30-08a task packet: due-order fairness
+
+Accepted source: master review14.1/3 now adopts deterministic nextAttemptDate then
+dispatchId ascending, retaining bounded page50, claim locks and stale-owner no-op.
+With50old failures and one healthy row due atinitialt0, retry delay5seconds and
+injectedclock advancing5seconds per tick, healthy row must reachSENT bytick2;
+createdDate must not let poison rows monopolize each page. Single external
+attempt per durable attempt and SMTP ambiguity remain unchanged. No retry cap,
+PARKED status or redrive/retention contract invented in this first slice.
+
+Builder owns persistence order/dispatch repository and existing manager/scheduler
+tests only as directly necessary, plus existing realPG
+OrderPlacementDispatchPostgresIntegrationTest.java. Root coordinates criticalPG
+manifest append and shared migration inclusion. Existing status/nextAttemptDate
+index supports filtering; assess actual bounded-query plan/performance and record
+whether another ordered index is necessary. New index only if evidence warrants,
+in new additive changeset with rollback, never edit historical migration.
+
+RED/GREEN realPG existing production manager/repository seam, mock only external
+ports and clock, seed50poison+healthy51; assert no unboundedfindAll, two-tick healthy
+progress, stable identities and claim fencing. Keep existing twoPGcases. Worker
+writesRED tests then root serializes Gradle invocation (no parallelJava builds).
+Independent persistence/concurrency review before local commit. Configuration
+enable combinations and cappedretry/park/redrive stay separate08checkpoints.

@@ -85,7 +85,7 @@ def _decode_path(raw: bytes) -> str:
     return value
 
 
-def _paths(root: pathlib.Path, base_sha: str, trusted_runtime_root: pathlib.Path | None = None) -> tuple[dict[str, set[str]], str, str, pathlib.Path]:
+def _paths(root: pathlib.Path, base_sha: str, trusted_runtime_root: pathlib.Path | None = None, *, source_objects: set[str] | None = None) -> tuple[dict[str, set[str]], str, str, pathlib.Path]:
     if not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', base_sha):
         raise CandidateSealError('CANDIDATE_SEALING_SNAPSHOT_UNAVAILABLE')
     if _git(root, 'cat-file', '-t', base_sha).strip() != b'commit':
@@ -163,6 +163,8 @@ def _paths(root: pathlib.Path, base_sha: str, trusted_runtime_root: pathlib.Path
             if sensitive_path(relative):
                 raise CandidateSealError('SECRET_BEARING_CANDIDATE_UNSEALABLE')
             seen.add(relative)
+            if source_objects is not None:
+                source_objects.add(relative)
             if len(seen) > MAX_OBJECTS:
                 raise CandidateSealError('CANDIDATE_SEALING_SNAPSHOT_UNAVAILABLE')
             if item.is_dir(follow_symlinks=False):
