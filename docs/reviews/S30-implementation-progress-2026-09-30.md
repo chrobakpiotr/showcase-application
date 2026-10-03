@@ -421,3 +421,43 @@ negative test: **PASS**, 1.103 seconds; **security PASS for narrow S30-02a**.
 `git diff --check` PASS. No v2 origin guard was removed; accepted-plan admission
 and all-obligation completion remain S30-01 prerequisites. End-to-end completion
 acceptance is not claimed by this execution/cache checkpoint.
+
+## S30-03a/03b final checkpoint
+
+Recorded durable [current-host qualification evidence](S30-03a-qualification-2026-10-04.json).
+Adding this report artifact is the explicit persistence dependency of the scratch
+experiment packet; disposable prototype code is not promoted into production.
+Evidence SHA256: `6656e41f6a0b6c08407c37024e4e9f68fd57e121586b1a6253319191b9fc2113`.
+Executed via approved unrestricted tool invocation, UTC October 3 22:08:48–58
+(October 4 Warsaw time), with stable source SHA256
+`024d160fd4b1bb9f71f420c005930ad0de67016aa636eb96a2051082698c5dc9`.
+That exact source is retained in Git at `ef648e7:tooling/agent-harness/verification_sandbox.py`;
+its bytes were checked against the recorded hash. Subsequent doctor-only edits
+are not attributed to the qualification run. Scratch paths are experiment roots,
+not production repository roots.
+
+Native sandbox-exec: **14 PASS, 2 FAIL**, Q08/Q09 descendants escape the execution
+unit using setpgid/setsid. Codex wrapper: **6 PASS, 10 UNSUPPORTED**, existing argv
+attempts to execute `macos` rather than a payload; this is wrapper incompatibility,
+not proof of general Codex inability. The six PASS checks are generic identity/
+process-unit controls and do not prove Codex containment. Both backends remain
+REJECTED and postqualification payloads are withheld. Independent security review
+recomputed both policy identities and qualification fingerprints: valid evidence
+of rejection. No repeated real probe was required after independent validation.
+
+Production wiring is explicitly blocked pending a supervisor that covers process
+groups/sessions and restart drainage. Correcting Codex argv alone supplies no
+containment proof. Linux active probe dispatch is also currently unsupported;
+the Docker test image is not a qualified production backend. No additional
+platform implementation or weaker fallback is introduced by this checkpoint.
+
+Doctor now distinguishes executable discovery, implemented qualification dispatch,
+qualified status and launch readiness. It preserves discovery booleans, reports
+no strong/qualified/launch-ready availability from discovery, and performs no
+active probes or state mutations. RED reproduced 1 failure and 2 missing-field
+errors; dedicated doctor tests GREEN (3), existing sandbox tests GREEN (8).
+Independent diagnostic reviewer: **PASS**, 11 tests PASS plus an actual host
+diagnostic with qualification/subprocess launch entry points forbidden. No
+qualification, launch, cancellation or containment implementation changed.
+`git diff --check` PASS. S30-03a spike and03bdiagnostics complete; supported-host
+production qualification remains open. Estimated overall plan progress: 15%.

@@ -1,0 +1,302 @@
+{
+  "started_utc": "2026-10-03T22:08:48.457785+00:00",
+  "source_sha256": "024d160fd4b1bb9f71f420c005930ad0de67016aa636eb96a2051082698c5dc9",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit",
+  "doctor": {
+    "platform": "darwin",
+    "strong_available": true,
+    "backends": {
+      "codex-sandbox": true,
+      "bubblewrap": false,
+      "macos-sandbox-exec": true
+    }
+  },
+  "python": "3.9.6 (default, Apr 30 2025, 02:07:18) \n[Clang 17.0.0 (clang-1700.0.13.5)]",
+  "execution_context": "reviewed require_escalated native host",
+  "scope": "disposable scratch roots; not qualification of production roots",
+  "results": [
+    {
+      "candidate": {
+        "kind": "codex-sandbox",
+        "version": "unqualified",
+        "executable": "/Users/pau/.codex/packages/standalone/releases/0.159.2-x86_64-apple-darwin/bin/codex",
+        "platform": "darwin",
+        "state": "DISCOVERED",
+        "qualification": null
+      },
+      "elapsed_seconds": 7.641,
+      "qualification": {
+        "status": "REJECTED",
+        "backend_identity": "codex-darwin:unqualified:darwin:/Users/pau/.codex/packages/standalone/releases/0.159.2-x86_64-apple-darwin/bin/codex",
+        "policy_identity": "sha256:226726ee1706bd6aa881a68f297711bf8e0d0de89bf0223d66fe905302dbcda9",
+        "fingerprint": "sha256:e29bb8f1bb674193fb3811f2b077432f70dbbcc6e7e4ee78571e7ca4b06ca535",
+        "protected_paths": [
+          "/private/tmp/showcase-s30-03a-2026-10-04/codex-sandbox/protected"
+        ],
+        "checks": [
+          {
+            "check_id": "Q01",
+            "name": "PERMITTED_WRITE",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE",
+            "evidence": "exit=71;stdout=;stderr=sandbox-exec: execvp() of 'macos' failed: No such file or directory"
+          },
+          {
+            "check_id": "Q02",
+            "name": "PROTECTED_WRITE_DIRECT",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE",
+            "evidence": "absolute:exit=71;stdout=;stderr=sandbox-exec: execvp() of 'macos' failed: No such file or directory"
+          },
+          {
+            "check_id": "Q03",
+            "name": "PROTECTED_WRITE_CHILD",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE",
+            "evidence": "exit=71;stdout=;stderr=sandbox-exec: execvp() of 'macos' failed: No such file or directory"
+          },
+          {
+            "check_id": "Q04",
+            "name": "PROTECTED_WRITE_GRANDCHILD",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE",
+            "evidence": "exit=71;stdout=;stderr=sandbox-exec: execvp() of 'macos' failed: No such file or directory"
+          },
+          {
+            "check_id": "Q05",
+            "name": "CONTAINMENT_CHILD",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q05:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q06",
+            "name": "CONTAINMENT_GRANDCHILD",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q06:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q07",
+            "name": "CONTAINMENT_PARENT_EXIT",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q07:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q08",
+            "name": "CONTAINMENT_NEW_PROCESS_GROUP",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q08:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q09",
+            "name": "CONTAINMENT_NEW_SESSION",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q09:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q10",
+            "name": "CONTAINMENT_BACKGROUND_SHELL",
+            "status": "UNSUPPORTED",
+            "reason_code": "CANDIDATE_REJECTED_PROCESS_PROBE",
+            "evidence": "Q10:probe-did-not-publish-pid;exit=71"
+          },
+          {
+            "check_id": "Q11",
+            "name": "EXECUTION_IDENTITY_DURABLE",
+            "status": "PASS",
+            "reason_code": "EXECUTION_IDENTITY_DURABLE",
+            "evidence": "prepared-identity-fsynced"
+          },
+          {
+            "check_id": "Q12",
+            "name": "EXECUTION_IDENTITY_STALE_REJECTED",
+            "status": "PASS",
+            "reason_code": "STALE_IDENTITY_REJECTED",
+            "evidence": "STALE_EXECUTION_IDENTITY"
+          },
+          {
+            "check_id": "Q13",
+            "name": "CANCEL_EXECUTION_UNIT",
+            "status": "PASS",
+            "reason_code": "WHOLE_UNIT_CANCELLED_AND_DRAINED",
+            "evidence": "cancel=CANCEL_REQUESTED;drain=DRAINED"
+          },
+          {
+            "check_id": "Q14",
+            "name": "DRAIN_EXECUTION_UNIT",
+            "status": "PASS",
+            "reason_code": "DRAINED_WITH_PROCESS_TABLE_PROOF",
+            "evidence": "killpg-zero-returned-esrch"
+          },
+          {
+            "check_id": "Q15",
+            "name": "RESTART_ACTIVE",
+            "status": "PASS",
+            "reason_code": "RESTART_ACTIVE",
+            "evidence": "live-process-group-member;cleanup=DRAINED"
+          },
+          {
+            "check_id": "Q16",
+            "name": "RESTART_DRAINED",
+            "status": "PASS",
+            "reason_code": "RESTART_DRAINED",
+            "evidence": "previous-positive-drainage-proof"
+          }
+        ],
+        "reason_codes": [
+          "CANDIDATE_REJECTED_PROCESS_PROBE",
+          "CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE"
+        ]
+      },
+      "qualified": false,
+      "launch_ready": false,
+      "payload": "NOT_RUN: mandatory qualification must PASS first"
+    },
+    {
+      "candidate": {
+        "kind": "macos-sandbox-exec",
+        "version": "unqualified",
+        "executable": "/usr/bin/sandbox-exec",
+        "platform": "darwin",
+        "state": "DISCOVERED",
+        "qualification": null
+      },
+      "elapsed_seconds": 2.039,
+      "qualification": {
+        "status": "REJECTED",
+        "backend_identity": "macos-sandbox-exec:unqualified:darwin:/usr/bin/sandbox-exec",
+        "policy_identity": "sha256:4238b20bf565fb172a31e607632b22efc28ae4e4bf78ab8fe25937816c7a9431",
+        "fingerprint": "sha256:a061d3fb41b1565ab7fb65134bf9667c50245e446b23f5fd146cafb7fc9fe0d0",
+        "protected_paths": [
+          "/private/tmp/showcase-s30-03a-2026-10-04/macos-sandbox-exec/protected"
+        ],
+        "checks": [
+          {
+            "check_id": "Q01",
+            "name": "PERMITTED_WRITE",
+            "status": "PASS",
+            "reason_code": "PERMITTED_WRITE_CONFIRMED",
+            "evidence": "marker-created-in-writable-root"
+          },
+          {
+            "check_id": "Q02",
+            "name": "PROTECTED_WRITE_DIRECT",
+            "status": "PASS",
+            "reason_code": "PROTECTED_DIRECT_DENIED",
+            "evidence": "absolute-relative-symlink-shell-denied-marker-absent"
+          },
+          {
+            "check_id": "Q03",
+            "name": "PROTECTED_WRITE_CHILD",
+            "status": "PASS",
+            "reason_code": "DESCENDANT_PROTECTED_WRITE_DENIED",
+            "evidence": "Q03:denied:1"
+          },
+          {
+            "check_id": "Q04",
+            "name": "PROTECTED_WRITE_GRANDCHILD",
+            "status": "PASS",
+            "reason_code": "DESCENDANT_PROTECTED_WRITE_DENIED",
+            "evidence": "Q04:denied:1"
+          },
+          {
+            "check_id": "Q05",
+            "name": "CONTAINMENT_CHILD",
+            "status": "PASS",
+            "reason_code": "DESCENDANT_ASSOCIATED_WITH_UNIT",
+            "evidence": "Q05:group=1668"
+          },
+          {
+            "check_id": "Q06",
+            "name": "CONTAINMENT_GRANDCHILD",
+            "status": "PASS",
+            "reason_code": "DESCENDANT_ASSOCIATED_WITH_UNIT",
+            "evidence": "Q06:group=1670"
+          },
+          {
+            "check_id": "Q07",
+            "name": "CONTAINMENT_PARENT_EXIT",
+            "status": "PASS",
+            "reason_code": "PARENT_EXIT_DESCENDANT_NOT_DRAINED",
+            "evidence": "Q07:group=1673;state=NOT_DRAINED"
+          },
+          {
+            "check_id": "Q08",
+            "name": "CONTAINMENT_NEW_PROCESS_GROUP",
+            "status": "FAIL",
+            "reason_code": "DESCENDANT_ESCAPED_EXECUTION_UNIT",
+            "evidence": "Q08:live=True;group=1677;escape-succeeded"
+          },
+          {
+            "check_id": "Q09",
+            "name": "CONTAINMENT_NEW_SESSION",
+            "status": "FAIL",
+            "reason_code": "DESCENDANT_ESCAPED_EXECUTION_UNIT",
+            "evidence": "Q09:live=True;group=1679;escape-succeeded"
+          },
+          {
+            "check_id": "Q10",
+            "name": "CONTAINMENT_BACKGROUND_SHELL",
+            "status": "PASS",
+            "reason_code": "PARENT_EXIT_DESCENDANT_NOT_DRAINED",
+            "evidence": "Q10:group=1680;state=NOT_DRAINED"
+          },
+          {
+            "check_id": "Q11",
+            "name": "EXECUTION_IDENTITY_DURABLE",
+            "status": "PASS",
+            "reason_code": "EXECUTION_IDENTITY_DURABLE",
+            "evidence": "prepared-identity-fsynced"
+          },
+          {
+            "check_id": "Q12",
+            "name": "EXECUTION_IDENTITY_STALE_REJECTED",
+            "status": "PASS",
+            "reason_code": "STALE_IDENTITY_REJECTED",
+            "evidence": "STALE_EXECUTION_IDENTITY"
+          },
+          {
+            "check_id": "Q13",
+            "name": "CANCEL_EXECUTION_UNIT",
+            "status": "PASS",
+            "reason_code": "WHOLE_UNIT_CANCELLED_AND_DRAINED",
+            "evidence": "cancel=CANCEL_REQUESTED;drain=DRAINED"
+          },
+          {
+            "check_id": "Q14",
+            "name": "DRAIN_EXECUTION_UNIT",
+            "status": "PASS",
+            "reason_code": "DRAINED_WITH_PROCESS_TABLE_PROOF",
+            "evidence": "killpg-zero-returned-esrch"
+          },
+          {
+            "check_id": "Q15",
+            "name": "RESTART_ACTIVE",
+            "status": "PASS",
+            "reason_code": "RESTART_ACTIVE",
+            "evidence": "live-process-group-member;cleanup=DRAINED"
+          },
+          {
+            "check_id": "Q16",
+            "name": "RESTART_DRAINED",
+            "status": "PASS",
+            "reason_code": "RESTART_DRAINED",
+            "evidence": "previous-positive-drainage-proof"
+          }
+        ],
+        "reason_codes": [
+          "DESCENDANT_ESCAPED_EXECUTION_UNIT"
+        ]
+      },
+      "qualified": false,
+      "launch_ready": false,
+      "payload": "NOT_RUN: mandatory qualification must PASS first"
+    }
+  ],
+  "ended_utc": "2026-10-03T22:08:58.179161+00:00",
+  "source_sha256_at_end": "024d160fd4b1bb9f71f420c005930ad0de67016aa636eb96a2051082698c5dc9"
+}

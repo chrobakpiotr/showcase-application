@@ -1080,10 +1080,23 @@ def build_plan(
 
 
 def doctor() -> dict[str, Any]:
+    """Read-only discovery report; no root-bound qualification is issued here."""
     system = platform.system().lower()
-    backends = {
-        'codex-sandbox': bool(shutil.which('codex')) and system in {'darwin', 'linux'},
-        'bubblewrap': bool(shutil.which('bwrap')) and system == 'linux',
-        'macos-sandbox-exec': bool(shutil.which('sandbox-exec')) and system == 'darwin',
+    candidates = {candidate.kind: candidate for candidate in discover_backends()}
+    status = {}
+    for kind in ('codex-sandbox', 'bubblewrap', 'macos-sandbox-exec'):
+        candidate = candidates.get(kind)
+        # _candidate_probe_argv currently implements only these Darwin paths.
+        supported = bool(candidate and candidate.platform == 'darwin' and
+                         kind in ('codex-sandbox', 'macos-sandbox-exec'))
+        status[kind] = {'discovered': candidate is not None,
+                        'qualification_supported': supported,
+                        'qualified': False, 'launch_ready': False}
+    backends = {kind: value['discovered'] for kind, value in status.items()}
+    return {
+        'platform': system, 'backends': backends, 'backend_status': status,
+        'discovered': any(backends.values()),
+        'qualification_supported': any(value['qualification_supported'] for value in status.values()),
+        # Discovery has no exact policy/roots proof, nor lifecycle admission.
+        'qualified': False, 'launch_ready': False, 'strong_available': False,
     }
-    return {'platform': system, 'strong_available': any(backends.values()), 'backends': backends}
