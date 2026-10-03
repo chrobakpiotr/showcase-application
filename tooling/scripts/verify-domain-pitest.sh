@@ -4,6 +4,8 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+python3 -m unittest tooling/scripts/tests/test_verify_pit_report.py -v
+
 REPORT_ROOT="modules/domain/build/reports/pitest"
 START_MARKER="modules/domain/build/reports/pitest.started"
 VERIFIER="tooling/scripts/verify_pit_report.py"

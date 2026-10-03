@@ -461,3 +461,26 @@ diagnostic with qualification/subprocess launch entry points forbidden. No
 qualification, launch, cancellation or containment implementation changed.
 `git diff --check` PASS. S30-03a spike and03bdiagnostics complete; supported-host
 production qualification remains open. Estimated overall plan progress: 15%.
+
+## S30-04c task packet: verifier unit preflight
+
+Accepted source: original review S30-04 minimum verifier-only changes execute
+own tests plus gate; S30-05 uses existing CI jobs. Bounded first slice covers
+existing PIT/Postgres validator suites, not Rabbit extraction. Builder owns
+tooling/scripts/verify-domain-pitest.sh, verify-critical-postgres-tests.sh and
+a dedicated tooling/scripts/tests/test_verifier_unit_preflight.py. Existing
+CI repository-guards step may invoke the new preflight test (recorded integration
+dependency .github/workflows/ci.yml only, no new job/remote run). Root owns report.
+No profile changes: both existing validator test paths already select own gates.
+
+Each script runs its existing Python validator unit module immediately after
+canonical root cd, before Java checks, report cleanup, markers or Gradle. A unit
+failure must stop with nonzero status and preserve prior reports without launching
+heavy verification. RED/GREEN shell-fixture seam uses a real failing unittest
+module and an instrumented Gradle marker; fixture copies only assigned script
+and controlled test file, asserts nonzero/visible testfailure/noGradle/no cleanup.
+Do not weaken real validator tests or add a shell fallback. Existing validator
+suites plus new preflight test and bash-n are sufficient initial checks; no
+Java/broker/PIT execution for wiring-only change. Independent review then local
+commit. CI rollback is reverting this declarative test step; it grants no remote
+permissions or mutation. Rabbit validator extraction is the next separate slice.

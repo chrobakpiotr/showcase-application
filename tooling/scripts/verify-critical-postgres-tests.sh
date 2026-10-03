@@ -4,6 +4,8 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+python3 -m unittest tooling/scripts/tests/test_verify_critical_postgres_results.py -v
+
 MANIFEST="tooling/quality/critical-postgres-manifest.json"
 VERIFIER="tooling/scripts/verify_critical_postgres_results.py"
 RESULT_ROOT="apps/ecommerce/backend/build/critical-postgres-results"

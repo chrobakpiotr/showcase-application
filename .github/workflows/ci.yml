@@ -62,6 +62,9 @@ jobs:
       - name: Test PIT evidence verifier
         run: python3 -m unittest tooling/scripts/tests/test_verify_pit_report.py -v
 
+      - name: Test verifier unit preflight ordering
+        run: python3 -m unittest tooling/scripts/tests/test_verifier_unit_preflight.py -v
+
       - name: Check controlled time usage
         run: |
           python3 tooling/scripts/check_no_legacy_java_date.py
