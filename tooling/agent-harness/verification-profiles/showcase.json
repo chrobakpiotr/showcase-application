@@ -295,7 +295,9 @@
         "settings.gradle.kts",
         "gradle.properties",
         "tooling/agent-harness/verification-profiles/showcase.json",
-        "modules/application/orchestration/**"
+        "modules/application/orchestration/**",
+        "tooling/scripts/verify_critical_rabbitmq_results.py",
+        "tooling/scripts/tests/test_verify_critical_rabbitmq_results.py"
       ],
       "applicability": [
         "tooling/quality/critical-rabbitmq-manifest.json",
@@ -314,7 +316,9 @@
         "gradle.properties",
         "gradle/**",
         "tooling/agent-harness/verification-profiles/showcase.json",
-        "modules/application/orchestration/**"
+        "modules/application/orchestration/**",
+        "tooling/scripts/verify_critical_rabbitmq_results.py",
+        "tooling/scripts/tests/test_verify_critical_rabbitmq_results.py"
       ],
       "mandatory": true,
       "cacheable": false,

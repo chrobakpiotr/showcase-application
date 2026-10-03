@@ -56,8 +56,10 @@ jobs:
       - name: Test critical PostgreSQL evidence verifier
         run: python3 -m unittest tooling/scripts/tests/test_verify_critical_postgres_results.py -v
 
-      - name: Validate critical RabbitMQ gate shell syntax
-        run: bash -n tooling/scripts/verify-critical-rabbitmq-tests.sh
+      - name: Test critical RabbitMQ evidence verifier and gate syntax
+        run: |
+          python3 -m unittest tooling/scripts/tests/test_verify_critical_rabbitmq_results.py -v
+          bash -n tooling/scripts/verify-critical-rabbitmq-tests.sh
 
       - name: Test PIT evidence verifier
         run: python3 -m unittest tooling/scripts/tests/test_verify_pit_report.py -v

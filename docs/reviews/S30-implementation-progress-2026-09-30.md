@@ -484,3 +484,130 @@ suites plus new preflight test and bash-n are sufficient initial checks; no
 Java/broker/PIT execution for wiring-only change. Independent review then local
 commit. CI rollback is reverting this declarative test step; it grants no remote
 permissions or mutation. Rabbit validator extraction is the next separate slice.
+
+## S30-04c commit and verification record
+
+Local commit `7c4de2d` included ALL then-uncommitted files as explicitly requested,
+including AGENTS.md and .codex/config.toml; working tree clean immediately after.
+Relevant 19 tests, shell syntax and diff-check passed before commit. Initial
+TOML checker used a binary-file API incompatible with bundled tomli; the corrected
+string parser validated the unchanged config after commit. A nonprinting
+credential-pattern check found zero matches. No history rewrite or push.
+
+One frozen tracked-source snapshot after `8214bdd` passed the full **613 harness
+tests** in 165.773 seconds, no failures/errors/skips. Broader check was justified
+by terminal/fence field interactions with profile, authority and historical
+readers. It does not prove production sandbox qualification or full Java release
+confidence; no broad retry followed.
+
+## S30-04d task packet: Rabbit validator extraction/preflight
+
+Accepted source: supplied review S30-04 verifier-only own-tests+gate, S30-05 existing
+CI positive-path quality. Builder owns verify-critical-rabbitmq-tests.sh, new
+verify_critical_rabbitmq_results.py and validator unit module, existing
+test_verifier_unit_preflight.py, Rabbit helper/test applicability+inputs in
+showcase.json and dedicated truth-table rows, existing ci.yml repository-guards
+step only. Root owns report. No AMQP application, manifest requirements, broker
+or contract changes; do not alter existing required cases or weaken validation.
+
+Extract existing inline manifest/list-suite/result logic faithfully into helper:
+--manifest --list-suites, or --manifest/--results/--started-after/--source-root/
+--source-sha/--evidence-output. Keep evidence version/fields and exact one-suite/
+mapped-case/count/freshness/zero skip/fail/error/flaky/rerun checks. Run new helper
+unit module immediately after root cd before cleanup/Gradle. Both suite selection
+and terminal result validation must call the same helper; no duplicate inline
+implementation remains. Helper/test changes select own Rabbit gate and inputs.
+Extend existing CI guards for helper units/preflight, no new job or remote run.
+
+RED/GREEN existing inline contract characterization and fail-fast shell seam;
+cover clean positive evidence, invalid manifest, missing source/results, stale
+report, duplicate/unexpected suites, skipped/failed/error, flaky/rerun metadata,
+missing/unexpected cases and count mismatch. No semantics expansion beyond an
+explicit discovered dependency recorded here. Run targeted helper/preflight,
+profile truth table and bash-n; independent review then local commit. Declarative
+CI rollback is reverting this local change.
+
+## S30-02b1 task packet: diagnostic source workspace primitive
+
+Accepted source: supplied review02b and SDD-OBS-001 generated-artifact namespace.
+Root owns new verification/workspace.py, a narrowly optional all-source collection
+seam in candidate._paths, and dedicated workspace tests. No executor/sandbox/
+profile/accepted-authority changes. Independent security design fixes these
+choices before implementation: full source includes unchanged tracked and ignored
+files, never merely changed CandidateSeal.entries; full privacy preflight before
+durable copy, with existing binary/secret fail-closed behavior; runtime namespace
+only canonical runs/family/attempt/artifacts/execution; no copied Git metadata.
+
+Materialization has no execution or origin authority. It copies into new regular
+files preserving executable modes/empty directories, rejects symlink/hardlink/
+special/mount/path escapes and races, publishes an immutable content manifest
+bound to candidate/surface/repository/family/attempt/execution/policy, and validates
+original snapshot plus initial copied source again after work. Newly generated
+outputs remain runtime-only and are checked for links/escape, never copied back.
+Untrusted raw output/log bytes are not hashed into structured GREEN evidence.
+Partial/colliding/mutated workspaces cannot be accepted or silently replaced.
+
+Git choice: no live .git or linked-worktree pointer is copied; an invalid .git
+barrier plus recommended ceiling prevents ordinary upward discovery, and its
+mutation rejects. Git-dependent gates need separately accepted read-only metadata
+view. Exact sandbox writable-leaf carving must preserve sibling journals/state;
+current whole-runtime protection is unchanged. No host caches/environment roots
+are imported; producer/consumer artifact plumbing and qualified source/output
+roots remain integration prerequisites. Full privacy scanning of baseline files
+can block inputs the changed-surface seal previously did not inspect; do not
+weaken it or claim arbitrary repository builds operational.
+
+RED/GREEN real isolated Git repos: unchanged files, ignored inputs, executable/
+emptydir, binary/secret rejection before publication, original unchanged and
+copied-source drift, original drift/copy race, output file+binary creation, links/
+special/mount/path escape, collision/partial records and Git barrier. Optional
+all-source collection default preserves current candidate behavior. Target new
+workspace and existing candidate tests, independent review before local commit.
+Keep every v2 launch/completion guard; qualified integrated build remains open.
+
+## S30-07a task packet: complete shipment header contract
+
+Accepted source: supplied review section13.1 recommendation now adopted for
+local implementation under the user's master-review instruction: BOTH operation
+headers or NEITHER. Exact absence of both keeps deprecated legacy behavior.
+Partial headers, blank operation key, or operation key over80characters reject
+400 before querying current shipment or invoking workflow. Valid operation-aware
+requests use supplied key/status unchanged; never infer/synthesize either.
+This explicitly revises previous partial-header synthesis tests/contract; preserve
+those triggers as400regressions, do not delete coverage. Global immutable history,
+historical replay and authorization remain unchanged. Typed codes/UI/reload and
+realPG end-to-end acceptance remain subsequent07checkpoints.
+
+Allowed paths: ShipmentController.java and ShipmentControllerTest.java under
+modules/adapters/web shipment packages, plus targeted documentation of this
+compatibility policy in existing shipment runbook if found (record dependency).
+Root owns progress report. No domain/persistence/frontend/globalhandler changes.
+Risk: inbound input validation and compatibility; back-office auth/security rules
+retain existing guards. No event/database schema or remote mutations.
+
+RED/GREEN MVC or existing controller seam covers absent legacy, key-only,
+status-only, blank key(with/withoutstatus), valid80/invalid81boundary, supplied
+key/status preservation and rejection before get-current/workflow. Independent
+security/API review required. Do not run Gradle concurrently: worker delivers
+RED-ready tests then root coordinates one targeted web test invocation, ensuring
+shared build outputs are never raced. Local commit after verified review.
+Rollback/forwardfix preserves explicit legacyabsence and correction can adjust
+validation without touching shipment history.
+
+## S30-04d final checkpoint
+
+Rabbit's existing inline manifest/result validator was extracted into one Python
+helper used by both suite selection and terminal validation. Existing evidence
+fields, one-suite/two-mapped-case manifest, stale/skip/failure/error/flaky/rerun/
+count checks are preserved. Its own unit suite executes before cleanup/Gradle.
+Helper/test paths select and fingerprint the dedicated Rabbit gate; existing
+CI guards run these units and the preflight regression without a new job.
+
+Builder verification: 13 validator/preflight tests PASS (0.721 seconds); real
+profile truth table PASS (0.118 seconds). Nine characterization cases ran against
+the original HEAD inline implementation before extraction and passed (1.763
+seconds), establishing preserved behavior. Missing helper/test selection was RED
+before the profile repair. Independent security review: **PASS**, 13 targeted
+tests, profile truth table, shell syntax and diff-check PASS. No broker/app/event/
+manifest requirement change. Exact-script production execution remains blocked
+until origin admission/qualified containment prerequisites.

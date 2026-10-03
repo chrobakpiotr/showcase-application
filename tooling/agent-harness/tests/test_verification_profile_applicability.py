@@ -63,6 +63,8 @@ class ShowcaseApplicabilityTest(unittest.TestCase):
             'tooling/scripts/tests/test_verify_critical_postgres_results.py': {PG},
             'tooling/quality/critical-postgres-manifest.json': {PG},
             'tooling/scripts/verify-critical-rabbitmq-tests.sh': {RABBIT},
+            'tooling/scripts/verify_critical_rabbitmq_results.py': {RABBIT},
+            'tooling/scripts/tests/test_verify_critical_rabbitmq_results.py': {RABBIT},
             'tooling/quality/critical-rabbitmq-manifest.json': {RABBIT},
             'docs/guide.md': {DOCTOR},
             'README.md': {DOCTOR},

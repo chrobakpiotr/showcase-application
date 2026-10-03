@@ -51,3 +51,9 @@ class VerifierUnitPreflightTest(unittest.TestCase):
             'verify-critical-postgres-tests.sh', 'test_verify_critical_postgres_results.py',
             'apps/ecommerce/backend/build/critical-postgres-results',
             'apps/ecommerce/backend/build/critical-postgres.started')
+
+    def test_rabbit_unit_failure_precedes_cleanup_and_gradle(self):
+        self.assert_failed_unit_preserves_gate_state(
+            'verify-critical-rabbitmq-tests.sh', 'test_verify_critical_rabbitmq_results.py',
+            'apps/ecommerce/backend/build/critical-rabbitmq-results',
+            'apps/ecommerce/backend/build/critical-rabbitmq.started')
