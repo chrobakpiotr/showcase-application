@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.web.shipments;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import com.cp.ecommerce.adapter.web.common.PagedModelAssembler;
 import com.cp.ecommerce.adapter.web.shipments.mapper.ShipmentWebMapper;
@@ -38,6 +37,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
@@ -155,23 +155,33 @@ public class ShipmentController {
             @PathVariable("shipmentNumber") final String shipmentNumber,
             @RequestHeader(value = "Idempotency-Key", required = false) final String operationId,
             @RequestHeader(value = "X-Expected-Shipment-Status", required = false) final ShipmentStatus expectedStatus,
-            final HttpServletResponse response) {
+            final HttpServletResponse response,
+            final HttpServletRequest request) {
 
-        if ((operationId == null || operationId.isBlank()) && expectedStatus == null) {
+        final boolean operationHeadersAbsent = request == null
+                ? operationId == null && expectedStatus == null
+                : request.getHeader("Idempotency-Key") == null && request.getHeader("X-Expected-Shipment-Status") == null;
+        if (operationHeadersAbsent) {
             markLegacyAdvance(response);
             return toResourceModel(shipmentWorkflow.advanceShipment(shipmentNumber));
         }
 
-        final Shipment current = getShipmentInPort.getShipment(shipmentNumber);
-        final String effectiveOperationId = operationId == null || operationId.isBlank()
-                ? UUID.randomUUID().toString()
-                : operationId;
-        final ShipmentStatus effectiveExpectedStatus = expectedStatus == null && current != null
-                ? current.getStatus()
-                : expectedStatus;
-        final Shipment advanced = shipmentWorkflow
-                .advanceShipment(shipmentNumber, effectiveOperationId, effectiveExpectedStatus);
+        if (operationId == null || expectedStatus == null || operationId.isBlank() || operationId.length() > 80) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key and X-Expected-Shipment-Status must both be supplied, with a nonblank key of at most 80 characters");
+        }
+
+        final Shipment advanced = shipmentWorkflow.advanceShipment(shipmentNumber, operationId, expectedStatus);
         return toResourceModel(advanced);
+    }
+
+    EntityModel<ShipmentResource> advanceShipmentStatus(
+            final String shipmentNumber,
+            final String operationId,
+            final ShipmentStatus expectedStatus,
+            final HttpServletResponse response) {
+        return advanceShipmentStatus(shipmentNumber, operationId, expectedStatus, response, null);
     }
 
     EntityModel<ShipmentResource> advanceShipmentStatus(
@@ -213,7 +223,7 @@ public class ShipmentController {
         if (shipment.getStatus() != ShipmentStatus.DELIVERED) {
 
             model.add(
-                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber, null, null, null))
+                    linkTo(methodOn(ShipmentController.class).advanceShipmentStatus(shipmentNumber, null, null, null, null))
                             .withRel("advance-status"));
         }
         return model;

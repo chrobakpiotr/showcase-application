@@ -608,6 +608,17 @@ shared build outputs are never raced. Local commit after verified review.
 Rollback/forwardfix preserves explicit legacyabsence and correction can adjust
 validation without touching shipment history.
 
+## S30-07a final checkpoint
+
+Complete-header validation is implemented, including raw header presence to
+prevent Spring's empty enum conversion from silently selecting legacy behavior.
+The initial seven failing cases passed after the implementation; independent
+review then found the empty/whitespace expected-status bypass. Both added cases
+failed before the repair and passed after it. The final controller suite passed:
+33 tests, zero skipped/failures/errors, Gradle successful in 12 seconds.
+Independent security/API review: **PASS**. Typed conflict codes, frontend reload
+and durable operation end-to-end coverage remain separate pending checkpoints.
+
 ## S30-04d final checkpoint
 
 Rabbit's existing inline manifest/result validator was extracted into one Python
