@@ -188,10 +188,13 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 }
             supervisor = VerificationSupervisor(store)
             terminal_evidence = []
+            execution_terminals = []
             post_ready = []
             def build_terminal_evidence(command_result, current_ready, post_observation):
                 if (current_ready is None or current_ready.action != 'RUN' or
                         post_observation.get('stable') is not True or not post_ready):
+                    return None
+                if not current_ready.cacheable:
                     return None
                 evidence = seal_pass(current_ready, post_ready[0], family=plan.family,
                     evidence_id=f'{decision.node.id}:{attempt_id}', ownership_token=attempt_id,
@@ -201,6 +204,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 terminal_evidence.append(evidence)
                 return evidence_record(evidence, safety=safety)
             def publish_terminal_evidence(_command_result, _current_ready, terminal):
+                execution_terminals.append(terminal)
                 record = terminal.get('verification_evidence')
                 if record is None:
                     return None
@@ -270,7 +274,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 candidate_identity=candidate_seal.candidate_identity,
                 final_changed_surface_id=candidate_seal.changed_surface_id,
                 plan_id=authority_context.get('plan_id') if isinstance(authority_context, dict) else None,
-                retry_scope=retry_scope)
+                retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint)
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
             if ready.action == 'REUSE':
@@ -315,14 +319,25 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             outcome = 'FAIL'
         exec_evidence = None
         if outcome == 'PASS':
-            if 'terminal_evidence' not in locals() or not terminal_evidence:
+            if not ready.cacheable:
+                terminal = execution_terminals[0] if execution_terminals else None
+                if (terminal is None or terminal.get('result') != 'PASS' or
+                        terminal.get('drainage') != 'DRAINED' or
+                        terminal.get('post_observation', {}).get('stable') is not True):
+                    outcome = 'ERROR'
+                    gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'stale-input',
+                        ready.fingerprint, gate.command_hash, result.exit_code, error='post-input-changed'))
+                    outcomes.append(outcome)
+                    break
+            elif 'terminal_evidence' not in locals() or not terminal_evidence:
                 outcome = 'ERROR'
                 gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, 'stale-input',
                     ready.fingerprint, gate.command_hash, result.exit_code, error='post-input-changed'))
                 outcomes.append(outcome)
                 break
-            exec_evidence = terminal_evidence[0]
-            reusable[decision.node.id] = exec_evidence
+            if ready.cacheable:
+                exec_evidence = terminal_evidence[0]
+                reusable[decision.node.id] = exec_evidence
         gate_results.append(GateExecution(decision.node.id, 'RUN', outcome,
                                           'completed' if outcome in {'PASS', 'FAIL'} else outcome.lower(),
                                           ready.fingerprint, gate.command_hash,

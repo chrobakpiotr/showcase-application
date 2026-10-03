@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 
 from .serialization import canonical
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
-                    _fsync_directory, publish_create_once, repository_lock)
+                    _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint)
 
 
 class SupervisorError(RuntimeError):
@@ -91,7 +91,8 @@ class VerificationSupervisor:
                 critical: bool = False, retry_policy: str = 'forbid',
                 retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None,
                 candidate_identity: str | None = None, final_changed_surface_id: str | None = None,
-                plan_id: str | None = None, retry_scope: dict | None = None):
+                plan_id: str | None = None, retry_scope: dict | None = None,
+                policy_checkpoint: str | None = None):
         if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
             raise SupervisorError('invalid-retry-policy')
         if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
@@ -120,6 +121,12 @@ class VerificationSupervisor:
                 raise SupervisorError('retry-policy-violation')
         retry_policy_proof['retry_free'] = bool(retry_free)
         intent_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
+        derived_failure_fingerprint = candidate_failure_fingerprint({
+            'repository_id': self.store.repository_id, 'family_id': family_id,
+            'policy_checkpoint': policy_checkpoint, 'profile_hash': profile_hash, 'gate_id': gate_id,
+            'candidate_identity': candidate_identity,
+            'final_changed_surface_id': final_changed_surface_id,
+            'launch_intent_hash': intent_hash, 'input_fingerprint': input_fingerprint})
         execution_id = hashlib.sha256(canonical({
             'repository_id': self.store.repository_id, 'family_id': family_id,
             'attempt_id': attempt_id, 'gate_id': gate_id, 'command_hash': intent_hash,
@@ -136,11 +143,16 @@ class VerificationSupervisor:
             self._crash('after-admission')
             ready = preflight() if preflight else None
             fence_context = {'repository_id': self.store.repository_id, 'profile_hash': profile_hash,
-                             'gate_id': gate_id, 'fingerprint': input_fingerprint}
+                             'gate_id': gate_id, 'fingerprint': input_fingerprint or derived_failure_fingerprint}
             has_fence_context = all(isinstance(fence_context.get(key), str) and fence_context[key]
                                     for key in ('profile_hash', 'gate_id', 'fingerprint'))
             active_failure = None
             unresolved_failure = None
+            if derived_failure_fingerprint is not None and any(
+                    not isinstance(failure.get('context', {}).get('fingerprint'), str) or
+                    not failure['context']['fingerprint']
+                    for failure in self.store.active_failure_fences()):
+                raise SupervisorError('CRITICAL_FAILURE_CONTEXT_REQUIRED')
             if has_fence_context:
                 unresolved_failure = self.store.current_failure(fence_context)
                 latest_failure = self.store.failure_for_scope(fence_context)
@@ -238,7 +250,8 @@ class VerificationSupervisor:
                 'execution_identity': identity, 'input_fingerprint': input_fingerprint,
                 'candidate_identity': candidate_identity,
                 'final_changed_surface_id': final_changed_surface_id,
-                'profile_hash': profile_hash, 'critical': bool(critical),
+                'profile_hash': profile_hash, 'policy_checkpoint': policy_checkpoint,
+                'critical': bool(critical),
                 'plan_id': plan_id,
                 'retry_policy': retry_policy, 'retry_controls': list(retry_controls),
                 'retry_policy_proof': retry_policy_proof,
@@ -253,6 +266,8 @@ class VerificationSupervisor:
                 'supervisor_generation': uuid.uuid4().hex, 'protocol_version': 1,
                 'started_at': time.time(),
             }
+            if derived_failure_fingerprint is not None:
+                started['failure_fingerprint'] = derived_failure_fingerprint
             started_hash = publish_create_once(journal / 'started.json', started, fault=self.store._fault)
             _fsync_directory(self.store.executions)
             self._crash('after-started')
@@ -308,6 +323,8 @@ class VerificationSupervisor:
                 'schema_version': 1, 'execution_id': execution_id,
                 'repository_id': self.store.repository_id, 'started_hash': started_hash,
                 'execution_identity': identity, 'backend_identity': backend_identity,
+                'candidate_identity': candidate_identity,
+                'final_changed_surface_id': final_changed_surface_id,
                 'policy_identity': policy_identity, 'command_identity': intent_hash,
                 'retry_policy_proof': retry_policy_proof,
                 'harness_invocation_upper_bound': 1,

@@ -365,3 +365,59 @@ profile/candidate binding and preparation-time origin refusal. Launch-time
 revalidation, lifecycle admission, script context forwarding, retry-control
 operational integration and validator-test invocation remain open. Estimates:
 S30-04 65%, S30-02a 50%, entire plan 12%. No push.
+
+## Resume on 2026-10-04
+
+Local commits retained: `653918c` (S30-04a) and `ef648e7` (bounded S30-04b).
+Working tree retained interrupted S30-02a code/tests; no approval or commit is
+claimed for them. User AGENTS.md git-policy update is preserved separately.
+Temporary S30-03a evidence disappeared between sessions. Previous independent
+review reported native 14 PASS/2 FAIL (Q08/Q09 escape) and Codex wrapper
+6 PASS/10 UNSUPPORTED; these historical results are not present artifact files.
+The disposable spike is rerun to obtain durable current-host evidence because
+the environment/date and artifact availability changed. All mandatory probes
+are necessary to produce one internally consistent qualification record.
+
+## S30-03b task packet: truthful diagnostic readiness
+
+Accepted source: supplied review section9.6 discovery/qualification/readiness
+distinction. Root owns verification_sandbox.py doctor() only and dedicated
+doctor tests. No qualification, launch, cancellation or containment code changes.
+Retain backend discovery booleans for compatibility; strong_available must not
+claim launch readiness merely because an executable is present. Report discovered,
+qualification_supported, qualified and launch_ready separately. Read-only doctor
+cannot issue qualification, mutate caches, run payloads or treat supplied flags
+as authority. Production factories currently produce no qualification record,
+and v2 admission remains unavailable, so no qualified/launch-ready claim follows
+from discovery. Distinguish implemented probe dispatch from passing qualification.
+RED/GREEN via diagnostic discovery seam on Darwin/Linux/missing candidates; no
+real payloads. Run dedicated doctor and existing sandbox tests, independent
+review then local commit. Snapshot spike source before doctor mutation for exact
+evidence provenance. Root owns report; other agents own02a and scratchspike.
+
+## S30-02a final checkpoint
+
+Non-cacheable successful execution publishes its validated immutable execution
+terminal PASS without reusable GREEN evidence or a cache projection; fresh
+attempts execute again. Post-drain sealed-candidate observation still rejects
+drift, and missing drainage remains ERROR. Recovery reads validated terminal
+provenance rather than fabricating cache fingerprints. Execution receipts now
+retain exact candidate/surface bindings on fresh terminal publication.
+
+Critical non-cacheable failure scopes bind repository, profile, gate, trusted
+policy, stable final source surface and command. Family/attempt labels and
+family-bound candidate IDs do not grant an escape from an existing fence.
+Derived scopes are validated against STARTED facts; malformed or historical null
+scopes fail closed, and signed retry consumption remains single-use.
+
+Test-first evidence originally reproduced non-cacheable seal_pass/stale-input,
+null failure context and recovery failures. Resume also reproduced historical
+null-scope bypass before repairing it. Failed cases were rerun narrowly. Final
+noncacheable/executor/supervisor/store suites: **86 tests PASS**, 8.594 seconds.
+Independent reviewer identified negative-mode tests masked by a shared failure
+fence. Distinct source inputs plus exactly one asserted launch and exact
+FAIL/TIMEOUT/ERROR/ERROR outcomes repaired that test gap. Independent affected
+negative test: **PASS**, 1.103 seconds; **security PASS for narrow S30-02a**.
+`git diff --check` PASS. No v2 origin guard was removed; accepted-plan admission
+and all-obligation completion remain S30-01 prerequisites. End-to-end completion
+acceptance is not claimed by this execution/cache checkpoint.

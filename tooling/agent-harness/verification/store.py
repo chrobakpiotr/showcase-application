@@ -26,6 +26,27 @@ def _validate_component(value: str | None, error: str) -> None:
         raise StoreError(error)
 
 
+def candidate_failure_fingerprint(record: dict) -> str | None:
+    """Non-reusable failures use exact candidate authority, never null cache identity."""
+    keys = ('repository_id', 'profile_hash', 'gate_id', 'policy_checkpoint',
+            'final_changed_surface_id', 'launch_intent_hash')
+    if record.get('input_fingerprint') is not None:
+        return None
+    if any(not isinstance(record.get(key), str) or not record[key] for key in keys):
+        return None
+    if any(not re.fullmatch(r'[0-9a-f]{64}', record[key]) for key in
+           ('profile_hash', 'final_changed_surface_id', 'launch_intent_hash')):
+        return None
+    if not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', record['policy_checkpoint']):
+        return None
+    return hashlib.sha256(canonical({'protocol': 'candidate-failure-scope-v1',
+                                    **{key: record[key] for key in keys}})).hexdigest()
+
+
+def failure_fingerprint(record: dict):
+    return record.get('failure_fingerprint', record.get('input_fingerprint'))
+
+
 def _retry_policy_facts(policy, critical, controls):
     if policy not in {'forbid', 'allow'} or type(critical) is not bool or not isinstance(controls, list):
         return None
@@ -308,6 +329,10 @@ class VerificationStore:
                 not re.fullmatch(r'[0-9a-f]{64}', record['launch_intent_hash']) or
                 type(record.get('started_at')) not in (float, int)):
             raise StoreError('invalid-execution-history')
+        if 'failure_fingerprint' in record:
+            expected_scope = candidate_failure_fingerprint(record)
+            if expected_scope is None or record['failure_fingerprint'] != expected_scope:
+                raise StoreError('invalid-execution-failure-scope')
         if 'retry_policy_proof' in record:
             expected_retry = _retry_policy_facts(record.get('retry_policy'), record.get('critical'),
                                                  record.get('retry_controls'))
@@ -775,7 +800,7 @@ class VerificationStore:
             consumption_id = started.get('consumption_id')
         context = {'repository_id': self.repository_id,
             'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
-            'fingerprint': started.get('input_fingerprint'),
+            'fingerprint': failure_fingerprint(started),
             'policy_identity': terminal.get('policy_identity'),
             'backend_identity': terminal.get('backend_identity')}
         if predecessor_failure_id is not None:
@@ -821,7 +846,7 @@ class VerificationStore:
             raise StoreError('invalid-critical-failure-receipt')
         terminal, started = self._terminal_for_execution(record['execution_id'])
         context = {'repository_id': self.repository_id, 'profile_hash': started.get('profile_hash'),
-                   'gate_id': started.get('gate_id'), 'fingerprint': started.get('input_fingerprint'),
+                   'gate_id': started.get('gate_id'), 'fingerprint': failure_fingerprint(started),
                    'policy_identity': terminal.get('policy_identity'),
                    'backend_identity': terminal.get('backend_identity')}
         if (terminal['receipt_hash'] != record['terminal_receipt_hash'] or terminal['result'] != 'FAIL' or
@@ -857,7 +882,7 @@ class VerificationStore:
             if started.get('critical') is True:
                 context = {'repository_id': self.repository_id,
                     'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
-                    'fingerprint': started.get('input_fingerprint'),
+                    'fingerprint': failure_fingerprint(started),
                     'policy_identity': terminal.get('policy_identity'),
                     'backend_identity': terminal.get('backend_identity')}
                 expected_id = self._failure_id({
@@ -1112,7 +1137,7 @@ class VerificationStore:
         consumed = self._read_consumption(self.consumptions / f"{proof['grant_id']}.json")
         expected_context = {'repository_id': self.repository_id,
             'profile_hash': started.get('profile_hash'), 'gate_id': started.get('gate_id'),
-            'fingerprint': started.get('input_fingerprint'),
+            'fingerprint': failure_fingerprint(started),
             'policy_identity': started.get('policy_identity'),
             'backend_identity': started.get('backend_identity')}
         if (proof.get('grant_hash') != consumed.get('grant_hash') or
