@@ -1201,3 +1201,38 @@ unselected row for `S30-AMQP-POISON-001` with the existing DRAFT status; no
 historical rows changed. The deterministic inventory check passed, and the
 independent evaluator returned **PASS**. `git diff --check` passed. The 06a/06b
 contract and product blockers remain unchanged.
+
+## S30-10a task packet: disposable recovery-timeline query measurement
+
+Accepted source: master review section16's timeline-query measurement prerequisite.
+Run one disposable PostgreSQL 18.6 experiment against the exact current
+`FindOrderRecoveryTimelineAdapter.TIMELINE_SQL` and the relevant Liquibase
+schema/indexes. Record relation counts, first and later page plans,
+`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` scan rows/loops, buffer hits/reads,
+sort method/spill and repeated warm execution times. Include the unique
+`SHIPMENT.ORDER_NUMBER` and `NOTIFICATION.EVENT_KEY` indexes; verify rather than
+assume whether the notification `LEFT(EVENT_KEY, ...)` predicate can use its
+index.
+
+The dataset is synthetic cardinality-sensitivity evidence only. Do not infer
+production workload selectivity/latency, add indexes, change migrations/query,
+or implement Recovery Workbench. All DDL/data and scratch code stay disposable
+and are removed after capture. If environment/cost prevents the declared scale,
+record the actual smaller scale and limitation. Allowed durable change is one
+new measurement report under `docs/reviews/` plus this progress file. Independent
+performance review and `git diff --check` precede local commit; no broad test gate
+is relevant to this measurement-only slice.
+
+S30-10a complete as a disposable cardinality-sensitivity measurement. On the
+synthetic million-notification/100,000-shipment schema, both first and later
+pages scanned the notification relation; the wrapped event-key prefix predicate
+did not use its unique index, while each shipment branch used the unique order
+index. The query returned 203 rows before pagination and sorted in memory
+without temporary-block spill. Repeated execution was about 456–518 ms in this
+container. These figures do not establish production workload or latency.
+Independent performance review: **PASS**, with an auditability caveat: temporary
+test code and raw plans were removed, so the new report is a summarized run
+record rather than a standalone exact reproducer. It also clarifies the one-row
+difference caused by multiplying EXPLAIN's rounded per-loop row count.
+`git diff --check` passed. No application, schema, query, index or workbench
+change was made.
