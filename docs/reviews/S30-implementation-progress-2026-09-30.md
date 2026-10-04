@@ -1155,3 +1155,32 @@ reopened; the evaluator independently returned **PASS**. It preserves the
 historical M5.3 NOT PASS and implementation-authorized facts and limits GitHub
 claims to the recorded ruleset API endpoint. Repository Markdown links passed
 for 203 files and `git diff --check` passed. This is not final master closure.
+
+## S30-09d task packet: executable operator-reference smoke
+
+Accepted source: master review section15.5 and the current S30-09b operator
+reference. Add one isolated harness test that extracts and executes the safe
+advisory `plan` example against a temporary Git fixture using the actual
+`verify.py` entry point, and exercises the documented `run`-without-`--repo`
+fail-closed response with a dummy plan ID. The fixture must use synthetic IDs,
+make no writes to the checked-out repository, create no `.agent-state`, import
+no grant and invoke no verifier payload/backend. Do not execute the document's
+mutative `grant-import` example.
+
+Keep the test in the existing `tooling/agent-harness/tests` discovery run; no
+new workflow/job or aggregate. It must fail if the documented option set drifts
+from the parser's required plan options in either direction, including a
+required option becoming optional, or if the advisory output's exact top-level
+record shape adds authority. Keep this smoke distinct from accepted-plan
+execution and qualified-host evidence. Run the new test and directly affected
+operator/profile tests under Python 3.12, then `git diff --check`; obtain
+independent evaluator review before commit.
+
+S30-09d complete. The automated smoke extracts and executes the documented
+advisory plan against a temporary synthetic Git repository and verifies the
+current exact advisory output keys. It compares the documented option set with
+the CLI's required plan options in both directions. The no-`--repo` `run`
+example is exercised only with a dummy plan ID and returns blocked/exit5 before
+authority imports. Python 3.12 tests passed 2/2; independent evaluator review
+was **PASS** after tightening both drift assertions; `git diff --check` passed.
+No real plan, grant, verifier payload, backend or `.agent-state` was used.
