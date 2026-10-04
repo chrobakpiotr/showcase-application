@@ -1583,7 +1583,12 @@ The user accepted the following previously open S30 policy decisions:
   operator identities, a dedicated resume permission, validated issuer/subject
   audit for RESUME, and refusing resume if audit persistence fails. Exact
   claims, whether PAUSE is audited, audit fields/retention/order, atomicity and
-  durable-store details remain open. The existing
+  durable-volume/provider conformance remain open. The dedicated Redis store
+  and synchronous AOF policy are accepted; its isolated tmpfs probe survived a
+  Redis process restart and WAITAOF reported local fsync, but this does not
+  prove encrypted persistent-volume, power-loss or failover durability. AOF
+  off, unsupported/timed-out WAITAOF, insufficient fsync count, or uncertain
+  Redis role/state must fail closed. The existing
   ecommerce client/ORDER_WRITE/admin identity must not be reused. Local/dev
   will use the existing Keycloak with a distinct gate audience/client and role;
   production must configure the corresponding external issuer/client. Exact

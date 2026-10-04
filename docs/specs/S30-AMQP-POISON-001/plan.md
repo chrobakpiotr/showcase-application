@@ -178,14 +178,16 @@ unavailable, including when the receipt database is down.
 The user accepted a deployment-owned gate service with separate application
 PAUSE-only and audited operator RESUME-only operations. The application must
 not receive credentials to write authoritative state. The platform review
-found Redis already deployed in root Compose, E2E Compose,
-dev Kubernetes, and as an externally supplied Helm dependency. None currently
-has persistent storage, so these instances are not qualified to persist this
-gate. Redis is only a candidate backing service. The design must include
-encrypted durable storage, atomic generation transitions, technically
-enforced service-level app PAUSE-only and audited operator RESUME-only
-authorization, and
-per-instance drain/fencing evidence. Missing gate state must not mean ACTIVE.
+found that the existing shared Redis instances are not durable gate candidates.
+The user selected a dedicated Redis instance separate from application cache,
+with synchronous AOF durability and encrypted persistent storage in local/dev;
+production must supply an external Redis endpoint with equivalent durable
+commit behavior. The existing Redis instances in root Compose, E2E Compose,
+dev Kubernetes and Helm are not qualified substitutes: they are shared and
+currently lack persistent storage. The design still needs atomic state/audit
+transitions, service-level app PAUSE-only and audited operator RESUME-only
+authorization, and per-instance drain/fencing evidence. Missing gate state
+must not mean ACTIVE.
 
 The disposable ACL result is preserved in
 [`evidence/pause-gate-acl-probe.md`](evidence/pause-gate-acl-probe.md). Direct
@@ -195,7 +197,22 @@ of ACTIVE. Therefore the gate service owns the durable state and exposes
 separately authenticated PAUSE and RESUME operations. Qualify any Redis-backed
 store only after proving encrypted durable storage, atomic updates, provider
 compatibility, and safe missing-state behavior. Do not grant the app direct
-write access to authoritative state.
+write access to authoritative state. The AOF process-restart probe is preserved
+in [`evidence/gate-redis-aof-probe.md`](evidence/gate-redis-aof-probe.md):
+Redis 8.10.2 with `appendfsync always` returned one local fsync from `WAITAOF`
+and recovered synthetic state after process restart. It used tmpfs only, so it
+does not prove encrypted-volume or crash/failover durability.
+
+Before implementation, the gate service must reject state transitions as
+unsuccessful if AOF is disabled, WAITAOF is unsupported or times out, the local
+fsync count is below the configured threshold, or the Redis role/generation is
+uncertain. WAITAOF must cover the preceding write on the same client connection,
+and success counts must be checked rather than treating any reply as success.
+Local fsync does not by itself prove failover-safe durability; the production
+external Redis contract must define replica/fsync requirements and prevent
+resume or consumer admission when state may be stale. State/audit atomicity,
+retry-safe command identity, and crash recovery around audit and state commit
+remain open design work; no particular transaction protocol is accepted yet.
 
 The user accepted the security review's recommendation for a dedicated app
 workload identity for the PAUSE operation and an individually attributable

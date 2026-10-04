@@ -119,7 +119,12 @@ RESUME-only operations; the app must not have authoritative-store write
 credentials. Authentication, audit, atomicity, durable storage and cross-env
 deployment remain to be designed. The platform audit found Redis on each local
 deployment surface, but all current instances are ephemeral and therefore do
-not yet qualify as a durable gate. The user accepted dedicated app-workload
+not yet qualify as a durable gate. The user selected a dedicated Redis gate
+store with synchronous AOF and encrypted persistent local/dev storage, plus
+external production Redis with equivalent durable commits. A tmpfs process-
+restart probe returned local fsync via WAITAOF, but does not qualify deployment
+storage or failover durability. AOF/WAITAOF errors, insufficient fsync, or
+uncertain Redis state must fail closed. The user accepted dedicated app-workload
 and individual operator identities, a gate-specific resume permission, and
 durable validated-subject audit for RESUME; exact claims, audit fields/order,
 retention and storage details remain open. Local/dev use the existing Keycloak

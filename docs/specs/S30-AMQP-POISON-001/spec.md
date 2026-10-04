@@ -137,9 +137,16 @@ cross-environment deployment contract remain to be designed and tested before
 release. The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
 externally configured issuer/client. Exact client/role names, claims and
-credential lifecycle remain to be defined. Command id, reason, and prior/new
-generation are candidate audit fields, not accepted requirements yet; no
-atomic audit-plus-state guarantee is claimed.
+credential lifecycle remain to be defined. The gate store is a dedicated Redis
+instance separate from application cache, with synchronous AOF durability and
+encrypted persistent storage in local/dev; production must provide external
+Redis with equivalent durable-commit behavior. The disposable Redis probe
+demonstrates only process-restart recovery from tmpfs, not deployment durability.
+An AOF-disabled store, unsupported/timed-out WAITAOF, insufficient fsync count,
+or uncertain Redis role/state is a failed gate operation and keeps consumers
+stopped; local fsync alone does not prove failover-safe state.
+Command id, reason, and prior/new generation are candidate audit fields, not
+accepted requirements yet; no atomic audit-plus-state guarantee is claimed.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation
