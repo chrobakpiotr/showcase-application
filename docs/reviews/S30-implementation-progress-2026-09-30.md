@@ -1347,3 +1347,35 @@ Independent read-only review confirmed the distinction between Docker engine
 capability evidence and qualification, and noted that the summarized Q13–Q16
 observations have no retained raw evidence artifact. No qualification claim is
 made.
+
+## S30-07f task packet: real-browser duplicate shipment click suppression
+
+Extend the existing real HTTP/PostgreSQL response-loss E2E in
+`apps/ecommerce/frontend/e2e/shipment-response-loss.spec.ts`. Hold the first
+advance request before forwarding it to the real backend, issue a Playwright
+double-click, assert the UI disables the advance control while the first client
+request is pending, and assert exactly one advance request reaches the route.
+Then release the request, commit it at
+the backend, and preserve the existing lost-response/reload/replay assertions.
+This proves the same browser/server flow suppresses a rapid duplicate action
+while the first request is pending. Do not change product
+behavior, API, backend or CI. Run only the focused Playwright spec against the
+isolated disposable stack, frontend Prettier check, and `git diff --check`;
+obtain independent frontend/evaluator review. Commit locally after acceptance;
+do not push.
+
+S30-07f implementation added a gate around the first response-loss request so
+the test can issue a double-click and observe the in-flight disabled state
+before forwarding to the backend. The initial single-click check passed, but
+independent review correctly noted that it did not trigger a second action.
+The test now uses `dblclick()` to exercise that case. The targeted real
+PostgreSQL-backed Playwright test passed
+(`npx playwright test --config=e2e/playwright.config.ts
+e2e/shipment-response-loss.spec.ts --grep 'shipment advance replays'`, 1/1);
+Prettier and `git diff --check` passed. The disposable Compose stack was removed.
+Independent read-only frontend/evaluator review: **PASS**. The reviewer
+confirmed that the double-click occurs while the first route request is held,
+the route count is exactly one before release, and the request is then forwarded
+once to the real backend. The review also confirmed that the existing
+response-loss, reload, and same-key replay assertions remain intact. No
+concrete issues were found.

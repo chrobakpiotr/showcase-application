@@ -116,12 +116,19 @@ test("shipment advance replays after the committed HTTP response is lost", async
   let firstExpectedStatus = "";
   let committedStatus = 0;
   let committedBody: unknown;
+  let advanceRequestCount = 0;
+  let resolveFirstAdvance: (() => void) | undefined;
+  const firstAdvanceGate = new Promise<void>((resolve) => {
+    resolveFirstAdvance = resolve;
+  });
   await page.route(
     `**/home/api/shipments/${shipmentNumber}/advance`,
     async (route) => {
+      advanceRequestCount += 1;
       firstOperationId = route.request().headers()["idempotency-key"] ?? "";
       firstExpectedStatus =
         route.request().headers()["x-expected-shipment-status"] ?? "";
+      await firstAdvanceGate;
       const response = await route.fetch();
       committedStatus = response.status();
       committedBody = await response.json();
@@ -129,7 +136,11 @@ test("shipment advance replays after the committed HTTP response is lost", async
     },
   );
 
-  await row.getByTestId("advance-shipment").click();
+  await row.getByTestId("advance-shipment").dblclick();
+  const advanceButton = row.getByTestId("advance-shipment");
+  await expect(advanceButton).toBeDisabled();
+  expect(advanceRequestCount).toBe(1);
+  resolveFirstAdvance?.();
   await expect(page.getByRole("alert")).toContainText(
     "Failed to advance shipment status.",
   );
