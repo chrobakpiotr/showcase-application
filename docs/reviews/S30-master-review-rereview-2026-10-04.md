@@ -123,7 +123,10 @@ success only after Redis confirms the configured fsync threshold. Before
 RESUME, every registered live application instance must confirm delivery stop
 and active-handler drain. Gate audit entries are retained one year, then
 securely deleted under a documented procedure; raw quarantine payloads retain
-their separate 30-day policy. Exact token claims and timestamp format, Redis
+their separate 30-day policy. Each successful PAUSE/RESUME advances a
+monotonic generation; registrations and drain acknowledgements bind to that
+generation, and consumers are admitted only when their registration matches
+the current ACTIVE generation. Exact token claims and timestamp format, Redis
 transaction/idempotency/crash/failover protocol, and instance
 liveness lease and fencing/closure evidence remain to be designed. Lease expiry
 alone cannot establish that an unresponsive instance stopped; the operator

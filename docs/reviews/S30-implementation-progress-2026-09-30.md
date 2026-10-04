@@ -1686,9 +1686,12 @@ definition remains open. Lease expiry alone cannot exclude an unresponsive
 instance: the operator must confirm its RabbitMQ consumer connection is fenced
 or closed before RESUME. Gate audit entries are retained for one year, then
 securely deleted; raw quarantine payloads retain their separate 30-day policy.
-The fencing/closure evidence mechanism, token claims, timestamp format, Redis
-failover/idempotency/crash-recovery protocol, and 06b stale-handler fencing
-remain unresolved. These are policy
+Each successful PAUSE/RESUME advances a monotonic generation; registrations
+and drain acknowledgements bind to that generation, and consumers may run only
+when their registered generation matches the current ACTIVE generation. The
+fencing/closure evidence mechanism, token claims, timestamp format, Redis
+compare-and-set/idempotency/crash-recovery/failover protocol, and 06b
+stale-handler fencing remain unresolved. These are policy
 decisions only; no gate service or deployment implementation is claimed.
 
 ## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs

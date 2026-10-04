@@ -138,7 +138,7 @@ to commit either state or audit, or to confirm durability, fails closed. The
 gate audit entries are retained for one year, then securely deleted under a
 documented retention/deletion procedure. This applies to the gate audit, not
 the separately retained raw quarantine payloads. The exact token claims,
-timestamp format, generation/CAS protocol,
+timestamp format, compare-and-set/retry protocol,
 retry/crash recovery, Redis failover behavior, and cross-environment deployment
 contract remain to be designed and tested before release. Before RESUME, every
 registered live application instance must confirm that it stopped new delivery
@@ -147,6 +147,10 @@ treated as stopped from lease expiry alone; RESUME remains blocked until an
 operator confirms its RabbitMQ consumer connection is fenced or closed. The
 liveness/registration lease, proof mechanism for fencing/closure, and safe
 recovery of stale instances remain open.
+Each successful PAUSE and RESUME advances a monotonic gate generation. Instance
+registrations and drain acknowledgements are bound to a generation, and
+consumers may be admitted only when their registered generation matches the
+current ACTIVE generation. The audit records the resulting generation.
 The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
 externally configured issuer/client. Exact client/role names, claims and
@@ -158,9 +162,9 @@ demonstrates only process-restart recovery from tmpfs, not deployment durability
 An AOF-disabled store, unsupported/timed-out WAITAOF, insufficient fsync count,
 or uncertain Redis role/state is a failed gate operation and keeps consumers
 stopped; local fsync alone does not prove failover-safe state.
-Command identity and prior/new generation representation remain design details;
-the audit must include the resulting state generation. Atomic state-plus-audit
-commit is required, but Redis failover qualification and idempotent crash
+Command identity and prior/new generation representation remain design details.
+Atomic state-plus-audit commit is required, and the audit must include the
+resulting state generation. Redis failover qualification and idempotent crash
 recovery must still be specified and verified.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss

@@ -199,6 +199,14 @@ closure, retry-safe command identity, crash recovery, Redis failover behavior,
 and 06b stale-handler fencing still need design and evidence. Missing gate state
 must not mean ACTIVE.
 
+Each successful PAUSE and RESUME advances a monotonic gate generation. Instance
+registrations and drain acknowledgements are bound to that generation;
+consumers are admitted only when their registered generation equals the current
+ACTIVE generation. The atomic audit records the resulting generation. The
+idempotency key/command retry and compare-and-set protocol must ensure retries
+or uncertain replies cannot create unsafe repeated transitions, and remains to
+be specified and tested.
+
 The disposable ACL result is preserved in
 [`evidence/pause-gate-acl-probe.md`](evidence/pause-gate-acl-probe.md). Direct
 Redis ACLs did not enforce a one-way app transition: granting the application
