@@ -19,10 +19,11 @@ import { OrderDetailsModel } from '@app/order/order-details.model';
 import { OrderService } from '@app/order/order.service';
 import { ReturnModel } from '@app/returns/return.model';
 import { ReturnsService } from '@app/returns/returns.service';
-import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
+import { ShipmentModel } from '@app/shipments/shipment.model';
 import {
   isDefinitiveShipmentAdvanceConflict,
   ShipmentsService,
+  PendingShipmentAdvanceOperation,
 } from '@app/shipments/shipments.service';
 
 const PAGE_SIZE = 10;
@@ -52,11 +53,6 @@ export class OrderListComponent implements OnInit {
   readonly returnSuccessMessage = signal<string | null>(null);
   readonly shipmentErrorMessage = signal<string | null>(null);
   readonly shipmentSuccessMessage = signal<string | null>(null);
-  private readonly pendingShipmentAdvanceOperations = new Map<
-    string,
-    { operationId: string; expectedStatus: ShipmentStatus }
-  >();
-
   readonly returnForm = new FormGroup({
     sku: new FormControl('', {
       nonNullable: true,
@@ -191,13 +187,13 @@ export class OrderListComponent implements OnInit {
     );
     if (!shipment) return;
 
-    const pending = this.pendingShipmentAdvanceOperations.get(
-      shipmentNumber
-    ) ?? {
-      operationId: crypto.randomUUID(),
-      expectedStatus: shipment.status,
-    };
-    this.pendingShipmentAdvanceOperations.set(shipmentNumber, pending);
+    let pending: PendingShipmentAdvanceOperation;
+    try {
+      pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(shipmentNumber, shipment.status);
+    } catch {
+      this.shipmentErrorMessage.set('Unable to recover pending shipment operation safely. No advance was submitted.');
+      return;
+    }
 
     this.shipmentsService
       .advanceShipmentStatus(
@@ -207,13 +203,13 @@ export class OrderListComponent implements OnInit {
       )
       .subscribe({
         next: () => {
-          this.pendingShipmentAdvanceOperations.delete(shipmentNumber);
+          this.clearPendingOperation(shipmentNumber, pending);
           this.shipmentSuccessMessage.set('Shipment status advanced.');
           this.loadShipmentsForOrder(orderNumber);
         },
         error: (error: unknown) => {
           if (isDefinitiveShipmentAdvanceConflict(error)) {
-            this.pendingShipmentAdvanceOperations.delete(shipmentNumber);
+            this.clearPendingOperation(shipmentNumber, pending);
             this.loadShipmentsForOrder(orderNumber);
           }
           this.shipmentErrorMessage.set('Failed to advance shipment status.');
@@ -342,4 +338,12 @@ export class OrderListComponent implements OnInit {
       error: () => this.shipmentErrorMessage.set('Failed to load shipments.'),
     });
   }
+  private clearPendingOperation(shipmentNumber: string, pending: PendingShipmentAdvanceOperation): void {
+    try {
+      this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber, pending);
+    } catch {
+      // Preserve an unreadable record rather than replacing an unresolved operation.
+    }
+  }
+
 }

@@ -1,3 +1,7 @@
+import { signal } from '@angular/core';
+import { AuthService } from '@app/auth/auth.service';
+import { HttpErrorResponse } from '@angular/common/http';
+import { isDefinitiveShipmentAdvanceConflict } from '@app/shipments/shipments.service';
 import { TestBed } from '@angular/core/testing';
 
 import {
@@ -18,6 +22,8 @@ import {
 import { ShipmentsService } from '@app/shipments/shipments.service';
 
 describe('ShipmentsService', () => {
+  const auth = { username: signal('operator'), isAuthenticated: signal(true) };
+  const storageKey = 'showcase.shipment-advance.v1:operator:SHIP-1';
   let shipmentsService: ShipmentsService;
   let httpTestingController: HttpTestingController;
 
@@ -35,9 +41,13 @@ describe('ShipmentsService', () => {
   };
 
   beforeEach(() => {
+    sessionStorage.removeItem(storageKey);
+    auth.username.set('operator');
+    auth.isAuthenticated.set(true);
     TestBed.configureTestingModule({
       providers: [
         ShipmentsService,
+        { provide: AuthService, useValue: auth },
         provideHttpClient(withXhr(), withInterceptorsFromDi()),
         provideHttpClientTesting(),
       ],
@@ -48,6 +58,7 @@ describe('ShipmentsService', () => {
 
   afterEach(() => {
     httpTestingController.verify();
+    sessionStorage.removeItem(storageKey);
   });
 
   it('should be created', () => {
@@ -67,7 +78,7 @@ describe('ShipmentsService', () => {
     expect(replay.operationId).toBe(first.operationId);
     expect(replay.expectedStatus).toBe('PENDING');
 
-    shipmentsService.clearPendingAdvanceOperation('SHIP-1');
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1', first);
     const next = shipmentsService.getOrCreatePendingAdvanceOperation(
       'SHIP-1',
       'DISPATCHED'
@@ -75,6 +86,70 @@ describe('ShipmentsService', () => {
 
     expect(next.operationId).not.toBe(first.operationId);
     expect(next.expectedStatus).toBe('DISPATCHED');
+  });
+
+  it('reuses the persisted identity and original status after service recreation', () => {
+    const first = shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING');
+    const reloaded = TestBed.runInInjectionContext(() => new ShipmentsService());
+    expect(reloaded.getOrCreatePendingAdvanceOperation('SHIP-1', 'DISPATCHED')).toEqual(first);
+    expect(sessionStorage.getItem(storageKey)).not.toBeNull();
+  });
+
+  it('fails closed for corrupt storage and unauthenticated identity', () => {
+    sessionStorage.setItem(storageKey, '{');
+    expect(() => shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING')).toThrow();
+    expect(sessionStorage.getItem(storageKey)).toBe('{');
+    sessionStorage.removeItem(storageKey);
+    auth.isAuthenticated.set(false);
+    expect(() => shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING')).toThrow();
+  });
+
+  it('preserves generic and unknown 409 errors while recognizing only typed codes', () => {
+    for (const error of [undefined, {}, { code: 'UNKNOWN' }, { code: 42 }]) {
+      expect(isDefinitiveShipmentAdvanceConflict(new HttpErrorResponse({ status: 409, error }))).toBeFalse();
+    }
+    for (const code of ['SHIPMENT_STALE_STATUS', 'SHIPMENT_OPERATION_FINGERPRINT_CONFLICT']) {
+      expect(isDefinitiveShipmentAdvanceConflict(new HttpErrorResponse({ status: 409, error: { code } }))).toBeTrue();
+    }
+  });
+
+  it('clears only the exact operation and original authenticated scope', () => {
+    const original = shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING');
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1', { ...original, operationId: crypto.randomUUID() });
+    expect(shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'DISPATCHED').operationId).toBe(original.operationId);
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1', original);
+    const newer = shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'DISPATCHED');
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1', original);
+    expect(shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'IN_TRANSIT')).toEqual(newer);
+    auth.username.set('another-operator');
+    const other = shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING');
+    shipmentsService.clearPendingAdvanceOperation('SHIP-1', newer);
+    expect(shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'DISPATCHED')).toEqual(other);
+    sessionStorage.removeItem('showcase.shipment-advance.v1:another-operator:SHIP-1');
+  });
+
+  it('rejects malformed record shapes, identities, versions, UUIDs and statuses without replacing them', () => {
+    const valid = {
+      version: 1, username: 'operator', shipmentNumber: 'SHIP-1',
+      operationId: crypto.randomUUID(), expectedStatus: 'PENDING',
+    };
+    for (const value of [null, [], { ...valid, version: 2 }, { ...valid, username: 'other' },
+      { ...valid, shipmentNumber: 'OTHER' }, { ...valid, operationId: 'invalid' },
+      { ...valid, expectedStatus: 'UNKNOWN' }, { ...valid, extra: true }]) {
+      const raw = JSON.stringify(value);
+      sessionStorage.setItem(storageKey, raw);
+      expect(() => shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING')).toThrow();
+      expect(sessionStorage.getItem(storageKey)).toBe(raw);
+    }
+    sessionStorage.removeItem(storageKey);
+    auth.username.set(' ');
+    expect(() => shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING')).toThrow();
+  });
+
+  it('blocks submission when session storage is unavailable', () => {
+    spyOn(sessionStorage, 'setItem').and.throwError('storage unavailable');
+    expect(() => shipmentsService.getOrCreatePendingAdvanceOperation('SHIP-1', 'PENDING')).toThrow();
+    httpTestingController.expectNone(`${environment.apiPrefix}/shipments/SHIP-1/advance`);
   });
 
   it('lists shipments', () => {

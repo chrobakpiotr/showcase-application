@@ -803,3 +803,38 @@ ShipmentService, or replay behavior. Verify typed stale/fingerprint errors,
 canonical snapshot fingerprint conflict, generic legacy response, and successful
 idempotent replay. Run focused domain/persistence/web tests and independent review
 before local commit.
+
+S30-07b complete. Domain, persistence and web focused suites passed **35 tests**
+with no skips, failures or errors. Tests verify stale status and operation
+fingerprint classifications, canonical immutable snapshot conflict, operation
+replay, additive ProblemDetail serialization and unchanged legacy untagged 409.
+Independent design review: **PASS**. `git diff --check` passed. Local commit:
+`8e698e6` (`feat(shipment): expose typed conflict codes`).
+
+## S30-07c task packet: preserve shipment operation identity across reload
+
+Accepted source: master review S30-07 and independent frontend design review. Move
+pending shipment advance identity to versioned `sessionStorage` so reloads in the
+same tab retry the same operation ID and original expected status. Scope records
+by authenticated username and shipment number; validate version, identity, UUID,
+status and shape when reading. Success and recognized definitive codes clear only
+the exact operation ID they completed/rejected. Network, timeout, malformed or
+unknown HTTP errors preserve the record. The two recognized definitive codes
+are `SHIPMENT_STALE_STATUS` and `SHIPMENT_OPERATION_FINGERPRINT_CONFLICT`; generic
+409 is unknown and must preserve identity. Refresh canonical state after a
+recognized conflict; never automatically submit another advance.
+
+There is no automatic age-based key rotation: an unresolved operation must not
+silently become a new operation/current expected status. Corrupt records fail
+closed and require explicit user recovery. `sessionStorage` is tab-scoped; a
+second tab may have another operation ID and relies on the backend stale-status
+contract. Do not claim cross-tab coordination or server-side operation lookup.
+Compare the exact operation ID before clearing so a late callback cannot erase a
+newer pending operation. Do not store tokens or payloads.
+
+Allowed paths: `apps/ecommerce/frontend/src/app/shipments/shipments.service.ts`,
+`shipments.component.ts` and their focused tests; `order-list.component.ts` and
+its focused tests; this report. Do not alter backend, routes, endpoint, auth, or
+persistence. Verify reload reuse, unknown-error persistence, exact-ID clearing,
+recognized code behavior in both screens, malformed stored record fail-closed,
+and independent frontend review. Run the focused Angular tests only.

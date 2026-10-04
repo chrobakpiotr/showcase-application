@@ -23,6 +23,7 @@ import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
 import {
   isDefinitiveShipmentAdvanceConflict,
   ShipmentsService,
+  PendingShipmentAdvanceOperation,
 } from '@app/shipments/shipments.service';
 
 @Component({
@@ -127,10 +128,14 @@ export class ShipmentsComponent implements OnInit {
       return;
     }
 
-    const pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(
-      shipmentNumber,
-      current.status
-    );
+    let pending: PendingShipmentAdvanceOperation;
+    try {
+      pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(shipmentNumber, current.status);
+    } catch {
+      this.advancingShipmentId.set(null);
+      this.actionErrorMessage.set('Unable to recover pending shipment operation safely. No advance was submitted.');
+      return;
+    }
 
     this.shipmentsService
       .advanceShipmentStatus(
@@ -144,16 +149,24 @@ export class ShipmentsComponent implements OnInit {
       )
       .subscribe({
         next: () => {
-          this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber);
+          this.clearPendingOperation(shipmentNumber, pending);
           this.filterChanges.next(this.selectedStatus());
         },
         error: (error: unknown) => {
           if (isDefinitiveShipmentAdvanceConflict(error)) {
-            this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber);
+            this.clearPendingOperation(shipmentNumber, pending);
             this.filterChanges.next(this.selectedStatus());
           }
           this.actionErrorMessage.set('Failed to advance shipment status.');
         },
       });
   }
+  private clearPendingOperation(shipmentNumber: string, pending: PendingShipmentAdvanceOperation): void {
+    try {
+      this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber, pending);
+    } catch {
+      // Preserve an unreadable record rather than replacing an unresolved operation.
+    }
+  }
+
 }

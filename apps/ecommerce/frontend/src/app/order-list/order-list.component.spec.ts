@@ -16,7 +16,7 @@ import {
   ShipmentCollectionModel,
   ShipmentModel,
 } from '@app/shipments/shipment.model';
-import { ShipmentsService } from '@app/shipments/shipments.service';
+import { ShipmentsService, ShipmentAdvanceOperationStore } from '@app/shipments/shipments.service';
 
 describe('OrderListComponent', () => {
   let fixture: ComponentFixture<OrderListComponent>;
@@ -142,7 +142,14 @@ describe('OrderListComponent', () => {
       'listShipmentsForOrder',
       'createShipment',
       'advanceShipmentStatus',
+      'getOrCreatePendingAdvanceOperation',
+      'clearPendingAdvanceOperation',
     ]);
+    const pendingStore = new ShipmentAdvanceOperationStore();
+    shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.and.callFake((shipmentNumber, expectedStatus) =>
+      pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus));
+    shipmentsServiceSpy.clearPendingAdvanceOperation.and.callFake((shipmentNumber, pending) =>
+      pendingStore.clear(pending.username, shipmentNumber, pending.operationId));
     orderServiceSpy.listOrders.and.returnValue(of(page));
     returnsServiceSpy.listReturnsForOrder.and.returnValue(of(returnsPage));
     shipmentsServiceSpy.listShipmentsForOrder.and.returnValue(
@@ -164,7 +171,10 @@ describe('OrderListComponent', () => {
     fixture.detectChanges();
   }
 
+  beforeEach(() => sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1'));
+
   afterEach(() => {
+    sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1');
     TestBed.resetTestingModule();
   });
 
@@ -194,7 +204,14 @@ describe('OrderListComponent', () => {
       'listShipmentsForOrder',
       'createShipment',
       'advanceShipmentStatus',
+      'getOrCreatePendingAdvanceOperation',
+      'clearPendingAdvanceOperation',
     ]);
+    const pendingStore = new ShipmentAdvanceOperationStore();
+    shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.and.callFake((shipmentNumber, expectedStatus) =>
+      pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus));
+    shipmentsServiceSpy.clearPendingAdvanceOperation.and.callFake((shipmentNumber, pending) =>
+      pendingStore.clear(pending.username, shipmentNumber, pending.operationId));
     orderServiceSpy.listOrders.and.returnValue(
       of({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } })
     );
@@ -234,7 +251,14 @@ describe('OrderListComponent', () => {
       'listShipmentsForOrder',
       'createShipment',
       'advanceShipmentStatus',
+      'getOrCreatePendingAdvanceOperation',
+      'clearPendingAdvanceOperation',
     ]);
+    const pendingStore = new ShipmentAdvanceOperationStore();
+    shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.and.callFake((shipmentNumber, expectedStatus) =>
+      pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus));
+    shipmentsServiceSpy.clearPendingAdvanceOperation.and.callFake((shipmentNumber, pending) =>
+      pendingStore.clear(pending.username, shipmentNumber, pending.operationId));
     orderServiceSpy.listOrders.and.returnValue(
       throwError(() => new Error('failed'))
     );
@@ -678,6 +702,22 @@ describe('OrderListComponent', () => {
     expect(secondArgs[2]).toBe(firstArgs[2]);
   });
 
+  it('preserves generic conflicts and blocks corrupt pending storage without submitting', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
+    component.selectOrder('ORDER-1');
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+    component.advanceShipmentStatus('SHIP-1');
+    const first = shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+    component.advanceShipmentStatus('SHIP-1');
+    expect(shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args).toEqual(first);
+    expect(shipmentsServiceSpy.clearPendingAdvanceOperation).not.toHaveBeenCalled();
+    expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledTimes(1);
+    sessionStorage.setItem('showcase.shipment-advance.v1:operator:SHIP-1', '{');
+    component.advanceShipmentStatus('SHIP-1');
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
+  });
+
   it('drops a rejected order-detail operation and retries from refreshed status after 409', () => {
     setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.and.returnValue(of(orderSummary));
@@ -696,6 +736,7 @@ describe('OrderListComponent', () => {
           new HttpErrorResponse({
             status: 409,
             statusText: 'Conflict',
+            error: { code: 'SHIPMENT_OPERATION_FINGERPRINT_CONFLICT' },
           })
       ),
       of(dispatched)

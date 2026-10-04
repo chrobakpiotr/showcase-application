@@ -4,9 +4,9 @@ import { signal } from '@angular/core';
 import { of, Subject, throwError } from 'rxjs';
 
 import { AuthService } from '@app/auth/auth.service';
-import { ShipmentModel, ShipmentStatus } from '@app/shipments/shipment.model';
+import { ShipmentModel } from '@app/shipments/shipment.model';
 import { ShipmentsComponent } from '@app/shipments/shipments.component';
-import { ShipmentsService } from '@app/shipments/shipments.service';
+import { ShipmentsService, ShipmentAdvanceOperationStore } from '@app/shipments/shipments.service';
 
 describe('ShipmentsComponent', () => {
   let fixture: ComponentFixture<ShipmentsComponent>;
@@ -34,26 +34,11 @@ describe('ShipmentsComponent', () => {
       'getOrCreatePendingAdvanceOperation',
       'clearPendingAdvanceOperation',
     ]);
-    const pending = new Map<
-      string,
-      { operationId: string; expectedStatus: ShipmentStatus }
-    >();
-
-    spy.getOrCreatePendingAdvanceOperation.and.callFake(
-      (shipmentNumber, expectedStatus) => {
-        const existing = pending.get(shipmentNumber);
-        if (existing) return existing;
-        const created = {
-          operationId: crypto.randomUUID(),
-          expectedStatus,
-        };
-        pending.set(shipmentNumber, created);
-        return created;
-      }
-    );
-    spy.clearPendingAdvanceOperation.and.callFake((shipmentNumber) => {
-      pending.delete(shipmentNumber);
-    });
+    const store = new ShipmentAdvanceOperationStore();
+    spy.getOrCreatePendingAdvanceOperation.and.callFake((shipmentNumber, expectedStatus) =>
+      store.getOrCreate('operator', shipmentNumber, expectedStatus));
+    spy.clearPendingAdvanceOperation.and.callFake((shipmentNumber, pending) =>
+      store.clear(pending.username, shipmentNumber, pending.operationId));
 
     return spy;
   }
@@ -80,7 +65,10 @@ describe('ShipmentsComponent', () => {
     fixture.detectChanges();
   }
 
+  beforeEach(() => sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1'));
+
   afterEach(() => {
+    sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1');
     TestBed.resetTestingModule();
   });
 
@@ -239,6 +227,7 @@ describe('ShipmentsComponent', () => {
           new HttpErrorResponse({
             status: 409,
             statusText: 'Conflict',
+            error: { code: 'SHIPMENT_STALE_STATUS' },
           })
       ),
       of(dispatched)
@@ -257,6 +246,21 @@ describe('ShipmentsComponent', () => {
 
     expect(secondArgs[1]).not.toBe(firstArgs[1]);
     expect(secondArgs[2]).toBe('DISPATCHED');
+  });
+
+  it('preserves unknown conflicts and blocks corrupt storage without submitting', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    shipmentsServiceSpy.advanceShipmentStatus.and.returnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+    component.advance('SHIP-1');
+    const first = shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args;
+    component.advance('SHIP-1');
+    expect(shipmentsServiceSpy.advanceShipmentStatus.calls.mostRecent().args).toEqual(first);
+    expect(shipmentsServiceSpy.clearPendingAdvanceOperation).not.toHaveBeenCalled();
+    expect(shipmentsServiceSpy.listShipments).toHaveBeenCalledTimes(1);
+    sessionStorage.setItem('showcase.shipment-advance.v1:operator:SHIP-1', '{');
+    component.advance('SHIP-1');
+    expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
+    expect(component.advancingShipmentId()).toBeNull();
   });
 
   it('sets an error message when advancing fails', () => {
