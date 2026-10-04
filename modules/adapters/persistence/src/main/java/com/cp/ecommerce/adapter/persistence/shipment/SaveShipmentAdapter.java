@@ -73,7 +73,8 @@ class SaveShipmentAdapter implements SaveShipmentOutPort {
 
         if (!operation.equals(canonical)) {
             throw new ShipmentConflictException(
-                    "Shipment operation '" + operation.getOperationId() + "' was reused with a different immutable snapshot");
+                    "Shipment operation '" + operation.getOperationId() + "' was reused with a different immutable snapshot",
+                    ShipmentConflictException.Code.SHIPMENT_OPERATION_FINGERPRINT_CONFLICT);
         }
     }
 

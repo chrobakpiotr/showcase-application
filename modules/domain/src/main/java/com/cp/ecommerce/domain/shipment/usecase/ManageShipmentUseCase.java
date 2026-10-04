@@ -104,7 +104,8 @@ public class ManageShipmentUseCase
 
         if (existing.getStatus() != expectedStatus) {
             throw new ShipmentConflictException(
-                    "Shipment '" + shipmentNumber + "' expected " + expectedStatus + " but is " + existing.getStatus());
+                    "Shipment '" + shipmentNumber + "' expected " + expectedStatus + " but is " + existing.getStatus(),
+                    ShipmentConflictException.Code.SHIPMENT_STALE_STATUS);
         }
 
         final ShipmentStatus nextStatus = nextStatus(existing);
@@ -149,7 +150,8 @@ public class ManageShipmentUseCase
 
         if (!operation.getShipmentNumber().equals(shipmentNumber) || operation.getExpectedStatus() != expectedStatus) {
             throw new ShipmentConflictException(
-                    "Shipment operation '" + operation.getOperationId() + "' was already used with a different command");
+                    "Shipment operation '" + operation.getOperationId() + "' was already used with a different command",
+                    ShipmentConflictException.Code.SHIPMENT_OPERATION_FINGERPRINT_CONFLICT);
         }
     }
 

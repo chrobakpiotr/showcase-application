@@ -34,6 +34,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import io.micrometer.tracing.Tracer;
 import jakarta.validation.ConstraintViolation;
@@ -44,6 +47,9 @@ import jakarta.validation.groups.Default;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -109,6 +115,53 @@ class GlobalExceptionHandlerTest {
                 CONFLICT,
                 "Shipment Conflict",
                 EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    void shouldSerializeOnlyRecognizedShipmentConflictCodesAndPreserveProblemFields() throws Exception {
+        for (final ShipmentConflictException.Code code : ShipmentConflictException.Code.values()) {
+            final var exception = new ShipmentConflictException(EXCEPTION_MESSAGE, code);
+            assertProblem(handler.shipmentConflictException(exception), CONFLICT, "Shipment Conflict", EXCEPTION_MESSAGE);
+            MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
+                    .setControllerAdvice(handler).build()
+                    .perform(get("/shipment-conflict-test"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value(code.name()))
+                    .andExpect(jsonPath("$.type").value("urn:problem-type:business-rule-violation"))
+                    .andExpect(jsonPath("$.title").value("Shipment Conflict"))
+                    .andExpect(jsonPath("$.status").value(409))
+                    .andExpect(jsonPath("$.detail").value(EXCEPTION_MESSAGE))
+                    .andExpect(jsonPath("$.instance").value("/shipment-conflict-test"))
+                    .andExpect(jsonPath("$.errorId").isNotEmpty());
+        }
+    }
+
+    @Test
+    void shouldKeepLegacyShipmentConflictResponseWithoutCode() throws Exception {
+        final var exception = new ShipmentConflictException(EXCEPTION_MESSAGE);
+        assertThat(exception.getCode()).isNull();
+        assertThat(handler.shipmentConflictException(exception).getProperties()).doesNotContainKey("code");
+        MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
+                .setControllerAdvice(handler).build()
+                .perform(get("/shipment-conflict-test"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").doesNotExist())
+                .andExpect(jsonPath("$.detail").value(EXCEPTION_MESSAGE))
+                .andExpect(jsonPath("$.errorId").isNotEmpty());
+    }
+
+    @RestController
+    private static final class ShipmentConflictController {
+        private final ShipmentConflictException exception;
+
+        private ShipmentConflictController(final ShipmentConflictException exception) {
+            this.exception = exception;
+        }
+
+        @GetMapping("/shipment-conflict-test")
+        String conflict() {
+            throw exception;
+        }
     }
 
     @Test

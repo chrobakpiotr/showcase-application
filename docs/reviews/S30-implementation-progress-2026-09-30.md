@@ -783,3 +783,23 @@ is a conservative lease floor only: SMTP per-operation timeout settings and the
 current synchronous local Camel route do not bound total processing time, so an
 operation can still outlive a lease and overlap takeover. Hard exclusion remains
 unproven and requires aggregate deadline or safe renewal plus external fencing.
+
+## S30-07b task packet: typed shipment conflict contract
+
+Accepted source: master review recommendation S30-07. Add stable additive
+`ProblemDetail` property `code` values `SHIPMENT_STALE_STATUS` for expected/current
+status mismatch and `SHIPMENT_OPERATION_FINGERPRINT_CONFLICT` when an operation
+ID is reused with another command or immutable snapshot. Preserve HTTP409 and all
+existing ProblemDetail fields; untagged legacy `ShipmentConflictException` keeps
+its current response. No `OPERATION_IN_PROGRESS` code is introduced because the
+current shipment flow has no producer for it. Frontend conflict handling is a
+separate follow-up and will only classify these recognized codes.
+
+Allowed paths: foundation ShipmentConflictException; domain ManageShipmentUseCase;
+persistence SaveShipmentAdapter; web ReturnAndShipmentExceptionHandlerSupport;
+direct tests for those producers and serialization; this report. Keep existing
+constructor source-compatible. Do not change persistence schema, event/API routes,
+ShipmentService, or replay behavior. Verify typed stale/fingerprint errors,
+canonical snapshot fingerprint conflict, generic legacy response, and successful
+idempotent replay. Run focused domain/persistence/web tests and independent review
+before local commit.

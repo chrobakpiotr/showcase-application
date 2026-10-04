@@ -101,9 +101,19 @@ class SaveShipmentAdapterOperationTest {
         given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity("SHIP-OTHER", 3)));
 
         assertThatThrownBy(() -> adapter.saveOperation(candidate)).isInstanceOf(ShipmentConflictException.class)
-                .hasMessageContaining(OPERATION_ID);
+                .hasMessageContaining(OPERATION_ID)
+                .extracting("code").hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
 
         verify(operationRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectDifferentImmutableVersionWithFingerprintCode() {
+        prepareNativeInsert();
+        given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity(SHIPMENT_NUMBER, 4)));
+        assertThatThrownBy(() -> adapter.saveOperation(operation(SHIPMENT_NUMBER, 3)))
+                .isInstanceOf(ShipmentConflictException.class)
+                .extracting("code").hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
     }
 
     @Test

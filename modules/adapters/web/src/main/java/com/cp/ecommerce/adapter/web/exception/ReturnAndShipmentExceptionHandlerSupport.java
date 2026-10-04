@@ -95,6 +95,11 @@ class ReturnAndShipmentExceptionHandlerSupport {
     @ExceptionHandler(ShipmentConflictException.class)
     public ProblemDetail shipmentConflictException(final ShipmentConflictException exception) {
 
-        return problemDetail(exception, CONFLICT, TYPE_BUSINESS_RULE_VIOLATION, "Shipment Conflict", exception.getMessage());
+        final ProblemDetail problem = problemDetail(
+                exception, CONFLICT, TYPE_BUSINESS_RULE_VIOLATION, "Shipment Conflict", exception.getMessage());
+        if (exception.getCode() != null) {
+            problem.setProperty("code", exception.getCode().name());
+        }
+        return problem;
     }
 }

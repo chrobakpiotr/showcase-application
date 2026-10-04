@@ -70,7 +70,20 @@ class ManageShipmentOperationReplayRedTest {
         assertThatThrownBy(() -> useCase.advanceShipmentStatus(SHIPMENT, "op-dispatch", ShipmentStatus.DISPATCHED))
                 .as("operationId replay must validate the original command fingerprint")
                 .isInstanceOf(ShipmentConflictException.class)
-                .hasMessageContaining("operation");
+                .hasMessageContaining("operation")
+                .extracting("code").hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
+    }
+
+    @Test
+    void staleExpectedStatusMustHaveStableCodeWithoutWriting() {
+        given(findShipmentOutPort.findByShipmentNumber(SHIPMENT))
+                .willReturn(shipment(ShipmentStatus.DISPATCHED, null));
+        assertThatThrownBy(() -> useCase.advanceShipmentStatus(SHIPMENT, "new-op", ShipmentStatus.PENDING))
+                .isInstanceOf(ShipmentConflictException.class)
+                .hasMessageContaining("expected PENDING but is DISPATCHED")
+                .extracting("code").hasToString("SHIPMENT_STALE_STATUS");
+        org.mockito.Mockito.verify(saveShipmentOutPort, org.mockito.Mockito.never()).save(any());
+        org.mockito.Mockito.verify(saveShipmentOutPort, org.mockito.Mockito.never()).saveOperation(any());
     }
 
     @Test
