@@ -1,0 +1,76 @@
+{
+  "required_for_orchestration": true,
+  "grill": "always",
+  "prototype": "always",
+  "architecture_grill": "always",
+  "prototype_max_parallel": 2,
+  "prototype_questions": [
+    {
+      "id": "P-001",
+      "question": "Which active-leader fence and Redis epoch-install protocol prevents a stale gate process from mutating state or issuing accepted permits across PostgreSQL lease loss and delayed Redis writes?",
+      "rationale": "The accepted service has separate PostgreSQL latch and Redis state stores. The local probe tested row-lock serialization and Redis stale-epoch rejection separately, but not delayed writes, lease loss, split brain, or permit issuance through one service protocol. Compare candidates with deterministic failure injection before selecting the implementation contract.",
+      "decision_criteria": [
+        "stale leader cannot mutate Redis after a higher epoch is installed",
+        "no permit issuance when owner, lease, lock, or epoch is uncertain",
+        "bounded recovery when a delayed old-epoch command lands before installation",
+        "durable monotonic epoch behavior across process restart and provider failover",
+        "bounded lock duration and simple operational recovery"
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Use a PostgreSQL owner/epoch row lock with server-time lease validation across each bounded Redis mutation or permit issue, install the leader epoch in Redis with a monotonic Lua compare-and-set, and wait for the configured fsync threshold before serving."
+        },
+        {
+          "id": "B",
+          "approach": "Use a PostgreSQL transaction-scoped advisory lock plus a durable owner/epoch row compare-and-set, with the same monotonic Redis epoch installation and fsync barrier; deny work whenever either PostgreSQL signal is uncertain."
+        }
+      ]
+    },
+    {
+      "id": "P-002",
+      "question": "How can command retries remain idempotent after one-year actor-audit deletion without retaining actor identity or operator reason indefinitely?",
+      "rationale": "PAUSE and RESUME command IDs must not produce duplicate transitions or become reusable with different requests. The accepted audit horizon is one year, so the persistent command-result/deduplication record needs a separate retention and deletion design. Prototype the smallest privacy-preserving option and measure storage/restore behavior.",
+      "decision_criteria": [
+        "same command never advances generation twice",
+        "changed-request reuse is rejected after audit expiry",
+        "actor identity and operator reason are deleted on the accepted one-year horizon",
+        "minimal retained data and explainable backup/export deletion",
+        "recovery remains fail-closed after Redis or PostgreSQL restore"
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Keep a separate minimal command tombstone after the audit record expires, containing only command identity, request digest, action, result, and expected/result generation facts without actor or reason."
+        },
+        {
+          "id": "B",
+          "approach": "Define a finite maximum command-replay age and reject any request older than that horizon, deleting command-result records when the horizon closes while preserving the one-year audit schedule."
+        }
+      ]
+    },
+    {
+      "id": "P-003",
+      "question": "Which permit and identity-validation contract lets application instances reject forged, cross-instance, stale, and replayed permits while safely stopping new handlers within the accepted five-second limit during gate-service loss?",
+      "rationale": "The accepted design separates workload PAUSE from individual-operator RESUME and uses short-lived generation-bound permits. Issuer/audience validation, instance identity binding, signing-key rotation, and local handler-start validation must be testable without allowing a public ecommerce identity or caller-chosen instance ID to control the global gate.",
+      "decision_criteria": [
+        "workload identity can PAUSE but cannot RESUME",
+        "only individually authenticated operators with the dedicated role can RESUME",
+        "permit binds verified subject to deployment, instance incarnation, leader, latch, and gate generations",
+        "forged, stale, cross-instance, and replayed permits reject",
+        "lost gate connectivity stops new handler starts by the conservative five-second expiry"
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Use a gate-issued signed short-lived permit with an epoch-scoped signing key, authenticated workload identity binding, strict issuer/audience/algorithm/expiry checks, and current leader-epoch bootstrap before admission."
+        },
+        {
+          "id": "B",
+          "approach": "Use an opaque one-use permit bound to an authenticated instance registration and require an online gate-service admission check at each handler start, failing closed whenever the gate service cannot be reached."
+        }
+      ]
+    }
+  ],
+  "verification_contract": "required"
+}

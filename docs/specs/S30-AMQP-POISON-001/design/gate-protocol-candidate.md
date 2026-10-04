@@ -37,6 +37,53 @@ independent architecture grill and executable failure-injection evidence.
   after drain. RESUME waits for drain confirmation or explicit operator proof
   that the Rabbit consumer connection is fenced/closed.
 
+## Candidate deployable and interface ownership
+
+The gate must be a separately deployed runtime, not a library in
+`apps/ecommerce/backend`. Candidate ownership is a new `apps/gate-service`
+composition root with its own HTTP/security boundary and Redis/PostgreSQL
+adapters; only that runtime receives gate-store credentials. The ecommerce
+runtime composes the AMQP adapter with a narrow admission/lifecycle client and
+workload identity. The AMQP adapter retains delivery, channel, ACK, and
+readiness mechanics; the gate service owns global state, epochs, permit issue,
+membership/drain registry, and operator authorization. No ecommerce module
+gets direct Redis or latch access.
+
+Before task generation, architecture review must assign the narrow client port
+to an inward module and freeze a versioned API contract for PAUSE, permit
+registration/renewal, drain confirmation, RESUME, status/readiness, and errors.
+The contract must identify authentication audience/roles, command ID and
+generation fields, idempotent retry behavior, and TLS/CA validation. This
+candidate names responsibilities but does not yet approve HTTP paths, payload
+schemas, token claims, module paths, or deployment ownership boundaries.
+
+Identity rules are accepted but wire claims remain to be frozen: local/dev uses
+the separate Keycloak gate audience/client, application workload identity, and
+individual operator role; production uses its configured equivalent. The API
+must validate issuer, audience, authorized client, signature algorithm/key,
+`exp`/`nbf`, and role at every operation. Derive actor identity from verified
+issuer+subject, never a request field. Bind registration instance ID to the
+verified workload subject and deployment; caller-selected IDs cannot register
+another instance. Ecommerce workload identity may PAUSE only; operator
+identity with the dedicated gate-resume role may RESUME only. Gate API
+transport validates server certificate and hostname. Credential rotation,
+JWKS/key bootstrap, audit IDs for malformed requests, and the exact
+request/response/error schema need architecture and security review.
+
+## Audit retention and command idempotency
+
+The one-year gate-audit retention applies to actor-attributed audit events,
+including operator reason, after which those fields and their backups/exports
+must be securely deleted. Command replay safety is a separate retention
+question: deleting an audit event must not make an old command ID reusable with
+a different request. Candidate storage therefore separates the audit event
+from a minimal idempotency tombstone (command identity, request digest, action,
+terminal outcome, and generation/epoch facts, with no actor or reason). The
+tombstone retention horizon, digest/key rotation, privacy review, and backup
+deletion policy are not accepted yet. Alternatively, a finite replay horizon
+would need an explicit request-age contract. Do not assume the one-year audit
+expiry also deletes the only command-reuse guard.
+
 ## Transition ordering
 
 An active-leader boot or takeover starts a recovery episode before serving any
@@ -53,15 +100,19 @@ generation while still inhibited; a delayed command after installation is
 rejected. A standby neither advances these epochs nor changes the latch.
 
 The application accepts permits only from the configured gate-service issuer,
-for the expected audience and registered instance incarnation, using a
-signature key advertised for the current active-leader epoch over the
-authenticated gate-service channel. Startup obtains the current leader epoch
-and key set; it does not trust a cached epoch as current. Push revocation is
-best effort. Offline validation uses a local monotonic deadline derived from
-the permit lifetime minus a configured clock-skew allowance. Each local
+for the expected audience and registered instance incarnation. The proposal
+uses a signed permit with a key advertised for the current active-leader epoch
+over the authenticated gate-service channel; an opaque online-check option is
+also retained for comparison. Startup obtains the current leader epoch and
+trusted key set; it does not trust a cached epoch as current. Push revocation
+is best effort. Offline validation uses a local monotonic deadline derived
+from the permit lifetime minus a configured clock-skew allowance. Each local
 handler-start admission and active-handler increment is atomic with local
 revoke/expiry state, so drain cannot observe zero between validation and
-handler registration. Permit expiry and process suspend/resume behavior must
+handler registration. The verifier rejects an unrecognized leader/boot epoch,
+wrong audience, invalid signature/algorithm, wrong workload subject,
+cross-instance replay, expired/not-yet-valid permit, and stale incarnation.
+Permit expiry and process suspend/resume behavior must
 be tested; uncertainty stops new handler starts.
 
 PAUSE response semantics are split: successful PAUSE means the durable latch
@@ -126,7 +177,10 @@ changed-request command-ID reuse attempts get a rejected-attempt audit outcome
 when Redis is available, without a state or generation change. This is the
 conservative interpretation of the user's specific outage and no-mutation
 decisions; the independent architecture grill must verify that interpretation
-before design-gate PASS.
+and its boundary tests remain required before design-gate PASS. Two
+independent read-only reviewers found this scoped exception coherent with the
+specific accepted no-mutation decisions; that review does not substitute for
+the formal architecture grill or executable boundary evidence.
 
 ### RESUME
 

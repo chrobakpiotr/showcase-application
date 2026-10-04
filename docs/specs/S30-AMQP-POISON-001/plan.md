@@ -60,6 +60,18 @@ The accepted verification grace period is one hour. Do not modify AsyncAPI or th
 original source topology unless a contract change is found and recorded; no
 business event schema change is proposed.
 
+The separate gate-service ownership candidate and unresolved inbound client
+port/API are in
+[`design/gate-protocol-candidate.md`](design/gate-protocol-candidate.md).
+Current repository composition has one deployable backend,
+`apps/ecommerce/backend`; the gate design proposes a separate runtime rather
+than adding gate-store credentials or state ownership there. Before task
+generation, architecture review must assign the narrow admission/lifecycle
+port, version the PAUSE/permit/registration/drain/RESUME/status/error contract,
+and packet the gate runtime, Keycloak identity, Redis/PostgreSQL adapters, and
+the ecommerce client as separate ownership surfaces. Candidate path
+`apps/gate-service` is not yet approved.
+
 ## Proposed component flow
 
 1. The production listener receives a broker `Message` retaining raw body bytes,
@@ -317,6 +329,13 @@ epoch was fsynced. It did not exercise gate-service operations under that fence,
 network partitions, permit issuance, cross-store crash recovery, or qualified
 storage; those remain design-gate evidence requirements.
 
+Gate-audit entries have the accepted one-year retention, but idempotency
+records cannot automatically share that expiry: deleting actor/reason audit
+data must not permit a reused command ID to produce a second transition. The
+gate design must define privacy-minimized command tombstones or an explicit
+replay horizon, with separate retention and backup/deletion rules. No horizon
+or tombstone schema is accepted yet.
+
 The user selected permits with a maximum five-second validity, bound to leader
 epoch, service boot epoch, latch epoch, gate generation, and instance
 registration. A revoke signal stops new deliveries immediately; if signal
@@ -387,10 +406,19 @@ read/export produces the accepted audit evidence.
 
 ## Verification design
 
-Use the real Rabbit broker/container test seam. Tests must observe source queue
+Use the real Rabbit broker/container test seam. Configure and verify explicit
+manual acknowledgement, bounded prefetch/concurrency, and a shutdown policy
+that never equates container-stop return or timeout with handler drain. The
+instance must check permit/revoke/expiry atomically with handler-start
+registration, including prefetched deliveries. Tests must observe source queue
 redelivery/ACK and quarantine queue bytes/properties, not only invoke a
 listener method. Declare and verify the repository's dedicated critical Rabbit
 gate, no retry masking, a fresh XML/report, and zero skipped tests.
+
+S30-06a may not enable production admission by itself. The 06b durable
+operation claim/owner fencing is a hard release dependency: a stale handler
+must be unable to ACK, finalize, or overwrite the newer redelivery's outcome
+after its channel closes or its permit expires.
 
 Required deterministic scenarios are mapped in `spec.md` AC-06A-* and include
 permanent poison, idempotent success, failure between publish confirm and
