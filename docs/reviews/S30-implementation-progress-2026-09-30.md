@@ -1580,9 +1580,12 @@ The user accepted the following previously open S30 policy decisions:
   closed. Redis exists across local deployment surfaces and as an external Helm
   dependency, but current instances lack persistent storage and do not qualify
   as the gate yet. The user accepted distinct app-workload and individual
-  operator identities, a dedicated resume permission, validated issuer/subject
-  audit for RESUME, and refusing resume if audit persistence fails. Exact
-  claims, whether PAUSE is audited, audit fields/retention/order, atomicity and
+  operator identities, a dedicated resume permission, and audit for every
+  authenticated PAUSE/RESUME with validated identity, action, time, outcome,
+  and state generation; RESUME also records reason. State and audit commit
+  atomically, and success waits for the Redis fsync threshold. Every registered
+  live instance must confirm stop and drain before RESUME. Exact claims, audit
+  retention/timestamp format, instance liveness and stale recovery, and
   durable-volume/provider conformance remain open. The dedicated Redis store
   and synchronous AOF policy are accepted; its isolated tmpfs probe survived a
   Redis process restart and WAITAOF reported local fsync, but this does not
@@ -1669,6 +1672,20 @@ independent security review returned **PASS**: only the closed receipt outcome
 is logged; the captured-event test also rejects raw JSON leakage. `git diff
 --check` passed.
 Local commit: `e99c324`; nothing was pushed.
+
+## S30-06 gate decisions — 2026-10-04
+
+The user accepted atomic gate-state and audit updates for every authenticated
+PAUSE and RESUME. Each audit entry records the action, validated caller
+identity, time, outcome, and state generation; RESUME also records the operator
+reason. Gate operation success must wait for the accepted Redis fsync threshold
+after the atomic state-plus-audit commit. The user also requires every
+registered live application instance to confirm that it stopped dispatching
+new deliveries and drained active handlers before RESUME. The liveness/lease
+definition, stale or unresponsive instance recovery/expiry rule, token claims,
+audit retention and timestamp format, Redis failover/idempotency/crash-recovery
+protocol, and 06b stale-handler fencing remain unresolved. These are policy
+decisions only; no gate service or deployment implementation is claimed.
 
 ## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs
 

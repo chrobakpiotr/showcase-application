@@ -184,9 +184,17 @@ with synchronous AOF durability and encrypted persistent storage in local/dev;
 production must supply an external Redis endpoint with equivalent durable
 commit behavior. The existing Redis instances in root Compose, E2E Compose,
 dev Kubernetes and Helm are not qualified substitutes: they are shared and
-currently lack persistent storage. The design still needs atomic state/audit
-transitions, service-level app PAUSE-only and audited operator RESUME-only
-authorization, and per-instance drain/fencing evidence. Missing gate state
+currently lack persistent storage. The user has accepted atomic state/audit
+transitions: every authenticated PAUSE and RESUME is audited with action,
+validated caller identity, time, outcome, and state generation; RESUME also
+records operator reason. Return success only after the state and audit commit
+atomically and Redis confirms the configured fsync threshold. The user also
+requires every registered live application instance to confirm it stopped new
+deliveries and drained active handlers before RESUME. Service-level app
+PAUSE-only and audited operator RESUME-only authorization remain required.
+Liveness/registration lease semantics, stale/unresponsive-instance recovery,
+retry-safe command identity, crash recovery, Redis failover behavior, and
+06b stale-handler fencing still need design and evidence. Missing gate state
 must not mean ACTIVE.
 
 The disposable ACL result is preserved in
@@ -210,20 +218,21 @@ uncertain. WAITAOF must cover the preceding write on the same client connection,
 and success counts must be checked rather than treating any reply as success.
 Local fsync does not by itself prove failover-safe durability; the production
 external Redis contract must define replica/fsync requirements and prevent
-resume or consumer admission when state may be stale. State/audit atomicity,
-retry-safe command identity, and crash recovery around audit and state commit
-remain open design work; no particular transaction protocol is accepted yet.
+resume or consumer admission when state may be stale. State/audit atomicity is
+accepted, but the transaction protocol, retry-safe command identity, and crash
+recovery around commit remain open design work.
 
 The user accepted the security review's recommendation for a dedicated app
 workload identity for the PAUSE operation and an individually attributable
 human identity with
 a dedicated gate-resume permission for the audited tool. Validate the gate
 service audience and identity itself; do not reuse the public `ecommerce-app`
-client, `ORDER_WRITE`, or shared `order-admin` account. For RESUME, derive the
-audit actor from validated issuer and subject claims and deny success if the
-durable audit record cannot be committed. Command ID, reason, generation
-fields, PAUSE actor audit, and audit/state ordering are candidate design details
-pending the implementation contract; do not claim atomic audit/state updates.
+client, `ORDER_WRITE`, or shared `order-admin` account. Audit each authenticated
+PAUSE and RESUME with the validated actor, operation, time, outcome, and state
+generation; include operator reason on RESUME. Commit the matching state and
+audit atomically and return success only after configured Redis fsync is
+confirmed. Exact token claims, audit retention, timestamp encoding, and the
+transaction/idempotency protocol still require design and review.
 For local/dev, the user selected the repository's Keycloak with a separate
 gate-service audience/client, app workload identity, and individual-operator
 resume role. Production must configure a corresponding external issuer/client.

@@ -129,12 +129,19 @@ stopped and readiness down. The user accepted a dedicated app workload identity
 for PAUSE and individually authenticated human operators with a distinct
 gate-resume permission for RESUME. For RESUME, the service validates its
 audience and derives the actor from the verified issuer and subject, never a
-caller-supplied name. Resume must be denied unless a durable audit record
-commits before success. Whether PAUSE actor details are audited, the exact token
-claims, audit schema/retention/fields, audit-to-state ordering and recovery,
-atomic update/CAS and generation protocol, durable store and encryption, and
-cross-environment deployment contract remain to be designed and tested before
-release. The user selected the existing Keycloak for local/dev with a separate
+caller-supplied name. Every authenticated PAUSE and RESUME operation must write
+an audit entry with action, validated caller identity, time, outcome, and state
+generation; RESUME also records the operator reason. The gate-state transition
+and corresponding audit entry must commit atomically, and success is returned
+only after Redis confirms the configured fsync durability threshold. Failure
+to commit either state or audit, or to confirm durability, fails closed. The
+exact token claims, audit retention, timestamp format, generation/CAS protocol,
+retry/crash recovery, Redis failover behavior, and cross-environment deployment
+contract remain to be designed and tested before release. Before RESUME, every
+registered live application instance must confirm that it stopped new delivery
+and drained active handlers. The liveness/registration lease, treatment of
+unresponsive or stale instances, and recovery/expiry procedure remain open.
+The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
 externally configured issuer/client. Exact client/role names, claims and
 credential lifecycle remain to be defined. The gate store is a dedicated Redis
@@ -145,8 +152,10 @@ demonstrates only process-restart recovery from tmpfs, not deployment durability
 An AOF-disabled store, unsupported/timed-out WAITAOF, insufficient fsync count,
 or uncertain Redis role/state is a failed gate operation and keeps consumers
 stopped; local fsync alone does not prove failover-safe state.
-Command id, reason, and prior/new generation are candidate audit fields, not
-accepted requirements yet; no atomic audit-plus-state guarantee is claimed.
+Command identity and prior/new generation representation remain design details;
+the audit must include the resulting state generation. Atomic state-plus-audit
+commit is required, but Redis failover qualification and idempotent crash
+recovery must still be specified and verified.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation
@@ -402,9 +411,12 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    behavior, while defining alert and channel-loss mechanics. Stopping new
    deliveries, draining active handlers, readiness-down, and operator-only
    resume across restart are accepted. The deployment-owned gate service and
-   06b stale-handler fencing remain unimplemented. Exact token claims, PAUSE audit scope, audit
-   schema/retention/order, prefetched/unacknowledged-message mechanics, and
-   alerting remain unresolved.
+   06b stale-handler fencing remain unimplemented. Atomic state-plus-audit for
+   every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
+   and confirmation from every registered live instance before RESUME are
+   accepted. Exact token claims, audit retention/timestamp format, Redis
+   failover and crash-recovery protocol, instance liveness/expiry and recovery,
+   prefetched/unacknowledged-message mechanics, and alerting remain unresolved.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may
    read/export only through the audited tool; direct AMQP and management reads
