@@ -79,10 +79,63 @@ question: deleting an audit event must not make an old command ID reusable with
 a different request. Candidate storage therefore separates the audit event
 from a minimal idempotency tombstone (command identity, request digest, action,
 terminal outcome, and generation/epoch facts, with no actor or reason). The
-tombstone retention horizon, digest/key rotation, privacy review, and backup
-deletion policy are not accepted yet. Alternatively, a finite replay horizon
-would need an explicit request-age contract. Do not assume the one-year audit
-expiry also deletes the only command-reuse guard.
+tombstone is proposed to remain independently of the one-year actor/reason
+audit, with no actor, reason, or raw request. Its retention horizon,
+digest/key rotation, privacy review, and backup deletion policy require
+security and architecture review. Do not assume the one-year audit expiry
+also deletes the only command-reuse guard.
+
+The disposable P-002 SQLite comparison modeled 36,500 commands and reported
+about 7.43 MB of rows for indefinite minimal tombstones after audit deletion,
+versus 24 KB for the database after a 30-day purge. These are SQLite-only
+illustrative sizes, not production Redis/PostgreSQL estimates. A finite
+window with a caller-selected stable command ID is unsafe: after the result
+row is deleted, a fresh signed envelope can reuse that ID. A server-minted
+envelope whose opaque command ID is cryptographically bound to the immutable
+request and expiry can close that gap, but it changes the current command API
+and needs a separate issuance/execution contract. The minimal tombstone
+projection measured about 204 SQLite bytes per command in the final prototype
+run. The finite-envelope option remains a possible redesign, not an accepted
+choice; its issue-then-execute retry boundary and server-minted ID recovery
+after a lost issuance response remain unresolved. The SQLite result does not
+qualify production storage or retention implementation.
+
+## Prototype evidence status (2026-10-05)
+
+P-001 tested Redis epoch mutations before and after higher-epoch installation
+and PostgreSQL takeover serialization in separate disposable experiments. An
+old-epoch mutation after installation was rejected; the same mutation before
+installation succeeded and left Redis ACTIVE, so recovery must reconcile the
+durable PostgreSQL inhibit before permitting admission. Row-lock and
+transaction advisory-lock takeover waits were about 2.80s and 2.76s in
+separate runs. An independent evaluator found the runs non-comparable and
+insufficient to choose a service-level fence: neither joined the database
+owner/lease check, Redis mutation/fsync, response uncertainty, and permit
+decision in one schedule. P-001 remains open.
+
+P-002 supports minimal tombstones for preserving the current client-held stable
+command-ID retry shape. A caller-selected ID with a fresh signed envelope
+still permits changed-request reuse after tombstone expiry. A gate-minted
+opaque ID bound to an immutable envelope avoids that specific case but requires
+an issue-then-execute API, and a lost issuance response/retry contract is still
+open. The SQLite storage comparison is illustrative; encrypted volumes,
+WAL/backup deletion, restore rollback, and production stores remain untested.
+The tombstone implementation still needs concurrent same-ID, exact retry,
+changed request after audit deletion, key/backup rotation, and stale-store
+restore tests.
+
+P-003's 19-assertion pure Python model confirms the policy tradeoff: a valid
+signed five-second permit can admit during an unseen PAUSE until expiry; an
+online opaque check denies immediately during gate loss. The independent
+evaluator found this illustrative only: it did not use real OIDC/JWKS
+verification, asymmetric signatures, persistent one-use replay tracking,
+actual handler-start locking, or suspend/resume timing. The accepted five-
+second bound favors bounded offline signed permits as the current candidate,
+but P-003 remains open until those runtime and security properties are tested.
+
+No prototype in this section passes the design gate. Candidate recommendations
+are not accepted architecture; implementation still requires the formal grill,
+verification contract, and service-level failure evidence.
 
 ## Transition ordering
 

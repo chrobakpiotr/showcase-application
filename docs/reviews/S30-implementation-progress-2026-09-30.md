@@ -1828,3 +1828,41 @@ transaction committed. Its limits are explicit in the evidence note: it does
 not verify service serialization, network partitions, permit issuance,
 cross-store crash behavior, encrypted durable volumes, failover/restore, or
 Rabbit consumption. The run's ephemeral containers were removed.
+
+## S30-06 design prototypes — 2026-10-05
+
+Added the required prototype policy in `design.json` for leader fencing,
+command-retention/idempotency, and permit validation. Disposable P-001
+experiments compared row-lock and advisory-lock takeover waits (2.80s and
+2.76s in separate PostgreSQL runs) and exercised Redis epoch install order.
+They found that an old-epoch write is rejected after a higher epoch is
+installed, but the same write can land before installation. Recovery must
+remain inhibited and reconcile PostgreSQL/Redis before issuing permits. An
+independent prototype evaluator judged P-001 **needs more evidence** because
+the two lock candidates were not exercised in one comparable service schedule
+with lease checks, Redis fsync, uncertain responses, and permit decisions.
+
+P-002's SQLite prototype modeled 36,500 commands. It measured 7.43 MB for
+minimal tombstones retained after actor/reason audit deletion (about 204 bytes
+per command in that run), versus 24 KB after purging a 30-day finite set. A
+caller-selected ID plus a fresh signed envelope still allows changed-request
+reuse after its dedup row expires. A gate-minted immutable envelope could avoid
+that case, but it changes the current command API to issue-then-execute and
+still needs a lost-issuance-response contract. The current candidate keeps a
+minimal command tombstone separate from the one-year actor/reason audit; this
+is not accepted until privacy, key, backup/WAL deletion, and restore policy
+are reviewed. SQLite numbers are not production storage estimates.
+
+P-003 passed 19 deterministic assertions in a pure Python state-machine model.
+It confirmed the five-second tradeoff: a valid signed permit can admit during
+an unseen PAUSE until expiry, while an online opaque check denies immediately
+on gate loss. Independent evaluation marked P-003 **needs more evidence**:
+the prototype used HMAC/test identities, process-local replay state, and no
+real OIDC/JWKS, handler-start lock, distributed race, or suspend/resume timing.
+
+These results do not pass the design gate or authorize source changes. The
+formal architecture grill, verification contract, comparable/service-level
+failure evidence, security tests, and real Rabbit drain/reconnect tests remain
+open. Focused `test_design.py` and `test_spec_inventory.py` pass (13 tests);
+their negative fixtures intentionally print error text before the suite
+reports `OK`.

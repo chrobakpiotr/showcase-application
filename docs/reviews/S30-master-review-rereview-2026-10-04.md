@@ -211,3 +211,30 @@ advance response the same way. Both failing scenarios passed against the local
 E2E Compose stack, with Prettier, ESLint, and `git diff --check` passing. The
 commit remains local: no push was performed, so GitHub has not run CI on the
 fix yet.
+
+## S30-06 prototype review update — 2026-10-05
+
+The new `design.json` declares grill, prototype, architecture-grill, and
+independent verification-contract stages. P-001 and P-003 received independent
+prototype evaluation and remain **needs more evidence**. P-001's two lock
+candidate experiments were not comparable service schedules and left the
+lease/Redis/fsync/permit ordering unresolved. P-003 was a pure model and did not
+test actual OIDC/JWKS verification, asymmetric key lifecycle, cross-process
+one-use tracking, or consumer handler admission. The observed five-second
+permit tradeoff does not substitute for those tests.
+
+P-002's SQLite exercise supports separating minimal command deduplication from
+the one-year actor/reason audit: a finite row horizon with a caller-selected
+ID allows changed-request reuse after expiry. The proposed gate-minted
+immutable envelope changes the API and still needs its lost-issuance-response
+contract. The current design candidate retains a minimal tombstone without
+actor, reason, or raw request; security/privacy, WAL/backups, and restore
+rollback remain open. No S30-06 production implementation is authorized by
+this prototype evidence. The formal architecture grill, verification
+contract, real Rabbit drain/reconnect evidence, topology encryption/access
+controls, and S30-08 06b stale-handler fencing remain open.
+
+A fresh public GitHub Actions API check found no run newer than `bfa093b0`.
+The only failed jobs remain Playwright E2E and its aggregate quality gate;
+the local repair commit has not been pushed, so hosted verification is still
+pending. All other jobs in run 149 passed, including DependencyCheck.
