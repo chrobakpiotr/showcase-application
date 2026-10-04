@@ -1434,3 +1434,28 @@ arithmetic, reported timings/buffer figures, and index/order interpretation,
 while noting raw EXPLAIN output was not retained. The report was tightened to
 describe scanning all parked rows with top-N ordering rather than a full sort.
 `git diff --check` passed.
+
+## S30-03d task packet: Docker discovery without readiness claims
+
+Accepted source: master review section9.6 and the S30-03c Docker Desktop
+capability spike. Add `docker` CLI discovery to the read-only backend inventory
+and expose its four doctor dimensions independently. Until an adapter supplies
+root/policy-bound qualification and generation-safe reconcile/launch behavior,
+`qualification_supported`, `qualified`, and `launch_ready` must remain false;
+the discovery result must not affect backend selection or payload admission.
+Test both discovery of an installed CLI and the doctor status. Allowed paths are
+`verification_sandbox.py`, its focused doctor/qualification tests, and this
+progress record. Run only those suites under Python 3.12 plus `git diff --check`;
+obtain independent read-only review and commit locally without pushing.
+
+S30-03d adds `docker-container` as a discovered executable candidate and a
+doctor status entry. It does not query the daemon, invoke Docker, add a backend,
+or authorize payloads. The discovered Docker status is explicitly
+`qualification_supported: false`, `qualified: false`, and `launch_ready: false`.
+Python 3.12 focused doctor/discovery tests passed 5/5 in a disposable container;
+the direct discovery regression assertion confirms that an installed Docker CLI
+is listed without qualification. The focused doctor suite also passed under the
+host Python 3.9 runtime. An attempted adjacent full qualification module under
+host Python 3.9 hit its existing Python 3.10+ union-type syntax requirement; the
+same affected discovery test passed under Python 3.12. Independent review and
+`git diff --check` remain the commit gates.

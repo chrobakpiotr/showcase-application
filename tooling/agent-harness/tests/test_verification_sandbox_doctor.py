@@ -43,6 +43,19 @@ class SandboxDoctorTest(unittest.TestCase):
         self.assertFalse(result['qualified'])
         self.assertFalse(result['launch_ready'])
 
+    def test_docker_discovery_does_not_claim_qualification_or_readiness(self):
+        candidate = sandbox.BackendCandidate('docker-container', 'unqualified',
+                                             '/installed/docker', 'darwin')
+        result = self.diagnose('Darwin', [candidate])
+        self.assertTrue(result['discovered'])
+        self.assertFalse(result['qualification_supported'])
+        self.assertFalse(result['strong_available'])
+        self.assertFalse(result['qualified'])
+        self.assertFalse(result['launch_ready'])
+        self.assertEqual({'discovered': True, 'qualification_supported': False,
+                          'qualified': False, 'launch_ready': False},
+                         result['backend_status']['docker-container'])
+
     def test_missing_executables_have_no_readiness(self):
         result = self.diagnose('Darwin', [])
         for key in ('discovered', 'qualification_supported', 'qualified', 'launch_ready',

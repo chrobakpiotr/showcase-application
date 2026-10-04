@@ -262,6 +262,7 @@ class BackendQualificationTest(unittest.TestCase):
             with mock.patch.object(vs.shutil, 'which', return_value=str(executable)):
                 candidates = vs.discover_backends()
             self.assertTrue(candidates)
+            self.assertIn('docker-container', {candidate.kind for candidate in candidates})
             self.assertTrue(all(c.state == 'DISCOVERED' for c in candidates))
             self.assertTrue(all(c.qualification is None for c in candidates))
 

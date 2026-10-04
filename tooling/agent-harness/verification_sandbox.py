@@ -485,7 +485,8 @@ def macos_sandbox_profile(writable_paths, protected_paths) -> str:
 def discover_backends() -> tuple[BackendCandidate, ...]:
     """Report host candidates without claiming their safety properties."""
     system = platform.system().lower()
-    specs = [('codex-sandbox', 'codex'), ('bubblewrap', 'bwrap'), ('macos-sandbox-exec', 'sandbox-exec')]
+    specs = [('codex-sandbox', 'codex'), ('bubblewrap', 'bwrap'),
+             ('macos-sandbox-exec', 'sandbox-exec'), ('docker-container', 'docker')]
     found = []
     for kind, command in specs:
         executable = shutil.which(command)
@@ -1084,7 +1085,7 @@ def doctor() -> dict[str, Any]:
     system = platform.system().lower()
     candidates = {candidate.kind: candidate for candidate in discover_backends()}
     status = {}
-    for kind in ('codex-sandbox', 'bubblewrap', 'macos-sandbox-exec'):
+    for kind in ('codex-sandbox', 'bubblewrap', 'macos-sandbox-exec', 'docker-container'):
         candidate = candidates.get(kind)
         # _candidate_probe_argv currently implements only these Darwin paths.
         supported = bool(candidate and candidate.platform == 'darwin' and
@@ -1097,6 +1098,8 @@ def doctor() -> dict[str, Any]:
         'platform': system, 'backends': backends, 'backend_status': status,
         'discovered': any(backends.values()),
         'qualification_supported': any(value['qualification_supported'] for value in status.values()),
+        # Docker has capability-spike evidence, but no adapter-backed
+        # qualification or generation-safe lifecycle reconciliation yet.
         # Discovery has no exact policy/roots proof, nor lifecycle admission.
         'qualified': False, 'launch_ready': False, 'strong_available': False,
     }
