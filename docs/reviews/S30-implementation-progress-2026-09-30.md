@@ -1236,3 +1236,18 @@ record rather than a standalone exact reproducer. It also clarifies the one-row
 difference caused by multiplying EXPLAIN's rounded per-loop row count.
 `git diff --check` passed. No application, schema, query, index or workbench
 change was made.
+
+## S30-07d gap assessment
+
+The accepted request/header, typed conflict, and reload-identity behavior are
+implemented with focused MVC, PostgreSQL workflow, and frontend tests. The
+remaining S30-07 acceptance gap is their composition through a real HTTP and
+PostgreSQL flow: commit then lose the response and retry the same key, plus an
+intervening advance that produces the typed conflict. Partial-header rejection,
+duplicate-click suppression, and reload identity have lower-level coverage; the
+current Playwright suite stubs HTTP and does not prove the complete server/client
+boundary. An independent evaluator confirmed these distinctions (**PASS**).
+No shipment API semantic or production behavior change is needed for the next
+step; inspect the current E2E startup and fault-injection seams before making an
+executable test packet. Read-only assessment; no tests run. `git diff --check`
+passed.
