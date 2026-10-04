@@ -1554,24 +1554,35 @@ The user accepted the following previously open S30 policy decisions:
   action is required. Stop new deliveries, allow active handlers to finish, and
   keep readiness down until resume. Deployment tooling alone provisions the
   quarantine topology; the application must not declare those resources. The
-  accepted durable exchange is `com.cp.e.topic.order.quarantine.v1`, the queue
-  is `com.cp.q.order.quarantine.v1`, and the binding key is
+  accepted durable topic exchange is `com.cp.e.topic.order.quarantine.v1`, the
+  durable classic queue is `com.cp.q.order.quarantine.v1`, and the binding key is
   `order.quarantine.v1`. The topology is required in all environments;
+  application and audited-tool clients use server-authenticated TLS with CA and
+  hostname verification plus separate broker credentials.
   deployment tooling will apply Rabbit queue-level message TTL
   (`x-message-ttl`) of 30 days and verify messages are no longer retrievable
   after a one-hour grace period. Backups and exports follow the same 30-day
-  deletion horizon.
-  Durable enforcement, operator authentication/audit,
+  deletion horizon, measured from the message's original quarantine time;
+  newer full-broker backups may need early expiry to meet it. Operators may
+  read/export raw data only through an audited tool; direct AMQP and management
+  reads stay disabled until that tool is implemented. The user also accepted a
+  durable classic queue and explicitly chose this audited-tool-only access
+  model and message-age-based backup/export deadline. Capacity is capped at
+  1 MiB combined body-plus-headers per message and 1 GiB per queue; overflow
+  must be rejected with the source unacknowledged and consumption paused.
+  Durable enforcement, pause/resume operator authentication/audit,
   prefetched-but-not-started delivery handling, alerting and channel-loss
   behavior remain unimplemented or undecided.
-- **S30-06 quarantine data:** raw quarantined payloads and headers require TLS
-  in transit, encrypted broker host/storage-class volumes in every environment,
+- **S30-06 quarantine data:** raw quarantined payloads and headers require
+  server-authenticated TLS with CA/hostname verification and separate broker
+  credentials, encrypted broker host/storage-class volumes in every environment,
   access restriction, and a 30-day retention horizon. Rabbit queue-level
   `x-message-ttl` plus verifying non-retrievability after expiry and a grace
   period is the accepted retention mechanism; the one-hour grace duration is
   accepted, while the procedure remains to be tested. Backups and exports
-  follow the same 30-day deletion policy. Every raw-message read/export must be
-  audit logged. The reader path, audit evidence, and payload-size controls
+  meet the message's original 30-day deadline, even when a newer broker
+  snapshot must be deleted early. Every raw-message read/export must be
+  audit logged. The reader path, audit evidence, and accepted size-cap controls
   still need implementation-level definition and verification; no direct
   operator read access is authorized before the audit path is established.
 - **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely

@@ -42,18 +42,21 @@ by quarantine handling.
 
 ## Quarantine topology and delivery proposal
 
-The topology names and provisioning owner below were explicitly accepted by
-the user on 2026-10-04. The remaining delivery/security details are proposals,
-not accepted production decisions until reviewed:
+The topology, ownership, capacity, TLS, retention, and access decisions below
+were explicitly accepted by the user on 2026-10-04. Their enforcement and the
+remaining delivery details still require implementation and verification:
 
-1. **Accepted names:** add durable quarantine exchange `com.cp.e.topic.order.quarantine.v1`, durable
-   queue `com.cp.q.order.quarantine.v1`, and binding routing key
-   `order.quarantine.v1`. Use a dedicated topic exchange and one queue initially.
+1. **Accepted topology:** add durable topic exchange
+   `com.cp.e.topic.order.quarantine.v1`, durable classic queue
+   `com.cp.q.order.quarantine.v1`, and binding routing key
+   `order.quarantine.v1`. One queue is in scope initially.
 2. **Accepted owner:** provision the new resources declaratively with deployment tooling only.
    The application must not silently create resources with arguments that can
    conflict with operator-managed resources. Test deployment provisioning
    against the selected Rabbit version and fail startup/operation observably
-   when a required resource is missing or incompatible. Do not redeclare the
+   when a required resource is missing or incompatible. The deployment
+   conformance gate owns this check; the application must not receive
+   configure permissions for the quarantine resources. Do not redeclare the
    existing source queue with new arguments or attach a DLX to it in this
    slice.
 3. Publish quarantine messages as persistent, mandatory messages with publisher
@@ -61,13 +64,17 @@ not accepted production decisions until reviewed:
    the publish receives a positive confirm and no mandatory return. A nack,
    timeout, channel loss, return, or indeterminate result is failure. Confirm
    alone is insufficient because it does not establish routing.
-4. Only malformed JSON, permanent message-field/schema validation errors, and
+4. **Accepted capacity limits:** body plus headers may total at most 1 MiB per
+   message and the quarantine queue is capped at 1 GiB. Reject oversized or
+   over-capacity quarantine publishes; keep the source delivery unacknowledged
+   and pause consumption rather than dropping or truncating it.
+5. Only malformed JSON, permanent message-field/schema validation errors, and
    the receipt adapter's proven immutable operation-key/payload conflict are
    classified permanent. Transient database/network failures and every
    unclassified exception are transient/unknown and must never be copied to
    quarantine as though permanent. Keep reason codes bounded and stable; do not
    put exception text, identifiers, or payload values in metric labels/logs.
-5. Preserve exact original body bytes, routing key, content metadata, message
+6. Preserve exact original body bytes, routing key, content metadata, message
    id/correlation id, timestamp, delivery mode, and original headers in the
    quarantined message. Add namespaced quarantine metadata (reason code,
    quarantine time, source queue/exchange/routing key, and transfer correlation)
@@ -75,7 +82,7 @@ not accepted production decisions until reviewed:
    header value types, and maximum body/header size need implementation tests
    and a reviewed policy; no guarantee of arbitrary-header round-trip is
    assumed until proven.
-6. ACK the original delivery only after confirmed-and-routed quarantine
+7. ACK the original delivery only after confirmed-and-routed quarantine
    publication. If publish outcome is ambiguous, leave the original unacked and
    fail closed. A crash after quarantine acceptance but before source ACK can
    create duplicate quarantine copies. Consumers/operators must treat
@@ -141,24 +148,31 @@ not establish exactly-once processing in other systems.
 ## Security and retention
 
 Quarantine stores the raw inbound body and headers, which may contain personal
-or otherwise sensitive information. The accepted policy requires TLS in
-transit, encrypted broker storage in all environments using encrypted
-host/storage-class volumes, access restriction to the smallest operator and
-service set, and retention for 30 days, enforced with Rabbit queue-level
+or otherwise sensitive information. The accepted policy requires
+server-authenticated TLS with trusted CA and hostname verification plus
+separate broker credentials. Encrypted broker storage in all environments
+uses encrypted host/storage-class volumes. Access is restricted to the
+smallest operator and service set, and retention is 30 days, enforced with Rabbit queue-level
 message TTL (`x-message-ttl`) plus deletion verification. RabbitMQ guarantees
 expired messages are not delivered, but physical removal may occur after
 expiry. The accepted verification checks that messages are no longer
-retrievable after expiry plus a one-hour grace period; backups and exports
-follow the same 30-day deletion policy. Every raw-message read and export must
-produce an audit record; the reader path and audit-record design remain to be
-specified and tested before any operator read access is enabled.
-Never log the raw body or sensitive headers. Exact encryption boundaries,
-access/read-export audit, backup behavior, TTL configuration and
-deletion-verification procedure, and payload size limits still require
-implementation-level definition and verification before production
-acceptance.
+retrievable after expiry plus a one-hour grace period. Every backup or export
+containing a message must be deleted by that message's original 30-day
+deadline, even if that requires early expiry of a newer full-broker snapshot.
+Every raw-message read and export must produce an audit record. Operators may
+access raw data only through an audited tool; direct AMQP and management reads
+must remain disabled. The tool and audit-record design must be specified and
+tested before any operator read access is enabled. Enforce the accepted 1 MiB
+body-plus-headers limit and 1 GiB queue cap; overflow fails closed, preserving
+the source delivery unacknowledged and pausing consumption.
+Never log the raw body or sensitive headers. Certificate provisioning and
+rotation, encrypted-volume attestation, broker ACL bootstrap, the audited tool
+and its audit evidence, message-age-aware backup deletion, TTL verification,
+and enforcement of the accepted payload-size and queue limits still require
+implementation-level definition and verification before production acceptance.
 If the current broker/deployment cannot enforce the accepted access and
-retention controls, do not enable this topology in production until it can.
+retention controls, do not enable raw-message publish or read access in any
+environment until it can.
 
 ## Acceptance criteria
 
@@ -194,21 +208,28 @@ deliveries so pause behavior is explicit.
 ### AC-06A-TOPOLOGY
 
 The existing queue/exchange/binding declarations are unchanged. The additive
-quarantine topology has the accepted exact names, durability, routing, and
-single clear provisioning owner. It exists in all environments; its queue has
-30-day `x-message-ttl`, TLS in transit, and encrypted storage. Deployment
-validation verifies the exact 30-day setting; a short-TTL real-broker fixture
-proves that expired messages are no longer retrievable. The operational check
-runs after the accepted 30-day TTL plus one-hour grace. Backups and exports
-follow the same 30-day deletion horizon. Startup against pre-provisioned
-resources and resource mismatch fails safely and observably.
+quarantine topology has the accepted exact names, durable topic exchange,
+durable classic queue, routing, and single clear provisioning owner. It exists
+in all environments; its queue has 30-day `x-message-ttl`, server-authenticated
+TLS with CA/hostname verification and separate broker credentials, and
+encrypted storage. Deployment validation verifies the exact 30-day setting; a
+short-TTL real-broker fixture proves expired messages are no longer
+retrievable. The operational check runs after the accepted 30-day TTL plus
+one-hour grace. Each backup/export containing a message is deleted by that
+message's original 30-day deadline. Enforce a 1 MiB body-plus-headers limit and
+1 GiB queue cap; overflow is rejected, leaving the source delivery unacknowledged
+and pausing consumption. Deployment conformance verifies
+pre-provisioned resources and fails safely and observably on missing or
+incompatible declarations; the application neither declares nor needs
+configure access to the quarantine resources.
 
 ### AC-06A-SAFE
 
 No raw payload, order number, operation id, or exception detail appears in
-application logs or metric labels. Quarantine payload access, transport and
-storage encryption, per-read/export audit, expiry verification and
-backup/export deletion match the accepted policy.
+application logs or metric labels. Quarantine payload access is restricted to
+the audited operator tool; direct AMQP/management reads are disabled. Transport
+and storage encryption, per-read/export audit, expiry verification and
+message-age-based backup/export deletion match the accepted policy.
 
 ## Non-goals and later slices
 
@@ -319,22 +340,27 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 ## Unresolved decisions required before READY
 
 1. Packet the exact root/standalone/E2E Compose and Kubernetes development
-   artifacts that provision the accepted names, require TLS and encrypted
-   host/storage-class volumes, configure `x-message-ttl`, and verify
-   non-retrievability after expiry plus a grace period. Apply the 30-day
-   deletion horizon to backups/exports and document the external production
-   RabbitMQ handoff. The one-hour verification grace period is accepted.
+   artifacts that provision the accepted durable classic topology, require
+   server-authenticated TLS and encrypted host/storage-class volumes,
+   configure `x-message-ttl`, and verify non-retrievability one hour after
+   expiry. Delete each backup/export by the message's original 30-day deadline
+   and document the external production RabbitMQ handoff.
    Owner, names, all-environment scope, and TTL-plus-verification policy are
-   accepted; application declaration remains forbidden.
+   accepted; application declaration remains forbidden. Queue conformance is
+   a deployment-owned check; no quarantine configure permission is granted to
+   the app.
 2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
    resume authorization/audit. Stopping new deliveries, draining active
    handlers, readiness-down, and operator-only resume across restart are
    accepted; the durable guard and prefetched/unacknowledged-message details
    are not implemented.
-3. Define enforcement for the accepted TLS-in-transit, encrypted
-   host/storage-class volumes, restricted access and 30-day quarantine policy.
-   Specify and test the audited operator reader/export path, backup deletion,
-   TTL verification and size limits before any reader access is enabled.
+3. Implement and verify enforcement for the accepted TLS-in-transit,
+   encrypted host/storage-class volumes, and restricted access. Operators may
+   read/export only through the audited tool; direct AMQP and management reads
+   remain disabled. Verify message-age-based backup deletion, TTL expiry, audit
+   records, the 1 MiB per-message body-plus-headers limit, and the 1 GiB queue
+   cap before enabling any reader. Overflow must leave the source unacknowledged
+   and pause consumption.
 4. Confirm the permanent-error allowlist against actual exception types and
    receipt transaction behavior; unknown remains fail-closed.
 5. Approve required headers and behavior for collisions, unsupported header

@@ -89,20 +89,27 @@ Recovery Workbench remains gated. The canonical M5.3 Design Gate remains
 
 ## S30-06 decision update — 2026-10-04
 
-The user subsequently accepted the exact durable quarantine exchange
-`com.cp.e.topic.order.quarantine.v1`, queue
+The user subsequently accepted the exact durable topic quarantine exchange
+`com.cp.e.topic.order.quarantine.v1`, durable classic queue
 `com.cp.q.order.quarantine.v1`, and binding key `order.quarantine.v1`, with
 deployment tooling as the sole topology owner. The topology must exist in all
 environments; production Helm continues to use external RabbitMQ and needs a
-documented handoff. The accepted encryption policy requires TLS in transit and
-encrypted host/storage-class volumes in all environments, along with
-restricted access. The accepted retention mechanism is Rabbit queue-level
+documented handoff. The accepted encryption policy requires
+server-authenticated TLS with CA/hostname verification and separate broker
+credentials, plus encrypted host/storage-class volumes in all environments.
+Operators may read/export data only through an audited tool; direct AMQP and
+management reads remain disabled until it is implemented and tested. The
+accepted retention mechanism is Rabbit queue-level
 message TTL (`x-message-ttl`), verification that messages are no longer
-retrievable one hour after expiry, and the same 30-day deletion horizon for
-backups and exports. These
-decisions also require every raw-message read/export to be audit logged.
-The audited reader path remains to be designed; direct operator queue access
-will remain disabled until that path is verified. These decisions resolve
+retrievable one hour after expiry. Each backup/export containing a message
+must be deleted by that message's original 30-day deadline, even if a newer
+full-broker snapshot has to expire early. Every raw-message read/export must
+be audited. Operators may access data only through an audited tool; direct
+AMQP and management reads remain disabled until it is implemented and tested.
+The user also accepted a 1 MiB combined body-plus-headers limit per message
+and 1 GiB per queue; overflow must be rejected, leaving the source unacknowledged
+and consumption paused.
+These decisions resolve
 policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b
 attempt fencing is implemented or proven by this documentation update. The

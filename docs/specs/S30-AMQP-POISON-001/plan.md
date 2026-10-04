@@ -11,7 +11,8 @@ must not weaken that transaction boundary or infer downstream finance/stock
 completion from a receipt. Deployment-tooling-only ownership of new quarantine
 resources is accepted. The accepted resources are durable exchange
 `com.cp.e.topic.order.quarantine.v1`, durable queue
-`com.cp.q.order.quarantine.v1`, and routing key `order.quarantine.v1`.
+`com.cp.q.order.quarantine.v1` (classic), and routing key
+`order.quarantine.v1`.
 Concrete deployment artifacts still need task-packet assignment before
 implementation.
 
@@ -37,9 +38,16 @@ local artifacts and document the external-Rabbit production handoff. All
 environments must provision the topology, and deployment tooling must set
 30-day Rabbit queue-level message TTL (`x-message-ttl`) and verify
 non-retrievability one hour after expiry. Apply the same 30-day deletion policy
-to backups and exports. The accepted raw-data policy requires
-TLS in transit, encrypted host/storage-class volumes, and restricted access;
+to backups and exports, measured from each message's original quarantine time;
+newer full-broker snapshots may require early expiry. The accepted raw-data policy requires
+server-authenticated TLS with CA/hostname verification and separate broker
+credentials, encrypted host/storage-class volumes, and restricted access;
 do not enable the topology where the deployment cannot enforce those controls.
+The user also accepted a 1 MiB maximum combined body-plus-headers size per
+message and a 1 GiB quarantine queue cap. Reject either overflow without
+truncating or dropping; leave the source delivery unacknowledged and pause
+consumption. These limits and the publisher-failure/pause coupling need
+deployment and real-broker verification.
 The accepted verification grace period is one hour. Do not modify AsyncAPI or the
 original source topology unless a contract change is found and recorded; no
 business event schema change is proposed.
@@ -112,8 +120,9 @@ exchange/queue/binding; the application must not declare them. The exact names
 and tooling-only ownership are accepted. Packet the exact Compose/Kubernetes
 resources in all environments, require TLS and encrypted host/storage-class
 volumes, set 30-day `x-message-ttl`, verify non-retrievability after expiry
-plus a grace period, apply the 30-day deletion horizon to backups/exports,
-define missing/mismatched-resource behavior, and document the externally
+plus one hour, delete every backup/export containing a message by that
+message's original 30-day deadline, define missing/mismatched-resource behavior
+in a deployment-owned conformance gate, and document the externally
 managed production Rabbit handoff. Preserve the original source queue
 declaration exactly. The one-hour verification grace period is accepted.
 
@@ -147,12 +156,13 @@ sequenced before production enablement if automatic restart is permitted.
 
 ### D4 — quarantine data controls
 
-The user accepted TLS in transit, encrypted host/storage-class volumes,
+The user accepted server-authenticated TLS with CA/hostname verification and
+separate broker credentials, encrypted host/storage-class volumes,
 restricted access, a 30-day retention horizon for raw body/headers, Rabbit
 `x-message-ttl` plus non-retrievability verification one hour after expiry, and
-the same deletion horizon for backups/exports. Define enforcement boundaries,
-reader identity and audited read/export path, and size limits before enabling
-operator read access. The queue stores sensitive data, not merely diagnostic
+the same message-age deletion deadline for backups/exports. Define enforcement boundaries,
+reader identity and audited read/export path, and enforcement of the accepted
+size limits before enabling operator read access. The queue stores sensitive data, not merely diagnostic
 codes. No direct operator reader may be enabled until every raw-message
 read/export produces the accepted audit evidence.
 
@@ -188,11 +198,12 @@ contracts and demonstrate stale-owner fencing before it can satisfy 06a's
 restart-admission dependency. 06a's topology provisioning and pause/ACK policy
 remain separate blockers.
 
-S30-06c owns operator authorization, audited replay command identity/reason,
-one-shot transitions, and payload correction/conflict workflow. It depends on
-the accepted 06a quarantine format and 06b attempt lifecycle; replay must
-preserve the original operation id and cannot silently mutate a conflicting
-payload.
+S30-06c owns the audited operator reader/export path, operator authorization,
+audited replay command identity/reason, one-shot transitions, and payload
+correction/conflict workflow. It depends on the accepted 06a quarantine format
+and 06b attempt lifecycle; replay must preserve the original operation id and
+cannot silently mutate a conflicting payload. Direct broker read/export
+permissions remain disabled until the audited tool is implemented and tested.
 
 ## Risk tags
 
