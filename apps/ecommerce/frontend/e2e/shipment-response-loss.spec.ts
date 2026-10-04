@@ -177,3 +177,205 @@ test("shipment advance replays after the committed HTTP response is lost", async
   }
   expect(shipmentCountForOrder).toBe(1);
 });
+
+test("competing shipment advances require a new explicit operation after typed conflict", async ({
+  browser,
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const competingContext = await browser.newContext({
+    baseURL: process.env["E2E_BASE_URL"] ?? "http://localhost:9080/home/",
+  });
+  try {
+    await loginAs(page);
+    const orderNumber = await placeFixtureOrder(page);
+
+    await page.getByTestId("order-history-link").click();
+    const orderRow = page
+      .getByTestId("order-row")
+      .filter({ hasText: orderNumber });
+    await expect(orderRow).toBeVisible();
+    await orderRow.getByTestId("view-order").click();
+    await expect(page.getByTestId("order-details")).toContainText("CONFIRMED");
+    await expect
+      .poll(
+        async () => {
+          const orderDetailsResponse = page.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              url.pathname.endsWith(`/api/order/${orderNumber}`) &&
+              response.request().method() === "GET"
+            );
+          });
+          await orderRow.getByTestId("view-order").click();
+          const orderDetails = await orderDetailsResponse;
+          const order = (await orderDetails.json()) as {
+            payment?: { status?: string } | null;
+          };
+          return order.payment?.status ?? "MISSING";
+        },
+        { intervals: [1000, 2000, 5000], timeout: 60_000 },
+      )
+      .toBe("CAPTURED");
+
+    await page.getByTestId("shipment-carrier").fill("E2E Competing Client");
+    const creation = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/shipments") &&
+        response.request().method() === "POST",
+    );
+    await page.getByTestId("create-shipment").click();
+    const creationResponse = await creation;
+    expect(creationResponse.status()).toBe(201);
+    const shipmentNumber = (
+      (await creationResponse.json()) as { shipmentNumber: string }
+    ).shipmentNumber;
+
+    await page.getByRole("link", { name: "Shipments", exact: true }).click();
+    const clientARow = page
+      .getByTestId("shipment-row")
+      .filter({ hasText: orderNumber });
+    await expect(
+      clientARow.getByRole("cell", { name: "PENDING", exact: true }),
+    ).toBeVisible();
+
+    const competingPage = await competingContext.newPage();
+    await loginAs(competingPage);
+    await competingPage
+      .getByRole("link", { name: "Shipments", exact: true })
+      .click();
+    const clientBRow = competingPage
+      .getByTestId("shipment-row")
+      .filter({ hasText: orderNumber });
+    await expect(
+      clientBRow.getByRole("cell", { name: "PENDING", exact: true }),
+    ).toBeVisible();
+
+    const clientBAdvance = competingPage.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/shipments/${shipmentNumber}/advance`) &&
+        response.request().method() === "POST",
+    );
+    await clientBRow.getByTestId("advance-shipment").click();
+    const clientBResponse = await clientBAdvance;
+    expect(clientBResponse.status()).toBe(200);
+    expect(
+      clientBResponse.request().headers()["x-expected-shipment-status"],
+    ).toBe("PENDING");
+    const clientBOperationId =
+      clientBResponse.request().headers()["idempotency-key"] ?? "";
+    expect(clientBOperationId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(((await clientBResponse.json()) as { status?: string }).status).toBe(
+      "DISPATCHED",
+    );
+    await expect(
+      clientBRow.getByRole("cell", { name: "DISPATCHED", exact: true }),
+    ).toBeVisible();
+
+    const clientARequests: Array<{
+      operationId: string;
+      expectedStatus: string;
+    }> = [];
+    page.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        request.url().endsWith(`/api/shipments/${shipmentNumber}/advance`)
+      ) {
+        const headers = request.headers();
+        clientARequests.push({
+          operationId: headers["idempotency-key"] ?? "",
+          expectedStatus: headers["x-expected-shipment-status"] ?? "",
+        });
+      }
+    });
+
+    let staleProblemCode = "";
+    await page.route(
+      `**/home/api/shipments/${shipmentNumber}/advance`,
+      async (route) => {
+        if (
+          route.request().headers()["x-expected-shipment-status"] !== "PENDING"
+        ) {
+          await route.continue();
+          return;
+        }
+
+        const response = await route.fetch();
+        const problem = (await response.json()) as { code?: string };
+        staleProblemCode = problem.code ?? "";
+        await route.fulfill({ response, json: problem });
+      },
+    );
+
+    const staleAdvance = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/shipments/${shipmentNumber}/advance`) &&
+        response.request().method() === "POST",
+    );
+    const refreshedShipments = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname.endsWith("/api/shipments") &&
+        url.searchParams.get("page") === "0" &&
+        response.request().method() === "GET"
+      );
+    });
+    await clientARow.getByTestId("advance-shipment").click();
+    const staleResponse = await staleAdvance;
+    expect(staleResponse.status()).toBe(409);
+    expect(staleProblemCode).toBe("SHIPMENT_STALE_STATUS");
+    expect(
+      staleResponse.request().headers()["x-expected-shipment-status"],
+    ).toBe("PENDING");
+    const staleOperationId =
+      staleResponse.request().headers()["idempotency-key"] ?? "";
+    expect(staleOperationId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(staleOperationId).not.toBe(clientBOperationId);
+    expect((await refreshedShipments).status()).toBe(200);
+    await expect(
+      clientARow.getByRole("cell", { name: "DISPATCHED", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText(
+      "Failed to advance shipment status.",
+    );
+    await expect.poll(() => clientARequests.length, { timeout: 1000 }).toBe(1);
+    expect(clientARequests).toEqual([
+      { operationId: staleOperationId, expectedStatus: "PENDING" },
+    ]);
+
+    const explicitAdvance = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/shipments/${shipmentNumber}/advance`) &&
+        response.request().method() === "POST",
+    );
+    await clientARow.getByTestId("advance-shipment").click();
+    const explicitResponse = await explicitAdvance;
+    expect(explicitResponse.status()).toBe(200);
+    const explicitOperationId =
+      explicitResponse.request().headers()["idempotency-key"] ?? "";
+    expect(explicitOperationId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(explicitOperationId).not.toBe(staleOperationId);
+    expect(
+      explicitResponse.request().headers()["x-expected-shipment-status"],
+    ).toBe("DISPATCHED");
+    expect(
+      ((await explicitResponse.json()) as { status?: string }).status,
+    ).toBe("IN_TRANSIT");
+    await expect(
+      clientARow.getByRole("cell", { name: "IN_TRANSIT", exact: true }),
+    ).toBeVisible();
+
+    await competingPage.reload();
+    const reloadedClientBRow = competingPage
+      .getByTestId("shipment-row")
+      .filter({ hasText: orderNumber });
+    await expect(
+      reloadedClientBRow.getByRole("cell", {
+        name: "IN_TRANSIT",
+        exact: true,
+      }),
+    ).toBeVisible();
+  } finally {
+    await competingContext.close();
+  }
+});

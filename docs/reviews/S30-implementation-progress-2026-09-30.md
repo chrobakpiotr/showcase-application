@@ -1279,3 +1279,41 @@ the original operation identity and expected status and observed the canonical
 `DISPATCHED` response. The order retained exactly one shipment. The independent
 evaluator returned **PASS**. The focused run reported 3 passed, the responsive
 layout suite reported 17 passed, and `git diff --check` passed.
+
+## S30-07e task packet: real HTTP stale-status conflict from a competing client
+
+Base checkpoint: `1c1e6aeb563b1dbc434e33f14895b7c6411c315a`. Accepted source:
+master review §13.2/§13.7 and S30-07c's explicit second-tab boundary. Extend the
+real HTTP/PostgreSQL Playwright shipment flow: load one shipment as client A and
+client B while `PENDING`; let B advance it to `DISPATCHED`; then submit A's still
+pending `PENDING` operation. A must receive HTTP 409 with
+`SHIPMENT_STALE_STATUS`, refresh to canonical `DISPATCHED`, and issue no
+automatic follow-up. Only a second deliberate click by A may submit a new
+operation ID with expected status `DISPATCHED` and advance to `IN_TRANSIT`.
+Verify B can reload and observe that canonical state. Do not change API or
+product behavior; this checkpoint supplies the missing real-client evidence for
+the existing typed-conflict/reload contract.
+
+Allowed paths: `apps/ecommerce/frontend/e2e/shipment-response-loss.spec.ts` and
+this report only. Use the isolated E2E stack and Playwright; do not overlap a
+Gradle build or alter Compose/CI. Assert both clients' request headers, the
+typed 409 response, no stale-client advance before explicit user action, the
+new key/status pair on the subsequent action, and final persisted state. Run
+only the focused Playwright test and `git diff --check`; obtain independent
+frontend/evaluator review before acceptance. Commit locally after verification;
+do not push.
+
+S30-07e E2E verification passed against the disposable PostgreSQL-backed stack.
+Two browser contexts loaded the same `PENDING` shipment; B advanced it to
+`DISPATCHED`, and A's stale request received HTTP 409 with
+`SHIPMENT_STALE_STATUS`. The test confirms A issued no follow-up before a second
+deliberate click, then used a fresh operation ID with expected status
+`DISPATCHED` to reach `IN_TRANSIT`; B's reload observed that persisted status.
+The test captures the real backend conflict response in a Playwright
+`route.fetch()` pass-through before the UI refresh, then returns that response
+with its status and problem body to the page. The focused Playwright command reported 1 passed in
+18.9 seconds; Prettier and `git diff --check` passed. Independent review of the
+final response-capture adjustment: **PASS**. The reviewer confirmed that the
+request reaches the real backend, the problem body is captured before the UI
+refresh, and the HTTP status and response metadata are retained. The scoped
+changes match this packet. No concrete issues were found.
