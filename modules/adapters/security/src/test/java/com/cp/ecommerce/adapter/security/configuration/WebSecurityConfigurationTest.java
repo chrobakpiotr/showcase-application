@@ -391,4 +391,15 @@ class WebSecurityConfigurationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void shouldProtectDispatchRedriveWithOrderWriteOnly() throws Exception {
+        final String path = "/api/order-placement/dispatches/dispatch/redrive";
+        mockMvc.perform(post(path)).andExpect(status().isUnauthorized());
+        mockMvc.perform(post(path).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andExpect(status().isForbidden());
+        final int response = mockMvc.perform(post(path).with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+                .andReturn().getResponse().getStatus();
+        assertThat(response).isNotIn(401, 403);
+    }
+
 }

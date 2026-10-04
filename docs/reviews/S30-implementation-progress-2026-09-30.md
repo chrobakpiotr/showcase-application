@@ -930,3 +930,84 @@ This confirms confirm alone cannot authorize source ACK and container stop is
 not a durable restart guard. 06a remains blocked on durable restart admission
 sequencing plus data access/retention and provisioning-owner decisions; no AMQP
 production code was changed.
+
+## S30-08d2 task packet: audited bounded dispatch redrive
+
+Accepted source: master review §14 and independent persistence/concurrency review.
+Add an authenticated operator command that redrives only an existing `PARKED`
+dispatch whose safe reason is exactly `ATTEMPT_BUDGET_EXHAUSTED`. `ORDER_MISSING`
+and all other statuses/reasons remain ineligible. No blanket retry. One command
+atomically creates an immutable audit snapshot and transitions the same stable
+dispatch row to `PENDING`; the ordinary scheduler performs delivery later. A
+subsequent parked cycle requires a new command ID. The local policy assumption
+is that each accepted redrive resets attempts to0 for one fresh configured
+1..8-attempt cycle; preserve the previous attempts and safe reason in audit.
+Preserve dispatch ID/order/type and original created time, so the unique
+`(order,type)` enqueue dedup fact remains intact. Same command replay returns
+`REPLAYED`; command-ID reuse with changed dispatch, actor or reason conflicts.
+No SMTP/Camel call occurs in the command transaction.
+
+Proposed route: `POST /api/order-placement/dispatches/{dispatchId}/redrive`;
+`ORDER_WRITE` only. Reuse the current authenticated actor provider and
+`X-Redrive-Command-Id` / `X-Redrive-Reason` header convention from cancellation
+redrive. Actor is never caller-supplied. Command ID length1..80, dispatch ID
+length<=100, reason trimmed/nonblank/<=500. Input errors map400, missing target
+404, eligibility/idempotency conflicts409, success202 with `REQUEUED` or
+`REPLAYED`. These path/header/status choices are explicit local API assumptions
+for review before implementation.
+
+Allowed paths: new domain redrive command/outcome/ports/use case; new persistence
+adapter/entity/repository and Liquibase changeset plus master registration; web
+controller/resource; a foundation conflict exception extending the existing
+`ApplicationConflictException`; `WebSecurityConfiguration` explicit matcher/tests; focused
+domain/persistence/web/security tests and real PostgreSQL integration; this
+report. No changes to dispatch entity schema, scheduler algorithm, front end,
+AMQP, generic redrive framework or terminal retention. Audit table has no FK to
+the dispatch row so a later separately approved retention policy can prune
+dispatch records without destroying the audit snapshot. Rollback drops only the
+new table and loses audit history; document backup/export and forward-fix
+preference.
+
+Required concurrency cases: same command twice produces one audit/transition;
+different simultaneous commands serialize on the target row and only one wins;
+scheduler claim and redrive have one winner; stale prior claim cannot overwrite a
+new claim; audit insert/transition commit atomically. Verify replay and changed
+payload conflict, rejection of `ORDER_MISSING`, full prior-attempt snapshot,
+configured bounded retry cycle, actor binding, ORDER_WRITE authorization, and
+real PostgreSQL migration. Audit retention/privacy is not invented here and
+remains a separate policy decision.
+
+S30-08d2 complete. Audited redrive is restricted to `PARKED` rows with the
+`ATTEMPT_BUDGET_EXHAUSTED` safe reason and no residual claim markers. It atomically
+records the command/actor/reason/prior-cycle snapshot and resets that same stable
+dispatch row for one bounded retry cycle. Replays are idempotent and changed
+bindings conflict; no provider call occurs in the command transaction.
+
+Focused domain, persistence, web and security tests passed; real PostgreSQL
+integration passed 5/5, including concurrent same/different command behavior,
+scheduler-claim serialization, rollback and residual-marker rejection. The
+independent persistence/concurrency review was **PASS**. Required-status policy
+validator tests passed 2/2, and `git diff --check` passed. Audit retention/privacy
+and rollback export remain policy considerations for later work.
+
+## S30-09a task packet: align required-status documentation to observed API
+
+Accepted source: master review F10 and the immutable S22-09-25 closure evidence.
+Update the stale `docs/ci/required-status-checks.md` and
+`tooling/quality/github-required-status-policy.json` from the latest read-only
+GitHub ruleset API snapshot. Record active ruleset identity, exact aggregate
+contexts, observed bypass-actor field, endpoint/source/update timestamp, and the
+separate branch-protection inspection limit. Preserve old S22 snapshots and
+closure reports; add a new dated API evidence artifact. Do not mutate remotes or
+claim an unavailable branch-protection result. Update the policy validator and
+its tests to validate the read-only current snapshot while retaining the desired
+policy fragment for the two aggregate checks.
+
+Allowed paths: `docs/ci/required-status-checks.md`, a new dated snapshot under
+`docs/ci/`, `tooling/quality/github-required-status-policy.json`,
+`tooling/scripts/verify_required_status_policy.py`, its direct unittest file, and
+this progress report. No GitHub API mutation, workflow change, ruleset deployment,
+or historical evidence rewrite. Run only the required-status validator tests and
+`git diff --check`; an independent review must compare the recorded API fields
+with the command output and ensure the document does not overclaim bypass or
+branch-protection state.

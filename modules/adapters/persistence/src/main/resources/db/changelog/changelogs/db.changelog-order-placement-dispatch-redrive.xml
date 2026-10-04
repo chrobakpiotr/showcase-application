@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <changeSet id="s30-08d2-placement-dispatch-redrive" author="cp">
+        <createTable schemaName="${schema_name_full}" tableName="ORDER_PLACEMENT_DISPATCH_REDRIVE">
+            <column name="COMMAND_ID" type="VARCHAR(80)">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_PLACEMENT_DISPATCH_REDRIVE" />
+            </column>
+            <column name="DISPATCH_ID" type="VARCHAR(100)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORDER_NUMBER" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="DISPATCH_TYPE" type="VARCHAR(30)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ACTOR" type="VARCHAR(120)">
+                <constraints nullable="false" />
+            </column>
+            <column name="REASON" type="VARCHAR(500)">
+                <constraints nullable="false" />
+            </column>
+            <column name="PREVIOUS_ATTEMPTS" type="INT">
+                <constraints nullable="false" />
+            </column>
+            <column name="PREVIOUS_REASON" type="VARCHAR(40)">
+                <constraints nullable="false" />
+            </column>
+            <column name="ORIGINAL_CREATED_AT" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="CREATED_AT" type="TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+        <createIndex schemaName="${schema_name_full}" tableName="ORDER_PLACEMENT_DISPATCH_REDRIVE" indexName="IDX_PLACEMENT_DISPATCH_REDRIVE_TARGET">
+            <column name="DISPATCH_ID" />
+            <column name="CREATED_AT" />
+        </createIndex>
+        <rollback>
+            <dropTable schemaName="${schema_name_full}" tableName="ORDER_PLACEMENT_DISPATCH_REDRIVE" />
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

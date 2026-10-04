@@ -132,6 +132,8 @@ public class WebSecurityConfiguration {
         http.authorizeHttpRequests(
                 authorize -> authorize.requestMatchers(OPEN_API_PATH_MATCHERS)
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/order-placement/dispatches/*/redrive")
+                        .hasRole(ORDER_WRITE_ROLE)
                         .requestMatchers(HttpMethod.GET, "/api/order-placement/dispatches/parked")
                         .hasRole(ORDER_READ_ROLE)
                         .requestMatchers(HttpMethod.GET, ORDER_API_PATH_MATCHER)

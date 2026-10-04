@@ -52,4 +52,6 @@
     <include file="changelogs/db.changelog-order-fulfillment-receipt.xml" relativeToChangelogFile="true" />
     <include file="changelogs/db.changelog-order-placement-dispatch.xml" relativeToChangelogFile="true" />
 
+    <include file="changelogs/db.changelog-order-placement-dispatch-redrive.xml" relativeToChangelogFile="true" />
+
 </databaseChangeLog>
