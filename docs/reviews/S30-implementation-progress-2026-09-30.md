@@ -1482,3 +1482,20 @@ operator-reference smoke passed 2/2 in a disposable Python 3.12 container with
 Git installed. A first attempt without Git failed at fixture setup and was
 rerun with the required executable. Independent documentation review and
 `git diff --check` remain the commit gates.
+
+## S30-09f task packet: synchronize the supplemental master re-review
+
+Accepted source: S30-03d/e. Refresh only the supplemental portion of the current
+S30 master re-review to enumerate the additional evidence commits, record that
+Docker discovery is visible but does not qualify or authorize launch, and point
+F10 at the corrected operator-reference wording. Preserve historical baseline
+tables and the explicit no-live-CI-check caveat. This is status synchronization,
+not final S30 closure. Run the local Markdown-link checker for the re-review and
+`git diff --check`, obtain independent read-only review, then commit locally.
+
+S30-09f updates the supplemental baseline to include the S30-03d/e and
+documentation commits. F05 now reflects Docker's discovery-only doctor status
+while preserving the qualification, Q11/Q12/Q16 and no-payload limits. F10 now
+records the operator-reference correction. The historical snapshot and the
+no-live-CI-check caveat remain unchanged. Markdown links and `git diff --check`
+passed; independent review remains the commit gate.
