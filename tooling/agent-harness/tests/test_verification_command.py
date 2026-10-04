@@ -38,6 +38,36 @@ class VerificationCommandTest(unittest.TestCase):
             self.assertFalse(sentinel.exists())
             launch.assert_not_called()
 
+    def test_docker_discovery_alone_cannot_launch_in_auto_or_required_mode(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self.git_root(root)
+            docker = root / 'docker'
+            docker.write_text('#!/bin/sh\nexit 0\n')
+            docker.chmod(0o755)
+            sentinel = root / 'sentinel'
+            with mock.patch.object(command.verification_sandbox.platform, 'system',
+                                   return_value='Darwin'), \
+                 mock.patch.object(command.verification_sandbox.shutil, 'which',
+                                   side_effect=lambda name: str(docker) if name == 'docker' else None):
+                status = command.verification_sandbox.doctor()
+                self.assertTrue(status['backend_status']['docker-container']['discovered'])
+                self.assertFalse(status['backend_status']['docker-container']['qualified'])
+                self.assertFalse(status['backend_status']['docker-container']['launch_ready'])
+                with mock.patch.object(command.CommandExecutionBackend, 'launch') as launch:
+                    automatic = command.run_command(
+                        f"python3 -c 'open(\\\"{sentinel}\\\", \\\"w\\\").write(\\\"ran\\\")'",
+                        cwd=root, run_dir=root / 'run-auto', timeout_seconds=5,
+                        sandbox_mode='auto')
+                    required = command.run_command(
+                        f"python3 -c 'open(\\\"{sentinel}\\\", \\\"w\\\").write(\\\"ran\\\")'",
+                        cwd=root, run_dir=root / 'run-required', timeout_seconds=5,
+                        sandbox_mode='required')
+            self.assertEqual('backend-not-v2-qualified', automatic.error)
+            self.assertEqual('VERIFICATION_SANDBOX_UNAVAILABLE', required.error)
+            self.assertFalse(sentinel.exists())
+            launch.assert_not_called()
+
     def test_R15_backend_discovery_or_prepare_failure_never_reaches_payload(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)

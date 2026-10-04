@@ -1545,3 +1545,50 @@ the authenticated HTTP 400 responses for key-only, status-only, blank, and
 The original snapshot table and no-live-CI-check boundary remain intact.
 Markdown links and `git diff --check` passed. Independent re-review returned
 **PASS**. S30-09g was committed locally as `8efaf19`; nothing was pushed.
+## Accepted product decisions — 2026-10-04
+
+The user accepted the following previously open S30 policy decisions:
+
+- **S30-06 AMQP restart:** after a poison/unknown pause, process or broker
+  restart must not automatically resume consumption; an explicit operator
+  action is required. Durable enforcement, operator authentication/audit,
+  pause scope, in-flight delivery handling, readiness/alerting and channel-loss
+  behavior remain unimplemented or undecided.
+- **S30-06 quarantine data:** raw quarantined payloads and headers must be
+  encrypted, access-restricted, and retained for 30 days. The encryption
+  boundaries, access/export audit, backup, deletion enforcement and payload
+  size controls still need implementation-level definition and verification.
+- **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely
+  because `(order, dispatch type)` is the enqueue deduplication fact. No
+  terminal-row deletion/retention mechanism is authorized under this decision.
+
+These decisions clear the high-level restart, raw-quarantine retention, and
+dispatch-row horizon questions only. They do not close S30-06's topology owner,
+in-flight/pause mechanics, durable restart guard, error taxonomy, header policy
+or 06b attempt/fencing/privacy requirements. They also do not establish a
+production dispatch workload or latency objective. See the current state in
+[`S30-master-review-rereview-2026-10-04.md`](S30-master-review-rereview-2026-10-04.md).
+
+## S30-03e task packet: Docker-only discovery must not launch
+
+Accepted source: S30 master-review §9 and the S30-03c Docker capability
+evidence. Add a regression at the real command bridge proving that discovering
+only Docker leaves qualification/readiness false and cannot run a sentinel
+payload in either `auto` or `required` mode. Do not add a Docker backend or
+change qualification/launch authority. Allowed paths: the focused command test
+and this progress record. Run the focused command suite under Python 3.12 and
+record the host-runtime limitation; obtain independent read-only review before
+commit.
+
+The regression drives `run_command` with Docker as the sole discovered helper.
+Doctor shows Docker discovered but neither qualified nor launch-ready. Automatic
+mode returns `backend-not-v2-qualified`; required mode returns
+`VERIFICATION_SANDBOX_UNAVAILABLE`. In both cases the mocked physical launch is
+never called and the sentinel is absent. The focused command module passed 8/8
+under `showcase-s30-harness:local` (Python 3.12). The host Python 3.9 attempt
+failed while importing existing Python 3.10+ union-type syntax and is not valid
+verification evidence. `git diff --check` and Markdown-link checks passed.
+Independent read-only review of this test and the accepted policy updates:
+**PASS**; no qualification or contract overclaim found.
+This is a negative-path regression only; it does not qualify Docker or unblock
+S30-01/S30-03 execution.

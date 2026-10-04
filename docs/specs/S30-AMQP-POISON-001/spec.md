@@ -83,7 +83,7 @@ facts or accepted production decisions until reviewed:
    source metadata when available, but do not claim it is unique when source
    identifiers are absent or duplicated. No quarantine replay is automated.
 
-## Pause contract — unresolved acceptance blocker
+## Pause contract — partially accepted
 
 Fail-closed handling needs a precise lifecycle decision before implementation.
 Pausing one consumer, all consumers on the container, or shutting down the
@@ -103,15 +103,20 @@ accepted durable mechanism) must precede production release if process restart
 is allowed to reactivate the listener. The spike did not test stale-handler
 fencing after restart.
 
-The product/operations owner must choose and document: (a) pause scope and
-whether in-flight handlers drain or remain unacked; (b) health/readiness state
-and alerting while paused; (c) who/what resumes it; (d) behavior on broker
-channel loss and process restart; and (e) whether restart may redeliver the
-failing message. This 06a slice has no durable attempt ledger, retry budget, or
-operator replay audit record, so it cannot claim a finite retry count, automatic
-recovery, or hot-message isolation across process restarts. If an automatic
-restart is required, that is a blocker requiring 06b or a separately accepted
-durable guard before 06a can meet the no-hot-requeue contract.
+The accepted restart decision is: after a poison/unknown pause, application or
+broker restart must not automatically resume consumption; an explicit operator
+action is required. This is a lifecycle requirement, not a claim that the
+current volatile container pause survives process restart. A durable pause
+record/admission guard and the operator authentication/audit mechanism remain
+to be designed and tested before production release.
+
+The pause scope, treatment of other in-flight handlers, readiness/alert state,
+channel-loss behavior, and handling of the failing delivery still require
+explicit decisions. This 06a slice has no durable attempt ledger, retry budget,
+or operator replay audit record, so it cannot claim a finite retry count,
+automatic recovery, or hot-message isolation across process restarts. A durable
+guard from 06b or another accepted mechanism is required before production
+release.
 
 ## Error and delivery semantics
 
@@ -131,11 +136,12 @@ not establish exactly-once processing in other systems.
 ## Security and retention
 
 Quarantine stores the raw inbound body and headers, which may contain personal
-or otherwise sensitive information. Restrict access to the smallest operator
-and service set; never log the raw body or sensitive headers. Define encryption
-at rest/in transit, audit of reads/exports, retention horizon, deletion,
-backup behavior, and payload size limits with the data owner before production
-acceptance. **The retention horizon is unresolved and must not be inferred.**
+or otherwise sensitive information. The accepted policy requires encryption,
+access restriction to the smallest operator and service set, and retention for
+30 days. Never log the raw body or sensitive headers. Exact encryption
+boundaries, access/read-export audit, backup behavior, deletion enforcement,
+and payload size limits still require implementation-level definition and
+verification before production acceptance.
 If the current broker/deployment cannot enforce the accepted access and
 retention controls, do not enable this topology in production until it can.
 
@@ -269,17 +275,19 @@ decide at least:
 5. How malformed JSON and absent, blank, overlong, or otherwise invalid
    `operationId` values receive bounded treatment without fabricating a valid
    business identity or allowing unbounded unique ledger rows.
-6. Ledger and quarantine retention, deletion, backup, access audit, encryption,
-   and data minimization. Operation ID/order/customer fields and raw payloads
-   may be sensitive; neither retention horizon nor privacy controls are
-   inferred here. The current `MessageListener` also logs `operationId` and
+6. The durable 06b ledger's retention/deletion, backup, access audit,
+   encryption, and data minimization. For 06a quarantine, raw body and headers
+   are accepted as encrypted, access-restricted, and retained for 30 days;
+   enforcement details remain open. Operation ID/order/customer fields may
+   also be sensitive. The current `MessageListener` logs `operationId` and
    `orderNumber` at INFO, so the privacy review must include log access and
    retention rather than limiting the analysis to database and quarantine
    storage.
 
 This 06b checkpoint does not clear 06a's separate blockers: exact quarantine
-topology provisioning owner, source ACK/pause/drain/readiness/restart policy,
-raw-payload controls, and permanent-error taxonomy. In particular, 06b must
+topology provisioning owner, source ACK/pause/drain/readiness/restart
+enforcement, quarantine data-control enforcement, and permanent-error taxonomy.
+In particular, 06b must
 not be treated as a production-ready restart guard until its durable admission
 and stale-owner fencing behavior is accepted and tested with the real
 production listener container. Quarantine transfer, attempt recording, receipt
@@ -290,11 +298,12 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 
 1. Accept or replace the proposed exact topology names and declare whether
    application or deployment tooling owns provisioning.
-2. Choose pause/drain/in-flight, readiness/alert, resume, channel-loss, and
-   restart semantics. In particular, decide how to prevent restart-driven
-   hot requeue without the 06b ledger.
-3. Approve quarantine payload data classification, access/audit controls,
-   retention/deletion horizon, encryption, backup, and size limits.
+2. Specify pause/drain/in-flight, readiness/alert, channel-loss, and operator
+   resume mechanics. The decision that restart alone never resumes consumption
+   is accepted; the durable guard needed to enforce it is not implemented.
+3. Define enforcement for the accepted encrypted, restricted-access,
+   30-day quarantine policy, including read/export audit, backup, deletion, and
+   size limits.
 4. Confirm the permanent-error allowlist against actual exception types and
    receipt transaction behavior; unknown remains fail-closed.
 5. Approve required headers and behavior for collisions, unsupported header

@@ -20,9 +20,9 @@ CI run. No remote settings or external handbook were changed.
 | F04 — required-gate applicability | **Addressed at local planner policy** | S30-04a adds truth-table selection for persistence, AMQP, domain/foundation, orchestration, PIT configuration, verifier/manifest and build configuration paths. This does not replace dedicated CI or qualify verifier execution on an isolated host. |
 | F05 — production backend qualification | **Open; blocks accepted execution** | S30-03a rejected available native sandbox probes for Q08/Q09 descendant escape; the Codex wrapper probe was unsupported for most checks. S30-03b reports discovery separately from qualification/readiness. Production qualification, lifecycle admission and one-shot launch capability are absent. |
 | F06 — candidate/build-output separation | **Primitive implemented; operational integration open** | S30-02b1 materializes and validates a diagnostic source workspace with privacy and path checks. It grants no launch/PASS authority; accepted writable-root policy, read-only Git metadata and producer/consumer output binding remain. Arbitrary builds in a sealed candidate are not yet an accepted operational path. |
-| F07 — AMQP permanent-error handling | **Open; design blockers recorded** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. S30-06b maps evidence-backed receipt and failure boundaries but explicitly leaves retry, fencing, malformed identity, database outage, privacy/retention, provisioning and pause/ACK decisions unresolved. No production poison policy is claimed. |
+| F07 — AMQP permanent-error handling | **Open; some product policy accepted, implementation blockers remain** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. The user has accepted operator-only resume after restart and encrypted, access-restricted quarantine retention for 30 days. Topology ownership, pause/in-flight/readiness/channel-loss mechanics, enforcement/audit/backup/size controls, retry taxonomy, fencing, malformed identity and database-outage behavior remain open. No production poison policy is claimed. |
 | F08 — shipment HTTP/retry contract | **Partial** | S30-07a–c add complete header validation, typed stale/fingerprint conflict codes and reload-persistent operation identity in the client. Focused backend/frontend tests passed, but the packet does not claim the full real-backend response-loss/reload E2E matrix. |
-| F09 — bounded dispatch retries and operations | **Core behavior implemented; retention and production-scale cost remain open** | S30-08a–c add due-order progress, bounded attempts/parking and validated worker/timeout configuration. S30-08d1–d2 add a bounded parked queue and atomic audited redrive with PostgreSQL concurrency coverage. S30-08e measures synthetic one-million-row distributions with 0.1% and 10% PARKED; work grows with parked-set cardinality, but no production distribution or latency objective is established, so no index/SLA decision follows. Terminal-row deletion/replay horizon remains undecided because the dispatch row is also the enqueue dedup fact. |
+| F09 — bounded dispatch retries and operations | **Core behavior implemented; retention decided, production-scale cost remains open** | S30-08a–c add due-order progress, bounded attempts/parking and validated worker/timeout configuration. S30-08d1–d2 add a bounded parked queue and atomic audited redrive with PostgreSQL concurrency coverage. S30-08e measures synthetic one-million-row distributions with 0.1% and 10% PARKED; work grows with parked-set cardinality, but no production distribution or latency objective is established, so no index/SLA decision follows. The user has decided terminal dispatch rows remain indefinitely because `(order, type)` is the dedup fact; no deletion/retention implementation should be added without revising that contract. |
 | F10 — stale/overstated documentation | **Partial** | S30-09a records a read-only ruleset snapshot with exact contexts and `bypass_actors: null`; its branch-protection endpoint was not queried, so administrator bypass state outside that response remains unverified. S30-09b adds current CLI guidance and caveats without restoring the removed handbook or changing the Drive PDF. Automated doc-example smoke and final post-implementation closure remain open. |
 
 S30-05a adds schema field-surface regression coverage to the existing harness
@@ -39,7 +39,7 @@ Those records do not establish current end-to-end verifier readiness. The
 following remain unproven or explicitly blocked: complete independent-origin
 admission and obligation coverage; one-shot qualified launch and durable
 terminal completion; safe build-output integration; AMQP poison quarantine and
-restart fencing; terminal dispatch retention policy; qualified-host and
+restart fencing; measured production-scale dispatch cost; qualified-host and
 accepted-authority positive-path CI; and the Recovery Workbench prerequisites.
 The canonical M5.3 Design Gate remains **NOT PASS**.
 
@@ -48,18 +48,19 @@ The 2026-10-04 ruleset artifact records only the response from
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
 
-## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, `85aeb35`, `8efaf19`, `ae8b45f`, and `bc8346e`
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, `85aeb35`, `8efaf19`, `ae8b45f`, `bc8346e`, and `d23e837`
 
 This update incorporates the S30-07d/e/f/g evidence recorded after the original
 `f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
 parked-query measurement, Docker's discovery-only doctor status, and the
 operator-reference correction. The later `8efaf19` synchronization records the
-S30-07g HTTP evidence; `ae8b45f` corrects the earlier commit count, and
-`bc8346e` records the completed Docker documentation checkpoints. It does not
-replace the original finding history or establish final S30 closure. The current
-tree is twelve local commits ahead of `origin/main`; this list names all twelve,
-including evidence updates and documentation synchronization. No live GitHub CI
-result was checked for this snapshot.
+S30-07g HTTP evidence; `ae8b45f` corrects the earlier commit count, `bc8346e`
+records the completed Docker documentation checkpoints, and `d23e837` syncs
+the list through those twelve commits. At the `d23e837` snapshot, the branch
+was thirteen commits ahead of `origin/main`; the header lists all thirteen,
+including that synchronization commit. No live GitHub CI result was checked.
+Subsequent policy decisions are recorded in the progress report and are not
+live-CI claims.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|
@@ -74,6 +75,8 @@ the vulnerable bundled component. Do not report that dependency as fixed.
 
 Other finding statuses remain as in the original table. In particular, F01–F06
 and F07 remain open at their stated production-admission, qualification,
-output-boundary, poison-policy, and independent-CI acceptance boundaries. The
+output-boundary, poison-policy, and independent-CI acceptance boundaries. For
+F09, indefinite dispatch-row retention is now accepted, while its measured
+production-scale cost and latency objective remain open. The
 Recovery Workbench remains gated. The canonical M5.3 Design Gate remains
 **NOT PASS**.
