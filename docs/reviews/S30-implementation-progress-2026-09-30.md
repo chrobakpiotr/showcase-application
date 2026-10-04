@@ -859,3 +859,62 @@ pause alone does not survive process restart; if restart may immediately
 redeliver failures, a durable guard/ledger is a prerequisite. No retention
 horizon is inferred. Next 06 work must close these decisions in the spec before
 implementation.
+
+## S30-08d1 task packet: bounded read-only parked dispatch queue
+
+Accepted source: master review §14 and independent persistence/concurrency review.
+Expose a read-only paginated view of `PARKED` placement dispatch records only.
+Use a domain query port/model and a bounded projection query; never use `findAll`
+or expose JPA entities. Default page size20, maximum50, page index0..1000,
+stable ascending `CREATED_DATE` then `DISPATCH_ID` ordering. Return dispatch ID,
+order number, dispatch type, status, attempts, created time, safe reason code,
+and queue-wide `oldestAgeSeconds` computed from a separate bounded `MIN`
+projection. The page rows and aggregate are read-time observations, not a frozen
+snapshot. Reject invalid sizes and page indexes with a controlled 400.
+`PARKED.NEXT_ATTEMPT_DATE` is the parking timestamp, not a due date: return
+`nextAttemptAt: null` (or the agreed explicit N/A representation). Map known
+reasons `ORDER_MISSING` and `ATTEMPT_BUDGET_EXHAUSTED`; map unknown persisted
+values to `OTHER`. Never return `LAST_ERROR`, claims, customer data or provider
+payload. No database/schema changes.
+
+Explicit local API/security assumptions for this checkpoint: GET
+`/api/order-placement/dispatches/parked`, protected by existing `ORDER_READ`,
+which already grants access to order numbers and order details. The endpoint is
+read-only, does not mutate claims or retry state, and has no client-supplied
+status filter. If architecture/security review rejects that role or path, record
+replacement before implementation. Query pages represent the ordered result at
+read time and are not an immutable snapshot while dispatch state changes.
+
+Allowed paths: new domain dispatch queue view/port/use case; persistence dispatch
+repository projection/adapter and tests; web controller/resource and tests;
+explicit GET matcher/security tests in `WebSecurityConfiguration`; real
+PostgreSQL backend integration tests; this report. No frontend, retry manager,
+redrive, retention, entity/schema or old timeline changes. Verify page bounds,
+stable ordering, safe reason mapping, no sensitive fields, authorization and
+concurrent status visibility. Focused Java suites plus real PostgreSQL queue
+integration; independent persistence/security review before local commit.
+
+Audited redrive and retention remain separate. The dispatch row is also the
+unique `(order,type)` dedup fact; deleting terminal rows can permit later enqueue
+and duplicate external effects. Do not add cleanup or redrive in this checkpoint.
+
+S30-08d1 complete. The read-only `PARKED` dispatch endpoint returns a bounded
+page and safe reason codes without exposing raw `LAST_ERROR`, claim data or
+provider/customer payload. Parked rows report no next due time. The response
+includes queue-wide oldest age; page rows and aggregate are read-time views, not
+an immutable snapshot. `ORDER_READ` is the documented local authorization
+assumption. No schema, retry, redrive or retention behavior changed.
+
+Focused verification passed: domain3, persistence2, web2, security1; real
+PostgreSQL integration passed2/2. The first PostgreSQL run exposed a JDK proxy
+visibility error because the projected enum was package-private; making the
+existing enum public fixed it, and the two failed cases alone were rerun and
+passed. Independent persistence/concurrency review: **PASS**. `git diff --check`
+passed.
+
+Performance limitation: page size and offset are capped, but database work grows
+with the parked backlog. The current index does not match `CREATED_DATE,
+DISPATCH_ID` ordering or the separate queue-wide `MIN(CREATED_DATE)`; count and
+minimum can scan all parked rows and sorting may be required. No index was added
+without representative-scale evidence. Measure with production-like volume and
+EXPLAIN/BUFFERS before making a separate index decision.

@@ -378,4 +378,17 @@ class WebSecurityConfigurationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void shouldProtectParkedDispatchQueueWithOrderReadRoleAndDenyMutation() throws Exception {
+        final String path = "/api/order-placement/dispatches/parked";
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(path).with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+                .andExpect(status().isForbidden());
+        final int response = mockMvc.perform(get(path).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andReturn().getResponse().getStatus();
+        assertThat(response).isNotIn(401, 403);
+        mockMvc.perform(post(path).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
+                .andExpect(status().isForbidden());
+    }
+
 }
