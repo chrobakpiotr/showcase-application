@@ -54,8 +54,9 @@ This update incorporates the S30-07d/e/f/g evidence recorded after the original
 `f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
 parked-query measurement, Docker's discovery-only doctor status, and the
 operator-reference correction. It does not replace the original finding history
-or establish final S30 closure. The current tree includes these nine local
-commits; no live GitHub CI result was checked for this snapshot.
+or establish final S30 closure. The current tree includes these nine evidence
+commits plus this separately committed re-review; no live GitHub CI result was
+checked for this snapshot.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|
