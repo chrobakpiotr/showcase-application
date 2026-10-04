@@ -838,3 +838,24 @@ its focused tests; this report. Do not alter backend, routes, endpoint, auth, or
 persistence. Verify reload reuse, unknown-error persistence, exact-ID clearing,
 recognized code behavior in both screens, malformed stored record fail-closed,
 and independent frontend review. Run the focused Angular tests only.
+
+## S30-06a contract discovery checkpoint
+
+Drafted `docs/specs/S30-AMQP-POISON-001/spec.md` and `plan.md` from master
+review §12 and independent messaging review. The draft limits quarantine to
+classified permanent failures, requires manual source ACK only after positive
+publisher confirm plus no mandatory return, preserves the original queue
+contract, and explicitly allows duplicate quarantine copies after ambiguous
+publish/ACK windows. It excludes bounded retry, exactly-once transfer and
+operator replay. Unknown/transient failures fail closed without ACK or hot
+requeue.
+
+Independent messaging review conditionally supports this narrow design but
+requires a production-container Rabbit test, explicit pause/restart lifecycle,
+exact provisioning ownership, and accepted raw-payload access/retention policy.
+Those lifecycle and data-control decisions remain unresolved; therefore 06a is
+**not READY and no production code is authorized by this draft**. A container
+pause alone does not survive process restart; if restart may immediately
+redeliver failures, a durable guard/ledger is a prerequisite. No retention
+horizon is inferred. Next 06 work must close these decisions in the spec before
+implementation.
