@@ -1317,3 +1317,33 @@ final response-capture adjustment: **PASS**. The reviewer confirmed that the
 request reaches the real backend, the problem body is captured before the UI
 refresh, and the HTTP status and response metadata are retained. The scoped
 changes match this packet. No concrete issues were found.
+
+## S30-03c disposable Docker Desktop capability spike
+
+Use disposable probes only under `/private/tmp`; do not add a production backend
+or qualify Docker from engine behavior alone. Exercise filesystem write
+boundaries, descendant visibility after process-group/session escape, container
+drainage, fresh-CLI discovery, identity persistence, and terminal-container
+reuse. Apply read-only root, no network, dropped capabilities,
+`no-new-privileges`, bounded `/tmp`, and separate writable/protected scratch
+binds. Allowed durable path: this progress report only.
+
+The macOS Docker Desktop Linux VM provided useful containment primitives. Q01–
+Q10 probes passed at the container execution-unit boundary: protected writes
+failed; descendants survived `setpgid`/`setsid` escape but remained visible to
+`docker top`; terminating the container drained them. Q13–Q15 demonstrated
+container-wide stop/drain and fresh-CLI discovery. This is capability evidence,
+not formal qualification. Q11 was partial because persisted container identity
+was not bound to the harness's exact canonical policy/repository/birth identity;
+Q12 is not qualified because no adapter performs stale-identity rejection.
+Q16 failed: Docker restarted the same stopped container ID. Without an
+immutable per-start identity and irreversible terminal/drained tombstone, that
+identity can be reused. Therefore no smallest safe payload is authorized and
+S30-03 production wiring remains blocked. Scratch artifacts remain only under
+the stated temporary directory; no repository source or host configuration was
+changed.
+
+Independent read-only review confirmed the distinction between Docker engine
+capability evidence and qualification, and noted that the summarized Q13–Q16
+observations have no retained raw evidence artifact. No qualification claim is
+made.
