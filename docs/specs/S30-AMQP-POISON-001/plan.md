@@ -207,11 +207,13 @@ audit actor from validated issuer and subject claims and deny success if the
 durable audit record cannot be committed. Command ID, reason, generation
 fields, PAUSE actor audit, and audit/state ordering are candidate design details
 pending the implementation contract; do not claim atomic audit/state updates.
-The current Keycloak realm has no app service-account client, but the selected
-identity provider remains open. Whichever provider is chosen must supply a
-distinct audience-bound workload identity and individually attributable
-operator identity; do not reuse the seeded admin credentials or broad current
-business roles.
+For local/dev, the user selected the repository's Keycloak with a separate
+gate-service audience/client, app workload identity, and individual-operator
+resume role. Production must configure a corresponding external issuer/client.
+The current realm has no app service-account client, so development identity
+configuration needs an additive gate client/role without reusing the seeded
+admin credentials. Exact client/role identifiers, token claim shape, and
+credential lifecycle remain to be designed and tested.
 
 ### D4 — quarantine data controls
 

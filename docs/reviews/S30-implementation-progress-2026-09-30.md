@@ -1584,7 +1584,10 @@ The user accepted the following previously open S30 policy decisions:
   audit for RESUME, and refusing resume if audit persistence fails. Exact
   claims, whether PAUSE is audited, audit fields/retention/order, atomicity and
   durable-store details remain open. The existing
-  ecommerce client/ORDER_WRITE/admin identity must not be reused.
+  ecommerce client/ORDER_WRITE/admin identity must not be reused. Local/dev
+  will use the existing Keycloak with a distinct gate audience/client and role;
+  production must configure the corresponding external issuer/client. Exact
+  identifiers, claims and credential lifecycle remain open.
 - **S30-06 quarantine data:** raw quarantined payloads and headers require
   server-authenticated TLS with CA/hostname verification and separate broker
   credentials, encrypted broker host/storage-class volumes in every environment,

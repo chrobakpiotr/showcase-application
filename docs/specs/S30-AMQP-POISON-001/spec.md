@@ -134,9 +134,12 @@ commits before success. Whether PAUSE actor details are audited, the exact token
 claims, audit schema/retention/fields, audit-to-state ordering and recovery,
 atomic update/CAS and generation protocol, durable store and encryption, and
 cross-environment deployment contract remain to be designed and tested before
-release. Command id, reason, and prior/new generation are candidate audit
-fields, not accepted requirements yet; no atomic audit-plus-state guarantee is
-claimed.
+release. The user selected the existing Keycloak for local/dev with a separate
+gate-service audience/client and resume role; production uses the corresponding
+externally configured issuer/client. Exact client/role names, claims and
+credential lifecycle remain to be defined. Command id, reason, and prior/new
+generation are candidate audit fields, not accepted requirements yet; no
+atomic audit-plus-state guarantee is claimed.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation

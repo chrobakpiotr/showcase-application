@@ -122,7 +122,10 @@ deployment surface, but all current instances are ephemeral and therefore do
 not yet qualify as a durable gate. The user accepted dedicated app-workload
 and individual operator identities, a gate-specific resume permission, and
 durable validated-subject audit for RESUME; exact claims, audit fields/order,
-retention and storage details remain open.
+retention and storage details remain open. Local/dev use the existing Keycloak
+with a distinct gate audience/client and role; production configures the
+corresponding external issuer/client. Exact identifiers and credential
+lifecycle remain open.
 These decisions resolve
 policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b
