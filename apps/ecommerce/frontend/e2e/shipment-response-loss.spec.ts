@@ -34,6 +34,36 @@ async function placeFixtureOrder(page: Page): Promise<string> {
   return orderNumber!;
 }
 
+async function expectInvalidAdvanceHeaders(
+  page: Page,
+  shipmentNumber: string,
+  authorization: string,
+): Promise<void> {
+  const invalidHeaders: Record<string, string>[] = [
+    { "Idempotency-Key": "partial-operation" },
+    { "X-Expected-Shipment-Status": "PENDING" },
+    { "Idempotency-Key": "", "X-Expected-Shipment-Status": "PENDING" },
+    {
+      "Idempotency-Key": "x".repeat(81),
+      "X-Expected-Shipment-Status": "PENDING",
+    },
+  ];
+
+  for (const headers of invalidHeaders) {
+    const status = await page.evaluate(
+      async ({ shipmentNumber: number, requestHeaders, authorization }) => {
+        const response = await fetch(`/home/api/shipments/${number}/advance`, {
+          method: "POST",
+          headers: { ...requestHeaders, Authorization: authorization },
+        });
+        return response.status;
+      },
+      { shipmentNumber, requestHeaders: headers, authorization },
+    );
+    expect(status).toBe(400);
+  }
+}
+
 async function waitForCapturedPayment(
   page: Page,
   orderNumber: string,
@@ -105,11 +135,26 @@ test("shipment advance replays after the committed HTTP response is lost", async
   ).shipmentNumber;
   expect(shipmentNumber).toBeTruthy();
 
+  let authorization = "";
+  await page.route("**/home/api/shipments*", async (route) => {
+    authorization = route.request().headers()["authorization"] ?? authorization;
+    await route.continue();
+  });
   await page.getByRole("link", { name: "Shipments", exact: true }).click();
   await expect(page).toHaveURL(/\/shipments(?:$|[?#])/);
   const row = page.getByTestId("shipment-row").filter({ hasText: orderNumber });
   await expect(
     row.getByRole("cell", { name: "PENDING", exact: true }),
+  ).toBeVisible();
+  await page.unroute("**/home/api/shipments*");
+  expect(authorization).toMatch(/^Bearer \S+$/);
+  await expectInvalidAdvanceHeaders(page, shipmentNumber, authorization);
+  await page.reload();
+  await expect(
+    page
+      .getByTestId("shipment-row")
+      .filter({ hasText: orderNumber })
+      .getByRole("cell", { name: "PENDING", exact: true }),
   ).toBeVisible();
 
   let firstOperationId = "";

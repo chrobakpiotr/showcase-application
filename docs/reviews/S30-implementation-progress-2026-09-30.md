@@ -1499,3 +1499,30 @@ while preserving the qualification, Q11/Q12/Q16 and no-payload limits. F10 now
 records the operator-reference correction. The historical snapshot and the
 no-live-CI-check caveat remain unchanged. Markdown links and `git diff --check`
 passed; independent review remains the commit gate.
+
+## S30-07g task packet: real-HTTP shipment header rejection matrix
+
+Accepted source: master review section13.1 and S30-07a's accepted header
+contract. Extend the existing response-loss browser E2E to submit the four
+already-defined invalid request shapes against the real backend: key only,
+expected status only, blank key, and key longer than 80 characters. Reuse the
+authenticated browser's actual bearer token; require HTTP 400 for each and keep
+the shipment PENDING both before and after the requests, with a reload after the
+invalid requests before its valid advance. Do not change the API or header
+policy. Run only the focused real
+PostgreSQL-backed Playwright test, Prettier, and `git diff --check`; remove the
+disposable stack and obtain independent frontend/evaluator review before local
+commit.
+
+S30-07g adds the four malformed-header requests to the real-browser flow. The
+first run returned 401 because a raw browser `fetch` omitted the app's bearer
+token; a second run exposed a missing serialized callback argument. The test
+now copies the Authorization header from the authenticated shipment-list
+request and passes it into the isolated fetch calls. The focused
+`shipment advance replays` Playwright test first passed 1/1 in 14.5 seconds
+against the disposable backend/PostgreSQL stack. Independent review noted that
+the original PENDING assertion preceded malformed requests, so a reload and
+post-rejection PENDING assertion were added. The final focused E2E passed 1/1 in
+14.4 seconds with that assertion. Prettier and `git diff --check` passed; the
+Compose stack and volumes were removed. Final independent review remains the
+commit gate.
