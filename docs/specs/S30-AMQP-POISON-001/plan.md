@@ -252,9 +252,13 @@ advances the gate generation and requires fresh registration/drain acknowledgmen
 or operator fencing before the leader issues permits again.
 
 Each distinct PAUSE episode creates a monotonic latch epoch tied to its command
-ID; same-ID replay reuses its epoch. Each RESUME binds to that exact epoch and
-the expected Redis generation it may clear. Clearing is a durable compare-and-
-set against both values, so a delayed retry cannot clear a newer PAUSE marker,
+ID; same-ID replay reuses its epoch. Each RESUME separately names
+`expected_current_redis_generation` (the pre-transition compare-and-set),
+`barrier_generation` (the generation whose members must drain or be fenced),
+and `resulting_active_generation` (the next generation committed ACTIVE).
+Clearing is a durable compare-and-set against the exact latch epoch, RESUME
+command ID, and resulting ACTIVE generation, so a delayed retry cannot clear
+a newer PAUSE marker,
 including one whose Redis write failed. Epoch/generation mismatch stays
 inhibited and requires a new audited operator command. The cross-store crash,
 restore, and failover protocol remains unproven.

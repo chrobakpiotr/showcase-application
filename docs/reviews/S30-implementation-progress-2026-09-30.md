@@ -1799,3 +1799,13 @@ docs; `test_spec_inventory.py` (3 tests) and `test_design.py` (10 tests) passed;
 `git diff --check` passed. The inventory unit test deliberately prints an
 `ERROR` fixture while verifying drift detection, then reports PASS. This
 checkpoint documents a reviewable protocol candidate, not a closed design gate.
+
+Follow-up review caught imprecise RESUME generation wording in the parent
+spec/plan. They now distinguish `expected_current_redis_generation`,
+`barrier_generation`, and `resulting_active_generation`; latch clear compares
+the resulting ACTIVE generation and exact RESUME command. The architecture
+review also required same-leader recovery after an uncertain latch write to be
+tested separately from active-leader restart recovery; the candidate's evidence
+list now includes both paths and lost-response idempotency. The audit-policy
+conflict remains open. Repeated `test_spec_inventory.py` (3 tests),
+`test_design.py` (10 tests), Markdown link check, and `git diff --check` pass.

@@ -208,12 +208,16 @@ an inhibit after a store recovers.
 Each distinct PAUSE recovery episode advances a monotonic latch epoch and
 records its creating command ID. A same-ID retry reuses its recorded epoch; a
 new PAUSE command creates a new epoch even if an earlier episode is unresolved.
-Every RESUME is bound to the exact latch epoch and Redis generation it intends
-to clear. Clear the latch only with a compare-and-set that confirms the same
-epoch is current and Redis remains ACTIVE at that expected generation. A
-delayed RESUME retry from an older epoch cannot clear a newer PAUSE marker,
-including when the newer PAUSE could not commit to Redis. Epoch or generation
-mismatch leaves admission closed and requires a new audited operator RESUME.
+Every RESUME request names three distinct generations: the
+`expected_current_redis_generation` used as the pre-transition compare-and-set
+condition, the `barrier_generation` whose registered instances must drain or
+be externally fenced, and the `resulting_active_generation` produced by the
+RESUME transition (`expected_current_redis_generation + 1`). Clear the latch
+only with a durable compare-and-set that confirms the same latch epoch, the
+RESUME command ID, and Redis ACTIVE at `resulting_active_generation`. A delayed
+RESUME retry from an older epoch cannot clear a newer PAUSE marker, including
+when the newer PAUSE could not commit to Redis. Epoch or generation mismatch
+leaves admission closed and requires a new audited operator RESUME.
 Storage schema, timestamp/claim formats, exact transaction/locking protocol,
 and cross-store recovery tests remain design and verification blockers.
 
