@@ -189,9 +189,14 @@ export class OrderListComponent implements OnInit {
 
     let pending: PendingShipmentAdvanceOperation;
     try {
-      pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(shipmentNumber, shipment.status);
+      pending = this.shipmentsService.getOrCreatePendingAdvanceOperation(
+        shipmentNumber,
+        shipment.status
+      );
     } catch {
-      this.shipmentErrorMessage.set('Unable to recover pending shipment operation safely. No advance was submitted.');
+      this.shipmentErrorMessage.set(
+        'Unable to recover pending shipment operation safely. No advance was submitted.'
+      );
       return;
     }
 
@@ -314,8 +319,7 @@ export class OrderListComponent implements OnInit {
         const selectedSku = this.returnForm.controls.sku.value;
         if (
           selectedSku &&
-          this.remainingQuantity(selectedSku) === 0 &&
-          this.hasReturnableItems()
+          this.remainingQuantity(selectedSku) === 0
         ) {
           const fallback = this.selectedOrder()?.items.find(
             (item) => this.remainingQuantity(item.sku) > 0
@@ -338,12 +342,17 @@ export class OrderListComponent implements OnInit {
       error: () => this.shipmentErrorMessage.set('Failed to load shipments.'),
     });
   }
-  private clearPendingOperation(shipmentNumber: string, pending: PendingShipmentAdvanceOperation): void {
+  private clearPendingOperation(
+    shipmentNumber: string,
+    pending: PendingShipmentAdvanceOperation
+  ): void {
     try {
-      this.shipmentsService.clearPendingAdvanceOperation(shipmentNumber, pending);
+      this.shipmentsService.clearPendingAdvanceOperation(
+        shipmentNumber,
+        pending
+      );
     } catch {
       // Preserve an unreadable record rather than replacing an unresolved operation.
     }
   }
-
 }

@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 @UseCase
 @RequiredArgsConstructor
 public class GetParkedDispatchesUseCase implements GetParkedDispatchesInPort {
+
     private final FindParkedDispatchesOutPort port;
     private final Clock clock;
 
@@ -23,7 +24,12 @@ public class GetParkedDispatchesUseCase implements GetParkedDispatchesInPort {
         final Long oldestAge = port.findOldestCreatedAt()
                 .map(created -> Math.max(0L, Duration.between(created, clock.instant()).getSeconds()))
                 .orElse(null);
-        return new ParkedDispatchPage(page.content(), page.page(), page.size(),
-                page.totalElements(), page.totalPages(), oldestAge);
+        return new ParkedDispatchPage(
+                page.content(),
+                page.page(),
+                page.size(),
+                page.totalElements(),
+                page.totalPages(),
+                oldestAge);
     }
 }

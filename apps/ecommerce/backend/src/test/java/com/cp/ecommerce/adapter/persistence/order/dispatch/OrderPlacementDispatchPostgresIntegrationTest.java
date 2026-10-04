@@ -150,11 +150,14 @@ class OrderPlacementDispatchPostgresIntegrationTest {
     void fiftyPoisonDispatchesMustNotStarveHealthyDispatchOnSecondDueTick() {
         final List<OrderPlacementDispatchEntity> rows = new ArrayList<>();
         for (int index = 0; index < 50; index++) {
-            rows.add(dispatch("poison-" + String.format("%03d", index), OrderPlacementDispatchStatus.FAILED,
-                    NOW.minusSeconds(100), 1));
+            rows.add(
+                    dispatch(
+                            "poison-" + String.format("%03d", index),
+                            OrderPlacementDispatchStatus.FAILED,
+                            NOW.minusSeconds(100),
+                            1));
         }
-        final OrderPlacementDispatchEntity healthy = dispatch(HEALTHY_ORDER, OrderPlacementDispatchStatus.PENDING,
-                NOW, 0);
+        final OrderPlacementDispatchEntity healthy = dispatch(HEALTHY_ORDER, OrderPlacementDispatchStatus.PENDING, NOW, 0);
         rows.add(healthy);
         repository.saveAllAndFlush(rows);
         given(manageOrderInPort.findOrder(anyString()))
@@ -234,10 +237,14 @@ class OrderPlacementDispatchPostgresIntegrationTest {
         verify(routing, never()).routeNotification(any());
     }
 
-    private static OrderPlacementDispatchEntity dispatch(final String orderNumber,
-            final OrderPlacementDispatchStatus status, final Instant createdAt, final int attempts) {
+    private static OrderPlacementDispatchEntity dispatch(
+            final String orderNumber,
+            final OrderPlacementDispatchStatus status,
+            final Instant createdAt,
+            final int attempts) {
         return OrderPlacementDispatchEntity.builder()
-                .dispatchId(OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
+                .dispatchId(
+                        OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
                 .orderNumber(orderNumber)
                 .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL)
                 .status(status)

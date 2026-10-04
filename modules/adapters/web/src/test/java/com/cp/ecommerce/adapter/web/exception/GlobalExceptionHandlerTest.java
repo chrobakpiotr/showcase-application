@@ -33,10 +33,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.server.ResponseStatusException;
 
 import io.micrometer.tracing.Tracer;
 import jakarta.validation.ConstraintViolation;
@@ -47,9 +47,6 @@ import jakarta.validation.groups.Default;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -57,6 +54,9 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.PAYMENT_REQUIRED;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Unit tests of the {@link GlobalExceptionHandler} behavior.
@@ -123,7 +123,8 @@ class GlobalExceptionHandlerTest {
             final var exception = new ShipmentConflictException(EXCEPTION_MESSAGE, code);
             assertProblem(handler.shipmentConflictException(exception), CONFLICT, "Shipment Conflict", EXCEPTION_MESSAGE);
             MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
-                    .setControllerAdvice(handler).build()
+                    .setControllerAdvice(handler)
+                    .build()
                     .perform(get("/shipment-conflict-test"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value(code.name()))
@@ -142,7 +143,8 @@ class GlobalExceptionHandlerTest {
         assertThat(exception.getCode()).isNull();
         assertThat(handler.shipmentConflictException(exception).getProperties()).doesNotContainKey("code");
         MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
-                .setControllerAdvice(handler).build()
+                .setControllerAdvice(handler)
+                .build()
                 .perform(get("/shipment-conflict-test"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").doesNotExist())
@@ -152,6 +154,7 @@ class GlobalExceptionHandlerTest {
 
     @RestController
     private static final class ShipmentConflictController {
+
         private final ShipmentConflictException exception;
 
         private ShipmentConflictController(final ShipmentConflictException exception) {

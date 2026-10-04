@@ -83,15 +83,21 @@ class ParkedDispatchQueuePostgresIntegrationTest {
     @Test
     void parkedQueueMustBoundPagesOrderTiesAndHideUnsafeData() {
         for (int index = 0; index < 53; index++) {
-            final var row = dispatch("row-" + String.format("%03d", index), OrderPlacementDispatchStatus.PARKED,
-                    NOW.minusSeconds(index < 2 ? 120 : 60), 8);
+            final var row = dispatch(
+                    "row-" + String.format("%03d", index),
+                    OrderPlacementDispatchStatus.PARKED,
+                    NOW.minusSeconds(index < 2 ? 120 : 60),
+                    8);
             row.setLastError(index == 0 ? "ORDER_MISSING" : index == 1 ? "ATTEMPT_BUDGET_EXHAUSTED" : "smtp credential secret");
             row.setClaimId("provider claim must never escape");
             row.setNextAttemptDate(NOW);
             repository.saveAndFlush(row);
         }
-        for (final var status : List.of(OrderPlacementDispatchStatus.PENDING, OrderPlacementDispatchStatus.FAILED,
-                OrderPlacementDispatchStatus.DELIVERING, OrderPlacementDispatchStatus.SENT)) {
+        for (final var status : List.of(
+                OrderPlacementDispatchStatus.PENDING,
+                OrderPlacementDispatchStatus.FAILED,
+                OrderPlacementDispatchStatus.DELIVERING,
+                OrderPlacementDispatchStatus.SENT)) {
             repository.saveAndFlush(dispatch("not-parked-" + status, status, NOW.minusSeconds(1000), 1));
         }
         final var first = queue.getParkedDispatches(new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(0, 20));
@@ -100,7 +106,10 @@ class ParkedDispatchQueuePostgresIntegrationTest {
         assertThat(first.totalPages()).isEqualTo(3);
         assertThat(first.oldestAgeSeconds()).isEqualTo(120L);
         assertThat(first.content()).extracting(row -> row.orderNumber())
-                .containsExactly(java.util.stream.IntStream.range(0, 20).mapToObj(index -> "row-" + String.format("%03d", index)).toArray(String[]::new));
+                .containsExactly(
+                        java.util.stream.IntStream.range(0, 20)
+                                .mapToObj(index -> "row-" + String.format("%03d", index))
+                                .toArray(String[]::new));
         assertThat(first.content().getFirst().reasonCode().name()).isEqualTo("ORDER_MISSING");
         assertThat(first.content().get(1).reasonCode().name()).isEqualTo("ATTEMPT_BUDGET_EXHAUSTED");
         assertThat(first.content().get(2).reasonCode().name()).isEqualTo("OTHER");
@@ -108,7 +117,8 @@ class ParkedDispatchQueuePostgresIntegrationTest {
         assertThat(last.content()).hasSize(13);
         assertThat(last.content().getFirst().orderNumber()).isEqualTo("row-040");
         assertThat(last.oldestAgeSeconds()).isEqualTo(120L);
-        assertThat(queue.getParkedDispatches(new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(0, 50)).content()).hasSize(50);
+        assertThat(queue.getParkedDispatches(new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(0, 50)).content())
+                .hasSize(50);
         final var empty = queue.getParkedDispatches(new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(1000, 50));
         assertThat(empty.content()).isEmpty();
         assertThat(empty.oldestAgeSeconds()).isEqualTo(120L);
@@ -124,25 +134,26 @@ class ParkedDispatchQueuePostgresIntegrationTest {
         final var changed = new CountDownLatch(1);
         final var commit = new CountDownLatch(1);
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            final var writer = executor.submit(() -> new org.springframework.transaction.support.TransactionTemplate(transactions)
-                    .executeWithoutResult(status -> {
-                        final var locked = repository.findByIdForUpdate(row.getDispatchId()).orElseThrow();
-                        locked.setStatus(OrderPlacementDispatchStatus.SENT);
-                        repository.saveAndFlush(locked);
-                        changed.countDown();
-                        try {
-                            if (!commit.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
-                                throw new IllegalStateException("test commit latch timed out");
-                            }
-                        } catch (final InterruptedException exception) {
-                            Thread.currentThread().interrupt();
-                            throw new IllegalStateException(exception);
-                        }
-                    }));
+            final var writer = executor.submit(
+                    () -> new org.springframework.transaction.support.TransactionTemplate(transactions)
+                            .executeWithoutResult(status -> {
+                                final var locked = repository.findByIdForUpdate(row.getDispatchId()).orElseThrow();
+                                locked.setStatus(OrderPlacementDispatchStatus.SENT);
+                                repository.saveAndFlush(locked);
+                                changed.countDown();
+                                try {
+                                    if (!commit.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                                        throw new IllegalStateException("test commit latch timed out");
+                                    }
+                                } catch (final InterruptedException exception) {
+                                    Thread.currentThread().interrupt();
+                                    throw new IllegalStateException(exception);
+                                }
+                            }));
             try {
                 assertThat(changed.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
-                final var reader = executor.submit(() -> queue.getParkedDispatches(
-                        new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(0, 20)));
+                final var reader = executor.submit(
+                        () -> queue.getParkedDispatches(new com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery(0, 20)));
                 assertThat(reader.get(5, java.util.concurrent.TimeUnit.SECONDS).content()).hasSize(1);
             } finally {
                 commit.countDown();
@@ -154,10 +165,14 @@ class ParkedDispatchQueuePostgresIntegrationTest {
         assertThat(result.oldestAgeSeconds()).isNull();
     }
 
-    private static OrderPlacementDispatchEntity dispatch(final String orderNumber,
-            final OrderPlacementDispatchStatus status, final Instant createdAt, final int attempts) {
+    private static OrderPlacementDispatchEntity dispatch(
+            final String orderNumber,
+            final OrderPlacementDispatchStatus status,
+            final Instant createdAt,
+            final int attempts) {
         return OrderPlacementDispatchEntity.builder()
-                .dispatchId(OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
+                .dispatchId(
+                        OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
                 .orderNumber(orderNumber)
                 .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL)
                 .status(status)

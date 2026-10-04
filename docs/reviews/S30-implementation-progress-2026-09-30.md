@@ -1251,3 +1251,31 @@ No shipment API semantic or production behavior change is needed for the next
 step; inspect the current E2E startup and fault-injection seams before making an
 executable test packet. Read-only assessment; no tests run. `git diff --check`
 passed.
+
+## S30-07d task packet: real HTTP/PostgreSQL shipment response-loss replay
+
+Add one isolated Playwright E2E that creates a confirmed order through the real
+checkout UI using the seeded `DEMO-USB-HUB-001` SKU, creates its shipment through
+the authenticated order-history UI, then advances shipment status through the
+shipments UI. On the first advance, `route.fetch()` must let the real backend
+commit before aborting only the browser response. Reload, assert persisted
+`DISPATCHED`, retry the UI operation and prove it reuses the original operation
+ID and `PENDING` expected-status header and receives canonical HTTP 200
+`DISPATCHED`. Confirm the order has exactly one shipment and its persisted state
+remains `DISPATCHED`.
+
+Allowed paths: a new focused spec under `apps/ecommerce/frontend/e2e/` and this
+progress report. Do not change application behavior, compose or CI. Use the
+isolated E2E PostgreSQL stack only; do not overlap a Gradle build. Required
+verification: run the targeted Playwright test when the disposable stack is
+available, otherwise report the precise environment limitation; run
+`git diff --check`. Independent review is required before treating S30-07d as
+accepted. No commit in this task packet.
+
+S30-07d complete. The focused Playwright run passed the response-loss replay
+against the real backend and disposable PostgreSQL stack: the backend committed
+the first advance before the browser response was aborted, and the retry reused
+the original operation identity and expected status and observed the canonical
+`DISPATCHED` response. The order retained exactly one shipment. The independent
+evaluator returned **PASS**. The focused run reported 3 passed, the responsive
+layout suite reported 17 passed, and `git diff --check` passed.

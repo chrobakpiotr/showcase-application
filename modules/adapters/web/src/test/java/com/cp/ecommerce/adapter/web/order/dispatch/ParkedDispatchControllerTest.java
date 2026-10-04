@@ -13,23 +13,37 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ParkedDispatchControllerTest {
+
     private static final String PATH = "/api/order-placement/dispatches/parked";
 
     @Test
     void shouldSerializeOnlySafeFieldsAndNoDueTime() throws Exception {
         final var port = mock(GetParkedDispatchesInPort.class);
-        when(port.getParkedDispatches(new ParkedDispatchQuery(0, 20))).thenReturn(new ParkedDispatchPage(
-                List.of(new ParkedDispatch("id", "ORDER-1", "CONFIRMATION_EMAIL", 8,
-                        Instant.parse("2026-10-04T12:00:00Z"), ParkedDispatch.ReasonCode.OTHER)),
-                0, 20, 1, 1, 120L));
-        MockMvcBuilders.standaloneSetup(new ParkedDispatchController(port)).build().perform(get(PATH))
+        when(port.getParkedDispatches(new ParkedDispatchQuery(0, 20))).thenReturn(
+                new ParkedDispatchPage(
+                        List.of(
+                                new ParkedDispatch(
+                                        "id",
+                                        "ORDER-1",
+                                        "CONFIRMATION_EMAIL",
+                                        8,
+                                        Instant.parse("2026-10-04T12:00:00Z"),
+                                        ParkedDispatch.ReasonCode.OTHER)),
+                        0,
+                        20,
+                        1,
+                        1,
+                        120L));
+        MockMvcBuilders.standaloneSetup(new ParkedDispatchController(port))
+                .build()
+                .perform(get(PATH))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].dispatchId").value("id"))
                 .andExpect(jsonPath("$.content[0].orderNumber").value("ORDER-1"))

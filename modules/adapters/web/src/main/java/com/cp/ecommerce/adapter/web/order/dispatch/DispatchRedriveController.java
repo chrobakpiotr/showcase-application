@@ -17,16 +17,21 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 public class DispatchRedriveController {
+
     private final RedriveDispatchInPort port;
     private final CurrentOperatorProvider operator;
 
     @PostMapping("/api/order-placement/dispatches/{dispatchId}/redrive")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public DispatchRedriveResource redrive(@PathVariable("dispatchId") final String dispatchId,
+    public DispatchRedriveResource redrive(
+            @PathVariable("dispatchId") final String dispatchId,
             @RequestHeader("X-Redrive-Command-Id") final String commandId,
             @RequestHeader("X-Redrive-Reason") final String reason) {
-        final String actor = operator.currentOperator().orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.FORBIDDEN, "Authenticated operator identity is required for dispatch redrive"));
+        final String actor = operator.currentOperator()
+                .orElseThrow(
+                        () -> new ResponseStatusException(
+                                HttpStatus.FORBIDDEN,
+                                "Authenticated operator identity is required for dispatch redrive"));
         final DispatchRedriveCommand command;
         try {
             command = new DispatchRedriveCommand(commandId, dispatchId, actor, reason);

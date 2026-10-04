@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 @PersistenceAdapter
 @RequiredArgsConstructor
 class RedriveDispatchAdapter implements RedriveDispatchOutPort {
+
     private static final int LOCK_STRIPES = 64;
     private final IdempotencyLockRepository locks;
     private final DispatchRedriveAuditRepository audits;
@@ -31,22 +32,31 @@ class RedriveDispatchAdapter implements RedriveDispatchOutPort {
         if (existing != null) {
             if (!existing.getDispatchId().equals(command.dispatchId()) || !existing.getActor().equals(command.actor())
                     || !existing.getReason().equals(command.reason())) {
-                throw new OrderPlacementDispatchRedriveConflictException("Redrive command ID is bound to different command data");
+                throw new OrderPlacementDispatchRedriveConflictException(
+                        "Redrive command ID is bound to different command data");
             }
             return DispatchRedriveOutcome.REPLAYED;
         }
         final var dispatch = dispatches.findByIdForUpdate(command.dispatchId())
                 .orElseThrow(() -> new ApplicationNotFoundException("Placement dispatch not found: " + command.dispatchId()));
         if (dispatch.getStatus() != OrderPlacementDispatchStatus.PARKED
-                || !"ATTEMPT_BUDGET_EXHAUSTED".equals(dispatch.getLastError())
-                || dispatch.getClaimId() != null || dispatch.getClaimUntil() != null) {
+                || !"ATTEMPT_BUDGET_EXHAUSTED".equals(dispatch.getLastError()) || dispatch.getClaimId() != null
+                || dispatch.getClaimUntil() != null) {
             throw new OrderPlacementDispatchRedriveConflictException("Dispatch is not eligible for budget-exhausted redrive");
         }
-        audits.saveAndFlush(DispatchRedriveAuditEntity.builder()
-                .commandId(command.commandId()).dispatchId(dispatch.getDispatchId())
-                .orderNumber(dispatch.getOrderNumber()).dispatchType(dispatch.getDispatchType().name())
-                .actor(command.actor()).reason(command.reason()).previousAttempts(dispatch.getAttempts())
-                .previousReason("ATTEMPT_BUDGET_EXHAUSTED").originalCreatedAt(dispatch.getCreatedDate()).createdAt(now).build());
+        audits.saveAndFlush(
+                DispatchRedriveAuditEntity.builder()
+                        .commandId(command.commandId())
+                        .dispatchId(dispatch.getDispatchId())
+                        .orderNumber(dispatch.getOrderNumber())
+                        .dispatchType(dispatch.getDispatchType().name())
+                        .actor(command.actor())
+                        .reason(command.reason())
+                        .previousAttempts(dispatch.getAttempts())
+                        .previousReason("ATTEMPT_BUDGET_EXHAUSTED")
+                        .originalCreatedAt(dispatch.getCreatedDate())
+                        .createdAt(now)
+                        .build());
         dispatch.setStatus(OrderPlacementDispatchStatus.PENDING);
         dispatch.setAttempts(0);
         dispatch.setNextAttemptDate(now);

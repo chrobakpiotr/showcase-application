@@ -1,26 +1,29 @@
-import {
-  ComponentFixture,
-  TestBed,
-  fakeAsync,
-  tick,
-} from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http';
+import type { Mock } from "vitest";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { of, throwError } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
 
-import { AnalyticsAssistantComponent } from '@app/analytics-assistant/analytics-assistant.component';
-import { AnalyticsAssistantService } from '@app/analytics-assistant/analytics-assistant.service';
+import { AnalyticsAssistantComponent } from "@app/analytics-assistant/analytics-assistant.component";
+import { AnalyticsAssistantService } from "@app/analytics-assistant/analytics-assistant.service";
 
-describe('AnalyticsAssistantComponent', () => {
+describe("AnalyticsAssistantComponent", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ advanceTimeDelta: 1, shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   let fixture: ComponentFixture<AnalyticsAssistantComponent>;
   let component: AnalyticsAssistantComponent;
-  let askQuestionSpy: jasmine.Spy;
-  let getLatestDigestSpy: jasmine.Spy;
+  let askQuestionSpy: Mock;
+  let getLatestDigestSpy: Mock;
 
   function setup(): void {
-    askQuestionSpy = jasmine.createSpy('askQuestion');
-    getLatestDigestSpy = jasmine
-      .createSpy('getLatestDigest')
-      .and.returnValue(of(null));
+    askQuestionSpy = vi.fn().mockName("askQuestion");
+    getLatestDigestSpy = vi
+      .fn()
+      .mockName("getLatestDigest")
+      .mockReturnValue(of(null));
     TestBed.configureTestingModule({
       imports: [AnalyticsAssistantComponent],
       providers: [
@@ -42,114 +45,117 @@ describe('AnalyticsAssistantComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  it('should create the component', () => {
+  it("should create the component", () => {
     setup();
     expect(component).toBeTruthy();
   });
 
-  it('should not ask a question when input is blank', () => {
+  it("should not ask a question when input is blank", () => {
     setup();
-    component.questionControl.setValue('   ');
+    component.questionControl.setValue("   ");
     component.askQuestion();
     expect(askQuestionSpy).not.toHaveBeenCalled();
   });
 
-  it('should not ask a question while already sending', () => {
+  it("should not ask a question while already sending", () => {
     setup();
-    component.questionControl.setValue('How many orders were placed today?');
+    component.questionControl.setValue("How many orders were placed today?");
     component.sending.set(true);
     component.askQuestion();
     expect(askQuestionSpy).not.toHaveBeenCalled();
   });
 
-  it('should append the user message immediately and clear the input', fakeAsync(() => {
+  it("should append the user message immediately and clear the input", async () => {
     setup();
-    askQuestionSpy.and.returnValue(
-      of({ answer: '3 orders were placed today.', assistantAvailable: true })
+    askQuestionSpy.mockReturnValue(
+      of({ answer: "3 orders were placed today.", assistantAvailable: true }),
     );
-    component.questionControl.setValue('How many orders were placed today?');
+    component.questionControl.setValue("How many orders were placed today?");
     component.askQuestion();
     expect(component.messages()[0]).toEqual({
-      role: 'user',
-      text: 'How many orders were placed today?',
+      role: "user",
+      text: "How many orders were placed today?",
     });
-    expect(component.questionControl.value).toBe('');
-    tick();
-  }));
+    expect(component.questionControl.value).toBe("");
+    await vi.advanceTimersByTimeAsync(0);
+  });
 
-  it('should append the assistant answer on success', fakeAsync(() => {
+  it("should append the assistant answer on success", async () => {
     setup();
-    askQuestionSpy.and.returnValue(
-      of({ answer: '3 orders were placed today.', assistantAvailable: true })
+    askQuestionSpy.mockReturnValue(
+      of({ answer: "3 orders were placed today.", assistantAvailable: true }),
     );
-    component.questionControl.setValue('How many orders were placed today?');
+    component.questionControl.setValue("How many orders were placed today?");
     component.askQuestion();
-    tick();
+    await vi.advanceTimersByTimeAsync(0);
     fixture.detectChanges();
     const assistantMessage = component
       .messages()
-      .find((message) => message.role === 'assistant');
-    expect(assistantMessage?.text).toBe('3 orders were placed today.');
-    expect(assistantMessage?.assistantAvailable).toBeTrue();
-    expect(component.sending()).toBeFalse();
-  }));
+      .find((message) => message.role === "assistant");
+    expect(assistantMessage?.text).toBe("3 orders were placed today.");
+    expect(assistantMessage?.assistantAvailable).toBe(true);
+    expect(component.sending()).toBe(false);
+  });
 
-  it('should show an unavailable hint when the assistant answer is a fallback', fakeAsync(() => {
+  it("should show an unavailable hint when the assistant answer is a fallback", async () => {
     setup();
-    askQuestionSpy.and.returnValue(
-      of({ answer: 'Assistant unavailable.', assistantAvailable: false })
+    askQuestionSpy.mockReturnValue(
+      of({ answer: "Assistant unavailable.", assistantAvailable: false }),
     );
-    component.questionControl.setValue('How many orders were placed today?');
+    component.questionControl.setValue("How many orders were placed today?");
     component.askQuestion();
-    tick();
+    await vi.advanceTimersByTimeAsync(0);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.unavailable-hint')).toBeTruthy();
-  }));
+    expect(compiled.querySelector(".unavailable-hint")).toBeTruthy();
+  });
 
-  it('should append a fallback assistant message on HTTP error', fakeAsync(() => {
+  it("should append a fallback assistant message on HTTP error", async () => {
     setup();
-    askQuestionSpy.and.returnValue(
-      throwError(() => new HttpErrorResponse({ status: 500 }))
+    askQuestionSpy.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
     );
-    component.questionControl.setValue('How many orders were placed today?');
+    component.questionControl.setValue("How many orders were placed today?");
     component.askQuestion();
-    tick();
+    await vi.advanceTimersByTimeAsync(0);
     fixture.detectChanges();
     const assistantMessage = component
       .messages()
-      .find((message) => message.role === 'assistant');
+      .find((message) => message.role === "assistant");
     expect(assistantMessage?.text).toBe(
-      'Sorry, something went wrong. Please try again.'
+      "Sorry, something went wrong. Please try again.",
     );
-    expect(component.sending()).toBeFalse();
-  }));
+    expect(component.sending()).toBe(false);
+  });
 
-  it('should not render a digest card when none has been generated yet', () => {
+  it("should not render a digest card when none has been generated yet", () => {
     setup();
     expect(component.opsDigest()).toBeNull();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(
-      compiled.querySelector('[data-testid="ops-digest-card"]')
+      compiled.querySelector('[data-testid="ops-digest-card"]'),
     ).toBeNull();
   });
 
-  it('should render the digest card when one is returned', () => {
-    getLatestDigestSpy = jasmine.createSpy('getLatestDigest').and.returnValue(
-      of({
-        generatedDate: '2024-03-15T06:00:00.000Z',
-        ordersPlacedLastDay: 7,
-        remarksClassificationCounts: { STANDARD: 7 },
-        narrative: '7 orders placed in the last 24 hours, all routine.',
-      })
-    );
+  it("should render the digest card when one is returned", () => {
+    getLatestDigestSpy = vi
+      .fn()
+      .mockName("getLatestDigest")
+      .mockReturnValue(
+        of({
+          generatedDate: "2024-03-15T06:00:00.000Z",
+          ordersPlacedLastDay: 7,
+          remarksClassificationCounts: { STANDARD: 7 },
+          narrative: "7 orders placed in the last 24 hours, all routine.",
+        }),
+      );
     TestBed.configureTestingModule({
       imports: [AnalyticsAssistantComponent],
       providers: [
         {
           provide: AnalyticsAssistantService,
           useValue: {
-            askQuestion: jasmine.createSpy('askQuestion'),
+            askQuestion: vi.fn().mockName("askQuestion"),
             getLatestDigest: getLatestDigestSpy,
           },
         },
@@ -162,18 +168,19 @@ describe('AnalyticsAssistantComponent', () => {
     expect(component.opsDigest()?.ordersPlacedLastDay).toBe(7);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(
-      compiled.querySelector('[data-testid="ops-digest-card"]')
+      compiled.querySelector('[data-testid="ops-digest-card"]'),
     ).toBeTruthy();
     expect(compiled.textContent).toContain(
-      '7 orders placed in the last 24 hours, all routine.'
+      "7 orders placed in the last 24 hours, all routine.",
     );
   });
 
-  it('should set the digest to null on HTTP error while loading it', () => {
-    getLatestDigestSpy = jasmine
-      .createSpy('getLatestDigest')
-      .and.returnValue(
-        throwError(() => new HttpErrorResponse({ status: 500 }))
+  it("should set the digest to null on HTTP error while loading it", () => {
+    getLatestDigestSpy = vi
+      .fn()
+      .mockName("getLatestDigest")
+      .mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 500 })),
       );
     TestBed.configureTestingModule({
       imports: [AnalyticsAssistantComponent],
@@ -181,7 +188,7 @@ describe('AnalyticsAssistantComponent', () => {
         {
           provide: AnalyticsAssistantService,
           useValue: {
-            askQuestion: jasmine.createSpy('askQuestion'),
+            askQuestion: vi.fn().mockName("askQuestion"),
             getLatestDigest: getLatestDigestSpy,
           },
         },

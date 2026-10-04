@@ -180,7 +180,10 @@ class OrderPlacementDispatchManagerTest {
             row.setClaimId("owner");
             given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
             final var claim = new OrderPlacementDispatchManager.DispatchClaim(
-                    row.getDispatchId(), row.getOrderNumber(), row.getDispatchType(), "owner");
+                    row.getDispatchId(),
+                    row.getOrderNumber(),
+                    row.getDispatchType(),
+                    "owner");
             manager.markFailed(claim, "unknown outcome", NOW);
             assertThat(row.getAttempts()).isEqualTo(attempt);
             assertThat(row.getClaimId()).isNull();
@@ -231,8 +234,14 @@ class OrderPlacementDispatchManagerTest {
             row.setAttempts(7);
             row.setClaimId("owner");
             given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
-            manager.markFailed(new OrderPlacementDispatchManager.DispatchClaim(
-                    row.getDispatchId(), row.getOrderNumber(), row.getDispatchType(), "owner"), "unknown", NOW);
+            manager.markFailed(
+                    new OrderPlacementDispatchManager.DispatchClaim(
+                            row.getDispatchId(),
+                            row.getOrderNumber(),
+                            row.getDispatchType(),
+                            "owner"),
+                    "unknown",
+                    NOW);
             assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusMillis(base == 0 ? 0 : 300_000));
         }
     }
@@ -243,13 +252,11 @@ class OrderPlacementDispatchManagerTest {
         manager.maxAttempts = 1;
         manager.validateRetryConfiguration();
         manager.maxAttempts = 9;
-        assertThatThrownBy(manager::validateRetryConfiguration)
-                .isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(manager::validateRetryConfiguration).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("max-attempts");
         manager.maxAttempts = 8;
         manager.retryDelayMillis = -1;
-        assertThatThrownBy(manager::validateRetryConfiguration)
-                .isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(manager::validateRetryConfiguration).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("retry-delay-ms");
     }
 

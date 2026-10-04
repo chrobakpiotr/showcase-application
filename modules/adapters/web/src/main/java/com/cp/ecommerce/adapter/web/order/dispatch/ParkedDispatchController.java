@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 public class ParkedDispatchController {
+
     private final GetParkedDispatchesInPort port;
 
     @GetMapping("/api/order-placement/dispatches/parked")
@@ -27,9 +28,24 @@ public class ParkedDispatchController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         }
         final var result = port.getParkedDispatches(query);
-        return new ParkedDispatchPageResource(result.content().stream().map(row -> new ParkedDispatchResource(
-                row.dispatchId(), row.orderNumber(), row.dispatchType(), "PARKED", row.attempts(),
-                row.createdAt(), null, row.reasonCode().name())).toList(),
-                result.page(), result.size(), result.totalElements(), result.totalPages(), result.oldestAgeSeconds());
+        return new ParkedDispatchPageResource(
+                result.content()
+                        .stream()
+                        .map(
+                                row -> new ParkedDispatchResource(
+                                        row.dispatchId(),
+                                        row.orderNumber(),
+                                        row.dispatchType(),
+                                        "PARKED",
+                                        row.attempts(),
+                                        row.createdAt(),
+                                        null,
+                                        row.reasonCode().name()))
+                        .toList(),
+                result.page(),
+                result.size(),
+                result.totalElements(),
+                result.totalPages(),
+                result.oldestAgeSeconds());
     }
 }

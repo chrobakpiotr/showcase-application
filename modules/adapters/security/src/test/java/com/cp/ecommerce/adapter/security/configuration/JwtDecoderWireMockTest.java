@@ -202,7 +202,7 @@ class JwtDecoderWireMockTest {
     /**
      * Nimbus' default JWKS resource retriever times out after 500ms, which is too aggressive on a loaded CI runner and makes
      * the JWKS fetch flaky. This customizer widens the connect/read timeouts used by {@link JwtDecoder} when talking to the
-     * (stubbed) JWKS endpoint.
+     * (stubbed) JWKS endpoint. The read timeout allows for a busy parallel Gradle build to schedule WireMock's response.
      */
     @TestConfiguration
     static class JwtDecoderTestConfiguration {
@@ -212,7 +212,7 @@ class JwtDecoderWireMockTest {
 
             return builder -> builder.restOperations(
                     new RestTemplateBuilder().connectTimeout(Duration.ofSeconds(10))
-                            .readTimeout(Duration.ofSeconds(10))
+                            .readTimeout(Duration.ofSeconds(30))
                             .build());
         }
 

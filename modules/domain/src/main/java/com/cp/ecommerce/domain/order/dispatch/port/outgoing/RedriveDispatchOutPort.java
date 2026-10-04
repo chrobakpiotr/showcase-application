@@ -6,5 +6,6 @@ import com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand;
 import com.cp.ecommerce.domain.order.dispatch.DispatchRedriveOutcome;
 
 public interface RedriveDispatchOutPort {
+
     DispatchRedriveOutcome redrive(DispatchRedriveCommand command, Instant now);
 }

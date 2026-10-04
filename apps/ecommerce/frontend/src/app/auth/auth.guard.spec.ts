@@ -1,11 +1,11 @@
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { Router, UrlTree } from '@angular/router';
+import { signal } from "@angular/core";
+import { TestBed } from "@angular/core/testing";
+import { Router, UrlTree } from "@angular/router";
 
-import { AuthService } from '@app/auth/auth.service';
-import { authGuard } from '@app/auth/auth.guard';
+import { AuthService } from "@app/auth/auth.service";
+import { authGuard } from "@app/auth/auth.guard";
 
-describe('authGuard', () => {
+describe("authGuard", () => {
   afterEach(() => {
     TestBed.resetTestingModule();
   });
@@ -18,8 +18,8 @@ describe('authGuard', () => {
           provide: Router,
           useValue: {
             createUrlTree: (commands: unknown[], extras?: unknown) =>
-              ({ commands, extras } as unknown as UrlTree),
-            navigate: jasmine.createSpy('navigate'),
+              ({ commands, extras }) as unknown as UrlTree,
+            navigate: vi.fn().mockName("navigate"),
           },
         },
         {
@@ -30,26 +30,37 @@ describe('authGuard', () => {
     });
   }
 
-  it('returns true when user is authenticated', () => {
+  it("returns true when user is authenticated", () => {
     setup(true);
     const result = TestBed.runInInjectionContext(() =>
-      authGuard({} as never, { url: '/order' } as never)
+      authGuard({} as never, { url: "/order" } as never),
     );
-    expect(result).toBeTrue();
+    expect(result).toBe(true);
   });
 
-  it('returns UrlTree redirecting to /login when not authenticated', () => {
+  it("returns UrlTree redirecting to /login when not authenticated", () => {
     setup(false);
     const result = TestBed.runInInjectionContext(() =>
-      authGuard({} as never, { url: '/order' } as never)
+      authGuard({} as never, { url: "/order" } as never),
     ) as UrlTree;
     expect(result).toBeTruthy();
-    expect((result as unknown as { commands: string[] }).commands).toEqual([
-      '/login',
-    ]);
     expect(
-      (result as unknown as { extras: { queryParams: { returnUrl: string } } })
-        .extras.queryParams.returnUrl
-    ).toBe('/order');
+      (
+        result as unknown as {
+          commands: string[];
+        }
+      ).commands,
+    ).toEqual(["/login"]);
+    expect(
+      (
+        result as unknown as {
+          extras: {
+            queryParams: {
+              returnUrl: string;
+            };
+          };
+        }
+      ).extras.queryParams.returnUrl,
+    ).toBe("/order");
   });
 });

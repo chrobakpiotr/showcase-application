@@ -102,7 +102,8 @@ class SaveShipmentAdapterOperationTest {
 
         assertThatThrownBy(() -> adapter.saveOperation(candidate)).isInstanceOf(ShipmentConflictException.class)
                 .hasMessageContaining(OPERATION_ID)
-                .extracting("code").hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
+                .extracting("code")
+                .hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
 
         verify(operationRepository, never()).save(any());
     }
@@ -113,7 +114,8 @@ class SaveShipmentAdapterOperationTest {
         given(operationRepository.findById(OPERATION_ID)).willReturn(Optional.of(entity(SHIPMENT_NUMBER, 4)));
         assertThatThrownBy(() -> adapter.saveOperation(operation(SHIPMENT_NUMBER, 3)))
                 .isInstanceOf(ShipmentConflictException.class)
-                .extracting("code").hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
+                .extracting("code")
+                .hasToString("SHIPMENT_OPERATION_FINGERPRINT_CONFLICT");
     }
 
     @Test

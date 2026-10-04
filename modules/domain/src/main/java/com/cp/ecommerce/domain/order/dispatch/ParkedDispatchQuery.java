@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.order.dispatch;
 
 public record ParkedDispatchQuery(int page, int size) {
+
     public static final int DEFAULT_SIZE = 20;
     public static final int MAX_SIZE = 50;
     public static final int MAX_PAGE = 1000;

@@ -18,13 +18,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import io.micrometer.tracing.Tracer;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class DispatchRedriveControllerTest {
+
     private static final String PATH = "/api/order-placement/dispatches/dispatch/redrive";
 
     @Test
@@ -34,12 +35,17 @@ class DispatchRedriveControllerTest {
         when(actor.currentOperator()).thenReturn(Optional.of("operator"));
         for (final var outcome : DispatchRedriveOutcome.values()) {
             when(port.redrive(new DispatchRedriveCommand("cmd", "dispatch", "operator", "inspected"))).thenReturn(outcome);
-            MockMvcBuilders.standaloneSetup(new DispatchRedriveController(port, actor)).build()
-                    .perform(post(PATH).header("X-Redrive-Command-Id", "cmd").header("X-Redrive-Reason", " inspected ")
-                            .header("X-Actor", "caller-forged"))
-                    .andExpect(status().isAccepted()).andExpect(jsonPath("$.outcome").value(outcome.name()))
+            MockMvcBuilders.standaloneSetup(new DispatchRedriveController(port, actor))
+                    .build()
+                    .perform(
+                            post(PATH).header("X-Redrive-Command-Id", "cmd")
+                                    .header("X-Redrive-Reason", " inspected ")
+                                    .header("X-Actor", "caller-forged"))
+                    .andExpect(status().isAccepted())
+                    .andExpect(jsonPath("$.outcome").value(outcome.name()))
                     .andExpect(jsonPath("$.commandId").value("cmd"))
-                    .andExpect(jsonPath("$.actor").doesNotExist()).andExpect(jsonPath("$.reason").doesNotExist());
+                    .andExpect(jsonPath("$.actor").doesNotExist())
+                    .andExpect(jsonPath("$.reason").doesNotExist());
         }
     }
 
@@ -65,13 +71,17 @@ class DispatchRedriveControllerTest {
         final var actor = mock(CurrentOperatorProvider.class);
         when(actor.currentOperator()).thenReturn(Optional.of("operator"));
         final var mvc = MockMvcBuilders.standaloneSetup(new DispatchRedriveController(port, actor))
-                .setControllerAdvice(new GlobalExceptionHandler((ObjectProvider<Tracer>) mock(ObjectProvider.class))).build();
+                .setControllerAdvice(new GlobalExceptionHandler((ObjectProvider<Tracer>) mock(ObjectProvider.class)))
+                .build();
         final var command = new DispatchRedriveCommand("cmd", "dispatch", "operator", "reason");
         when(port.redrive(command)).thenThrow(new ApplicationNotFoundException("not found"));
         mvc.perform(post(PATH).header("X-Redrive-Command-Id", "cmd").header("X-Redrive-Reason", "reason"))
                 .andExpect(status().isNotFound());
-        org.mockito.Mockito.doThrow(new OrderPlacementDispatchRedriveConflictException("ineligible")).when(port).redrive(command);
+        org.mockito.Mockito.doThrow(new OrderPlacementDispatchRedriveConflictException("ineligible"))
+                .when(port)
+                .redrive(command);
         mvc.perform(post(PATH).header("X-Redrive-Command-Id", "cmd").header("X-Redrive-Reason", "reason"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.errorId").isNotEmpty());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorId").isNotEmpty());
     }
 }

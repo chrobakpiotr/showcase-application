@@ -1,21 +1,23 @@
-import {
-  ComponentFixture,
-  TestBed,
-  fakeAsync,
-  flushMicrotasks,
-} from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
+import type { Mock } from "vitest";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ActivatedRoute } from "@angular/router";
 
-import { AuthService } from '@app/auth/auth.service';
-import { LoginComponent } from '@app/auth/login.component';
+import { AuthService } from "@app/auth/auth.service";
+import { LoginComponent } from "@app/auth/login.component";
 
-describe('LoginComponent', () => {
+describe("LoginComponent", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ advanceTimeDelta: 1, shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   let fixture: ComponentFixture<LoginComponent>;
   let component: LoginComponent;
-  let loginSpy: jasmine.Spy;
+  let loginSpy: Mock;
 
   function setup(returnUrl?: string): void {
-    loginSpy = jasmine.createSpy('login').and.resolveTo();
+    loginSpy = vi.fn().mockName("login").mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [LoginComponent],
@@ -46,35 +48,35 @@ describe('LoginComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  it('renders redirect-based Keycloak login without password fields', () => {
+  it("renders redirect-based Keycloak login without password fields", () => {
     setup();
 
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('[data-testid="login-submit"]')).toBeTruthy();
     expect(compiled.querySelector('input[type="password"]')).toBeNull();
-    expect(compiled.textContent).toContain('Authorization Code + PKCE');
+    expect(compiled.textContent).toContain("Authorization Code + PKCE");
   });
 
-  it('starts login with the original returnUrl', fakeAsync(() => {
-    setup('/orders');
+  it("starts login with the original returnUrl", async () => {
+    setup("/orders");
 
     component.onLogin();
-    flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(loginSpy).toHaveBeenCalledWith('/orders');
-  }));
+    expect(loginSpy).toHaveBeenCalledWith("/orders");
+  });
 
-  it('uses dashboard as the default post-login route', fakeAsync(() => {
+  it("uses dashboard as the default post-login route", async () => {
     setup();
 
     component.onLogin();
-    flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(loginSpy).toHaveBeenCalledWith('/dashboard');
-  }));
+    expect(loginSpy).toHaveBeenCalledWith("/dashboard");
+  });
 
-  it('does not start a second redirect while submitting', () => {
+  it("does not start a second redirect while submitting", () => {
     setup();
     component.submitting.set(true);
     fixture.detectChanges();
@@ -82,32 +84,32 @@ describe('LoginComponent', () => {
     component.onLogin();
 
     const button = fixture.nativeElement.querySelector(
-      '[data-testid="login-submit"]'
+      '[data-testid="login-submit"]',
     ) as HTMLButtonElement;
-    expect(button.disabled).toBeTrue();
-    expect(button.textContent).toContain('Redirecting');
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toContain("Redirecting");
     expect(loginSpy).not.toHaveBeenCalled();
   });
 
-  it('shows an error if the OIDC redirect cannot be started', fakeAsync(() => {
+  it("shows an error if the OIDC redirect cannot be started", async () => {
     setup();
 
     let rejectLogin: (reason?: unknown) => void = () => undefined;
     const loginPromise = new Promise<void>((_resolve, reject) => {
       rejectLogin = reject;
     });
-    loginSpy.and.returnValue(loginPromise);
+    loginSpy.mockReturnValue(loginPromise);
 
     component.onLogin();
 
     // Reject only after onLogin() has already attached its catch handler.
-    rejectLogin(new Error('Keycloak unavailable'));
-    flushMicrotasks();
+    rejectLogin(new Error("Keycloak unavailable"));
+    await vi.advanceTimersByTimeAsync(0);
     fixture.detectChanges();
 
-    expect(component.submitting()).toBeFalse();
+    expect(component.submitting()).toBe(false);
     expect(
-      fixture.nativeElement.querySelector('[role="alert"]').textContent
-    ).toContain('Could not start the Keycloak sign-in flow');
-  }));
+      fixture.nativeElement.querySelector('[role="alert"]').textContent,
+    ).toContain("Could not start the Keycloak sign-in flow");
+  });
 });

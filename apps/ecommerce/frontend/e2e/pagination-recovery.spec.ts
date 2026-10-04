@@ -172,6 +172,7 @@ test("shipment 409 refreshes status and starts a new logical attempt", async ({
           status: 409,
           title: "Conflict",
           detail: "Shipment status changed in another client",
+          code: "SHIPMENT_STALE_STATUS",
         },
       });
       return;

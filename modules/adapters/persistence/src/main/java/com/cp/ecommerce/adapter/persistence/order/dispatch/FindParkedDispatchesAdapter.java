@@ -18,16 +18,29 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 class FindParkedDispatchesAdapter implements FindParkedDispatchesOutPort {
+
     private final OrderPlacementDispatchEntityRepository repository;
 
     @Override
     public PagedResult<ParkedDispatch> findPage(final ParkedDispatchQuery query) {
-        final var page = repository.findParkedProjection(OrderPlacementDispatchStatus.PARKED,
-                PageRequest.of(query.page(), query.size()));
-        return new PagedResult<>(page.getContent().stream().map(row -> new ParkedDispatch(
-                row.getDispatchId(), row.getOrderNumber(), row.getDispatchType().name(), row.getAttempts(),
-                row.getCreatedAt(), safeReason(row.getReasonCode()))).toList(),
-                page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+        final var page = repository
+                .findParkedProjection(OrderPlacementDispatchStatus.PARKED, PageRequest.of(query.page(), query.size()));
+        return new PagedResult<>(
+                page.getContent()
+                        .stream()
+                        .map(
+                                row -> new ParkedDispatch(
+                                        row.getDispatchId(),
+                                        row.getOrderNumber(),
+                                        row.getDispatchType().name(),
+                                        row.getAttempts(),
+                                        row.getCreatedAt(),
+                                        safeReason(row.getReasonCode())))
+                        .toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages());
     }
 
     @Override

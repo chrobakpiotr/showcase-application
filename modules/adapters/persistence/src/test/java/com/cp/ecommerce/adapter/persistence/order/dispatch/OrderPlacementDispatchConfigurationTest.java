@@ -27,8 +27,7 @@ class OrderPlacementDispatchConfigurationTest {
             try (var context = context(true, schedulerEnabled, null)) {
                 context.refresh();
                 assertThat(context.getBeansOfType(OrderPlacementDispatchManager.class)).hasSize(1);
-                assertThat(context.getBeansOfType(OrderPlacementDispatchScheduler.class))
-                        .hasSize(schedulerEnabled ? 1 : 0);
+                assertThat(context.getBeansOfType(OrderPlacementDispatchScheduler.class)).hasSize(schedulerEnabled ? 1 : 0);
                 assertThat(context.getBean(OrderPlacementDispatchManager.class).leaseMillis).isEqualTo(120_000);
             }
         }
@@ -46,8 +45,8 @@ class OrderPlacementDispatchConfigurationTest {
     @Test
     void shouldRejectEnabledSchedulerWithDisabledManagerClearly() {
         try (var context = context(false, true, null)) {
-            assertThatThrownBy(context::refresh)
-                    .hasStackTraceContaining("order-placement.dispatch.enabled requires order-placement.dispatch.manager-enabled");
+            assertThatThrownBy(context::refresh).hasStackTraceContaining(
+                    "order-placement.dispatch.enabled requires order-placement.dispatch.manager-enabled");
         }
     }
 
@@ -65,8 +64,10 @@ class OrderPlacementDispatchConfigurationTest {
         }
     }
 
-    private static AnnotationConfigApplicationContext context(final boolean managerEnabled,
-            final boolean schedulerEnabled, final Long lease) {
+    private static AnnotationConfigApplicationContext context(
+            final boolean managerEnabled,
+            final boolean schedulerEnabled,
+            final Long lease) {
         final var context = new AnnotationConfigApplicationContext();
         final java.util.Map<String, Object> properties = new java.util.HashMap<>();
         properties.put("order-placement.dispatch.manager-enabled", managerEnabled);
@@ -76,7 +77,9 @@ class OrderPlacementDispatchConfigurationTest {
         }
         context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("dispatch-test", properties));
         context.registerBean(PropertySourcesPlaceholderConfigurer.class);
-        context.registerBean(OrderPlacementDispatchEntityRepository.class, () -> mock(OrderPlacementDispatchEntityRepository.class));
+        context.registerBean(
+                OrderPlacementDispatchEntityRepository.class,
+                () -> mock(OrderPlacementDispatchEntityRepository.class));
         context.registerBean(EntityManager.class, () -> mock(EntityManager.class));
         context.registerBean(ManageOrderInPort.class, () -> mock(ManageOrderInPort.class));
         context.registerBean(SendOrderConfirmationEmailInPort.class, () -> mock(SendOrderConfirmationEmailInPort.class));

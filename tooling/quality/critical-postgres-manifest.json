@@ -457,6 +457,60 @@
       "scenario": "old failed dispatches do not starve a healthy due dispatch beyond the bounded batch",
       "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
       "testMethod": "fiftyPoisonDispatchesMustNotStarveHealthyDispatchOnSecondDueTick"
+    },
+    {
+      "ac": "AC-PLACEMENT-DISPATCH-04",
+      "scenario": "exhausted ambiguous dispatches park at the retry ceiling without a ninth external attempt",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
+      "testMethod": "exhaustedAmbiguousDispatchMustParkWithoutNinthExternalAttempt"
+    },
+    {
+      "ac": "AC-PLACEMENT-DISPATCH-05",
+      "scenario": "missing orders park before either downstream dispatch port is called",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
+      "testMethod": "missingOrderMustParkBeforeCallingEitherDownstreamPort"
+    },
+    {
+      "ac": "AC-PARKED-DISPATCH-QUEUE-01",
+      "scenario": "parked dispatch queue bounds pages, orders ties, and hides unsafe data",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.ParkedDispatchQueuePostgresIntegrationTest",
+      "testMethod": "parkedQueueMustBoundPagesOrderTiesAndHideUnsafeData"
+    },
+    {
+      "ac": "AC-PARKED-DISPATCH-QUEUE-02",
+      "scenario": "parked dispatch queue observes committed state without taking claim locks",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.ParkedDispatchQueuePostgresIntegrationTest",
+      "testMethod": "parkedQueueMustObserveCommittedStateWithoutTakingClaimLocks"
+    },
+    {
+      "ac": "AC-DISPATCH-REDRIVE-01",
+      "scenario": "dispatch redrive is audited, safely replayed, and bounds the next retry cycle",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
+      "testMethod": "redriveMustAuditPreviousCycleReplaySafelyAndBoundNextCycle"
+    },
+    {
+      "ac": "AC-DISPATCH-REDRIVE-02",
+      "scenario": "concurrent identical redrive replays and conflicting commands have one winner",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
+      "testMethod": "concurrentSameCommandMustReplayAndDifferentCommandsMustHaveOneWinner"
+    },
+    {
+      "ac": "AC-DISPATCH-REDRIVE-03",
+      "scenario": "ineligible redrive reasons roll back their audit and transition",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
+      "testMethod": "redriveMustRejectIneligibleReasonsAndRollbackAuditWithTransition"
+    },
+    {
+      "ac": "AC-DISPATCH-REDRIVE-04",
+      "scenario": "parked dispatch with residual claim markers cannot be redriven",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
+      "testMethod": "redriveMustRejectParkedRowsWithResidualClaimMarkers"
+    },
+    {
+      "ac": "AC-DISPATCH-REDRIVE-05",
+      "scenario": "redrive serializes with scheduler claims and fences stale finalization",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
+      "testMethod": "schedulerClaimMustSerializeWithRedriveAndStaleOwnerMustNotFinalize"
     }
   ]
 }

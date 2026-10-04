@@ -373,10 +373,8 @@ jobs:
           format: table
           vuln-type: os,library
           severity: CRITICAL,HIGH
-          # Report-only for now (doesn't fail the build) - the base eclipse-temurin image's CVE
-          # backlog isn't something this showcase project controls the remediation timeline for;
-          # HIGH/CRITICAL findings are policy failures; documented temporary exceptions live in
-          # docs/security/vulnerability-exceptions.md.
+          # Fail on HIGH/CRITICAL OS or library findings, including base-image packages.
+          # Documented temporary exceptions are tracked in docs/security/vulnerability-exceptions.md.
           exit-code: '1'
 
   frontend:
@@ -409,8 +407,8 @@ jobs:
       - name: Lint
         run: npx ng lint
 
-      - name: Unit tests (headless Chrome)
-        run: npx ng test --no-watch --no-progress --browsers=ChromeHeadless --code-coverage
+      - name: Unit tests (Vitest)
+        run: npx ng test --no-watch --coverage
 
       - name: Build
         run: npm run build

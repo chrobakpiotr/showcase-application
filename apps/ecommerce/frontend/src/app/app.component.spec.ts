@@ -1,21 +1,22 @@
-import { signal } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import type { Mock } from "vitest";
+import { signal } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 
-import { AuthService } from '@app/auth/auth.service';
-import { AppComponent } from './app.component';
+import { AuthService } from "@app/auth/auth.service";
+import { AppComponent } from "./app.component";
 
-describe('AppComponent', () => {
+describe("AppComponent", () => {
   let fixture: ComponentFixture<AppComponent>;
   let component: AppComponent;
-  let logoutSpy: jasmine.Spy;
+  let logoutSpy: Mock;
 
   function setup(
     authenticated: boolean,
-    username = '',
-    roles: string[] = []
+    username = "",
+    roles: string[] = [],
   ): void {
-    logoutSpy = jasmine.createSpy('logout').and.resolveTo();
+    logoutSpy = vi.fn().mockName("logout").mockResolvedValue(undefined);
 
     TestBed.configureTestingModule({
       imports: [AppComponent],
@@ -42,121 +43,121 @@ describe('AppComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  it('should create the component', () => {
+  it("should create the component", () => {
     setup(false);
     expect(component).toBeTruthy();
   });
 
-  it('renders router-outlet', () => {
+  it("renders router-outlet", () => {
     setup(false);
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('router-outlet')).toBeTruthy();
+    expect(compiled.querySelector("router-outlet")).toBeTruthy();
   });
 
-  it('shows header when isAuthenticated is true', () => {
-    setup(true, 'admin');
+  it("shows header when isAuthenticated is true", () => {
+    setup(true, "admin");
     const compiled = fixture.nativeElement as HTMLElement;
-    const header = compiled.querySelector('header');
+    const header = compiled.querySelector("header");
     expect(header).toBeTruthy();
-    expect(header?.textContent).toContain('admin');
+    expect(header?.textContent).toContain("admin");
   });
 
-  it('hides header when isAuthenticated is false', () => {
+  it("hides header when isAuthenticated is false", () => {
     setup(false);
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('header')).toBeFalsy();
+    expect(compiled.querySelector("header")).toBeFalsy();
   });
 
-  it('logout() delegates OIDC logout to AuthService', () => {
+  it("logout() delegates OIDC logout to AuthService", () => {
     setup(true);
     component.logout();
     expect(logoutSpy).toHaveBeenCalled();
   });
 
-  it('shows the analytics nav link when the user has ORDER_READ', () => {
-    setup(true, 'admin', ['ORDER_READ']);
+  it("shows the analytics nav link when the user has ORDER_READ", () => {
+    setup(true, "admin", ["ORDER_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/analytics"]')).toBeTruthy();
   });
 
-  it('hides the analytics nav link when the user lacks ORDER_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the analytics nav link when the user lacks ORDER_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/analytics"]')).toBeFalsy();
   });
 
-  it('shows the catalog nav link when the user has CATALOG_READ', () => {
-    setup(true, 'admin', ['CATALOG_READ']);
+  it("shows the catalog nav link when the user has CATALOG_READ", () => {
+    setup(true, "admin", ["CATALOG_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeTruthy();
   });
 
-  it('hides the catalog nav link when the user lacks CATALOG_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the catalog nav link when the user lacks CATALOG_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/catalog"]')).toBeFalsy();
   });
 
-  it('always shows the dashboard, cart, wishlist, recommendations and reviews nav links', () => {
-    setup(true, 'admin', []);
+  it("always shows the dashboard, cart, wishlist, recommendations and reviews nav links", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/dashboard"]')).toBeTruthy();
     expect(compiled.querySelector('a[routerLink="/cart"]')).toBeTruthy();
     expect(compiled.querySelector('a[routerLink="/wishlist"]')).toBeTruthy();
     expect(
-      compiled.querySelector('a[routerLink="/recommendations"]')
+      compiled.querySelector('a[routerLink="/recommendations"]'),
     ).toBeTruthy();
     expect(compiled.querySelector('a[routerLink="/reviews"]')).toBeTruthy();
   });
 
-  it('shows the returns nav link when the user has RETURN_READ', () => {
-    setup(true, 'admin', ['RETURN_READ']);
+  it("shows the returns nav link when the user has RETURN_READ", () => {
+    setup(true, "admin", ["RETURN_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/returns"]')).toBeTruthy();
   });
 
-  it('hides the returns nav link when the user lacks RETURN_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the returns nav link when the user lacks RETURN_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/returns"]')).toBeFalsy();
   });
 
-  it('shows the notifications nav link when the user has NOTIFICATION_READ', () => {
-    setup(true, 'admin', ['NOTIFICATION_READ']);
+  it("shows the notifications nav link when the user has NOTIFICATION_READ", () => {
+    setup(true, "admin", ["NOTIFICATION_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(
-      compiled.querySelector('a[routerLink="/notifications"]')
+      compiled.querySelector('a[routerLink="/notifications"]'),
     ).toBeTruthy();
   });
 
-  it('hides the notifications nav link when the user lacks NOTIFICATION_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the notifications nav link when the user lacks NOTIFICATION_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(
-      compiled.querySelector('a[routerLink="/notifications"]')
+      compiled.querySelector('a[routerLink="/notifications"]'),
     ).toBeFalsy();
   });
 
-  it('shows the order history nav link when the user has ORDER_READ', () => {
-    setup(true, 'admin', ['ORDER_READ']);
+  it("shows the order history nav link when the user has ORDER_READ", () => {
+    setup(true, "admin", ["ORDER_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/orders"]')).toBeTruthy();
   });
 
-  it('hides the order history nav link when the user lacks ORDER_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the order history nav link when the user lacks ORDER_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/orders"]')).toBeFalsy();
   });
 
-  it('shows the inventory nav link when the user has INVENTORY_READ', () => {
-    setup(true, 'admin', ['INVENTORY_READ']);
+  it("shows the inventory nav link when the user has INVENTORY_READ", () => {
+    setup(true, "admin", ["INVENTORY_READ"]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/inventory"]')).toBeTruthy();
   });
 
-  it('hides the inventory nav link when the user lacks INVENTORY_READ', () => {
-    setup(true, 'admin', []);
+  it("hides the inventory nav link when the user lacks INVENTORY_READ", () => {
+    setup(true, "admin", []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[routerLink="/inventory"]')).toBeFalsy();
   });

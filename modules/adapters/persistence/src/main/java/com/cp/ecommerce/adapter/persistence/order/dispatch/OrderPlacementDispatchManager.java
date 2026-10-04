@@ -167,7 +167,8 @@ public class OrderPlacementDispatchManager {
                             dispatch.setClaimId(null);
                             dispatch.setClaimUntil(null);
                             dispatch.setLastError(message.substring(0, Math.min(message.length(), LAST_ERROR_MAX_LENGTH)));
-                            dispatch.setNextAttemptDate(Instant.ofEpochMilli(failedAt.toEpochMilli() + retryDelay(dispatch.getAttempts())));
+                            dispatch.setNextAttemptDate(
+                                    Instant.ofEpochMilli(failedAt.toEpochMilli() + retryDelay(dispatch.getAttempts())));
                             repository.saveAndFlush(dispatch);
                         }));
     }

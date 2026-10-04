@@ -8,6 +8,8 @@ import com.cp.ecommerce.domain.order.dispatch.ParkedDispatch;
 import com.cp.ecommerce.domain.order.dispatch.ParkedDispatchQuery;
 
 public interface FindParkedDispatchesOutPort {
+
     PagedResult<ParkedDispatch> findPage(ParkedDispatchQuery query);
+
     Optional<Instant> findOldestCreatedAt();
 }

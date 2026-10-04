@@ -16,6 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class RedriveDispatchUseCaseTest {
+
     @Test
     void shouldBindValidatedCommandAndInjectedTime() {
         final var command = new DispatchRedriveCommand("command", "dispatch", "operator", " inspected ");
@@ -41,5 +42,19 @@ class RedriveDispatchUseCaseTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new DispatchRedriveCommand("command", "dispatch", "", "reason"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldAcceptCommandFieldsAtTheirMaximumLengths() {
+        final var commandId = "c".repeat(80);
+        final var dispatchId = "d".repeat(100);
+        final var actor = "a".repeat(120);
+        final var reason = "r".repeat(500);
+        final var command = new DispatchRedriveCommand(commandId, dispatchId, actor, reason);
+
+        assertThat(command.commandId()).hasSize(80);
+        assertThat(command.dispatchId()).hasSize(100);
+        assertThat(command.actor()).hasSize(120);
+        assertThat(command.reason()).hasSize(500);
     }
 }

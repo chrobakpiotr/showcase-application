@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 @UseCase
 @RequiredArgsConstructor
 public class RedriveDispatchUseCase implements RedriveDispatchInPort {
+
     private final RedriveDispatchOutPort port;
     private final Clock clock;
 

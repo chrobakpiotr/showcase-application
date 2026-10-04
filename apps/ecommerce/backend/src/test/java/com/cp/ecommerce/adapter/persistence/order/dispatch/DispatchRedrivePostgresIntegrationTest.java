@@ -106,7 +106,8 @@ class DispatchRedrivePostgresIntegrationTest {
         assertThat(audit.getReason()).isEqualTo("inspected");
         assertThat(audit.getActor()).isEqualTo("operator");
         assertThat(audit.getOriginalCreatedAt()).isEqualTo(row.getCreatedDate());
-        for (final var changed : List.of(command("command", "different", "operator", "inspected"),
+        for (final var changed : List.of(
+                command("command", "different", "operator", "inspected"),
                 command("command", row.getDispatchId(), "other", "inspected"),
                 command("command", row.getDispatchId(), "operator", "different"))) {
             org.assertj.core.api.Assertions.assertThatThrownBy(() -> redrive.redrive(changed))
@@ -118,11 +119,14 @@ class DispatchRedrivePostgresIntegrationTest {
         manager.retryDueDispatches();
         given(clock.instant()).willReturn(NOW.plusSeconds(5));
         manager.retryDueDispatches();
-        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus()).isEqualTo(OrderPlacementDispatchStatus.PARKED);
+        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus())
+                .isEqualTo(OrderPlacementDispatchStatus.PARKED);
         assertThat(repository.findById(row.getDispatchId()).orElseThrow().getAttempts()).isEqualTo(2);
         assertThat(redrive.redrive(command).name()).isEqualTo("REPLAYED");
-        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus()).isEqualTo(OrderPlacementDispatchStatus.PARKED);
-        assertThat(redrive.redrive(command("next-cycle", row.getDispatchId(), "operator", "reinspected")).name()).isEqualTo("REQUEUED");
+        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus())
+                .isEqualTo(OrderPlacementDispatchStatus.PARKED);
+        assertThat(redrive.redrive(command("next-cycle", row.getDispatchId(), "operator", "reinspected")).name())
+                .isEqualTo("REQUEUED");
         assertThat(audits.count()).isEqualTo(2);
         org.mockito.Mockito.verify(email, org.mockito.Mockito.times(2)).sendConfirmationEmail(order);
         org.mockito.Mockito.verifyNoInteractions(routing);
@@ -136,8 +140,10 @@ class DispatchRedrivePostgresIntegrationTest {
         assertThat(outcomes).containsExactlyInAnyOrder("REQUEUED", "REPLAYED");
         assertThat(audits.count()).isEqualTo(1);
         final var other = parked("different", "ATTEMPT_BUDGET_EXHAUSTED");
-        assertThat(race(command("a", other.getDispatchId(), "operator", "inspected"),
-                command("b", other.getDispatchId(), "operator", "inspected")))
+        assertThat(
+                race(
+                        command("a", other.getDispatchId(), "operator", "inspected"),
+                        command("b", other.getDispatchId(), "operator", "inspected")))
                 .containsExactlyInAnyOrder("REQUEUED", "CONFLICT");
         assertThat(audits.count()).isEqualTo(2);
     }
@@ -146,9 +152,11 @@ class DispatchRedrivePostgresIntegrationTest {
     void redriveMustRejectIneligibleReasonsAndRollbackAuditWithTransition() {
         for (final String reason : List.of("ORDER_MISSING", "OTHER", "provider secret")) {
             final var row = parked("ineligible-" + reason.hashCode(), reason);
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> redrive.redrive(command(reason, row.getDispatchId(), "operator", "inspected")))
+            org.assertj.core.api.Assertions
+                    .assertThatThrownBy(() -> redrive.redrive(command(reason, row.getDispatchId(), "operator", "inspected")))
                     .isInstanceOf(com.cp.ecommerce.foundation.exception.OrderPlacementDispatchRedriveConflictException.class);
-            assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus()).isEqualTo(OrderPlacementDispatchStatus.PARKED);
+            assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus())
+                    .isEqualTo(OrderPlacementDispatchStatus.PARKED);
         }
         final var row = parked("rollback", "ATTEMPT_BUDGET_EXHAUSTED");
         new org.springframework.transaction.support.TransactionTemplate(transactions).executeWithoutResult(status -> {
@@ -156,7 +164,8 @@ class DispatchRedrivePostgresIntegrationTest {
             status.setRollbackOnly();
         });
         assertThat(audits.count()).isZero();
-        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus()).isEqualTo(OrderPlacementDispatchStatus.PARKED);
+        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getStatus())
+                .isEqualTo(OrderPlacementDispatchStatus.PARKED);
         assertThat(repository.findById(row.getDispatchId()).orElseThrow().getAttempts()).isEqualTo(8);
         org.mockito.Mockito.verifyNoInteractions(email, routing);
     }
@@ -168,8 +177,9 @@ class DispatchRedrivePostgresIntegrationTest {
         row.setClaimUntil(NOW.plusSeconds(30));
         repository.saveAndFlush(row);
 
-        org.assertj.core.api.Assertions.assertThatThrownBy(() -> redrive.redrive(
-                command("residual-claim-command", row.getDispatchId(), "operator", "inspected")))
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(
+                        () -> redrive.redrive(command("residual-claim-command", row.getDispatchId(), "operator", "inspected")))
                 .isInstanceOf(com.cp.ecommerce.foundation.exception.OrderPlacementDispatchRedriveConflictException.class);
         final var persisted = repository.findById(row.getDispatchId()).orElseThrow();
         assertThat(persisted.getStatus()).isEqualTo(OrderPlacementDispatchStatus.PARKED);
@@ -196,7 +206,11 @@ class DispatchRedrivePostgresIntegrationTest {
             final var racedClaim = claimResult.get(10, java.util.concurrent.TimeUnit.SECONDS);
             final var claim = racedClaim == null ? manager.claimDispatch(row.getDispatchId(), NOW) : racedClaim;
             assertThat(claim).isNotNull();
-            final var stale = new OrderPlacementDispatchManager.DispatchClaim(row.getDispatchId(), row.getOrderNumber(), row.getDispatchType(), "previous-cycle");
+            final var stale = new OrderPlacementDispatchManager.DispatchClaim(
+                    row.getDispatchId(),
+                    row.getOrderNumber(),
+                    row.getDispatchType(),
+                    "previous-cycle");
             manager.markSent(stale, NOW);
             manager.markFailed(stale, "stale", NOW);
             final var persisted = repository.findById(row.getDispatchId()).orElseThrow();
@@ -208,7 +222,8 @@ class DispatchRedrivePostgresIntegrationTest {
         org.mockito.Mockito.verifyNoInteractions(email, routing);
     }
 
-    private List<String> race(final com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand first,
+    private List<String> race(
+            final com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand first,
             final com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand second) throws Exception {
         final var start = new CountDownLatch(1);
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -221,7 +236,9 @@ class DispatchRedrivePostgresIntegrationTest {
                 }
             })).toList();
             start.countDown();
-            return List.of(futures.getFirst().get(10, java.util.concurrent.TimeUnit.SECONDS), futures.get(1).get(10, java.util.concurrent.TimeUnit.SECONDS));
+            return List.of(
+                    futures.getFirst().get(10, java.util.concurrent.TimeUnit.SECONDS),
+                    futures.get(1).get(10, java.util.concurrent.TimeUnit.SECONDS));
         }
     }
 
@@ -231,15 +248,22 @@ class DispatchRedrivePostgresIntegrationTest {
         return repository.saveAndFlush(row);
     }
 
-    private static com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand command(final String id,
-            final String dispatch, final String actor, final String reason) {
+    private static com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand command(
+            final String id,
+            final String dispatch,
+            final String actor,
+            final String reason) {
         return new com.cp.ecommerce.domain.order.dispatch.DispatchRedriveCommand(id, dispatch, actor, reason);
     }
 
-    private static OrderPlacementDispatchEntity dispatch(final String orderNumber,
-            final OrderPlacementDispatchStatus status, final Instant createdAt, final int attempts) {
+    private static OrderPlacementDispatchEntity dispatch(
+            final String orderNumber,
+            final OrderPlacementDispatchStatus status,
+            final Instant createdAt,
+            final int attempts) {
         return OrderPlacementDispatchEntity.builder()
-                .dispatchId(OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
+                .dispatchId(
+                        OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
                 .orderNumber(orderNumber)
                 .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL)
                 .status(status)

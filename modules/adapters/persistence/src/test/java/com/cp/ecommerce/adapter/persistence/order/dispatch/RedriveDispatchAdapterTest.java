@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class RedriveDispatchAdapterTest {
+
     private static final Instant NOW = Instant.parse("2026-10-04T12:00:00Z");
     private final IdempotencyLockRepository locks = mock(IdempotencyLockRepository.class);
     private final DispatchRedriveAuditRepository audits = mock(DispatchRedriveAuditRepository.class);
@@ -57,13 +58,21 @@ class RedriveDispatchAdapterTest {
     @Test
     void shouldReplayOriginalCommandWithoutReadingOrChangingDispatch() {
         stripe();
-        when(audits.findById("cmd")).thenReturn(Optional.of(DispatchRedriveAuditEntity.builder()
-                .commandId("cmd").dispatchId("dispatch").actor("operator").reason("inspected").build()));
+        when(audits.findById("cmd")).thenReturn(
+                Optional.of(
+                        DispatchRedriveAuditEntity.builder()
+                                .commandId("cmd")
+                                .dispatchId("dispatch")
+                                .actor("operator")
+                                .reason("inspected")
+                                .build()));
         assertThat(adapter.redrive(command, NOW)).isEqualTo(DispatchRedriveOutcome.REPLAYED);
-        for (final var changed : java.util.List.of(new DispatchRedriveCommand("cmd", "other", "operator", "inspected"),
+        for (final var changed : java.util.List.of(
+                new DispatchRedriveCommand("cmd", "other", "operator", "inspected"),
                 new DispatchRedriveCommand("cmd", "dispatch", "other", "inspected"),
                 new DispatchRedriveCommand("cmd", "dispatch", "operator", "other"))) {
-            assertThatThrownBy(() -> adapter.redrive(changed, NOW)).isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
+            assertThatThrownBy(() -> adapter.redrive(changed, NOW))
+                    .isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
         }
         verifyNoInteractions(rows);
     }
@@ -75,18 +84,27 @@ class RedriveDispatchAdapterTest {
         for (final var status : OrderPlacementDispatchStatus.values()) {
             if (status == OrderPlacementDispatchStatus.PARKED) continue;
             when(rows.findByIdForUpdate("dispatch")).thenReturn(Optional.of(row(status, "ATTEMPT_BUDGET_EXHAUSTED")));
-            assertThatThrownBy(() -> adapter.redrive(command, NOW)).isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
+            assertThatThrownBy(() -> adapter.redrive(command, NOW))
+                    .isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
         }
         for (final String reason : new String[] { "ORDER_MISSING", "OTHER", "provider secret", null }) {
             when(rows.findByIdForUpdate("dispatch")).thenReturn(Optional.of(row(OrderPlacementDispatchStatus.PARKED, reason)));
-            assertThatThrownBy(() -> adapter.redrive(command, NOW)).isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
+            assertThatThrownBy(() -> adapter.redrive(command, NOW))
+                    .isInstanceOf(OrderPlacementDispatchRedriveConflictException.class);
         }
         verify(audits, org.mockito.Mockito.never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
     private static OrderPlacementDispatchEntity row(final OrderPlacementDispatchStatus status, final String reason) {
-        return OrderPlacementDispatchEntity.builder().dispatchId("dispatch").orderNumber("order")
-                .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL).status(status).attempts(8)
-                .createdDate(NOW.minusSeconds(100)).nextAttemptDate(NOW).lastError(reason).build();
+        return OrderPlacementDispatchEntity.builder()
+                .dispatchId("dispatch")
+                .orderNumber("order")
+                .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL)
+                .status(status)
+                .attempts(8)
+                .createdDate(NOW.minusSeconds(100))
+                .nextAttemptDate(NOW)
+                .lastError(reason)
+                .build();
     }
 }

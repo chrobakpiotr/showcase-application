@@ -499,7 +499,10 @@ class ShipmentControllerTest {
         final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
         final Shipment advanced = ShipmentBuilder.mockShipment();
         final ShipmentController controller = new ShipmentController(
-                getShipmentInPort, workflow, listShipmentsInPort, shipmentWebMapper);
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
         final String operationId = "a".repeat(80);
         given(workflow.advanceShipment(ShipmentBuilder.TEST_SHIPMENT_NUMBER, operationId, ShipmentStatus.IN_TRANSIT))
                 .willReturn(advanced);
@@ -513,27 +516,31 @@ class ShipmentControllerTest {
 
     @Test
     void shouldRejectPartialOperationHeadersOverHttp() throws Exception {
-        mockMvc.perform(post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
-                .header("Idempotency-Key", "operation-http"))
+        mockMvc.perform(
+                post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
+                        .header("Idempotency-Key", "operation-http"))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
-                .header("X-Expected-Shipment-Status", "PENDING"))
+        mockMvc.perform(
+                post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
+                        .header("X-Expected-Shipment-Status", "PENDING"))
                 .andExpect(status().isBadRequest());
         org.mockito.Mockito.verifyNoInteractions(getShipmentInPort, advanceShipmentStatusInPort);
     }
 
     @Test
     void shouldRejectEmptyExpectedStatusHeaderWithoutOperationIdentity() throws Exception {
-        mockMvc.perform(post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
-                .header("X-Expected-Shipment-Status", ""))
+        mockMvc.perform(
+                post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
+                        .header("X-Expected-Shipment-Status", ""))
                 .andExpect(status().isBadRequest());
         org.mockito.Mockito.verifyNoInteractions(getShipmentInPort, advanceShipmentStatusInPort);
     }
 
     @Test
     void shouldRejectWhitespaceExpectedStatusHeaderWithoutOperationIdentity() throws Exception {
-        mockMvc.perform(post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
-                .header("X-Expected-Shipment-Status", " "))
+        mockMvc.perform(
+                post(SHIPMENTS_ENDPOINT + "/" + ShipmentBuilder.TEST_SHIPMENT_NUMBER + ADVANCE_PATH_SUFFIX)
+                        .header("X-Expected-Shipment-Status", " "))
                 .andExpect(status().isBadRequest());
         org.mockito.Mockito.verifyNoInteractions(getShipmentInPort, advanceShipmentStatusInPort);
     }
@@ -541,12 +548,17 @@ class ShipmentControllerTest {
     private void assertRejectedOperationHeaders(final String operationId, final ShipmentStatus expectedStatus) {
         final ShipmentWorkflow workflow = org.mockito.Mockito.mock(ShipmentWorkflow.class);
         final ShipmentController controller = new ShipmentController(
-                getShipmentInPort, workflow, listShipmentsInPort, shipmentWebMapper);
+                getShipmentInPort,
+                workflow,
+                listShipmentsInPort,
+                shipmentWebMapper);
 
-        assertThatThrownBy(() -> controller.advanceShipmentStatus(
-                ShipmentBuilder.TEST_SHIPMENT_NUMBER, operationId, expectedStatus))
-                .isInstanceOfSatisfying(ResponseStatusException.class, exception ->
-                        org.assertj.core.api.Assertions.assertThat(exception.getStatusCode().value()).isEqualTo(400));
+        assertThatThrownBy(
+                () -> controller.advanceShipmentStatus(ShipmentBuilder.TEST_SHIPMENT_NUMBER, operationId, expectedStatus))
+                .isInstanceOfSatisfying(
+                        ResponseStatusException.class,
+                        exception -> org.assertj.core.api.Assertions.assertThat(exception.getStatusCode().value())
+                                .isEqualTo(400));
         org.mockito.Mockito.verifyNoInteractions(getShipmentInPort, workflow);
     }
 

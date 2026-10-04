@@ -19,11 +19,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class GetParkedDispatchesUseCaseTest {
+
     private static final Instant NOW = Instant.parse("2026-10-04T12:00:00Z");
 
     @Test
     void shouldBoundPageIndexAndSize() {
         assertThat(new ParkedDispatchQuery(1000, 50).size()).isEqualTo(50);
+        assertThat(new ParkedDispatchQuery(0, 1).size()).isEqualTo(1);
         for (final int page : new int[] { -1, 1001 }) {
             assertThatThrownBy(() -> new ParkedDispatchQuery(page, 20)).isInstanceOf(IllegalArgumentException.class);
         }
