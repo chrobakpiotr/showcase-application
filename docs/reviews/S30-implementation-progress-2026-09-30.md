@@ -1318,6 +1318,34 @@ request reaches the real backend, the problem body is captured before the UI
 refresh, and the HTTP status and response metadata are retained. The scoped
 changes match this packet. No concrete issues were found.
 
+## S30-09c supplemental re-review: implementation and documentation evidence
+
+Refresh the existing S30 master-review re-review after S30-03c, S30-07d/e/f and
+S30-09d. Record the current implementation baseline and distinguish real
+HTTP/PostgreSQL replay, reload-during-unknown, competing-client conflict, and
+duplicate-click evidence. Update F05 for the Docker capability spike without
+calling it qualification. Update F10 for the completed safe operator-reference
+smoke while preserving the ruleset/admin-bypass and external handbook
+limitations. State that no live GitHub CI result was checked for the current
+snapshot and that the ODC accepted-risk exception is not remediation. Do not
+alter historic review outcomes or claim master closure. Independent read-only
+review and `git diff --check` precede a local documentation commit.
+
+Supplemental review incorporates implementation baseline
+`46d1415b5385f16ef953f9a275a6c33e3c143b1b`, local Docker spike evidence, and
+S30-07f commit `b6ff924`. F08 now records real response-loss/replay and
+reload-during-unknown, typed competing-client conflict, and double-click
+suppression through the real browser route before forwarding once to the
+backend. Partial-header rejection retains focused backend coverage. F10 records
+the executable advisory-example smoke and retains the ruleset, external
+handbook, and final-review limits. No live GitHub CI result, dependency
+remediation, or final master closure is claimed. Independent read-only review
+confirmed the F05/F08/F10 boundaries; corrections include the absent raw Docker
+probe artifact and conditional significance of container-ID reuse. The Python
+3.12 operator-reference smoke passed 2/2 in a disposable container with Git
+installed. The focused shipment E2E passed 1/1; Prettier and `git diff --check`
+passed.
+
 ## S30-03c disposable Docker Desktop capability spike
 
 Use disposable probes only under `/private/tmp`; do not add a production backend

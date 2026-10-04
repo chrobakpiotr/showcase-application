@@ -47,3 +47,27 @@ The 2026-10-04 ruleset artifact records only the response from
 `GET /repos/user99987/showcase-application/rulesets/21939086`. Its
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
+
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e` / `b6ff924`
+
+This update incorporates the S30-07d/e evidence recorded after the original
+`f732c75` snapshot and the S30-09d documentation smoke. It does not replace the
+original finding history or establish final S30 closure. This review did not
+check a live GitHub CI result for the current snapshot.
+
+| Finding | Updated status | Current evidence and remaining acceptance boundary |
+|---|---|---|
+| F05 — production backend qualification | **Open; Docker capability evidence is promising but insufficient** | The reported S30-03c disposable Docker Desktop spike passed Q01–Q10 at the container boundary and demonstrated container-wide drainage/fresh-CLI discovery (Q13–Q15). Raw probe output was not retained as a repository artifact. Q11 lacks exact canonical policy/repository/birth binding; Q12 has no qualified adapter. Q16 showed that the same stopped container ID can restart; this becomes unsafe if an adapter treats ID alone as one-shot identity without a per-start generation and durable terminal/drained state. No payload is authorized and no production qualification is claimed. |
+| F08 — shipment HTTP/retry contract | **Reviewed shipment acceptance paths now have real-boundary replay, conflict, and duplicate-click evidence** | S30-07d proves commit-then-lost-response replay through real HTTP and PostgreSQL: the browser response is aborted after commit, reload shows persisted state, and retry reuses the original operation ID and expected status. S30-07e proves a stale second client receives the typed 409, makes no automatic advance, then advances only after a deliberate action with a fresh key/status pair. S30-07f double-clicks while the first browser request is held before backend forwarding; the advance control is disabled and exactly one request reaches the route, which is then forwarded once to the real backend. Partial-header rejection has focused backend coverage. Independent review of S30-07f returned PASS. |
+| F10 — stale/overstated documentation | **Core corrections and executable smoke addressed; closure remains open** | S30-09a/b correct the required-check snapshot interpretation and current CLI reference; S30-09d executes the safe advisory example in a synthetic repository and checks option/output-shape drift. The ruleset artifact still does not establish branch-protection or every administrator-bypass behavior. The external Drive handbook/PDF was not changed. A final cross-document review after remaining implementation is still required. |
+
+The latest local CI repair is recorded at `46d1415`. It records an expiring
+OWASP Dependency-Check accepted-risk exception for the DOMPurify version
+bundled in Swagger UI; this makes the scanner gate pass but does not remediate
+the vulnerable bundled component. Do not report that dependency as fixed.
+
+Other finding statuses remain as in the original table. In particular, F01–F06
+and F07 remain open at their stated production-admission, qualification,
+output-boundary, poison-policy, and independent-CI acceptance boundaries. The
+Recovery Workbench remains gated. The canonical M5.3 Design Gate remains
+**NOT PASS**.
