@@ -48,12 +48,13 @@ The 2026-10-04 ruleset artifact records only the response from
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
 
-## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e` / `b6ff924`
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, and `acbb039`
 
-This update incorporates the S30-07d/e evidence recorded after the original
-`f732c75` snapshot and the S30-09d documentation smoke. It does not replace the
-original finding history or establish final S30 closure. This review did not
-check a live GitHub CI result for the current snapshot.
+This update incorporates the S30-07d/e/f evidence recorded after the original
+`f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
+parked-query measurement. It does not replace the original finding history or
+establish final S30 closure. The current tree includes these four local commits;
+no live GitHub CI result was checked for this snapshot.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|
