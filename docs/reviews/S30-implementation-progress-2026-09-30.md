@@ -1083,3 +1083,14 @@ plan, import a real grant, or edit the external PDF.
 Verification: all three `--help` paths and the no-`--repo` blocked response in
 the prepared Python 3.12 fixture; independent docs review; `git diff --check`.
 This is current guidance, not a new master closure or readiness claim.
+
+S30-09b complete. The live README now points to a dated current operator
+reference without restoring or modifying the external Drive PDF or accepted
+SDD-OBS-001 history. The reference records the external handbook's date/source
+snapshot and local verifier source SHA/date/check scope, gives current command
+syntax, and preserves the F01/F02/F05/F06 plus M5.3/manual-grant limitations.
+Python 3.12 fixture checks passed for top-level and all subcommand help and for
+the expected `run` without `--repo` blocked response (exit 5). Independent docs
+review was **PASS** after clarifying that `grant-import` mutates control state
+and belongs only in a disposable fixture. `git diff --check` passed. No live
+accepted plan or real grant was used.
