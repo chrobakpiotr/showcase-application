@@ -1785,12 +1785,15 @@ authorized by this checkpoint.
 Independent readiness and architecture reviews confirmed that the startup
 recovery epoch, same-leader recovery, generation naming, five-second versus
 handler-drain behavior, and standby restart semantics are now specified
-coherently enough to prototype. They identified one accepted-policy conflict
-that blocks design-gate PASS: every authenticated PAUSE/RESUME is to be audited,
-but latch and Redis outages prohibit or prevent the writes needed for a durable
-audit; authenticated malformed requests and command-ID reuse also have no audit
-disposition. The review records that as unresolved instead of treating
-operational telemetry as audit. Provider rollback/split-brain, permit key/epoch
+coherently enough to prototype. Reviewers identified tension between auditing
+every authenticated PAUSE/RESUME and the specifically accepted no-mutation,
+no-audit-claim behavior during Redis unavailability. The protocol now scopes
+that exception to either required-store outage and adds rejected-attempt audit
+rows for authenticated malformed/changed-ID requests when Redis is available.
+Two independent reviewers agreed this is a coherent fail-closed interpretation
+of the recorded decisions; formal architecture grill and boundary tests still
+need to verify it. Operational telemetry is never described as audit. Provider
+rollback/split-brain, permit key/epoch
 verification, live-member fencing, transaction-boundary classification,
 quarantine controls, and 06b stale-handler evidence remain required.
 
@@ -1806,8 +1809,10 @@ spec/plan. They now distinguish `expected_current_redis_generation`,
 the resulting ACTIVE generation and exact RESUME command. The architecture
 review also required same-leader recovery after an uncertain latch write to be
 tested separately from active-leader restart recovery; the candidate's evidence
-list now includes both paths and lost-response idempotency. The audit-policy
-conflict remains open. Repeated `test_spec_inventory.py` (3 tests),
+list now includes both paths and lost-response idempotency. The scoped audit
+interpretation received independent read-only review; the formal architecture
+grill and boundary tests remain. Repeated
+`test_spec_inventory.py` (3 tests),
 `test_design.py` (10 tests), Markdown link check, and `git diff --check` pass.
 
 ## S30-06 gate fencing capability probe — 2026-10-05

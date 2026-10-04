@@ -141,11 +141,19 @@ stopped and readiness down. The user accepted a dedicated app workload identity
 for PAUSE and individually authenticated human operators with a distinct
 gate-resume permission for RESUME. For RESUME, the service validates its
 audience and derives the actor from the verified issuer and subject, never a
-caller-supplied name. Every authenticated PAUSE and RESUME operation must write
-an audit entry with action, validated caller identity, time, outcome, and state
-generation; RESUME also records the operator reason. The gate-state transition
-and corresponding audit entry must commit atomically; each first-seen
-authenticated command has a stable command ID recorded in the audit. Before a
+caller-supplied name. Every authenticated, well-formed PAUSE/RESUME command
+must write an audit entry with action, validated caller identity, time,
+outcome, command ID, and state generation; RESUME also records operator reason.
+For a malformed authenticated request or changed-request command-ID reuse,
+write a rejected-attempt audit outcome when the gate store is available, without
+changing gate state or generation. The gate-state transition and its audit
+entry commit atomically; each first-seen valid command has a stable command ID.
+The explicitly accepted fail-closed exception is an authoritative-store outage
+before a safe commit: if the latch is unavailable/uncertain, do not mutate Redis;
+if Redis is unavailable before commit, make no Redis state/audit claim. In
+either case return failure/unknown as appropriate, emit operational telemetry,
+and keep admission inhibited. Telemetry is not described as a durable audit
+row. Before a
 PAUSE transition, durably set the independent latch to `RECOVERY_REQUIRED`; do
 not attempt the Redis transition until that write is confirmed. Retrying
 an ID with a durable command record resolves its prior outcome without a
@@ -637,15 +645,15 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
    and confirmation from every registered live instance before RESUME are
    accepted. Gate audit retention is one year followed by secure deletion.
-   The accepted Redis-outage behavior says not to mutate Redis and not to claim
-   a Redis audit row when PAUSE cannot commit. The gate protocol also forbids
-   Redis mutation before the latch is durably set, so an unavailable/uncertain
-   latch cannot use Redis for audit. This conflicts with the broad rule that
-   every authenticated operation is audited; no durable exception or
-   independent audit store has been accepted. Authenticated malformed requests
-   and command-ID
-   reuse attempts also need an audit disposition. Resolve these conflicts
-   before design-gate PASS. Exact token/signature claims and rotation, Redis
+   The accepted no-mutation/no-audit-claim behavior for Redis outage also
+   applies when the required latch write is unavailable/uncertain, because
+   Redis mutation is forbidden until the latch commit is known. This is the
+   fail-closed infrastructure exception to durable audit; telemetry is not an
+   audit row. Authenticated malformed requests and changed-request ID reuse
+   attempts get a rejected-attempt audit outcome when the gate store is
+   available, with no state/generation change. The architecture grill must
+   verify this scoped reading of the accepted failure decisions. Exact
+   token/signature claims and rotation, Redis
    failover and rollback recovery, instance liveness/expiry, proof of operator
    fencing, prefetched/unacknowledged-message mechanics, and alerting still
    require independent design review and failure evidence.

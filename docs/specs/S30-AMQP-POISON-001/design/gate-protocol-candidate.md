@@ -116,16 +116,17 @@ changing gate state or generation, and wait for the configured fsync threshold.
 The accepted Redis-outage exception is explicit: when Redis is unavailable
 before a PAUSE commit, no Redis audit row exists or is claimed; emit operational
 failure telemetry and rely on the prior PostgreSQL recovery marker and sticky
-inhibit. A latch write unavailable or uncertain before Redis is reachable has
-the same mechanical limitation: no Redis mutation is permitted, and the
-unavailable/uncertain PostgreSQL store cannot be claimed as an audit. The user
-has not explicitly resolved whether this is an exception to the requirement
-that every authenticated PAUSE/RESUME outcome be audited. Likewise, the spec
-does not say whether authenticated malformed requests or command-ID reuse
-attempts are operations that require audit rows. Do not exclude these cases by
-interpretation. They remain a design-gate blocker; the architecture grill must
-show how the accepted audit invariant can be met, or the product owner must
-explicitly narrow it. Until then, telemetry is not counted as an audit record.
+inhibit. Apply the same no-mutation/no-audit-claim rule when the required latch
+write is unavailable or uncertain: the accepted ordering forbids Redis mutation
+before a confirmed latch commit, and the uncertain/unavailable latch cannot be
+claimed as durable audit. This scopes the accepted audit-every-command policy
+to commands whose required state/audit stores can durably commit; telemetry is
+not counted as a durable audit row. Authenticated malformed requests and
+changed-request command-ID reuse attempts get a rejected-attempt audit outcome
+when Redis is available, without a state or generation change. This is the
+conservative interpretation of the user's specific outage and no-mutation
+decisions; the independent architecture grill must verify that interpretation
+before design-gate PASS.
 
 ### RESUME
 
@@ -203,8 +204,8 @@ generation.
 
 | Failure point | Durable facts allowed | Required response | Recovery condition |
 |---|---|---|---|
-| Caller invalid / unauthorized | No state transition; required audit treatment for authenticated malformed/reused-ID requests is unresolved; telemetry is not audit | Reject; do not issue permits based on request | Resolve audit policy; new valid authenticated request |
-| Latch write unavailable or uncertain before PAUSE | No Redis mutation or Redis audit claim; no durable latch audit can be claimed if the latch itself is unavailable/uncertain | Sticky inhibit; no permits; instances stop new work, drain, close and fail readiness | Retry original PAUSE ID; if no record exists, persist a fresh recovery epoch before a new audited RESUME; audit-policy exception/mechanism remains unresolved |
+| Caller invalid / unauthorized | No state transition; authenticated malformed/reused-ID attempts receive rejected-attempt audit if Redis is available; otherwise telemetry only under the accepted store-outage rule | Reject; do not issue permits based on request | New valid authenticated request |
+| Latch write unavailable or uncertain before PAUSE | No Redis mutation or audit claim; no durable latch audit can be claimed while that store is unavailable/uncertain | Sticky inhibit; no permits; instances stop new work, drain, close and fail readiness | Retry original PAUSE ID; if no record exists, persist a fresh recovery epoch before a new audited RESUME; outage attempt is telemetry only |
 | Latch committed; Redis unavailable before PAUSE commit | Latch remains `RECOVERY_REQUIRED`; no Redis state/audit claim | Fail PAUSE response; telemetry; sticky inhibit | Same command ID resolves/retries against expected Redis generation |
 | Redis PAUSE commit or fsync uncertain | Latch remains set; Redis result unknown | No permits; no success response | Same command ID reconciles durable Redis command record and fsync state |
 | PAUSE durable in both stores; notification lost | PAUSED generation and latch retained | Instances cease new work by revoke or permit expiry (maximum five seconds); readiness down; drain thereafter | Full drain/fencing barrier and audited RESUME |
@@ -223,11 +224,10 @@ generation.
 Before a PASS gate can be authored, demonstrate with disposable, reproducible
 fixtures and retained outputs:
 
-1. Resolve the audit invariant for latch-store failure and authenticated
-   malformed/changed-command-ID attempts. Demonstrate a durable audit path that
-   remains consistent with “no Redis mutation before confirmed latch” or retain
-   an explicit product-owner exception; operational telemetry alone does not
-   satisfy the audit record requirement.
+1. Verify the scoped audit contract at the failure boundaries: successful
+   commands commit state and audit atomically; rejected authenticated requests
+   receive audit outcomes when Redis is available; precommit store outages make
+   no unsafe mutation/audit claim and emit operational telemetry only.
 2. Concurrent PAUSE/RESUME and same-command retries across two service
    instances, including lost responses, lost fsync replies, duplicate IDs,
    changed-request ID reuse, and exact generation/audit outcomes.
