@@ -1184,3 +1184,20 @@ example is exercised only with a dummy plan ID and returns blocked/exit5 before
 authority imports. Python 3.12 tests passed 2/2; independent evaluator review
 was **PASS** after tightening both drift assertions; `git diff --check` passed.
 No real plan, grant, verifier payload, backend or `.agent-state` was used.
+
+## S30-06c task packet: register the draft AMQP feature in spec inventory
+
+The focused spec-inventory check exposed a dependency: adding/updating
+`docs/specs/S30-AMQP-POISON-001/spec.md` leaves the generated
+`docs/specs/INVENTORY.md` stale. Record the existing feature accurately as
+`DRAFT — architecture and contract decisions require review`; do not mark it
+accepted/executable or alter historical feature rows. Update only the generated
+inventory and this report, then rerun the inventory check and `git diff --check`.
+This is a documentation consistency repair; it does not clear any 06a/06b
+blocker or authorize AMQP implementation. Independent review precedes commit.
+
+S30-06c complete. The generated inventory now includes one document-only,
+unselected row for `S30-AMQP-POISON-001` with the existing DRAFT status; no
+historical rows changed. The deterministic inventory check passed, and the
+independent evaluator returned **PASS**. `git diff --check` passed. The 06a/06b
+contract and product blockers remain unchanged.
