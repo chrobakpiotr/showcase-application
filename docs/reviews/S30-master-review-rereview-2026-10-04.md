@@ -113,10 +113,11 @@ error types to their current listener/service/receipt-adapter throw sites. It
 does not authorize broad exception-type classification: boundary tests must
 still prove the receipt transaction behavior, while database, commit, and
 unclassified failures remain unknown. The user selected a deployment-managed
-global pause gate independent of the application database; its primitive,
-writer/resume authorization path, and failure behavior still require design.
-A separate answer authorizes the app to set PAUSED only; only the audited
-operator tool may resume. The platform audit found Redis on each local
+global pause gate independent of the application database. The user then
+accepted a deployment-owned gate service with app PAUSE-only and audited-tool
+RESUME-only operations; the app must not have authoritative-store write
+credentials. Authentication, audit, atomicity, durable storage and cross-env
+deployment remain to be designed. The platform audit found Redis on each local
 deployment surface, but all current instances are ephemeral and therefore do
 not yet qualify as a durable gate.
 These decisions resolve

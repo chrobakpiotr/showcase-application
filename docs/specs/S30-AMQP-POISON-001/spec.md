@@ -119,12 +119,16 @@ active handlers to finish, and keep readiness down until operator resume. The
 user selected a deployment-managed global gate, independent of the application
 database, to persist pause across instances and restarts. If the gate is absent,
 unavailable, or cannot be read consistently, consumers stay stopped and
-readiness stays down. The application may request/set PAUSED but must never set
-ACTIVE; only the audited operator tool may resume. The exact platform
-primitive, technically enforced one-way pause capability, atomic update/CAS
-protocol, operator authorization/audit path, and cross-env deployment contract
-must be designed and tested before release; the application must not resume
-itself or assume a failed database can record the pause.
+readiness stays down. The user accepted a deployment-owned gate service with
+separate operations: the application may request PAUSED only, and the audited
+operator tool alone may request RESUME. The application must not receive
+credentials to write the authoritative gate store. The gate service and its
+store are independent of the application database. Missing/unavailable service
+or store, missing/malformed state, or uncertain persistence keeps consumers
+stopped and readiness down. Authentication identities, audit schema/retention,
+atomic update/CAS and generation protocol, durable store and encryption, and
+cross-environment deployment contract remain to be designed and tested before
+release.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation
@@ -379,9 +383,9 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
    resume authorization/audit. Stopping new deliveries, draining active
    handlers, readiness-down, and operator-only resume across restart are
-   accepted. The deployment gate and 06b stale-handler fencing remain
-   unimplemented; prefetched/unacknowledged-message mechanics and alerting
-   remain unresolved.
+   accepted. The deployment-owned gate service and 06b stale-handler fencing
+   remain unimplemented; prefetched/unacknowledged-message mechanics and
+   alerting remain unresolved.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may
    read/export only through the audited tool; direct AMQP and management reads

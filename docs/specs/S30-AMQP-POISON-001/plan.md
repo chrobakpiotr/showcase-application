@@ -175,13 +175,27 @@ readiness or pause-state integration. Do not infer drain success from `stop()`
 returning after a timeout. The deployment gate must fail closed if absent or
 unavailable, including when the receipt database is down.
 
-The platform review found Redis already deployed in root Compose, E2E Compose,
+The user accepted a deployment-owned gate service with separate application
+PAUSE-only and audited operator RESUME-only operations. The application must
+not receive credentials to write authoritative state. The platform review
+found Redis already deployed in root Compose, E2E Compose,
 dev Kubernetes, and as an externally supplied Helm dependency. None currently
 has persistent storage, so these instances are not qualified to persist this
 gate. Redis is only a candidate backing service. The design must include
-encrypted durable storage, atomic generation transitions, a technically
-enforced app-only PAUSED capability, operator-only audited resume, and
+encrypted durable storage, atomic generation transitions, technically
+enforced service-level app PAUSE-only and audited operator RESUME-only
+authorization, and
 per-instance drain/fencing evidence. Missing gate state must not mean ACTIVE.
+
+The disposable ACL result is preserved in
+[`evidence/pause-gate-acl-probe.md`](evidence/pause-gate-acl-probe.md). Direct
+Redis ACLs did not enforce a one-way app transition: granting the application
+user the hash write needed by the PAUSED function also allowed a direct write
+of ACTIVE. Therefore the gate service owns the durable state and exposes
+separately authenticated PAUSE and RESUME operations. Qualify any Redis-backed
+store only after proving encrypted durable storage, atomic updates, provider
+compatibility, and safe missing-state behavior. Do not grant the app direct
+write access to authoritative state.
 
 ### D4 — quarantine data controls
 
