@@ -1753,3 +1753,18 @@ number. The AMQP Spotless check also passed using the container mounted at the
 `/workspace` path expected by the formatter. A host-path invocation resolved a
 stale `/workspace/...` formatter target and failed before inspecting formatting;
 the correctly mounted check is the passing evidence. `git diff --check` passed.
+
+## GitHub CI follow-up — 2026-10-05
+
+Inspected latest remote `main` CI run 149 on `bfa093b0`:
+<https://github.com/chrobakpiotr/showcase-application/actions/runs/37233182787>.
+Playwright ran 29 E2E tests; 27 passed and two in
+`shipment-response-loss.spec.ts` failed when Playwright could no longer read
+response bodies after page navigation. The app stack was healthy. The aggregate
+quality gate failed only because E2E failed; all other CI jobs passed, including
+OWASP DependencyCheck, PIT, backend, Trivy, frontend, SBOM, and infrastructure.
+
+Commit `7ae505e` captures both affected response bodies in Playwright route
+handlers before fulfilling them to the page. Both failing tests passed against
+the local Compose E2E stack. Prettier, focused ESLint, and `git diff --check`
+passed. No push was made, so there is no hosted CI result for this repair.

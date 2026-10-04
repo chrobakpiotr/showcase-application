@@ -187,5 +187,27 @@ policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b
 attempt fencing is implemented or proven by this documentation update. The
 data policy still blocks enabling raw-payload quarantine wherever encryption
-and access restrictions are not enforced. No live GitHub CI result was
-checked.
+and access restrictions are not enforced. At the time of this policy update,
+no live GitHub CI result was checked; the subsequent CI follow-up is recorded
+below.
+
+## CI follow-up — 2026-10-05
+
+The latest remote `main` run inspected was [CI run 149 on
+`bfa093b0`](https://github.com/chrobakpiotr/showcase-application/actions/runs/37233182787).
+Only **End-to-end tests (Playwright)** failed; the aggregate **CI quality gate**
+failed because of that job. Playwright ran 29 tests: 27 passed and two tests in
+`apps/ecommerce/frontend/e2e/shipment-response-loss.spec.ts` failed while
+reading response JSON after a page transition. GitHub reported that the body
+was no longer available for the response. The app stack started and became
+healthy, so this was an E2E response-capture defect rather than startup
+flakiness. The other CI stages passed, including DependencyCheck, PIT, backend,
+Trivy, frontend, SBOM, and infrastructure validation; Dependency Review was
+skipped as expected for a push.
+
+Local fix `7ae505e` captures the shipment creation JSON in a Playwright route
+handler before fulfilling the browser response and captures the explicit
+advance response the same way. Both failing scenarios passed against the local
+E2E Compose stack, with Prettier, ESLint, and `git diff --check` passing. The
+commit remains local: no push was performed, so GitHub has not run CI on the
+fix yet.
