@@ -1572,7 +1572,14 @@ The user accepted the following previously open S30 policy decisions:
   must be rejected with the source unacknowledged and consumption paused.
   Durable enforcement, pause/resume operator authentication/audit,
   prefetched-but-not-started delivery handling, alerting and channel-loss
-  behavior remain unimplemented or undecided.
+  behavior remain unimplemented or undecided. The user selected a
+  deployment-managed global pause gate independent of the application database;
+  its platform primitive, application pause-signal writer and operator resume
+  path remain to be specified and verified. Gate absence/unavailability must
+  fail closed. The user specified the app may set PAUSED but never ACTIVE; only
+  the audited operator tool may resume. Redis exists across local deployment
+  surfaces and as an external Helm dependency, but current instances lack
+  persistent storage and do not qualify as the gate yet.
 - **S30-06 quarantine data:** raw quarantined payloads and headers require
   server-authenticated TLS with CA/hostname verification and separate broker
   credentials, encrypted broker host/storage-class volumes in every environment,

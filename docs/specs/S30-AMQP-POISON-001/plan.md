@@ -145,21 +145,43 @@ unknown. Never classify by message text or broad `RuntimeException`.
 
 The accepted high-level behavior is to stop new deliveries, let active handlers
 finish, keep readiness down, and require explicit operator resume after process
-or broker restart. Define how to persist/enforce the pause, how already
+or broker restart. The user selected a deployment-managed global gate
+independent of the application database. The application may request/set
+PAUSED but must never set ACTIVE; only the audited operator tool may resume.
+Missing, unavailable, or ambiguous gate state must keep consumers stopped and
+readiness down. Define the platform primitive and technically enforce this
+one-way capability; define how already
 prefetched-but-not-started deliveries and the unacked failing delivery behave,
 how operator authorization/audit works, and what happens on channel loss; then
 demonstrate those semantics with the production container. A container-only
-pause is not a durable guard across application restart; if auto-start
-recreates a hot loop, 06b's durable ledger (or a separately accepted persistent
-circuit state) must precede release. Do not conceal this limitation with a
-claim of bounded attempts.
+pause is not a durable guard across application restart; the deployment-managed
+gate is the selected persistence direction, while 06b's stale-handler fencing
+remains a separate prerequisite. Do not conceal this limitation with a claim
+of bounded attempts.
 
 The prototype result is preserved in
 [`evidence/container-lifecycle-spike.md`](evidence/container-lifecycle-spike.md):
 manual unacked deliveries were requeued/redelivered after container stop and
 restart while an old handler remained blocked. Therefore a volatile stop flag
-does not satisfy restart-safe admission; 06b or another durable guard must be
-sequenced before production enablement if automatic restart is permitted.
+does not satisfy restart-safe admission. The deployment-managed global gate is
+now the accepted persistence direction; its primitive, write/read protocol and
+operator action still need architecture review. 06b must separately provide
+stale-handler fencing before production enablement.
+
+The 2026-10-04 source audit confirms that the manually constructed container
+does not explicitly configure acknowledgement mode, prefetch, concurrency, or
+shutdown timeout, and the listener receives only a `String`. There is no
+readiness or pause-state integration. Do not infer drain success from `stop()`
+returning after a timeout. The deployment gate must fail closed if absent or
+unavailable, including when the receipt database is down.
+
+The platform review found Redis already deployed in root Compose, E2E Compose,
+dev Kubernetes, and as an externally supplied Helm dependency. None currently
+has persistent storage, so these instances are not qualified to persist this
+gate. Redis is only a candidate backing service. The design must include
+encrypted durable storage, atomic generation transitions, a technically
+enforced app-only PAUSED capability, operator-only audited resume, and
+per-instance drain/fencing evidence. Missing gate state must not mean ACTIVE.
 
 ### D4 — quarantine data controls
 

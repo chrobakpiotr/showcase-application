@@ -108,27 +108,34 @@ The disposable RabbitMQ 4.1 lifecycle spike in
 confirmed that with prefetch3, a blocked handler can outlive a one-second
 container stop timeout; channel closure returns three unacked messages with
 `redelivered=true` after restart. Container pause/stop alone is therefore not a
-restart-safe guard. A durable attempt/admission guard from 06b (or another
-accepted durable mechanism) must precede production release if process restart
-is allowed to reactivate the listener. The spike did not test stale-handler
-fencing after restart.
+restart-safe guard. The user-selected deployment-managed gate must persist the
+global pause independently of the receipt database. The spike did not test
+stale-handler fencing after restart; 06b must resolve that separate boundary.
 
 The accepted lifecycle decisions are: after a poison/unknown pause, application
 or broker restart must not automatically resume consumption; an explicit
 operator action is required. Stop dispatching new deliveries, allow already
-active handlers to finish, and keep readiness down until operator resume. These
-are lifecycle requirements, not a claim that the current volatile container
-pause survives process restart. A durable pause record/admission guard and the
-operator authentication/audit mechanism remain to be designed and tested
-before production release.
+active handlers to finish, and keep readiness down until operator resume. The
+user selected a deployment-managed global gate, independent of the application
+database, to persist pause across instances and restarts. If the gate is absent,
+unavailable, or cannot be read consistently, consumers stay stopped and
+readiness stays down. The application may request/set PAUSED but must never set
+ACTIVE; only the audited operator tool may resume. The exact platform
+primitive, technically enforced one-way pause capability, atomic update/CAS
+protocol, operator authorization/audit path, and cross-env deployment contract
+must be designed and tested before release; the application must not resume
+itself or assume a failed database can record the pause.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation
-mechanics and real-container tests. This 06a slice has no durable attempt
+mechanics and real-container tests. Old handlers must be fenced before a
+redelivered message can be finalized by a new owner; the separate durable claim
+contract remains a 06b dependency. This 06a slice has no durable attempt
 ledger, retry budget, or operator replay audit record, so it cannot claim a
 finite retry count, automatic recovery, or hot-message isolation across process
-restarts. A durable guard from 06b or another accepted mechanism is required
-before production release.
+restarts. The selected global gate covers pause persistence; 06b stale-handler
+fencing and the gate implementation are still required before production
+release.
 
 ## Error and delivery semantics
 
@@ -372,8 +379,9 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
    resume authorization/audit. Stopping new deliveries, draining active
    handlers, readiness-down, and operator-only resume across restart are
-   accepted; the durable guard and prefetched/unacknowledged-message details
-   are not implemented.
+   accepted. The deployment gate and 06b stale-handler fencing remain
+   unimplemented; prefetched/unacknowledged-message mechanics and alerting
+   remain unresolved.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may
    read/export only through the audited tool; direct AMQP and management reads
