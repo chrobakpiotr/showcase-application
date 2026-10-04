@@ -233,8 +233,10 @@ client, `ORDER_WRITE`, or shared `order-admin` account. Audit each authenticated
 PAUSE and RESUME with the validated actor, operation, time, outcome, and state
 generation; include operator reason on RESUME. Commit the matching state and
 audit atomically and return success only after configured Redis fsync is
-confirmed. Exact token claims, audit retention, timestamp encoding, and the
-transaction/idempotency protocol still require design and review.
+confirmed. Retain gate audit entries for one year, then securely delete them
+under a documented procedure; this is separate from the 30-day raw quarantine
+retention. Exact token claims, timestamp encoding, and the transaction/
+idempotency protocol still require design and review.
 For local/dev, the user selected the repository's Keycloak with a separate
 gate-service audience/client, app workload identity, and individual-operator
 resume role. Production must configure a corresponding external issuer/client.

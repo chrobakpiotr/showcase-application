@@ -1585,7 +1585,7 @@ The user accepted the following previously open S30 policy decisions:
   and state generation; RESUME also records reason. State and audit commit
   atomically, and success waits for the Redis fsync threshold. Every registered
   live instance must confirm stop and drain before RESUME. Exact claims, audit
-  retention/timestamp format, instance liveness and stale recovery, and
+  timestamp format, instance liveness and stale recovery, and
   durable-volume/provider conformance remain open. The dedicated Redis store
   and synchronous AOF policy are accepted; its isolated tmpfs probe survived a
   Redis process restart and WAITAOF reported local fsync, but this does not
@@ -1684,9 +1684,11 @@ registered live application instance to confirm that it stopped dispatching
 new deliveries and drained active handlers before RESUME. The liveness/lease
 definition remains open. Lease expiry alone cannot exclude an unresponsive
 instance: the operator must confirm its RabbitMQ consumer connection is fenced
-or closed before RESUME. The fencing/closure evidence mechanism, token claims,
-audit retention and timestamp format, Redis failover/idempotency/crash-recovery
-protocol, and 06b stale-handler fencing remain unresolved. These are policy
+or closed before RESUME. Gate audit entries are retained for one year, then
+securely deleted; raw quarantine payloads retain their separate 30-day policy.
+The fencing/closure evidence mechanism, token claims, timestamp format, Redis
+failover/idempotency/crash-recovery protocol, and 06b stale-handler fencing
+remain unresolved. These are policy
 decisions only; no gate service or deployment implementation is claimed.
 
 ## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs

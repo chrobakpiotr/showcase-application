@@ -121,8 +121,10 @@ state and append an audit entry with action, validated caller identity, time,
 outcome, and state generation; RESUME also records operator reason. Return
 success only after Redis confirms the configured fsync threshold. Before
 RESUME, every registered live application instance must confirm delivery stop
-and active-handler drain. Exact token claims, audit retention and timestamp
-format, Redis transaction/idempotency/crash/failover protocol, and instance
+and active-handler drain. Gate audit entries are retained one year, then
+securely deleted under a documented procedure; raw quarantine payloads retain
+their separate 30-day policy. Exact token claims and timestamp format, Redis
+transaction/idempotency/crash/failover protocol, and instance
 liveness lease and fencing/closure evidence remain to be designed. Lease expiry
 alone cannot establish that an unresponsive instance stopped; the operator
 must confirm its RabbitMQ consumer connection is fenced or closed before
@@ -136,9 +138,9 @@ restart probe returned local fsync via WAITAOF, but does not qualify deployment
 storage or failover durability. AOF/WAITAOF errors, insufficient fsync, or
 uncertain Redis state must fail closed. The user accepted dedicated app-workload
 and individual operator identities, a gate-specific resume permission, and
-durable validated-subject audit; exact claims, retention and timestamp format
-remain open. Local/dev use the existing Keycloak
-with a distinct gate audience/client and role; production configures the
+durable validated-subject audit; exact claims and timestamp format remain open.
+Gate audit retention is one year followed by secure deletion. Local/dev use the
+existing Keycloak with a distinct gate audience/client and role; production configures the
 corresponding external issuer/client. Exact identifiers and credential
 lifecycle remain open.
 These decisions resolve

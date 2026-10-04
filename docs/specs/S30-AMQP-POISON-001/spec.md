@@ -135,7 +135,10 @@ generation; RESUME also records the operator reason. The gate-state transition
 and corresponding audit entry must commit atomically, and success is returned
 only after Redis confirms the configured fsync durability threshold. Failure
 to commit either state or audit, or to confirm durability, fails closed. The
-exact token claims, audit retention, timestamp format, generation/CAS protocol,
+gate audit entries are retained for one year, then securely deleted under a
+documented retention/deletion procedure. This applies to the gate audit, not
+the separately retained raw quarantine payloads. The exact token claims,
+timestamp format, generation/CAS protocol,
 retry/crash recovery, Redis failover behavior, and cross-environment deployment
 contract remain to be designed and tested before release. Before RESUME, every
 registered live application instance must confirm that it stopped new delivery
@@ -417,7 +420,8 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    06b stale-handler fencing remain unimplemented. Atomic state-plus-audit for
    every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
    and confirmation from every registered live instance before RESUME are
-   accepted. Exact token claims, audit retention/timestamp format, Redis
+   accepted. Gate audit retention is one year followed by secure deletion.
+   Exact token claims, timestamp format, Redis
    failover and crash-recovery protocol, instance liveness/expiry and proof of
    operator fencing for stale instances, prefetched/unacknowledged-message
    mechanics, and alerting remain unresolved.
