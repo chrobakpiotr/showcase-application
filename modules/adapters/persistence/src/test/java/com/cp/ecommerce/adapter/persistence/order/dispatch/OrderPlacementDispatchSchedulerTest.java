@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.dispatch;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 
 import static org.mockito.Mockito.mock;
@@ -10,7 +12,7 @@ class OrderPlacementDispatchSchedulerTest {
     @Test
     void shouldDelegate() {
         final OrderPlacementDispatchManager manager = mock(OrderPlacementDispatchManager.class);
-        new OrderPlacementDispatchScheduler(manager).retryDueDispatches();
+        new OrderPlacementDispatchScheduler(Optional.of(manager)).retryDueDispatches();
         verify(manager).retryDueDispatches();
     }
 }

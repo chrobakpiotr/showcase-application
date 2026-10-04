@@ -51,8 +51,8 @@ public class OrderPlacementDispatchManager {
     private final TransactionOperations transactionOperations;
     private final Clock clock;
 
-    @Value("${order-placement.dispatch.lease-ms:30000}")
-    long leaseMillis = 30_000L;
+    @Value("${order-placement.dispatch.lease-ms:120000}")
+    long leaseMillis = 120_000L;
     @Value("${order-placement.dispatch.retry-delay-ms:5000}")
     long retryDelayMillis = 5_000L;
     @Value("${order-placement.dispatch.max-attempts:8}")
@@ -60,6 +60,9 @@ public class OrderPlacementDispatchManager {
 
     @PostConstruct
     void validateRetryConfiguration() {
+        if (leaseMillis < 120_000L) {
+            throw new IllegalArgumentException("order-placement.dispatch.lease-ms must be at least 120000");
+        }
         if (maxAttempts < 1 || maxAttempts > MAX_CONFIGURED_ATTEMPTS) {
             throw new IllegalArgumentException("order-placement.dispatch.max-attempts must be between 1 and 8");
         }

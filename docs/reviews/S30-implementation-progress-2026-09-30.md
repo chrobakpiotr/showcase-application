@@ -748,3 +748,38 @@ no-op and one external attempt per claim. Independent persistence/concurrency
 review required. Other
 configuration combinations, SMTP/Camel timeout-to-lease relation, audited
 redrive and terminal retention remain later08 checkpoints.
+
+## S30-08c task packet: worker and timeout configuration
+
+Accepted source: master review14.4/8. SMTP connection, read and write timeouts
+are each30seconds. Raise the durable claim lease default and minimum to120seconds
+as a conservative floor. These per-operation SMTP timeouts are not a total send
+deadline: DNS, multiple protocol reads/writes, order lookup and finalization can
+extend the call. The current Camel route is synchronous local file output with no
+explicit operation deadline. Document that either call can exceed120seconds and
+overlap a takeover; proving a hard no-overlap bound requires an aggregate deadline
+or safe lease renewal plus external fencing, which remains separate work. A
+future remote route must declare a total timeout before using this retry worker.
+
+Keep separate manager and scheduler toggles. Test all four combinations:
+bothenabled and manager-only start, bothdisabled start without either bean, and
+scheduler-enabled/manager-disabled fails fast with a clear configuration error.
+Do not make a disabled manager break startup when the scheduler is also disabled;
+do not silently skip an explicitly enabled scheduler. No remote network/provider
+behavior is added in this checkpoint.
+
+Allowed paths: dispatch manager/scheduler and focused persistence configuration
+tests, plus this report. No migration, retry-count or status change. Validate lease
+minimum and enablement matrix; preserve claim fencing and run the focused unit
+configuration tests plus existing real PostgreSQL dispatch class. Independent
+persistence/concurrency review before local commit. Audited redrive, read-only
+operator queue and terminal retention remain separate08 checkpoints.
+
+08c implementation complete. Focused persistence configuration, manager and
+scheduler tests passed 16/16; real PostgreSQL dispatch integration passed 5/5,
+including bounded claims, fair dispatch and stable intent replay. Independent
+design review found no blocker. `git diff --check` passed. The 120-second value
+is a conservative lease floor only: SMTP per-operation timeout settings and the
+current synchronous local Camel route do not bound total processing time, so an
+operation can still outlive a lease and overlap takeover. Hard exclusion remains
+unproven and requires aggregate deadline or safe renewal plus external fencing.
