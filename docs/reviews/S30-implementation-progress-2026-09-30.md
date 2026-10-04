@@ -1553,25 +1553,34 @@ The user accepted the following previously open S30 policy decisions:
   restart must not automatically resume consumption; an explicit operator
   action is required. Stop new deliveries, allow active handlers to finish, and
   keep readiness down until resume. Deployment tooling alone provisions the
-  quarantine topology; the application must not declare those resources.
-  Durable enforcement, operator authentication/audit, prefetched-but-not-started
-  delivery handling, alerting and channel-loss behavior remain unimplemented or
-  undecided. The proposed exchange/queue/routing-key names are still awaiting
-  acceptance.
+  quarantine topology; the application must not declare those resources. The
+  accepted durable exchange is `com.cp.e.topic.order.quarantine.v1`, the queue
+  is `com.cp.q.order.quarantine.v1`, and the binding key is
+  `order.quarantine.v1`. The topology is required in all environments;
+  deployment tooling will apply Rabbit per-message TTL (`x-message-ttl`) and
+  verify deletion at 30 days.
+  Durable enforcement, operator authentication/audit,
+  prefetched-but-not-started delivery handling, alerting and channel-loss
+  behavior remain unimplemented or undecided.
 - **S30-06 quarantine data:** raw quarantined payloads and headers must be
-  encrypted, access-restricted, and retained for 30 days. The encryption
-  boundaries, access/export audit, backup, deletion enforcement and payload
-  size controls still need implementation-level definition and verification.
+  encrypted, access-restricted, and retained for 30 days. Rabbit
+  `x-message-ttl` plus deletion verification is the accepted retention
+  mechanism; its configuration and verification procedure remain to be
+  implemented and tested. Encryption boundaries, access/export audit, backup,
+  and payload size controls still need implementation-level definition and
+  verification.
 - **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely
   because `(order, dispatch type)` is the enqueue deduplication fact. No
   terminal-row deletion/retention mechanism is authorized under this decision.
 
 These decisions clear the high-level restart, raw-quarantine retention,
-deployment ownership, active-handler pause behavior, and dispatch-row horizon
-questions only. The exact quarantine topology names, Compose/Kubernetes
-provisioning artifacts, durable restart guard, operator authorization/audit,
-prefetched/unacknowledged delivery mechanics, error taxonomy, header policy and
-06b attempt/fencing/privacy requirements remain open. They also do not
+deployment ownership, exact topology names, all-environment deployment scope,
+TTL-plus-deletion-verification approach, active-handler pause behavior, and
+dispatch-row horizon questions only. Compose/Kubernetes provisioning artifacts,
+the externally managed production Rabbit handoff, durable restart guard,
+operator authorization/audit, prefetched/unacknowledged delivery mechanics,
+error taxonomy, header policy and 06b attempt/fencing/privacy requirements
+remain open. They also do not
 establish a production dispatch workload or latency objective. See the current state in
 [`S30-master-review-rereview-2026-10-04.md`](S30-master-review-rereview-2026-10-04.md).
 

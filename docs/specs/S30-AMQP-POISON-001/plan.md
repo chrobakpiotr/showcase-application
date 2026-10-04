@@ -9,8 +9,11 @@ listener. The domain/application receive port and persistence receipt adapter
 own validation/business rejection and the durable receipt commit. The adapter
 must not weaken that transaction boundary or infer downstream finance/stock
 completion from a receipt. Deployment-tooling-only ownership of new quarantine
-resources is accepted; exact names and concrete deployment artifacts still
-need confirmation and task-packet assignment before implementation.
+resources is accepted. The accepted resources are durable exchange
+`com.cp.e.topic.order.quarantine.v1`, durable queue
+`com.cp.q.order.quarantine.v1`, and routing key `order.quarantine.v1`.
+Concrete deployment artifacts still need task-packet assignment before
+implementation.
 
 Likely code/test seams, subject to task-packet confirmation:
 
@@ -27,13 +30,16 @@ Likely code/test seams, subject to task-packet confirmation:
   explicitly packeted.
 
 No source paths are authorized by this architecture draft. The repository's
-local Rabbit deployment surfaces are root/standalone Compose and
+local Rabbit deployment surfaces are root, standalone, and E2E Compose plus
 `infra/k8s/dev-dependencies.yaml`; the ecommerce Helm chart connects to an
-externally provided Rabbit service and does not provision it. Before
-implementation, packet the exact deployment artifacts that own the accepted
-topology. Do not modify AsyncAPI or the original source topology unless a
-contract change is found and recorded; no business event schema change is
-proposed.
+externally provided Rabbit service and does not provision it. Packet all four
+local artifacts and document the external-Rabbit production handoff. All
+environments must provision the topology, and deployment tooling must set
+30-day Rabbit per-message TTL (`x-message-ttl`) and verify deletion. The accepted raw-data policy also
+requires encryption and restricted access; do not enable the topology where
+the deployment cannot enforce those controls. Do not modify AsyncAPI or the
+original source topology unless a contract change is found and recorded; no
+business event schema change is proposed.
 
 ## Proposed component flow
 
@@ -99,11 +105,12 @@ new persisted broker destination.
 The current source queue is declared by application bean without DLX arguments
 and the container is manually constructed. Boot listener-factory settings do
 not implicitly govern it. Deployment tooling only owns the new quarantine
-exchange/queue/binding; the application must not declare them. Exact proposed
-names and deployment artifact ownership across Compose, Kubernetes dev
-dependencies, and external production Rabbit remain to be confirmed. Define
-missing/mismatched-resource behavior and preserve the original source queue
-declaration exactly.
+exchange/queue/binding; the application must not declare them. The exact names
+and tooling-only ownership are accepted. Packet the exact Compose/Kubernetes
+resources in all environments, set 30-day `x-message-ttl` and verify deletion, define
+missing/mismatched-resource behavior, and document the externally managed
+production Rabbit handoff. Preserve the original source queue declaration
+exactly.
 
 ### D2 — permanent error and commit semantics
 
@@ -135,10 +142,11 @@ sequenced before production enablement if automatic restart is permitted.
 
 ### D4 — quarantine data controls
 
-Agree raw body/header classification, smallest authorized readers, encryption,
-read/export audit, retention/deletion horizon, backup, and size limits. The
-quarantine queue stores sensitive data, not merely diagnostic codes. No fixed
-retention period is selected here.
+The user accepted encryption, access restriction, a 30-day retention horizon
+for raw body/headers, and Rabbit `x-message-ttl` plus deletion verification. Define
+enforcement boundaries, reader identity, read/export audit, backups, and size
+limits before enabling quarantine. The queue stores sensitive data, not
+merely diagnostic codes.
 
 ## Verification design
 

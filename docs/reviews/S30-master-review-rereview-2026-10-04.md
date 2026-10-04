@@ -86,3 +86,18 @@ F09, indefinite dispatch-row retention is now accepted, while its measured
 production-scale cost and latency objective remain open. The
 Recovery Workbench remains gated. The canonical M5.3 Design Gate remains
 **NOT PASS**.
+
+## S30-06 decision update — 2026-10-04
+
+The user subsequently accepted the exact durable quarantine exchange
+`com.cp.e.topic.order.quarantine.v1`, queue
+`com.cp.q.order.quarantine.v1`, and binding key `order.quarantine.v1`, with
+deployment tooling as the sole topology owner. The topology must exist in all
+environments; production Helm continues to use external RabbitMQ and needs a
+documented handoff. The accepted 30-day retention mechanism is Rabbit
+per-message TTL (`x-message-ttl`) plus deletion verification. These decisions
+resolve policy choices only. No deployment artifact, durable pause guard,
+operator authorization, quarantine encryption/access audit, or 06b attempt
+fencing is implemented or proven by this documentation update. The data policy
+still blocks enabling raw-payload quarantine wherever encryption and access
+restrictions are not enforced. No live GitHub CI result was checked.

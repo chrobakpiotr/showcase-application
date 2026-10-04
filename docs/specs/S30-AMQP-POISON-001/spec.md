@@ -40,15 +40,16 @@ additive and provisioned by deployment tooling only; the application must not
 declare the quarantine resources. No finance or stock mutation is introduced
 by quarantine handling.
 
-## Proposed contract (assumptions pending acceptance)
+## Quarantine topology and delivery proposal
 
-These are proposed defaults to make the review concrete; they are not repository
-facts or accepted production decisions until reviewed:
+The topology names and provisioning owner below were explicitly accepted by
+the user on 2026-10-04. The remaining delivery/security details are proposals,
+not accepted production decisions until reviewed:
 
-1. Add durable quarantine exchange `com.cp.e.topic.order.quarantine.v1`, durable
+1. **Accepted names:** add durable quarantine exchange `com.cp.e.topic.order.quarantine.v1`, durable
    queue `com.cp.q.order.quarantine.v1`, and binding routing key
    `order.quarantine.v1`. Use a dedicated topic exchange and one queue initially.
-2. Provision the new resources declaratively with deployment tooling only.
+2. **Accepted owner:** provision the new resources declaratively with deployment tooling only.
    The application must not silently create resources with arguments that can
    conflict with operator-managed resources. Test deployment provisioning
    against the selected Rabbit version and fail startup/operation observably
@@ -142,10 +143,13 @@ not establish exactly-once processing in other systems.
 Quarantine stores the raw inbound body and headers, which may contain personal
 or otherwise sensitive information. The accepted policy requires encryption,
 access restriction to the smallest operator and service set, and retention for
-30 days. Never log the raw body or sensitive headers. Exact encryption
-boundaries, access/read-export audit, backup behavior, deletion enforcement,
-and payload size limits still require implementation-level definition and
-verification before production acceptance.
+30 days, enforced with Rabbit per-message TTL configured on the quarantine
+queue (`x-message-ttl`) plus
+deletion verification. Never log the raw body or sensitive headers. Exact
+encryption boundaries, access/read-export audit, backup behavior, TTL
+configuration and deletion-verification procedure, and payload size limits
+still require implementation-level definition and verification before
+production acceptance.
 If the current broker/deployment cannot enforce the accepted access and
 retention controls, do not enable this topology in production until it can.
 
@@ -301,17 +305,20 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 
 ## Unresolved decisions required before READY
 
-1. Accept or replace the proposed exact topology names. Deployment-tooling-only
-   ownership is accepted; verify Compose/Kubernetes development provisioning
-   and document the production external-Rabbit provisioning handoff.
+1. Packet the exact root/standalone/E2E Compose and Kubernetes development
+   artifacts that provision the accepted names, configure `x-message-ttl`, and
+   verify deletion; document the handoff for externally managed production
+   RabbitMQ.
+   Owner, names, all-environment scope, and TTL-plus-verification policy are
+   accepted; application declaration remains forbidden.
 2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
    resume authorization/audit. Stopping new deliveries, draining active
    handlers, readiness-down, and operator-only resume across restart are
    accepted; the durable guard and prefetched/unacknowledged-message details
    are not implemented.
 3. Define enforcement for the accepted encrypted, restricted-access,
-   30-day quarantine policy, including read/export audit, backup, deletion, and
-   size limits.
+   30-day quarantine policy, including read/export audit, backup, TTL/deletion
+   verification, and size limits.
 4. Confirm the permanent-error allowlist against actual exception types and
    receipt transaction behavior; unknown remains fail-closed.
 5. Approve required headers and behavior for collisions, unsupported header
