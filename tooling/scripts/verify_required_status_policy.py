@@ -33,14 +33,26 @@ def main() -> int:
 
     if data.get("version") != 1:
         fail("required-status policy version must be 1")
-    if data.get("deploymentStatus") != "pending-human-authorization":
-        fail("ruleset deployment must remain explicitly pending until remote mutation is authorized")
+    if data.get("deploymentStatus") != "read-only-verified":
+        fail("deployment status must reflect the latest read-only API snapshot")
 
     observed = data.get("observed", {})
     if observed.get("rulesetId") != 21939086 or observed.get("rulesetName") != "Admin rules":
         fail("observed ruleset identity drifted")
-    if observed.get("requiredStatusChecks") != []:
-        fail("observed snapshot must record that required status checks were absent")
+    if observed.get("enforcement") != "active":
+        fail("observed ruleset must be active")
+    if observed.get("snapshotDate") != "2026-10-04":
+        fail("observed snapshot date must match the checked-in API evidence")
+    if observed.get("apiEndpoint") != "GET /repos/user99987/showcase-application/rulesets/21939086":
+        fail("observed API endpoint must match the checked-in API evidence")
+    if observed.get("effectiveSource") != "chrobakpiotr/showcase-application":
+        fail("observed effective source must match the checked-in API evidence")
+    if observed.get("rulesetUpdatedAt") != "2026-09-23T16:32:18.015Z":
+        fail("observed ruleset timestamp must match the checked-in API evidence")
+    if observed.get("bypassActors") not in (None, []):
+        fail("observed bypass actor snapshot must match the reviewed API response")
+    if observed.get("branchProtectionEndpoint") != "not-inspected":
+        fail("separate branch protection inspection status must remain explicit")
 
     desired = data.get("desired", {})
     checks = desired.get("requiredStatusChecks")
@@ -61,6 +73,9 @@ def main() -> int:
                 f"{workflow}:{job_id} job name {actual!r}"
             )
         contexts.append(context)
+
+    if observed.get("requiredStatusChecks") != contexts:
+        fail("observed deployed contexts do not match the reviewed API snapshot")
 
     if len(contexts) != len(set(contexts)):
         fail("required-status contexts must be unique")

@@ -1011,3 +1011,11 @@ or historical evidence rewrite. Run only the required-status validator tests and
 `git diff --check`; an independent review must compare the recorded API fields
 with the command output and ensure the document does not overclaim bypass or
 branch-protection state.
+
+S30-09a complete. The current summary and dated snapshot record the active
+ruleset, its two aggregate contexts, `bypass_actors: null`, effective source and
+update timestamp. The separate branch-protection endpoint remains explicitly
+uninspected; no remote settings were changed and immutable S22 closure evidence
+was preserved. The policy validator enforces the exact snapshot provenance and
+context list while retaining the desired checks. Its focused tests passed 2/2;
+the independent documentation review was **PASS** and `git diff --check` passed.

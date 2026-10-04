@@ -21,11 +21,23 @@ class VerifyRequiredStatusPolicyTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("PASS:", result.stdout)
 
-    def test_policy_declares_remote_deployment_pending(self):
+    def test_policy_records_current_read_only_ruleset_snapshot(self):
         policy = json.loads(
             (REPO / "tooling/quality/github-required-status-policy.json").read_text()
         )
-        self.assertEqual("pending-human-authorization", policy["deploymentStatus"])
+        self.assertEqual("read-only-verified", policy["deploymentStatus"])
+        observed = policy["observed"]
+        self.assertEqual("active", observed["enforcement"])
+        self.assertEqual(
+            ["CI quality gate", "Agentic SDD quality gate"],
+            observed["requiredStatusChecks"],
+        )
+        self.assertIsNone(observed["bypassActors"])
+        self.assertEqual("not-inspected", observed["branchProtectionEndpoint"])
+        self.assertEqual("2026-10-04", observed["snapshotDate"])
+        self.assertEqual("GET /repos/user99987/showcase-application/rulesets/21939086", observed["apiEndpoint"])
+        self.assertEqual("chrobakpiotr/showcase-application", observed["effectiveSource"])
+        self.assertEqual("2026-09-23T16:32:18.015Z", observed["rulesetUpdatedAt"])
         self.assertEqual([], policy["desired"]["recommendedBypassActors"])
 
 

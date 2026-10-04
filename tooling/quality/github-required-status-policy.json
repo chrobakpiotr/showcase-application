@@ -1,18 +1,20 @@
 {
   "version": 1,
-  "deploymentStatus": "pending-human-authorization",
+  "deploymentStatus": "read-only-verified",
   "observed": {
-    "sourceSha": "16450b6c9b42a8db8458a0d866fde7db182cabd1",
+    "snapshotDate": "2026-10-04",
+    "apiEndpoint": "GET /repos/user99987/showcase-application/rulesets/21939086",
+    "effectiveSource": "chrobakpiotr/showcase-application",
+    "rulesetUpdatedAt": "2026-09-23T16:32:18.015Z",
     "rulesetId": 21939086,
     "rulesetName": "Admin rules",
-    "requiredStatusChecks": [],
-    "bypassActors": [
-      {
-        "actorType": "RepositoryRole",
-        "actorId": 5,
-        "bypassMode": "always"
-      }
-    ]
+    "enforcement": "active",
+    "requiredStatusChecks": [
+      "CI quality gate",
+      "Agentic SDD quality gate"
+    ],
+    "bypassActors": null,
+    "branchProtectionEndpoint": "not-inspected"
   },
   "desired": {
     "requiredStatusChecks": [
