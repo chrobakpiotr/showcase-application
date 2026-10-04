@@ -451,6 +451,12 @@
       "scenario": "concurrent identical shipment commands serialize and both return canonical replay",
       "suite": "com.cp.ecommerce.application.ShipmentOperationIdentityRacePostgresIntegrationTest",
       "testMethod": "concurrentIdenticalCommandsMustBothReplayCanonicalResult"
+    },
+    {
+      "ac": "AC-PLACEMENT-DISPATCH-03",
+      "scenario": "old failed dispatches do not starve a healthy due dispatch beyond the bounded batch",
+      "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchPostgresIntegrationTest",
+      "testMethod": "fiftyPoisonDispatchesMustNotStarveHealthyDispatchOnSecondDueTick"
     }
   ]
 }

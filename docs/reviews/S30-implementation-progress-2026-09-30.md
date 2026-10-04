@@ -637,6 +637,31 @@ tests, profile truth table, shell syntax and diff-check PASS. No broker/app/even
 manifest requirement change. Exact-script production execution remains blocked
 until origin admission/qualified containment prerequisites.
 
+## S30-08a final checkpoint
+
+The due-work query now orders by nextAttemptDate then dispatchId, preserving the
+existing bounded page of50. A real PostgreSQL regression seeds50 older failed
+dispatches plus one healthy due dispatch and advances the injected clock by the
+5-second retry delay: poison rows consume tick one and the healthy row reaches
+SENT on tick two. Stable dispatch identity, bounded external attempts and cleared
+claims are asserted. All three existing class cases passed against PostgreSQL,
+zero skipped/failures/errors; this includes concurrent single-owner retry and
+replayed enqueue. The test is added to the critical PostgreSQL manifest and its
+12 verifier unit tests pass.
+
+The first invocation exposed a Spring test-context collision because an
+interface-only ManageOrderInPort mock replaced a bean also injected by concrete
+ManageOrderUseCase type. The test now mocks the concrete implementation of that
+port; the behavioral RED then reproduced starvation, and targeted GREEN plus the
+full three-case class passed. Independent persistence/concurrency review: **PASS**.
+
+The existing (STATUS,NEXT_ATTEMPT_DATE,CREATED_DATE) index remains unchanged; it
+supports due-row filtering, while multi-status ordering may still sort. No query
+throughput gain or production-scale index benefit is claimed from a 51-row
+correctness fixture. Revisit EXPLAIN/BUFFERS and ordered-index choice with a
+representative production-volume distribution before making a performance claim.
+Retry caps, parking, redrive and timeout/lease policy remain later08checkpoints.
+
 ## S30-08a task packet: due-order fairness
 
 Accepted source: master review14.1/3 now adopts deterministic nextAttemptDate then

@@ -1,6 +1,8 @@
 package com.cp.ecommerce.adapter.persistence.order.dispatch;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -10,7 +12,10 @@ import java.util.concurrent.Future;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.application.EcommerceApplication;
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
+import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
 import com.cp.ecommerce.domain.order.port.outgoing.GetRemarksClassificationSummaryOutPort;
+import com.cp.ecommerce.domain.order.usecase.ManageOrderUseCase;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +32,14 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest(classes = EcommerceApplication.class)
 @ActiveProfiles("test-postgres")
@@ -37,10 +50,22 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "service.camel.enabled=false",
                 "outbox.publisher.enabled=false",
                 "order-placement.dispatch.enabled=false",
-                "order-placement.dispatch.retry-delay-ms=0",
+                "order-placement.dispatch.retry-delay-ms=5000",
                 "payment.reconciliation.enabled=false",
                 "notification.retry.enabled=false" })
 class OrderPlacementDispatchPostgresIntegrationTest {
+
+    private static final Instant NOW = Instant.parse("2026-10-04T12:00:00Z");
+    private static final String HEALTHY_ORDER = "z-healthy";
+
+    @MockitoBean
+    private Clock clock;
+    @MockitoBean
+    private ManageOrderUseCase manageOrderInPort;
+    @MockitoBean
+    private SendOrderConfirmationEmailInPort email;
+    @MockitoBean
+    private RouteOrderNotificationInPort routing;
 
     @MockitoBean
     private GetRemarksClassificationSummaryOutPort remarksClassificationSummaryOutPort;
@@ -63,6 +88,7 @@ class OrderPlacementDispatchPostgresIntegrationTest {
 
     @BeforeEach
     void clean() {
+        given(clock.instant()).willReturn(NOW);
         repository.deleteAll();
     }
 
@@ -108,15 +134,81 @@ class OrderPlacementDispatchPostgresIntegrationTest {
             assertThat(winners).hasSize(1);
             final var owner = winners.getFirst();
             manager.markFailed(owner, "smtp outcome unknown", now);
-            final var retry = manager.claimDispatch(id, now.plusSeconds(1));
+            final var retry = manager.claimDispatch(id, now.plusSeconds(5));
             assertThat(retry).isNotNull();
             assertThat(retry.dispatchId()).isEqualTo(owner.dispatchId());
             assertThat(retry.claimId()).isNotEqualTo(owner.claimId());
-            manager.markSent(retry, now.plusSeconds(2));
+            manager.markSent(retry, now.plusSeconds(6));
         }
         final var persisted = repository.findById(id).orElseThrow();
         assertThat(persisted.getStatus()).isEqualTo(OrderPlacementDispatchStatus.SENT);
         assertThat(persisted.getAttempts()).isEqualTo(2);
         assertThat(persisted.getClaimId()).isNull();
     }
+
+    @Test
+    void fiftyPoisonDispatchesMustNotStarveHealthyDispatchOnSecondDueTick() {
+        final List<OrderPlacementDispatchEntity> rows = new ArrayList<>();
+        for (int index = 0; index < 50; index++) {
+            rows.add(dispatch("poison-" + String.format("%03d", index), OrderPlacementDispatchStatus.FAILED,
+                    NOW.minusSeconds(100), 1));
+        }
+        final OrderPlacementDispatchEntity healthy = dispatch(HEALTHY_ORDER, OrderPlacementDispatchStatus.PENDING,
+                NOW, 0);
+        rows.add(healthy);
+        repository.saveAllAndFlush(rows);
+        given(manageOrderInPort.findOrder(anyString()))
+                .willAnswer(invocation -> Order.builder().orderNumber(invocation.getArgument(0)).build());
+        doAnswer(invocation -> {
+            final Order order = invocation.getArgument(0);
+            if (!HEALTHY_ORDER.equals(order.getOrderNumber())) {
+                throw new IllegalStateException("poison dispatch failure");
+            }
+            return null;
+        }).when(email).sendConfirmationEmail(any(Order.class));
+
+        manager.retryDueDispatches();
+        verify(email, times(50)).sendConfirmationEmail(any(Order.class));
+        verify(email, never()).sendConfirmationEmail(argThat(order -> HEALTHY_ORDER.equals(order.getOrderNumber())));
+        assertThat(repository.findById(healthy.getDispatchId()).orElseThrow().getStatus())
+                .isEqualTo(OrderPlacementDispatchStatus.PENDING);
+        for (int index = 0; index < 50; index++) {
+            final var poison = repository.findById(rows.get(index).getDispatchId()).orElseThrow();
+            assertThat(poison.getNextAttemptDate()).isEqualTo(NOW.plusSeconds(5));
+            assertThat(poison.getAttempts()).isEqualTo(2);
+        }
+
+        given(clock.instant()).willReturn(NOW.plusSeconds(5));
+        manager.retryDueDispatches();
+        final var sent = repository.findById(healthy.getDispatchId()).orElseThrow();
+        assertThat(sent.getStatus()).isEqualTo(OrderPlacementDispatchStatus.SENT);
+        assertThat(sent.getAttempts()).isEqualTo(1);
+        assertThat(sent.getSentDate()).isEqualTo(NOW.plusSeconds(5));
+        assertThat(sent.getClaimId()).isNull();
+        assertThat(sent.getClaimUntil()).isNull();
+        assertThat(repository.count()).isEqualTo(51);
+        verify(email, times(100)).sendConfirmationEmail(any(Order.class));
+        verify(email).sendConfirmationEmail(argThat(order -> HEALTHY_ORDER.equals(order.getOrderNumber())));
+        verify(routing, never()).routeNotification(any(Order.class));
+        for (int index = 0; index < 50; index++) {
+            final var poison = repository.findById(rows.get(index).getDispatchId()).orElseThrow();
+            assertThat(poison.getStatus()).isEqualTo(OrderPlacementDispatchStatus.FAILED);
+            assertThat(poison.getClaimId()).isNull();
+            assertThat(poison.getClaimUntil()).isNull();
+        }
+    }
+
+    private static OrderPlacementDispatchEntity dispatch(final String orderNumber,
+            final OrderPlacementDispatchStatus status, final Instant createdAt, final int attempts) {
+        return OrderPlacementDispatchEntity.builder()
+                .dispatchId(OrderPlacementDispatchManager.dispatchId(orderNumber, OrderPlacementDispatchType.CONFIRMATION_EMAIL))
+                .orderNumber(orderNumber)
+                .dispatchType(OrderPlacementDispatchType.CONFIRMATION_EMAIL)
+                .status(status)
+                .createdDate(createdAt)
+                .nextAttemptDate(NOW)
+                .attempts(attempts)
+                .build();
+    }
+
 }

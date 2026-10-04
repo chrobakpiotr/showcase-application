@@ -18,7 +18,7 @@ public interface OrderPlacementDispatchEntityRepository extends JpaRepository<Or
     @Query("""
             select dispatch.dispatchId from OrderPlacementDispatchEntity dispatch
             where dispatch.status in :statuses and dispatch.nextAttemptDate <= :now
-            order by dispatch.createdDate asc, dispatch.dispatchId asc
+            order by dispatch.nextAttemptDate asc, dispatch.dispatchId asc
             """)
     List<String> findDueDispatchIds(
             @Param("statuses") Collection<OrderPlacementDispatchStatus> statuses,
