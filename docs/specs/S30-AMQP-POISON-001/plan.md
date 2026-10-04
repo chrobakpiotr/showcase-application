@@ -309,6 +309,14 @@ It verifies only process-restart persistence in the disposable container and
 one stale-RESUME/newer-PAUSE interleaving; it does not qualify persistent,
 encrypted, crash-safe, or failover storage, nor the gate-service inhibit path.
 
+The combined row-fence/Redis-epoch probe is recorded in
+[`evidence/gate-fencing-probe.md`](evidence/gate-fencing-probe.md), with a
+reproducible script. It confirms that the tested PostgreSQL row lock serialized
+a lease-expired takeover and that Redis rejected a stale epoch after the higher
+epoch was fsynced. It did not exercise gate-service operations under that fence,
+network partitions, permit issuance, cross-store crash recovery, or qualified
+storage; those remain design-gate evidence requirements.
+
 The user selected permits with a maximum five-second validity, bound to leader
 epoch, service boot epoch, latch epoch, gate generation, and instance
 registration. A revoke signal stops new deliveries immediately; if signal

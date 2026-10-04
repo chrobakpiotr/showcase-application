@@ -8,6 +8,10 @@ for ordered PAUSE/RESUME transitions, cross-store failure handling, and the
 remaining failure-injection evidence required before a design-gate PASS. No
 AMQP consumer may be enabled on the strength of this draft.
 
+Narrow, disposable leader-fencing evidence is recorded in
+[`evidence/gate-fencing-probe.md`](evidence/gate-fencing-probe.md). It does not
+qualify the service, provider failover, or production admission.
+
 Master review input: S30 review plan, §12 (S30-06). This slice covers only the
 production Rabbit listener's manual acknowledgement and transfer of classified
 permanent poison messages to a separate quarantine destination. Durable attempt

@@ -1809,3 +1809,17 @@ tested separately from active-leader restart recovery; the candidate's evidence
 list now includes both paths and lost-response idempotency. The audit-policy
 conflict remains open. Repeated `test_spec_inventory.py` (3 tests),
 `test_design.py` (10 tests), Markdown link check, and `git diff --check` pass.
+
+## S30-06 gate fencing capability probe — 2026-10-05
+
+Added a reproducible disposable probe at
+`docs/specs/S30-AMQP-POISON-001/evidence/gate-fencing-probe.py`. It passed a
+PostgreSQL row-lock/lease-expired takeover test and a Redis epoch-fence test:
+after epoch 2 was fsynced, an epoch-1 state mutation was rejected, and the
+Redis AOF recovered synthetic state across process restart. `WAITAOF` returned
+one local fsync on the same connection. The PostgreSQL contender blocked behind
+the held row lock, then advanced ownership and epoch after the prior
+transaction committed. Its limits are explicit in the evidence note: it does
+not verify service serialization, network partitions, permit issuance,
+cross-store crash behavior, encrypted durable volumes, failover/restore, or
+Rabbit consumption. The run's ephemeral containers were removed.
