@@ -1691,8 +1691,28 @@ and drain acknowledgements bind to that generation, and consumers may run only
 when their registered generation matches the current ACTIVE generation. The
 fencing/closure evidence mechanism, token claims, timestamp format, Redis
 compare-and-set/idempotency/crash-recovery/failover protocol, and 06b
-stale-handler fencing remain unresolved. These are policy
-decisions only; no gate service or deployment implementation is claimed.
+stale-handler fencing remain unresolved. The user also accepted exact
+preservation of absent/duplicate source message IDs, a separate generated
+quarantine-transfer ID, and fail-closed pause when metadata collides or an
+AMQP header value cannot be round-tripped. The selected global pause supersedes
+the original healthy-progress recommendation: held delivery is redelivered
+after RESUME and an unresolved cause pauses consumption again; healthy messages
+behind it wait. Every instance cancels new delivery, lets active handlers
+finish, then closes its channel; failing and prefetched-not-started deliveries
+are requeued. The user also accepted stable gate command IDs: retries with a
+durable record resolve the prior result without double generation advance.
+Before PAUSE, set the independent durable recovery latch to
+`RECOVERY_REQUIRED`. If that write is uncertain, do not mutate Redis or issue
+admission permits; unknown latch state is never CLEAR, including at startup. If
+Redis is unavailable before commit, no Redis state/audit is committed, failure
+telemetry is emitted, and no Redis audit is claimed. Ambiguous commits return
+unknown and keep consumers closed until resolved by the same ID; a retry with
+no durable record checks the expected generation. Admission requires ACTIVE
+Redis state and a durable CLEAR latch, serialized with PAUSE by generation-
+bound permits. RESUME is successful only after Redis state/audit fsync and
+latch clearing; otherwise return `ACTIVATION_PENDING` and keep consumers
+closed. Latch storage and protocol remain unimplemented. These are policy
+decisions only; no gate or quarantine deployment implementation is claimed.
 
 ## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs
 

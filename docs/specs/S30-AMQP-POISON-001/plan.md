@@ -69,6 +69,16 @@ business event schema change is proposed.
    same fail-closed pause lifecycle. No application retry loop or reject/requeue
    loop is introduced in 06a.
 
+The user accepted exact preservation of source `messageId` and `correlationId`,
+including absent or duplicate values, plus a separately generated
+quarantine-transfer ID. A reserved quarantine metadata header collision or
+AMQP header value that cannot be round-tripped exactly makes transfer fail
+closed: do not overwrite or omit the original value; leave source unacknowledged
+and pause. Added metadata is included in the 1 MiB cap. After RESUME, the held
+delivery is redelivered; if its transient/unknown cause remains, the global
+pause repeats. Healthy messages behind the held delivery do not progress while
+PAUSED; operators investigate/correct the cause before resuming.
+
 This transfer is at-least-once. Broker confirm, mandatory routing, and source
 ACK are not one atomic transaction. Crashes/lost ACKs can duplicate a
 quarantine copy; ambiguous publication must preserve the source delivery and
@@ -149,15 +159,22 @@ or broker restart. The user selected a deployment-managed global gate
 independent of the application database. The application may request/set
 PAUSED but must never set ACTIVE; only the audited operator tool may resume.
 Missing, unavailable, or ambiguous gate state must keep consumers stopped and
-readiness down. Define the platform primitive and technically enforce this
-one-way capability; define how already
-prefetched-but-not-started deliveries and the unacked failing delivery behave,
-how operator authorization/audit works, and what happens on channel loss; then
-demonstrate those semantics with the production container. A container-only
+readiness down. Implement and verify the accepted one-way gate, generation,
+atomic audit, and fsync behavior. Tests must use the production container to
+prove active-handler drain, consumer-channel closure, requeue of unacked and
+prefetched-not-started messages, operator resume and admission on the new
+generation. Exact token claims, live-member lease and external-fencing evidence,
+Redis command-ID encoding, and failure recovery still need design. A container-only
 pause is not a durable guard across application restart; the deployment-managed
 gate is the selected persistence direction, while 06b's stale-handler fencing
-remains a separate prerequisite. Do not conceal this limitation with a claim
-of bounded attempts.
+remains a separate prerequisite. Each instance cancels/stops new delivery,
+allows active handlers to finish, then closes its consumer channel before
+confirming drain. Channel closure requeues the failing delivery and
+prefetched-but-not-started deliveries. Gate RESUME opens a consumer on the new
+ACTIVE generation. Already-active healthy handlers may finish and ACK; queued
+and prefetched-but-not-started healthy messages wait for RESUME. Do not conceal
+the global-pause limitation with a claim of bounded attempts or healthy
+progress behind poison.
 
 The prototype result is preserved in
 [`evidence/container-lifecycle-spike.md`](evidence/container-lifecycle-spike.md):
@@ -187,25 +204,46 @@ dev Kubernetes and Helm are not qualified substitutes: they are shared and
 currently lack persistent storage. The user has accepted atomic state/audit
 transitions: every authenticated PAUSE and RESUME is audited with action,
 validated caller identity, time, outcome, and state generation; RESUME also
-records operator reason. Return success only after the state and audit commit
-atomically and Redis confirms the configured fsync threshold. The user also
+records operator reason. Each first-seen command has a stable command ID in
+the audit. Same-ID retries with a durable command record resolve the existing
+result without a second generation advance; changed-request reuse is rejected.
+Return success only after the state and audit commit atomically and Redis
+confirms the configured fsync threshold. Before PAUSE, durably set the
+independent recovery latch to `RECOVERY_REQUIRED`; do not attempt Redis mutation
+until this is confirmed. If the latch write is unavailable or uncertain, issue
+no admission permits and perform no Redis mutation. If Redis is unavailable
+before commit, make no Redis state change, keep the latch set, return failure,
+emit operational failure telemetry, and make no Redis audit claim. If
+commit/fsync is uncertain, return unknown and deny consumer admission until the
+command ID resolves against authoritative state. A retry without a durable
+command record re-evaluates against the expected generation; it must not replay
+a stale request.
+The user also
 requires every registered live application instance to confirm it stopped new
 deliveries and drained active handlers before RESUME. Service-level app
 PAUSE-only and audited operator RESUME-only authorization remain required.
 Lease expiry alone must not establish that an unresponsive instance stopped;
 the operator must confirm its RabbitMQ consumer connection is fenced or closed
 before RESUME. Liveness/registration lease semantics, evidence for fencing or
-closure, retry-safe command identity, crash recovery, Redis failover behavior,
+closure, crash recovery, Redis failover behavior,
 and 06b stale-handler fencing still need design and evidence. Missing gate state
 must not mean ACTIVE.
 
 Each successful PAUSE and RESUME advances a monotonic gate generation. Instance
 registrations and drain acknowledgements are bound to that generation;
 consumers are admitted only when their registered generation equals the current
-ACTIVE generation. The atomic audit records the resulting generation. The
-idempotency key/command retry and compare-and-set protocol must ensure retries
-or uncertain replies cannot create unsafe repeated transitions, and remains to
-be specified and tested.
+ACTIVE generation and the recovery latch is durably `CLEAR`. The atomic audit
+records the resulting generation. RESUME commits and fsyncs Redis state/audit
+before clearing the latch; return success only after both are confirmed. If
+Redis commits but latch clearing is uncertain, return `ACTIVATION_PENDING`;
+same-ID retry completes latch clearing without another generation advance.
+Uncertain/unavailable latch state is never CLEAR, including at startup.
+Admission/registration must be serialized against PAUSE using generation-bound
+gate-issued permits; PAUSE stops permit issuance and waits for channels to
+drain/close or be externally fenced. Command-ID format, expected-generation
+compare-and-set mechanics, audit-expiry implementation, and Redis/latch crash
+and failover protocol remain to be specified and tested against these accepted
+semantics.
 
 The disposable ACL result is preserved in
 [`evidence/pause-gate-acl-probe.md`](evidence/pause-gate-acl-probe.md). Direct
@@ -276,7 +314,10 @@ Required deterministic scenarios are mapped in `spec.md` AC-06A-* and include
 permanent poison, idempotent success, failure between publish confirm and
 source ACK, mandatory return, nack/timeout/channel loss, transient persistence
 failure, unknown failure, prefetch/in-flight behavior, broker reconnect,
-healthy message after poison, and incompatible resource declarations. Tests
+held poison followed by RESUME (including repeat pause if the cause remains),
+healthy-message hold/release behavior, header collision/round-trip rejection,
+absent/duplicate source IDs, duplicate/lost gate command responses, unavailable
+gate store, and incompatible resource declarations. Tests
 must distinguish the expected duplicate-transfer window from data loss and
 must not assert exactly-once behavior.
 

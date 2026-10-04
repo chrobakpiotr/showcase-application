@@ -74,24 +74,26 @@ remaining delivery details still require implementation and verification:
    unclassified exception are transient/unknown and must never be copied to
    quarantine as though permanent. Keep reason codes bounded and stable; do not
    put exception text, identifiers, or payload values in metric labels/logs.
-6. Preserve exact original body bytes, routing key, content metadata, message
-   id/correlation id, timestamp, delivery mode, and original headers in the
-   quarantined message. Add namespaced quarantine metadata (reason code,
-   quarantine time, source queue/exchange/routing key, and transfer correlation)
-   without overwriting original values. Header collisions, unsupported AMQP
-   header value types, and maximum body/header size need implementation tests
-   and a reviewed policy; no guarantee of arbitrary-header round-trip is
-   assumed until proven.
+6. Preserve exact original body bytes, routing key, content metadata, source
+   `messageId`/`correlationId` values (including absent or duplicates),
+   timestamp, delivery mode, and original headers. Add namespaced quarantine
+   metadata (reason code, quarantine time, source queue/exchange/routing key,
+   and a separately generated quarantine-transfer ID); never substitute that
+   ID for a business operation ID. If a reserved metadata key collides with an
+   original header, an AMQP header value cannot be round-tripped exactly, or
+   adding metadata exceeds the accepted size cap, fail transfer closed: leave
+   the source unacknowledged and pause consumption without overwriting or
+   dropping data.
 7. ACK the original delivery only after confirmed-and-routed quarantine
    publication. If publish outcome is ambiguous, leave the original unacked and
    fail closed. A crash after quarantine acceptance but before source ACK can
    create duplicate quarantine copies. Consumers/operators must treat
    quarantine delivery as at-least-once; this slice does not promise exactly
    once or deduplicate transfers.
-7. A confirmed quarantine copy followed by loss of the source ACK can also
-   produce duplicates. Preserve a stable transfer correlation derived from
-   source metadata when available, but do not claim it is unique when source
-   identifiers are absent or duplicated. No quarantine replay is automated.
+8. A confirmed quarantine copy followed by loss of the source ACK can also
+   produce duplicates. Every copy carries its separately generated transfer ID;
+   source identifiers are preserved as received but are not used as the transfer
+   ID. Quarantine replay is not automated.
 
 ## Pause contract — partially accepted
 
@@ -132,14 +134,29 @@ audience and derives the actor from the verified issuer and subject, never a
 caller-supplied name. Every authenticated PAUSE and RESUME operation must write
 an audit entry with action, validated caller identity, time, outcome, and state
 generation; RESUME also records the operator reason. The gate-state transition
-and corresponding audit entry must commit atomically, and success is returned
-only after Redis confirms the configured fsync durability threshold. Failure
-to commit either state or audit, or to confirm durability, fails closed. The
+and corresponding audit entry must commit atomically; each first-seen
+authenticated command has a stable command ID recorded in the audit. Before a
+PAUSE transition, durably set the independent latch to `RECOVERY_REQUIRED`; do
+not attempt the Redis transition until that write is confirmed. Retrying
+an ID with a durable command record resolves its prior outcome without a
+second generation advance; reusing an ID for a different action or request is
+rejected. Success is
+returned only after Redis confirms the configured fsync durability threshold.
+If the latch write is unavailable or uncertain, do not attempt Redis mutation;
+do not issue admission permits, and treat the latch as non-CLEAR across
+restarts. If Redis is unavailable before its commit, make no Redis state
+change; leave the durable latch set, return failure and emit operational
+failure telemetry, with no Redis audit row claimed for that unavailable-store
+attempt. If a Redis commit or its fsync confirmation has an uncertain outcome,
+leave the latch set, return unknown, and keep consumers fail-closed until the
+same command ID resolves to a durable result. A retry with no prior durable
+command record reconciles the original command against the expected generation;
+a committed command must never advance the generation twice. The
 gate audit entries are retained for one year, then securely deleted under a
 documented retention/deletion procedure. This applies to the gate audit, not
 the separately retained raw quarantine payloads. The exact token claims,
-timestamp format, compare-and-set/retry protocol,
-retry/crash recovery, Redis failover behavior, and cross-environment deployment
+timestamp format, Redis retry/crash recovery beyond command replay, failover
+behavior, and cross-environment deployment
 contract remain to be designed and tested before release. Before RESUME, every
 registered live application instance must confirm that it stopped new delivery
 and drained active handlers. An unresponsive or expired instance cannot be
@@ -150,7 +167,37 @@ recovery of stale instances remain open.
 Each successful PAUSE and RESUME advances a monotonic gate generation. Instance
 registrations and drain acknowledgements are bound to a generation, and
 consumers may be admitted only when their registered generation matches the
-current ACTIVE generation. The audit records the resulting generation.
+current ACTIVE generation and the recovery latch is durably `CLEAR`. The audit
+records the resulting generation. RESUME first commits the Redis state/audit
+transition and fsync confirmation, then clears the recovery latch durably.
+Return RESUME success only after both commits are confirmed. If Redis commits
+but latch clearing fails or is uncertain, return `ACTIVATION_PENDING`; a retry
+with the same command ID completes latch clearing without another generation
+advance. An unavailable, malformed, or uncertain latch is not `CLEAR` and
+keeps consumers stopped. Consumer registration/admission must be serialized
+against PAUSE; use gate-issued generation-bound admission permits and do not
+open a consumer channel without a current permit. PAUSE stops issuing permits,
+then waits for channel-close/drain confirmation or operator fencing before
+reporting the barrier complete. Exact permit renewal, member-set, and
+linearization mechanics remain design and verification blockers.
+
+This selected 06a policy intentionally supersedes the original review's
+recommendation to bound poison retries and keep healthy messages progressing
+behind poison. A global PAUSE stops new deliveries, including healthy messages
+behind the held source delivery; 06a does not provide hot-message isolation or
+automatic bounded retry. RESUME does not acknowledge or discard the held
+delivery. RabbitMQ redelivers it, and if the underlying transient/unknown cause
+still exists the consumer pauses again. Operators must investigate and correct
+the cause before RESUME; the 06b ledger/retry contract remains separate.
+
+For each instance, PAUSE stops/cancels new deliveries. Already active handlers
+finish; once none remain, close the consumer channel before acknowledging the
+instance's drain. The failing unacknowledged delivery and prefetched-but-not-
+started deliveries are requeued by channel closure. They are not processed
+again until operator RESUME opens a consumer at the current ACTIVE generation.
+If channel closure cannot be confirmed, the instance remains a resume blocker
+until the operator confirms its consumer connection is fenced or closed.
+
 The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
 externally configured issuer/client. Exact client/role names, claims and
@@ -249,14 +296,24 @@ allowlist is accepted.
 Real-broker integration tests start the application's production
 `SimpleMessageListenerContainer` configuration. They prove ACK/requeue/pause
 behavior from broker-visible deliveries; direct calls to `receiveMessage` do
-not satisfy this criterion.
+not satisfy this criterion. On pause, each instance cancels/stops new
+deliveries, lets active handlers finish, then closes its consumer channel before
+confirming drain. The broker requeues the held failing delivery and any
+prefetched-but-not-started deliveries; they are not processed until operator
+RESUME.
 
 ### AC-06A-PERMANENT
 
 Unsupported schema and immutable operation-id conflict are delivered to the
 quarantine queue with exact body bytes and preserved required properties, and
 the original queue delivery is ACKed only after the confirmed, routed transfer.
-Malformed JSON and missing/invalid required fields are also covered.
+Malformed JSON and missing/invalid required fields are also covered. Preserve
+source `messageId` and `correlationId` exactly, including absent or duplicated
+values, and add a separate generated quarantine-transfer ID. A reserved
+quarantine-metadata header collision, an AMQP value that cannot be round-
+tripped exactly, or metadata that pushes the message above the 1 MiB cap makes
+the transfer fail closed: do not overwrite or drop the original value; leave
+the source unacknowledged and pause.
 
 ### AC-06A-TRANSFER-FAILURE
 
@@ -270,8 +327,19 @@ completed but the source ACK was lost.
 
 Transient database failure and an unclassified exception are not classified as
 permanent. They follow the accepted fail-closed pause contract without an
-automatic hot requeue. Test prefetch greater than one and already in-flight
-deliveries so pause behavior is explicit.
+application NACK/requeue loop. After active handlers drain, channel closure
+requeues unacknowledged deliveries for later processing after operator RESUME.
+Test prefetch greater than one and already in-flight deliveries so pause
+behavior is explicit.
+
+Already active healthy handlers may finish and ACK before channel close.
+Healthy deliveries that were prefetched but not started are requeued by channel
+closure and do not progress while PAUSED. After operator RESUME, RabbitMQ
+redelivers the held failing delivery; if its transient/unknown cause remains,
+it pauses the global gate again without ACK or quarantine. After the cause is
+corrected and the delivery is handled safely, healthy queued messages resume.
+RESUME requires operator investigation of the underlying cause; it is not a
+poison-message retry or discard operation.
 
 ### AC-06A-TOPOLOGY
 
@@ -290,6 +358,42 @@ and pausing consumption. Deployment conformance verifies
 pre-provisioned resources and fails safely and observably on missing or
 incompatible declarations; the application neither declares nor needs
 configure access to the quarantine resources.
+
+### AC-06A-GATE
+
+Every first-seen authenticated PAUSE/RESUME command uses a stable command ID
+and, when the gate store is available, atomically commits its state outcome and
+audit record. The record contains command ID, action, validated issuer/subject,
+time, outcome, resulting generation, and RESUME reason. Replaying an ID with a
+durable record resolves the existing outcome without another generation
+advance; reusing it for a different request is rejected. Return success only
+after the atomic commit and configured same-connection Redis fsync threshold
+are confirmed. Before PAUSE, write and durably confirm the independent latch as
+`RECOVERY_REQUIRED`; if that write is unavailable or uncertain, perform no
+Redis mutation and issue no admission permits. If Redis is unavailable before
+commit, make no Redis state change, keep the latch set, return failure, emit
+operational failure telemetry, and make no Redis audit claim. If commit/fsync
+outcome is uncertain, keep the latch set, return unknown, and keep consumers
+closed until the command ID resolves against authoritative state. A retry
+without a durable command record re-evaluates against its expected generation;
+it must not replay a stale request. Every successful
+PAUSE/RESUME advances the monotonic generation. Registration and drain
+acknowledgements are generation-bound; consumers are admitted only when their
+registered generation matches current ACTIVE and the recovery latch is durably
+`CLEAR`. RESUME commits and fsyncs its Redis state/audit transition before
+clearing the recovery latch; success is returned only when both are confirmed.
+If Redis commits but latch clearing is uncertain, return `ACTIVATION_PENDING`;
+same-ID retry completes the latch clear without another generation advance.
+Any uncertain or unavailable latch keeps consumer admission closed. Consumer
+registration/admission is serialized against PAUSE using current-generation
+gate-issued permits; PAUSE stops new permits and awaits channel drain/closure or
+operator fencing. Exact permit and member-set mechanics remain to be verified.
+RESUME requires drain
+confirmation from every live instance and operator fencing confirmation for
+each expired/unresponsive instance; lease expiry alone is insufficient. The
+gate audit is retained for one year then securely deleted. Missing, malformed,
+unavailable, or durability-uncertain gate state keeps consumers stopped and
+readiness down.
 
 ### AC-06A-SAFE
 

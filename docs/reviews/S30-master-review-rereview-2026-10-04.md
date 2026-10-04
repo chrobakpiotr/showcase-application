@@ -20,7 +20,7 @@ CI run. No remote settings or external handbook were changed.
 | F04 — required-gate applicability | **Addressed at local planner policy** | S30-04a adds truth-table selection for persistence, AMQP, domain/foundation, orchestration, PIT configuration, verifier/manifest and build configuration paths. This does not replace dedicated CI or qualify verifier execution on an isolated host. |
 | F05 — production backend qualification | **Open; blocks accepted execution** | S30-03a rejected available native sandbox probes for Q08/Q09 descendant escape; the Codex wrapper probe was unsupported for most checks. S30-03b reports discovery separately from qualification/readiness. Production qualification, lifecycle admission and one-shot launch capability are absent. |
 | F06 — candidate/build-output separation | **Primitive implemented; operational integration open** | S30-02b1 materializes and validates a diagnostic source workspace with privacy and path checks. It grants no launch/PASS authority; accepted writable-root policy, read-only Git metadata and producer/consumer output binding remain. Arbitrary builds in a sealed candidate are not yet an accepted operational path. |
-| F07 — AMQP permanent-error handling | **Open; policy decisions accepted, implementation blockers remain** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. The user accepted deployment tooling as sole quarantine-topology owner, exact names and all-environment scope; provisioning artifacts and production handoff remain unimplemented. The user also accepted operator-only resume after restart; atomic audit/state transitions; per-instance drain confirmation before resume; and encrypted, access-restricted quarantine retention for 30 days. S30-06e removes operation/order identifiers and raw JSON from the listener's normal INFO log; the captured-event test passed 3/3 and received independent security review PASS. Pause/in-flight/readiness/channel-loss mechanics, durable restart guard, quarantine encryption/access/audit/backup/size enforcement, retry taxonomy, instance-membership and handler fencing, malformed identity and database-outage behavior remain open. Expired-instance removal requires operator confirmation that its RabbitMQ consumer connection is fenced or closed; lease expiry alone is insufficient. No production poison policy is claimed. |
+| F07 — AMQP permanent-error handling | **Open; policy decisions accepted, implementation blockers remain** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. The user accepted deployment tooling as sole quarantine-topology owner, exact names and all-environment scope; provisioning artifacts and production handoff remain unimplemented. The user also accepted operator-only resume after restart; atomic audit/state transitions; one-year gate audit retention; per-instance drain confirmation before resume; and encrypted, access-restricted quarantine retention for 30 days. A stable gate command ID resolves uncertain commits without double generation advances. Redis unavailability means no Redis state/audit commit, sets the separate durable latch to `RECOVERY_REQUIRED`, and returns failure with telemetry. Every instance drains active handlers then closes its channel; the broker requeues the failing and prefetched-not-started deliveries. S30-06e removes operation/order identifiers and raw JSON from listener logs; its captured-event test passed 3/3 and received independent security review PASS. Global pause supersedes the original healthy-progress recommendation: healthy deliveries wait; RESUME reopens consumers and redelivers the held message, repeating the pause if the cause remains. Source IDs are preserved, a separate transfer ID is generated, and header collisions/non-round-trippable values fail closed. Provisioning, real-container behavior, quarantine controls, exact retry taxonomy, instance-membership and stale-handler fencing, and database-outage evidence remain open. Expired-instance removal requires operator confirmation that its RabbitMQ consumer connection is fenced or closed; lease expiry alone is insufficient. No production poison policy is claimed. |
 | F08 — shipment HTTP/retry contract | **Partial** | S30-07a–c add complete header validation, typed stale/fingerprint conflict codes and reload-persistent operation identity in the client. Focused backend/frontend tests passed, but the packet does not claim the full real-backend response-loss/reload E2E matrix. |
 | F09 — bounded dispatch retries and operations | **Core behavior implemented; retention decided, production-scale cost remains open** | S30-08a–c add due-order progress, bounded attempts/parking and validated worker/timeout configuration. S30-08d1–d2 add a bounded parked queue and atomic audited redrive with PostgreSQL concurrency coverage. S30-08e measures synthetic one-million-row distributions with 0.1% and 10% PARKED; work grows with parked-set cardinality, but no production distribution or latency objective is established, so no index/SLA decision follows. The user has decided terminal dispatch rows remain indefinitely because `(order, type)` is the dedup fact; no deletion/retention implementation should be added without revising that contract. |
 | F10 — stale/overstated documentation | **Partial** | S30-09a records a read-only ruleset snapshot with exact contexts and `bypass_actors: null`; its branch-protection endpoint was not queried, so administrator bypass state outside that response remains unverified. S30-09b adds current CLI guidance and caveats without restoring the removed handbook or changing the Drive PDF. Automated doc-example smoke and final post-implementation closure remain open. |
@@ -118,20 +118,42 @@ accepted a deployment-owned gate service with app PAUSE-only and audited-tool
 RESUME-only operations; the app must not have authoritative-store write
 credentials. Every authenticated PAUSE and RESUME must atomically update gate
 state and append an audit entry with action, validated caller identity, time,
-outcome, and state generation; RESUME also records operator reason. Return
-success only after Redis confirms the configured fsync threshold. Before
-RESUME, every registered live application instance must confirm delivery stop
-and active-handler drain. Gate audit entries are retained one year, then
-securely deleted under a documented procedure; raw quarantine payloads retain
-their separate 30-day policy. Each successful PAUSE/RESUME advances a
-monotonic generation; registrations and drain acknowledgements bind to that
-generation, and consumers are admitted only when their registration matches
-the current ACTIVE generation. Exact token claims and timestamp format, Redis
-transaction/idempotency/crash/failover protocol, and instance
-liveness lease and fencing/closure evidence remain to be designed. Lease expiry
+outcome, command ID, and state generation; RESUME also records operator reason.
+Return success only after Redis confirms the configured fsync threshold. A
+first-seen authenticated command is identified by a stable command ID; a
+same-ID retry resolves its recorded result without another generation advance,
+and changed-request reuse is rejected. If Redis is unavailable before commit,
+durably set the independent latch to `RECOVERY_REQUIRED` before attempting a
+PAUSE transition. If that latch write is uncertain/unavailable, do not mutate
+Redis or issue admission permits; unknown latch state is never CLEAR, including
+at startup. A Redis outage before commit makes no Redis state change, returns
+failure with operational telemetry, and makes no Redis audit claim. An
+uncertain commit/fsync returns unknown and keeps admission closed until the
+same command ID resolves against authoritative state. Consumer admission
+requires current ACTIVE Redis state and a durably CLEAR latch, serialized with
+PAUSE through generation-bound admission permits. RESUME commits/fsyncs its
+Redis audit/state before clearing the latch; report success only after both are
+confirmed. If latch clear is uncertain, return `ACTIVATION_PENDING`; same-ID
+retry completes without another generation advance. Gate audit entries are
+retained one year, then securely
+deleted under a documented procedure; raw quarantine payloads retain their
+separate 30-day policy. Each successful PAUSE/RESUME advances a monotonic
+generation; registrations and drain acknowledgements bind to that generation,
+and consumers are admitted only when their registration matches the current
+ACTIVE generation. Each instance cancels new deliveries, lets active handlers
+finish, then closes its consumer channel before acknowledging drain. This
+requeues the failing message and prefetched-but-not-started deliveries; active
+healthy handlers may finish and ACK. Exact token claims/timestamp format, Redis
+command-ID encoding/compare-and-set and failover recovery, durable latch
+backing/failure-domain/HA behavior, and instance liveness lease and
+fencing/closure evidence remain to be designed. Secure deletion must cover the
+one-year audit horizon across persistence history and backups. Lease expiry
 alone cannot establish that an unresponsive instance stopped; the operator
 must confirm its RabbitMQ consumer connection is fenced or closed before
-RESUME. The
+RESUME. Source message/correlation IDs (even if missing or duplicated) are
+preserved exactly; a separate generated quarantine-transfer ID tracks each
+copy. Reserved-header collisions or non-round-trippable AMQP values fail
+closed. The
 platform audit found Redis on each local
 deployment surface, but all current instances are ephemeral and therefore do
 not yet qualify as a durable gate. The user selected a dedicated Redis gate
