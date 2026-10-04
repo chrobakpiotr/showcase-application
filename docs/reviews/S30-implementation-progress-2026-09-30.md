@@ -1457,8 +1457,8 @@ the direct discovery regression assertion confirms that an installed Docker CLI
 is listed without qualification. The focused doctor suite also passed under the
 host Python 3.9 runtime. An attempted adjacent full qualification module under
 host Python 3.9 hit its existing Python 3.10+ union-type syntax requirement; the
-same affected discovery test passed under Python 3.12. Independent review and
-`git diff --check` remain the commit gates.
+same affected discovery test passed under Python 3.12. Independent read-only
+review: **PASS**. Local commit: `ab8e41a`.
 
 ## S30-09e task packet: refresh operator guidance for Docker evidence
 
@@ -1480,8 +1480,8 @@ adapter reconciliation and protection from stopped-container identity reuse.
 The reference says Docker is discovery-only and no launch is authorized. The
 operator-reference smoke passed 2/2 in a disposable Python 3.12 container with
 Git installed. A first attempt without Git failed at fixture setup and was
-rerun with the required executable. Independent documentation review and
-`git diff --check` remain the commit gates.
+rerun with the required executable. Independent documentation review: **PASS**.
+Local commit: `5f90540`.
 
 ## S30-09f task packet: synchronize the supplemental master re-review
 
@@ -1498,7 +1498,8 @@ documentation commits. F05 now reflects Docker's discovery-only doctor status
 while preserving the qualification, Q11/Q12/Q16 and no-payload limits. F10 now
 records the operator-reference correction. The historical snapshot and the
 no-live-CI-check caveat remain unchanged. Markdown links and `git diff --check`
-passed; independent review remains the commit gate.
+passed. Independent review: **PASS**. Local commit: `6ea57c3`; the later count
+clarification is committed as `ae8b45f`.
 
 ## S30-07g task packet: real-HTTP shipment header rejection matrix
 
