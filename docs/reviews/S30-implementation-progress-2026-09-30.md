@@ -1094,3 +1094,35 @@ the expected `run` without `--repo` blocked response (exit 5). Independent docs
 review was **PASS** after clarifying that `grant-import` mutates control state
 and belongs only in a disposable fixture. `git diff --check` passed. No live
 accepted plan or real grant was used.
+
+## S30-05a task packet: verification-profile schema field-surface parity
+
+Accepted source: master review section11.1's profile contract test and the
+existing S30-04 Showcase coverage. Keep this slice inside the existing Agentic
+SDD harness test job; add no new aggregate/job and do not claim positive
+accepted-authority execution or a qualified-host smoke. The planner/authority
+and applicability truth tables already exist; this slice closes only the
+missing exact schema-surface assertion.
+
+Compare the committed Verification Profile JSON Schema's root/gate properties,
+required fields and `additionalProperties` closure with the runtime `Gate`
+loader model, and the nested Probe/Artifact field surfaces with their runtime
+models. Use the real Showcase profile for a stale/extra field rejection fixture.
+This catches field-surface drift, not every difference in JSON Schema constraint
+semantics. Do not change the schema/runtime loader or weaken existing checks.
+
+Run the focused profile contract and applicability suites in the prepared
+Python 3.12 environment, plus `git diff --check`; obtain independent review
+before the local commit. This adds fast regression detection to the existing
+`harness-tests` CI suite. S30-05's accepted-authority positive-path integration
+and qualified-host smoke remain blocked by S30-01 admission and S30-03
+containment qualification.
+
+S30-05a complete. The regression checks root and nested schema field surfaces,
+required keys and closed-object behavior against the runtime model, then adds a
+stale field to the real Showcase profile and verifies that the production
+loader rejects it. Focused profile/applicability tests passed (18 total on the
+root run; independent evaluator also passed its 11-test profile/applicability
+selection), and `git diff --check` passed. Independent evaluation was **PASS**.
+This does not compare every JSON Schema constraint semantic, nor does it close
+accepted-authority positive execution or qualified-host smoke.
