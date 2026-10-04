@@ -48,15 +48,18 @@ The 2026-10-04 ruleset artifact records only the response from
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
 
-## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, and `85aeb35`
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, `85aeb35`, `8efaf19`, `ae8b45f`, and `bc8346e`
 
 This update incorporates the S30-07d/e/f/g evidence recorded after the original
 `f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
 parked-query measurement, Docker's discovery-only doctor status, and the
-operator-reference correction. It does not replace the original finding history
-or establish final S30 closure. The current tree includes these nine evidence
-commits plus this separately committed re-review; no live GitHub CI result was
-checked for this snapshot.
+operator-reference correction. The later `8efaf19` synchronization records the
+S30-07g HTTP evidence; `ae8b45f` corrects the earlier commit count, and
+`bc8346e` records the completed Docker documentation checkpoints. It does not
+replace the original finding history or establish final S30 closure. The current
+tree is twelve local commits ahead of `origin/main`; this list names all twelve,
+including evidence updates and documentation synchronization. No live GitHub CI
+result was checked for this snapshot.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|
