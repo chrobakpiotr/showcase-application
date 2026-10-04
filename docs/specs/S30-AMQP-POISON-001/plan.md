@@ -116,6 +116,13 @@ across application restart; if auto-start recreates a hot loop, 06b's durable
 ledger (or a separately accepted persistent circuit state) must precede
 release. Do not conceal this limitation with a claim of bounded attempts.
 
+The prototype result is preserved in
+[`evidence/container-lifecycle-spike.md`](evidence/container-lifecycle-spike.md):
+manual unacked deliveries were requeued/redelivered after container stop and
+restart while an old handler remained blocked. Therefore a volatile stop flag
+does not satisfy restart-safe admission; 06b or another durable guard must be
+sequenced before production enablement if automatic restart is permitted.
+
 ### D4 — quarantine data controls
 
 Agree raw body/header classification, smallest authorized readers, encryption,

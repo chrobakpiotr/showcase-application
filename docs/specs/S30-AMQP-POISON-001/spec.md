@@ -93,6 +93,16 @@ consumer can hold unacked deliveries indefinitely, while closing its channel
 requeues them. Automatic container restart or application restart could then
 recreate a hot loop without durable retry state.
 
+The disposable RabbitMQ 4.1 lifecycle spike in
+[`evidence/container-lifecycle-spike.md`](evidence/container-lifecycle-spike.md)
+confirmed that with prefetch3, a blocked handler can outlive a one-second
+container stop timeout; channel closure returns three unacked messages with
+`redelivered=true` after restart. Container pause/stop alone is therefore not a
+restart-safe guard. A durable attempt/admission guard from 06b (or another
+accepted durable mechanism) must precede production release if process restart
+is allowed to reactivate the listener. The spike did not test stale-handler
+fencing after restart.
+
 The product/operations owner must choose and document: (a) pause scope and
 whether in-flight handlers drain or remain unacked; (b) health/readiness state
 and alerting while paused; (c) who/what resumes it; (d) behavior on broker

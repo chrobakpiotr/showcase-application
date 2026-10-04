@@ -918,3 +918,15 @@ DISPATCH_ID` ordering or the separate queue-wide `MIN(CREATED_DATE)`; count and
 minimum can scan all parked rows and sorting may be required. No index was added
 without representative-scale evidence. Measure with production-like volume and
 EXPLAIN/BUFFERS before making a separate index decision.
+
+S30-06a technical spike complete (disposable evidence, not production proof).
+RabbitMQ4.1 Testcontainers: 2/2 spike tests passed. With manual ack/prefetch3,
+a blocked handler outlived the 1-second container stop timeout; stop closed its
+channel while the handler remained blocked, and restart redelivered all three
+unacked messages. A mandatory publish to an unroutable exchange produced both a
+positive correlated confirm and a correlated mandatory return. Evidence is
+preserved in `docs/specs/S30-AMQP-POISON-001/evidence/container-lifecycle-spike.md`.
+This confirms confirm alone cannot authorize source ACK and container stop is
+not a durable restart guard. 06a remains blocked on durable restart admission
+sequencing plus data access/retention and provisioning-owner decisions; no AMQP
+production code was changed.
