@@ -1459,3 +1459,26 @@ host Python 3.9 runtime. An attempted adjacent full qualification module under
 host Python 3.9 hit its existing Python 3.10+ union-type syntax requirement; the
 same affected discovery test passed under Python 3.12. Independent review and
 `git diff --check` remain the commit gates.
+
+## S30-09e task packet: refresh operator guidance for Docker evidence
+
+Accepted source: master review section15 and the new S30-03c/d evidence. Update
+the current repository operator reference because its F05 summary predates the
+Docker Desktop spike and now overgeneralizes the host result. Bind its source
+commit/date/scope to the current checkpoint; distinguish the failed native
+containment probes from Docker's passing container-boundary capability probes,
+and record Q11/Q12/Q16 limits plus Docker's discovered-only status. Preserve the
+statement that no backend is qualified and no payload is authorized. Do not
+change the accepted plan or external Drive handbook. Run the isolated operator
+reference smoke under Python 3.12, obtain independent documentation review, and
+run `git diff --check` before local commit.
+
+S30-09e updates the operator reference to source commit `ab8e41a` and corrects
+the F05 evidence boundary: native macOS containment remained unproven; Docker
+passed limited container-boundary capability checks but lacks exact binding,
+adapter reconciliation and protection from stopped-container identity reuse.
+The reference says Docker is discovery-only and no launch is authorized. The
+operator-reference smoke passed 2/2 in a disposable Python 3.12 container with
+Git installed. A first attempt without Git failed at fixture setup and was
+rerun with the required executable. Independent documentation review and
+`git diff --check` remain the commit gates.

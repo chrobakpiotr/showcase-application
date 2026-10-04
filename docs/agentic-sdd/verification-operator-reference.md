@@ -10,9 +10,10 @@ checked-in source in this repository; the old in-repo handbook/PDF/generator
 were intentionally removed in `0695b1d` and are not restored here.
 
 Verified on 2026-10-04 against verifier source at repository commit
-`3b173ea`. Scope: parser help for all three subcommands and the `run`-without-
-`--repo` fail-closed response in the prepared Python 3.12 test container. No
-accepted plan was executed and no grant was imported.
+`ab8e41a`. Scope: parser help for all three subcommands, the `run`-without-
+`--repo` fail-closed response in the prepared Python 3.12 test container, and
+the current backend discovery/qualification boundary. No accepted plan was
+executed and no grant was imported.
 
 ## CLI commands
 
@@ -86,10 +87,15 @@ constraints when using or describing verification:
   does not by itself provide accepted-plan admission or complete obligation
   coverage; those lifecycle prerequisites remain separate.
 - **F05 — qualification and containment:** production backend qualification is
-  still blocked. Current host evidence rejected both probed backends, including
-  for descendant containment; Linux active qualification dispatch is
-  unsupported. Discovery or a Docker test image is not production qualification,
-  and no weaker fallback authorizes execution.
+  still blocked. The native macOS probes did not establish descendant
+  containment. A separate Docker Desktop capability spike passed its container-
+  boundary filesystem and descendant-drain probes, but exact policy/repository/
+  birth binding is incomplete, no adapter performs stale-identity rejection,
+  and Docker can restart the same stopped container ID. Docker is listed by
+  `doctor` as discovered only; it remains unsupported for qualification and
+  cannot authorize execution. Linux active qualification dispatch is also
+  unsupported. A Docker test image or engine capability result alone is not
+  production qualification, and no weaker fallback authorizes execution.
 - **F06 — output workspaces:** the implemented source workspace is diagnostic
   materialization only; it grants no launch or `PASS` authority. Newly generated
   outputs remain runtime-only and are checked for links/escapes. Qualified
