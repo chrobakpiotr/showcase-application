@@ -1557,26 +1557,30 @@ The user accepted the following previously open S30 policy decisions:
   accepted durable exchange is `com.cp.e.topic.order.quarantine.v1`, the queue
   is `com.cp.q.order.quarantine.v1`, and the binding key is
   `order.quarantine.v1`. The topology is required in all environments;
-  deployment tooling will apply Rabbit per-message TTL (`x-message-ttl`) and
-  verify deletion at 30 days.
+  deployment tooling will apply Rabbit queue-level message TTL
+  (`x-message-ttl`) of 30 days and verify messages are no longer retrievable
+  after a one-hour grace period. Backups and exports follow the same 30-day
+  deletion horizon.
   Durable enforcement, operator authentication/audit,
   prefetched-but-not-started delivery handling, alerting and channel-loss
   behavior remain unimplemented or undecided.
-- **S30-06 quarantine data:** raw quarantined payloads and headers must be
-  encrypted, access-restricted, and retained for 30 days. Rabbit
-  `x-message-ttl` plus deletion verification is the accepted retention
-  mechanism; its configuration and verification procedure remain to be
-  implemented and tested. Encryption boundaries, access/export audit, backup,
-  and payload size controls still need implementation-level definition and
-  verification.
+- **S30-06 quarantine data:** raw quarantined payloads and headers require TLS
+  in transit, encrypted broker host/storage-class volumes in every environment,
+  access restriction, and a 30-day retention horizon. Rabbit queue-level
+  `x-message-ttl` plus verifying non-retrievability after expiry and a grace
+  period is the accepted retention mechanism; the one-hour grace duration is
+  accepted, while the procedure remains to be tested. Backups and exports
+  follow the same 30-day deletion policy. Access/export audit and payload-size controls still need
+  implementation-level definition and verification.
 - **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely
   because `(order, dispatch type)` is the enqueue deduplication fact. No
   terminal-row deletion/retention mechanism is authorized under this decision.
 
 These decisions clear the high-level restart, raw-quarantine retention,
 deployment ownership, exact topology names, all-environment deployment scope,
-TTL-plus-deletion-verification approach, active-handler pause behavior, and
-dispatch-row horizon questions only. Compose/Kubernetes provisioning artifacts,
+TTL-plus-deletion-verification approach and one-hour grace period, TLS and
+encrypted-volume requirements, backup/export deletion horizon, active-handler pause behavior, and dispatch-row
+horizon questions only. Compose/Kubernetes provisioning artifacts,
 the externally managed production Rabbit handoff, durable restart guard,
 operator authorization/audit, prefetched/unacknowledged delivery mechanics,
 error taxonomy, header policy and 06b attempt/fencing/privacy requirements

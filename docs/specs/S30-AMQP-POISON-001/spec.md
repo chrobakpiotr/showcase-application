@@ -141,15 +141,20 @@ not establish exactly-once processing in other systems.
 ## Security and retention
 
 Quarantine stores the raw inbound body and headers, which may contain personal
-or otherwise sensitive information. The accepted policy requires encryption,
-access restriction to the smallest operator and service set, and retention for
-30 days, enforced with Rabbit per-message TTL configured on the quarantine
-queue (`x-message-ttl`) plus
-deletion verification. Never log the raw body or sensitive headers. Exact
-encryption boundaries, access/read-export audit, backup behavior, TTL
-configuration and deletion-verification procedure, and payload size limits
-still require implementation-level definition and verification before
-production acceptance.
+or otherwise sensitive information. The accepted policy requires TLS in
+transit, encrypted broker storage in all environments using encrypted
+host/storage-class volumes, access restriction to the smallest operator and
+service set, and retention for 30 days, enforced with Rabbit queue-level
+message TTL (`x-message-ttl`) plus deletion verification. RabbitMQ guarantees
+expired messages are not delivered, but physical removal may occur after
+expiry. The accepted verification checks that messages are no longer
+retrievable after expiry plus a one-hour grace period; backups and exports
+follow the same 30-day deletion policy.
+Never log the raw body or sensitive headers. Exact encryption boundaries,
+access/read-export audit, backup behavior, TTL configuration and
+deletion-verification procedure, and payload size limits still require
+implementation-level definition and verification before production
+acceptance.
 If the current broker/deployment cannot enforce the accepted access and
 retention controls, do not enable this topology in production until it can.
 
@@ -188,14 +193,20 @@ deliveries so pause behavior is explicit.
 
 The existing queue/exchange/binding declarations are unchanged. The additive
 quarantine topology has the accepted exact names, durability, routing, and
-single clear provisioning owner. Startup against pre-provisioned resources and
-resource mismatch fails safely and observably.
+single clear provisioning owner. It exists in all environments; its queue has
+30-day `x-message-ttl`, TLS in transit, and encrypted storage. Deployment
+validation verifies the exact 30-day setting; a short-TTL real-broker fixture
+proves that expired messages are no longer retrievable. The operational check
+runs after the accepted 30-day TTL plus one-hour grace. Backups and exports
+follow the same 30-day deletion horizon. Startup against pre-provisioned
+resources and resource mismatch fails safely and observably.
 
 ### AC-06A-SAFE
 
 No raw payload, order number, operation id, or exception detail appears in
-application logs or metric labels. Quarantine payload access and retention
-controls match an explicitly accepted policy.
+application logs or metric labels. Quarantine payload access, transport and
+storage encryption, expiry verification and backup/export deletion match the
+accepted policy.
 
 ## Non-goals and later slices
 
@@ -306,9 +317,11 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 ## Unresolved decisions required before READY
 
 1. Packet the exact root/standalone/E2E Compose and Kubernetes development
-   artifacts that provision the accepted names, configure `x-message-ttl`, and
-   verify deletion; document the handoff for externally managed production
-   RabbitMQ.
+   artifacts that provision the accepted names, require TLS and encrypted
+   host/storage-class volumes, configure `x-message-ttl`, and verify
+   non-retrievability after expiry plus a grace period. Apply the 30-day
+   deletion horizon to backups/exports and document the external production
+   RabbitMQ handoff. The one-hour verification grace period is accepted.
    Owner, names, all-environment scope, and TTL-plus-verification policy are
    accepted; application declaration remains forbidden.
 2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
@@ -316,9 +329,10 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    handlers, readiness-down, and operator-only resume across restart are
    accepted; the durable guard and prefetched/unacknowledged-message details
    are not implemented.
-3. Define enforcement for the accepted encrypted, restricted-access,
-   30-day quarantine policy, including read/export audit, backup, TTL/deletion
-   verification, and size limits.
+3. Define enforcement for the accepted TLS-in-transit, encrypted
+   host/storage-class volumes,
+   restricted-access, 30-day quarantine policy, including read/export audit,
+   backup, TTL/deletion verification, and size limits.
 4. Confirm the permanent-error allowlist against actual exception types and
    receipt transaction behavior; unknown remains fail-closed.
 5. Approve required headers and behavior for collisions, unsupported header

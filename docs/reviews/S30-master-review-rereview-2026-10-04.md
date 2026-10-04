@@ -94,10 +94,15 @@ The user subsequently accepted the exact durable quarantine exchange
 `com.cp.q.order.quarantine.v1`, and binding key `order.quarantine.v1`, with
 deployment tooling as the sole topology owner. The topology must exist in all
 environments; production Helm continues to use external RabbitMQ and needs a
-documented handoff. The accepted 30-day retention mechanism is Rabbit
-per-message TTL (`x-message-ttl`) plus deletion verification. These decisions
-resolve policy choices only. No deployment artifact, durable pause guard,
-operator authorization, quarantine encryption/access audit, or 06b attempt
-fencing is implemented or proven by this documentation update. The data policy
-still blocks enabling raw-payload quarantine wherever encryption and access
-restrictions are not enforced. No live GitHub CI result was checked.
+documented handoff. The accepted encryption policy requires TLS in transit and
+encrypted host/storage-class volumes in all environments, along with
+restricted access. The accepted retention mechanism is Rabbit queue-level
+message TTL (`x-message-ttl`), verification that messages are no longer
+retrievable one hour after expiry, and the same 30-day deletion horizon for
+backups and exports. These
+decisions resolve policy choices only. No deployment artifact, durable pause
+guard, operator authorization, quarantine encryption/access audit, or 06b
+attempt fencing is implemented or proven by this documentation update. The
+data policy still blocks enabling raw-payload quarantine wherever encryption
+and access restrictions are not enforced. No live GitHub CI result was
+checked.
