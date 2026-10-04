@@ -1407,3 +1407,30 @@ the route count is exactly one before release, and the request is then forwarded
 once to the real backend. The review also confirmed that the existing
 response-loss, reload, and same-key replay assertions remain intact. No
 concrete issues were found.
+
+## S30-08e task packet: disposable parked-queue query sensitivity measurement
+
+Accepted source: the S30-08d1 performance limitation. Measure the exact parked
+page/count/oldest-age query shape and declared schema/index against a disposable
+PostgreSQL 18.6 relation at two explicitly synthetic parked-backlog fractions
+within one million rows. Record `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`, actual
+row/loop counts, index and sort behavior, buffer reads/hits, temp spill, and
+repeated warm timings. Use no repository mounts and preserve only a summarized
+report under `docs/reviews/` plus this progress record. Do not add indexes,
+change migrations/queries, infer production distribution/SLA, or implement
+retention. Independent persistence/performance review and `git diff --check`
+precede local commit.
+
+S30-08e complete as synthetic cardinality-sensitivity evidence. With 1,000
+PARKED rows (0.1%), query medians were 2.7–3.5 ms and the planner used the due
+index's status prefix; pages sorted in memory. With 100,000 PARKED rows (10%),
+the planner visited all parked rows through bitmap index/heap scans; medians
+were 37–41 ms. Neither scenario read blocks from storage or spilled sorts to
+temporary blocks. These warm-cache numbers do not establish production
+workload, SLA, or an index decision. The report records schema/query shape and
+the missing representative backlog/selectivity and accepted latency objective.
+Independent read-only review: **PASS**. The reviewer confirmed the distribution
+arithmetic, reported timings/buffer figures, and index/order interpretation,
+while noting raw EXPLAIN output was not retained. The report was tightened to
+describe scanning all parked rows with top-N ordering rather than a full sort.
+`git diff --check` passed.
