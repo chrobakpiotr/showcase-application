@@ -11,11 +11,12 @@ import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
+import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -73,9 +74,7 @@ class MessageListenerTest {
             appender.stop();
         }
 
-        final String output = appender.list.stream().map(ILoggingEvent::getFormattedMessage)
-                .collect(Collectors.joining("\n"));
-        org.assertj.core.api.Assertions.assertThat(output)
-                .doesNotContain("PRIVATE-OPERATION", "PRIVATE-ORDER");
+        final String output = appender.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.joining("\n"));
+        org.assertj.core.api.Assertions.assertThat(output).doesNotContain("PRIVATE-OPERATION", "PRIVATE-ORDER");
     }
 }

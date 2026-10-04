@@ -36,7 +36,9 @@ fail closed by pausing/stopping consumption according to the explicitly
 resolved pause contract below.
 
 The original queue/exchange/binding remain unchanged. Quarantine topology is
-additive. No finance or stock mutation is introduced by quarantine handling.
+additive and provisioned by deployment tooling only; the application must not
+declare the quarantine resources. No finance or stock mutation is introduced
+by quarantine handling.
 
 ## Proposed contract (assumptions pending acceptance)
 
@@ -46,12 +48,12 @@ facts or accepted production decisions until reviewed:
 1. Add durable quarantine exchange `com.cp.e.topic.order.quarantine.v1`, durable
    queue `com.cp.q.order.quarantine.v1`, and binding routing key
    `order.quarantine.v1`. Use a dedicated topic exchange and one queue initially.
-2. Provision the new resources declaratively with the Rabbit deployment owner.
+2. Provision the new resources declaratively with deployment tooling only.
    The application must not silently create resources with arguments that can
-   conflict with operator-managed resources. Before implementation, decide
-   whether the app declares these resources or deployment tooling alone owns
-   them, and test startup against that exact ownership model. Do not redeclare
-   the existing source queue with new arguments or attach a DLX to it in this
+   conflict with operator-managed resources. Test deployment provisioning
+   against the selected Rabbit version and fail startup/operation observably
+   when a required resource is missing or incompatible. Do not redeclare the
+   existing source queue with new arguments or attach a DLX to it in this
    slice.
 3. Publish quarantine messages as persistent, mandatory messages with publisher
    confirms and returned-message handling enabled. A transfer succeeds only if
@@ -103,20 +105,22 @@ accepted durable mechanism) must precede production release if process restart
 is allowed to reactivate the listener. The spike did not test stale-handler
 fencing after restart.
 
-The accepted restart decision is: after a poison/unknown pause, application or
-broker restart must not automatically resume consumption; an explicit operator
-action is required. This is a lifecycle requirement, not a claim that the
-current volatile container pause survives process restart. A durable pause
-record/admission guard and the operator authentication/audit mechanism remain
-to be designed and tested before production release.
+The accepted lifecycle decisions are: after a poison/unknown pause, application
+or broker restart must not automatically resume consumption; an explicit
+operator action is required. Stop dispatching new deliveries, allow already
+active handlers to finish, and keep readiness down until operator resume. These
+are lifecycle requirements, not a claim that the current volatile container
+pause survives process restart. A durable pause record/admission guard and the
+operator authentication/audit mechanism remain to be designed and tested
+before production release.
 
-The pause scope, treatment of other in-flight handlers, readiness/alert state,
-channel-loss behavior, and handling of the failing delivery still require
-explicit decisions. This 06a slice has no durable attempt ledger, retry budget,
-or operator replay audit record, so it cannot claim a finite retry count,
-automatic recovery, or hot-message isolation across process restarts. A durable
-guard from 06b or another accepted mechanism is required before production
-release.
+Treatment of prefetched-but-not-started messages, alert state, channel-loss
+behavior, and the unacknowledged failing delivery still need implementation
+mechanics and real-container tests. This 06a slice has no durable attempt
+ledger, retry budget, or operator replay audit record, so it cannot claim a
+finite retry count, automatic recovery, or hot-message isolation across process
+restarts. A durable guard from 06b or another accepted mechanism is required
+before production release.
 
 ## Error and delivery semantics
 
@@ -279,13 +283,14 @@ decide at least:
    encryption, and data minimization. For 06a quarantine, raw body and headers
    are accepted as encrypted, access-restricted, and retained for 30 days;
    enforcement details remain open. Operation ID/order/customer fields may
-   also be sensitive. The current `MessageListener` logs `operationId` and
-   `orderNumber` at INFO, so the privacy review must include log access and
-   retention rather than limiting the analysis to database and quarantine
-   storage.
+   also be sensitive. The original `MessageListener` and
+   `SendOrderMessageAdapter` logged operation/order identifiers; S30-06e/f
+   removed those fields and exception details from their logs. The broader
+   privacy review must still include log access and retention rather than
+   limiting the analysis to database and quarantine storage.
 
 This 06b checkpoint does not clear 06a's separate blockers: exact quarantine
-topology provisioning owner, source ACK/pause/drain/readiness/restart
+topology names/deployment artifacts, source ACK/pause/drain/readiness/restart
 enforcement, quarantine data-control enforcement, and permanent-error taxonomy.
 In particular, 06b must
 not be treated as a production-ready restart guard until its durable admission
@@ -296,11 +301,14 @@ must state duplicate and uncertain-outcome behavior at each boundary.
 
 ## Unresolved decisions required before READY
 
-1. Accept or replace the proposed exact topology names and declare whether
-   application or deployment tooling owns provisioning.
-2. Specify pause/drain/in-flight, readiness/alert, channel-loss, and operator
-   resume mechanics. The decision that restart alone never resumes consumption
-   is accepted; the durable guard needed to enforce it is not implemented.
+1. Accept or replace the proposed exact topology names. Deployment-tooling-only
+   ownership is accepted; verify Compose/Kubernetes development provisioning
+   and document the production external-Rabbit provisioning handoff.
+2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
+   resume authorization/audit. Stopping new deliveries, draining active
+   handlers, readiness-down, and operator-only resume across restart are
+   accepted; the durable guard and prefetched/unacknowledged-message details
+   are not implemented.
 3. Define enforcement for the accepted encrypted, restricted-access,
    30-day quarantine policy, including read/export audit, backup, deletion, and
    size limits.

@@ -8,15 +8,15 @@ The inbound AMQP adapter owns Rabbit delivery mechanics and the message
 listener. The domain/application receive port and persistence receipt adapter
 own validation/business rejection and the durable receipt commit. The adapter
 must not weaken that transaction boundary or infer downstream finance/stock
-completion from a receipt. Rabbit resource provisioning ownership is not
-currently established by this plan and must be resolved in the spec before
-implementation.
+completion from a receipt. Deployment-tooling-only ownership of new quarantine
+resources is accepted; exact names and concrete deployment artifacts still
+need confirmation and task-packet assignment before implementation.
 
 Likely code/test seams, subject to task-packet confirmation:
 
 - `modules/adapters/amqp/.../configuration/MessagingConfiguration.java` —
-  additive quarantine topology, manual acknowledgement, container lifecycle,
-  publisher confirm/return wiring.
+  manual acknowledgement, container lifecycle, publisher confirm/return
+  wiring; it must not declare the additive quarantine topology.
 - `modules/adapters/amqp/.../order/MessageListener.java` — consume the raw
   broker message, preserve bytes/properties, classify only known permanent
   failures, and coordinate source ACK after the transfer boundary.
@@ -26,9 +26,14 @@ Likely code/test seams, subject to task-packet confirmation:
 - AMQP adapter tests and relevant application configuration only where
   explicitly packeted.
 
-No source paths are authorized by this architecture draft. Do not modify
-AsyncAPI or the original topology unless a contract change is found and
-recorded; no business event schema change is proposed.
+No source paths are authorized by this architecture draft. The repository's
+local Rabbit deployment surfaces are root/standalone Compose and
+`infra/k8s/dev-dependencies.yaml`; the ecommerce Helm chart connects to an
+externally provided Rabbit service and does not provision it. Before
+implementation, packet the exact deployment artifacts that own the accepted
+topology. Do not modify AsyncAPI or the original source topology unless a
+contract change is found and recorded; no business event schema change is
+proposed.
 
 ## Proposed component flow
 
@@ -58,7 +63,7 @@ The graph below is a dependency DAG, not a claim that unresolved contracts are
 already accepted:
 
 ```text
-D1 topology names + provisioning owner ─┐
+D1 topology names + deployment artifacts ─┐
 D2 error taxonomy + transaction boundary ├─> D5 architecture grill / spec READY
 D3 pause + in-flight + restart contract ┤             │
 D4 data access + retention policy ──────┘             v
@@ -89,14 +94,16 @@ builder owns the listener/configuration seam. E1/E2 cannot be self-review by a
 builder. Security review is required because the raw payload crosses into a
 new persisted broker destination.
 
-### D1 — topology and declaration mismatch
+### D1 — topology names and deployment handoff
 
 The current source queue is declared by application bean without DLX arguments
 and the container is manually constructed. Boot listener-factory settings do
-not implicitly govern it. Decide exact additive exchange/queue/binding names,
-which deployable artifact provisions them, how app startup verifies
-pre-provisioned resources, mismatch behavior, and whether declarations are
-disabled in production. Preserve the original queue declaration exactly.
+not implicitly govern it. Deployment tooling only owns the new quarantine
+exchange/queue/binding; the application must not declare them. Exact proposed
+names and deployment artifact ownership across Compose, Kubernetes dev
+dependencies, and external production Rabbit remain to be confirmed. Define
+missing/mismatched-resource behavior and preserve the original source queue
+declaration exactly.
 
 ### D2 — permanent error and commit semantics
 
@@ -108,13 +115,16 @@ exception message text or broad `RuntimeException`.
 
 ### D3 — pause, prefetch, and process lifecycle
 
-Select whether to pause the consumer/container or stop it, how prefetched and
-in-flight deliveries are treated, how readiness reports the state, and how
-operators resume. Specify channel/process restart behavior and demonstrate it
-with the production container. A container-only pause is not a durable guard
-across application restart; if auto-start recreates a hot loop, 06b's durable
-ledger (or a separately accepted persistent circuit state) must precede
-release. Do not conceal this limitation with a claim of bounded attempts.
+The accepted high-level behavior is to stop new deliveries, let active handlers
+finish, keep readiness down, and require explicit operator resume after process
+or broker restart. Define how to persist/enforce the pause, how already
+prefetched-but-not-started deliveries and the unacked failing delivery behave,
+how operator authorization/audit works, and what happens on channel loss; then
+demonstrate those semantics with the production container. A container-only
+pause is not a durable guard across application restart; if auto-start
+recreates a hot loop, 06b's durable ledger (or a separately accepted persistent
+circuit state) must precede release. Do not conceal this limitation with a
+claim of bounded attempts.
 
 The prototype result is preserved in
 [`evidence/container-lifecycle-spike.md`](evidence/container-lifecycle-spike.md):

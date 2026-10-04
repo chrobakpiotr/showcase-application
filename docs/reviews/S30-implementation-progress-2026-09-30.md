@@ -1551,9 +1551,13 @@ The user accepted the following previously open S30 policy decisions:
 
 - **S30-06 AMQP restart:** after a poison/unknown pause, process or broker
   restart must not automatically resume consumption; an explicit operator
-  action is required. Durable enforcement, operator authentication/audit,
-  pause scope, in-flight delivery handling, readiness/alerting and channel-loss
-  behavior remain unimplemented or undecided.
+  action is required. Stop new deliveries, allow active handlers to finish, and
+  keep readiness down until resume. Deployment tooling alone provisions the
+  quarantine topology; the application must not declare those resources.
+  Durable enforcement, operator authentication/audit, prefetched-but-not-started
+  delivery handling, alerting and channel-loss behavior remain unimplemented or
+  undecided. The proposed exchange/queue/routing-key names are still awaiting
+  acceptance.
 - **S30-06 quarantine data:** raw quarantined payloads and headers must be
   encrypted, access-restricted, and retained for 30 days. The encryption
   boundaries, access/export audit, backup, deletion enforcement and payload
@@ -1562,11 +1566,13 @@ The user accepted the following previously open S30 policy decisions:
   because `(order, dispatch type)` is the enqueue deduplication fact. No
   terminal-row deletion/retention mechanism is authorized under this decision.
 
-These decisions clear the high-level restart, raw-quarantine retention, and
-dispatch-row horizon questions only. They do not close S30-06's topology owner,
-in-flight/pause mechanics, durable restart guard, error taxonomy, header policy
-or 06b attempt/fencing/privacy requirements. They also do not establish a
-production dispatch workload or latency objective. See the current state in
+These decisions clear the high-level restart, raw-quarantine retention,
+deployment ownership, active-handler pause behavior, and dispatch-row horizon
+questions only. The exact quarantine topology names, Compose/Kubernetes
+provisioning artifacts, durable restart guard, operator authorization/audit,
+prefetched/unacknowledged delivery mechanics, error taxonomy, header policy and
+06b attempt/fencing/privacy requirements remain open. They also do not
+establish a production dispatch workload or latency objective. See the current state in
 [`S30-master-review-rereview-2026-10-04.md`](S30-master-review-rereview-2026-10-04.md).
 
 ## S30-03e task packet: Docker-only discovery must not launch
@@ -1611,3 +1617,27 @@ independent security review returned **PASS**: only the closed receipt outcome
 is logged; the captured-event test also rejects raw JSON leakage. `git diff
 --check` passed.
 Local commit: `e99c324`; nothing was pushed.
+
+## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs
+
+Follow-up to S30-06e after source review found `SendOrderMessageAdapter` also
+logged operation IDs, order numbers, broker confirm reasons and exception
+objects; mapper failure text included the order number. Preserve publish
+outcomes, but log only the closed ACCEPTED/REJECTED/UNKNOWN outcomes and omit
+the order number from mapper-failure exceptions. Allowed paths: publisher,
+focused publisher test, and this progress record. Test mode: red-green capture
+of actual Logback events across accepted and unknown publish outcomes.
+
+The regression first failed and captured identifiers in both accepted and
+unknown outcome messages. The publisher now emits outcome-only log messages and
+does not attach exception objects; mapping failure is generic. Focused listener
+and publisher tests passed 12/12 with
+`./gradlew :adapter:amqp:test --tests
+'com.cp.ecommerce.adapter.amqp.order.MessageListenerTest' --tests
+'com.cp.ecommerce.adapter.amqp.order.SendOrderMessageAdapterTest'`. Independent
+security review returned **PASS**: actual log events contain no identifiers,
+payload, reason or throwable detail, and the mapper exception omits the order
+number. The AMQP Spotless check also passed using the container mounted at the
+`/workspace` path expected by the formatter. A host-path invocation resolved a
+stale `/workspace/...` formatter target and failed before inspecting formatting;
+the correctly mounted check is the passing evidence. `git diff --check` passed.

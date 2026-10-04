@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.amqp.order;
 
 import java.text.ParseException;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.cp.ecommerce.adapter.amqp.order.mapper.OrderMessageMapper;
 import com.cp.ecommerce.domain.order.Order;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
@@ -20,6 +22,10 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -61,6 +67,33 @@ class SendOrderMessageAdapterTest {
         completeConfirm(true, null, false);
 
         assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.ACCEPTED);
+    }
+
+    @Test
+    void shouldNotLogIdentifiersOrExceptionDetails() throws ParseException {
+
+        final Order order = prepareMappedOrder();
+        completeConfirm(true, null, false);
+        final Logger logger = (Logger) LoggerFactory.getLogger(SendOrderMessageAdapter.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.ACCEPTED);
+            doThrow(new AmqpException("private-broker-detail")).when(rabbitTemplate)
+                    .convertAndSend(eq(TOPIC_EXCHANGE_NAME), eq(ROUTING_KEY), anyString(), any(CorrelationData.class));
+            assertThat(adapter.send(order, OPERATION_ID)).isEqualTo(OrderMessagePublishOutcome.UNKNOWN);
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        final String output = appender.list.stream().map(ILoggingEvent::getFormattedMessage).collect(Collectors.joining("\n"));
+        org.assertj.core.api.Assertions.assertThat(output)
+                .doesNotContain(OPERATION_ID, order.getOrderNumber(), "private-broker-detail");
+        org.assertj.core.api.Assertions.assertThat(appender.list)
+                .allSatisfy(event -> org.assertj.core.api.Assertions.assertThat(event.getThrowableProxy()).isNull());
     }
 
     @Test
@@ -134,7 +167,8 @@ class SendOrderMessageAdapterTest {
         final Order order = mockOrder();
         given(mapper.mapToMessage(order)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> adapter.send(order, OPERATION_ID)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> adapter.send(order, OPERATION_ID)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Failed to map order to message");
     }
 
     private Order prepareMappedOrder() throws ParseException {

@@ -42,7 +42,7 @@ public class SendOrderMessageAdapter implements SendOrderMessageOutPort {
     public OrderMessagePublishOutcome send(final Order order, final String operationId) {
 
         final OrderMessage mapped = mapper.mapToMessage(order)
-                .orElseThrow(() -> new IllegalStateException("Failed to map order to message: " + order.getOrderNumber()));
+                .orElseThrow(() -> new IllegalStateException("Failed to map order to message"));
         final OrderMessage orderMessage = OrderMessage.builder()
                 .schemaVersion(mapped.schemaVersion())
                 .operationId(operationId)
@@ -59,33 +59,18 @@ public class SendOrderMessageAdapter implements SendOrderMessageOutPort {
                     .get(confirmTimeoutMillis, TimeUnit.MILLISECONDS);
 
             if (correlationData.getReturned() != null || !confirm.ack()) {
-                log.warn(
-                        "RabbitMQ rejected fulfillment publish operationId={} orderNumber={} reason={}",
-                        operationId,
-                        order.getOrderNumber(),
-                        confirm.reason());
+                log.warn("RabbitMQ fulfillment publish outcome=REJECTED");
                 return OrderMessagePublishOutcome.REJECTED;
             }
 
-            log.info(
-                    "RabbitMQ accepted fulfillment publish operationId={} orderNumber={}",
-                    operationId,
-                    order.getOrderNumber());
+            log.info("RabbitMQ fulfillment publish outcome=ACCEPTED");
             return OrderMessagePublishOutcome.ACCEPTED;
-        } catch (final InterruptedException exception) {
+        } catch (final InterruptedException ignored) {
             Thread.currentThread().interrupt();
-            log.warn(
-                    "RabbitMQ fulfillment publish interrupted with unknown outcome operationId={} orderNumber={}",
-                    operationId,
-                    order.getOrderNumber(),
-                    exception);
+            log.warn("RabbitMQ fulfillment publish outcome=UNKNOWN");
             return OrderMessagePublishOutcome.UNKNOWN;
-        } catch (final TimeoutException | ExecutionException | AmqpException exception) {
-            log.warn(
-                    "RabbitMQ fulfillment publish has unknown outcome operationId={} orderNumber={}",
-                    operationId,
-                    order.getOrderNumber(),
-                    exception);
+        } catch (final TimeoutException | ExecutionException | AmqpException ignored) {
+            log.warn("RabbitMQ fulfillment publish outcome=UNKNOWN");
             return OrderMessagePublishOutcome.UNKNOWN;
         }
     }
