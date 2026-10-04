@@ -1126,3 +1126,32 @@ root run; independent evaluator also passed its 11-test profile/applicability
 selection), and `git diff --check` passed. Independent evaluation was **PASS**.
 This does not compare every JSON Schema constraint semantic, nor does it close
 accepted-authority positive execution or qualified-host smoke.
+
+## S30-09c task packet: current master-review re-review
+
+Accepted source: master review sections5–6 and15. Add a new dated, source-SHA-
+bound re-review that maps findings F01–F10 to current implementation evidence,
+classifies each as closed, partial or open, and names which broad readiness or
+acceptance claims remain reopened. Keep S22 and SDD-OBS-001 historical closure
+files immutable; do not convert M5.3 Design Gate NOT PASS or
+`implementation-authorized` into a new PASS/override.
+
+The review must use the just-committed checkpoint evidence and clearly separate
+verified narrow behavior from unresolved end-to-end operation. Explicitly
+preserve S30-01/S30-03 qualified-admission limitations, S30-06 product/data and
+broker-topology decisions, S30-08 dispatch-retention policy, and the boundary
+of the latest GitHub ruleset API snapshot (branch-protection endpoint not
+queried). Do not mutate remotes or claim external Drive PDF edits.
+
+Allowed paths: one new file under `docs/reviews/` and this progress report.
+Independent review and `git diff --check` precede the local commit. This is a
+checkpoint re-review, not final master closure; S30-05 positive-path/host
+acceptance and S30-10 remain gated by their dependencies.
+
+S30-09c checkpoint re-review complete at implementation snapshot
+`f732c75da8cacea5d5d74d94b5c6083669af7a2d`. The new matrix classifies F01–F10
+as narrow-addressed, partial or open and records which end-to-end claims remain
+reopened; the evaluator independently returned **PASS**. It preserves the
+historical M5.3 NOT PASS and implementation-authorized facts and limits GitHub
+claims to the recorded ruleset API endpoint. Repository Markdown links passed
+for 203 files and `git diff --check` passed. This is not final master closure.
