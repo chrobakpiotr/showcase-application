@@ -1591,4 +1591,4 @@ verification evidence. `git diff --check` and Markdown-link checks passed.
 Independent read-only review of this test and the accepted policy updates:
 **PASS**; no qualification or contract overclaim found.
 This is a negative-path regression only; it does not qualify Docker or unblock
-S30-01/S30-03 execution.
+S30-01/S30-03 execution. Local commit: `4653b96`; nothing was pushed.
