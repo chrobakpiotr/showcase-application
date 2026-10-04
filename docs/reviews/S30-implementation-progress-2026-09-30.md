@@ -1019,3 +1019,67 @@ uninspected; no remote settings were changed and immutable S22 closure evidence
 was preserved. The policy validator enforces the exact snapshot provenance and
 context list while retaining the desired checks. Its focused tests passed 2/2;
 the independent documentation review was **PASS** and `git diff --check` passed.
+
+## S30-06b task packet: durable admission boundary discovery
+
+This is a documentation/discovery checkpoint only. Trace existing delivery
+identity and persistence behavior for parseable `OrderMessage` values and
+separately classify malformed JSON, validation rejection, operation fingerprint
+conflict, transient persistence failure, receipt-commit/ACK-loss replay and
+uncertain outcomes. The only established logical identity is the validated
+`operationId`; do not invent a raw-payload hash, broker delivery identity or
+quarantine identity for malformed payloads. A candidate database attempt ledger
+is a design assumption, not an accepted message contract.
+
+Use evidence from `MessageListener`, `MessagingConfiguration`,
+`ReceiveOrderMessageService`, `SaveOrderFulfillmentReceiptAdapter`, receipt
+entity/migration and existing service/persistence/Rabbit integration tests.
+Record whether identity exists, whether a durable attempt can be recorded,
+current receipt/ack behavior, and the unresolved action for each failure class.
+Do not change application code, schema, AsyncAPI, retry settings or deployment
+topology in this slice.
+
+Before production design can be accepted, resolve the attempt unit/limit/backoff,
+in-flight duplicate ownership and stale-handler fencing, malformed-message
+identity, persistence outage behavior, operation/order data retention and
+privacy, plus the existing S30-06a quarantine provisioning and pause/restart
+decisions. In particular, a database ledger cannot durably record an attempt
+while the database is unavailable and cannot itself define broker restart or
+source-ack behavior. Keep the feature `NOT READY` while these decisions remain.
+
+Verify only the focused service and receipt-adapter tests and
+`git diff --check`; independent messaging/persistence review is required before
+this discovery packet is committed. No production implementation or delivery
+guarantee is claimed.
+
+S30-06b discovery checkpoint complete, **not implementation-ready**. The spec
+now distinguishes operation identity from broker deliveries and maps parse,
+validation, receipt, ACK-loss, persistence uncertainty and stale-handler cases.
+It records the INFO log exposure of operation/order identifiers and leaves
+privacy controls open. The candidate state machine is explicitly an assumption;
+retry budget/backoff, invalid-message identity, fencing, DB-outage and retention
+decisions remain unresolved with 06a provisioning/pause/ACK blockers. Focused
+service and receipt-adapter suites passed 16/16; independent messaging review
+was **PASS**, and `git diff --check` passed. No production behavior changed.
+
+## S30-09b task packet: current repository operator reference
+
+Accepted source: master review F10 and section15.4–6. The reviewed Google Drive
+PDF is external and has no current checked-in source; commit `0695b1d` removed
+the old repository PDF, handbook and generator. Preserve that state and the
+accepted SDD-OBS-001 spec/plan/history. Add a dated current operator reference
+under `docs/agentic-sdd/` and link it from the live README. Record the external
+PDF date and described source snapshot, plus the verifier source SHA/date/scope
+actually checked.
+
+The reference must use the actual `verify.py` parser: `--profile showcase` is a
+logical ID; `run` needs `--repo` and an exact lifecycle-accepted plan. Clearly
+separate advisory planning from execution authority. Preserve the current F01,
+F02, F05 and F06 implementation limitations, M5.3 Design Gate NOT PASS, empty
+trusted issuer registry and unavailable plan-bound manual coverage. Do not
+rewrite the accepted plan, restore removed artifacts, execute a live accepted
+plan, import a real grant, or edit the external PDF.
+
+Verification: all three `--help` paths and the no-`--repo` blocked response in
+the prepared Python 3.12 fixture; independent docs review; `git diff --check`.
+This is current guidance, not a new master closure or readiness claim.

@@ -147,10 +147,20 @@ must not assert exactly-once behavior.
 
 ## Later slices
 
-S30-06b owns durable operation-keyed attempt accounting/fencing and bounded
-retry policy if accepted. It must specify atomic claim behavior, redelivery and
-broker restart semantics, and how database unavailability is handled without
-an unbounded hot loop.
+S30-06b is currently a discovery checkpoint, not an implementation-ready
+contract. `spec.md` records the evidence-backed operationId/receipt boundary
+and unresolved cases for malformed input, validation, fingerprint conflict,
+transient or commit-uncertain persistence failures, receipt-commit/ACK-loss
+replay, and handler overlap after restart. A durable operation-keyed attempt
+ledger, claim fencing, and bounded retry are candidate responsibilities only;
+their identity key, attempt meaning/limit, transitions, backoff, and terminal
+action remain unaccepted. The checkpoint also leaves DB-outage behavior,
+invalid/missing operation identity, and ledger/quarantine retention and privacy
+for explicit decisions. Do not treat a counter in the receipt database as a
+restart guard while that database is unavailable. 06b must resolve these
+contracts and demonstrate stale-owner fencing before it can satisfy 06a's
+restart-admission dependency. 06a's topology provisioning and pause/ACK policy
+remain separate blockers.
 
 S30-06c owns operator authorization, audited replay command identity/reason,
 one-shot transitions, and payload correction/conflict workflow. It depends on

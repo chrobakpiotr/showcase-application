@@ -194,6 +194,98 @@ controls match an explicitly accepted policy.
   schema.
 - No general-purpose dead-letter/retry framework.
 
+## S30-06b durable admission and attempt-accounting discovery
+
+Status: **DISCOVERY ONLY — lifecycle and retry contract are unresolved; no
+implementation contract is accepted.** This checkpoint records what current
+code and durable evidence establish so 06b can be planned without treating
+delivery count, operation attempts, and receipt state as interchangeable.
+
+### Evidence-backed identity and receipt boundary
+
+The AsyncAPI wire schema requires `schemaVersion`, `operationId`, `created`,
+`customerId`, and `orderNumber`. The service accepts schema version `1.0`,
+requires nonblank `operationId` (maximum 120 characters), nonblank `orderNumber`
+(maximum 40), and non-null `customerId` and `created`. `OrderMessage`'s
+constructor defaults a null schema version to `1.0`; therefore the domain code
+does not establish that a missing JSON `schemaVersion` is rejected, despite the
+wire schema's required list. That wire/runtime discrepancy needs an explicit
+06a taxonomy decision and contract test. JSON is first parsed by Gson into
+`OrderMessage`; validation then runs in
+`ReceiveOrderMessageService`; only validated messages reach
+`SaveOrderFulfillmentReceiptAdapter.saveOnce`.
+
+The receipt table uses `operationId` as its primary key. The adapter inserts
+once and compares an existing receipt's immutable `schemaVersion`,
+`orderNumber`, `customerId`, and `created` values. Equal values return
+`REPLAYED`; a different value raises `ApplicationConflictException`. The
+receipt transaction is the local durable inbox boundary only. It does not
+establish completion of downstream finance or stock effects. These facts are
+supported by `contracts/asyncapi/asyncapi.yml`,
+`ReceiveOrderMessageService`, `SaveOrderFulfillmentReceiptAdapter`, the receipt
+Liquibase changeset, and `OrderFulfillmentReceiptPostgresIntegrationTest`.
+
+| Observed delivery/result | Identity evidence available to an operation-keyed ledger | Current receipt/consumer evidence | 06b contract still required |
+|---|---|---|---|
+| Parseable JSON with valid `operationId`, then successful receipt insert | The validated operation ID and message fields are available before the receipt call. | `RECORDED` means the insert resolved. The hand-built `SimpleMessageListenerContainer` does not explicitly set an acknowledgement mode; production-container ACK behavior and its exception mapping have not been verified by the current unit or PostgreSQL tests. | Define whether this consumes one bounded attempt, how a claim is finalized, and when the delivery becomes ACK-eligible; verify the exact behavior with the configured production container. |
+| Parseable JSON with valid identity, schema/field validation failure | Parsed field values, including operation ID if supplied, are available; validity of that identity is not established until its validation succeeds. | `ApplicationBadRequestException` is used for unsupported schema, missing/blank/oversized operation ID or order number, missing customer/created values, or null message. No receipt call occurs. A null schema version is defaulted to `1.0` by the domain record, so rejection of a missing JSON field is not established. | Decide whether a syntactically available but invalid identity may key durable accounting, whether each category is terminal or retryable, and resolve the schema-required/runtime-default discrepancy. |
+| Malformed JSON or JSON that cannot map to `OrderMessage` | No trustworthy operation ID is established by the current listener; malformed JSON is translated to `ApplicationBadRequestException`. | No receipt call occurs. | Define a bounded durable identity/attempt strategy that does not synthesize a business operation ID, plus quarantine handling and duplicate detection. |
+| Same valid operation ID and same immutable receipt payload | Existing receipt primary key and candidate immutable fields are available. | Adapter returns `REPLAYED`; this is the expected local outcome after source ACK loss following a committed receipt. | Specify whether a replay bypasses/finishes a prior attempt and how it is represented in the attempt ledger without repeating business effects. |
+| Same valid operation ID and different immutable payload (fingerprint conflict) | Operation ID and candidate fields are available; persisted receipt supplies the original comparison fields if database access succeeds. | Adapter throws `ApplicationConflictException`; receipt insert is not a replacement/update. | Classify as terminal poison only after verifying the exact transaction and exception boundary; decide whether conflict is attached to the original operation ledger or tracked as a separate conflicting delivery. |
+| Transient persistence failure before a known commit result | Message identity is available in memory, but receipt/ledger commit state may be unknown. | Existing tests establish conflict/idempotent cases, not commit-uncertain handling or the production broker ACK boundary. | Define retry eligibility, transaction outcome reconciliation, and behavior when receipt/ledger database access is unavailable. Never infer “not committed” from a thrown database/network exception. |
+| Receipt transaction committed, then source ACK is lost or connection closes | Stable operation ID remains in the delivered message. | Redelivery can resolve to `REPLAYED` through the insert-once receipt. | Define whether replay is ACKed after durable evidence is re-read and how stale attempt owners are fenced from later state changes. |
+| Handler/claim owner outlives container stop and message is redelivered after restart | For a valid parseable message, the same operation ID is available on redelivery. | The RabbitMQ 4.1 spike observed unacked redelivery after stop/restart while the prior handler remained blocked; it did not test owner fencing. | Require durable claim identity/lease or equivalent fencing so an old handler cannot overwrite a newer attempt's decision. Lease duration, renewal/deadline, recovery, and stale-finalization behavior remain open. |
+
+### Candidate lifecycle shape — assumption for review only
+
+One possible durable model is keyed by validated operation ID and records a
+claim generation plus bounded attempt outcomes, with candidate transitions
+`READY → CLAIMED → RETRY_WAIT`, `COMPLETED`, or `PARKED`. A claim generation
+would fence late completion/failure writes from a superseded handler. This is
+only a discussion model: no state names, schema, lease policy, retry budget,
+delay/backoff, or terminal transition is accepted by this checkpoint. The
+model does not solve malformed JSON or invalid/missing operation identity; those
+need a separately decided quarantine/admission key that is not misrepresented
+as the business operation ID.
+
+Before any 06b implementation, the product/operations and data owners must
+decide at least:
+
+1. Whether “attempt” means broker delivery, durable claim, receipt invocation,
+   or completed application processing; how redelivery and concurrent
+   deliveries affect the count; and the finite limit, backoff, and terminal
+   action.
+2. The retryable versus terminal failure taxonomy, including validation,
+   fingerprint conflict, transient database/network failures, and exceptions
+   with uncertain transaction-commit outcome. The current exception classes
+   alone do not resolve these classifications.
+3. The claim/fencing model, including stale owners after process restart,
+   lease expiry/renewal, and the exact conditions under which finalization is
+   ignored or accepted.
+4. Behavior when the database needed for admission, receipt reconciliation,
+   or attempt recording is unavailable. A ledger stored in that unavailable
+   database cannot itself bound broker redelivery; a pause/readiness/operator
+   recovery decision is required rather than assuming the counter advanced.
+5. How malformed JSON and absent, blank, overlong, or otherwise invalid
+   `operationId` values receive bounded treatment without fabricating a valid
+   business identity or allowing unbounded unique ledger rows.
+6. Ledger and quarantine retention, deletion, backup, access audit, encryption,
+   and data minimization. Operation ID/order/customer fields and raw payloads
+   may be sensitive; neither retention horizon nor privacy controls are
+   inferred here. The current `MessageListener` also logs `operationId` and
+   `orderNumber` at INFO, so the privacy review must include log access and
+   retention rather than limiting the analysis to database and quarantine
+   storage.
+
+This 06b checkpoint does not clear 06a's separate blockers: exact quarantine
+topology provisioning owner, source ACK/pause/drain/readiness/restart policy,
+raw-payload controls, and permanent-error taxonomy. In particular, 06b must
+not be treated as a production-ready restart guard until its durable admission
+and stale-owner fencing behavior is accepted and tested with the real
+production listener container. Quarantine transfer, attempt recording, receipt
+commit, and source ACK are not one atomic transaction; the accepted contract
+must state duplicate and uncertain-outcome behavior at each boundary.
+
 ## Unresolved decisions required before READY
 
 1. Accept or replace the proposed exact topology names and declare whether
