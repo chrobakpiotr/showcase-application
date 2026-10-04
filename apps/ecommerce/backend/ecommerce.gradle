@@ -92,10 +92,12 @@ test {
     // This module creates many distinct SpringBootTest/Testcontainers contexts. Bound the cache so old contexts are closed before one worker exhausts heap.
     systemProperty 'spring.test.context.cache.maxSize', '8'
 
+    // The full backend suite otherwise retains enough heavyweight contexts in one worker to exhaust its heap.
+    // Recycle after a bounded number of classes for ordinary builds as well as the dedicated evidence gates.
+    forkEvery = 12
+
     if (strictEvidenceGateEnabled) {
-        // Critical recovery/concurrency evidence uses many heavyweight contexts and must remain
-        // retry-free. Recycle the worker periodically instead of masking OOM with retries.
-        forkEvery = 12
+        // Critical recovery/concurrency evidence must remain retry-free and always execute fresh.
         outputs.upToDateWhen { false }
         outputs.cacheIf { false }
         reports.junitXml.outputLocation.set(layout.buildDirectory.dir(

@@ -9,7 +9,8 @@ dependencyCheck {
 
 	outputDirectory = layout.buildDirectory.dir("reports/security").get().asFile.path
 	suppressionFiles = [
-		"tooling/quality/dependencycheck/suppressions.xml"
+		"tooling/quality/dependencycheck/suppressions.xml",
+		"tooling/quality/dependencycheck/accepted-risks.xml"
 	]
 
 	analyzers {

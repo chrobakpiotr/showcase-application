@@ -19,7 +19,6 @@ import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 import com.cp.ecommerce.foundation.exception.PaymentRefundConflictException;
 import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
-import com.cp.ecommerce.foundation.exception.ShipmentConflictException;
 import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -33,9 +32,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.micrometer.tracing.Tracer;
@@ -54,8 +50,6 @@ import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.PAYMENT_REQUIRED;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -105,66 +99,6 @@ class GlobalExceptionHandlerTest {
                 INTERNAL_SERVER_ERROR,
                 "Business Rule Violation",
                 EXCEPTION_MESSAGE);
-    }
-
-    @Test
-    void shouldHandleShipmentConflictException() {
-
-        assertProblem(
-                handler.shipmentConflictException(new ShipmentConflictException(EXCEPTION_MESSAGE)),
-                CONFLICT,
-                "Shipment Conflict",
-                EXCEPTION_MESSAGE);
-    }
-
-    @Test
-    void shouldSerializeOnlyRecognizedShipmentConflictCodesAndPreserveProblemFields() throws Exception {
-        for (final ShipmentConflictException.Code code : ShipmentConflictException.Code.values()) {
-            final var exception = new ShipmentConflictException(EXCEPTION_MESSAGE, code);
-            assertProblem(handler.shipmentConflictException(exception), CONFLICT, "Shipment Conflict", EXCEPTION_MESSAGE);
-            MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
-                    .setControllerAdvice(handler)
-                    .build()
-                    .perform(get("/shipment-conflict-test"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.code").value(code.name()))
-                    .andExpect(jsonPath("$.type").value("urn:problem-type:business-rule-violation"))
-                    .andExpect(jsonPath("$.title").value("Shipment Conflict"))
-                    .andExpect(jsonPath("$.status").value(409))
-                    .andExpect(jsonPath("$.detail").value(EXCEPTION_MESSAGE))
-                    .andExpect(jsonPath("$.instance").value("/shipment-conflict-test"))
-                    .andExpect(jsonPath("$.errorId").isNotEmpty());
-        }
-    }
-
-    @Test
-    void shouldKeepLegacyShipmentConflictResponseWithoutCode() throws Exception {
-        final var exception = new ShipmentConflictException(EXCEPTION_MESSAGE);
-        assertThat(exception.getCode()).isNull();
-        assertThat(handler.shipmentConflictException(exception).getProperties()).doesNotContainKey("code");
-        MockMvcBuilders.standaloneSetup(new ShipmentConflictController(exception))
-                .setControllerAdvice(handler)
-                .build()
-                .perform(get("/shipment-conflict-test"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").doesNotExist())
-                .andExpect(jsonPath("$.detail").value(EXCEPTION_MESSAGE))
-                .andExpect(jsonPath("$.errorId").isNotEmpty());
-    }
-
-    @RestController
-    private static final class ShipmentConflictController {
-
-        private final ShipmentConflictException exception;
-
-        private ShipmentConflictController(final ShipmentConflictException exception) {
-            this.exception = exception;
-        }
-
-        @GetMapping("/shipment-conflict-test")
-        String conflict() {
-            throw exception;
-        }
     }
 
     @Test

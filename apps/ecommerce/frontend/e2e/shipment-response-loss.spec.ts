@@ -1,4 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Route,
+} from "@playwright/test";
 
 import { loginAs } from "./auth";
 
@@ -28,6 +34,48 @@ async function placeFixtureOrder(page: Page): Promise<string> {
   return orderNumber!;
 }
 
+async function waitForCapturedPayment(
+  page: Page,
+  orderNumber: string,
+  orderRow: Locator,
+): Promise<void> {
+  let paymentStatus = "MISSING";
+  const orderDetailsPattern = `**/api/order/${encodeURIComponent(orderNumber)}`;
+  const capturePaymentStatus = async (route: Route) => {
+    const response = await route.fetch();
+    if (response.ok()) {
+      const order = (await response.json()) as {
+        payment?: { status?: string } | null;
+      };
+      paymentStatus = order.payment?.status ?? "MISSING";
+    }
+    await route.fulfill({ response });
+  };
+
+  await page.route(orderDetailsPattern, capturePaymentStatus);
+  try {
+    await expect
+      .poll(
+        async () => {
+          const orderDetailsResponse = page.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              url.pathname.endsWith(`/api/order/${orderNumber}`) &&
+              response.request().method() === "GET"
+            );
+          });
+          await orderRow.getByTestId("view-order").click();
+          expect((await orderDetailsResponse).status()).toBe(200);
+          return paymentStatus;
+        },
+        { intervals: [1000, 2000, 5000], timeout: 60_000 },
+      )
+      .toBe("CAPTURED");
+  } finally {
+    await page.unroute(orderDetailsPattern, capturePaymentStatus);
+  }
+}
+
 test("shipment advance replays after the committed HTTP response is lost", async ({
   page,
 }) => {
@@ -42,26 +90,7 @@ test("shipment advance replays after the committed HTTP response is lost", async
   await expect(orderRow).toBeVisible();
   await orderRow.getByTestId("view-order").click();
   await expect(page.getByTestId("order-details")).toContainText("CONFIRMED");
-  await expect
-    .poll(
-      async () => {
-        const orderDetailsResponse = page.waitForResponse((response) => {
-          const url = new URL(response.url());
-          return (
-            url.pathname.endsWith(`/api/order/${orderNumber}`) &&
-            response.request().method() === "GET"
-          );
-        });
-        await orderRow.getByTestId("view-order").click();
-        const orderDetails = await orderDetailsResponse;
-        const order = (await orderDetails.json()) as {
-          payment?: { status?: string } | null;
-        };
-        return order.payment?.status ?? "MISSING";
-      },
-      { intervals: [1000, 2000, 5000], timeout: 60_000 },
-    )
-    .toBe("CAPTURED");
+  await waitForCapturedPayment(page, orderNumber, orderRow);
   await page.getByTestId("shipment-carrier").fill("E2E Carrier");
   const shipmentCreation = page.waitForResponse(
     (response) =>
@@ -197,26 +226,7 @@ test("competing shipment advances require a new explicit operation after typed c
     await expect(orderRow).toBeVisible();
     await orderRow.getByTestId("view-order").click();
     await expect(page.getByTestId("order-details")).toContainText("CONFIRMED");
-    await expect
-      .poll(
-        async () => {
-          const orderDetailsResponse = page.waitForResponse((response) => {
-            const url = new URL(response.url());
-            return (
-              url.pathname.endsWith(`/api/order/${orderNumber}`) &&
-              response.request().method() === "GET"
-            );
-          });
-          await orderRow.getByTestId("view-order").click();
-          const orderDetails = await orderDetailsResponse;
-          const order = (await orderDetails.json()) as {
-            payment?: { status?: string } | null;
-          };
-          return order.payment?.status ?? "MISSING";
-        },
-        { intervals: [1000, 2000, 5000], timeout: 60_000 },
-      )
-      .toBe("CAPTURED");
+    await waitForCapturedPayment(page, orderNumber, orderRow);
 
     await page.getByTestId("shipment-carrier").fill("E2E Competing Client");
     const creation = page.waitForResponse(

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <!--
+      Temporary accepted risk, not a false-positive identity match. Swagger UI 5.32.14
+      bundles DOMPurify 3.4.13 in its classic and ES bundles. Upstream Swagger UI 5.33.1
+      also bundles 3.4.13, so a version-only WebJar update does not remediate GHSA-p98j-92pf-mc4p.
+      The app uses stock Swagger UI configuration and its generated API document; it does not
+      enable IN_PLACE sanitization or attacker-controlled afterSanitize hooks.
+      Recheck by 2026-11-03 and remove after a WebJar with DOMPurify >=3.4.16 is available.
+    -->
+    <suppress until="2026-11-03Z">
+        <notes><![CDATA[
+        Time-limited accepted dependency risk for the exact vendored DOMPurify package/version
+        and GHSA-p98j-92pf-mc4p only. The scanner finding is acknowledged as a real vulnerable
+        version; the current runtime does not configure the advisory's required exploit path.
+        Owner: PC. Review/expiry: 2026-11-03. Remove when the Swagger UI WebJar contains
+        DOMPurify 3.4.16 or later and the dependency is upgraded, or when Swagger UI is removed.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:javascript/DOMPurify@3\.4\.13$</packageUrl>
+        <vulnerabilityName>GHSA-p98j-92pf-mc4p</vulnerabilityName>
+    </suppress>
+</suppressions>

@@ -49,8 +49,12 @@ class FindParkedDispatchesAdapter implements FindParkedDispatchesOutPort {
     }
 
     private static ParkedDispatch.ReasonCode safeReason(final String reason) {
-        if ("ORDER_MISSING".equals(reason)) return ParkedDispatch.ReasonCode.ORDER_MISSING;
-        if ("ATTEMPT_BUDGET_EXHAUSTED".equals(reason)) return ParkedDispatch.ReasonCode.ATTEMPT_BUDGET_EXHAUSTED;
+        if ("ORDER_MISSING".equals(reason)) {
+            return ParkedDispatch.ReasonCode.ORDER_MISSING;
+        }
+        if ("ATTEMPT_BUDGET_EXHAUSTED".equals(reason)) {
+            return ParkedDispatch.ReasonCode.ATTEMPT_BUDGET_EXHAUSTED;
+        }
         return ParkedDispatch.ReasonCode.OTHER;
     }
 }

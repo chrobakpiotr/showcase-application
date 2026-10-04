@@ -32,6 +32,8 @@ class WebSecurityConfigurationTest {
 
     private static final String ORDER_READ_AUTHORITY = "ROLE_ORDER_READ";
 
+    private static final String ORDER_WRITE_AUTHORITY = "ROLE_ORDER_WRITE";
+
     private static final String ORDER_RECOVERY_TIMELINE_ENDPOINT = ORDER_ENDPOINT + "/some-order/recovery-timeline";
 
     private static final String CATALOG_PRODUCTS_ENDPOINT = "/api/catalog/products";
@@ -102,7 +104,7 @@ class WebSecurityConfigurationTest {
     @Test
     void shouldRejectFindingOrderWithoutReadRole() throws Exception {
 
-        mockMvc.perform(get(ORDER_ENDPOINT + "/some-order").with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+        mockMvc.perform(get(ORDER_ENDPOINT + "/some-order").with(jwt().authorities(() -> ORDER_WRITE_AUTHORITY)))
                 .andExpect(status().isForbidden());
     }
 
@@ -123,7 +125,7 @@ class WebSecurityConfigurationTest {
 
         mockMvc.perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT)).andExpect(status().isUnauthorized());
 
-        mockMvc.perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+        mockMvc.perform(get(ORDER_RECOVERY_TIMELINE_ENDPOINT).with(jwt().authorities(() -> ORDER_WRITE_AUTHORITY)))
                 .andExpect(status().isForbidden());
 
         final int authorizedStatus = mockMvc
@@ -153,7 +155,7 @@ class WebSecurityConfigurationTest {
         // all that matters is the request cleared the security filter chain instead of being rejected as 401/403.
         final int status = mockMvc
                 .perform(
-                        post(ORDER_ENDPOINT).with(jwt().authorities(() -> "ROLE_ORDER_WRITE"))
+                        post(ORDER_ENDPOINT).with(jwt().authorities(() -> ORDER_WRITE_AUTHORITY))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{}"))
                 .andReturn()
@@ -382,7 +384,7 @@ class WebSecurityConfigurationTest {
     void shouldProtectParkedDispatchQueueWithOrderReadRoleAndDenyMutation() throws Exception {
         final String path = "/api/order-placement/dispatches/parked";
         mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
-        mockMvc.perform(get(path).with(jwt().authorities(() -> "ROLE_ORDER_WRITE"))).andExpect(status().isForbidden());
+        mockMvc.perform(get(path).with(jwt().authorities(() -> ORDER_WRITE_AUTHORITY))).andExpect(status().isForbidden());
         final int response = mockMvc.perform(get(path).with(jwt().authorities(() -> ORDER_READ_AUTHORITY)))
                 .andReturn()
                 .getResponse()
@@ -396,7 +398,7 @@ class WebSecurityConfigurationTest {
         final String path = "/api/order-placement/dispatches/dispatch/redrive";
         mockMvc.perform(post(path)).andExpect(status().isUnauthorized());
         mockMvc.perform(post(path).with(jwt().authorities(() -> ORDER_READ_AUTHORITY))).andExpect(status().isForbidden());
-        final int response = mockMvc.perform(post(path).with(jwt().authorities(() -> "ROLE_ORDER_WRITE")))
+        final int response = mockMvc.perform(post(path).with(jwt().authorities(() -> ORDER_WRITE_AUTHORITY)))
                 .andReturn()
                 .getResponse()
                 .getStatus();
