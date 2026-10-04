@@ -27,6 +27,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -154,6 +155,7 @@ class OrderPlacementDispatchManagerTest {
                 "owner-a");
         manager.markSent(staleClaim, NOW);
         manager.markFailed(staleClaim, "ignored", NOW);
+        manager.markParked(staleClaim, "ORDER_MISSING", NOW);
         assertThat(stale.getClaimId()).isEqualTo("owner-b");
     }
 
@@ -166,6 +168,108 @@ class OrderPlacementDispatchManagerTest {
         given(repository.findByIdForUpdate("owned")).willReturn(Optional.of(row));
         manager.retryDueDispatches();
         verify(manageOrderInPort, never()).findOrder(anyString());
+    }
+
+    @Test
+    void shouldBoundUnknownFailuresWithExponentialBackoffAndParkEighthAttempt() {
+        final long[] delays = { 5_000, 10_000, 20_000, 40_000, 80_000, 160_000, 300_000 };
+        for (int attempt = 1; attempt <= 8; attempt++) {
+            final var row = dispatch("failure-" + attempt, OrderPlacementDispatchType.CONFIRMATION_EMAIL);
+            row.setStatus(OrderPlacementDispatchStatus.DELIVERING);
+            row.setAttempts(attempt);
+            row.setClaimId("owner");
+            given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
+            final var claim = new OrderPlacementDispatchManager.DispatchClaim(
+                    row.getDispatchId(), row.getOrderNumber(), row.getDispatchType(), "owner");
+            manager.markFailed(claim, "unknown outcome", NOW);
+            assertThat(row.getAttempts()).isEqualTo(attempt);
+            assertThat(row.getClaimId()).isNull();
+            assertThat(row.getClaimUntil()).isNull();
+            assertThat(row.getStatus().name()).isEqualTo(attempt == 8 ? "PARKED" : "FAILED");
+            if (attempt < 8) {
+                assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusMillis(delays[attempt - 1]));
+            }
+        }
+    }
+
+    @Test
+    void shouldAllowFinalClaimButNeverNinthClaimIncludingExpiredWorker() {
+        final var row = dispatch("budget", OrderPlacementDispatchType.CONFIRMATION_EMAIL);
+        row.setAttempts(7);
+        given(repository.findByIdForUpdate("budget")).willReturn(Optional.of(row));
+        final var claim = manager.claimDispatch("budget", NOW);
+        assertThat(claim).isNotNull();
+        assertThat(row.getAttempts()).isEqualTo(8);
+        assertThat(manager.claimDispatch("budget", NOW)).isNull();
+        assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.DELIVERING);
+        assertThat(manager.claimDispatch("budget", row.getClaimUntil())).isNull();
+        assertThat(row.getStatus().name()).isEqualTo("PARKED");
+        assertThat(row.getAttempts()).isEqualTo(8);
+        assertThat(row.getClaimId()).isNull();
+        assertThat(manager.claimDispatch("budget", NOW.plusSeconds(100))).isNull();
+        manager.markSent(claim, NOW.plusSeconds(100));
+        assertThat(row.getStatus().name()).isEqualTo("PARKED");
+    }
+
+    @Test
+    void shouldParkMissingOrderWithoutCallingDownstream() {
+        final var row = dispatch("missing-order", OrderPlacementDispatchType.CONFIRMATION_EMAIL);
+        given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
+        manager.deliverDueDispatch(row.getDispatchId());
+        assertThat(row.getStatus().name()).isEqualTo("PARKED");
+        assertThat(row.getAttempts()).isEqualTo(1);
+        verify(email, never()).sendConfirmationEmail(any());
+        verify(camel, never()).routeNotification(any());
+    }
+
+    @Test
+    void shouldCapLargeBaseWithoutOverflowAndHonorZeroDelay() {
+        for (final long base : new long[] { 0, Long.MAX_VALUE }) {
+            manager.retryDelayMillis = base;
+            final var row = dispatch("base-" + base, OrderPlacementDispatchType.CAMEL_ROUTING);
+            row.setStatus(OrderPlacementDispatchStatus.DELIVERING);
+            row.setAttempts(7);
+            row.setClaimId("owner");
+            given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
+            manager.markFailed(new OrderPlacementDispatchManager.DispatchClaim(
+                    row.getDispatchId(), row.getOrderNumber(), row.getDispatchType(), "owner"), "unknown", NOW);
+            assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusMillis(base == 0 ? 0 : 300_000));
+        }
+    }
+
+    @Test
+    void shouldRejectRetryBudgetsOutsidePolicyBounds() {
+        manager.validateRetryConfiguration();
+        manager.maxAttempts = 1;
+        manager.validateRetryConfiguration();
+        manager.maxAttempts = 9;
+        assertThatThrownBy(manager::validateRetryConfiguration)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("max-attempts");
+        manager.maxAttempts = 8;
+        manager.retryDelayMillis = -1;
+        assertThatThrownBy(manager::validateRetryConfiguration)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("retry-delay-ms");
+    }
+
+    @Test
+    void shouldRetryLookupExceptionAndAllowSuccessfulFinalAttempt() {
+        final var row = dispatch("lookup", OrderPlacementDispatchType.CONFIRMATION_EMAIL);
+        given(repository.findByIdForUpdate(row.getDispatchId())).willReturn(Optional.of(row));
+        given(manageOrderInPort.findOrder(row.getOrderNumber())).willThrow(new IllegalStateException("missing"));
+        manager.deliverDueDispatch(row.getDispatchId());
+        assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.FAILED);
+        assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusSeconds(5));
+        verify(email, never()).sendConfirmationEmail(any());
+
+        row.setAttempts(7);
+        row.setNextAttemptDate(NOW);
+        final var finalClaim = manager.claimDispatch(row.getDispatchId(), NOW);
+        assertThat(finalClaim).isNotNull();
+        manager.markSent(finalClaim, NOW);
+        assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.SENT);
+        assertThat(row.getAttempts()).isEqualTo(8);
     }
 
     private static OrderPlacementDispatchEntity dispatch(final String id, final OrderPlacementDispatchType type) {

@@ -4,5 +4,6 @@ enum OrderPlacementDispatchStatus {
     PENDING,
     DELIVERING,
     SENT,
-    FAILED
+    FAILED,
+    PARKED
 }

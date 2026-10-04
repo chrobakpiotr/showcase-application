@@ -686,3 +686,65 @@ progress, stable identities and claim fencing. Keep existing twoPGcases. Worker
 writesRED tests then root serializes Gradle invocation (no parallelJava builds).
 Independent persistence/concurrency review before local commit. Configuration
 enable combinations and cappedretry/park/redrive stay separate08checkpoints.
+
+## S30-08b final checkpoint
+
+Placement dispatches now allow at most8 durable claims (`max-attempts` can lower
+the budget to1..8). Retry delay is overflow-safe exponential backoff from the
+configured nonnegative base, capped at5minutes. Zero delay returns immediately.
+The eighth owner can still finalize SENT; failed eighth attempts park. An expired
+eighth DELIVERING claim parks only after its lease expires under the row lock.
+PARKED is excluded from claim admission. A null order lookup parks before mail or
+Camel; lookup exceptions and all downstream RuntimeException outcomes remain
+ambiguous and retry only within budget. Raw exception messages do not classify
+outcomes; they are not exposed through a new operator interface in this slice.
+
+RED unit suite exposed incorrect timing, ninth-claim, missing-order and arithmetic
+behavior. Final manager unit suite: 11 tests, zero skipped/failures/errors. Real
+PostgreSQL dispatch class: 5 tests, zero skipped/failures/errors, retaining
+fairness, replayed enqueue and concurrent one-owner retry cases alongside budget
+exhaustion and missing-order cases. Independent review approved the ownership and
+budget behavior. No new index or changeset was needed; status has no restrictive
+database check constraint. Config validation rejects attempt budgets outside1..8
+and negative base delay.
+
+This checkpoint does not create exception taxonomies for permanent external
+failures, a redrive operation, retention, timeout-to-lease guarantees or an
+operator queue view. Those remain separate; unknown outcomes must not be described
+as exactly-once delivery.
+
+## S30-08b task packet: bounded attempts and ambiguous outcome parking
+
+Accepted source: master review14.2 recommendation. Local policy assumption to
+make the missing numeric contract explicit: at most8 claimed dispatch attempts
+(`max-attempts` may lower the budget to1..8),
+exponential retry delay `min(baseDelay * 2^(attempt-1), 300000ms)` starting at the
+existing5second base. An attempt is counted when a durable claim is acquired,
+including a claim whose worker later crashes; persisted attempts7 may acquire the
+8th and final claim, but attempts8 never acquire a ninth claim or call SMTP/Camel.
+An expired DELIVERING claim at the budget is parked only after its lease expires;
+the current owner can still finalize its eighth attempt as SENT or PARKED.
+Unknown RuntimeException outcomes retry within the budget, then move to the exact
+terminal status PARKED without automatic replay. A null order lookup result
+parks immediately before any downstream call; lookup exceptions remain
+ambiguous. No exception-message content is a
+classification input. Because adapter exception taxonomies do not currently
+distinguish permanent SMTP/Camel rejection from transport ambiguity, all
+non-null-order downstream RuntimeExceptions are treated as ambiguous; manual
+inspection/redrive is a later checkpoint.
+
+Allowed paths: dispatch manager/entity status enum, existing manager unit tests,
+existing order dispatch PostgreSQL integration test, and this report. No SQL
+constraint currently narrows status values. Keep statuses non-retryable once
+PARKED, never reset attempt count or dispatch identity in this checkpoint. Add
+dedicated safe reason codes only if compatible with current persistence; defer
+operator read/replay UI and audit contract. Root owns critical manifest.
+
+RED/GREEN: exhausted-budget and permanent missing-order rows produce PARKED,
+unknown failure retries with bounded exponential due dates, attempts8 has one
+final claim and attempts>=8 can never be claimed again, and existing stable-
+identity/claim/fairness PG cases remain true. Preserve stale-owner finalization
+no-op and one external attempt per claim. Independent persistence/concurrency
+review required. Other
+configuration combinations, SMTP/Camel timeout-to-lease relation, audited
+redrive and terminal retention remain later08 checkpoints.

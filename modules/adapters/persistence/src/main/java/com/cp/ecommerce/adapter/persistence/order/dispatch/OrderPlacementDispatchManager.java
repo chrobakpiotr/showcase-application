@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionOperations;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,8 @@ public class OrderPlacementDispatchManager {
     static final String EMAIL_PREFIX = "ORDER-CONFIRMATION:";
     static final String CAMEL_PREFIX = "ORDER-CAMEL:";
     private static final int BATCH_SIZE = 50;
+    private static final int MAX_CONFIGURED_ATTEMPTS = 8;
+    private static final long MAX_RETRY_DELAY_MILLIS = 300_000L;
     private static final int LAST_ERROR_MAX_LENGTH = 500;
     private static final List<OrderPlacementDispatchStatus> RETRYABLE_STATUSES = List.of(
             OrderPlacementDispatchStatus.PENDING,
@@ -52,6 +55,18 @@ public class OrderPlacementDispatchManager {
     long leaseMillis = 30_000L;
     @Value("${order-placement.dispatch.retry-delay-ms:5000}")
     long retryDelayMillis = 5_000L;
+    @Value("${order-placement.dispatch.max-attempts:8}")
+    int maxAttempts = 8;
+
+    @PostConstruct
+    void validateRetryConfiguration() {
+        if (maxAttempts < 1 || maxAttempts > MAX_CONFIGURED_ATTEMPTS) {
+            throw new IllegalArgumentException("order-placement.dispatch.max-attempts must be between 1 and 8");
+        }
+        if (retryDelayMillis < 0) {
+            throw new IllegalArgumentException("order-placement.dispatch.retry-delay-ms must not be negative");
+        }
+    }
 
     public void enqueue(final Order order) {
         final Instant now = now();
@@ -73,6 +88,10 @@ public class OrderPlacementDispatchManager {
         }
         try {
             final Order order = manageOrderInPort.findOrder(claim.orderNumber());
+            if (order == null) {
+                markParked(claim, "ORDER_MISSING", now());
+                return;
+            }
             if (claim.dispatchType() == OrderPlacementDispatchType.CONFIRMATION_EMAIL) {
                 sendOrderConfirmationEmailInPort.sendConfirmationEmail(order);
             } else {
@@ -93,9 +112,13 @@ public class OrderPlacementDispatchManager {
     DispatchClaim claimDispatch(final String dispatchId, final Instant now) {
         return transactionOperations.execute(
                 status -> repository.findByIdForUpdate(dispatchId)
-                        .filter(dispatch -> dispatch.getStatus() != OrderPlacementDispatchStatus.SENT)
+                        .filter(dispatch -> RETRYABLE_STATUSES.contains(dispatch.getStatus()))
                         .filter(dispatch -> !dispatch.getNextAttemptDate().isAfter(now))
                         .map(dispatch -> {
+                            if (dispatch.getAttempts() >= maxAttempts) {
+                                park(dispatch, "ATTEMPT_BUDGET_EXHAUSTED", now);
+                                return null;
+                            }
                             final String claimId = UUID.randomUUID().toString();
                             dispatch.setStatus(OrderPlacementDispatchStatus.DELIVERING);
                             dispatch.setClaimId(claimId);
@@ -132,14 +155,45 @@ public class OrderPlacementDispatchManager {
                 status -> repository.findByIdForUpdate(claim.dispatchId())
                         .filter(dispatch -> ownsClaim(dispatch, claim))
                         .ifPresent(dispatch -> {
+                            if (dispatch.getAttempts() >= maxAttempts) {
+                                park(dispatch, "ATTEMPT_BUDGET_EXHAUSTED", failedAt);
+                                return;
+                            }
                             final String message = String.valueOf(error);
                             dispatch.setStatus(OrderPlacementDispatchStatus.FAILED);
                             dispatch.setClaimId(null);
                             dispatch.setClaimUntil(null);
                             dispatch.setLastError(message.substring(0, Math.min(message.length(), LAST_ERROR_MAX_LENGTH)));
-                            dispatch.setNextAttemptDate(Instant.ofEpochMilli(failedAt.toEpochMilli() + retryDelayMillis));
+                            dispatch.setNextAttemptDate(Instant.ofEpochMilli(failedAt.toEpochMilli() + retryDelay(dispatch.getAttempts())));
                             repository.saveAndFlush(dispatch);
                         }));
+    }
+
+    void markParked(final DispatchClaim claim, final String reason, final Instant parkedAt) {
+        transactionOperations.executeWithoutResult(
+                status -> repository.findByIdForUpdate(claim.dispatchId())
+                        .filter(dispatch -> ownsClaim(dispatch, claim))
+                        .ifPresent(dispatch -> park(dispatch, reason, parkedAt)));
+    }
+
+    private void park(final OrderPlacementDispatchEntity dispatch, final String reason, final Instant parkedAt) {
+        dispatch.setStatus(OrderPlacementDispatchStatus.PARKED);
+        dispatch.setClaimId(null);
+        dispatch.setClaimUntil(null);
+        dispatch.setLastError(reason);
+        dispatch.setNextAttemptDate(parkedAt);
+        repository.saveAndFlush(dispatch);
+    }
+
+    private long retryDelay(final int attempts) {
+        long delay = Math.min(retryDelayMillis, MAX_RETRY_DELAY_MILLIS);
+        if (delay == 0) {
+            return 0;
+        }
+        for (int attempt = 1; attempt < attempts && delay < MAX_RETRY_DELAY_MILLIS; attempt++) {
+            delay = Math.min(delay * 2, MAX_RETRY_DELAY_MILLIS);
+        }
+        return delay;
     }
 
     static String dispatchId(final String orderNumber, final OrderPlacementDispatchType type) {

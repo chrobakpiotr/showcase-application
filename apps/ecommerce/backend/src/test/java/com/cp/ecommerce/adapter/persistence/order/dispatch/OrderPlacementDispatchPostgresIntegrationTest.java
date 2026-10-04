@@ -174,7 +174,7 @@ class OrderPlacementDispatchPostgresIntegrationTest {
                 .isEqualTo(OrderPlacementDispatchStatus.PENDING);
         for (int index = 0; index < 50; index++) {
             final var poison = repository.findById(rows.get(index).getDispatchId()).orElseThrow();
-            assertThat(poison.getNextAttemptDate()).isEqualTo(NOW.plusSeconds(5));
+            assertThat(poison.getNextAttemptDate()).isEqualTo(NOW.plusSeconds(10));
             assertThat(poison.getAttempts()).isEqualTo(2);
         }
 
@@ -187,7 +187,7 @@ class OrderPlacementDispatchPostgresIntegrationTest {
         assertThat(sent.getClaimId()).isNull();
         assertThat(sent.getClaimUntil()).isNull();
         assertThat(repository.count()).isEqualTo(51);
-        verify(email, times(100)).sendConfirmationEmail(any(Order.class));
+        verify(email, times(51)).sendConfirmationEmail(any(Order.class));
         verify(email).sendConfirmationEmail(argThat(order -> HEALTHY_ORDER.equals(order.getOrderNumber())));
         verify(routing, never()).routeNotification(any(Order.class));
         for (int index = 0; index < 50; index++) {
@@ -196,6 +196,42 @@ class OrderPlacementDispatchPostgresIntegrationTest {
             assertThat(poison.getClaimId()).isNull();
             assertThat(poison.getClaimUntil()).isNull();
         }
+    }
+
+    @Test
+    void exhaustedAmbiguousDispatchMustParkWithoutNinthExternalAttempt() {
+        final var row = dispatch("budget", OrderPlacementDispatchStatus.FAILED, NOW, 7);
+        repository.saveAndFlush(row);
+        final Order order = Order.builder().orderNumber(row.getOrderNumber()).build();
+        given(manageOrderInPort.findOrder(row.getOrderNumber())).willReturn(order);
+        doAnswer(invocation -> {
+            throw new IllegalStateException("unknown delivery outcome");
+        }).when(email).sendConfirmationEmail(order);
+        manager.retryDueDispatches();
+        final var parked = repository.findById(row.getDispatchId()).orElseThrow();
+        assertThat(parked.getStatus().name()).isEqualTo("PARKED");
+        assertThat(parked.getAttempts()).isEqualTo(8);
+        assertThat(parked.getClaimId()).isNull();
+        assertThat(parked.getClaimUntil()).isNull();
+        given(clock.instant()).willReturn(NOW.plusSeconds(600));
+        manager.retryDueDispatches();
+        manager.deliverDueDispatch(row.getDispatchId());
+        verify(email).sendConfirmationEmail(order);
+        assertThat(repository.findById(row.getDispatchId()).orElseThrow().getAttempts()).isEqualTo(8);
+    }
+
+    @Test
+    void missingOrderMustParkBeforeCallingEitherDownstreamPort() {
+        final var row = dispatch("missing-order", OrderPlacementDispatchStatus.PENDING, NOW, 0);
+        repository.saveAndFlush(row);
+        manager.retryDueDispatches();
+        final var parked = repository.findById(row.getDispatchId()).orElseThrow();
+        assertThat(parked.getStatus().name()).isEqualTo("PARKED");
+        assertThat(parked.getAttempts()).isEqualTo(1);
+        assertThat(parked.getClaimId()).isNull();
+        assertThat(parked.getClaimUntil()).isNull();
+        verify(email, never()).sendConfirmationEmail(any());
+        verify(routing, never()).routeNotification(any());
     }
 
     private static OrderPlacementDispatchEntity dispatch(final String orderNumber,
