@@ -125,10 +125,18 @@ operator tool alone may request RESUME. The application must not receive
 credentials to write the authoritative gate store. The gate service and its
 store are independent of the application database. Missing/unavailable service
 or store, missing/malformed state, or uncertain persistence keeps consumers
-stopped and readiness down. Authentication identities, audit schema/retention,
+stopped and readiness down. The user accepted a dedicated app workload identity
+for PAUSE and individually authenticated human operators with a distinct
+gate-resume permission for RESUME. For RESUME, the service validates its
+audience and derives the actor from the verified issuer and subject, never a
+caller-supplied name. Resume must be denied unless a durable audit record
+commits before success. Whether PAUSE actor details are audited, the exact token
+claims, audit schema/retention/fields, audit-to-state ordering and recovery,
 atomic update/CAS and generation protocol, durable store and encryption, and
 cross-environment deployment contract remain to be designed and tested before
-release.
+release. Command id, reason, and prior/new generation are candidate audit
+fields, not accepted requirements yet; no atomic audit-plus-state guarantee is
+claimed.
 
 Treatment of prefetched-but-not-started messages, alert state, channel-loss
 behavior, and the unacknowledged failing delivery still need implementation
@@ -380,11 +388,12 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    accepted; application declaration remains forbidden. Queue conformance is
    a deployment-owned check; no quarantine configure permission is granted to
    the app.
-2. Define pause/drain/readiness/alert/channel-loss mechanics and operator
-   resume authorization/audit. Stopping new deliveries, draining active
-   handlers, readiness-down, and operator-only resume across restart are
-   accepted. The deployment-owned gate service and 06b stale-handler fencing
-   remain unimplemented; prefetched/unacknowledged-message mechanics and
+2. Implement and test the accepted pause/drain/readiness/operator-resume
+   behavior, while defining alert and channel-loss mechanics. Stopping new
+   deliveries, draining active handlers, readiness-down, and operator-only
+   resume across restart are accepted. The deployment-owned gate service and
+   06b stale-handler fencing remain unimplemented. Exact token claims, PAUSE audit scope, audit
+   schema/retention/order, prefetched/unacknowledged-message mechanics, and
    alerting remain unresolved.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may

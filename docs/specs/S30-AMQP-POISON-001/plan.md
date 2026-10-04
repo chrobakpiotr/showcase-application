@@ -197,6 +197,22 @@ store only after proving encrypted durable storage, atomic updates, provider
 compatibility, and safe missing-state behavior. Do not grant the app direct
 write access to authoritative state.
 
+The user accepted the security review's recommendation for a dedicated app
+workload identity for the PAUSE operation and an individually attributable
+human identity with
+a dedicated gate-resume permission for the audited tool. Validate the gate
+service audience and identity itself; do not reuse the public `ecommerce-app`
+client, `ORDER_WRITE`, or shared `order-admin` account. For RESUME, derive the
+audit actor from validated issuer and subject claims and deny success if the
+durable audit record cannot be committed. Command ID, reason, generation
+fields, PAUSE actor audit, and audit/state ordering are candidate design details
+pending the implementation contract; do not claim atomic audit/state updates.
+The current Keycloak realm has no app service-account client, but the selected
+identity provider remains open. Whichever provider is chosen must supply a
+distinct audience-bound workload identity and individually attributable
+operator identity; do not reuse the seeded admin credentials or broad current
+business roles.
+
 ### D4 — quarantine data controls
 
 The user accepted server-authenticated TLS with CA/hostname verification and

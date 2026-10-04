@@ -119,7 +119,10 @@ RESUME-only operations; the app must not have authoritative-store write
 credentials. Authentication, audit, atomicity, durable storage and cross-env
 deployment remain to be designed. The platform audit found Redis on each local
 deployment surface, but all current instances are ephemeral and therefore do
-not yet qualify as a durable gate.
+not yet qualify as a durable gate. The user accepted dedicated app-workload
+and individual operator identities, a gate-specific resume permission, and
+durable validated-subject audit for RESUME; exact claims, audit fields/order,
+retention and storage details remain open.
 These decisions resolve
 policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b

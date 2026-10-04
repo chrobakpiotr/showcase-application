@@ -1579,8 +1579,12 @@ The user accepted the following previously open S30 policy decisions:
   store write credentials. Gate/service/store absence or failure must fail
   closed. Redis exists across local deployment surfaces and as an external Helm
   dependency, but current instances lack persistent storage and do not qualify
-  as the gate yet. Authentication, audit, atomicity and durable-store details
-  remain open.
+  as the gate yet. The user accepted distinct app-workload and individual
+  operator identities, a dedicated resume permission, validated issuer/subject
+  audit for RESUME, and refusing resume if audit persistence fails. Exact
+  claims, whether PAUSE is audited, audit fields/retention/order, atomicity and
+  durable-store details remain open. The existing
+  ecommerce client/ORDER_WRITE/admin identity must not be reused.
 - **S30-06 quarantine data:** raw quarantined payloads and headers require
   server-authenticated TLS with CA/hostname verification and separate broker
   credentials, encrypted broker host/storage-class volumes in every environment,
