@@ -20,7 +20,7 @@ CI run. No remote settings or external handbook were changed.
 | F04 — required-gate applicability | **Addressed at local planner policy** | S30-04a adds truth-table selection for persistence, AMQP, domain/foundation, orchestration, PIT configuration, verifier/manifest and build configuration paths. This does not replace dedicated CI or qualify verifier execution on an isolated host. |
 | F05 — production backend qualification | **Open; blocks accepted execution** | S30-03a rejected available native sandbox probes for Q08/Q09 descendant escape; the Codex wrapper probe was unsupported for most checks. S30-03b reports discovery separately from qualification/readiness. Production qualification, lifecycle admission and one-shot launch capability are absent. |
 | F06 — candidate/build-output separation | **Primitive implemented; operational integration open** | S30-02b1 materializes and validates a diagnostic source workspace with privacy and path checks. It grants no launch/PASS authority; accepted writable-root policy, read-only Git metadata and producer/consumer output binding remain. Arbitrary builds in a sealed candidate are not yet an accepted operational path. |
-| F07 — AMQP permanent-error handling | **Open; some product policy accepted, implementation blockers remain** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. The user has accepted operator-only resume after restart and encrypted, access-restricted quarantine retention for 30 days. Topology ownership, pause/in-flight/readiness/channel-loss mechanics, enforcement/audit/backup/size controls, retry taxonomy, fencing, malformed identity and database-outage behavior remain open. No production poison policy is claimed. |
+| F07 — AMQP permanent-error handling | **Open; some product policy accepted, implementation blockers remain** | S30-06a established RabbitMQ stop/restart redelivery and positive-confirm-plus-return behavior in a bounded spike. The user has accepted operator-only resume after restart and encrypted, access-restricted quarantine retention for 30 days. S30-06e removes operation/order identifiers and raw JSON from the listener's normal INFO log; the captured-event test passed 3/3 and received independent security review PASS. Topology ownership, pause/in-flight/readiness/channel-loss mechanics, durable restart guard, quarantine encryption/access/audit/backup/size enforcement, retry taxonomy, fencing, malformed identity and database-outage behavior remain open. No production poison policy is claimed. |
 | F08 — shipment HTTP/retry contract | **Partial** | S30-07a–c add complete header validation, typed stale/fingerprint conflict codes and reload-persistent operation identity in the client. Focused backend/frontend tests passed, but the packet does not claim the full real-backend response-loss/reload E2E matrix. |
 | F09 — bounded dispatch retries and operations | **Core behavior implemented; retention decided, production-scale cost remains open** | S30-08a–c add due-order progress, bounded attempts/parking and validated worker/timeout configuration. S30-08d1–d2 add a bounded parked queue and atomic audited redrive with PostgreSQL concurrency coverage. S30-08e measures synthetic one-million-row distributions with 0.1% and 10% PARKED; work grows with parked-set cardinality, but no production distribution or latency objective is established, so no index/SLA decision follows. The user has decided terminal dispatch rows remain indefinitely because `(order, type)` is the dedup fact; no deletion/retention implementation should be added without revising that contract. |
 | F10 — stale/overstated documentation | **Partial** | S30-09a records a read-only ruleset snapshot with exact contexts and `bypass_actors: null`; its branch-protection endpoint was not queried, so administrator bypass state outside that response remains unverified. S30-09b adds current CLI guidance and caveats without restoring the removed handbook or changing the Drive PDF. Automated doc-example smoke and final post-implementation closure remain open. |
@@ -48,7 +48,7 @@ The 2026-10-04 ruleset artifact records only the response from
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
 
-## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, `85aeb35`, `8efaf19`, `ae8b45f`, `bc8346e`, `d23e837`, and `4653b96`
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, `85aeb35`, `8efaf19`, `ae8b45f`, `bc8346e`, `d23e837`, `4653b96`, `2b38dd3`, and `e99c324`
 
 This update incorporates the S30-07d/e/f/g evidence recorded after the original
 `f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
@@ -61,8 +61,12 @@ was thirteen commits ahead of `origin/main`; the later `4653b96` checkpoint
 adds the Docker-only auto/required no-launch regression and records the accepted
 AMQP restart/data and dispatch-retention decisions. Independent review passed;
 the focused command module passed 8/8 under Python 3.12. At the `4653b96`
-snapshot, the branch was fourteen commits ahead of `origin/main`; the header
-lists all fourteen. No live GitHub CI result was checked.
+snapshot, the branch was fourteen commits ahead of `origin/main`; `2b38dd3`
+refreshed this review to include that checkpoint. The subsequent `e99c324`
+commit removes sensitive listener identifiers from logs, with the focused AMQP
+test and independent security review recorded above. At the `e99c324` snapshot
+the branch was sixteen commits ahead of `origin/main`; the header lists all
+sixteen. No live GitHub CI result was checked.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|

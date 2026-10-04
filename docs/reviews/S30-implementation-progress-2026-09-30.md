@@ -1610,3 +1610,4 @@ The focused `MessageListenerTest` passed 3/3 with `./gradlew :adapter:amqp:test
 independent security review returned **PASS**: only the closed receipt outcome
 is logged; the captured-event test also rejects raw JSON leakage. `git diff
 --check` passed.
+Local commit: `e99c324`; nothing was pushed.
