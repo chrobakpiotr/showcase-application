@@ -1682,7 +1682,9 @@ reason. Gate operation success must wait for the accepted Redis fsync threshold
 after the atomic state-plus-audit commit. The user also requires every
 registered live application instance to confirm that it stopped dispatching
 new deliveries and drained active handlers before RESUME. The liveness/lease
-definition, stale or unresponsive instance recovery/expiry rule, token claims,
+definition remains open. Lease expiry alone cannot exclude an unresponsive
+instance: the operator must confirm its RabbitMQ consumer connection is fenced
+or closed before RESUME. The fencing/closure evidence mechanism, token claims,
 audit retention and timestamp format, Redis failover/idempotency/crash-recovery
 protocol, and 06b stale-handler fencing remain unresolved. These are policy
 decisions only; no gate service or deployment implementation is claimed.

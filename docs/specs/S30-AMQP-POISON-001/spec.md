@@ -139,8 +139,11 @@ exact token claims, audit retention, timestamp format, generation/CAS protocol,
 retry/crash recovery, Redis failover behavior, and cross-environment deployment
 contract remain to be designed and tested before release. Before RESUME, every
 registered live application instance must confirm that it stopped new delivery
-and drained active handlers. The liveness/registration lease, treatment of
-unresponsive or stale instances, and recovery/expiry procedure remain open.
+and drained active handlers. An unresponsive or expired instance cannot be
+treated as stopped from lease expiry alone; RESUME remains blocked until an
+operator confirms its RabbitMQ consumer connection is fenced or closed. The
+liveness/registration lease, proof mechanism for fencing/closure, and safe
+recovery of stale instances remain open.
 The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
 externally configured issuer/client. Exact client/role names, claims and
@@ -415,8 +418,9 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
    and confirmation from every registered live instance before RESUME are
    accepted. Exact token claims, audit retention/timestamp format, Redis
-   failover and crash-recovery protocol, instance liveness/expiry and recovery,
-   prefetched/unacknowledged-message mechanics, and alerting remain unresolved.
+   failover and crash-recovery protocol, instance liveness/expiry and proof of
+   operator fencing for stale instances, prefetched/unacknowledged-message
+   mechanics, and alerting remain unresolved.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may
    read/export only through the audited tool; direct AMQP and management reads

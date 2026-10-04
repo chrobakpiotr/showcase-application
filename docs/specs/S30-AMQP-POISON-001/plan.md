@@ -192,9 +192,11 @@ atomically and Redis confirms the configured fsync threshold. The user also
 requires every registered live application instance to confirm it stopped new
 deliveries and drained active handlers before RESUME. Service-level app
 PAUSE-only and audited operator RESUME-only authorization remain required.
-Liveness/registration lease semantics, stale/unresponsive-instance recovery,
-retry-safe command identity, crash recovery, Redis failover behavior, and
-06b stale-handler fencing still need design and evidence. Missing gate state
+Lease expiry alone must not establish that an unresponsive instance stopped;
+the operator must confirm its RabbitMQ consumer connection is fenced or closed
+before RESUME. Liveness/registration lease semantics, evidence for fencing or
+closure, retry-safe command identity, crash recovery, Redis failover behavior,
+and 06b stale-handler fencing still need design and evidence. Missing gate state
 must not mean ACTIVE.
 
 The disposable ACL result is preserved in
