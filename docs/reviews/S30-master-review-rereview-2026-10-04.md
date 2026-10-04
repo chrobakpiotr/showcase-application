@@ -48,19 +48,19 @@ The 2026-10-04 ruleset artifact records only the response from
 `bypass_actors: null` value is not used to infer branch-protection or all
 administrator-bypass behavior. No remote mutation was made.
 
-## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, and `5f90540`
+## Supplemental re-review — baseline `46d1415b5385f16ef953f9a275a6c33e3c143b1b`, updates `c34290e`, `b6ff924`, `c4f5301`, `acbb039`, `072c536`, `ab8e41a`, `5f90540`, `6ea57c3`, and `85aeb35`
 
-This update incorporates the S30-07d/e/f evidence recorded after the original
+This update incorporates the S30-07d/e/f/g evidence recorded after the original
 `f732c75` snapshot, the S30-09d documentation smoke, and the S30-08e synthetic
 parked-query measurement, Docker's discovery-only doctor status, and the
 operator-reference correction. It does not replace the original finding history
-or establish final S30 closure. The current tree includes these seven local
+or establish final S30 closure. The current tree includes these nine local
 commits; no live GitHub CI result was checked for this snapshot.
 
 | Finding | Updated status | Current evidence and remaining acceptance boundary |
 |---|---|---|
 | F05 — production backend qualification | **Open; Docker capability evidence is promising but insufficient** | The reported S30-03c disposable Docker Desktop spike passed Q01–Q10 at the container boundary and demonstrated container-wide drainage/fresh-CLI discovery (Q13–Q15). Raw probe output was not retained as a repository artifact. S30-03d now reports the Docker CLI as discovered in `doctor`, while qualification support, qualification and launch readiness remain false. Q11 lacks exact canonical policy/repository/birth binding; Q12 has no qualified adapter. Q16 showed that the same stopped container ID can restart; this becomes unsafe if an adapter treats ID alone as one-shot identity without a per-start generation and durable terminal/drained state. No payload is authorized and no production qualification is claimed. |
-| F08 — shipment HTTP/retry contract | **Reviewed shipment acceptance paths now have real-boundary replay, conflict, and duplicate-click evidence** | S30-07d proves commit-then-lost-response replay through real HTTP and PostgreSQL: the browser response is aborted after commit, reload shows persisted state, and retry reuses the original operation ID and expected status. S30-07e proves a stale second client receives the typed 409, makes no automatic advance, then advances only after a deliberate action with a fresh key/status pair. S30-07f double-clicks while the first browser request is held before backend forwarding; the advance control is disabled and exactly one request reaches the route, which is then forwarded once to the real backend. Partial-header rejection has focused backend coverage. Independent review of S30-07f returned PASS. |
+| F08 — shipment HTTP/retry contract | **Reviewed shipment acceptance paths now have real-boundary replay, conflict, malformed-header, and duplicate-click evidence** | S30-07d proves commit-then-lost-response replay through real HTTP and PostgreSQL: the browser response is aborted after commit, reload shows persisted state, and retry reuses the original operation ID and expected status. S30-07e proves a stale second client receives the typed 409, makes no automatic advance, then advances only after a deliberate action with a fresh key/status pair. S30-07f double-clicks while the first browser request is held before backend forwarding; the advance control is disabled and exactly one request reaches the route, which is then forwarded once to the real backend. S30-07g sends key-only, status-only, blank-key, and 81-character-key requests through authenticated real HTTP; all return 400, and reloading confirms the shipment remains PENDING. Independent review of S30-07f and S30-07g returned PASS. |
 | F10 — stale/overstated documentation | **Core corrections and executable smoke addressed; closure remains open** | S30-09a/b correct the required-check snapshot interpretation and current CLI reference; S30-09d executes the safe advisory example in a synthetic repository and checks option/output-shape drift; S30-09e updates F05 wording to match the Docker capability and discovery-only evidence. The ruleset artifact still does not establish branch-protection or every administrator-bypass behavior. The external Drive handbook/PDF was not changed. A final cross-document review after remaining implementation is still required. |
 
 The latest local CI repair is recorded at `46d1415`. It records an expiring

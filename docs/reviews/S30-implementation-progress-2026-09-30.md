@@ -1524,5 +1524,23 @@ against the disposable backend/PostgreSQL stack. Independent review noted that
 the original PENDING assertion preceded malformed requests, so a reload and
 post-rejection PENDING assertion were added. The final focused E2E passed 1/1 in
 14.4 seconds with that assertion. Prettier and `git diff --check` passed; the
-Compose stack and volumes were removed. Final independent review remains the
-commit gate.
+Compose stack and volumes were removed. Final independent frontend review:
+**PASS**; the reviewer confirmed authentication, all four invalid cases, the
+post-reload PENDING assertion, and unchanged product contract.
+
+## S30-09g task packet: synchronize shipment evidence in the master re-review
+
+Accepted source: S30-07g. Refresh the supplemental F08 row and commit list in
+the current re-review to include the real-HTTP malformed-header matrix. State
+the exact four inputs/statuses, persisted PENDING reload assertion, and
+independent-review boundary. Keep the original f732c75 finding table as history,
+retain the no-live-CI-check statement, and do not mark F08 or S30 closed. Run the
+local Markdown-link checker and `git diff --check`, obtain independent
+read-only review, then commit locally.
+
+S30-09g adds S30-07g and its commit to the supplemental review. F08 now records
+the authenticated HTTP 400 responses for key-only, status-only, blank, and
+81-character keys, followed by a reload proving the shipment remained PENDING.
+The original snapshot table and no-live-CI-check boundary remain intact.
+Markdown links and `git diff --check` passed. Independent re-review returned
+**PASS**; commit S30-09g locally.
