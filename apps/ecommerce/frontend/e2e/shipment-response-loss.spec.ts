@@ -12,6 +12,45 @@ const FIXTURE_SKU = "DEMO-USB-HUB-001";
 const FIXTURE_NAME = "USB-C Hub";
 const FIXTURE_PRICE = "69.5";
 
+async function createShipmentAndCaptureResponse(page: Page): Promise<{
+  status: number;
+  shipmentNumber?: string;
+}> {
+  let completeCapture!: (result: {
+    status: number;
+    shipmentNumber?: string;
+  }) => void;
+  const captured = new Promise<{
+    status: number;
+    shipmentNumber?: string;
+  }>((resolve) => {
+    completeCapture = resolve;
+  });
+  const pattern = "**/home/api/shipments";
+  const captureCreationResponse = async (route: Route) => {
+    if (route.request().method() !== "POST") {
+      await route.continue();
+      return;
+    }
+
+    const response = await route.fetch();
+    const body = (await response.json()) as { shipmentNumber?: string };
+    completeCapture({
+      status: response.status(),
+      shipmentNumber: body.shipmentNumber,
+    });
+    await route.fulfill({ response, json: body });
+  };
+
+  await page.route(pattern, captureCreationResponse);
+  try {
+    await page.getByTestId("create-shipment").click();
+    return await captured;
+  } finally {
+    await page.unroute(pattern, captureCreationResponse);
+  }
+}
+
 async function placeFixtureOrder(page: Page): Promise<string> {
   await page.getByRole("link", { name: "Orders", exact: true }).click();
   await expect(page).toHaveURL(/\/order(?:$|[?#])/);
@@ -122,17 +161,9 @@ test("shipment advance replays after the committed HTTP response is lost", async
   await expect(page.getByTestId("order-details")).toContainText("CONFIRMED");
   await waitForCapturedPayment(page, orderNumber, orderRow);
   await page.getByTestId("shipment-carrier").fill("E2E Carrier");
-  const shipmentCreation = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/api/shipments") &&
-      response.request().method() === "POST",
-  );
-  await page.getByTestId("create-shipment").click();
-  const creationResponse = await shipmentCreation;
-  expect(creationResponse.status()).toBe(201);
-  const shipmentNumber = (
-    (await creationResponse.json()) as { shipmentNumber: string }
-  ).shipmentNumber;
+  const creationResponse = await createShipmentAndCaptureResponse(page);
+  expect(creationResponse.status).toBe(201);
+  const shipmentNumber = creationResponse.shipmentNumber;
   expect(shipmentNumber).toBeTruthy();
 
   let authorization = "";
@@ -285,17 +316,9 @@ test("competing shipment advances require a new explicit operation after typed c
     await waitForCapturedPayment(page, orderNumber, orderRow);
 
     await page.getByTestId("shipment-carrier").fill("E2E Competing Client");
-    const creation = page.waitForResponse(
-      (response) =>
-        response.url().endsWith("/api/shipments") &&
-        response.request().method() === "POST",
-    );
-    await page.getByTestId("create-shipment").click();
-    const creationResponse = await creation;
-    expect(creationResponse.status()).toBe(201);
-    const shipmentNumber = (
-      (await creationResponse.json()) as { shipmentNumber: string }
-    ).shipmentNumber;
+    const creationResponse = await createShipmentAndCaptureResponse(page);
+    expect(creationResponse.status).toBe(201);
+    const shipmentNumber = creationResponse.shipmentNumber;
 
     await page.getByRole("link", { name: "Shipments", exact: true }).click();
     const clientARow = page
@@ -338,10 +361,10 @@ test("competing shipment advances require a new explicit operation after typed c
       clientBRow.getByRole("cell", { name: "DISPATCHED", exact: true }),
     ).toBeVisible();
 
-    const clientARequests: Array<{
+    const clientARequests: {
       operationId: string;
       expectedStatus: string;
-    }> = [];
+    }[] = [];
     page.on("request", (request) => {
       if (
         request.method() === "POST" &&
@@ -356,13 +379,16 @@ test("competing shipment advances require a new explicit operation after typed c
     });
 
     let staleProblemCode = "";
+    let explicitResponseBody: unknown;
     await page.route(
       `**/home/api/shipments/${shipmentNumber}/advance`,
       async (route) => {
         if (
           route.request().headers()["x-expected-shipment-status"] !== "PENDING"
         ) {
-          await route.continue();
+          const response = await route.fetch();
+          explicitResponseBody = await response.json();
+          await route.fulfill({ response, json: explicitResponseBody });
           return;
         }
 
@@ -424,9 +450,9 @@ test("competing shipment advances require a new explicit operation after typed c
     expect(
       explicitResponse.request().headers()["x-expected-shipment-status"],
     ).toBe("DISPATCHED");
-    expect(
-      ((await explicitResponse.json()) as { status?: string }).status,
-    ).toBe("IN_TRANSIT");
+    expect((explicitResponseBody as { status?: string }).status).toBe(
+      "IN_TRANSIT",
+    );
     await expect(
       clientARow.getByRole("cell", { name: "IN_TRANSIT", exact: true }),
     ).toBeVisible();
