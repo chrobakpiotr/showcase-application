@@ -1768,3 +1768,34 @@ Commit `7ae505e` captures both affected response bodies in Playwright route
 handlers before fulfilling them to the page. Both failing tests passed against
 the local Compose E2E stack. Prettier, focused ESLint, and `git diff --check`
 passed. No push was made, so there is no hosted CI result for this repair.
+
+## S30-06 gate protocol candidate — 2026-10-05
+
+Updated `S30-AMQP-POISON-001` to distinguish accepted policy choices from
+unapproved architecture and implementation. The new
+`design/gate-protocol-candidate.md` orders PAUSE/RESUME across the PostgreSQL
+recovery latch and Redis state/audit store; specifies active-leader boot
+inhibition, recovery epochs even when storage says CLEAR, same-leader recovery
+after an uncertain first latch write, resulting-generation latch CAS, bounded
+permit convergence, atomic local handler admission/drain, and the instance
+fencing barrier. It remains a candidate: there is no PASS `design/gate.json`,
+verification contract, or task DAG, and no source or deployment behavior is
+authorized by this checkpoint.
+
+Independent readiness and architecture reviews confirmed that the startup
+recovery epoch, same-leader recovery, generation naming, five-second versus
+handler-drain behavior, and standby restart semantics are now specified
+coherently enough to prototype. They identified one accepted-policy conflict
+that blocks design-gate PASS: every authenticated PAUSE/RESUME is to be audited,
+but latch and Redis outages prohibit or prevent the writes needed for a durable
+audit; authenticated malformed requests and command-ID reuse also have no audit
+disposition. The review records that as unresolved instead of treating
+operational telemetry as audit. Provider rollback/split-brain, permit key/epoch
+verification, live-member fencing, transaction-boundary classification,
+quarantine controls, and 06b stale-handler evidence remain required.
+
+Focused verification: Markdown local-link check passed on the changed feature
+docs; `test_spec_inventory.py` (3 tests) and `test_design.py` (10 tests) passed;
+`git diff --check` passed. The inventory unit test deliberately prints an
+`ERROR` fixture while verifying drift detection, then reports PASS. This
+checkpoint documents a reviewable protocol candidate, not a closed design gate.

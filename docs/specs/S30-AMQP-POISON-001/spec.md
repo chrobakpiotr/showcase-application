@@ -1,6 +1,12 @@
 # S30-AMQP-POISON-001 — fail-closed AMQP poison quarantine (06a)
 
-Status: **DRAFT — architecture and contract decisions require review**
+Status: **DRAFT — policy decisions accepted; architecture design gate remains open**
+
+The accepted decisions are recorded below. Their implementation protocol is
+not yet approved. See the [gate protocol candidate](design/gate-protocol-candidate.md)
+for ordered PAUSE/RESUME transitions, cross-store failure handling, and the
+remaining failure-injection evidence required before a design-gate PASS. No
+AMQP consumer may be enabled on the strength of this draft.
 
 Master review input: S30 review plan, §12 (S30-06). This slice covers only the
 production Rabbit listener's manual acknowledgement and transfer of classified
@@ -191,12 +197,13 @@ monotonic recovery epoch, command ID, request identity, and resulting state.
 
 If a latch write is unavailable or uncertain, the gate service enters sticky
 inhibit: it issues no permits, and application instances stop new deliveries,
-let active handlers finish, close consumer channels, and fail readiness. A gate
-service process always starts inhibited regardless of a recovered `CLEAR`
-value; only an audited operator RESUME can release that inhibit. This startup
-rule preserves the hold if an earlier latch write never committed. Gate and
-application instances must not automatically clear an inhibit after a store
-recovers.
+let active handlers finish, close consumer channels, and fail readiness. An
+active gate leader starts inhibited regardless of a recovered `CLEAR` value;
+only an audited operator RESUME can release that inhibit. A standby starts
+non-authoritative and cannot issue permits; restarting it has no global effect.
+This active-leader startup rule preserves the hold if an earlier latch write
+never committed. Gate and application instances must not automatically clear
+an inhibit after a store recovers.
 
 Each distinct PAUSE recovery episode advances a monotonic latch epoch and
 records its creating command ID. A same-ID retry reuses its recorded epoch; a
@@ -214,13 +221,16 @@ The gate service has one fenced active permit issuer; replicas in standby cannot
 grant or renew permits. Active-leader restart/takeover, leader loss, and
 split-brain must never allow an unfenced issuer to grant or renew permits. A
 standby restart alone has no global effect. Consumer permits are short-lived
-and bound to leader epoch, service boot epoch, latch epoch, gate generation,
-and instance registration. Permit validity is at most five seconds. PAUSE or
-sticky inhibit blocks renewals globally. Instances act on a push revoke
-immediately; if that signal is lost or gate service is unreachable, inability
-to renew before permit expiry makes the instance stop starting deliveries and
-lower readiness no later than permit expiry (at most five seconds after the
-last valid issuance/renewal). Active handlers may finish after that deadline;
+and bound to leader epoch, active-leader boot epoch, latch epoch, gate
+generation, and instance registration. Permit validity is at most five
+seconds. PAUSE or sticky inhibit blocks renewals globally. Instances act on a
+push revoke immediately and validate a current permit immediately before
+starting every handler, including for prefetched deliveries. If that signal is
+lost or gate service is unreachable, inability to renew before permit expiry
+makes the instance stop starting deliveries and lower readiness no later than
+permit expiry (at most five seconds after the last valid issuance or renewal,
+with a conservative clock-skew allowance). Active handlers may finish after
+that deadline;
 the consumer channel closes only after they finish. If drain cannot complete,
 RESUME remains blocked until the operator externally fences or closes the
 RabbitMQ connection. Permit expiry is the fallback fence against starting new
@@ -619,10 +629,18 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
    and confirmation from every registered live instance before RESUME are
    accepted. Gate audit retention is one year followed by secure deletion.
-   Exact token claims, timestamp format, Redis
-   failover and crash-recovery protocol, instance liveness/expiry and proof of
-   operator fencing for stale instances, prefetched/unacknowledged-message
-   mechanics, and alerting remain unresolved.
+   The accepted Redis-outage behavior says not to mutate Redis and not to claim
+   a Redis audit row when PAUSE cannot commit. The gate protocol also forbids
+   Redis mutation before the latch is durably set, so an unavailable/uncertain
+   latch cannot use Redis for audit. This conflicts with the broad rule that
+   every authenticated operation is audited; no durable exception or
+   independent audit store has been accepted. Authenticated malformed requests
+   and command-ID
+   reuse attempts also need an audit disposition. Resolve these conflicts
+   before design-gate PASS. Exact token/signature claims and rotation, Redis
+   failover and rollback recovery, instance liveness/expiry, proof of operator
+   fencing, prefetched/unacknowledged-message mechanics, and alerting still
+   require independent design review and failure evidence.
 3. Implement and verify enforcement for the accepted TLS-in-transit,
    encrypted host/storage-class volumes, and restricted access. Operators may
    read/export only through the audited tool; direct AMQP and management reads

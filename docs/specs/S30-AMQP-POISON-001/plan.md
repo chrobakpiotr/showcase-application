@@ -1,6 +1,14 @@
 # S30-AMQP-POISON-001 — architecture plan (draft)
 
-Status: **DRAFT — blocked on spec decisions**
+Status: **DRAFT — accepted policy; implementation blocked on design-gate evidence**
+
+The user has resolved the product and operations choices recorded in `spec.md`.
+The exact cross-store gate protocol, leader/permit fencing, deployment
+qualification, and production-container integration remain unproven. The
+[gate protocol candidate](design/gate-protocol-candidate.md) is a review
+artifact, not implementation authorization or a PASS gate. Keep all consumer
+admission disabled until the required prototypes, independent grills, and
+verification contract are complete.
 
 ## Bounded context and ownership
 
