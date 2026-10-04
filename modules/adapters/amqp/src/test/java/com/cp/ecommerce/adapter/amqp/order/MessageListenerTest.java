@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.amqp.order;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 import com.cp.ecommerce.adapter.common.configuration.GsonConfiguration;
 import com.cp.ecommerce.domain.order.OrderFulfillmentReceiptOutcome;
@@ -10,7 +11,11 @@ import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -45,5 +50,32 @@ class MessageListenerTest {
         assertThatThrownBy(() -> listener.receiveMessage("{not-json")).isInstanceOf(ApplicationBadRequestException.class)
                 .hasMessageContaining("Invalid order fulfillment message JSON")
                 .hasCauseInstanceOf(JsonParseException.class);
+    }
+
+    @Test
+    void shouldNotLogSensitiveOperationOrOrderIdentifiers() {
+        final OrderMessage message = new OrderMessage(
+                OrderMessage.SCHEMA_VERSION,
+                "ORDER-FULFILLMENT:PRIVATE-OPERATION",
+                Instant.parse("2026-09-24T12:00:00Z"),
+                10L,
+                "PRIVATE-ORDER");
+        given(receiveOrderMessageInPort.receive(message)).willReturn(OrderFulfillmentReceiptOutcome.RECORDED);
+        final Logger logger = (Logger) LoggerFactory.getLogger(MessageListener.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            listener.receiveMessage(gson.toJson(message));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        final String output = appender.list.stream().map(ILoggingEvent::getFormattedMessage)
+                .collect(Collectors.joining("\n"));
+        org.assertj.core.api.Assertions.assertThat(output)
+                .doesNotContain("PRIVATE-OPERATION", "PRIVATE-ORDER");
     }
 }

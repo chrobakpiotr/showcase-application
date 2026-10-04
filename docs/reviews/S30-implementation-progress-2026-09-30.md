@@ -1592,3 +1592,21 @@ Independent read-only review of this test and the accepted policy updates:
 **PASS**; no qualification or contract overclaim found.
 This is a negative-path regression only; it does not qualify Docker or unblock
 S30-01/S30-03 execution. Local commit: `4653b96`; nothing was pushed.
+
+## S30-06e task packet: remove sensitive identifiers from listener logs
+
+Accepted source: S30-AMQP-POISON-001 AC-06A-SAFE and its 06b privacy finding
+that `MessageListener` logged `operationId` and `orderNumber`. Keep the durable
+receipt call and its outcome unchanged, but ensure normal application logs do
+not expose either identifier. Allowed paths: `MessageListener.java`, its
+focused test, and this progress record. Test mode: red-green log-capture
+regression at the AMQP listener seam. No queue, ACK, retry, or payload behavior
+may change.
+
+The new test first failed against the current logger and captured both private
+identifiers in the INFO message. The listener now logs only the receipt outcome.
+The focused `MessageListenerTest` passed 3/3 with `./gradlew :adapter:amqp:test
+--tests 'com.cp.ecommerce.adapter.amqp.order.MessageListenerTest'`. The
+independent security review returned **PASS**: only the closed receipt outcome
+is logged; the captured-event test also rejects raw JSON leakage. `git diff
+--check` passed.

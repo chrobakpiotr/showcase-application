@@ -34,10 +34,6 @@ public class MessageListener {
         }
 
         final OrderFulfillmentReceiptOutcome outcome = receiveOrderMessageInPort.receive(orderMessage);
-        log.info(
-                "Processed fulfillment message operationId={} orderNumber={} outcome={}",
-                orderMessage.operationId(),
-                orderMessage.orderNumber(),
-                outcome);
+        log.info("Processed fulfillment message outcome={}", outcome);
     }
 }
