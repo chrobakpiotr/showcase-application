@@ -151,9 +151,10 @@ The user accepted TLS in transit, encrypted host/storage-class volumes,
 restricted access, a 30-day retention horizon for raw body/headers, Rabbit
 `x-message-ttl` plus non-retrievability verification one hour after expiry, and
 the same deletion horizon for backups/exports. Define enforcement boundaries,
-reader identity, read/export audit, and size
-limits before enabling quarantine. The queue stores sensitive data, not
-merely diagnostic codes.
+reader identity and audited read/export path, and size limits before enabling
+operator read access. The queue stores sensitive data, not merely diagnostic
+codes. No direct operator reader may be enabled until every raw-message
+read/export produces the accepted audit evidence.
 
 ## Verification design
 

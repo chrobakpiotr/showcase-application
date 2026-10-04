@@ -100,7 +100,10 @@ restricted access. The accepted retention mechanism is Rabbit queue-level
 message TTL (`x-message-ttl`), verification that messages are no longer
 retrievable one hour after expiry, and the same 30-day deletion horizon for
 backups and exports. These
-decisions resolve policy choices only. No deployment artifact, durable pause
+decisions also require every raw-message read/export to be audit logged.
+The audited reader path remains to be designed; direct operator queue access
+will remain disabled until that path is verified. These decisions resolve
+policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b
 attempt fencing is implemented or proven by this documentation update. The
 data policy still blocks enabling raw-payload quarantine wherever encryption

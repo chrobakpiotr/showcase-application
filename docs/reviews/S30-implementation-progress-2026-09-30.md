@@ -1570,8 +1570,10 @@ The user accepted the following previously open S30 policy decisions:
   `x-message-ttl` plus verifying non-retrievability after expiry and a grace
   period is the accepted retention mechanism; the one-hour grace duration is
   accepted, while the procedure remains to be tested. Backups and exports
-  follow the same 30-day deletion policy. Access/export audit and payload-size controls still need
-  implementation-level definition and verification.
+  follow the same 30-day deletion policy. Every raw-message read/export must be
+  audit logged. The reader path, audit evidence, and payload-size controls
+  still need implementation-level definition and verification; no direct
+  operator read access is authorized before the audit path is established.
 - **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely
   because `(order, dispatch type)` is the enqueue deduplication fact. No
   terminal-row deletion/retention mechanism is authorized under this decision.
@@ -1579,8 +1581,9 @@ The user accepted the following previously open S30 policy decisions:
 These decisions clear the high-level restart, raw-quarantine retention,
 deployment ownership, exact topology names, all-environment deployment scope,
 TTL-plus-deletion-verification approach and one-hour grace period, TLS and
-encrypted-volume requirements, backup/export deletion horizon, active-handler pause behavior, and dispatch-row
-horizon questions only. Compose/Kubernetes provisioning artifacts,
+encrypted-volume requirements, backup/export deletion horizon, read/export
+auditing, active-handler pause behavior, and dispatch-row horizon questions
+only. Compose/Kubernetes provisioning artifacts,
 the externally managed production Rabbit handoff, durable restart guard,
 operator authorization/audit, prefetched/unacknowledged delivery mechanics,
 error taxonomy, header policy and 06b attempt/fencing/privacy requirements

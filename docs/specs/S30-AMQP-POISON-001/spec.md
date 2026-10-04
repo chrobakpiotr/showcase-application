@@ -149,7 +149,9 @@ message TTL (`x-message-ttl`) plus deletion verification. RabbitMQ guarantees
 expired messages are not delivered, but physical removal may occur after
 expiry. The accepted verification checks that messages are no longer
 retrievable after expiry plus a one-hour grace period; backups and exports
-follow the same 30-day deletion policy.
+follow the same 30-day deletion policy. Every raw-message read and export must
+produce an audit record; the reader path and audit-record design remain to be
+specified and tested before any operator read access is enabled.
 Never log the raw body or sensitive headers. Exact encryption boundaries,
 access/read-export audit, backup behavior, TTL configuration and
 deletion-verification procedure, and payload size limits still require
@@ -205,8 +207,8 @@ resources and resource mismatch fails safely and observably.
 
 No raw payload, order number, operation id, or exception detail appears in
 application logs or metric labels. Quarantine payload access, transport and
-storage encryption, expiry verification and backup/export deletion match the
-accepted policy.
+storage encryption, per-read/export audit, expiry verification and
+backup/export deletion match the accepted policy.
 
 ## Non-goals and later slices
 
@@ -330,9 +332,9 @@ must state duplicate and uncertain-outcome behavior at each boundary.
    accepted; the durable guard and prefetched/unacknowledged-message details
    are not implemented.
 3. Define enforcement for the accepted TLS-in-transit, encrypted
-   host/storage-class volumes,
-   restricted-access, 30-day quarantine policy, including read/export audit,
-   backup, TTL/deletion verification, and size limits.
+   host/storage-class volumes, restricted access and 30-day quarantine policy.
+   Specify and test the audited operator reader/export path, backup deletion,
+   TTL verification and size limits before any reader access is enabled.
 4. Confirm the permanent-error allowlist against actual exception types and
    receipt transaction behavior; unknown remains fail-closed.
 5. Approve required headers and behavior for collisions, unsupported header
