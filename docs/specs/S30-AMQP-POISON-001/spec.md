@@ -179,7 +179,71 @@ against PAUSE; use gate-issued generation-bound admission permits and do not
 open a consumer channel without a current permit. PAUSE stops issuing permits,
 then waits for channel-close/drain confirmation or operator fencing before
 reporting the barrier complete. Exact permit renewal, member-set, and
-linearization mechanics remain design and verification blockers.
+linearization mechanics remain design and verification blockers. The recovery
+latch is backed by a dedicated PostgreSQL service, separate from both the
+application database and gate Redis, with the gate service as its only client.
+Local Compose uses a separate persistent volume, Kubernetes dev uses an
+explicitly encrypted PVC, and production supplies an externally managed
+endpoint with equivalent durable commit/failover behavior. No environment may
+enable consumers until encryption and durability are proven for its backing
+store. Latch writes use a durable compare-and-set transaction and record a
+monotonic recovery epoch, command ID, request identity, and resulting state.
+
+If a latch write is unavailable or uncertain, the gate service enters sticky
+inhibit: it issues no permits, and application instances stop new deliveries,
+let active handlers finish, close consumer channels, and fail readiness. A gate
+service process always starts inhibited regardless of a recovered `CLEAR`
+value; only an audited operator RESUME can release that inhibit. This startup
+rule preserves the hold if an earlier latch write never committed. Gate and
+application instances must not automatically clear an inhibit after a store
+recovers.
+
+Each distinct PAUSE recovery episode advances a monotonic latch epoch and
+records its creating command ID. A same-ID retry reuses its recorded epoch; a
+new PAUSE command creates a new epoch even if an earlier episode is unresolved.
+Every RESUME is bound to the exact latch epoch and Redis generation it intends
+to clear. Clear the latch only with a compare-and-set that confirms the same
+epoch is current and Redis remains ACTIVE at that expected generation. A
+delayed RESUME retry from an older epoch cannot clear a newer PAUSE marker,
+including when the newer PAUSE could not commit to Redis. Epoch or generation
+mismatch leaves admission closed and requires a new audited operator RESUME.
+Storage schema, timestamp/claim formats, exact transaction/locking protocol,
+and cross-store recovery tests remain design and verification blockers.
+
+The gate service has one fenced active permit issuer; replicas in standby cannot
+grant or renew permits. Active-leader restart/takeover, leader loss, and
+split-brain must never allow an unfenced issuer to grant or renew permits. A
+standby restart alone has no global effect. Consumer permits are short-lived
+and bound to leader epoch, service boot epoch, latch epoch, gate generation,
+and instance registration. Permit validity is at most five seconds. PAUSE or
+sticky inhibit blocks renewals globally. Instances act on a push revoke
+immediately; if that signal is lost or gate service is unreachable, inability
+to renew before permit expiry makes the instance stop starting deliveries and
+lower readiness no later than permit expiry (at most five seconds after the
+last valid issuance/renewal). Active handlers may finish after that deadline;
+the consumer channel closes only after they finish. If drain cannot complete,
+RESUME remains blocked until the operator externally fences or closes the
+RabbitMQ connection. Permit expiry is the fallback fence against starting new
+work, not permission to continue on stale state. Leader-fencing and
+permit-expiry behavior require failure-injection evidence.
+
+Candidate leader-fencing protocol for the architecture spike: the durable
+PostgreSQL latch row owns a monotonically increasing leader epoch. Election
+and takeover must advance and fsync that epoch before the new leader touches
+Redis or issues permits. Every Redis transition and permit issuance carries
+and validates the epoch; Redis must reject stale-epoch mutations, and permit
+checks must be serialized with PAUSE/latch updates. Loss of PostgreSQL quorum,
+lock, or epoch certainty disables permit issuance. This remains a candidate
+until split-brain, failover, and stale-leader rejection are demonstrated; do
+not enable production admission on the sketch alone.
+
+After active-leader restart/takeover, permit issuance remains inhibited even
+when both stores report ACTIVE/CLEAR. Restarting a standby does not inhibit the
+active leader. Audited RESUME must be a new durable transition that advances
+the gate generation and requires fresh generation-bound instance
+registration/drain acknowledgements or operator fencing; it cannot merely
+clear process-local inhibit. The service may resume permit issuance only after
+that barrier is complete.
 
 This selected 06a policy intentionally supersedes the original review's
 recommendation to bound poison retries and keep healthy messages progressing
@@ -384,16 +448,42 @@ registered generation matches current ACTIVE and the recovery latch is durably
 clearing the recovery latch; success is returned only when both are confirmed.
 If Redis commits but latch clearing is uncertain, return `ACTIVATION_PENDING`;
 same-ID retry completes the latch clear without another generation advance.
-Any uncertain or unavailable latch keeps consumer admission closed. Consumer
+Any uncertain or unavailable latch keeps consumer admission closed and puts
+the active gate-service leader in sticky inhibit. An active-leader
+restart/takeover starts inhibited even if the latch store reads `CLEAR`; only
+audited operator RESUME may release it. A standby restart has no global effect,
+and a recovered store never clears an inhibit automatically. The latch uses a dedicated PostgreSQL service separate from the
+app database and gate Redis. Local Compose uses a separate persistent volume,
+Kubernetes dev an explicitly encrypted PVC, and production an externally
+managed endpoint with equivalent durable commit/failover behavior. Consumer
 registration/admission is serialized against PAUSE using current-generation
 gate-issued permits; PAUSE stops new permits and awaits channel drain/closure or
 operator fencing. Exact permit and member-set mechanics remain to be verified.
+Each distinct PAUSE episode advances a monotonic latch epoch and records its
+command ID. Every RESUME binds to the exact latch epoch and Redis generation it
+may clear. Clear requires CAS of both current epoch and ACTIVE generation, so a
+delayed retry cannot clear a newer PAUSE marker, even if that PAUSE did not
+commit to Redis. Epoch or generation mismatch keeps admission closed and
+requires a new audited RESUME.
 RESUME requires drain
 confirmation from every live instance and operator fencing confirmation for
 each expired/unresponsive instance; lease expiry alone is insufficient. The
 gate audit is retained for one year then securely deleted. Missing, malformed,
 unavailable, or durability-uncertain gate state keeps consumers stopped and
 readiness down.
+Only one fenced active leader may issue permits; standbys cannot grant or
+renew them. Permits are at most five seconds and bind leader epoch, service boot
+epoch, latch epoch, gate generation, and instance registration; sticky inhibit
+blocks renewals. Lost revoke signals or gate unavailability must stop starting
+new deliveries and lower readiness no later than permit expiry (at most five
+seconds after the last valid issuance/renewal). Active handlers may finish
+beyond that deadline; their channel closes only after drain, and RESUME stays
+blocked until drain or operator fencing is confirmed. Active-leader
+restart/takeover requires audited RESUME that advances generation and
+re-establishes the drain/fencing barrier. Standby
+restart alone does not inhibit the active leader. Clearing only a local inhibit
+is insufficient. Leader fencing, permit expiry, and split-brain behavior
+remain to be failure-tested.
 
 ### AC-06A-SAFE
 

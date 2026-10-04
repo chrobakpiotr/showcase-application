@@ -144,9 +144,23 @@ ACTIVE generation. Each instance cancels new deliveries, lets active handlers
 finish, then closes its consumer channel before acknowledging drain. This
 requeues the failing message and prefetched-but-not-started deliveries; active
 healthy handlers may finish and ACK. Exact token claims/timestamp format, Redis
-command-ID encoding/compare-and-set and failover recovery, durable latch
-backing/failure-domain/HA behavior, and instance liveness lease and
-fencing/closure evidence remain to be designed. Secure deletion must cover the
+command-ID encoding/compare-and-set and failover recovery, and instance
+liveness lease and fencing/closure evidence remain to be designed. The user
+selected a dedicated PostgreSQL latch service, separate from app DB and gate
+Redis. Compose persistence, encrypted Kubernetes PVC, and external production
+service are required shapes but remain unqualified. A latch outage/uncertainty
+causes sticky gate inhibit, no permit issuance, consumer drain/closure, and
+operator-only release after active-leader restart/takeover. Standby restart has
+no global effect. Permits have a selected five-second maximum lifetime and
+bind leader, service boot, latch, gate generation, and instance-registration
+epochs; lost revocation or gate reachability must close consumers by expiry.
+Monotonic latch epochs and expected Redis generation CAS prevent delayed
+RESUME from clearing a newer PAUSE marker. Cross-store transaction/recovery,
+leader fencing, permit-expiry, and crash/failover evidence are still open.
+The five-second bound is for stopping new deliveries and lowering readiness;
+active handlers may finish later, while RESUME stays blocked until channel
+drain or external Rabbit fencing is confirmed.
+Secure deletion must cover the
 one-year audit horizon across persistence history and backups. Lease expiry
 alone cannot establish that an unresponsive instance stopped; the operator
 must confirm its RabbitMQ consumer connection is fenced or closed before

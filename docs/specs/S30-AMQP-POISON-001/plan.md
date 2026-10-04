@@ -151,6 +151,14 @@ the existing row and that persistence/commit failures remain unknown. Any
 unlisted parser/runtime exception and all database/network failures are
 unknown. Never classify by message text or broad `RuntimeException`.
 
+The current PostgreSQL conflict integration test checks the thrown conflict
+and that a receipt row remains present; it does not compare persisted immutable
+fields before and after the conflicting delivery. The adapter unit tests
+exercise comparison without a database. Add a before/after field assertion at
+the real PostgreSQL boundary before the conflict can be allowlisted as
+permanent, and test persistence/commit failures as unknown at the listener
+boundary.
+
 ### D3 — pause, prefetch, and process lifecycle
 
 The accepted high-level behavior is to stop new deliveries, let active handlers
@@ -218,6 +226,30 @@ commit/fsync is uncertain, return unknown and deny consumer admission until the
 command ID resolves against authoritative state. A retry without a durable
 command record re-evaluates against the expected generation; it must not replay
 a stale request.
+
+The user selected a dedicated PostgreSQL recovery-latch service, separate from
+both the app database and gate Redis, with the gate service as its only client.
+Local Compose uses a separate persistent volume, Kubernetes dev an explicitly
+encrypted PVC, and production an externally managed endpoint with equivalent
+durable-commit/failover behavior. These shapes are requirements, not qualified
+evidence; consumer admission stays disabled until encryption, durable commit,
+restart, and restore behavior are proven. If latch persistence is unavailable
+or uncertain, the gate service enters sticky inhibit and grants no permits;
+application instances stop new delivery, drain active handlers, close channels,
+and fail readiness. There is one fenced active permit issuer; standby replicas
+cannot issue or renew permits, and a standby restart alone has no global effect.
+Active-leader restart/takeover is inhibited until audited operator RESUME even
+if recovered storage says `CLEAR`; store recovery never auto-resumes. RESUME
+advances the gate generation and requires fresh registration/drain acknowledgments
+or operator fencing before the leader issues permits again.
+
+Each distinct PAUSE episode creates a monotonic latch epoch tied to its command
+ID; same-ID replay reuses its epoch. Each RESUME binds to that exact epoch and
+the expected Redis generation it may clear. Clearing is a durable compare-and-
+set against both values, so a delayed retry cannot clear a newer PAUSE marker,
+including one whose Redis write failed. Epoch/generation mismatch stays
+inhibited and requires a new audited operator command. The cross-store crash,
+restore, and failover protocol remains unproven.
 The user also
 requires every registered live application instance to confirm it stopped new
 deliveries and drained active handlers before RESUME. Service-level app
@@ -258,6 +290,36 @@ in [`evidence/gate-redis-aof-probe.md`](evidence/gate-redis-aof-probe.md):
 Redis 8.10.2 with `appendfsync always` returned one local fsync from `WAITAOF`
 and recovered synthetic state after process restart. It used tmpfs only, so it
 does not prove encrypted-volume or crash/failover durability.
+
+The disposable PostgreSQL latch-epoch CAS probe is recorded in
+[`evidence/recovery-latch-postgres-cas-probe.md`](evidence/recovery-latch-postgres-cas-probe.md).
+It verifies only process-restart persistence in the disposable container and
+one stale-RESUME/newer-PAUSE interleaving; it does not qualify persistent,
+encrypted, crash-safe, or failover storage, nor the gate-service inhibit path.
+
+The user selected permits with a maximum five-second validity, bound to leader
+epoch, service boot epoch, latch epoch, gate generation, and instance
+registration. A revoke signal stops new deliveries immediately; if signal
+delivery or gate access fails, missed renewal must make the instance stop
+starting deliveries and lower readiness no later than permit expiry (at most
+five seconds after its last valid permit). Active handlers may finish after
+that bound; close the channel only after drain, and keep RESUME blocked until
+drain or operator fencing is confirmed. Candidate leader fencing uses a
+monotonic epoch in the
+durable PostgreSQL latch row. Election/takeover commits the new epoch before
+any Redis mutation or permit issuance; each operation carries the epoch, and
+Redis rejects stale epochs. Permit validation serializes with PAUSE/latch
+updates. Loss of database quorum, lock, or epoch certainty disables issuance.
+This is a spike candidate, not yet qualified, and requires split-brain/failover
+testing. Only active-leader restart or
+takeover triggers global inhibit; standby restart does not. Active-leader
+restart requires audited RESUME to advance the generation and re-establish
+fresh drain/fencing acknowledgments. Test duplicate leaders, lost revoke,
+delayed renewal, active-leader restart with `ACTIVE` + `CLEAR`, and stale permit
+use after a generation change. Include an active handler held for longer than
+five seconds: assert no new delivery starts and readiness is down by permit
+expiry, while the handler may finish later and RESUME remains blocked until
+channel closure or operator fencing.
 
 Before implementation, the gate service must reject state transitions as
 unsuccessful if AOF is disabled, WAITAOF is unsupported or times out, the local
@@ -317,7 +379,10 @@ failure, unknown failure, prefetch/in-flight behavior, broker reconnect,
 held poison followed by RESUME (including repeat pause if the cause remains),
 healthy-message hold/release behavior, header collision/round-trip rejection,
 absent/duplicate source IDs, duplicate/lost gate command responses, unavailable
-gate store, and incompatible resource declarations. Tests
+gate store, uncertain latch writes and gate-service restart with latch `CLEAR`,
+old RESUME retry after a newer PAUSE epoch (including PAUSE Redis failure), and
+split-brain permit issuers, expired/stale permit use, missed renewal, and
+incompatible resource declarations. Tests
 must distinguish the expected duplicate-transfer window from data loss and
 must not assert exactly-once behavior.
 

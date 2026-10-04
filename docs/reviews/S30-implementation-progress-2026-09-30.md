@@ -1711,8 +1711,24 @@ no durable record checks the expected generation. Admission requires ACTIVE
 Redis state and a durable CLEAR latch, serialized with PAUSE by generation-
 bound permits. RESUME is successful only after Redis state/audit fsync and
 latch clearing; otherwise return `ACTIVATION_PENDING` and keep consumers
-closed. Latch storage and protocol remain unimplemented. These are policy
-decisions only; no gate or quarantine deployment implementation is claimed.
+closed. The user selected a dedicated PostgreSQL latch service, separate from
+app DB and gate Redis, with a separate persistent Compose volume, encrypted
+Kubernetes dev PVC, and externally managed production endpoint. If latch state
+is unavailable or uncertain, the gate service sticky-inhibits and grants no
+permits; applications drain and close consumers. Gate-service startup always
+requires audited operator RESUME, even if storage reports `CLEAR`. Monotonic
+latch epochs and expected Redis generation CAS prevent an old RESUME retry from
+clearing a newer PAUSE marker. The gate uses one fenced active permit issuer;
+standbys cannot issue permits and their restart has no global effect. Permits
+are bound to leader, service-boot, latch, gate-generation, and instance
+registration epochs, with a five-second maximum validity. Active-leader
+restart/takeover requires audited RESUME and fresh drain/fencing acknowledgments.
+The five-second expiry bounds stopping new deliveries and lowering readiness;
+active handlers can finish later, and RESUME remains blocked until drain or
+external RabbitMQ fencing is confirmed.
+These deployment shapes, leader fencing, permit expiry, and cross-store failure
+semantics remain unproven; no gate or quarantine deployment implementation is
+claimed.
 
 ## S30-06f task packet: remove sensitive identifiers and exception detail from publisher logs
 
