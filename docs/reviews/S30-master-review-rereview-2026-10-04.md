@@ -108,7 +108,11 @@ be audited. Operators may access data only through an audited tool; direct
 AMQP and management reads remain disabled until it is implemented and tested.
 The user also accepted a 1 MiB combined body-plus-headers limit per message
 and 1 GiB per queue; overflow must be rejected, leaving the source unacknowledged
-and consumption paused.
+and consumption paused. A source-level audit now maps the candidate permanent
+error types to their current listener/service/receipt-adapter throw sites. It
+does not authorize broad exception-type classification: boundary tests must
+still prove the receipt transaction behavior, while database, commit, and
+unclassified failures remain unknown.
 These decisions resolve
 policy choices only. No deployment artifact, durable pause
 guard, operator authorization, quarantine encryption/access audit, or 06b

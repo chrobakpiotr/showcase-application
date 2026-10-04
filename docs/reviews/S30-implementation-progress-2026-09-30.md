@@ -1585,6 +1585,11 @@ The user accepted the following previously open S30 policy decisions:
   audit logged. The reader path, audit evidence, and accepted size-cap controls
   still need implementation-level definition and verification; no direct
   operator read access is authorized before the audit path is established.
+  A source audit now identifies the candidate permanent-error throw sites in
+  the spec, including Gson parse wrapping, receive-service validation, and the
+  receipt adapter's immutable-payload conflict. This remains a candidate map:
+  focused exception-origin and transaction-boundary tests are required before
+  it can become an implementation allowlist.
 - **S30-08 dispatch deduplication:** terminal dispatch rows remain indefinitely
   because `(order, dispatch type)` is the enqueue deduplication fact. No
   terminal-row deletion/retention mechanism is authorized under this decision.

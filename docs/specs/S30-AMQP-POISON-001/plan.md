@@ -128,11 +128,18 @@ declaration exactly. The one-hour verification grace period is accepted.
 
 ### D2 — permanent error and commit semantics
 
-Before code, map concrete exceptions from JSON parsing, `ReceiveOrderMessage`
-validation, and receipt fingerprint conflict. Confirm which are permanent and
-that they occur before/after receipt transaction commit. Treat all unlisted
-exceptions and database/network failures as unknown. Do not classify by
-exception message text or broad `RuntimeException`.
+The 2026-10-04 source audit records the current candidates in the spec's
+"Current error-taxonomy evidence" section: Gson `JsonParseException` is wrapped
+as `ApplicationBadRequestException`; receive-service message/schema/field
+validation also uses that type; immutable receipt payload conflict uses
+`ApplicationConflictException` from the adapter; and same-payload replay
+returns normally. The conflict type is shared elsewhere, so classification
+must be scoped to this inbound port path. Null schema defaults to v1.0.
+Before implementation, prove these cases with tests at the listener/port and
+real transaction boundary, including that a receipt conflict does not mutate
+the existing row and that persistence/commit failures remain unknown. Any
+unlisted parser/runtime exception and all database/network failures are
+unknown. Never classify by message text or broad `RuntimeException`.
 
 ### D3 — pause, prefetch, and process lifecycle
 

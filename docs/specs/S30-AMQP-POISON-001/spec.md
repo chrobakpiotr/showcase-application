@@ -176,6 +176,26 @@ environment until it can.
 
 ## Acceptance criteria
 
+### Current error-taxonomy evidence
+
+The source audit on 2026-10-04 found that `MessageListener.receiveMessage`
+translates Gson `JsonParseException` to `ApplicationBadRequestException` before
+calling the receive port. `ReceiveOrderMessageService.receive` also raises that
+bad-request type for a null message, unsupported non-null schema version,
+missing/blank/overlength operation id or order number, and absent customer id or
+created timestamp. `OrderMessage` defaults a null schema version to `1.0`, so
+that case is not an unsupported-schema error. `SaveOrderFulfillmentReceiptAdapter`
+raises `ApplicationConflictException` only after an existing operation id is
+loaded and immutable payload fields differ; same-payload replay returns
+`REPLAYED`. These throw sites are narrow in the current receive path, but the
+conflict class is shared elsewhere in the application. Classification must be
+scoped to this port/adapter boundary, never applied globally by exception type.
+Database/transaction/connection failures, the receipt adapter's unresolved-row
+`IllegalStateException`, other JSON/runtime failures, and every unclassified
+exception remain unknown/transient and must pause without quarantine. Tests must
+prove exception origin and transaction outcome before an implementation
+allowlist is accepted.
+
 ### AC-06A-CONTAINER
 
 Real-broker integration tests start the application's production
