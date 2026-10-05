@@ -16,12 +16,14 @@ production qualification, or evidence that another agent's work is complete.
 | S05-05a — PostgreSQL measurement fixture | DONE | `0c1f4e2` records the successful PostgreSQL 18.6/Docker 29.8.2 run, source and image digests, ten query summaries, and all 60 raw JSON plans in `tooling/performance/evidence/S05-05a-2026-10-05/`. Three helper tests and artifact-count checks pass. This is reproducible synthetic sensitivity evidence, not production workload qualification or an SLO. |
 | S05-05b — query/index comparison | BLOCKED | Requires the 05a fixture and an accepted representative workload/latency target. No query or index change is authorized by the existing synthetic sensitivity reports alone. |
 | S05-06 — parked-dispatch UI | DONE | `513c7df` adds a read-only parked-dispatch page on the existing ORDER_READ endpoint, with safe reason labels, age/attempt details, refresh and responsive states. 33 focused Angular tests, app/spec/E2E TypeScript compilation, ESLint, formatting, Playwright discovery and the backend ORDER_READ/deny-mutation security test passed. The Compose/Keycloak browser test passed: anonymous endpoint access returned 401; an ORDER_READ viewer loaded the page; no redrive control appeared; viewport widths 320/768/1024/1440 had no horizontal overflow. |
-| S05-07 — status and handbook delta | PARTIAL | This file records local task evidence through `513c7df`. GitHub statuses have not been refreshed for the current local HEAD. The last handover snapshot points to [CI run 37324541328](https://github.com/chrobakpiotr/showcase-application/actions/runs/37324541328) and says it was still in progress; that is historical, not current green evidence. An external handbook delta remains for its designated owner; this repo-only task does not edit another repository. |
+| S05-07 — status and handbook delta | PARTIAL | This file consolidates local task evidence through `daa8cea`; the working source snapshot under test was `1cc2d15`. Read-only GitHub status check: [CI run #146](https://github.com/chrobakpiotr/showcase-application/actions/runs/37206874910) for pushed SHA `1c1e6ae` is FAILURE, with the OWASP dependency scan, backend build/tests, and aggregate gate failed; [Agentic SDD CI #103](https://github.com/chrobakpiotr/showcase-application/actions/runs/37206874915) succeeded. These remote results are not for the local unpushed commits; fixing CI is outside the current scope. An external handbook delta remains for its designated owner; this repo-only task does not edit another repository. |
 | S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. The live XML check warns that the existing risk expires in 29 days on 2026-11-03. It does not renew or modify that date. |
 
-The source handover reviewed `50c18f9`; this progress snapshot was refreshed at
-`0c1f4e2`. The S05 commits are local only. No remote status, branch rule,
-deployment, or external handbook state is inferred from these local checks.
+The source handover reviewed `50c18f9`; source and browser evidence are current
+through `1cc2d15`, and this progress snapshot is committed at `daa8cea`. The S05
+commits are local only. The read-only CI links above point to a different,
+pushed SHA; they do not qualify this local source snapshot. No deployment or
+external handbook state is inferred.
 
 ## External handbook delta for its owner
 
