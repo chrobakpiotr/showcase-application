@@ -2194,6 +2194,13 @@ event. This does not authenticate the fixture actor or enforce one-year
 deletion. Updated five-run stdout SHA-256:
 `93e20666b43e66999c6d8faa02fb1c92242b1387a240d69eadc2927e115be60d`.
 
+Persistence review identified two proof gaps in that revision. The model now
+uses an SQLite trigger that aborts the actual replay-audit INSERT, and the
+concurrent execution test directly verifies one `APPLIED` plus seven `REPLAY`
+audit events. The independent reviewer confirmed both checks. Updated five-run
+stdout SHA-256:
+`0821c0cf05ce419af76bc001ae946952e82b497539dfea3014225100ef251bf5`.
+
 This remains a SQLite/HMAC model; the harness does not inject transport
 failure and makes no production cryptography or durability claim. Issuance-key
 lifetime, uncertain execution-response handling, expired-attempt audit,

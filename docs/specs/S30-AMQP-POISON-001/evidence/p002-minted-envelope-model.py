@@ -189,7 +189,6 @@ class ExecutionStore:
         fail_at: str | None = None,
         actor: str = "operator-default",
         reason: str = "routine",
-        fail_audit: bool = False,
     ) -> dict[str, object]:
         # Contract under test: reject invalid/expired token before consulting
         # execution-result storage.
@@ -211,8 +210,6 @@ class ExecutionStore:
                 if prior["request_digest"] != request_digest:
                     db.rollback()
                     return {"status": "REJECTED", "reason": "COMMAND_REQUEST_MISMATCH"}
-                if fail_audit:
-                    raise RuntimeError("INJECTED_REPLAY_AUDIT_FAILURE")
                 db.execute(
                     "INSERT INTO audit_event (command_id, actor, reason, outcome, result_generation) VALUES (?, ?, ?, ?, ?)",
                     (command_id, actor, reason, "REPLAY", prior["result_generation"]),
@@ -354,17 +351,25 @@ def main() -> None:
             ]
         finally:
             db.close()
+        db = db_connect(path)
+        try:
+            db.execute(
+                "CREATE TRIGGER reject_replay_audit BEFORE INSERT ON audit_event "
+                "WHEN NEW.actor = 'operator-charlie' "
+                "BEGIN SELECT RAISE(ABORT, 'INJECTED_AUDIT_WRITE_FAILURE'); END"
+            )
+        finally:
+            db.close()
         try:
             store.execute_or_resolve(
                 recovered,
                 request,
                 issued_at + 6,
                 actor="operator-charlie",
-                reason="audit outage simulation",
-                fail_audit=True,
+                reason="audit write failure simulation",
             )
-        except RuntimeError as error:
-            assert str(error) == "INJECTED_REPLAY_AUDIT_FAILURE"
+        except sqlite3.IntegrityError as error:
+            assert "INJECTED_AUDIT_WRITE_FAILURE" in str(error)
         else:
             raise AssertionError("replay audit failure did not abort the retry")
         db = db_connect(path)
@@ -444,6 +449,18 @@ def main() -> None:
         assert persisted_generation == 7
         assert issuance_rows == 1
         assert result_rows == 1
+        db = db_connect(path)
+        try:
+            concurrent_audit = db.execute(
+                "SELECT outcome, COUNT(*) FROM audit_event WHERE command_id = ? GROUP BY outcome",
+                (concurrent_envelope["body"]["command_id"],),
+            ).fetchall()
+            assert {row["outcome"]: row[1] for row in concurrent_audit} == {
+                "APPLIED": 1,
+                "REPLAY": 7,
+            }
+        finally:
+            db.close()
 
         # Failed initial writes roll back atomically; a lost response after
         # commit is resolved by retrying the exact same immutable envelope.
@@ -515,8 +532,8 @@ def main() -> None:
         print("PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.")
         print("PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.")
         print("PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.")
-        print("PASS: reason-only replay recorded its actor/reason without another transition; injected audit failure left no result response or audit event.")
-        print("PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.")
+        print("PASS: reason-only replay recorded its actor/reason without another transition; audit insert failure left no result response or event.")
+        print("PASS: eight simultaneous issuers stored one envelope; concurrent executes left one result, generation 7, and one APPLIED plus seven REPLAY audit events.")
         print("PASS: pre-commit failures preserved ACTIVE/generation 7; after commit response loss, same-key issuance recovery returned one PAUSED/generation-8 result.")
         print("LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.")
         print("OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.")
