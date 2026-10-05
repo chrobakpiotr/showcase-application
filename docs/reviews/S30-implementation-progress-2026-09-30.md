@@ -1906,7 +1906,7 @@ Review was skipped for the push. Local commit `100f405` contains the inventory
 repair and updated design evidence; it remains ahead of `origin/main` and has
 not been pushed, so its SDD protocol result is not hosted yet.
 Since that repair, local-only review/evidence commits have advanced through
-`314c43c`; the fetched `origin/main` remains `5ac4c94` (19 local commits ahead).
+`f087816`; the fetched `origin/main` remains `5ac4c94` (21 local commits ahead).
 No GitHub run covers those local commits.
 
 After the inventory repair, the remaining protocol-validation commands were
@@ -1930,3 +1930,18 @@ probe and evaluator limitations are recorded in
 `docs/specs/S30-AMQP-POISON-001/evidence/instance-binding-prototype.md` and
 `prototype-review-2026-10-05.md`. S30-06 remains design-gated; no AMQP consumer
 or raw quarantine reader is enabled by this work.
+
+## S30-06g: discard malformed-payload parser causes
+
+A focused regression first failed because `MessageListener` wrapped malformed
+JSON in a generic `ApplicationBadRequestException` but retained Gson's
+`JsonSyntaxException`/`EOFException` as its cause. Container-level exception
+logging or telemetry could expose parser context. Commit `f087816` removes only
+that cause chain; the listener still rejects the delivery with the same generic
+exception type and message. The focused listener suite passed **3/3**, and
+`git diff --check` passed. Host-path Spotless failed before formatting because
+this repository requires the formatter's `/workspace` mount; the AMQP
+`spotlessCheck` passed in the expected Java 25 container. Independent security
+review returned **PASS** for this scoped change. It did not inspect actual
+production-container logs or other raw-payload logging paths. This small
+privacy fix does not change S30-06's design-gated status.
