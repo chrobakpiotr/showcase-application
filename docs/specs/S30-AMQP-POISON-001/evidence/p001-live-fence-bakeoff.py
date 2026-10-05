@@ -278,13 +278,14 @@ def cleanup_operation(proxy: GatedProxy, client: Redis, thread: threading.Thread
     thread.join(timeout=3)
 
 
-def delayed_old_epoch_after_install(candidate: str, redis_port: int) -> None:
-    """Release a previously authorized epoch-1 mutation only after epoch 2 is durable."""
+def delayed_old_epoch_after_install(candidate: str, redis_port: int) -> tuple[int, list[int]]:
+    """Release a buffered epoch-1 mutation only after epoch 2 is durable."""
     direct = Redis(redis_port)
     try:
         direct.command("SET", "gate:state", "PAUSED")
         direct.command("SET", "gate:generation", 77)
         assert direct.command("WAITAOF", 1, 0, 2000) == [1, 0]
+        assert direct.command("GET", "gate:leader_epoch") == "1"
     finally:
         direct.close()
 
@@ -305,8 +306,10 @@ def delayed_old_epoch_after_install(candidate: str, redis_port: int) -> None:
         assert proxy.buffered.wait(5), f"{candidate}: proxy did not buffer delayed epoch-1 write"
         direct = Redis(redis_port)
         try:
-            epoch = direct.command("GET", "gate:leader_epoch")
-            assert epoch == "2", (candidate, "epoch 2 was not installed before release", epoch)
+            assert direct.command("GET", "gate:leader_epoch") == "1"
+            installed = direct.command("EVAL", INSTALL, 1, "gate:leader_epoch", 2)
+            durable = direct.command("WAITAOF", 1, 0, 2000)
+            assert installed == 2 and durable == [1, 0], (candidate, installed, durable)
         finally:
             direct.close()
         proxy.release.set()
@@ -321,6 +324,7 @@ def delayed_old_epoch_after_install(candidate: str, redis_port: int) -> None:
         assert state == ["2", "PAUSED", "77"], (candidate, state)
         print(f"{candidate} DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; "
               f"RESULT=STALE_EPOCH; STATE={state}")
+        return installed, durable
     finally:
         proxy.close()
         client.close()
@@ -468,11 +472,10 @@ INSERT INTO gate_control VALUES(1,'leader-a',1,clock_timestamp()+interval '15 se
     assert stdout.strip() == "leader-b:2", (candidate, stdout, stderr)
     print(f"{candidate} TAKEOVER_AFTER_OLD_SESSION_LOST={stdout.strip()}")
 
+    installed, durable = delayed_old_epoch_after_install(candidate, redis_port)
     new_owner = Redis(redis_port)
     resources.callback(new_owner.close)
-    installed = new_owner.command("EVAL", INSTALL, 1, "gate:leader_epoch", 2)
-    durable = new_owner.command("WAITAOF", 1, 0, 2000)
-    assert installed == 2 and durable == [1, 0], (installed, durable)
+    assert new_owner.command("GET", "gate:leader_epoch") == "2"
     try:
         new_owner.command("EVAL", STALE_CHECK, 1, "gate:leader_epoch", 1)
     except RuntimeError as error:
@@ -488,7 +491,6 @@ INSERT INTO gate_control VALUES(1,'leader-a',1,clock_timestamp()+interval '15 se
     assert row == "leader-b:2:RECOVERY_REQUIRED" and not permit
     print(f"{candidate} EPOCH_INSTALL={installed}; WAITAOF={durable}; OLD_WRITE_AFTER_INSTALL={stale}")
     print(f"{candidate} PERMIT={permit} PG={row} REDIS={redis_state}; unknown result remains inhibited")
-    delayed_old_epoch_after_install(candidate, redis_port)
     return (candidate, wait_event, row, redis_state, stale, permit)
 
 

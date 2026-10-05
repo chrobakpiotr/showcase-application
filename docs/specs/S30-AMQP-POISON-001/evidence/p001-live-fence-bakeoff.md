@@ -65,7 +65,7 @@ Observed on 2026-10-05 with Docker Engine 29.8.2:
   (server 8.10.2), with AOF enabled and `appendfsync always`.
 - PostgreSQL `postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873`
   (18.6).
-- Prototype SHA-256: `42ae516b711f326f98ca0c1d2dcb96fb8cab0e46605a56863ff968dd8583181f`.
+- Prototype SHA-256: `afb4bd04351a4d94d7234a0308b7645d4c32553a620f55fc1339b3f0dfa21c73`.
 
 Both providers use local test credentials and ephemeral container filesystems.
 Redis has no replica, so `[1,0]` proves only the configured local AOF fsync
@@ -75,24 +75,24 @@ started or changed.
 ## Reproduced output
 
 ```text
-DOCKER=29.8.1
+DOCKER=29.8.2
 REDIS=redis@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0 Redis server v=8.10.2
 POSTGRES=postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 PostgreSQL 18.6
-A-row-lock TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_A_row_lock_76756761:Lock:transactionid
+A-row-lock TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_A_row_lock_ef5b2a09:Lock:transactionid
 A-row-lock BUFFERED_COMPLETE_EVAL_WHILE_LEASE_VALID=true; RELEASED_AFTER_LEASE_EXPIRY=true
 A-row-lock WAITAOF_SERVER_REPLY=b'*2\r\n:1\r\n:0\r\n'; CLIENT_RESULT=EOF (same proxied TCP connection)
 A-row-lock TAKEOVER_AFTER_OLD_SESSION_LOST=leader-b:2
-A-row-lock EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
-A-row-lock PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'ACTIVE']; unknown result remains inhibited
 A-row-lock DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; RESULT=STALE_EPOCH; STATE=['2', 'PAUSED', '77']
-B-advisory-plus-CAS TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_B_advisory_plus_CAS_76756761:Lock:advisory
+A-row-lock EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
+A-row-lock PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'PAUSED']; unknown result remains inhibited
+B-advisory-plus-CAS TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_B_advisory_plus_CAS_ef5b2a09:Lock:advisory
 B-advisory-plus-CAS BUFFERED_COMPLETE_EVAL_WHILE_LEASE_VALID=true; RELEASED_AFTER_LEASE_EXPIRY=true
 B-advisory-plus-CAS WAITAOF_SERVER_REPLY=b'*2\r\n:1\r\n:0\r\n'; CLIENT_RESULT=EOF (same proxied TCP connection)
 B-advisory-plus-CAS TAKEOVER_AFTER_OLD_SESSION_LOST=leader-b:2
-B-advisory-plus-CAS EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
-B-advisory-plus-CAS PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'ACTIVE']; unknown result remains inhibited
 B-advisory-plus-CAS DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; RESULT=STALE_EPOCH; STATE=['2', 'PAUSED', '77']
-COMPARISON=[('A-row-lock', 'Lock:transactionid', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'ACTIVE'], 'REJECTED', False), ('B-advisory-plus-CAS', 'Lock:advisory', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'ACTIVE'], 'REJECTED', False)]
+B-advisory-plus-CAS EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
+B-advisory-plus-CAS PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'PAUSED']; unknown result remains inhibited
+COMPARISON=[('A-row-lock', 'Lock:transactionid', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'PAUSED'], 'REJECTED', False), ('B-advisory-plus-CAS', 'Lock:advisory', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'PAUSED'], 'REJECTED', False)]
 P001=NEEDS_MORE_EVIDENCE; criteria are not all covered; no candidate selected
 ```
 
@@ -134,3 +134,11 @@ verification that a real provider can establish the exact durable result
 after an uncertain WAITAOF response. Candidate B also shares row-level
 serialization through its CAS. Therefore the evidence cannot select A or B;
 keep P-001 and the S30-06 design gate open.
+
+The post-install delayed request exercises only the Redis epoch-guard
+primitive: a directly injected test Lua script compares the supplied epoch,
+then performs `SET`/`INCR`. The test driver installs epoch 2 directly after the
+PostgreSQL takeover; this is not a live leader-issued PAUSE/RESUME, command
+finalization, or proof that production credentials cannot bypass the guarded
+script. Treat it as serialization evidence for the primitive, not service or
+authorization evidence.
