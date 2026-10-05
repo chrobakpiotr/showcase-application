@@ -46,6 +46,7 @@
         "retrying the same command with a different audit-only reason returns the original state result, advances no generation, and records that retry separately",
         "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention",
         "MAC rotation remains consistent across PostgreSQL, Redis, and every retained backup at every crash cut",
+        "NEW_ONLY cannot be declared while PostgreSQL/Redis tombstone key sets differ or any live tombstone lacks a valid new-key primary MAC",
         "every actor/reason audit copy is securely deleted by its accepted one-year deadline without retaining it to preserve tombstones",
         "the qualified timestamp error bound, tamper-evident inherited backup deadline, and restore/promotion rollback checks cannot shorten retention"
       ],

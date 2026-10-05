@@ -542,14 +542,17 @@ actor and reason.
 
 MAC-key rotation spans both authoritative stores and is proposed as a fenced,
 resumable two-phase migration. A durable key-state row declares `OLD_ONLY`,
-`DUAL_WRITE`, `MIGRATING`, or `NEW_ONLY`; every new command during rotation
-writes verifiable old- and new-key MACs to both stores. A migration worker
-holds the gate-control row fence per command, verifies immutable fields and
-both current MACs, then writes the new key version to PostgreSQL and Redis with
-both old/new MACs still accepted. A crash after either half leaves the gate
-inhibited and resumes from the durable per-command migration state; neither
-store may drop the old MAC until both report the new version. A second fenced
-pass removes old MACs only after every live row is migrated. Old key retirement
+`DUAL_WRITE`, `MIGRATING`, or `NEW_ONLY`; its authoritative store and fencing
+integration remain unselected. Every new command during rotation writes
+verifiable old- and new-key MACs to both stores. For pre-rotation rows, the
+migration worker verifies each old MAC and recomputes the new MAC from the
+stored immutable request fields. It holds the gate-control row fence per
+command, writes both MAC slots to PostgreSQL and Redis, then promotes the new
+MAC while retaining the old as an overlap MAC. Promotion is idempotent if one
+store is already ahead; a crash after any single-store write leaves admission
+inhibited and restart resumes from the verified per-store slots. Neither store
+may drop the old MAC until both have the new primary MAC and every live row is
+migrated. A second fenced pass removes old overlap MACs. Old-key retirement
 additionally waits for an authoritative inventory proving no retained backup
 or export needs it. Any uncertain row, store, backup inventory, or KMS state
 keeps both keys and admission inhibited. This is a proposal, not a proven
@@ -1211,6 +1214,14 @@ fixtures and retained outputs:
     [`p001-resume-release-idempotency-model.py`](../evidence/p001-resume-release-idempotency-model.py)
     is an abstract checkpoint only; provider and runtime evidence remain
     required.
+11. Crash key migration between each single-store dual-MAC write, promotion,
+    and overlap cleanup. Reopen both stores and prove the migration resumes
+    without dropping either usable MAC or accepting a corrupted one; verify
+    that old-key retirement remains blocked by any retained backup inventory
+    reference. The disposable
+    [`p002-cross-store-mac-rotation-model.py`](../evidence/p002-cross-store-mac-rotation-model.py)
+    exercises representative cuts only; the authoritative key-state store,
+    PG/Redis fence, KMS, and backup provider still require qualification.
 
 These experiments must falsify the protocol under injected uncertainty, not
 only demonstrate its happy path. Until independent architecture, messaging,

@@ -2367,3 +2367,25 @@ review verified the corrected first-command binding, lost-response retry flow,
 and the release-audit lookup. Provider durability, authenticated control-plane
 ownership, anti-rollback and restore-path enforcement remain open. Evidence is in
 [`p001-resume-release-idempotency-model.md`](../specs/S30-AMQP-POISON-001/evidence/p001-resume-release-idempotency-model.md).
+
+## S30-06 P-002 cross-store MAC rotation model — 2026-10-05
+
+Added a disposable model for the candidate's `OLD_ONLY → DUAL_WRITE →
+MIGRATING → NEW_ONLY` rotation. It covers old-only tombstones, dual writes,
+new-only writes, a crash after PostgreSQL receives the new overlap MAC, a crash
+after PostgreSQL promotion, a crash after Redis promotion, old-overlap cleanup,
+backup-gated retirement, and tampered-MAC rejection. Review caught two model
+gaps: the prototype initially keyed rows by command ID alone and checked only
+for PostgreSQL-only missing rows. It now keys on
+`(restore_episode_id, command_id)` and requires exact PostgreSQL/Redis row-set
+equality before `NEW_ONLY`; dedicated assertions cover cross-episode duplicate
+IDs and a Redis-only tombstone. Independent privacy review verified those
+corrections and the 25 assertions. Five runs have identical stdout SHA-256
+`72af422a63af791d6597ac4b28b6065eddb27b8b4575d0c6d1d52df4e7e9cc5e`.
+
+This remains Python fixture evidence. Key-state ownership, PostgreSQL/Redis
+fencing, KMS, retained backup inventory and provider restart guarantees remain
+unproven. The design preflight now requires exact row-set equality and a valid
+new-key primary MAC before `NEW_ONLY`. Evidence is in
+[`p002-cross-store-mac-rotation-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-cross-store-mac-rotation-model.md);
+P-002 and the S30 design gate remain open.
