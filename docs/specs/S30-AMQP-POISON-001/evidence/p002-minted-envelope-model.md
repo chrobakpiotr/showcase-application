@@ -27,13 +27,14 @@ cryptography guidance.
 
 An independent wrapper ran the script five times and confirmed byte-identical
 output on all runs. SHA-256 of the exact stdout bytes was
-`549fd90b35f8b5c94950a4de602651c196ad85e529e5b4bf64b63b70999f586b`.
+`5f4e7f137fd50e96628510a240d8c97d33f57c7f0e165dad6e35c411c6db8746`.
 Each run printed:
 
 ```text
 PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.
 PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.
 PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.
+PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.
 LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.
 OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.
 ```
@@ -68,6 +69,14 @@ OPEN: issuance-id retention/lifetime, lost execution response policy, expired-at
   expired envelope. The client must deliberately begin a new command with a
   different issuance ID; it cannot silently transform an old lost-response
   retry into a new command.
+- Eight synchronized threads using independent SQLite connections race the
+  first issuance of a second command. Each receives identical canonical
+  envelope bytes and the same command ID. Eight concurrent executions then
+  return the same stored ACTIVE/generation-7 result. Direct queries then assert
+  persisted generation 7 and exactly one issuance and execution-result row for
+  that command. This exercises SQLite `BEGIN IMMEDIATE` serialization and
+  unique keys in one process; it does not prove multi-process or production-
+  store contention behavior.
 
 ## Remaining contract questions and limits
 
@@ -82,7 +91,7 @@ retention policy.
 
 The model does not test a lost execution response followed by an issuance retry,
 audited expired-envelope attempts, real caller authentication/authorization,
-multi-replica issuance races, concurrent envelope execution, audit retention,
+multi-process or multi-replica issuance/execution races, audit retention,
 Redis/PostgreSQL behavior, `WAITAOF`, backup/restore, key rotation, or provider
 failover. SQLite commit settings are not power-loss, replicated durability, or
 production-store evidence. HMAC canonicalization and the fixed test key do not

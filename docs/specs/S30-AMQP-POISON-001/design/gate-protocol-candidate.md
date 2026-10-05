@@ -195,10 +195,13 @@ issuer database, and recovers identical canonical envelope bytes using the
 stable issuance request ID. The recovered envelope alone drives execution and
 retry; changed request under that ID rejects, while a different ID creates a
 different command. It also checks expiry rejection before result lookup after
-result purge. Independent review verified the exact script and output digest.
-This is a sequential SQLite/HMAC model, not injected transport loss or
-production cryptography/durability. Issuance-ID lifetime, uncertain execution
-response policy, expired-attempt audit, concurrency, restore rollback, and
+result purge. Eight synchronized local threads with independent SQLite
+connections also race issuance and execution: they recover one envelope and
+one resulting generation, which is verified by direct queries for persisted
+generation and single issuance/result rows. Independent review is pending for
+this update. This is a SQLite/HMAC model, not injected transport loss,
+multi-process contention, or production cryptography/durability. Issuance-ID lifetime, uncertain
+execution response policy, expired-attempt audit, restore rollback, and
 provider guarantees remain unresolved; candidate B is not selected and P-002
 remains open.
 

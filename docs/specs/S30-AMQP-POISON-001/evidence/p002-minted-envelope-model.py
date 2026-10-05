@@ -8,11 +8,13 @@ experiment repeatable; they are not production cryptographic guidance.
 from __future__ import annotations
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 import json
 import sqlite3
 import tempfile
+from threading import Barrier
 from pathlib import Path
 
 
@@ -66,6 +68,18 @@ def initialize(path: str) -> None:
         """
     )
     db.close()
+
+
+def run_concurrently(count: int, operation):
+    barrier = Barrier(count)
+
+    def synchronized_call():
+        barrier.wait(timeout=10)
+        return operation()
+
+    with ThreadPoolExecutor(max_workers=count) as pool:
+        futures = [pool.submit(synchronized_call) for _ in range(count)]
+        return [future.result(timeout=20) for future in futures]
 
 
 def issue(
@@ -299,9 +313,61 @@ def main() -> None:
         after_expiry_recovery = issue(path, issue_key, request, now=expiry + 1)
         assert hashlib.sha256(canonical(after_expiry_recovery)).digest() == expected_envelope_hash
         assert verify(after_expiry_recovery, request, expiry + 1) == "EXPIRED"
+
+        # Race first issuance of the next command, then race execution retries
+        # across independent SQLite connections.
+        concurrent_request = {**request, "action": "RESUME", "expected_generation": 6}
+        concurrent_issuances = run_concurrently(
+            8,
+            lambda: issue(
+                path,
+                "concurrent-issuance-request",
+                concurrent_request,
+                now=issued_at + 10,
+            ),
+        )
+        concurrent_envelope = concurrent_issuances[0]
+        concurrent_envelope_hash = hashlib.sha256(canonical(concurrent_envelope)).digest()
+        assert all(
+            hashlib.sha256(canonical(envelope)).digest() == concurrent_envelope_hash
+            for envelope in concurrent_issuances
+        )
+        assert len({envelope["body"]["command_id"] for envelope in concurrent_issuances}) == 1
+
+        lookups_before_race = store.lookup_count
+        concurrent_results = run_concurrently(
+            8,
+            lambda: store.execute_or_resolve(
+                concurrent_envelope, concurrent_request, issued_at + 11
+            ),
+        )
+        assert concurrent_results == [
+            {"status": "OK", "state": "ACTIVE", "generation": 7}
+        ] * 8
+        assert store.lookup_count == lookups_before_race + 8
+        db = db_connect(path)
+        try:
+            persisted_generation = db.execute(
+                "SELECT generation FROM control WHERE singleton = 1"
+            ).fetchone()["generation"]
+            issuance_rows = db.execute(
+                "SELECT COUNT(*) FROM issuance WHERE issuance_request_id = ?",
+                ("concurrent-issuance-request",),
+            ).fetchone()[0]
+            result_rows = db.execute(
+                "SELECT COUNT(*) FROM execution_result WHERE command_id = ?",
+                (concurrent_envelope["body"]["command_id"],),
+            ).fetchone()[0]
+        finally:
+            db.close()
+        assert persisted_generation == 7
+        assert issuance_rows == 1
+        assert result_rows == 1
+
         print("PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.")
         print("PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.")
         print("PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.")
+        print("PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.")
         print("LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.")
         print("OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.")
 

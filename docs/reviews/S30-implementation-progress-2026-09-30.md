@@ -2152,14 +2152,27 @@ harness, closes/reopens the issuer database, and recovers identical canonical
 envelope bytes using the stable issuance request ID. The recovered envelope
 alone drives execution and retry. It rejects changed input under the same key,
 shows that a different key mints a different command ID, and rejects an
-expired envelope before result lookup after result-row purge. Independent
-review verified the exact script and output digest
+expired envelope before result lookup after result-row purge. The initial
+sequential version was independently reviewed with output digest
 `549fd90b35f8b5c94950a4de602651c196ad85e529e5b4bf64b63b70999f586b`.
 
-This is a sequential SQLite/HMAC model; the harness does not inject transport
+The model was extended with eight synchronized local threads using independent
+SQLite connections. They race first issuance of the same command, recover one
+canonical envelope/command ID, then concurrently execute it; every caller gets
+the stored result and the generation advances once. Five repeat runs produce
+identical output with SHA-256
+`b29eba5afe1364daa7856d9d0d7cc3c4e694bbbbad9f75ba1f92217bc0b48af9`.
+This only exercises SQLite's local transaction serialization, not
+multi-process/provider contention. Independent review of this extension is
+pending. A follow-up assertion now reads persisted generation and verifies one
+issuance row and one execution result row; updated five-run stdout SHA-256 is
+`5f4e7f137fd50e96628510a240d8c97d33f57c7f0e165dad6e35c411c6db8746`.
+
+This remains a SQLite/HMAC model; the harness does not inject transport
 failure and makes no production cryptography or durability claim. Issuance-key
 lifetime, uncertain execution-response handling, expired-attempt audit,
-concurrency, coordinated restore, and provider guarantees remain unresolved.
+multi-process concurrency, coordinated restore, and provider guarantees remain
+unresolved.
 The report and executable model are in
 [`p002-minted-envelope-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-minted-envelope-model.md)
 and its adjacent script. Candidate B is not selected; P-002 and the S30-06
