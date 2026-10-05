@@ -172,10 +172,12 @@ command record reconciles the original command against the expected generation;
 a committed command must never advance the generation twice. The
 gate audit entries are retained for one year, then securely deleted under a
 documented retention/deletion procedure. This applies to the gate audit, not
-the separately retained raw quarantine payloads. The exact token claims,
-timestamp format, Redis retry/crash recovery beyond command replay, failover
-behavior, and cross-environment deployment
-contract remain to be designed and tested before release. Before RESUME, every
+the separately retained raw quarantine payloads. The gate protocol candidate
+proposes example token claims, timestamps, and Redis retry/crash-recovery
+rules; none is accepted as an API, persistence, or deployment contract. Exact
+claims, timestamp format, recovery beyond command replay, failover behavior,
+and cross-environment deployment remain to be designed and tested before
+release. Before RESUME, every
 registered live application instance must confirm that it stopped new delivery
 and drained active handlers. An unresponsive or expired instance cannot be
 treated as stopped from lease expiry alone; RESUME remains blocked until an
@@ -290,8 +292,10 @@ until the operator confirms its consumer connection is fenced or closed.
 
 The user selected the existing Keycloak for local/dev with a separate
 gate-service audience/client and resume role; production uses the corresponding
-externally configured issuer/client. Exact client/role names, claims and
-credential lifecycle remain to be defined. The gate store is a dedicated Redis
+externally configured issuer/client. The gate protocol candidate proposes
+example client/role names and token claims, but these remain unaccepted until
+the design gate passes. Credential lifecycle and per-instance identity binding
+remain to be defined. The gate store is a dedicated Redis
 instance separate from application cache, with synchronous AOF durability and
 encrypted persistent storage in local/dev; production must provide external
 Redis with equivalent durable-commit behavior. The disposable Redis probe

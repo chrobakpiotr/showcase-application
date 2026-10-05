@@ -191,8 +191,9 @@ readiness down. Implement and verify the accepted one-way gate, generation,
 atomic audit, and fsync behavior. Tests must use the production container to
 prove active-handler drain, consumer-channel closure, requeue of unacked and
 prefetched-not-started messages, operator resume and admission on the new
-generation. Exact token claims, live-member lease and external-fencing evidence,
-Redis command-ID encoding, and failure recovery still need design. A container-only
+generation. The gate protocol candidate proposes token claims, but they remain
+unaccepted; live-member lease and external-fencing evidence, Redis command-ID
+encoding, and failure recovery still need design. A container-only
 pause is not a durable guard across application restart; the deployment-managed
 gate is the selected persistence direction, while 06b's stale-handler fencing
 remains a separate prerequisite. Each instance cancels/stops new delivery,
@@ -332,9 +333,9 @@ storage; those remain design-gate evidence requirements.
 Gate-audit entries have the accepted one-year retention, but idempotency
 records cannot automatically share that expiry: deleting actor/reason audit
 data must not permit a reused command ID to produce a second transition. The
-gate design must define privacy-minimized command tombstones or an explicit
-replay horizon, with separate retention and backup/deletion rules. No horizon
-or tombstone schema is accepted yet.
+gate protocol candidate compares privacy-minimized command tombstones with an
+explicit replay horizon, but neither horizon nor tombstone schema is accepted
+yet. The accepted design must settle retention and backup/deletion rules.
 
 The user selected permits with a maximum five-second validity, bound to leader
 epoch, service boot epoch, latch epoch, gate generation, and instance
@@ -382,15 +383,17 @@ generation; include operator reason on RESUME. Commit the matching state and
 audit atomically and return success only after configured Redis fsync is
 confirmed. Retain gate audit entries for one year, then securely delete them
 under a documented procedure; this is separate from the 30-day raw quarantine
-retention. Exact token claims, timestamp encoding, and the transaction/
-idempotency protocol still require design and review.
+retention. The gate protocol candidate proposes exact token claims and
+timestamp encoding, but neither is accepted. The transaction/idempotency
+protocol still requires design and review.
 For local/dev, the user selected the repository's Keycloak with a separate
 gate-service audience/client, app workload identity, and individual-operator
 resume role. Production must configure a corresponding external issuer/client.
 The current realm has no app service-account client, so development identity
 configuration needs an additive gate client/role without reusing the seeded
-admin credentials. Exact client/role identifiers, token claim shape, and
-credential lifecycle remain to be designed and tested.
+admin credentials. The candidate proposes client/role identifiers and token
+claim shape, but these remain unaccepted; per-instance identity binding and
+credential lifecycle still require design and tests.
 
 ### D4 — quarantine data controls
 

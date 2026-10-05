@@ -53,9 +53,10 @@ Before task generation, architecture review must assign the narrow client port
 to an inward module and freeze a versioned API contract for PAUSE, permit
 registration/renewal, drain confirmation, RESUME, status/readiness, and errors.
 The contract must identify authentication audience/roles, command ID and
-generation fields, idempotent retry behavior, and TLS/CA validation. This
-candidate names responsibilities but does not yet approve HTTP paths, payload
-schemas, token claims, module paths, or deployment ownership boundaries.
+generation fields, idempotent retry behavior, and TLS/CA validation. Later
+subsections propose example HTTP paths, payload fields, token claims, schemas,
+module paths, and deployment ownership. Every such detail remains a proposal,
+not an accepted contract, until the design review and hash-bound gate pass.
 
 The actor-authorization split is accepted, but exact wire claims and per-instance
 identity binding remain to be frozen: local/dev uses

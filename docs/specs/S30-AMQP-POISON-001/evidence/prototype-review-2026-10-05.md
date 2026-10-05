@@ -80,9 +80,27 @@ approval. The remaining findings and our current response are:
   design/spec wording must continue to distinguish accepted policy from this
   unaccepted candidate.
 
-These edits are design clarification only. They do not qualify a service
-implementation, authorize task generation, or produce a design-gate PASS.
-Required next evidence remains a comparable cross-store service-level fence
-experiment, real OIDC/JWKS and permit validation, persistent replay and
-suspend/resume tests, Rabbit drain/reconnect and ACL tests, encrypted storage,
-audited read/export, backup deletion and sentinel-data leakage checks.
+The deterministic [cross-store schedule model](recovery-schedule-prototype.md)
+now exercises the intended fail-closed outcomes for Redis commit followed by
+lost PostgreSQL finalization, a lost `WAITAOF` reply, and coordinated stale
+restore. It confirms a local-information gap for joint rollback; it does not
+prove provider reconciliation or durability.
+
+The [Rabbit fencing capability decision](rabbit-fencing-capability-decision.md)
+found that built-in user tags do not grant narrowly scoped inspect-and-close
+permissions for another user's consumer connection. A deployment-owned
+fencing proxy/service or RabbitMQ authorization extension is required, with a
+separate broker identity that cannot access quarantine messages. Exact
+instance-to-connection binding and a negative ACL integration test remain
+open.
+
+A fresh security rereview of `c439429` confirmed partial closure on paper but
+kept the security gate **FAIL**. It found the nonce and retry-audit proposals
+clearer, while requiring runtime tests and preserving identity binding, Rabbit
+capability, and cross-document status as blockers. Spec/plan now explicitly say
+the detailed claims, roles, and schema in the candidate are proposals, not
+accepted contracts. This does not authorize task generation or produce a
+design-gate PASS. Required next evidence remains real OIDC/JWKS and permit
+validation, persistent replay and suspend/resume tests, Rabbit drain/reconnect
+and ACL tests, encrypted storage, audited read/export, backup deletion, and
+sentinel-data leakage checks.
