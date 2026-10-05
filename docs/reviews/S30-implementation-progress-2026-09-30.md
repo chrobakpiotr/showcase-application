@@ -2113,6 +2113,20 @@ operator re-epoch procedure. The review is recorded in
 No option or deployment API is selected yet; P-001 and the S30-06 design gate
 remain open.
 
+## S30-06 P-001 restore-option architecture advice — 2026-10-05
+
+An independent architecture review compared the two allowed restore
+safeguards and recommended evaluating an enforced restore-ineligible policy
+first, because it could reuse the accepted sticky inhibit and audited RESUME
+without an always-on witness. This meets the criterion only if deployment/DR
+tooling sets a persistent inhibit outside both backups before every restore,
+fences every issuer and consumer, blocks on missing/uncertain proof, and
+requires artifact validation plus audited fresh re-epoch before admission. If
+all restore paths cannot be controlled this way, the reviewer recommends an
+independent monotonic witness instead. Ownership, bypass prevention, and
+re-epoch policy remain unselected, so this is not a design decision or PASS.
+See [`p001-restore-option-advice.md`](../specs/S30-AMQP-POISON-001/evidence/p001-restore-option-advice.md).
+
 A follow-up provider probe now restores an actual PostgreSQL custom-format
 logical dump and Redis RDB after both stores advance from matching
 ACTIVE/CLEAR epoch 1/generation 10 to PAUSED/RECOVERY_REQUIRED generation 11.

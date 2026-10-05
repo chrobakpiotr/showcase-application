@@ -471,6 +471,13 @@ artifacts are restored. This confirms the comparison cannot detect joint
 rollback; no application or gate service ran, so no permit/admission result
 was tested. It reinforces the need for a selected independent witness or
 restore-ineligible policy; P-001 remains open.
+An independent architecture assessment recommends evaluating the
+restore-ineligible policy first only if deployment tooling can enforce a
+persistent out-of-band inhibit, fence all issuers/consumers, and require
+audited re-epoch on every restore path. If that guarantee is unavailable, the
+assessment recommends an independent monotonic witness. This recommendation
+does not select an option or owner; details are in
+[`p001-restore-option-advice.md`](../evidence/p001-restore-option-advice.md).
 Never reconstruct a missing actor/reason audit from the command tombstone.
 
 Concurrent duplicate rules also remain to be proven: one request owns
