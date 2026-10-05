@@ -120,6 +120,16 @@ insufficient to choose a service-level fence: neither joined the database
 owner/lease check, Redis mutation/fsync, response uncertainty, and permit
 decision in one schedule. P-001 remains open.
 
+The separate [PostgreSQL/Redis crash-cut probe](../evidence/pg-redis-crash-cut-probe.md)
+used actual disposable PostgreSQL 18.6 and Redis 8.10.2 containers. It tested
+one committed sticky-latch → Lua PAUSE/state/result/audit → same-socket
+`WAITAOF` cut before PostgreSQL finalization, then process restart, lease
+takeover, epoch-2 install, rejection of a delayed epoch-1 mutation after
+installation, and permit denial. This closes that narrow provider primitive
+gap. It did not test a gate service holding the PostgreSQL fence, high
+availability, an in-flight old write across epoch installation, or the
+coordinated stale-restore and lost-fsync-response cases; P-001 remains open.
+
 P-002's checked-in
 [`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)
 supports minimal tombstones for preserving the current client-held stable
@@ -132,6 +142,14 @@ WAL/backup deletion, restore rollback, and production stores remain untested.
 The tombstone implementation still needs concurrent same-ID, exact retry,
 changed request after audit deletion, key/backup rotation, and stale-store
 restore tests.
+
+To reduce retained sensitive-data risk, this candidate excludes human reason
+and actor from the tombstone MAC. The reason remains only in one-year
+actor-attributed audit events; every retry can record its own reason and actor
+before returning the stored command result. Tombstone re-keying uses only
+stored immutable command fields and is an explicit rotation requirement. This
+is a privacy recommendation for review, not an accepted retention or key
+lifecycle decision.
 
 P-003's checked-in
 [`p003-permit-state-model.py`](../evidence/p003-permit-state-model.py) is a
@@ -271,20 +289,28 @@ PostgreSQL candidate schema is owned only by the gate service:
   Indefinite retention is one proposed way to preserve stable command-ID retry
   behavior; only the retry behavior is accepted, not this retention horizon or
   tombstone schema.
-- No command state is removed because its audit event expired. Keep old keyed
-  MAC verification keys in the protected KMS for as long as tombstones using
-  them remain; rotate by assigning new key versions to new commands. Key
-  compromise makes the gate unavailable until an audited recovery/rotation
-  migration verifies every record.
+- The recommended candidate is to retain only minimal command tombstones
+  indefinitely; expiring them would make a previously used client-held
+  command ID reusable after audit deletion. Tombstone retention still needs
+  acceptance and a restore/deletion policy.
+- Command MAC input excludes actor identity and human reason. A reason describes
+  the authenticated attempt, not the state transition: the initial command
+  audit and every authenticated retry audit each store that attempt's reason
+  and actor, with the accepted one-year expiry. A retry with the same command
+  ID may supply a new reason, but its immutable action/generation/registration
+  fields must match; it receives a separate audit event and cannot advance the
+  generation again.
 
 Canonical request MAC input is RFC 8785 canonical JSON over API version,
-action, expected latch/gate generations, bounded reason/reason code, and
-registration identity. `HMAC-SHA-256` uses a random KMS-held key; low-entropy
-operator reasons are never stored as an unkeyed digest. Actor identity is not
-part of the MAC because it is audit-only; authorization is revalidated for
-every retry and the audit captures the authenticated actor for the committed
-command. Random command IDs are never derived from order, operation, or user
-identifiers. Logs contain neither command ID nor MAC.
+action, expected latch/gate generations, and registration identity.
+`HMAC-SHA-256` uses a random KMS-held key. Do not store a digest, MAC input, or
+other derived value of free-text reason in the indefinitely retained
+tombstone. Store the immutable command fields needed to recompute the MAC so
+an audited rotation can re-MAC all tombstones before retiring the old KMS key;
+rotation failure keeps the gate inhibited. Authorization is revalidated for
+every retry, and the audit captures that request's validated actor and reason.
+Random command IDs are never derived from order, operation, or user identifiers.
+Logs contain neither command ID nor MAC.
 
 Redis is the authoritative gate state and one-year audit store. A single Lua
 transition script conditionally checks leader epoch, latch/gate generations,

@@ -116,3 +116,12 @@ P-002 retention choice, per-instance identity bridge, and provider-level
 reconciliation/anti-rollback proof remain open. The phrase “accepted retry
 identity” in the candidate was corrected to distinguish accepted stable
 command-ID behavior from the still-unaccepted indefinite tombstone proposal.
+
+The [PostgreSQL/Redis crash-cut probe](pg-redis-crash-cut-probe.md) now adds
+actual-container evidence for one sticky-latch/Redis-AOF crash cut, same-socket
+`WAITAOF`, takeover epoch installation, delayed stale-epoch rejection, and
+permit denial. It closes that narrow provider-primitive gap, but does not
+qualify the live service protocol, HA, or recovery. The candidate also now
+excludes actor and human reason from indefinite tombstone MACs as a privacy
+recommendation; its retention and key-rotation policy still awaits acceptance
+and review.
