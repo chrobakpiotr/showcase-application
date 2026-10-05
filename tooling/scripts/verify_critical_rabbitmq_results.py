@@ -87,12 +87,16 @@ def verify(manifest_path, result_root, start_marker, source_root, source_sha):
         )
 
     actual = []
+    seen_cases = set()
     for testcase in root.findall(".//testcase"):
         name = testcase.attrib.get("name", "").strip()
         if name.endswith("()"):
             name = name[:-2]
         if not name:
             raise SystemExit(f"ERROR: unnamed RabbitMQ testcase in {file}")
+        if name in seen_cases:
+            raise SystemExit(f"ERROR: duplicate RabbitMQ testcase: {name}")
+        seen_cases.add(name)
         if testcase.find("skipped") is not None:
             raise SystemExit(f"ERROR: RabbitMQ testcase skipped: {name}")
         if testcase.find("failure") is not None or testcase.find("error") is not None:

@@ -142,6 +142,14 @@ class VerifyCriticalRabbitResultsTest(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     self.verify()
 
+    def test_duplicate_case_rejects_even_when_suite_count_matches(self):
+        root = self.write_suite()
+        ET.SubElement(root, 'testcase', name=self.cases[0] + '()')
+        root.set('tests', str(len(self.cases) + 1))
+        ET.ElementTree(root).write(self.report, encoding='unicode')
+        with self.assertRaisesRegex(SystemExit, 'duplicate RabbitMQ testcase'):
+            self.verify()
+
     def test_cli_writes_evidence_only_for_clean_results(self):
         output = self.root / 'evidence.json'
         argv = [sys.executable, str(SCRIPTS / 'verify_critical_rabbitmq_results.py'),
