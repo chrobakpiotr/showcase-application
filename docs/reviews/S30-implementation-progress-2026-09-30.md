@@ -2289,3 +2289,38 @@ specification inventory check passed, and `harness.py validate-all docs/specs`
 passed every executable specification. S30-AMQP-POISON-001 remains
 document-only by design and is not treated as executable or implementation-
 authorized. GitHub Actions were not queried or modified in this follow-up.
+
+## S30-06 gate protocol refinement — 2026-10-05g
+
+Independent P-001 review found the out-of-band restore inhibit needed a
+fail-closed release handshake after audited RESUME. The candidate now commits
+RESUME to Redis/PostgreSQL while admission remains inhibited, exposes
+`ACTIVE_BUT_INHIBITED` and `ACTIVATION_PENDING`, and only reports terminal
+ACTIVE after durable release acknowledgement bound to the same restore episode
+and command. Retries reconcile that release without another generation advance.
+The review found this ordering coherent; ownership, anti-rollback, all-path
+enforcement, and provider qualification remain open.
+
+P-002 review checked the audit expiry arithmetic and rejected calling a Redis
+script timestamp a durable-commit time. The candidate uses event creation time
+and a qualified upper-bound clock deadline, which guarantees at least 365 days
+and can extend to `365 days + 2*epsilon`. The candidate now states that this
+tradeoff needs an accepted measured bound, and cannot pass if one year is a
+strict maximum. Backup manifests bind artifact identity/version and parent
+digests and inherit the earliest deadline; anti-rollback and provider deletion
+proof remain open.
+
+P-003 review found that a consumed one-use permit's later expiry must not revoke
+an active handler. The candidate now scopes expiry to unconsumed permits,
+defines permit HTTP outside the admission lock with pending-nonce invalidation
+on PAUSE, requires fresh restore-episode binding, and makes broker record
+non-reuse a provider qualification. The prior lease-based drain model is
+explicitly marked insufficient for this protocol and must be replaced. The
+reviewer found no remaining textual contradiction, while runtime race tests,
+broker fencing, and a numeric throughput envelope remain open.
+
+The detailed review, open blockers, and checks are recorded in
+[`design-grill-2026-10-05g.md`](../specs/S30-AMQP-POISON-001/evidence/design-grill-2026-10-05g.md).
+JSON validation, 13 focused Python tests, spec inventory, all executable SDD
+specs, 34 local Markdown links, and `git diff --check` passed. S30 remains
+document-only with no PASS design gate or source/deployment authorization.

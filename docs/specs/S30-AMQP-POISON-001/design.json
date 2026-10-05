@@ -16,12 +16,15 @@
         "durable monotonic epoch behavior across process restart and provider failover",
         "bounded lock duration and simple operational recovery",
         "lost PostgreSQL finalization and uncertain WAITAOF responses remain inhibited until provider evidence establishes the exact durable result",
-        "coordinated PostgreSQL and Redis restore cannot admit from a mutually consistent stale snapshot"
+        "coordinated PostgreSQL and Redis restore cannot admit from a mutually consistent stale snapshot",
+        "every restore path enters a durable inhibit outside both backup domains before restoring either store",
+        "a trusted current restore-episode ID invalidates pre-restore commands and permits; unavailable or unverified control denies admission",
+        "external inhibit release is idempotently bound to the audited RESUME command; admission remains denied until durable release acknowledgement"
       ],
       "candidates": [
         {
           "id": "A",
-          "approach": "Use a PostgreSQL owner/epoch row lock with server-time lease validation across each bounded Redis mutation or permit issue, install the leader epoch in Redis with a monotonic Lua compare-and-set, and wait for the configured fsync threshold before serving."
+          "approach": "Use a PostgreSQL owner/epoch row lock with server-time lease validation across each bounded Redis mutation or permit issue, install the leader epoch in Redis with a monotonic Lua compare-and-set, bind both stores to the externally verified restore-episode ID, and wait for the configured fsync threshold before serving."
         },
         {
           "id": "B",
@@ -41,12 +44,15 @@
         "recovery remains fail-closed after Redis or PostgreSQL restore",
         "every authenticated duplicate retry is actor-attributed durably before returning the stored result",
         "retrying the same command with a different audit-only reason returns the original state result, advances no generation, and records that retry separately",
-        "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention"
+        "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention",
+        "MAC rotation remains consistent across PostgreSQL, Redis, and every retained backup at every crash cut",
+        "every actor/reason audit copy is securely deleted by its accepted one-year deadline without retaining it to preserve tombstones",
+        "the qualified timestamp error bound, tamper-evident inherited backup deadline, and restore/promotion rollback checks cannot shorten retention"
       ],
       "candidates": [
         {
           "id": "A",
-          "approach": "Keep a minimal PostgreSQL command tombstone indefinitely, separately from the one-year actor/reason audit, containing an opaque random command ID; every non-sensitive canonical MAC input (API version, action, expected latch epoch, expected current Redis generation, barrier generation, and opaque registration ID); keyed request MAC/key ID; and result status/code/generations. Exclude actor, reason, free-text, and personal identifiers. Use resumable re-MAC rotation; prohibit key retirement until authoritative rows and retained backups have been migrated or expired."
+          "approach": "Keep a minimal PostgreSQL command tombstone indefinitely, separately from the one-year actor/reason audit, keyed by (restore_episode_id, command_id) and atomically mirrored by the Redis transition-result tombstone. Retain every non-sensitive canonical MAC input (API version, restore episode ID, action, expected latch epoch, expected current Redis generation, barrier generation, and opaque registration ID), keyed request MAC/key ID, and result status/code/generations. Exclude actor, reason, free-text, and personal identifiers. Use resumable cross-store re-MAC rotation with old/new MAC slots; prohibit key retirement until authoritative rows and retained backups have been migrated or expired."
         },
         {
           "id": "B",
@@ -65,7 +71,11 @@
         "permit binds an unpredictable signed request nonce to its outstanding issuance request",
         "registration and drain proof bind a unique authenticated instance to a broker-observed connection, not caller-supplied identifiers",
         "forged, stale, cross-instance, and replayed permits reject",
-        "lost gate connectivity stops new handler starts by the conservative five-second expiry"
+        "lost gate connectivity stops new handler starts by the conservative five-second expiry",
+        "permit issuance and PAUSE have a tested linearization point; a one-use permit authorizes at most one handler start",
+        "per-handler permit issuance meets a predeclared delivery-rate and instance-count envelope with bounded latency and overload behavior",
+        "late permit responses cannot start handlers after PAUSE; nonce registration, network request, and local consume/increment have tested lock boundaries",
+        "permit temporal claims and fresh restore-episode binding are explicit; broker connection record IDs are provider-qualified as non-reusable or admission fails closed"
       ],
       "candidates": [
         {

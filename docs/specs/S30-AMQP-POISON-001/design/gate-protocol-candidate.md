@@ -31,11 +31,13 @@ independent architecture grill and executable failure-injection evidence.
   application can request PAUSE only; the audited operator tool can request
   RESUME only.
 - A permit is bound to gate leader epoch, active-leader boot epoch, latch epoch,
-  gate generation, application instance ID and incarnation, plus an expiry.
-  Permit expiry stops the instance from starting new deliveries and lowers
-  readiness. Active handlers may finish after expiry; their channel closes
-  after drain. RESUME waits for drain confirmation or explicit operator proof
-  that the Rabbit consumer connection is fenced/closed.
+  gate generation, restore episode, application instance ID and incarnation,
+  plus an expiry. Expiry applies only before its single handler start; expiry
+  after the `jti` was consumed does not revoke that active handler or close its
+  channel. A failed next permit request or global pause moves the instance to
+  draining, lowers readiness, and closes the channel after active handlers
+  finish. RESUME waits for drain confirmation or explicit operator proof that
+  the Rabbit consumer connection is fenced/closed.
 
 ## Candidate deployable and interface ownership
 
@@ -50,8 +52,9 @@ membership/drain registry, and operator authorization. No ecommerce module
 gets direct Redis or latch access.
 
 Before task generation, architecture review must assign the narrow client port
-to an inward module and freeze a versioned API contract for PAUSE, permit
-registration/renewal, drain confirmation, RESUME, status/readiness, and errors.
+to an inward module and freeze a versioned API contract for PAUSE, instance
+registration, per-handler permit issuance, drain confirmation, RESUME,
+status/readiness, and errors.
 The contract must identify authentication audience/roles, command ID and
 generation fields, idempotent retry behavior, and TLS/CA validation. Later
 subsections propose example HTTP paths, payload fields, token claims, schemas,
@@ -291,8 +294,11 @@ broker binding, durable distributed replay protection, or suspend/resume
 timing. The separate
 [`P-003 handler/drain race model`](../evidence/p003-handler-drain-race-model.md)
 now passes 35 deterministic assertions, including an active handler that
-continues past permit expiry while readiness falls and channel close/drain
-acknowledgement wait for completion. The companion [live Rabbit prefetch and
+continues past its permit expiry while readiness falls and channel close/drain
+acknowledgement wait for completion. That model used permit expiry as a local
+drain trigger and therefore does not validate the current one-use-per-handler
+candidate, where consumed-permit expiry has no effect on active work; update or
+replace it before P-003 can pass. The companion [live Rabbit prefetch and
 drain probe](../evidence/p003-rabbit-prefetch-drain-probe.md) observed that
 cancel stops new deliveries but leaves prefetched unacknowledged messages on
 the client until channel close requeues them. These results still do not prove
@@ -343,12 +349,13 @@ verification, and one problem response shape (`type`, `title`, `status`,
 
 | Operation | Caller | Input binding | Success |
 |---|---|---|---|
-| `POST /v1/pauses` | `gate-workload` only | UUID `commandId`, bounded reason code, registered instance/incarnation, observed leader and gate generations | Durable PAUSED result and generation; drain may still be pending |
-| `POST /v1/instances` | `gate-workload` only | Instance ID, fresh incarnation UUID, Rabbit client connection name; subject/deployment derived from token | Registration bound to verified subject and current generations |
-| `POST /v1/instances/{id}/permits` | Registered `gate-workload` | Registration/incarnation and expected generations | Signed one-start permit expiring within five seconds |
-| `POST /v1/instances/{id}/drain-acks` | Matching registered workload | Incarnation, connection identity, pause/recovery generation, leader/latch epochs, zero-active-handler assertion | Idempotent drain acknowledgement |
-| `POST /v1/resumes` | Individual operator with `gate-resume` | UUID command ID, reason (1–1024 characters), exact latch epoch, barrier and expected current Redis generation, per-member Rabbit fencing proofs when needed | `ACTIVE` result only after Redis fsync and exact PostgreSQL latch CAS |
-| `GET /v1/status` | Workload and operator | No raw payload or identifiers | Readiness, state/generation, leader epoch and drain counts only |
+| `POST /v1/pauses` | `gate-workload` only | UUID `commandId`, observed `restoreEpisodeId`, bounded reason code, registered instance/incarnation, observed leader and gate generations | Durable PAUSED result and generation; drain may still be pending |
+| `POST /v1/instances` | `gate-workload` only | Instance ID and fresh incarnation UUID; subject/deployment derived from token; broker connection identity independently observed | Registration bound to verified subject and current generations |
+| `POST /v1/instances/{id}/permits` | Registered `gate-workload` | Registration/incarnation, expected generations, freshly bootstrapped restore episode, unpredictable request nonce | Signed one-start permit expiring within five seconds |
+| `POST /v1/instances/{id}/drain-acks` | Matching registered workload | Incarnation, broker-observed connection record, pause/recovery generation, leader/latch epochs, zero-active-handler assertion | Idempotent drain acknowledgement after channel close is independently observed |
+| `POST /v1/resumes` | Individual operator with `gate-resume` | UUID command ID, observed `restoreEpisodeId`, reason (1–1024 characters), exact latch epoch, barrier and expected current Redis generation, per-member Rabbit fencing proofs when needed | `202 ACTIVATION_PENDING` after durable Redis/PG commit; terminal `ACTIVE` only after external inhibit release acknowledgement |
+| `GET /v1/status` | Workload and operator | No raw payload or business identifiers | Readiness, state/generation, leader epoch, current restore episode, release status, and drain counts |
+| `GET /v1/commands/{commandId}` | Original authorized caller or designated operator | Current restore episode and command UUID; authorization is revalidated | Same command's durable `ACTIVATION_PENDING` or terminal result, including release acknowledgement state |
 
 All command IDs are random UUIDv4 values created once by the initiating
 caller and reused unchanged on retries. An exact retry returns the original
@@ -361,6 +368,16 @@ reason, payload, and internal exceptions. Retryable failures use stable
 use `409 GENERATION_CONFLICT`; a known unresolved result uses `202` with only
 the command ID and status URL. These are candidate semantics for OpenAPI
 contract tests, not a released API.
+
+`restoreEpisodeId` is echoed from a fresh authenticated bootstrap and is only a
+precondition: the caller cannot set or advance the authoritative episode. The
+gate compares it with the deployment/DR control-plane record on every command,
+then stores the service-read current value in both PostgreSQL and Redis. A
+missing or stale value is rejected. Retry identity is the immutable pair
+`(restoreEpisodeId, commandId)`; a pre-restore request cannot be rebound to a
+post-restore episode. The operator tool must create a fresh command UUID for
+the post-restore RESUME. The external control's history retention and proof
+against malicious UUID reuse remain part of its unselected ownership contract.
 
 The candidate Keycloak token contract is exact local issuer
 `https://<configured-host>/realms/ecommerce`, `aud=gate-service`,
@@ -391,19 +408,55 @@ credentials and caller-selected connection names remain rejected.
 
 Each permit uses asymmetric RS256 signing (no shared verifier/minting secret),
 with `iss=gate-service`, `aud=amqp-admission`, `sub` equal to the verified
-workload subject, deployment, instance ID, incarnation UUID, Rabbit connection
-name, leader epoch, boot epoch, latch epoch, gate generation, registration ID,
-one-use `jti`, the exact unpredictable `request_nonce`, `iat`, and `exp`. The
-nonce is covered by the signature, is unique per permit request, and is
+workload subject, deployment, instance ID, incarnation UUID, broker-observed
+Rabbit connection record (broker node and opaque connection incarnation,
+authenticated principal, and vhost), leader epoch, boot epoch, latch epoch,
+gate generation, restore-episode ID, registration ID, one-use `jti`, the exact
+unpredictable `request_nonce`, `iat`, and `exp`. `iat` is the not-before claim;
+there is no separate `nbf`. The gate signs only after checking trusted UTC
+against its configured error bound, and the instance requires `iat` to be no
+later than fresh bootstrap time plus that bound. The local monotonic deadline
+below independently enforces maximum lifetime, so wall-clock validation cannot
+extend it. A client-supplied connection
+name is a lookup hint only and is never an authorization identity. Reconnect
+produces a different broker connection record and invalidates permits for the
+prior connection. The record ID and incarnation must come from a broker API
+whose uniqueness scope and non-reuse behavior across reconnect, node restart,
+failover, and management-cache staleness are documented and provider-tested.
+If the broker cannot supply and fence such an identity without ID-reuse or
+stale-observation ambiguity, this candidate cannot authorize admission; use a
+different provider-qualified identity mechanism or remain inhibited. The nonce
+is covered by the signature, is unique per permit request, and is
 compared with the outstanding request under the handler-start lock. A response
 for another, expired, or already-consumed request is rejected. The gate private
 key is available only to the active leader through the deployment's protected
 key mount/KMS integration; standbys cannot sign. The verifier trusts a key only
-after bootstrapping the current leader epoch over the authenticated API, binds
-the subject and connection to its own registration, and atomically consumes
-the `jti` in the local handler-start critical section. A new process always
+after bootstrapping the current leader and restore-episode IDs over the
+authenticated API, compares each permit to that fresh trusted bootstrap, binds
+the subject and broker-observed connection to its own registration, and
+atomically consumes the `jti` in the local handler-start critical section. A
+new process always
 generates a new incarnation and starts unready. Its per-start permit, expiry
 check, and active-handler increment share one lock with pause/drain state.
+
+The potentially slow permit HTTP request occurs outside the local admission
+lock. Before making it, the instance registers a unique pending nonce and
+request-start monotonic timestamp under that lock, then releases the lock. On
+response, it reacquires the lock and atomically checks that the instance is
+still ACTIVE, the incarnation/connection/generations still match, the pending
+nonce is outstanding, the deadline has not passed, and the `jti` is unused;
+only then does it consume the permit and increment active handlers. Local PAUSE
+or drain sets the state to DRAINING and invalidates all pending requests under
+the same lock. A late response cannot start work. Required race tests block the
+HTTP response, apply PAUSE, then release the response and assert zero handler
+starts; they also race response admission against PAUSE and prove exactly one
+linearization order.
+
+The permit endpoint compares the caller's fresh restore-episode bootstrap to
+the current authenticated deployment/DR episode on every issuance. Each request
+binds that episode explicitly. Missing, stale, or unavailable episode state
+fails closed, and a process returning from restore must bootstrap again before
+requesting a permit.
 
 The instance container must run on Linux and use a monotonic clock that
 advances through host suspend (`CLOCK_BOOTTIME`). If that clock is unavailable,
@@ -424,15 +477,34 @@ and prove no start occurs after the original five-second bound.
 PostgreSQL candidate schema is owned only by the gate service:
 
 - `gate_control` is one locked row with `latch_state`, monotonic
-  `latch_epoch`, active leader ID/epoch, boot epoch, lease expiry, barrier
-  generation, and the last Redis generation high-water mark.
-- `gate_commands` has a unique random `command_id`, action, keyed request MAC
-  and key version, `PREPARED|COMMITTED|REJECTED` status, latch epoch, expected
+  `latch_epoch`, authoritative `restore_episode_id`, active leader ID/epoch,
+  boot epoch, lease expiry, barrier generation, and the last Redis generation
+  high-water mark.
+- `gate_commands` has an immutable `(restore_episode_id, command_id)` key,
+  action, current keyed request MAC/key version, optional next-key MAC/version
+  during rotation, `PREPARED|COMMITTED|REJECTED` status, latch epoch, expected
   and resulting gate generations, bounded terminal result code, and timestamps.
   It stores no actor, operator reason, raw request, or message payload.
   Indefinite retention is one proposed way to preserve stable command-ID retry
   behavior; only the retry behavior is accepted, not this retention horizon or
   tombstone schema.
+- PostgreSQL is the command-claim and long-lived idempotency authority;
+  Redis is the atomic transition, gate-state, and actor-audit authority. A
+  PostgreSQL `COMMITTED` or `REJECTED` row is never sufficient by itself to
+  return a successful retry: the gate must also resolve the matching Redis
+  command result and required durable transition/audit facts. If PostgreSQL is
+  `PREPARED`, recovery first looks up the exact `(restore_episode_id,
+  command_id)`, MAC, action, epochs, and generations in Redis. A matching durable Redis result
+  may finalize PostgreSQL without another transition. If no Redis result is
+  proven and Redis proves the expected pre-state, the exact same command may
+  be retried idempotently only when PostgreSQL is still `PREPARED`, the
+  out-of-band restore episode and current leader are verified, Redis has
+  installed that leader epoch, the provider confirms the Redis history is not
+  stale relative to PostgreSQL's durable high-water mark, and Redis atomically
+  proves the exact expected pre-state. A missing PostgreSQL claim, terminal
+  PostgreSQL/Redis disagreement, stale or untrusted Redis view, or uncertain
+  durability never authorizes re-execution or success; it leaves the gate
+  inhibited for operator recovery.
 - The recommended candidate is to retain only minimal command tombstones
   indefinitely; expiring them would make a previously used client-held
   command ID reusable after audit deletion. Tombstone retention still needs
@@ -442,25 +514,44 @@ PostgreSQL candidate schema is owned only by the gate service:
   audit and every authenticated retry audit each store that attempt's reason
   and actor, with the accepted one-year expiry. A retry with the same command
   ID may supply a new reason, but its immutable action/generation/registration
-  fields (API version, action, expected latch epoch, expected current Redis
-  generation, barrier generation, and registration ID where applicable) must
+  fields (API version, restore-episode ID, action, expected latch epoch,
+  expected current Redis generation, barrier generation, and registration ID where applicable) must
   match; it receives a separate audit event and cannot advance the generation
   again.
 
 Canonical request MAC input is RFC 8785 canonical JSON over `api_version`,
-`action`, `expected_latch_epoch`, `expected_current_redis_generation`,
-`barrier_generation`, and opaque `registration_id` where applicable.
+`action`, `restore_episode_id`, `expected_latch_epoch`,
+`expected_current_redis_generation`, `barrier_generation`, and opaque
+`registration_id` where applicable.
 `HMAC-SHA-256` uses a random KMS-held key. Do not store a digest, MAC input, or
 other derived value of free-text reason in the indefinitely retained
 tombstone. Store the immutable command fields needed to recompute the MAC so
 an audited rotation can re-MAC all tombstones before retiring the old KMS key.
 The rotation candidate keeps old and new keys available during a resumable,
-transactional batch migration, records a key version on each row, and retires
-the old key only after an authoritative scan proves no live row or retained
-backup requires it. A failed/incomplete rotation keeps the gate inhibited and
-both keys available; crash/restart behavior needs a prototype. Authorization is
+fenced batch migration, records current and next key versions and MACs where
+needed, and retires the old key only after an authoritative scan proves no live
+row or retained backup requires it. A failed/incomplete rotation keeps the
+gate inhibited and both keys available; crash/restart behavior needs a
+prototype. Authorization is
 revalidated for every retry, and the audit captures that request's validated
 actor and reason.
+
+MAC-key rotation spans both authoritative stores and is proposed as a fenced,
+resumable two-phase migration. A durable key-state row declares `OLD_ONLY`,
+`DUAL_WRITE`, `MIGRATING`, or `NEW_ONLY`; every new command during rotation
+writes verifiable old- and new-key MACs to both stores. A migration worker
+holds the gate-control row fence per command, verifies immutable fields and
+both current MACs, then writes the new key version to PostgreSQL and Redis with
+both old/new MACs still accepted. A crash after either half leaves the gate
+inhibited and resumes from the durable per-command migration state; neither
+store may drop the old MAC until both report the new version. A second fenced
+pass removes old MACs only after every live row is migrated. Old key retirement
+additionally waits for an authoritative inventory proving no retained backup
+or export needs it. Any uncertain row, store, backup inventory, or KMS state
+keeps both keys and admission inhibited. This is a proposal, not a proven
+cross-store protocol; if atomic recovery cannot be demonstrated, use a stable
+non-rotated verifier key with an explicitly accepted retention/deletion policy
+instead of claiming safe rotation.
 The registration field in this MAC is an opaque random registration ID, never
 a subject, username, connection name, or other personal identifier. Random
 command and registration IDs are never derived from order, operation, or user
@@ -469,10 +560,23 @@ with only a different reason returns the original result, does not advance the
 generation, and writes a separate actor/reason retry audit event; verify this
 under concurrent retries and audit-store failure.
 
-Redis is the authoritative gate state and one-year audit store. A single Lua
+Redis is the authoritative gate state and one-year audit store. Its state
+record contains the active `restore_episode_id` and changes it only after
+comparing against the current deployment/DR control-plane episode. A single Lua
 transition script conditionally checks leader epoch, latch/gate generations,
-command ID/MAC, state, and barrier membership; it then updates state, result
-tombstone, and audit record atomically. `WAITAOF` runs on the same connection
+restore episode, `(restore_episode_id, command_id)`, current/overlap MACs, state,
+and barrier membership; it then updates state, result tombstone, and audit
+record atomically. The Redis tombstone stores both current and next MAC/key
+versions during rotation, matching the PostgreSQL command row. On Redis 7 or
+later with effects-based script replication, Lua obtains the audit event's UTC
+creation timestamp with `TIME` inside the same atomic transition; this is not
+the later `WAITAOF` durability acknowledgement time. The recorded write effect
+is replicated with that timestamp. Redis documents that effects-based
+replication permits `TIME` inside scripts, while verbatim script replication
+does not ([Redis scripting documentation](https://redis.io/docs/latest/develop/programmability/eval-intro/)). The supported-version/effect mode must be asserted by conformance.
+The host clock still needs a declared bounded absolute UTC error and must fail
+closed after clock step, holdover expiry, or lost health; the bound and time-
+sync provider are not yet selected. `WAITAOF` runs on the same connection
 after the script. Configure local fsync count 1 in all environments and
 replica fsync count 0 for a single-node dev broker; production requires at
 least one replica fsync before success. Unsupported command, timeout, or
@@ -481,6 +585,44 @@ State, result tombstones, and audit records are durable. Actor/reason audit
 records expire after one year; command tombstones do not. Redis AOF, RDB,
 replica, WAL/PITR, snapshot, and export deletion must meet the distinct audit
 and raw-message deadlines.
+
+Redis key expiry alone does not meet the one-year secure-deletion promise:
+actor-attributed audit records can remain in AOF history, replicas, snapshots,
+and exports after the live key expires. Before implementation, the selected
+Redis/KMS/backup provider must demonstrate event-age deletion for every copy,
+including rewrite and old-segment disposal for AOF, replica persistence,
+PostgreSQL WAL/PITR and failover copies, and snapshot/export expiry by each
+event's original deletion deadline, plus restore rejection of an expired copy.
+For mixed full-store snapshots containing both audit events and indefinite
+tombstones, rewrite the artifact to remove expired audit material or delete
+the whole artifact by the earliest contained audit deletion deadline; never
+retain audit fields to preserve tombstones. Audit deletion and tombstone
+re-keying must be coordinated so the one-year audit fields are not retained to
+preserve idempotency and a retired MAC key is not still needed by a retained
+tombstone backup. The accepted horizon is 365 days from atomic audit-event
+creation, not from the later `WAITAOF` acknowledgement. A qualified time source
+must provide a monitored UTC error bound `epsilon`; use the event timestamp's
+upper bound (`Redis TIME + epsilon`) plus 365 days as the deletion deadline.
+This may conservatively retain data by at most twice the qualified error bound,
+but never adds a fixed grace period. The primary event remains available until
+that deadline and becomes inaccessible at it. Clock rollback, promotion to a
+server with an unqualified offset, or inability to prove the timestamp interval
+blocks audit access, restore, and admission. Each backup/export carries a
+tamper-evident signed manifest with the earliest enclosed audit deadline,
+artifact identity/version, and parent-manifest digests. A current monotonic
+inventory outside the backup domain rejects replay of an older valid manifest.
+Copies, derived exports, restores, and clones must preserve and verify that
+deadline transitively. Rewrite or delete each artifact by its inherited
+deadline. The conservative upper-bound formula guarantees at least 365 days
+from event creation and can retain data up to `365 days + 2*epsilon`; therefore
+the actual bounded `epsilon` and its resulting maximum over-retention must be
+qualified and accepted before implementation. If the one-year policy is a
+strict maximum with no clock-uncertainty allowance, this candidate is not
+qualified and needs a time/deletion authority that can prove the exact policy
+deadline. The separate one-hour grace accepted for quarantine queue-TTL
+verification does not apply to gate audit. Timestamp provider, error bound,
+manifest signing/verification and anti-rollback, backup inheritance, and
+key-destruction execution still need independent review and conformance proof.
 
 Every authenticated retry, including an exact same-ID retry, requires fresh
 authorization and creates a separate actor-attributed retry audit event before
@@ -567,6 +709,32 @@ does not select an option or owner; details are in
 [`p001-restore-option-advice.md`](../evidence/p001-restore-option-advice.md).
 Never reconstruct a missing actor/reason audit from the command tombstone.
 
+The next-grill recommendation is to make every restore episode a new command
+and admission namespace. Before changing either authoritative store, the
+deployment/DR control plane must durably create an unpredictable
+`restore_episode_id` in a persistent inhibit record outside both backup sets,
+stop/fence the active permit issuer, and close or fence all registered Rabbit
+connections. The restore controller must attach that episode ID to the
+restore record and the gate must verify it before it installs any epoch or
+issues any permit. Every permit and command request/result is bound to the
+current restore episode; pre-restore permits and outstanding command requests
+are rejected even if their PG/Redis rows reappear together from an old backup.
+The external inhibit remains set until artifact provenance and both restored
+stores are reconciled, a fresh epoch/generation is durably installed, and an
+individually authenticated operator completes the normal audited RESUME. The
+gate may commit the audited ACTIVE result while the external inhibit remains
+set, but admission/readiness stay inhibited until a separate idempotent release
+acknowledgement for that exact restore episode and RESUME command is durably
+confirmed by the control plane. A lost or uncertain release response keeps
+permits denied; retry reconciles the same release command and must not advance
+the gate generation. Any missing episode record, unlisted restore path, failed
+fence, or mismatch keeps the inhibit set. This is a recommendation only: no
+accepted artifact assigns
+the deployment/DR control-plane owner or proves that all manual, provider,
+PITR, clone, promotion, partial, and emergency restore paths are forced through
+it. If a path can bypass the control, an independent monotonic witness is
+required instead.
+
 ### Candidate preferences for the next design grill
 
 These are explicit recommendations to narrow the open alternatives, not
@@ -602,7 +770,8 @@ accepted contracts or a design-gate PASS:
   no accepted retry-expiry window, so retain a minimal tombstone indefinitely
   to prevent a late same-ID command from becoming new. Exclude actor and
   operator reason; retain an opaque command ID, every non-sensitive input to
-  the canonical request MAC (API version, action, expected latch epoch,
+  the canonical request MAC (API version, action, restore episode ID, expected
+  latch epoch,
   expected current Redis generation, barrier generation, and opaque
   registration ID where applicable), the keyed digest and key ID, plus
   terminal result code/status and resulting latch/gate generations. These
@@ -616,15 +785,36 @@ accepted contracts or a design-gate PASS:
   needs privacy, key-custody, backup, deletion, and provider recovery review;
   command IDs may remain linkable and must stay out of unnecessary logs/metrics.
 - **P-003 permit: candidate A (signed, one-start permit).** This best matches
-  the accepted five-second maximum while allowing bounded gate-service
-  outages. Bind the permit to verified subject and deployment, unique instance
+  the predeclared replay-rejection criterion and accepted five-second maximum.
+  Bind the permit to verified subject and deployment, unique instance
   incarnation and registration, broker-observed connection, current
-  leader/latch/gate epochs, a signed unpredictable request nonce and one-use
-  `jti`, issuer, audience, algorithm, and expiry; atomically consume replay
-  state under the handler-start lock. New issuance or starts without a
-  currently verifiable permit/key are denied; a previously verified permit
-  can authorize only until its conservative five-second deadline. The existing
-  Keycloak probe does not qualify this runtime.
+  leader/latch/gate and restore-episode epochs, a signed unpredictable request
+  nonce and one-use `jti`, issuer, audience, authorized client, role, algorithm,
+  and expiry; atomically consume replay state under the handler-start lock.
+  New issuance or starts without a currently verifiable permit/key are denied;
+  a previously verified permit authorizes exactly one start and only until its
+  conservative five-second deadline. This requires a successful permit issue
+  for each handler start, including prefetched messages; no batch permit reuse
+  is allowed. The design therefore needs a predeclared delivery-rate and
+  instance-count envelope, plus measured gate request capacity, serialization
+  time, p95/p99 latency, and overload behavior under that envelope before
+  implementation. The accepted materials do not currently specify this load
+  envelope. If that
+  cost is unacceptable, a reusable short lease would relax the predeclared
+  replay-rejection criterion and requires a revised design decision and fresh
+  grill. The existing Keycloak probe does not qualify this runtime.
+
+The independent security follow-up adds these mandatory negative cases to the
+P-003 test plan: deny RESUME tokens from service-account subjects even if a
+role is mis-mapped; reject shared or rotated instance credentials that do not
+match the exact broker-observed principal; invalidate permits on boot identity,
+clock discontinuity, or suspend uncertainty; fail closed for unknown signing
+key IDs and prove old-key retirement behavior; and serialize permit issue,
+PAUSE, and handler admission around their linearization point. The Keycloak
+probe's synthetic direct-password operator grant proves none of the human
+authentication/MFA policy. Unique workload-client issuance, Rabbit-principal
+mapping, secret isolation/rotation/revocation, and exact-connection fencing
+remain deployment responsibilities to qualify.
 
 Per-instance identity and Rabbit fencing remain separate decisions: candidate
 deployment provisioning would issue one non-transferable workload identity and
@@ -647,16 +837,19 @@ requests reject, and process death cannot strand an unresolvable
 timeouts below are candidates, not executable guarantees.
 
 Redis registration and PAUSE share one Lua serialization point. If registration
-wins while ACTIVE, the exact member tuple and Rabbit `connection_name` enter
-the PAUSE barrier set; if PAUSE wins, registration and permits are rejected.
+wins while ACTIVE, the exact member tuple and broker-observed Rabbit connection
+record enter the PAUSE barrier set; if PAUSE wins, registration and permits
+are rejected.
 PAUSE snapshots all registrations in the same atomic script that advances the
-generation. Renewals stop at PAUSED. Drain acknowledgements are unique on
-`(pause_generation, registration_id, connection_name)` and require zero active
-handlers plus closed consumer channel. Reconnect creates a new incarnation and
+generation. Permit issuance stops at PAUSED. Drain acknowledgements are unique
+on `(pause_generation, registration_id, broker_connection_record_id)` and
+require zero active handlers plus a closed consumer channel. Reconnect creates
+a new incarnation and
 connection identity and cannot satisfy the old barrier. An expired member
 stays in the set until the operator tool verifies its exact broker/vhost/
-connection name is absent after an explicit close/fence; Rabbit management
-unavailability or ambiguous identity blocks RESUME. The operator proof, actor,
+broker connection record is absent after an explicit close/fence; Rabbit
+management unavailability or ambiguous identity blocks RESUME. The operator
+proof, actor,
 reason, and verification result are stored in the durable audit before the
 barrier is cleared.
 
@@ -701,9 +894,14 @@ records a durable read/export audit event before returning any body/headers,
 and logs/traces/metrics/errors are tested with sentinel payloads and headers.
 Audit failure returns no raw message.
 
-The operator tool queries the exact broker/vhost/connection name for a member,
-issues a close/fence only when the identity matches the registered connection,
-and polls until that exact connection is absent before recording fencing proof.
+The operator tool may use the client-settable connection name only as a lookup
+hint. It revalidates the
+broker-observed connection record ID/incarnation, authenticated principal,
+broker node, and vhost against the registered member, requests close/fence for
+that exact record, then polls until the same record ID/incarnation is absent
+before recording fencing proof. A same-name reconnect cannot satisfy or block
+proof for the old record; ID reuse and inspect/close races must be qualified
+on every supported Rabbit version.
 This requires a tool-only broker identity and management API capability that
 can inspect and close only the intended connection while being unable to
 consume, get, export, or otherwise read quarantine messages. The deployment
@@ -754,28 +952,31 @@ rejected. A standby neither advances these epochs nor changes the latch.
 
 The application accepts permits only from the configured gate-service issuer,
 for the expected audience and registered instance incarnation. The proposal
-uses a signed permit with a key advertised for the current active-leader epoch
-over the authenticated gate-service channel; an opaque online-check option is
-also retained for comparison. Startup obtains the current leader epoch and
-trusted key set; it does not trust a cached epoch as current. Push revocation
-is best effort. Offline validation uses a local monotonic deadline derived
-from the permit lifetime minus a configured clock-skew allowance. Each local
-handler-start admission and active-handler increment is atomic with local
-revoke/expiry state, so drain cannot observe zero between validation and
-handler registration. The verifier rejects an unrecognized leader/boot epoch,
-wrong audience, invalid signature/algorithm, wrong workload subject,
-cross-instance replay, expired/not-yet-valid permit, and stale incarnation.
-Permit expiry and process suspend/resume behavior must
-be tested; uncertainty stops new handler starts.
+uses a signed one-start permit with a key advertised for the current active-
+leader and restore episode over the authenticated gate-service channel.
+Startup obtains the current leader epoch, restore episode, and trusted key set;
+it does not trust a cached value as current. Push revocation is best effort.
+Offline validation is limited to one start covered by a permit whose request
+began before its conservative local deadline. Every handler start requires a
+fresh permit issuance; if the gate cannot issue one, that delivery does not
+start. Each local handler-start admission, one-use `jti` consumption, and
+active-handler increment is atomic with local pause/drain state, so drain
+cannot observe zero between validation and handler registration. The verifier
+rejects an unrecognized leader/boot/restore epoch, wrong audience, invalid
+signature/algorithm, wrong workload subject, broker connection mismatch,
+cross-instance or repeated-`jti` replay, expired/not-yet-valid permit, and stale
+incarnation. Permit expiry and process suspend/resume behavior must be tested;
+uncertainty stops new handler starts.
 
 PAUSE response semantics are split: successful PAUSE means the durable latch
 and Redis PAUSED generation/audit are committed and no new permits will be
 issued. The distributed drain barrier is a separate state of that same
 generation; it may complete later because active handlers may finish without a
-fixed deadline. A partitioned instance may begin work using an already issued
-permit only until its conservative expiry (no more than five seconds after the
-last confirmed issuance); revoke, local expiry, and the local admission lock
-prevent starts afterward. RESUME remains blocked until the barrier is complete
+fixed deadline. A partitioned instance may begin work only with an already-issued,
+still-unconsumed permit whose issuance request began before its conservative
+expiry (no more than five seconds after that request began); revoke, local
+expiry, and the local admission lock prevent other starts. RESUME remains
+blocked until the barrier is complete
 or the exact connection is externally fenced.
 
 ### PAUSE
@@ -791,7 +992,7 @@ or the exact connection is externally fenced.
    and audit record, conditional on expected generation and the current fenced
    leader epoch. On the same Redis connection, wait for and validate the
    configured `WAITAOF` fsync counts.
-4. On durable success, stop issuing/renewing permits and notify registered
+4. On durable success, stop issuing permits and notify registered
    instances. Each instance stops new delivery, lowers readiness, drains
    handlers, closes its consumer channel, then records its generation-bound
    drain confirmation. The held and prefetched-not-started deliveries are
@@ -858,14 +1059,22 @@ the formal architecture grill or executable boundary evidence.
 4. Clear PostgreSQL only with a durable compare-and-set over the exact latch
    epoch, `resulting_active_generation`, and same RESUME command. This CAS
    proves the ACTIVE generation produced by this command, not its stale input
-   generation. Return success
-   only after this clear is confirmed. If Redis committed but latch clear is
-   uncertain, return `ACTIVATION_PENDING`; same-ID retry resolves the Redis
-   command without another generation advance and retries the exact latch CAS.
-5. Only after both stores are confirmed may the service release sticky inhibit,
-   register instances on the new generation, and issue fresh permits. Consumer
-   channels open only with a valid permit matching the current leader, boot,
-   latch, gate, and instance-incarnation epochs.
+   generation. If Redis committed but latch clear is uncertain, return
+   `202 ACTIVATION_PENDING`; same-ID retry resolves the Redis command without
+   another generation advance and retries the exact latch CAS. Even after this
+   CAS, the external inhibit still blocks admission, so the command is not yet
+   reported as terminal ACTIVE.
+5. Only after both stores are confirmed does the service request release of
+   the external sticky inhibit, bound to the current restore episode and RESUME
+   command ID. A durable release acknowledgement is idempotently reconciled
+   after timeout or restart. Until the acknowledgement is verified, readiness
+   stays down and no permits are issued, even though the two stores record the
+   audited ACTIVE result. Status reports `ACTIVE_BUT_INHIBITED` and the command
+   remains `ACTIVATION_PENDING`. Only after confirmed release does the command
+   become terminal ACTIVE; instances then register on the new generation and
+   receive fresh permits. Consumer channels open only with
+   a valid permit matching the current leader, boot, latch, gate, restore, and
+   instance-incarnation epochs.
 
 Any absent, malformed, unavailable, stale, or uncertain value at either store
 blocks admission. All Redis mutations reject a leader epoch below the greatest
@@ -883,18 +1092,26 @@ to a verified monotonic epoch and generation before an audited RESUME.
 Instances validate a permit immediately before dispatching each handler, not
 only when opening the consumer. On revoke, permit mismatch, or expiry, the
 instance cancels delivery and does not start prefetched work; it lowers
-readiness and drains handlers already started. Use a monotonic local deadline
-derived from the signed issue/expiry interval, subtract a configured maximum
-clock-skew allowance, and stop early when that allowance cannot be proven.
-Permit issuer and instances must use a reviewed signature/key-rotation protocol;
-the verifier rejects an unrecognized leader epoch and boot epoch. The permit
-signature and epoch checks must remain usable during gate-service unavailability
-only until the conservative local deadline, never beyond five seconds from the
-last confirmed issuance/renewal.
+readiness and drains handlers already started. Use the canonical `CLOCK_BOOTTIME`
+deadline `request_started_boottime + min(5s, exp-iat) - 100ms`; the signed
+`iat`/`exp` fields establish token shape and maximum lifetime, while elapsed
+validity is bounded from the pre-request monotonic sample. Permit issuer and
+instances must use a reviewed signature/key-rotation protocol; the verifier
+rejects an unrecognized leader, boot, or restore episode. Permit issuance and
+PAUSE must serialize at the fenced active-leader row: if
+PAUSE wins, no permit can be minted from the previous ACTIVE generation; if a
+permit issuance wins, it can authorize only its single nonce-bound handler
+start before the original request deadline, at most five seconds after that
+request began. A gate outage before permit issuance means the delivery does not
+start. An already-issued response may be delayed in transit, but its deadline
+is measured from request start and it cannot be reused after one start.
 
 An application member is the tuple `(deployment, instance_id, incarnation)`
 and registers the exact Rabbit consumer connection identity and admitted gate
-generation/leader epoch. Reconnect creates a new connection identity and must
+generation/leader/restore epochs. The client-supplied connection name is only
+a lookup hint; the member identity uses the broker-observed record ID,
+incarnation, node, principal, and vhost. Reconnect creates a new connection
+record and must
 obtain a current permit before dispatch. Drain acknowledgement binds that
 member tuple, connection identity, source/admitted generation, target
 pause/recovery generation, leader epoch, and latch epoch, and is accepted only
@@ -916,7 +1133,7 @@ generation.
 | Latch committed; Redis unavailable before PAUSE commit | Latch remains `RECOVERY_REQUIRED`; no Redis state/audit claim | Fail PAUSE response; telemetry; sticky inhibit | Same command ID resolves/retries against expected Redis generation |
 | Redis PAUSE commit or fsync uncertain | Latch remains set; Redis result unknown | No permits; no success response | Same command ID reconciles durable Redis command record and fsync state |
 | PAUSE durable in both stores; notification lost | PAUSED generation and latch retained | Instances cease new work by revoke or permit expiry (maximum five seconds); readiness down; drain thereafter | Full drain/fencing barrier and audited RESUME |
-| Instance misses renewal / gate becomes unreachable | Existing permit only until its signed expiry | Stop new deliveries and lower readiness by expiry; drain active handlers and close channel | Fresh permit after matching ACTIVE generation and latch CLEAR |
+| Gate unavailable before next handler permit | No permit is issued for that start; an already issued but unconsumed permit can cover only its nonce-bound start before the original request deadline | Do not start that delivery; readiness goes down, active handlers finish, then channel closes | Fresh permit after gate availability and matching ACTIVE generation, latch CLEAR, current restore episode, and instance registration |
 | Active leader loss/restart/takeover | Durable leader and recovery epochs are advanced; latch becomes `RECOVERY_REQUIRED`, even from `CLEAR` | Replacement cannot issue permits until Redis has durably installed the new epoch and sticky inhibit is established | Audited RESUME against the recorded barrier generation plus current-member drain/fencing |
 | Standby restart | No gate state change | No effect on active leader or consumers | None |
 | Redis failover may have lost acknowledged history | PostgreSQL latch may be `RECOVERY_REQUIRED`; Redis history is not trusted | Deny permits and RESUME; do not infer ACTIVE from stale Redis | Provider reconciliation proves authoritative epoch/generation/audit or operator recovery establishes new audited generation |
@@ -924,7 +1141,7 @@ generation.
 | RESUME Redis durable; latch clear unavailable/uncertain | Redis ACTIVE/audit may exist at the `resulting_active_generation`, latch remains non-CLEAR | Return `ACTIVATION_PENDING`; keep all instances inhibited | Same command ID and exact epoch/resulting generation completes latch CAS |
 | Delayed RESUME races with newer PAUSE | New latch epoch and/or gate generation wins | Old CAS matches zero rows; remain inhibited | New audited RESUME for current epochs |
 | Application drain timeout or unresponsive instance | No drain confirmation is inferred from timeout/lease expiry | Keep RESUME blocked | Drain confirmation or audited operator Rabbit connection fencing proof |
-| Five-second permit expires while handler runs | Permit no longer authorizes starting work | Readiness down and no new deliveries; active handler may finish; channel closes after drain | Barrier completes; fresh permit only after operator RESUME when required |
+| Unconsumed five-second permit expires | That one permit can no longer authorize a handler start | Reject the start; readiness reflects next-issuance/gate health; active handlers continue and channel stays open unless the instance is otherwise draining | Fresh per-handler permit while current gate state is ACTIVE |
 
 ## Required prototype and grill evidence
 
