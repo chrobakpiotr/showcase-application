@@ -1,3 +1,5 @@
+> **Superseded on 2026-10-05:** the independent design grill found that the accepted spec requires renewable short leases which may authorize multiple handler starts. This one-use-per-handler model does not validate the current candidate. See [the renewable-lease model](p003-renewable-lease-model.py) and the current [design grill](design-grill-2026-10-05g.md).
+
 # P-003 one-use permit admission model — 2026-10-05
 
 The stdlib-only model in [`p003-one-use-admission-model.py`](p003-one-use-admission-model.py)

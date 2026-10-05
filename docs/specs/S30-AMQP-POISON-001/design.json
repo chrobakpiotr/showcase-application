@@ -71,21 +71,21 @@
         "permit binds verified subject to deployment, instance incarnation, leader, latch, and gate generations",
         "permit binds an unpredictable signed request nonce to its outstanding issuance request",
         "registration and drain proof bind a unique authenticated instance to a broker-observed connection, not caller-supplied identifiers",
-        "forged, stale, cross-instance, and replayed permits reject",
+        "forged, stale, cross-instance, expired, and replayed permit responses reject; a currently installed valid lease may authorize multiple handler starts until expiry",
         "lost gate connectivity stops new handler starts by the conservative five-second expiry",
-        "permit issuance and PAUSE have a tested linearization point; a one-use permit authorizes at most one handler start",
-        "per-handler permit issuance meets a predeclared delivery-rate and instance-count envelope with bounded latency and overload behavior",
-        "late permit responses cannot start handlers after PAUSE; nonce registration, network request, and local consume/increment have tested lock boundaries",
+        "renewable lease issuance, lease replacement, and PAUSE have a tested linearization point; PAUSE blocks renewal and revoke stops new starts",
+        "per-instance lease renewal meets a predeclared replica-count and renewal-rate envelope with bounded latency and overload behavior",
+        "late lease responses cannot install a permit after PAUSE; nonce registration, network request, and local install/start increment have tested lock boundaries",
         "permit temporal claims and fresh restore-episode binding are explicit; broker connection record IDs are provider-qualified as non-reusable or admission fails closed"
       ],
       "candidates": [
         {
           "id": "A",
-          "approach": "Use a gate-issued signed short-lived permit with an epoch-scoped signing key, authenticated workload identity binding, strict issuer/audience/algorithm/expiry checks, and current leader-epoch bootstrap before admission."
+          "approach": "Use a gate-issued signed renewable short-lived lease with an epoch-scoped signing key and authenticated workload identity binding. A currently installed valid lease may authorize multiple handler starts until its conservative expiry, at most five seconds after the renewal request began. Enforce strict issuer/audience/algorithm/expiry checks and current leader-epoch bootstrap before admission."
         },
         {
           "id": "B",
-          "approach": "Use an opaque one-use permit bound to an authenticated instance registration and require an online gate-service admission check at each handler start, failing closed whenever the gate service cannot be reached."
+          "approach": "Use an opaque permit reference bound to an authenticated instance registration and require an online gate-service admission check at each handler start; this stops earlier than the renewable-lease candidate during gate-service loss and must be evaluated against the accepted five-second availability behavior."
         }
       ]
     }

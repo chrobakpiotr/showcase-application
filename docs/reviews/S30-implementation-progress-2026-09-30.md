@@ -2325,7 +2325,9 @@ JSON validation, 13 focused Python tests, spec inventory, all executable SDD
 specs, 34 local Markdown links, and `git diff --check` passed. S30 remains
 document-only with no PASS design gate or source/deployment authorization.
 
-## S30-06 P-003 one-use permit admission model — 2026-10-05
+## S30-06 P-003 one-use permit admission model — superseded 2026-10-05
+
+The subsequent independent design grill found this model diverged from the accepted renewable-lease contract: the checked-in spec allows one installed lease to authorize multiple starts until expiry. Keep these results as historical evidence only; they do not validate P-003.
 
 Replaced the insufficient lease-style expiry evidence with a disposable
 one-use-per-handler admission model. It exercises local pending-nonce
@@ -2389,3 +2391,11 @@ unproven. The design preflight now requires exact row-set equality and a valid
 new-key primary MAC before `NEW_ONLY`. Evidence is in
 [`p002-cross-store-mac-rotation-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-cross-store-mac-rotation-model.md);
 P-002 and the S30 design gate remain open.
+
+## S30-06 P-003 renewable-lease contract correction — 2026-10-05
+
+The independent whole-design grill identified a contract mismatch in the prior P-003 candidate: it required one freshly issued permit per handler even though the accepted spec defines renewable short leases that may admit multiple starts until expiry. Updated the candidate protocol and design criteria to preserve multi-start lease semantics, nonce-bind and replay-protect renewals, serialize PAUSE with renewal/install/start, and stop new starts at the conservative five-second deadline while active handlers finish. The one-use model is marked superseded and is not counted as P-003 validation.
+
+Added [`p003-renewable-lease-model.py`](../specs/S30-AMQP-POISON-001/evidence/p003-renewable-lease-model.py), an abstract state model covering multi-start-before-expiry, replayed/late renewal rejection, expiry without active-handler cancellation, PAUSE blocking new work, and drain-after-finish. It passes 10 deterministic assertions with five identical runs (stdout SHA-256 `f4ee9190addb3d8ee5ac9989f52d80a0359d6a01d91403cde68c8a6da2b5db8b`). It does not model concurrent execution, HTTP/JWT, wall-clock/suspend behavior, AMQP integration, or gate service capacity. External restore ownership/provider proof and numeric workload envelope remain absent, so S30 design gate remains open and no implementation is authorized.
+
+Independent re-review of the renewable-lease correction confirmed the mismatch is resolved and found no new protocol/model contradiction. It requested that candidate A in `design.json` explicitly name renewable multi-start lease semantics; that description is now explicit. The reviewer confirmed the remaining P-003 and provider blockers: real app pause/permit races, suspend clock behavior, identity/JWKS/key rotation, broker identity/fencing, and load evidence against a declared envelope.

@@ -30,14 +30,16 @@ independent architecture grill and executable failure-injection evidence.
   signed, at-most-five-second permits from the active gate leader. The
   application can request PAUSE only; the audited operator tool can request
   RESUME only.
-- A permit is bound to gate leader epoch, active-leader boot epoch, latch epoch,
-  gate generation, restore episode, application instance ID and incarnation,
-  plus an expiry. Expiry applies only before its single handler start; expiry
-  after the `jti` was consumed does not revoke that active handler or close its
-  channel. A failed next permit request or global pause moves the instance to
-  draining, lowers readiness, and closes the channel after active handlers
-  finish. RESUME waits for drain confirmation or explicit operator proof that
-  the Rabbit consumer connection is fenced/closed.
+- A renewable permit is bound to gate leader epoch, active-leader boot epoch,
+  latch epoch, gate generation, restore episode, application instance ID and
+  incarnation,
+  plus an expiry. A currently installed lease may admit multiple handlers
+  until its conservative expiry. Lease expiry stops new starts but does not
+  revoke active handlers or close the channel before they finish. A failed
+  renewal by the lease deadline or global pause moves the instance to draining,
+  lowers readiness, and closes the channel after active handlers finish.
+  RESUME waits for drain confirmation or explicit operator proof that the
+  Rabbit consumer connection is fenced/closed.
 
 ## Candidate deployable and interface ownership
 
@@ -53,7 +55,7 @@ gets direct Redis or latch access.
 
 Before task generation, architecture review must assign the narrow client port
 to an inward module and freeze a versioned API contract for PAUSE, instance
-registration, per-handler permit issuance, drain confirmation, RESUME,
+registration and permit renewal, drain confirmation, RESUME,
 status/readiness, and errors.
 The contract must identify authentication audience/roles, command ID and
 generation fields, idempotent retry behavior, and TLS/CA validation. Later
@@ -296,10 +298,9 @@ timing. The separate
 now passes 35 deterministic assertions, including an active handler that
 continues past its permit expiry while readiness falls and channel close/drain
 acknowledgement wait for completion. That model used permit expiry as a local
-drain trigger and therefore does not validate the current one-use-per-handler
-candidate, where consumed-permit expiry has no effect on active work; update or
-replace it before P-003 can pass. The companion [live Rabbit prefetch and
-drain probe](../evidence/p003-rabbit-prefetch-drain-probe.md) observed that
+drain trigger and does not validate the accepted renewable-lease contract;
+update or replace it before P-003 can pass. The companion [live Rabbit prefetch
+and drain probe](../evidence/p003-rabbit-prefetch-drain-probe.md) observed that
 cancel stops new deliveries but leaves prefetched unacknowledged messages on
 the client until channel close requeues them. These results still do not prove
 concrete handler-start synchronization, authenticated broker binding, an
@@ -351,7 +352,7 @@ verification, and one problem response shape (`type`, `title`, `status`,
 |---|---|---|---|
 | `POST /v1/pauses` | `gate-workload` only | UUID `commandId`, observed `restoreEpisodeId`, bounded reason code, registered instance/incarnation, observed leader and gate generations | Durable PAUSED result and generation; drain may still be pending |
 | `POST /v1/instances` | `gate-workload` only | Instance ID and fresh incarnation UUID; subject/deployment derived from token; broker connection identity independently observed | Registration bound to verified subject and current generations |
-| `POST /v1/instances/{id}/permits` | Registered `gate-workload` | Registration/incarnation, expected generations, freshly bootstrapped restore episode, unpredictable request nonce | Signed one-start permit expiring within five seconds |
+| `POST /v1/instances/{id}/permits` | Registered `gate-workload` | Registration/incarnation, expected generations, freshly bootstrapped restore episode, unpredictable renewal request nonce | Signed short lease, valid for multiple local handler starts, expiring within five seconds |
 | `POST /v1/instances/{id}/drain-acks` | Matching registered workload | Incarnation, broker-observed connection record, pause/recovery generation, leader/latch epochs, zero-active-handler assertion | Idempotent drain acknowledgement after channel close is independently observed |
 | `POST /v1/resumes` | Individual operator with `gate-resume` | UUID command ID, observed `restoreEpisodeId`, reason (1–1024 characters), exact latch epoch, barrier and expected current Redis generation, per-member Rabbit fencing proofs when needed | `202 ACTIVATION_PENDING` after durable Redis/PG commit; terminal `ACTIVE` only after external inhibit release acknowledgement |
 | `GET /v1/status` | Workload and operator | No raw payload or business identifiers | Readiness, state/generation, leader epoch, current restore episode, release status, and drain counts |
@@ -411,8 +412,8 @@ with `iss=gate-service`, `aud=amqp-admission`, `sub` equal to the verified
 workload subject, deployment, instance ID, incarnation UUID, broker-observed
 Rabbit connection record (broker node and opaque connection incarnation,
 authenticated principal, and vhost), leader epoch, boot epoch, latch epoch,
-gate generation, restore-episode ID, registration ID, one-use `jti`, the exact
-unpredictable `request_nonce`, `iat`, and `exp`. `iat` is the not-before claim;
+gate generation, restore-episode ID, registration ID, unique lease `jti`, the
+exact unpredictable renewal `request_nonce`, `iat`, and `exp`. `iat` is the not-before claim;
 there is no separate `nbf`. The gate signs only after checking trusted UTC
 against its configured error bound, and the instance requires `iat` to be no
 later than fresh bootstrap time plus that bound. The local monotonic deadline
@@ -432,29 +433,32 @@ for another, expired, or already-consumed request is rejected. The gate private
 key is available only to the active leader through the deployment's protected
 key mount/KMS integration; standbys cannot sign. The verifier trusts a key only
 after bootstrapping the current leader and restore-episode IDs over the
-authenticated API, compares each permit to that fresh trusted bootstrap, binds
+authenticated API, compares each lease to that fresh trusted bootstrap, binds
 the subject and broker-observed connection to its own registration, and
-atomically consumes the `jti` in the local handler-start critical section. A
-new process always
-generates a new incarnation and starts unready. Its per-start permit, expiry
-check, and active-handler increment share one lock with pause/drain state.
+installs each renewed lease at most once against its outstanding request nonce.
+A repeated response, stale lease, or response with an old epoch cannot replace
+the current lease. A new process always generates a new incarnation and starts
+unready. Each local handler-start check and active-handler increment share one
+lock with lease replacement and pause/drain state; a currently installed lease
+may authorize multiple starts until its conservative expiry.
 
-The potentially slow permit HTTP request occurs outside the local admission
-lock. Before making it, the instance registers a unique pending nonce and
-request-start monotonic timestamp under that lock, then releases the lock. On
-response, it reacquires the lock and atomically checks that the instance is
-still ACTIVE, the incarnation/connection/generations still match, the pending
-nonce is outstanding, the deadline has not passed, and the `jti` is unused;
-only then does it consume the permit and increment active handlers. Local PAUSE
-or drain sets the state to DRAINING and invalidates all pending requests under
-the same lock. A late response cannot start work. Required race tests block the
-HTTP response, apply PAUSE, then release the response and assert zero handler
-starts; they also race response admission against PAUSE and prove exactly one
-linearization order.
-The local replay cache retains consumed `jti` values only until the associated
-permit's conservative request-start deadline; after that deadline, the permit
-is independently unusable. The implementation must bound stale-cache cleanup
-and must not retain one entry per handler for process lifetime.
+The potentially slow permit-renewal HTTP request occurs outside the local
+admission lock. Before making it, the instance registers one unique pending
+nonce and request-start monotonic timestamp under that lock, then releases the
+lock. On response, it reacquires the lock and atomically checks that the
+instance is still ACTIVE, the incarnation/connection/generations still match,
+the pending nonce is outstanding, and the new lease deadline has not passed;
+only then does it install the new current lease. Lease installation consumes
+the pending renewal nonce but does not increment active handlers. Each handler
+start separately checks the installed lease and increments the active count
+under the same lock. Local PAUSE or drain sets DRAINING, invalidates pending
+renewals, and revokes the installed lease under that lock. A late response
+cannot install a lease or start work. Required race tests block the renewal
+response, apply PAUSE, then release it and assert that no lease installs; they
+also race lease installation and handler start against PAUSE and prove exactly
+one linearization order. Retain only the current lease and pending request;
+replayed old responses fail the outstanding-nonce check without a per-handler
+unbounded `jti` set.
 
 The permit endpoint compares the caller's fresh restore-episode bootstrap to
 the current authenticated deployment/DR episode on every issuance. Each request
@@ -464,7 +468,7 @@ requesting a permit.
 
 The instance container must run on Linux and use a monotonic clock that
 advances through host suspend (`CLOCK_BOOTTIME`). If that clock is unavailable,
-the process remains unready. For each one-use permit request, the client records
+the process remains unready. For each permit renewal request, the client records
 `request_started_boottime` before sending it. The signed token lifetime
 `exp-iat` must be positive and at most five seconds, and the response must bind
 the request nonce. The conservative local deadline is
@@ -791,25 +795,22 @@ accepted contracts or a design-gate PASS:
   authenticated retry before returning the result. This preference still
   needs privacy, key-custody, backup, deletion, and provider recovery review;
   command IDs may remain linkable and must stay out of unnecessary logs/metrics.
-- **P-003 permit: candidate A (signed, one-start permit).** This best matches
-  the predeclared replay-rejection criterion and accepted five-second maximum.
-  Bind the permit to verified subject and deployment, unique instance
+- **P-003 permit: candidate A (signed renewable short lease).** A currently
+  installed verified lease may authorize multiple handler starts until its
+  conservative deadline, no later than five seconds after the renewal request
+  began. Bind it to verified subject and deployment, unique instance
   incarnation and registration, broker-observed connection, current
-  leader/latch/gate and restore-episode epochs, a signed unpredictable request
-  nonce and one-use `jti`, issuer, audience, authorized client, role, algorithm,
-  and expiry; atomically consume replay state under the handler-start lock.
-  New issuance or starts without a currently verifiable permit/key are denied;
-  a previously verified permit authorizes exactly one start and only until its
-  conservative five-second deadline. This requires a successful permit issue
-  for each handler start, including prefetched messages; no batch permit reuse
-  is allowed. The design therefore needs a predeclared delivery-rate and
-  instance-count envelope, plus measured gate request capacity, serialization
-  time, p95/p99 latency, and overload behavior under that envelope before
-  implementation. The accepted materials do not currently specify this load
-  envelope. If that
-  cost is unacceptable, a reusable short lease would relax the predeclared
-  replay-rejection criterion and requires a revised design decision and fresh
-  grill. The existing Keycloak probe does not qualify this runtime.
+  leader/latch/gate and restore-episode epochs, a signed unpredictable renewal
+  nonce and unique lease `jti`, issuer, audience, authorized client, role,
+  algorithm, and expiry. Reject forged, stale, cross-instance, expired, and
+  replayed renewal responses; replay protection does not consume the lease on
+  each local start. A local lock serializes PAUSE/revoke, lease installation,
+  and handler-start admission. PAUSE blocks renewal and invalidates the
+  installed lease; delayed responses cannot install after PAUSE. Before
+  implementation, declare the instance-count and renewal-rate envelope, then
+  measure gate capacity, serialization time, p95/p99 latency, and overload
+  behavior. The accepted materials do not specify this load envelope. The
+  existing Keycloak probe does not qualify this runtime.
 
 The independent security follow-up adds these mandatory negative cases to the
 P-003 test plan: deny RESUME tokens from service-account subjects even if a
@@ -959,30 +960,31 @@ rejected. A standby neither advances these epochs nor changes the latch.
 
 The application accepts permits only from the configured gate-service issuer,
 for the expected audience and registered instance incarnation. The proposal
-uses a signed one-start permit with a key advertised for the current active-
-leader and restore episode over the authenticated gate-service channel.
+uses a signed renewable short lease with a key advertised for the current
+active-leader and restore episode over the authenticated gate-service channel.
 Startup obtains the current leader epoch, restore episode, and trusted key set;
-it does not trust a cached value as current. Push revocation is best effort.
-Offline validation is limited to one start covered by a permit whose request
-began before its conservative local deadline. Every handler start requires a
-fresh permit issuance; if the gate cannot issue one, that delivery does not
-start. Each local handler-start admission, one-use `jti` consumption, and
-active-handler increment is atomic with local pause/drain state, so drain
-cannot observe zero between validation and handler registration. The verifier
-rejects an unrecognized leader/boot/restore epoch, wrong audience, invalid
+it does not trust a cached value as current. Push revocation is best effort. A
+signed unpredictable nonce binds each renewal response to the single
+outstanding request; a unique lease `jti` prevents installing a response twice.
+A verified installed lease may authorize multiple local starts until its
+conservative deadline. Local starts atomically check PAUSE/revoke and lease
+validity and increment active-handler count, so drain cannot observe zero
+between validation and handler registration. The verifier rejects an
+unrecognized leader/boot/restore epoch, wrong audience, invalid
 signature/algorithm, wrong workload subject, broker connection mismatch,
-cross-instance or repeated-`jti` replay, expired/not-yet-valid permit, and stale
-incarnation. Permit expiry and process suspend/resume behavior must be tested;
-uncertainty stops new handler starts.
+cross-instance or repeated-response replay, expired/not-yet-valid lease, and
+stale incarnation. Renewal and PAUSE serialize at the fenced active-leader
+row; PAUSE prevents further lease issuance. Permit expiry and process
+suspend/resume behavior must be tested; uncertainty stops new handler starts.
 
 PAUSE response semantics are split: successful PAUSE means the durable latch
 and Redis PAUSED generation/audit are committed and no new permits will be
 issued. The distributed drain barrier is a separate state of that same
 generation; it may complete later because active handlers may finish without a
-fixed deadline. A partitioned instance may begin work only with an already-issued,
-still-unconsumed permit whose issuance request began before its conservative
-expiry (no more than five seconds after that request began); revoke, local
-expiry, and the local admission lock prevent other starts. RESUME remains
+fixed deadline. A partitioned instance may begin work only with an installed lease whose
+renewal request began before its conservative expiry (no more than five
+seconds after that request began); revoke and local expiry prevent starts
+after PAUSE is observed. RESUME remains
 blocked until the barrier is complete
 or the exact connection is externally fenced.
 
@@ -1107,11 +1109,11 @@ instances must use a reviewed signature/key-rotation protocol; the verifier
 rejects an unrecognized leader, boot, or restore episode. Permit issuance and
 PAUSE must serialize at the fenced active-leader row: if
 PAUSE wins, no permit can be minted from the previous ACTIVE generation; if a
-permit issuance wins, it can authorize only its single nonce-bound handler
-start before the original request deadline, at most five seconds after that
-request began. A gate outage before permit issuance means the delivery does not
-start. An already-issued response may be delayed in transit, but its deadline
-is measured from request start and it cannot be reused after one start.
+lease renewal wins, it may authorize multiple local starts until its original
+request deadline, at most five seconds after that request began. A gate outage
+does not extend that deadline; without a replacement lease by expiry, no new
+delivery starts. A delayed response cannot extend its deadline or be installed
+twice.
 
 An application member is the tuple `(deployment, instance_id, incarnation)`
 and registers the exact Rabbit consumer connection identity and admitted gate
@@ -1140,7 +1142,7 @@ generation.
 | Latch committed; Redis unavailable before PAUSE commit | Latch remains `RECOVERY_REQUIRED`; no Redis state/audit claim | Fail PAUSE response; telemetry; sticky inhibit | Same command ID resolves/retries against expected Redis generation |
 | Redis PAUSE commit or fsync uncertain | Latch remains set; Redis result unknown | No permits; no success response | Same command ID reconciles durable Redis command record and fsync state |
 | PAUSE durable in both stores; notification lost | PAUSED generation and latch retained | Instances cease new work by revoke or permit expiry (maximum five seconds); readiness down; drain thereafter | Full drain/fencing barrier and audited RESUME |
-| Gate unavailable before next handler permit | No permit is issued for that start; an already issued but unconsumed permit can cover only its nonce-bound start before the original request deadline | Do not start that delivery; readiness goes down, active handlers finish, then channel closes | Fresh permit after gate availability and matching ACTIVE generation, latch CLEAR, current restore episode, and instance registration |
+| Gate unavailable before lease renewal | The installed lease remains valid only until its conservative request-start deadline; no extension is inferred | Continue starts only while valid; at expiry lower readiness, stop new starts, let active handlers finish, then close the channel | Fresh lease after gate availability and matching ACTIVE generation, latch CLEAR, current restore episode, and instance registration |
 | Active leader loss/restart/takeover | Durable leader and recovery epochs are advanced; latch becomes `RECOVERY_REQUIRED`, even from `CLEAR` | Replacement cannot issue permits until Redis has durably installed the new epoch and sticky inhibit is established | Audited RESUME against the recorded barrier generation plus current-member drain/fencing |
 | Standby restart | No gate state change | No effect on active leader or consumers | None |
 | Redis failover may have lost acknowledged history | PostgreSQL latch may be `RECOVERY_REQUIRED`; Redis history is not trusted | Deny permits and RESUME; do not infer ACTIVE from stale Redis | Provider reconciliation proves authoritative epoch/generation/audit or operator recovery establishes new audited generation |
@@ -1148,7 +1150,7 @@ generation.
 | RESUME Redis durable; latch clear unavailable/uncertain | Redis ACTIVE/audit may exist at the `resulting_active_generation`, latch remains non-CLEAR | Return `ACTIVATION_PENDING`; keep all instances inhibited | Same command ID and exact epoch/resulting generation completes latch CAS |
 | Delayed RESUME races with newer PAUSE | New latch epoch and/or gate generation wins | Old CAS matches zero rows; remain inhibited | New audited RESUME for current epochs |
 | Application drain timeout or unresponsive instance | No drain confirmation is inferred from timeout/lease expiry | Keep RESUME blocked | Drain confirmation or audited operator Rabbit connection fencing proof |
-| Unconsumed five-second permit expires | That one permit can no longer authorize a handler start | Reject the start; readiness reflects next-issuance/gate health; active handlers continue and channel stays open unless the instance is otherwise draining | Fresh per-handler permit while current gate state is ACTIVE |
+| Installed five-second lease expires without replacement | The lease can no longer authorize a handler start; expiry does not cancel an active handler | Reject new starts, lower readiness, let active handlers finish, then close the channel | Fresh lease while current gate state is ACTIVE |
 
 ## Required prototype and grill evidence
 
@@ -1168,19 +1170,21 @@ fixtures and retained outputs:
 4. Redis failover to a stale replica, PostgreSQL failover/restore, and cross-
    store crash recovery; prove no permit or RESUME is possible until state,
    command records, audit, leader epoch, and latch epoch reconcile.
-5. One-use per-handler admission races: block the permit HTTP response, apply
-   PAUSE, then release the response; race response admission against PAUSE;
-   prove nonce registration, pending invalidation, one-use `jti` consumption,
-   and active-count increment have one local linearization point. Verify an
-   unconsumed five-second permit expiry rejects that start while expiry after
-   `jti` consumption does not revoke the active handler. Include
-   restore/incarnation/connection changes, drain acknowledgement races, and
+5. Renewable-lease admission races: block the renewal HTTP response, apply
+   PAUSE, then release the response; race lease installation and handler starts
+   against PAUSE. Prove nonce registration, pending invalidation, response
+   replay rejection, and active-count increment have correct linearization.
+   Verify one installed lease admits multiple starts before its conservative
+   five-second deadline; expiry prevents later starts but does not revoke active
+   handlers. Include restore/incarnation/connection changes, drain acknowledgement races, and
    operator fencing of an unavailable Rabbit connection. Verify channel
    closure requeues unacked and prefetched-not-started messages and no new
    channel opens early. The disposable model in
    [`p003-one-use-admission-model.py`](../evidence/p003-one-use-admission-model.py)
-   is a first abstract checkpoint only; independent review and runtime tests
-   remain required.
+   is superseded historical evidence. The new
+   [`p003-renewable-lease-model.py`](../evidence/p003-renewable-lease-model.py)
+   is only an abstract checkpoint; independent review and runtime tests remain
+   required.
 6. For Compose, Kubernetes dev, and production-equivalent providers, prove
    encrypted durable volumes, TLS/identity boundaries, Redis fsync semantics,
    PostgreSQL durable commit and restore semantics, backup/export deletion, and
@@ -1201,8 +1205,8 @@ fixtures and retained outputs:
    it idempotently, then RESUME the exact new latch epoch and resulting ACTIVE
    generation.
 9. Declare numeric peak/sustained handler-start rates, maximum app-instance
-   count, permit latency budget, gate availability target, and overload behavior
-   before load testing. Exercise per-handler permit issuance at that envelope
+   count, lease-renewal latency budget, gate availability target, and overload behavior
+   before load testing. Exercise lease renewal at that envelope
    with injected Redis/PostgreSQL latency and verify bounded lock duration,
    no admission beyond the envelope, and the specified fail-closed response.
 10. Lose the deployment-control release response after its durable commit.
