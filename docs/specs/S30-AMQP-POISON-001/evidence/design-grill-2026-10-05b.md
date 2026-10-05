@@ -76,3 +76,22 @@ or deployment proof:
 These are design and evidence blockers, not approval requests. Until cleared,
 S30-06 remains DRAFT and no production consumer or raw-message reader may be
 enabled.
+
+## Messaging finding correction
+
+The first messaging refresh over-scoped the missing AsyncAPI quarantine
+channel as a design-gate blocker. Its independent follow-up corrected that
+finding: the accepted plan assigns quarantine provisioning to deployment
+tooling and explicitly says not to modify AsyncAPI absent a recorded wire
+contract change. The accepted rules do not yet select a binary body encoding,
+content type, exact metadata header names, or reason-code enum, so adding an
+AsyncAPI message now would invent contract details. No AsyncAPI change is
+required for this slice.
+
+The production `SimpleMessageListenerContainer`/manual-ACK test and publisher
+nack/return/timeout/crash matrix are implementation and release verification
+prerequisites, not independent architecture blockers; the accepted behavior is
+already specified. The stale-handler/admission boundary remains a design-gate
+blocker unless the design requires a versioned 06b capability and keeps 06a
+mechanically disabled until that capability is implemented and independently
+qualified. Real Spring/Rabbit delivery tests remain required before release.
