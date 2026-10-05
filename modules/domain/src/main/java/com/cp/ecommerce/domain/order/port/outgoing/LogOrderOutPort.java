@@ -8,7 +8,7 @@ import com.cp.ecommerce.domain.order.Order;
 public interface LogOrderOutPort {
 
     /**
-     * Log out placed order in JSON format.
+     * Emit a bounded, privacy-safe summary for the placed order.
      *
      * @param order placed order.
      */
