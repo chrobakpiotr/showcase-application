@@ -17,4 +17,8 @@ describe('capabilities', () => {
   it('marks place order as a write capability', () => {
     expect(capabilityForPath('/order')?.writeRole).toBe('ORDER_WRITE');
   });
+
+  it('restricts parked dispatches to read-authorized operators', () => {
+    expect(capabilityForPath('/parked-dispatches')?.readRole).toBe('ORDER_READ');
+  });
 });

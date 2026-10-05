@@ -93,6 +93,14 @@ export const routes: Routes = [
     canActivate: [authGuard, roleGuard],
   },
   {
+    path: 'parked-dispatches',
+    loadComponent: () =>
+      import('./parked-dispatches/parked-dispatches.component').then(
+        (m) => m.ParkedDispatchesComponent
+      ),
+    canActivate: [authGuard, roleGuard],
+  },
+  {
     path: 'shipments',
     loadComponent: () =>
       import('./shipments/shipments.component').then(

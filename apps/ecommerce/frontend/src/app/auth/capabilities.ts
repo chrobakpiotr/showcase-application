@@ -20,6 +20,12 @@ export const CAPABILITIES: readonly Capability[] = [
     readRole: 'ORDER_READ',
   },
   {
+    path: '/parked-dispatches',
+    title: 'Parked Dispatches',
+    description: 'Inspect dispatches waiting for operator attention.',
+    readRole: 'ORDER_READ',
+  },
+  {
     path: '/analytics',
     title: 'Analytics Assistant',
     description: 'Ask questions about order analytics.',

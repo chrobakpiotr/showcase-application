@@ -14,6 +14,7 @@
       <a routerLink="/order">Orders</a>
       @if (authService.roles().includes('ORDER_READ')) {
       <a routerLink="/orders">Order History</a>
+      <a routerLink="/parked-dispatches">Parked Dispatches</a>
       <a routerLink="/analytics">Analytics Assistant</a>
       } @if (authService.roles().includes('CATALOG_READ')) {
       <a routerLink="/catalog">Catalog</a>

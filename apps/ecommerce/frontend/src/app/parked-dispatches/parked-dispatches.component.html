@@ -1,0 +1,129 @@
+<section class="parked-dispatches" aria-labelledby="parked-dispatches-title">
+  <header class="parked-dispatches__header">
+    <div>
+      <p class="eyebrow">Operations</p>
+      <h1 id="parked-dispatches-title">Parked dispatches</h1>
+      <p class="parked-dispatches__intro">
+        Dispatches that need operator attention. This page is read-only.
+      </p>
+    </div>
+    @if (canRead) {
+      <button
+        type="button"
+        class="refresh-button"
+        data-testid="parked-dispatches-refresh"
+        [disabled]="loading()"
+        (click)="retry()"
+      >
+        Refresh
+      </button>
+    }
+  </header>
+
+  @if (!canRead) {
+    <p data-testid="parked-dispatches-no-access" role="status">
+      You do not have access to parked dispatches.
+    </p>
+  } @else {
+    <div class="queue-summary" aria-label="Parked dispatch summary">
+      <div>
+        <span class="queue-summary__label">Parked now</span>
+        <strong data-testid="parked-dispatches-total">{{
+          totalElements()
+        }}</strong>
+      </div>
+      <div>
+        <span class="queue-summary__label">Oldest item</span>
+        <strong data-testid="parked-dispatches-oldest-age">{{
+          formatAge(oldestAgeSeconds())
+        }}</strong>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <p
+        class="state-message"
+        data-testid="parked-dispatches-loading"
+        role="status"
+        aria-live="polite"
+      >
+        Loading parked dispatches…
+      </p>
+    }
+    @if (errorMessage(); as message) {
+      <div
+        class="error-message"
+        data-testid="parked-dispatches-error"
+        role="alert"
+      >
+        {{ message }}
+      </div>
+    }
+
+    <div class="table-scroll">
+      <table data-testid="parked-dispatches-table">
+        <thead>
+          <tr>
+            <th scope="col">Order</th>
+            <th scope="col">Dispatch type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Reason</th>
+            <th scope="col">Attempts</th>
+            <th scope="col">Age</th>
+            <th scope="col">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (dispatch of dispatches(); track dispatch.dispatchId) {
+            <tr data-testid="parked-dispatch-row">
+              <td>
+                <code>{{ dispatch.orderNumber }}</code>
+              </td>
+              <td>{{ dispatch.dispatchType }}</td>
+              <td>{{ dispatch.status }}</td>
+              <td>{{ reasonLabel(dispatch.reasonCode) }}</td>
+              <td>{{ dispatch.attempts }}</td>
+              <td>{{ ageOf(dispatch.createdAt) }}</td>
+              <td>{{ dispatch.createdAt | date: "medium" }}</td>
+            </tr>
+          } @empty {
+            @if (!loading() && !errorMessage()) {
+              <tr>
+                <td
+                  colspan="7"
+                  class="empty-state"
+                  data-testid="parked-dispatches-empty"
+                >
+                  No parked dispatches need attention.
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <nav class="pagination" aria-label="Parked dispatch pages">
+      <button
+        type="button"
+        data-testid="parked-dispatches-previous"
+        [disabled]="page() === 0 || loading()"
+        (click)="previousPage()"
+      >
+        Previous
+      </button>
+      <span data-testid="parked-dispatches-page-state" aria-live="polite">
+        Page {{ page() + 1 }} / {{ totalPages() || 1 }} ·
+        {{ totalElements() }} total
+      </span>
+      <button
+        type="button"
+        data-testid="parked-dispatches-next"
+        [disabled]="page() + 1 >= totalPages() || loading()"
+        (click)="nextPage()"
+      >
+        Next
+      </button>
+    </nav>
+  }
+</section>

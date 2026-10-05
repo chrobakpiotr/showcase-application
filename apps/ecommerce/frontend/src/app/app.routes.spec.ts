@@ -96,6 +96,15 @@ describe('app routes', () => {
     expect(component).toBeDefined();
   });
 
+  it('defines the guarded parked-dispatches route', async () => {
+    const parkedDispatchesRoute = routes.find(
+      (route) => route.path === 'parked-dispatches'
+    );
+    expect(parkedDispatchesRoute?.canActivate?.length).toBe(2);
+    const component = await parkedDispatchesRoute?.loadComponent?.();
+    expect(component).toBeDefined();
+  });
+
   it('defines guarded shipments route', async () => {
     const shipmentsRoute = routes.find((route) => route.path === 'shipments');
     expect(shipmentsRoute?.canActivate?.length).toBe(2);

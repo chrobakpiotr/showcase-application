@@ -15,6 +15,7 @@ const ROUTES = [
   ["reviews", "app-reviews"],
   ["returns", "app-returns"],
   ["notifications", "app-notifications"],
+  ["parked-dispatches", "app-parked-dispatches"],
   ["shipments", "app-shipments"],
   ["coupons", "app-coupons"],
 ] as const;
@@ -27,10 +28,17 @@ for (const [route, component] of ROUTES) {
     await loginAs(page);
     const target = new URL(page.url());
     target.pathname = target.pathname.replace(/\/dashboard$/, `/${route}`);
-    const tableRoutes = new Set(["notifications", "shipments", "coupons"]);
+    const tableRoutes = new Set([
+      "notifications",
+      "parked-dispatches",
+      "shipments",
+      "coupons",
+    ]);
     const loadedTable = tableRoutes.has(route)
       ? page.waitForResponse((response) =>
-          new URL(response.url()).pathname.endsWith(`/api/${route}`),
+          route === "parked-dispatches"
+            ? response.url().includes("/api/order-placement/dispatches/parked?")
+            : new URL(response.url()).pathname.endsWith(`/api/${route}`),
         )
       : null;
     await page.goto(target.toString());
@@ -39,8 +47,18 @@ for (const [route, component] of ROUTES) {
       expect(response.ok()).toBeTruthy();
       // This is a layout test: synchronize on the rendered DOM rather than on
       // the complete network-response lifecycle.
-      if (route === "notifications" || route === "shipments") {
-        await expect(page.locator(`${component} .loading`)).toHaveCount(0);
+      if (
+        route === "notifications" ||
+        route === "parked-dispatches" ||
+        route === "shipments"
+      ) {
+        if (route === "parked-dispatches") {
+          await expect(
+            page.getByTestId("parked-dispatches-loading"),
+          ).toHaveCount(0);
+        } else {
+          await expect(page.locator(`${component} .loading`)).toHaveCount(0);
+        }
       } else {
         await expect(
           page.locator(`${component} tbody tr`).first(),
