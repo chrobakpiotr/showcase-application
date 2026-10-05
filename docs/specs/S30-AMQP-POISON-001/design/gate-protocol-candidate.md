@@ -58,6 +58,53 @@ subsections propose example HTTP paths, payload fields, token claims, schemas,
 module paths, and deployment ownership. Every such detail remains a proposal,
 not an accepted contract, until the design review and hash-bound gate pass.
 
+### Gradle project ownership proposal
+
+The repository's current project IDs come from `settings.gradle`: the relevant
+existing projects are `:application:ecommerce`, `:adapter:amqp`,
+`:adapter:security`, `:adapter:persistence`, and `:domain`. The gate projects
+below do not exist in that graph yet. This table makes the candidate ownership
+concrete without adding projects or granting implementation authority:
+
+| Proposed Gradle project ID | Proposed directory | Responsibility | Direct dependency direction |
+|---|---|---|---|
+| `:gate-domain` | `modules/gate/domain` | Gate state, generations, commands, and pure transition invariants; separate from the ecommerce domain | No adapter or Spring dependencies |
+| `:gate:api-contract` | `modules/gate/api-contract` | Spring-free, versioned HTTP wire request/response types and schema metadata, shared by the two HTTP adapters | No application, adapter, or store dependencies |
+| `:application:amqp-gate-client` | `modules/application/amqp-gate-client` | Inward client port used by AMQP lifecycle integration; it is not the owner of HTTP wire types | Depends on `:gate:api-contract`; no adapter or store dependencies |
+| `:application:gate-control` | `modules/application/gate-control` | Gate use cases, admission/registration/drain policy, and outbound state/fencer ports | Depends on `:gate-domain` only; wire requests are mapped at the API adapter |
+| `:adapter:gate-http-client` | `modules/adapters/gate-http-client` | TLS-validated client translating the gate client port to/from the versioned HTTP wire contract | Depends on `:application:amqp-gate-client` and `:gate:api-contract` |
+| `:adapter:gate-api` | `modules/adapters/gate-api` | Authenticated HTTP adapter mapping the versioned wire contract to gate-control use cases | Depends on `:application:gate-control` and `:gate:api-contract` |
+| `:adapter:gate-redis` | `modules/adapters/gate-redis` | Atomic Redis state, command result, audit, and durability port implementation | Depends inward on gate-control and gate-domain ports/types |
+| `:adapter:gate-latch-postgres` | `modules/adapters/gate-latch-postgres` | Durable latch, leader fence, and recovery-state port implementation | Depends inward on gate-control and gate-domain ports/types |
+| `:application:gate-service` | `apps/gate-service` | Separate deployable composition root wiring gate-control and gate adapters | Depends on gate-control and gate adapters; sole runtime receiving gate-store/signing credentials |
+
+The intended runtime wiring is:
+
+```text
+:application:ecommerce -> :adapter:amqp -> :application:amqp-gate-client
+:application:ecommerce -> :adapter:gate-http-client -> :application:amqp-gate-client / :gate:api-contract
+:application:gate-service -> :application:gate-control -> :gate-domain
+:application:gate-service -> :adapter:gate-api / :adapter:gate-redis / :adapter:gate-latch-postgres
+:adapter:gate-api -> :application:gate-control / :gate:api-contract
+:adapter:gate-redis / :adapter:gate-latch-postgres -> :application:gate-control
+```
+
+If this proposal survives architecture review, the minimal `settings.gradle`
+additions are the project IDs above mapped to those directories. Architecture
+tests must reject ecommerce or AMQP dependencies on gate Redis/PostgreSQL
+adapters, gate-control dependencies on adapters, and gate-store credentials in
+the ecommerce composition. This is an ownership proposal, not yet a decision:
+the wire schema contents and versioning rules, exact ownership of
+connection-fencing/raw-reader interfaces and runtimes, and production
+composition still need architecture/security approval. At the port boundary,
+gate-control owns an outbound fencer capability; any Rabbit management or
+plugin credentials must be isolated behind its separately qualified adapter
+or deployment service, not added to the HTTP API or Redis/PostgreSQL adapters.
+Raw quarantine reads belong to a separately authorized, audited operator
+reader with credentials distinct from both the gate service and fencer. No
+reader project or API is proposed until its authentication, audit-before-read,
+export, and deletion contract is accepted.
+
 The actor-authorization split is accepted, but exact wire claims and per-instance
 identity binding remain to be frozen: local/dev uses
 the separate Keycloak gate audience/client, application workload identity, and

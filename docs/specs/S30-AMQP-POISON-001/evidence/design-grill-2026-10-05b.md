@@ -6,6 +6,20 @@ Both returned **NEEDS_MORE_DESIGN**. No source or deployment implementation is
 authorized by these reviews; AMQP admission and raw quarantine reads remain
 disabled.
 
+## Architecture ownership-table follow-up
+
+An independent architecture re-review of the updated Gradle ownership proposal
+found the original mapping gap cleared at proposal level: project IDs,
+directories, responsibilities, and dependency directions are now mapped
+against the current `settings.gradle`. The reviewer identified an ambiguity
+between the client module and an undefined shared wire contract. The candidate
+now assigns versioned, framework-free HTTP wire types to `:gate:api-contract`,
+keeps the client port in `:application:amqp-gate-client`, and maps requests at
+the API adapter. The gate-control-owned fencer port and separate audited-reader
+boundary are also stated. This is still proposed architecture: no Gradle
+projects were added or instantiated, and the update does not close restore,
+connection-fencing, 06b, retention, or runtime-integration blockers.
+
 ## Architecture review
 
 The separate gate service and store-credential boundary are directionally
