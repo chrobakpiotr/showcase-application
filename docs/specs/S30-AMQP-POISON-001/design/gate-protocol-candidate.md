@@ -70,7 +70,7 @@ concrete without adding projects or granting implementation authority:
 |---|---|---|---|
 | `:gate-domain` | `modules/gate/domain` | Gate state, generations, commands, and pure transition invariants; separate from the ecommerce domain | No adapter or Spring dependencies |
 | `:gate:api-contract` | `modules/gate/api-contract` | Spring-free, versioned HTTP wire request/response types and schema metadata, shared by the two HTTP adapters | No application, adapter, or store dependencies |
-| `:application:amqp-gate-client` | `modules/application/amqp-gate-client` | Inward client port used by AMQP lifecycle integration; it is not the owner of HTTP wire types | Depends on `:gate:api-contract`; no adapter or store dependencies |
+| `:application:amqp-gate-client` | `modules/application/amqp-gate-client` | Transport-neutral inward port and application-facing lifecycle/result types used by AMQP integration | No HTTP-contract, adapter, or store dependencies |
 | `:application:gate-control` | `modules/application/gate-control` | Gate use cases, admission/registration/drain policy, and outbound state/fencer ports | Depends on `:gate-domain` only; wire requests are mapped at the API adapter |
 | `:adapter:gate-http-client` | `modules/adapters/gate-http-client` | TLS-validated client translating the gate client port to/from the versioned HTTP wire contract | Depends on `:application:amqp-gate-client` and `:gate:api-contract` |
 | `:adapter:gate-api` | `modules/adapters/gate-api` | Authenticated HTTP adapter mapping the versioned wire contract to gate-control use cases | Depends on `:application:gate-control` and `:gate:api-contract` |
@@ -89,11 +89,17 @@ The intended runtime wiring is:
 :adapter:gate-redis / :adapter:gate-latch-postgres -> :application:gate-control
 ```
 
-If this proposal survives architecture review, the minimal `settings.gradle`
-additions are the project IDs above mapped to those directories. Architecture
-tests must reject ecommerce or AMQP dependencies on gate Redis/PostgreSQL
+The application client module owns only the transport-neutral port and
+application-facing types. `:adapter:gate-http-client` implements that port
+and maps to/from `:gate:api-contract`; the application client module itself
+does not depend on the wire contract. Both HTTP adapters may depend on the
+framework-free contract module because they translate at the transport
+boundary. If this proposal survives architecture review, the minimal
+`settings.gradle` additions are the project IDs above mapped to those
+directories. Architecture tests must reject application-client dependencies
+on the HTTP contract, ecommerce or AMQP dependencies on gate Redis/PostgreSQL
 adapters, gate-control dependencies on adapters, and gate-store credentials in
-the ecommerce composition. This is an ownership proposal, not yet a decision:
+the ecommerce composition. This remains an ownership proposal, not yet a decision:
 the wire schema contents and versioning rules, exact ownership of
 connection-fencing/raw-reader interfaces and runtimes, and production
 composition still need architecture/security approval. At the port boundary,
