@@ -177,6 +177,11 @@ Fresh messaging review found four additional contract/proof gaps:
   operations.
 
 These findings keep the feature at **NEEDS_MORE_DESIGN**; no implementation or
-design-gate PASS is authorized by the candidate notes. A disposable two-user
-Rabbit binding probe is in progress to test the identity-observation portion;
-it cannot close the fencer least-privilege or 06b stale-handler gaps.
+design-gate PASS is authorized by the candidate notes. The [disposable
+two-user Rabbit binding probe](instance-binding-prototype.md) confirms broker
+observation distinguishes two authenticated usernames and two live connection
+IDs even when both clients choose the same display name. Closing one observed
+ID left the other connection open; after reconnect, the old ID returned 404
+and did not close the replacement. This does not test inspect/close races,
+connection-ID reuse, authenticated gate-subject mapping, or a least-privilege
+fencer. Those security and 06b stale-handler gaps remain open.
