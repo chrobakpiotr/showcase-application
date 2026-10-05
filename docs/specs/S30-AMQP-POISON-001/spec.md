@@ -583,6 +583,13 @@ Liquibase changeset, and `OrderFulfillmentReceiptPostgresIntegrationTest`.
 | Receipt transaction committed, then source ACK is lost or connection closes | Stable operation ID remains in the delivered message. | Redelivery can resolve to `REPLAYED` through the insert-once receipt. | Define whether replay is ACKed after durable evidence is re-read and how stale attempt owners are fenced from later state changes. |
 | Handler/claim owner outlives container stop and message is redelivered after restart | For a valid parseable message, the same operation ID is available on redelivery. | The RabbitMQ 4.1 spike observed unacked redelivery after stop/restart while the prior handler remained blocked; it did not test owner fencing. | Require durable claim identity/lease or equivalent fencing so an old handler cannot overwrite a newer attempt's decision. Lease duration, renewal/deadline, recovery, and stale-finalization behavior remain open. |
 
+The [06b conditional claim-generation prototype](evidence/06b-claim-generation-prototype.md)
+demonstrates one PostgreSQL CAS primitive: after B commits generation 2,
+handler A's generation-1 finalization updates zero rows. It injects B's claim
+eligibility and makes ACK eligibility conditional in the model; it does not
+establish the claim lifecycle, actual Rabbit ACK behavior, or production
+stale-owner fencing. The 06b decisions below remain open.
+
 ### Candidate lifecycle shape — assumption for review only
 
 One possible durable model is keyed by validated operation ID and records a

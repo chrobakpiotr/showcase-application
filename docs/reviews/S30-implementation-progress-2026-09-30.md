@@ -2029,5 +2029,18 @@ hypothetical fault injection; it does not prove the Redis script permits that
 mutation.
 The model does not compare P-001 candidates or prove a gate service, provider
 durability, live concurrency, restore safety, durable audit, or Rabbit fencing.
-Independent re-review of these corrections is pending. P-001 remains
-**NEEDS_MORE_EVIDENCE**; the S30-06 design gate stays open.
+Independent evaluator and concurrency re-reviews found no further counterexample
+in the covered sequential schedules. P-001 remains **NEEDS_MORE_EVIDENCE**; the
+S30-06 design gate stays open.
+
+## S30-06b stale-handler CAS primitive — 2026-10-05
+
+A disposable PostgreSQL 17.6 probe exercised operation-claim generation CAS:
+handler A claims generation 1, B claims generation 2 and commits its outcome,
+then A's stale finalization affects zero rows. The final durable row remains
+B's generation-2 result. Independent evaluation reran the pinned container,
+confirmed cleanup, and verified the CAS observation. ACK eligibility is only
+modeled as conditional on the affected-row result; no Rabbit client or
+production listener was involved. Claim eligibility, lease/retry semantics,
+attempt limits, database outages, external side effects, and real concurrent
+handler fencing remain open, so 06b stays discovery-only.
