@@ -1977,3 +1977,17 @@ still report the existing `5ac4c94` runs: application CI passed, while
 Agentic SDD failed the inventory check repaired in local commit `100f405`.
 The fetched `origin/main` is still `5ac4c94`; no hosted run covers local
 commits. S30-06 remains design-gated as documented above.
+
+## S30-06 P-003 model correction — 2026-10-05
+
+Independent security review identified that the disposable P-003 state model
+accepted an identity payload whose JWT signature was invalid. The model now
+verifies its prototype HS256 signature and fixed algorithm/header before
+authorization; permit checks also cover fixed algorithm/header, subject
+equality and an expected request nonce. The tampering case asserts denial and
+the script passes 23 deterministic assertions. Independent evaluation returned
+**NEEDS_MORE_EVIDENCE**: identity and nonce are model inputs, not trusted
+registration/outstanding-request state. OIDC/JWKS, key rotation, Rabbit-bound
+instance drain, durable replay protection, and the runtime five-second bound
+remain unproven. This corrects model defects only and does not close P-003 or
+the S30-06 design gate.

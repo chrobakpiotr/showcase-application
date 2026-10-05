@@ -190,3 +190,28 @@ active-consumer drain, stale-observation, timeout, or narrow-fencer criteria.
 It confirms only broker observation and one non-racy exact-ID close/reconnect
 schedule. Production and Kubernetes provisioning evidence and the security/
 06b stale-handler gaps remain open.
+
+## P-003 identity-signature model correction — 2026-10-05
+
+The earlier P-003 model intentionally included a counterexample showing that
+its identity-token authorization helper decoded claims without validating the
+signature. That helper has now been corrected to verify the prototype HS256
+signature and fixed algorithm/header before evaluating issuer, audience,
+expiry, and role claims. Permit verification now also checks the fixed
+algorithm/header, binds the verified subject to the instance/incarnation, and
+compares the permit nonce with the outstanding expected request nonce. The
+forged-payload counterexample asserts denial; the script passes 23 deterministic
+assertions. This closes model defects only. HMAC is still a test stand-in, and
+the model does not prove OIDC/JWKS, asymmetric key rotation, per-replica
+credential provisioning, authenticated connection binding, distributed replay
+prevention, handler-start linearization, timing under suspend/resume, or any
+deployed service behavior. P-003 remains **NEEDS_MORE_EVIDENCE** and the
+S30-06 design gate remains open.
+
+An independent prototype evaluator reran the corrected model and returned
+**NEEDS_MORE_EVIDENCE**. It confirms the 23 assertions cover only local claim
+predicates: the expected identity is a caller-supplied tuple, deployment is a
+constant, and the predictable `nonce-{jti}` is not backed by an outstanding
+issuance record. OIDC/JWKS, key rotation, broker-bound registration/drain,
+durable replay state, and the runtime five-second handler-start bound remain
+unproven. The model does not select either P-003 candidate.
