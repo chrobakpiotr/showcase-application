@@ -233,11 +233,14 @@ does not supply OIDC/JWKS verification, asymmetric key rotation, per-instance
 broker binding, durable distributed replay protection, or suspend/resume
 timing. The separate
 [`P-003 handler/drain race model`](../evidence/p003-handler-drain-race-model.md)
-exercises start/drain ordering at an abstract serialized commit point, with
-local identity/registration-generation checks and five-second logical expiry.
-It does not prove concrete handler-start synchronization, Rabbit channel
-lifecycle, authenticated broker binding, or a wall-clock bound. P-003 remains
-open.
+now passes 35 deterministic assertions, including an active handler that
+continues past permit expiry while readiness falls and channel close/drain
+acknowledgement wait for completion. The companion [live Rabbit prefetch and
+drain probe](../evidence/p003-rabbit-prefetch-drain-probe.md) observed that
+cancel stops new deliveries but leaves prefetched unacknowledged messages on
+the client until channel close requeues them. These results still do not prove
+concrete handler-start synchronization, authenticated broker binding, an
+application listener integration, or a wall-clock bound. P-003 remains open.
 
 No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,

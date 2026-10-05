@@ -2235,22 +2235,33 @@ design gate remain open.
 
 ## S30-06 P-003 handler/drain race model — 2026-10-05
 
-An abstract deterministic model passes 28 assertions across three legal
+An abstract deterministic model passes 35 assertions across three legal
 snapshot/PAUSE/start orderings, active-handler completion before channel close,
-and drain acknowledgement only after close. Start snapshots bind local
+and drain acknowledgement only after close. A handler remains active across
+permit expiry while readiness falls and later starts reject; channel close and
+drain acknowledgement wait for completion. Start snapshots bind local
 instance ID, incarnation, registration ID/generation, gate generation, and
 permit timestamps; separate assertions reject stale or foreign instance and
 registration claims. Drain acknowledgements bind the current gate generation
 and registration claims. A logical clock enforces a five-second maximum
 permit window, rejecting future, expired, and overlong claims. Independent
-concurrency review verified the isolated rejection cases and the 28-check
-output.
+concurrency review verified the added expiry/drain ordering and all 35 checks.
 
 This model assumes a serialized admission commit point; it does not implement
-that synchronization or exercise real concurrent handlers, Rabbit cancel /
-prefetch/channel behavior, OIDC/JWKS, broker-observed identity, distributed
-registration, or a wall-clock bound. The evidence is in
-[`p003-handler-drain-race-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-handler-drain-race-model.md);
+that synchronization or exercise real concurrent handlers, OIDC/JWKS,
+broker-observed identity, distributed registration, or a wall-clock bound. A
+separate disposable RabbitMQ probe published a fourth message after
+`basic_cancel` and confirmed the canceled consumer did not receive it. It left
+two already-prefetched messages unacknowledged; channel close requeued both
+with `redelivered=True` after the active message was completed and acknowledged.
+It ran RabbitMQ 4.1 (`sha256:34b2c850932dcb97327c7cbcf4ef7926f2e3ffb0f3b5bd2b0ab89f3ca946c225`)
+in a transient no-volume container, then verified no containers remained. It
+does not test the application listener, gate, identity, or permit protocol.
+Five-run abstract-model stdout SHA-256 is
+`082bd0592d824d6ccd8aa169aab877327e07d1962f27ba1d6e350c7519cabfd3`.
+The evidence is in
+[`p003-handler-drain-race-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-handler-drain-race-model.md)
+and [`p003-rabbit-prefetch-drain-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p003-rabbit-prefetch-drain-probe.md);
 P-003 and the S30-06 design gate remain open.
 
 ## S30 review follow-up verification — 2026-10-05

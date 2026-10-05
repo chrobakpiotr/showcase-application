@@ -27,7 +27,7 @@ registration ID, and registration generation. It rejects stale gate-generation
 and registration claims, and is permitted only after the active count reaches
 zero and the channel is closed.
 
-There are **28 deterministic assertions** across **3 legal orderings** of
+There are **35 deterministic assertions** across **3 legal orderings** of
 snapshot, PAUSE, and start commit, plus active-drain sequencing, generation and
 incarnation/registration fencing, drain-ack claim validation, and valid-at-4,
 expired-at-5, expired-at-6, future-issued, and overlong permit cases. The exhaustive
@@ -35,7 +35,12 @@ admission orderings establish only the model's serialized-start rule; they are
 not a proof that production code implements that serialization.
 Cross-instance admission is isolated with an otherwise matching snapshot and
 registration ID; stale registration ID and registration generation are each
-mutated independently and rejected.
+mutated independently and rejected. An additional schedule admits a handler
+before permit expiry, advances to the five-second deadline, and verifies that
+readiness falls and later starts stop while the active handler continues.
+Channel close and drain acknowledgement remain blocked until that handler
+completes. Expiry handling is invoked directly at the logical deadline; timer
+scheduling, connectivity detection and real-time readiness are not modeled.
 
 Run with:
 
@@ -46,12 +51,14 @@ python3 docs/specs/S30-AMQP-POISON-001/evidence/p003-handler-drain-race-model.py
 The command was run five consecutive times. Each run produced exactly:
 
 ```text
-P003_HANDLER_DRAIN_MODEL PASS checks=28 admission_schedules=3
+P003_HANDLER_DRAIN_MODEL PASS checks=35 admission_schedules=3
 covered: serialized admission vs PAUSE, active completion -> channel close -> drain ack,
-         instance/registration/generation fences, issued-at/expiry max 5s window,
+         instance/registration/generation fences, expiry with active handler drain,
+         issued-at/expiry max 5s window,
          drain-ack generation/instance/incarnation/registration fencing
 scope: abstract deterministic model only; no integration or timing claim
 ```
+Five-run stdout SHA-256: `082bd0592d824d6ccd8aa169aab877327e07d1962f27ba1d6e350c7519cabfd3`.
 
 ## Limits and gaps
 
@@ -63,7 +70,9 @@ clock tests the expiry predicate at exact values;
 it does not demonstrate a wall-clock five-second bound. It does not test
 broker-observed connection identity, signed/request-nonce permit binding,
 forgery/replay, leader fencing, pause delivery, prefetched messages, channel
-closure failures, or external operator fencing. The model assumes the
+closure failures, or external operator fencing. A companion live RabbitMQ
+probe covers only cancel, prefetch, and channel-close behavior; it does not
+prove an application listener or gate integration. The model assumes the
 admission commit and PAUSE transition share a correct serialization boundary;
 that critical property still needs a concrete implementation and adversarial
 integration tests. The code is throwaway evidence and is not production-ready.

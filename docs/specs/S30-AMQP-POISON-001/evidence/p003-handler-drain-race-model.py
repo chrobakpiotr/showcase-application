@@ -22,6 +22,8 @@ class Instance:
     channel_open: bool = True
     active: int = 0
     draining_ack: bool = False
+    ready: bool = True
+    local_draining: bool = False
 
     def snapshot_start(self):
         return (self.generation, self.instance_id, self.incarnation,
@@ -31,7 +33,7 @@ class Instance:
     def start_handler(self, snapshot):
         (generation, instance_id, incarnation, registration_id,
          registration_generation, issued_at, expiry) = snapshot
-        if (self.gate_state != "ACTIVE" or not self.channel_open
+        if (not self.ready or self.local_draining or self.gate_state != "ACTIVE" or not self.channel_open
                 or generation != self.generation
                 or instance_id != self.instance_id
                 or incarnation != self.incarnation
@@ -49,13 +51,20 @@ class Instance:
         if self.gate_state == "ACTIVE":
             self.gate_state = "DRAINING"
             self.generation += 1
+            self.ready = False
+            self.local_draining = True
+
+    def expire_permit(self):
+        if self.now >= self.permit_expiry:
+            self.ready = False
+            self.local_draining = True
 
     def finish_handler(self):
         assert self.active > 0
         self.active -= 1
 
     def close_channel(self):
-        assert self.gate_state == "DRAINING"
+        assert self.local_draining
         assert self.active == 0
         self.channel_open = False
 
@@ -66,7 +75,7 @@ class Instance:
     def acknowledge_drain(self, claim):
         (gate_generation, instance_id, incarnation, registration_id,
          registration_generation) = claim
-        assert self.gate_state == "DRAINING"
+        assert self.local_draining
         assert gate_generation == self.generation
         assert instance_id == self.instance_id
         assert incarnation == self.incarnation
@@ -226,14 +235,52 @@ def test_five_second_deadline():
           "permit accepted before its issued-at time")
 
 
+def test_active_handler_outlives_permit():
+    instance = Instance(now=100, permit_issued_at=100, permit_expiry=105)
+    check(instance.start_handler(instance.snapshot_start()),
+          "valid handler did not start before gate loss")
+    instance.now = 105  # renewal is unavailable; local permit reaches its deadline
+    instance.expire_permit()
+    check(not instance.ready and instance.local_draining,
+          "instance remained ready after permit expiry")
+    check(instance.active == 1,
+          "permit expiry incorrectly discarded an already active handler")
+    check(not instance.start_handler(instance.snapshot_start()),
+          "new handler started after permit expiry")
+
+    rejected_close = False
+    try:
+        instance.close_channel()
+    except AssertionError:
+        rejected_close = True
+    check(rejected_close and instance.channel_open,
+          "channel closed before the expired-permit handler finished")
+    claim = instance.drain_claim()
+    rejected_ack = False
+    try:
+        instance.acknowledge_drain(claim)
+    except AssertionError:
+        rejected_ack = True
+    check(rejected_ack and not instance.draining_ack,
+          "drain acknowledged while the expired-permit handler remained active")
+
+    instance.finish_handler()
+    instance.close_channel()
+    instance.acknowledge_drain(claim)
+    check(not instance.channel_open and instance.draining_ack,
+          "expired-permit handler did not drain after completion")
+
+
 def main():
     schedules = test_admission_pause_interleavings()
     test_active_drain_order()
     test_generation_and_incarnation_fences()
     test_five_second_deadline()
+    test_active_handler_outlives_permit()
     print(f"P003_HANDLER_DRAIN_MODEL PASS checks={checks} admission_schedules={schedules}")
     print("covered: serialized admission vs PAUSE, active completion -> channel close -> drain ack,")
-    print("         instance/registration/generation fences, issued-at/expiry max 5s window,")
+    print("         instance/registration/generation fences, expiry with active handler drain,")
+    print("         issued-at/expiry max 5s window,")
     print("         drain-ack generation/instance/incarnation/registration fencing")
     print("scope: abstract deterministic model only; no integration or timing claim")
 
