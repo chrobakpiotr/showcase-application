@@ -14,9 +14,9 @@ old broker connection ID.
 
 The pinned image
 `rabbitmq@sha256:628bd74c1c7e2a820bf417b32e75eed1bd8d517345d9749ee8bd4076ae393abe`
-reported both distinct authenticated Rabbit usernames and the identical
-caller-supplied connection name, while assigning distinct broker connection
-IDs. Closing A's observed broker ID returned HTTP 204 and left B live. A's
+reported version **4.3.6**, both distinct authenticated Rabbit usernames, and
+the identical caller-supplied connection name, while assigning distinct broker
+connection IDs. Closing A's observed broker ID returned HTTP 204 and left B live. A's
 reconnect received a different broker ID; deleting against the old ID returned
 HTTP 404 and left both the replacement A connection and B connection live.
 The script exited successfully and its disposable container was removed.

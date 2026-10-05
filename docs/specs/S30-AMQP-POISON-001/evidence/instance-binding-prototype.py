@@ -134,6 +134,8 @@ def main() -> None:
         )
         admin_user = f"probe-admin-{suffix}"
         wait_until(lambda: api(management_port, admin_user, admin_password, "overview")[0] == 200)
+        version = run("docker", "exec", container, "rabbitmqctl", "version").stdout.strip()
+        print("RABBITMQ_VERSION=" + version)
         for user, password in ((user_a, password_a), (user_b, password_b)):
             run("docker", "exec", container, "rabbitmqctl", "add_user", user, password)
             run("docker", "exec", container, "rabbitmqctl", "set_permissions", "-p", "/", user, ".*", ".*", ".*")
