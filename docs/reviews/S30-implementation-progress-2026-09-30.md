@@ -2040,7 +2040,38 @@ handler A claims generation 1, B claims generation 2 and commits its outcome,
 then A's stale finalization affects zero rows. The final durable row remains
 B's generation-2 result. Independent evaluation reran the pinned container,
 confirmed cleanup, and verified the CAS observation. ACK eligibility is only
-modeled as conditional on the affected-row result; no Rabbit client or
+ modeled as conditional on the affected-row result; no Rabbit client or
 production listener was involved. Claim eligibility, lease/retry semantics,
 attempt limits, database outages, external side effects, and real concurrent
 handler fencing remain open, so 06b stays discovery-only.
+
+## S30-06 P-001 live fence bake-off — 2026-10-05
+
+The digest-pinned PostgreSQL/Redis bake-off now compares both predeclared P-001
+candidates under one controlled interleaving. It validates the old owner's
+server-time lease while holding its row fence (A) or advisory lock plus CAS
+(B), buffers the full Redis EVAL in a local TCP proxy before lease expiry, and
+waits for PostgreSQL `pg_stat_activity` to show the takeover blocked on a lock.
+After the proxy forwards the old write, it reads Redis's real `WAITAOF [1,0]`
+reply on the same TCP connection and drops it, so the caller observes EOF. For
+both candidates, takeover advanced after the old session was killed, epoch 2
+installed, epoch 1 was rejected after installation, and the
+`RECOVERY_REQUIRED` latch kept permit evaluation false.
+The prototype models no command-finalization SQL; it only terminates the old
+PostgreSQL session while that session holds its fence.
+
+The reproducible transcript, exact container digests, limitations, and
+prototype hash are recorded in
+[`p001-live-fence-bakeoff.md`](../specs/S30-AMQP-POISON-001/evidence/p001-live-fence-bakeoff.md);
+the Python script SHA-256 is
+`7894d486df05deab30a4c0bb80a8f8de57103d4371a667fad1bf13aa9b9c7451`.
+An independent concurrency review reproduced both cleanup failure paths and
+confirmed they left no matching containers or processes; the successful
+interleaving had already been reproduced in shared and detached worktrees.
+This is partial provider-backed evidence only: single-node ephemeral Redis
+does not prove replica/failover durability, real provider restore behavior,
+coordinated stale-restore safety, signed permit issuance, or operational
+latency. Candidate B's CAS also retains row-level serialization. P-001 remains
+**NEEDS_MORE_EVIDENCE**, no candidate is selected, and S30-06 remains
+design-gated pending provider failover/restore and the remaining
+P-002/P-003, Rabbit, and platform evidence.

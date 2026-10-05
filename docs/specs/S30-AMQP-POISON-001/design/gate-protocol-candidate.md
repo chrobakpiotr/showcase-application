@@ -148,6 +148,19 @@ concurrent-command, failover, restore, or Rabbit/handler blockers. P-001
 remains open. The model does not test bounded successful recovery after
 takeover, which remains part of the P-001 decision criteria.
 
+The [live P-001 fence bake-off](../evidence/p001-live-fence-bakeoff.md)
+exercises both candidates in one digest-pinned PostgreSQL/Redis schedule. In
+each, takeover waits while the old PostgreSQL fence is held; an epoch-1 write
+before epoch-2 installation can apply while the sticky latch remains set;
+epoch 1 is rejected after installation; permit evaluation remains denied.
+This is partial evidence only: WAITAOF loss is injected after the real
+response; there is no actual failover/restore or signed permit service; and
+candidate B's CAS still takes the same owner-row lock. No candidate is
+selected; P-001 remains open. An independent concurrency review reproduced
+both cleanup failure paths, verified no matching processes or containers
+remained, and confirmed the report does not claim command-finalization SQL or
+a live permit service.
+
 P-002's checked-in
 [`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)
 supports minimal tombstones for preserving the current client-held stable
