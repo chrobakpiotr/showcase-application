@@ -223,6 +223,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
+      - name: Validate accepted Dependency-Check risks
+        run: |
+          python3 tooling/quality/dependencycheck/check_accepted_risks.py --warn-days 30
+          python3 -m unittest discover -s tooling/quality/dependencycheck/tests
+
       - name: Run OWASP DependencyCheck
         run: |
           # DependencyCheck uses the configured NVD JSON datafeed, so this job does not depend
