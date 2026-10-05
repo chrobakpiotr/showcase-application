@@ -2202,3 +2202,12 @@ prefetch/channel behavior, OIDC/JWKS, broker-observed identity, distributed
 registration, or a wall-clock bound. The evidence is in
 [`p003-handler-drain-race-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-handler-drain-race-model.md);
 P-003 and the S30-06 design gate remain open.
+
+## S30 review follow-up verification — 2026-10-05
+
+After the P-002 commit-boundary and same-key issuance-recovery evidence was
+added, the repository Markdown link checker passed for 229 files, the
+specification inventory check passed, and `harness.py validate-all docs/specs`
+passed every executable specification. S30-AMQP-POISON-001 remains
+document-only by design and is not treated as executable or implementation-
+authorized. GitHub Actions were not queried or modified in this follow-up.
