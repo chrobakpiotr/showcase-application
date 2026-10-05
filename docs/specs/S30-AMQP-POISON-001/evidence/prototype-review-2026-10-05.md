@@ -139,3 +139,44 @@ exact Redis/PostgreSQL image digests recorded in the report.
 The accepted spec now defines reason as per-attempt audit metadata, distinct
 from state-changing command identity. The candidate adds a resumable dual-key
 re-MAC proposal; crash/restart and backup-lifecycle proof remain open.
+
+## Independent rereview at `239695b`
+
+The architecture grill reviewed the new 06b capability and instance-binding
+notes. It found and rejected self-referential artifact/attestation hashes; the
+proposal now keeps qualification hashes external and leaves signed-attestation
+policy open. It also found the in-process descriptor incompatible with an
+unresolved remote-provider option; provider topology now remains explicitly
+open, with separate contract shapes required for the two options. These edits
+correct proposal defects but do not constitute an accepted 06b contract.
+
+Fresh security review kept S30-06 **BLOCKED**. It confirms the 06b status
+descriptor cannot prove stale-handler fencing; the per-instance identity pair
+is still a candidate with no Compose/Kubernetes/production provisioning,
+isolation, or revocation proof; and the built-in Rabbit administrator fencer
+is broader than the required narrow capability. Accepted quarantine controls
+(TLS, encrypted storage, TTL and backup deletion, audited-only reads, and size
+limits) remain unimplemented. Consumer admission and raw-message reads stay
+disabled.
+
+Fresh messaging review found four additional contract/proof gaps:
+
+- Ordering is unspecified across replicas, redelivery, and requeue. Either
+  explicitly accept unordered at-least-once processing and test concurrent and
+  reordered duplicate operations, or define an ordering key and serialization
+  contract.
+- Broker connection closure does not establish that an old handler stopped.
+  A real barrier test must block handler A, close/requeue, let B claim and
+  commit, then resume A and prove A cannot commit, finalize, or ACK.
+- Per-instance identity-to-connection binding still needs a production-broker
+  prototype covering duplicate names, reconnect, target substitution, and
+  ambiguous broker observations.
+- The audited quarantine reader and the fence identity must remain separate.
+  Tests must prove durable audit before any read/export is returned, direct
+  read denial, fencer payload-read denial, and denial of unrelated management
+  operations.
+
+These findings keep the feature at **NEEDS_MORE_DESIGN**; no implementation or
+design-gate PASS is authorized by the candidate notes. A disposable two-user
+Rabbit binding probe is in progress to test the identity-observation portion;
+it cannot close the fencer least-privilege or 06b stale-handler gaps.
