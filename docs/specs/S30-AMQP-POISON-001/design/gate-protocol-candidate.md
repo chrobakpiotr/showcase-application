@@ -202,10 +202,12 @@ generation and single issuance/result rows. Injected failures before commit
 leave ACTIVE/generation 7 and no result; a retry after simulated post-commit
 response loss recovers PAUSED/generation 8 without advancing again.
 Independent concurrency review verified these persisted assertions and
-limits. This remains SQLite/HMAC evidence, not transport failure,
-multi-process contention, or production cryptography/durability. Issuance-ID
-lifetime, expired-attempt audit, restore rollback, and provider guarantees
-remain unresolved; candidate B is not selected and P-002 remains open.
+limits. The lost-response case discards the envelope, reopens the issuer store,
+and retries issuance with the same key before resolving the command result.
+This remains SQLite/HMAC evidence, not transport failure, multi-process
+contention, or production cryptography/durability. Issuance-ID lifetime,
+expired-attempt audit, restore rollback, and provider guarantees remain
+unresolved; candidate B is not selected and P-002 remains open.
 
 To reduce retained sensitive-data risk, this candidate excludes human reason
 and actor from the tombstone MAC. The reason remains only in one-year

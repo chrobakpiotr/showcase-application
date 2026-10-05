@@ -2167,10 +2167,11 @@ multi-process/provider contention. Independent concurrency review verified
 these exact local claims and limitations. A follow-up assertion reads persisted generation and verifies one
 issuance row and one execution result row; a further extension injects failures
 before result insertion, before commit, and after commit/before response. The
-pre-commit failures roll back state and result together; retry after simulated
-post-commit response loss returns the one stored outcome. Five-run stdout
-SHA-256 is now
-`399049b7df06343c091238740952ada2161bc01abc332394a2baa465eebbf595`.
+pre-commit failures roll back state and result together. Following a simulated
+post-commit response loss, the harness discards the envelope, reopens the
+issuer store, and retries issuance with the same key before resolving the
+stored outcome. Five-run stdout SHA-256 is now
+`a77d4757493924404a14239b8202cebda63574d3ec1977dbfae474cb01603942`.
 
 This remains a SQLite/HMAC model; the harness does not inject transport
 failure and makes no production cryptography or durability claim. Issuance-key

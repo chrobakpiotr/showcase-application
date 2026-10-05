@@ -382,6 +382,7 @@ def main() -> None:
         boundary_envelope = issue(
             path, "commit-boundary-issuance", boundary_request, now=issued_at + 12
         )
+        boundary_envelope_hash = hashlib.sha256(canonical(boundary_envelope)).digest()
         for fail_at, expected_error in (
             ("after_state_update", "INJECTED_BEFORE_RESULT_INSERT"),
             ("before_commit", "INJECTED_BEFORE_COMMIT"),
@@ -415,8 +416,18 @@ def main() -> None:
             assert str(error) == "INJECTED_LOST_COMMIT_RESPONSE"
         else:
             raise AssertionError("post-commit response-loss injection did not fail")
+        del boundary_envelope
+        db = db_connect(path)
+        db.close()
+        recovered_boundary_envelope = issue(
+            path,
+            "commit-boundary-issuance",
+            boundary_request,
+            now=issued_at + 14,
+        )
+        assert hashlib.sha256(canonical(recovered_boundary_envelope)).digest() == boundary_envelope_hash
         recovered_result = store.execute_or_resolve(
-            boundary_envelope, boundary_request, issued_at + 14
+            recovered_boundary_envelope, boundary_request, issued_at + 15
         )
         assert recovered_result == {"status": "OK", "state": "PAUSED", "generation": 8}
         db = db_connect(path)
@@ -427,7 +438,7 @@ def main() -> None:
             assert (persisted["generation"], persisted["gate_state"]) == (8, "PAUSED")
             assert db.execute(
                 "SELECT COUNT(*) FROM execution_result WHERE command_id = ?",
-                (boundary_envelope["body"]["command_id"],),
+                (recovered_boundary_envelope["body"]["command_id"],),
             ).fetchone()[0] == 1
         finally:
             db.close()
@@ -436,7 +447,7 @@ def main() -> None:
         print("PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.")
         print("PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.")
         print("PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.")
-        print("PASS: pre-commit failures preserved ACTIVE/generation 7 with no result; retry after lost post-commit response returned PAUSED/generation 8 once.")
+        print("PASS: pre-commit failures preserved ACTIVE/generation 7; after commit response loss, same-key issuance recovery returned one PAUSED/generation-8 result.")
         print("LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.")
         print("OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.")
 
