@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.aws.order;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.Order;
 import com.google.gson.Gson;
 
@@ -19,6 +20,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 
@@ -47,7 +49,12 @@ class StoreOrderExportAdapterTest {
         given(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .willReturn(PutObjectResponse.builder().build());
 
-        adapter.store(order);
+        try (LogCapture logs = new LogCapture(StoreOrderExportAdapter.class)) {
+            adapter.store(order);
+            assertThat(logs.formattedMessages())
+                    .contains("Storing order export to S3")
+                    .doesNotContain("test-bucket", order.getOrderNumber());
+        }
 
         verify(s3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
     }

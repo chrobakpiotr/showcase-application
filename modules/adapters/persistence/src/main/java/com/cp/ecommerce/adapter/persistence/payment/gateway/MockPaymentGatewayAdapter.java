@@ -70,13 +70,7 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
                     recoveryMetrics.recordPaymentUnknown();
                     throw new TechnicalProblemException("Could not charge payment for order: " + orderNumber, exception);
                 });
-        log.info(
-                "Mock payment gateway captured {} for order: {} via {} ({}, idempotencyKey={})",
-                amount,
-                orderNumber,
-                method,
-                gatewayReference,
-                operationId);
+        log.info("Mock payment gateway operation=CAPTURE outcome=ACCEPTED");
         return gatewayReference;
     }
 
@@ -97,12 +91,7 @@ class MockPaymentGatewayAdapter implements ChargePaymentOutPort, RefundPaymentOu
                         gatewayReference));
 
         resilientExecutor.callResilientOrElse(REFUND_RESILIENCE_INSTANCE_NAME, () -> {
-            log.info(
-                    "Mock payment gateway refunded {} for order: {} ({}, idempotencyKey={})",
-                    amount,
-                    orderNumber,
-                    gatewayReference,
-                    refundId);
+            log.info("Mock payment gateway operation=REFUND outcome=ACCEPTED");
             return null;
         }, exception -> {
             throw new TechnicalProblemException("Could not refund payment for order: " + orderNumber, exception);

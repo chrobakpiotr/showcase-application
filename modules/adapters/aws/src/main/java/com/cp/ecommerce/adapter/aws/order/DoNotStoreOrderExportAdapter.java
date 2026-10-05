@@ -19,7 +19,7 @@ public class DoNotStoreOrderExportAdapter implements StoreOrderExportOutPort {
     @Override
     public void store(final Order order) {
 
-        log.info("S3 export disabled for order {}, export will not be stored.", order.getOrderNumber());
+        log.info("S3 export disabled");
     }
 
 }

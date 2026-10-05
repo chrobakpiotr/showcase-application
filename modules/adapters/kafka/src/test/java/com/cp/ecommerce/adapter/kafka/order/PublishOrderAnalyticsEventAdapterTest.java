@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.concurrent.CompletableFuture;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.Order;
 import com.google.gson.Gson;
 
@@ -23,6 +24,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 import static com.cp.ecommerce.adapter.kafka.configuration.KafkaTopicConfiguration.ORDER_ANALYTICS_TOPIC_NAME;
@@ -58,7 +60,12 @@ class PublishOrderAnalyticsEventAdapterTest {
         given(kafkaTemplate.send(anyString(), anyString(), anyString()))
                 .willReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
 
-        adapter.publish(order);
+        try (LogCapture logs = new LogCapture(PublishOrderAnalyticsEventAdapter.class)) {
+            adapter.publish(order);
+            assertThat(logs.formattedMessages())
+                    .contains("Publishing order analytics event to Kafka")
+                    .doesNotContain(ORDER_ANALYTICS_TOPIC_NAME, order.getOrderNumber());
+        }
 
         verify(kafkaTemplate).send(eq(ORDER_ANALYTICS_TOPIC_NAME), eq(order.getOrderNumber()), any(String.class));
     }

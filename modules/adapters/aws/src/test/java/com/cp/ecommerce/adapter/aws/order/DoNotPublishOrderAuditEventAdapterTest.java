@@ -1,9 +1,11 @@
 package com.cp.ecommerce.adapter.aws.order;
 
 import com.cp.ecommerce.domain.order.Order;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
@@ -18,7 +20,12 @@ class DoNotPublishOrderAuditEventAdapterTest {
 
         final DoNotPublishOrderAuditEventAdapter adapter = new DoNotPublishOrderAuditEventAdapter();
         final Order order = mockOrder();
-        assertDoesNotThrow(() -> adapter.publish(order));
+        try (LogCapture logs = new LogCapture(DoNotPublishOrderAuditEventAdapter.class)) {
+            assertDoesNotThrow(() -> adapter.publish(order));
+            assertThat(logs.formattedMessages())
+                    .contains("SQS audit publishing disabled")
+                    .doesNotContain(order.getOrderNumber());
+        }
     }
 
 }

@@ -49,21 +49,18 @@ public class OrderPlacementBestEffortTail {
             executor.execute(
                     () -> runSimple(
                             "s3-export",
-                            order,
-                            exportOrderInPort::exportOrder,
-                            "Could not export order to S3 (best-effort): {}"));
+                    order,
+                    exportOrderInPort::exportOrder));
             executor.execute(
                     () -> runSimple(
                             "sqs-audit",
-                            order,
-                            publishOrderAuditEventInPort::publishAuditEvent,
-                            "Could not publish SQS audit event (best-effort): {}"));
+                    order,
+                    publishOrderAuditEventInPort::publishAuditEvent));
             executor.execute(
                     () -> runSimple(
                             "kafka-analytics",
-                            order,
-                            publishOrderAnalyticsEventInPort::publishAnalyticsEvent,
-                            "Could not publish Kafka analytics event (best-effort): {}"));
+                    order,
+                    publishOrderAnalyticsEventInPort::publishAnalyticsEvent));
             executor.execute(() -> classifyRemarks(order));
             executor.execute(() -> detectDuplicateOrder(order));
         }
@@ -78,13 +75,11 @@ public class OrderPlacementBestEffortTail {
             sagaMetrics.recordRemarksClassification(result.getCategory());
             if (result.getCategory() == RemarksTriageCategory.SUSPICIOUS) {
                 log.warn(
-                        "Order remarks flagged as SUSPICIOUS by AI triage (human review recommended): orderNumber={}, rationale={}",
-                        order.getOrderNumber(),
-                        result.getRationale());
+                        "Order remarks triage outcome=REVIEW_REQUIRED");
             }
         }, exception -> {
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), false);
-            log.warn("Could not classify order remarks (best-effort): {}", order.getOrderNumber(), exception);
+            log.warn("Order remarks triage outcome=FAILED");
         });
     }
 
@@ -97,20 +92,15 @@ public class OrderPlacementBestEffortTail {
             sagaMetrics.recordDuplicateOrderDetection(result.isDuplicate());
             if (result.isDuplicate()) {
                 log.warn(
-                        "Order flagged as a likely duplicate by AI similarity check (human review recommended): "
-                                + "orderNumber={}, matchedOrderNumber={}, similarityScore={}, rationale={}",
-                        order.getOrderNumber(),
-                        result.getMatchedOrderNumber(),
-                        result.getSimilarityScore(),
-                        result.getRationale());
+                        "Order duplicate detection outcome=REVIEW_REQUIRED");
             }
         }, exception -> {
             sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), false);
-            log.warn("Could not run AI duplicate-order detection (best-effort): {}", order.getOrderNumber(), exception);
+            log.warn("Order duplicate detection outcome=FAILED");
         });
     }
 
-    private void runSimple(final String step, final Order order, final Consumer<Order> action, final String failureLogMessage) {
+    private void runSimple(final String step, final Order order, final Consumer<Order> action) {
 
         final long startNanos = System.nanoTime();
         RuntimeFailureBoundary.run(() -> {
@@ -118,7 +108,7 @@ public class OrderPlacementBestEffortTail {
             sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), true);
         }, exception -> {
             sagaMetrics.recordStepDuration(step, elapsedSince(startNanos), false);
-            log.warn(failureLogMessage, order.getOrderNumber(), exception);
+            log.warn("Order placement best-effort step outcome=FAILED step={}", step);
         });
     }
 

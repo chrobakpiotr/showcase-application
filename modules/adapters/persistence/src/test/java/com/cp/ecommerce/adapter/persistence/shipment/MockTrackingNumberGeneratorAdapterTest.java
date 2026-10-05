@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.shipment;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import org.junit.jupiter.api.Test;
@@ -39,9 +40,16 @@ class MockTrackingNumberGeneratorAdapterTest {
                     return action.get();
                 });
 
-        final String result = mockTrackingNumberGeneratorAdapter.generate("DHL");
+        final String carrier = "PRIVATE_CARRIER_MARKER";
+        final String result;
+        try (LogCapture logs = new LogCapture(MockTrackingNumberGeneratorAdapter.class)) {
+            result = mockTrackingNumberGeneratorAdapter.generate(carrier);
+            org.assertj.core.api.Assertions.assertThat(logs.formattedMessages())
+                    .contains("Mock tracking number generation outcome=GENERATED")
+                    .doesNotContain(carrier, result);
+        }
 
-        assertThat(result).startsWith("DHL-");
+        assertThat(result).startsWith("PRIVATECARRI-");
         verify(resilientExecutor)
                 .callResilientOrElse(anyString(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }

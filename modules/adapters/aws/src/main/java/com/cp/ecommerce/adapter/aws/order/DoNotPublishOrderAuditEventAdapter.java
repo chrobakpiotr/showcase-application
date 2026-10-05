@@ -19,7 +19,7 @@ public class DoNotPublishOrderAuditEventAdapter implements PublishOrderAuditEven
     @Override
     public void publish(final Order order) {
 
-        log.info("SQS publishing disabled for order {}, audit event will not be sent.", order.getOrderNumber());
+        log.info("SQS audit publishing disabled");
     }
 
 }

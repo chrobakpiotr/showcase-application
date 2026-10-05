@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.notification;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.common.utils.NotificationBuilder;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -11,9 +12,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+
+import static com.cp.ecommerce.adapter.common.utils.NotificationBuilder.TEST_BODY;
+import static com.cp.ecommerce.adapter.common.utils.NotificationBuilder.TEST_NOTIFICATION_ID;
+import static com.cp.ecommerce.adapter.common.utils.NotificationBuilder.TEST_RECIPIENT_EMAIL;
+import static com.cp.ecommerce.adapter.common.utils.NotificationBuilder.TEST_SUBJECT;
 
 /**
  * Test class for {@link MockNotificationDeliveryAdapter}.
@@ -35,7 +42,18 @@ class MockNotificationDeliveryAdapterTest {
             return action.get();
         });
 
-        mockNotificationDeliveryAdapter.deliver(NotificationBuilder.mockNotification());
+        final String operationId = "PRIVATE_IDEMPOTENCY_KEY";
+        try (LogCapture logs = new LogCapture(MockNotificationDeliveryAdapter.class)) {
+            mockNotificationDeliveryAdapter.deliver(operationId, NotificationBuilder.mockNotification());
+            assertThat(logs.formattedMessages())
+                    .contains("Mock notification delivery outcome=RECORDED channel=EMAIL")
+                    .doesNotContain(
+                            operationId,
+                            TEST_NOTIFICATION_ID,
+                            TEST_RECIPIENT_EMAIL,
+                            TEST_SUBJECT,
+                            TEST_BODY);
+        }
 
         verify(resilientExecutor).callResilientOrElse(anyString(), any(), any());
     }

@@ -50,7 +50,7 @@ public class PublishOrderAuditEventAdapter implements PublishOrderAuditEventOutP
                 .timestamp(clock.instant().toString())
                 .build();
         final String json = gson.toJson(event);
-        log.info("Publishing order audit event to SQS: queueUrl={}, orderNumber={}", queueUrl, order.getOrderNumber());
+        log.info("Publishing order audit event to SQS");
         resilientExecutor.runResilient(RESILIENCE_INSTANCE_NAME, () -> {
             final SendMessageRequest request = SendMessageRequest.builder().queueUrl(queueUrl).messageBody(json).build();
             sqsClient.sendMessage(request);

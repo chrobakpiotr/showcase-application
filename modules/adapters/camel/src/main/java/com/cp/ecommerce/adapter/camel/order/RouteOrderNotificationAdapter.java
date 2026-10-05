@@ -23,7 +23,7 @@ public class RouteOrderNotificationAdapter implements RouteOrderNotificationOutP
 
     @Override
     public void route(final Order order) {
-        log.info("Routing order notification through Camel: orderNumber={}", order.getOrderNumber());
+        log.info("Routing order notification through Camel");
         producerTemplate.sendBody(ORDER_NOTIFICATION_ENDPOINT, order);
     }
 }

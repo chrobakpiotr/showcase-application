@@ -19,7 +19,7 @@ public class DoNotPublishOrderAnalyticsEventAdapter implements PublishOrderAnaly
     @Override
     public void publish(final Order order) {
 
-        log.info("Kafka publishing disabled for order {}, analytics event will not be sent.", order.getOrderNumber());
+        log.info("Kafka analytics publishing disabled");
     }
 
 }

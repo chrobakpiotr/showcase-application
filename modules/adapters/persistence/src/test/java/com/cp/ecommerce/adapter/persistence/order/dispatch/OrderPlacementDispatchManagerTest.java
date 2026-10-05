@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
@@ -141,7 +142,13 @@ class OrderPlacementDispatchManagerTest {
         given(repository.findByIdForUpdate("fail")).willReturn(Optional.of(row));
         given(manageOrderInPort.findOrder(order.getOrderNumber())).willReturn(order);
         doThrow(new IllegalStateException("smtp outcome unknown")).when(email).sendConfirmationEmail(order);
-        manager.deliverDueDispatch("fail");
+        try (LogCapture logs = new LogCapture(OrderPlacementDispatchManager.class)) {
+            manager.deliverDueDispatch("fail");
+            assertThat(logs.formattedMessages())
+                    .contains("Could not deliver durable placement dispatch")
+                    .doesNotContain("fail", order.getOrderNumber(), "smtp outcome unknown");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
         assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.FAILED);
         assertThat(row.getLastError()).contains("smtp outcome unknown");
         assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusMillis(manager.retryDelayMillis));

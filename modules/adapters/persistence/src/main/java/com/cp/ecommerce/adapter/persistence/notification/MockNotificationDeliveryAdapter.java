@@ -26,11 +26,8 @@ class MockNotificationDeliveryAdapter implements DeliverNotificationOutPort {
 
         resilientExecutor.callResilientOrElse(DELIVERY_RESILIENCE_INSTANCE_NAME, () -> {
             log.info(
-                    "Mock notification delivery recorded {} for {} via {} (idempotencyKey={})",
-                    notification.getNotificationId(),
-                    notification.getRecipientEmail(),
-                    notification.getChannel(),
-                    operationId);
+                    "Mock notification delivery outcome=RECORDED channel={}",
+                    notification.getChannel());
             return null;
         }, exception -> {
             throw new TechnicalProblemException(

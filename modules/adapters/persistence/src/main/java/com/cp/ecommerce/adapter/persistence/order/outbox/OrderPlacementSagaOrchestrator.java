@@ -123,7 +123,7 @@ public class OrderPlacementSagaOrchestrator {
                             releasePlacementClaim(claim, exception.getMessage());
                             throw exception;
                         })),
-                exception -> log.warn("Could not process saga step for order: {}", candidate.getOrderNumber(), exception));
+                exception -> log.warn("Could not process durable order placement"));
     }
 
     private Optional<SagaClaim> claimPlacementEvent(final OutboxEventEntity candidate) {
@@ -176,7 +176,7 @@ public class OrderPlacementSagaOrchestrator {
 
             if (!ownsPlacementClaim(claim)) {
                 sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
-                log.warn("Placement claim was lost during payment capture for order: {}", order.getOrderNumber());
+                log.warn("Placement claim was lost during payment capture");
                 compensateLateCaptureIfCancellationWon(order, claim, payment);
                 return false;
             }
@@ -189,7 +189,7 @@ public class OrderPlacementSagaOrchestrator {
 
             if (payment.getStatus() == PaymentStatus.PARTIALLY_REFUNDED || payment.getStatus() == PaymentStatus.REFUNDED) {
                 sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
-                log.warn("Refusing to continue placement saga for refunded order: {}", order.getOrderNumber());
+                log.warn("Placement stopped because payment is already refunded");
                 releasePlacementClaim(claim, "Payment is already refunded");
                 return false;
             }
@@ -198,10 +198,7 @@ public class OrderPlacementSagaOrchestrator {
             return true;
         } catch (final PaymentDeclinedException exception) {
             sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
-            log.error(
-                    "Payment capture declined for order: {}, compensating by cancelling the order.",
-                    order.getOrderNumber(),
-                    exception);
+            log.error("Payment capture declined; starting order compensation");
             startCompensation(order, claim, exception.getMessage());
             return false;
         }
@@ -244,9 +241,7 @@ public class OrderPlacementSagaOrchestrator {
                         .orElse(false));
 
         if (Boolean.TRUE.equals(cancellationWon)) {
-            log.warn(
-                    "Compensating late payment capture after durable cancellation/compensation won for order: {}",
-                    order.getOrderNumber());
+            log.warn("Compensating late payment capture after durable cancellation won");
             managePaymentInPort.refundPayment(order.getOrderNumber());
         }
     }
@@ -301,20 +296,16 @@ public class OrderPlacementSagaOrchestrator {
                             if (event.getAttempts() >= maxFulfillmentAttempts) {
 
                                 log.error(
-                                        "Fulfillment notification failed for order: {} after {} attempts, compensating by cancelling the order.",
-                                        order.getOrderNumber(),
-                                        event.getAttempts(),
-                                        exception);
+                                        "Fulfillment notification failed; starting compensation after attempts={}",
+                                        event.getAttempts());
                                 cancelOrderInPort.cancelOrder(order.getOrderNumber());
                                 event.setStatus(OutboxEventStatus.COMPENSATING);
                             } else {
 
                                 log.warn(
-                                        "Fulfillment notification failed for order: {} (attempt {}/{}), will retry.",
-                                        order.getOrderNumber(),
+                                        "Fulfillment notification failed; retrying attempt={}/{}",
                                         event.getAttempts(),
-                                        maxFulfillmentAttempts,
-                                        exception);
+                                        maxFulfillmentAttempts);
                                 event.setStatus(OutboxEventStatus.PENDING);
                             }
                             event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli() + retryBackoffMillis));
@@ -373,7 +364,7 @@ public class OrderPlacementSagaOrchestrator {
 
         RuntimeFailureBoundary.run(
                 () -> claimCompensationEvent(candidate).ifPresent(this::processCompensationClaim),
-                exception -> log.warn("Could not claim compensation for order: {}", candidate.getOrderNumber(), exception));
+                exception -> log.warn("Could not claim order compensation"));
     }
 
     private Optional<SagaClaim> claimCompensationEvent(final OutboxEventEntity candidate) {

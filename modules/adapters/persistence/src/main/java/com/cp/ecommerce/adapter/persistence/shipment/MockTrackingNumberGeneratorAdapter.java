@@ -34,7 +34,7 @@ class MockTrackingNumberGeneratorAdapter implements GenerateTrackingNumberOutPor
                             "Could not generate tracking number for carrier: " + carrier,
                             exception);
                 });
-        log.info("Mock tracking number {} generated for carrier {}", trackingNumber, carrier);
+        log.info("Mock tracking number generation outcome=GENERATED");
         return trackingNumber;
     }
 

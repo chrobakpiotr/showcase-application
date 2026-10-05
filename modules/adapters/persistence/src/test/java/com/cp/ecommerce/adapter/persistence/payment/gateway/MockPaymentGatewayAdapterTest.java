@@ -3,6 +3,7 @@ package com.cp.ecommerce.adapter.persistence.payment.gateway;
 import java.math.BigDecimal;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.persistence.metrics.RecoveryMetrics;
 import com.cp.ecommerce.domain.order.PaymentMethod;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
@@ -51,8 +52,14 @@ class MockPaymentGatewayAdapterTest {
 
         runResilientCallableEagerly();
 
-        final String result = mockPaymentGatewayAdapter
-                .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
+        final String result;
+        try (LogCapture logs = new LogCapture(MockPaymentGatewayAdapter.class)) {
+            result = mockPaymentGatewayAdapter
+                    .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
+            assertThat(logs.formattedMessages())
+                    .contains("Mock payment gateway operation=CAPTURE outcome=ACCEPTED")
+                    .doesNotContain(ORDER_NUMBER, CAPTURE_OPERATION_ID, ORDER_AMOUNT, result);
+        }
 
         assertThat(result).isEqualTo("mock-gw-" + CAPTURE_OPERATION_ID);
     }
@@ -102,7 +109,12 @@ class MockPaymentGatewayAdapterTest {
 
         runResilientRunnableEagerly();
 
-        mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00"));
+        try (LogCapture logs = new LogCapture(MockPaymentGatewayAdapter.class)) {
+            mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00"));
+            assertThat(logs.formattedMessages())
+                    .contains("Mock payment gateway operation=REFUND outcome=ACCEPTED")
+                    .doesNotContain(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", "10.00");
+        }
 
         verify(resilientExecutor).callResilientOrElse(anyString(), any(), any());
     }

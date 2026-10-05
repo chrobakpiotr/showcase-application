@@ -50,10 +50,7 @@ public class PublishOrderAnalyticsEventAdapter implements PublishOrderAnalyticsE
                 .timestamp(clock.instant().toString())
                 .build();
         final String json = gson.toJson(event);
-        log.info(
-                "Publishing order analytics event to Kafka: topic={}, orderNumber={}",
-                ORDER_ANALYTICS_TOPIC_NAME,
-                order.getOrderNumber());
+        log.info("Publishing order analytics event to Kafka");
         resilientExecutor.runResilient(
                 RESILIENCE_INSTANCE_NAME,
                 () -> kafkaTemplate.send(ORDER_ANALYTICS_TOPIC_NAME, order.getOrderNumber(), json));

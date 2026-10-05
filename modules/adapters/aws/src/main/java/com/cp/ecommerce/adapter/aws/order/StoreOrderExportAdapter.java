@@ -43,7 +43,7 @@ public class StoreOrderExportAdapter implements StoreOrderExportOutPort {
 
         final String json = gson.toJson(order);
         final String key = S3_KEY_PREFIX + order.getOrderNumber() + S3_KEY_SUFFIX;
-        log.info("Storing order export to S3: bucket={}, key={}", bucketName, key);
+        log.info("Storing order export to S3");
         resilientExecutor.runResilient(RESILIENCE_INSTANCE_NAME, () -> {
             final PutObjectRequest request = PutObjectRequest.builder().bucket(bucketName).key(key).build();
             s3Client.putObject(request, RequestBody.fromString(json));

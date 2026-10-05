@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
@@ -20,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -96,7 +98,12 @@ class OrderPlacementBestEffortTailTest {
         doThrow(new IllegalStateException("kafka unavailable")).when(publishOrderAnalyticsEventInPort)
                 .publishAnalyticsEvent(order);
 
-        assertDoesNotThrow(() -> tail.run(order));
+        try (LogCapture logs = new LogCapture(OrderPlacementBestEffortTail.class)) {
+            assertDoesNotThrow(() -> tail.run(order));
+            assertThat(logs.formattedMessages())
+                    .doesNotContain(order.getOrderNumber(), "s3 unavailable", "sqs unavailable", "kafka unavailable");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
 
         verify(sagaMetrics).recordStepDuration(eq("s3-export"), any(), eq(false));
         verify(sagaMetrics).recordStepDuration(eq("sqs-audit"), any(), eq(false));
@@ -128,8 +135,16 @@ class OrderPlacementBestEffortTailTest {
                 .when(classifyOrderRemarksInPort)
                 .classifyRemarks(order);
 
-        assertDoesNotThrow(() -> tail.run(order));
-        tail.run(order);
+        try (LogCapture logs = new LogCapture(OrderPlacementBestEffortTail.class)) {
+            assertDoesNotThrow(() -> tail.run(order));
+            tail.run(order);
+            assertThat(logs.formattedMessages())
+                    .doesNotContain(
+                            order.getOrderNumber(),
+                            "AI unavailable",
+                            "Requests shipping to an address different from billing.");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
 
         verify(sagaMetrics).recordStepDuration(eq("ai-remarks-triage"), any(), eq(false));
         verify(sagaMetrics).recordRemarksClassification(RemarksTriageCategory.SUSPICIOUS);
@@ -150,8 +165,17 @@ class OrderPlacementBestEffortTailTest {
                 .when(detectDuplicateOrderInPort)
                 .detectDuplicate(order);
 
-        assertDoesNotThrow(() -> tail.run(order));
-        tail.run(order);
+        try (LogCapture logs = new LogCapture(OrderPlacementBestEffortTail.class)) {
+            assertDoesNotThrow(() -> tail.run(order));
+            tail.run(order);
+            assertThat(logs.formattedMessages())
+                    .doesNotContain(
+                            order.getOrderNumber(),
+                            "AI unavailable",
+                            "PRE-EXISTING-1",
+                            "Remarks nearly identical to a recent order from the same customer.");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
 
         verify(sagaMetrics).recordStepDuration(eq("ai-duplicate-order-detection"), any(), eq(false));
         verify(sagaMetrics).recordDuplicateOrderDetection(true);

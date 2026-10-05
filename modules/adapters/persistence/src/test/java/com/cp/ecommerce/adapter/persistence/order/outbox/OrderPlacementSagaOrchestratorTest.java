@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -290,7 +291,12 @@ class OrderPlacementSagaOrchestratorTest {
         when(manageOrderInPort.findOrder(successfulOrder.getOrderNumber())).thenReturn(successfulOrder);
         doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(failedOrder);
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(
+                    failedOrder.getOrderNumber(), successfulOrder.getOrderNumber(), RABBITMQ_UNAVAILABLE_MESSAGE);
+            assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
+        }
 
         verify(sendMessageInPort, times(1)).sendMessage(failedOrder);
         verify(sendMessageInPort, times(1)).sendMessage(successfulOrder);
@@ -322,7 +328,11 @@ class OrderPlacementSagaOrchestratorTest {
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doThrow(new IllegalStateException(RABBITMQ_UNAVAILABLE_MESSAGE)).when(sendMessageInPort).sendMessage(order);
 
-        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(order.getOrderNumber(), RABBITMQ_UNAVAILABLE_MESSAGE);
+            assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
+        }
 
         verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
         verifyNoInteractions(manageStockInPort);
@@ -403,7 +413,11 @@ class OrderPlacementSagaOrchestratorTest {
         doThrow(new PaymentDeclinedException("Payment gateway declined charge")).when(managePaymentInPort)
                 .capturePayment(order.getOrderNumber(), order.getTotal(), order.getPaymentMethod());
 
-        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(order.getOrderNumber(), "Payment gateway declined charge");
+            assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
+        }
 
         verifyNoInteractions(sendMessageInPort);
         verify(cancelOrderInPort).cancelOrder(order.getOrderNumber());
@@ -431,7 +445,11 @@ class OrderPlacementSagaOrchestratorTest {
         doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
                 .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
 
-        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(order.getOrderNumber(), "Inventory unavailable");
+            assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
+        }
 
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
         assertThat(event.getCompensationAttempts()).isEqualTo(1);
@@ -509,7 +527,11 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of(outboxEventEntity));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenThrow(new IllegalStateException("Order not found"));
 
-        assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(order.getOrderNumber(), "Order not found");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
 
         verifyNoInteractions(sendMessageInPort, bestEffortTail, cancelOrderInPort);
         verify(outboxEventEntityRepository, times(1)).save(outboxEventEntity);
@@ -893,7 +915,12 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of(candidate));
         doThrow(new IllegalStateException("claim lock unavailable")).when(outboxEventEntityRepository).findByIdForUpdate(56L);
 
-        assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+        try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
+            assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
+            assertThat(logs.formattedMessages()).doesNotContain(
+                    "ORDER-COMPENSATION-CLAIM-FAILURE", "claim lock unavailable");
+            assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
+        }
 
         verifyNoInteractions(manageOrderInPort, manageStockInPort);
         verify(managePaymentInPort, never()).refundPayment(any());
