@@ -108,3 +108,11 @@ design-gate PASS. Required next evidence remains real OIDC/JWKS and permit
 validation, persistent replay and suspend/resume tests, Rabbit drain/reconnect
 and ACL tests, encrypted storage, audited read/export, backup deletion, and
 sentinel-data leakage checks.
+
+The architecture grill's review at `b183d10` agrees the policy/proposal wording
+is now clear and the Rabbit role limitation is evidenced. It keeps the design
+gate at **NEEDS_MORE_DESIGN**: the 06b capability signal and fence mechanism,
+P-002 retention choice, per-instance identity bridge, and provider-level
+reconciliation/anti-rollback proof remain open. The phrase “accepted retry
+identity” in the candidate was corrected to distinguish accepted stable
+command-ID behavior from the still-unaccepted indefinite tombstone proposal.

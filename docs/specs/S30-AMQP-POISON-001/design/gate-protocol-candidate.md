@@ -267,8 +267,10 @@ PostgreSQL candidate schema is owned only by the gate service:
 - `gate_commands` has a unique random `command_id`, action, keyed request MAC
   and key version, `PREPARED|COMMITTED|REJECTED` status, latch epoch, expected
   and resulting gate generations, bounded terminal result code, and timestamps.
-  It stores no actor, operator reason, raw request, or message payload and is
-  retained indefinitely to preserve the accepted retry identity.
+  It stores no actor, operator reason, raw request, or message payload.
+  Indefinite retention is one proposed way to preserve stable command-ID retry
+  behavior; only the retry behavior is accepted, not this retention horizon or
+  tombstone schema.
 - No command state is removed because its audit event expired. Keep old keyed
   MAC verification keys in the protected KMS for as long as tombstones using
   them remain; rotate by assigning new key versions to new commands. Key
