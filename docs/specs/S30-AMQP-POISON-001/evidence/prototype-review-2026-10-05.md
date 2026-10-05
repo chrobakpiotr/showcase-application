@@ -21,14 +21,18 @@ candidate is selected by these measurements.
 ## P-002 — command result retention
 
 `p002-command-retention-prototype.py` is a SQLite model. It exercises exact
-retry, changed-request rejection under the original envelope, mutation,
-expired-envelope rejection after restoring an old row, key retirement, and the
-counterexample where a newly signed envelope reuses a caller-selected ID after
-the old row has expired. For 36,500 rows, the final run reported 7,434,240
-bytes after audit deletion and compaction with indefinite minimal tombstones
-(203.7 SQLite bytes per row), versus 24,576 bytes with zero rows after a
-30-day purge. These figures are illustrative only; they are not Redis,
-PostgreSQL, WAL, encrypted-volume, or backup estimates.
+retry, changed state-transition rejection under the original envelope,
+reason-only same-ID retry returning the original generation with a separate
+actor/reason event, expired-envelope rejection, and the counterexample where a
+fresh envelope reuses a caller-selected ID after the old row has expired. It
+also simulates a bounded HMAC-key rekey batch, process restart with mixed key
+versions, resumed batches, and retirement only after no old-key rows remain.
+For 36,500 rows, the final run reported 7,434,240 bytes after audit deletion
+and compaction with indefinite minimal tombstones (203.7 SQLite bytes per row),
+versus 24,576 bytes with zero rows after a 30-day purge. These figures are
+illustrative only; they are not Redis, PostgreSQL, WAL, encrypted-volume, or
+backup estimates. The rekey test is a local SQLite transaction model, not
+provider crash or concurrent-write proof.
 
 A gate-minted immutable envelope avoids same-ID reissue only if the client
 receives it before execution and retries that exact envelope. A lost envelope
