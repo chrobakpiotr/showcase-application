@@ -146,6 +146,15 @@ test where a same-ID retry changes only the audit reason, returns the stored
 result without a generation advance, and records the retry's reason separately.
 It also flagged mutable container tags in the probe; the script now pins the
 exact Redis/PostgreSQL image digests recorded in the report.
+
+The later [live P-001 fence bake-off](p001-live-fence-bakeoff.md) adds a
+distinct buffered-request schedule: it sends an epoch-1 test EVAL through the
+proxy while Redis is still at epoch 1, installs epoch 2 and waits for
+`WAITAOF` on a separate connection, then releases the already-buffered EVAL.
+The Redis epoch-guard primitive rejects it and leaves the sentinel state
+unchanged. This does not exercise the service's PostgreSQL-validated
+PAUSE/RESUME script, command finalization, or authorization boundary; P-001
+remains open.
 The accepted spec now defines reason as per-attempt audit metadata, distinct
 from state-changing command identity. The candidate adds a resumable dual-key
 re-MAC proposal; crash/restart and backup-lifecycle proof remain open.
