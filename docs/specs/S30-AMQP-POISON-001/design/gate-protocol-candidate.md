@@ -196,8 +196,14 @@ the bounded offline signed-permit versus online opaque-permit tradeoff. This
 corrects the earlier model's forged-identity and malformed-claim defects. The
 independent concurrency review confirms those model-only gaps are closed; it
 does not supply OIDC/JWKS verification, asymmetric key rotation, per-instance
-broker binding, durable distributed replay protection, atomic handler-start /
-active-count / drain behavior, or suspend/resume timing. P-003 remains open.
+broker binding, durable distributed replay protection, or suspend/resume
+timing. The separate
+[`P-003 handler/drain race model`](../evidence/p003-handler-drain-race-model.md)
+exercises start/drain ordering at an abstract serialized commit point, with
+local identity/registration-generation checks and five-second logical expiry.
+It does not prove concrete handler-start synchronization, Rabbit channel
+lifecycle, authenticated broker binding, or a wall-clock bound. P-003 remains
+open.
 
 No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,

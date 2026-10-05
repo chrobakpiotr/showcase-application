@@ -2095,3 +2095,23 @@ minimal tombstones and gate-minted finite envelopes. The model and criterion
 matrix are in
 [`p002-transactional-retry-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-transactional-retry-model.md);
 P-002 and the S30-06 design gate remain open.
+
+## S30-06 P-003 handler/drain race model — 2026-10-05
+
+An abstract deterministic model passes 28 assertions across three legal
+snapshot/PAUSE/start orderings, active-handler completion before channel close,
+and drain acknowledgement only after close. Start snapshots bind local
+instance ID, incarnation, registration ID/generation, gate generation, and
+permit timestamps; separate assertions reject stale or foreign instance and
+registration claims. Drain acknowledgements bind the current gate generation
+and registration claims. A logical clock enforces a five-second maximum
+permit window, rejecting future, expired, and overlong claims. Independent
+concurrency review verified the isolated rejection cases and the 28-check
+output.
+
+This model assumes a serialized admission commit point; it does not implement
+that synchronization or exercise real concurrent handlers, Rabbit cancel /
+prefetch/channel behavior, OIDC/JWKS, broker-observed identity, distributed
+registration, or a wall-clock bound. The evidence is in
+[`p003-handler-drain-race-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-handler-drain-race-model.md);
+P-003 and the S30-06 design gate remain open.
