@@ -90,9 +90,13 @@ The [Rabbit fencing capability decision](rabbit-fencing-capability-decision.md)
 found that built-in user tags do not grant narrowly scoped inspect-and-close
 permissions for another user's consumer connection. A deployment-owned
 fencing proxy/service or RabbitMQ authorization extension is required, with a
-separate broker identity that cannot access quarantine messages. Exact
-instance-to-connection binding and a negative ACL integration test remain
-open.
+separate broker identity that cannot access quarantine messages. A disposable
+RabbitMQ 4.3.6 broker probe confirmed: monitoring could inspect but not close;
+an administrator-tagged user with empty resource permissions could close the
+exact connection and was denied message retrieval, but could still list users.
+This demonstrates the proxy/plugin requirement, not least-privilege
+management. Exact instance-to-connection binding and deployment-version ACL
+tests remain open.
 
 A fresh security rereview of `c439429` confirmed partial closure on paper but
 kept the security gate **FAIL**. It found the nonce and retry-audit proposals

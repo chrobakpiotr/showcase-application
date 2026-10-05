@@ -128,14 +128,37 @@ Authoritative RabbitMQ references (accessed 2026-10-05):
   describes the name as client-supplied metadata used in logs and the
   management UI.
 
-No broker ACL experiment was run. The documentation establishes the role
-boundary, but a deployment-specific negative test must still demonstrate that
-the fencing identity cannot retrieve messages through AMQP `basic.get`,
-consumer registration, or the management HTTP queue `/get` endpoint, while the
-fencing capability can inspect and close only the intended live application
-connection. The identity-binding challenge and target-race checks also require
-an executable prototype or equivalent broker integration evidence before this
-decision can be treated as an implementation-ready contract.
+## Disposable broker experiment
+
+An isolated container from `rabbitmq:4-management-alpine` resolved to RabbitMQ
+4.3.6. It was created for this probe and removed afterward. The experiment
+created three identities: default administrator, `monitoring` with no resource
+permissions, and `administrator` with empty `configure`, `write`, and `read`
+resource regexes. A separate Java AMQP client held a live application
+connection named `s30-probe-live-connection`; the admin created a queue and
+published a sentinel.
+
+Observed results:
+
+- `monitoring` could list and identify the live connection, but its exact
+  `DELETE /api/connections/{name}` request returned HTTP 401.
+- `administrator` could list, inspect, and close the exact live connection;
+  DELETE returned 204 and the target disappeared. It could also list RabbitMQ
+  users (`GET /api/users` returned 200), confirming the credential retains
+  broader management authority.
+- Despite its administrator tag, the fencer's empty resource permissions
+  denied management queue `/get` (HTTP 401). An AMQP `basic.get` using the same
+  identity failed when RabbitMQ closed the unauthorized channel.
+
+This confirms the documented tradeoff on this local version: resource
+permissions deny message retrieval, but the management role needed to close
+another user's connection remains broad. It does not establish narrow
+operation-scoped RBAC or prove that the resource permission behavior is
+identical across production versions/providers. The connection name remained
+client-provided metadata; the experiment did not authenticate its ownership or
+test a registration challenge/close-target race. The deployment-specific
+negative test must also cover consumer registration and production broker
+configuration before any fencing or quarantine reader is enabled.
 
 ## Consequence
 
