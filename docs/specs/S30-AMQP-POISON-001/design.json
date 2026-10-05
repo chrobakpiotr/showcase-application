@@ -14,7 +14,9 @@
         "no permit issuance when owner, lease, lock, or epoch is uncertain",
         "bounded recovery when a delayed old-epoch command lands before installation",
         "durable monotonic epoch behavior across process restart and provider failover",
-        "bounded lock duration and simple operational recovery"
+        "bounded lock duration and simple operational recovery",
+        "lost PostgreSQL finalization and uncertain WAITAOF responses remain inhibited until provider evidence establishes the exact durable result",
+        "coordinated PostgreSQL and Redis restore cannot admit from a mutually consistent stale snapshot"
       ],
       "candidates": [
         {
@@ -36,7 +38,9 @@
         "changed-request reuse is rejected after audit expiry",
         "actor identity and operator reason are deleted on the accepted one-year horizon",
         "minimal retained data and explainable backup/export deletion",
-        "recovery remains fail-closed after Redis or PostgreSQL restore"
+        "recovery remains fail-closed after Redis or PostgreSQL restore",
+        "every authenticated duplicate retry is actor-attributed durably before returning the stored result",
+        "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention"
       ],
       "candidates": [
         {
@@ -57,6 +61,8 @@
         "workload identity can PAUSE but cannot RESUME",
         "only individually authenticated operators with the dedicated role can RESUME",
         "permit binds verified subject to deployment, instance incarnation, leader, latch, and gate generations",
+        "permit binds an unpredictable signed request nonce to its outstanding issuance request",
+        "registration and drain proof bind a unique authenticated instance to a broker-observed connection, not caller-supplied identifiers",
         "forged, stale, cross-instance, and replayed permits reject",
         "lost gate connectivity stops new handler starts by the conservative five-second expiry"
       ],
