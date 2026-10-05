@@ -1905,3 +1905,25 @@ documentation, repository guards, and aggregate CI all passed; Dependency
 Review was skipped for the push. Local commit `100f405` contains the inventory
 repair and updated design evidence; it remains ahead of `origin/main` and has
 not been pushed, so its SDD protocol result is not hosted yet.
+
+After the inventory repair, the remaining protocol-validation commands were
+run locally. `validate-all`, required-status policy, both verification-contract
+checks, the self-host orchestration plan, and trust/telemetry smoke checks all
+passed under Python 3.13 in a disposable container. The workstation's Python
+3.9.6 cannot import the repo's Python 3.10+ union type syntax; that local
+interpreter mismatch is not a CI failure. The hosted Agentic SDD run remains
+failed at `5ac4c94` until a later push runs the repaired inventory.
+
+Additional S30-06 review at local `239695b` found unresolved delivery ordering,
+stale-handler completion, per-instance principal provisioning, fencer privilege,
+and audited-reader separation. The new spec text records ordering as an open
+contract rather than assuming queue FIFO. A digest-pinned two-user Rabbit probe
+then confirmed broker-observed principals and distinct connection IDs despite
+duplicate client names; reconnecting under the same name did not let the old
+connection ID close the replacement. Its independent evaluator returned
+**NEEDS_MORE_EVIDENCE** because it did not exercise identity-token mapping,
+drain/active-consumer rejection, inspect/close races, or a narrow fencer. The
+probe and evaluator limitations are recorded in
+`docs/specs/S30-AMQP-POISON-001/evidence/instance-binding-prototype.md` and
+`prototype-review-2026-10-05.md`. S30-06 remains design-gated; no AMQP consumer
+or raw quarantine reader is enabled by this work.
