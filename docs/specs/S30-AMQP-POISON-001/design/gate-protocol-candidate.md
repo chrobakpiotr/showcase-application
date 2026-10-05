@@ -133,6 +133,21 @@ fence, high availability, an actual in-flight old write across epoch
 installation, or coordinated stale-restore and lost-fsync-response cases;
 P-001 remains open.
 
+The [abstract P-001 interleaving model](../evidence/p001-interleaving-model.md)
+adds 43 deterministic assertions for lost PAUSE/RESUME replies, delayed old
+RESUME before/after epoch installation, same-ID retry behavior across takeover,
+per-command durability uncertainty, PAUSE/RESUME generation idempotency,
+latch-epoch-bound RESUME, and incomplete drain. The delayed old-write helper
+deliberately bypasses the normal command/generation checks as a worst-case
+injection; it does not show that the candidate Redis script would accept it.
+Independent evaluation found and helped correct a first-draft counterexample
+that cleared the latch from an unbound ACTIVE result. The corrected model is
+sequential and assumes its own candidate transitions; it is not an exhaustive
+scheduler or provider/service test and does not close live PG-owner fencing,
+concurrent-command, failover, restore, or Rabbit/handler blockers. P-001
+remains open. The model does not test bounded successful recovery after
+takeover, which remains part of the P-001 decision criteria.
+
 P-002's checked-in
 [`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)
 supports minimal tombstones for preserving the current client-held stable
@@ -155,18 +170,16 @@ is a privacy recommendation for review, not an accepted retention or key
 lifecycle decision.
 
 P-003's checked-in
-[`p003-permit-state-model.py`](../evidence/p003-permit-state-model.py) is a
-20-assertion pure Python model that illustrates the policy tradeoff: a valid
-signed five-second permit can admit during an unseen PAUSE until expiry; an
-online opaque check denies immediately during gate loss. The independent
-evaluator found this illustrative only: it did not use real OIDC/JWKS
-verification, asymmetric signatures, persistent one-use replay tracking,
-actual handler-start locking, or suspend/resume timing. The accepted five-
-second bound favors bounded offline signed permits as the current candidate,
-but P-003 remains open until those runtime and security properties are tested.
-The checked-in model also demonstrates that its identity helper accepts a
-mutated JWT payload with an invalid signature; none of its identity assertions
-is security evidence.
+[`p003-permit-state-model.py`](../evidence/p003-permit-state-model.py) now
+passes 33 deterministic assertions. It covers strict claim shape and temporal
+validation, signature/tampering rejection with a prototype-only HMAC key,
+subject/instance/generation/nonce checks, a local concurrent replay lock, and
+the bounded offline signed-permit versus online opaque-permit tradeoff. This
+corrects the earlier model's forged-identity and malformed-claim defects. The
+independent concurrency review confirms those model-only gaps are closed; it
+does not supply OIDC/JWKS verification, asymmetric key rotation, per-instance
+broker binding, durable distributed replay protection, atomic handler-start /
+active-count / drain behavior, or suspend/resume timing. P-003 remains open.
 
 No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,

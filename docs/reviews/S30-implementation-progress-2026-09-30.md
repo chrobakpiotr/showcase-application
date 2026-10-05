@@ -2010,3 +2010,24 @@ handoff proof. The detailed findings and smallest safe pre-design conformance
 contract are in
 [`platform-review-2026-10-05.md`](../specs/S30-AMQP-POISON-001/evidence/platform-review-2026-10-05.md).
 This confirms the disabled-by-default boundary; no infrastructure was changed.
+
+## S30-06 P-001 abstract interleaving model — 2026-10-05
+
+A disposable sequential model now passes 43 assertions around uncertain
+PAUSE/RESUME replies, delayed old-epoch RESUME, retry generation behavior
+before and after takeover, current-latch-bound RESUME, incomplete drain,
+command-ID reuse before and after Redis results, and per-command durability
+uncertainty. Independent
+evaluation found first-draft counterexamples for an unbound ACTIVE result,
+non-idempotent RESUME retry, PAUSE retry epoch handling, and cross-command
+durability confirmation; the model was corrected to track leader and latch
+epochs separately, bind requests/results, preserve generation on exact retries,
+and reject cross-action command-ID reuse.
+Bounded successful recovery after takeover is not modeled.
+The delayed-old-write helper bypasses candidate generation/command checks as a
+hypothetical fault injection; it does not prove the Redis script permits that
+mutation.
+The model does not compare P-001 candidates or prove a gate service, provider
+durability, live concurrency, restore safety, durable audit, or Rabbit fencing.
+Independent re-review of these corrections is pending. P-001 remains
+**NEEDS_MORE_EVIDENCE**; the S30-06 design gate stays open.
