@@ -1,13 +1,13 @@
 package com.cp.ecommerce.adapter.camel.order;
 
-import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.adapter.common.utils.LogCapture;
+import com.cp.ecommerce.domain.order.Order;
 
 import org.apache.camel.ProducerTemplate;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -23,8 +23,7 @@ class RouteOrderNotificationAdapterTest {
         final ProducerTemplate template = mock(ProducerTemplate.class);
         try (LogCapture logs = new LogCapture(RouteOrderNotificationAdapter.class)) {
             new RouteOrderNotificationAdapter(template).route(order);
-            assertThat(logs.formattedMessages())
-                    .contains("Routing order notification through Camel")
+            assertThat(logs.formattedMessages()).contains("Routing order notification through Camel")
                     .doesNotContain(order.getOrderNumber());
         }
         verify(template).sendBody(ORDER_NOTIFICATION_ENDPOINT, order);

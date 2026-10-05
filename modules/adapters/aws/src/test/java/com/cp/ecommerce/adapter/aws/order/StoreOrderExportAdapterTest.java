@@ -15,12 +15,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 
@@ -51,8 +51,7 @@ class StoreOrderExportAdapterTest {
 
         try (LogCapture logs = new LogCapture(StoreOrderExportAdapter.class)) {
             adapter.store(order);
-            assertThat(logs.formattedMessages())
-                    .contains("Storing order export to S3")
+            assertThat(logs.formattedMessages()).contains("Storing order export to S3")
                     .doesNotContain("test-bucket", order.getOrderNumber());
         }
 

@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.kafka.order;
 
-import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.adapter.common.utils.LogCapture;
+import com.cp.ecommerce.domain.order.Order;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +22,7 @@ class DoNotPublishOrderAnalyticsEventAdapterTest {
         final Order order = mockOrder();
         try (LogCapture logs = new LogCapture(DoNotPublishOrderAnalyticsEventAdapter.class)) {
             assertDoesNotThrow(() -> adapter.publish(order));
-            assertThat(logs.formattedMessages())
-                    .contains("Kafka analytics publishing disabled")
+            assertThat(logs.formattedMessages()).contains("Kafka analytics publishing disabled")
                     .doesNotContain(order.getOrderNumber());
         }
     }

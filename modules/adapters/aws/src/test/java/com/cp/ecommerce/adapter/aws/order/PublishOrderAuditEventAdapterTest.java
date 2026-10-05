@@ -18,12 +18,12 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageResponse;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 
@@ -61,8 +61,7 @@ class PublishOrderAuditEventAdapterTest {
 
         try (LogCapture logs = new LogCapture(PublishOrderAuditEventAdapter.class)) {
             adapter.publish(order);
-            assertThat(logs.formattedMessages())
-                    .contains("Publishing order audit event to SQS")
+            assertThat(logs.formattedMessages()).contains("Publishing order audit event to SQS")
                     .doesNotContain(queueUrl, order.getOrderNumber());
         }
 

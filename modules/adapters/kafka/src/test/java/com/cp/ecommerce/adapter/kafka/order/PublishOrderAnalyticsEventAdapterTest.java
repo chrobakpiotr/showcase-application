@@ -18,13 +18,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import static com.cp.ecommerce.adapter.common.utils.OrderBuilder.mockOrder;
 import static com.cp.ecommerce.adapter.kafka.configuration.KafkaTopicConfiguration.ORDER_ANALYTICS_TOPIC_NAME;
@@ -62,8 +62,7 @@ class PublishOrderAnalyticsEventAdapterTest {
 
         try (LogCapture logs = new LogCapture(PublishOrderAnalyticsEventAdapter.class)) {
             adapter.publish(order);
-            assertThat(logs.formattedMessages())
-                    .contains("Publishing order analytics event to Kafka")
+            assertThat(logs.formattedMessages()).contains("Publishing order analytics event to Kafka")
                     .doesNotContain(ORDER_ANALYTICS_TOPIC_NAME, order.getOrderNumber());
         }
 
