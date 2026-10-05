@@ -1202,6 +1202,15 @@ fixtures and retained outputs:
    before load testing. Exercise per-handler permit issuance at that envelope
    with injected Redis/PostgreSQL latency and verify bounded lock duration,
    no admission beyond the envelope, and the specified fail-closed response.
+10. Lose the deployment-control release response after its durable commit.
+    Verify that the gate observes the release only for the exact current restore
+    episode, RESUME command, and generation; that the operator's same-command
+    retry resolves the stored result without a second release transition; that
+    every retry is actor-attributed before its result is returned; and that a
+    changed release command remains rejected. The disposable
+    [`p001-resume-release-idempotency-model.py`](../evidence/p001-resume-release-idempotency-model.py)
+    is an abstract checkpoint only; provider and runtime evidence remain
+    required.
 
 These experiments must falsify the protocol under injected uncertainty, not
 only demonstrate its happy path. Until independent architecture, messaging,

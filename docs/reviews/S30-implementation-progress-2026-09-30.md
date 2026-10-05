@@ -2348,3 +2348,22 @@ verified the model's 78 assertions and bounded local `jti` pruning; runtime and
 provider evidence remain outstanding. Evidence is in
 [`p003-one-use-admission-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-one-use-admission-model.md);
 the updated model does not clear P-003 or the S30 design gate.
+
+## S30-06 P-001 RESUME release idempotency model — 2026-10-05
+
+Added a disposable SQLite model for the external inhibit release after PG/Redis
+fixtures carry the same ACTIVE generation and RESUME command. Initial execution
+found that a mismatched first release command could consume the release slot;
+the protocol now checks it against the exact RESUME command before changing
+external control state. The 12 assertions cover audit failure rollback,
+wrong-first-command rejection, episode/generation checks, lost response after
+durable commit, same-command retry with separate retry audit, and changed-ID
+rejection after release. Five runs are byte-identical (stdout SHA-256
+`2f37a312b13057520e8969a8d09878186a905f2521f87c2419ce2f47d9ea147e`).
+
+The model assumes the prior RESUME command/audit and PG/Redis CAS as fixture
+state; it only assesses release handoff semantics. Independent architecture
+review verified the corrected first-command binding, lost-response retry flow,
+and the release-audit lookup. Provider durability, authenticated control-plane
+ownership, anti-rollback and restore-path enforcement remain open. Evidence is in
+[`p001-resume-release-idempotency-model.md`](../specs/S30-AMQP-POISON-001/evidence/p001-resume-release-idempotency-model.md).
