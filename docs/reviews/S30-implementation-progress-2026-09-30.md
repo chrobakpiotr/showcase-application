@@ -2250,8 +2250,9 @@ concurrency review verified the added expiry/drain ordering and all 35 checks.
 This model assumes a serialized admission commit point; it does not implement
 that synchronization or exercise real concurrent handlers, OIDC/JWKS,
 broker-observed identity, distributed registration, or a wall-clock bound. A
-separate disposable RabbitMQ probe published a fourth message after
-`basic_cancel` and confirmed the canceled consumer did not receive it. It left
+separate disposable RabbitMQ probe completed and ACKed the active message to
+free one prefetch slot, then published a fourth message after `basic_cancel`;
+the canceled consumer did not receive it despite available capacity. It left
 two already-prefetched messages unacknowledged; channel close requeued both
 with `redelivered=True` after the active message was completed and acknowledged.
 It ran RabbitMQ 4.1 (`sha256:34b2c850932dcb97327c7cbcf4ef7926f2e3ffb0f3b5bd2b0ab89f3ca946c225`)
