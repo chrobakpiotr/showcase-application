@@ -431,8 +431,15 @@ PostgreSQL command rows prevent reuse if Redis loses its tombstone. The current
 cross-store high-water rule does not detect PostgreSQL and Redis restored
 together from the same stale snapshot. Such coordinated rollback must be
 detected by an independently durable monotonic witness or make restore
-ineligible for admission; no such witness is selected yet. Until both this
-case and Redis-ahead recovery are proven, startup and admission remain blocked.
+ineligible for admission; no such witness is selected yet. An independent
+architecture review confirms this is a genuine gap: restoring both stores can
+roll back the latch and Redis generation together. It recommends defining
+either a witness outside both rollback domains or a restore-ineligible policy
+controlled outside both backup sets before attempting the coordinated-restore
+test. The finding and exact test condition are recorded in
+[`p001-restore-contract-review.md`](../evidence/p001-restore-contract-review.md).
+Until this case and Redis-ahead recovery are proven, startup and admission
+remain blocked.
 Never reconstruct a missing actor/reason audit from the command tombstone.
 
 Concurrent duplicate rules also remain to be proven: one request owns

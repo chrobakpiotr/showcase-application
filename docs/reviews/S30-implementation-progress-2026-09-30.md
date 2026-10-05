@@ -2099,6 +2099,20 @@ the script SHA-256 is
 `2e55eef6c5b7b7eae01a45b5660fb042ad5b8e225af40e3fcaafb74e967fab0f`.
 P-001 remains open.
 
+## S30-06 P-001 coordinated-restore architecture finding — 2026-10-05
+
+An independent architecture review confirmed there is no selected trust anchor
+outside both PostgreSQL and Redis rollback domains. The PostgreSQL recovery
+latch and Redis generation can therefore return together to a mutually
+consistent stale state; their separate storage alone cannot detect that
+coordinated restore. Before testing this criterion, the design must choose an
+independent monotonic witness or a restore-ineligible policy controlled
+outside both backup sets, and define its owner, failure behavior, and audited
+operator re-epoch procedure. The review is recorded in
+[`p001-restore-contract-review.md`](../specs/S30-AMQP-POISON-001/evidence/p001-restore-contract-review.md).
+No option or deployment API is selected yet; P-001 and the S30-06 design gate
+remain open.
+
 ## S30-06 P-002 transactional retry model — 2026-10-05
 
 A SQLite-only model stores immutable command tombstones separately from
