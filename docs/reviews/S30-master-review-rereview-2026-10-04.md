@@ -252,9 +252,10 @@ the new prototype notes all keep S30-06 design-gated. A detailed candidate
 contract was added for another independent review; its new proposals have not
 yet been evaluated and are not implementation authorization.
 
-The CI run on `5ac4c94` subsequently completed successfully for the general
-pipeline: E2E, OWASP DependencyCheck, backend, frontend, PIT, SBOM,
-infrastructure, Trivy, documentation, repository guards, and the aggregate
-quality gate all passed. Dependency Review was skipped as expected for a push.
-The SDD protocol inventory repair is in local commit `100f405` and has not yet
-been pushed or exercised by hosted CI.
+The [CI run #150 on `5ac4c94`](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209112)
+completed successfully for the general pipeline: E2E, OWASP DependencyCheck,
+backend, frontend, PIT, SBOM, infrastructure, Trivy, documentation, repository
+guards, and the aggregate quality gate all passed. Dependency Review was
+skipped as expected for a push. The [Agentic SDD run #107](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209085)
+failed its inventory check; the repair is in local commit `100f405` and has not
+yet been pushed or exercised by hosted CI.

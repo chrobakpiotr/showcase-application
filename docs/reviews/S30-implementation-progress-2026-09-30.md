@@ -1891,12 +1891,15 @@ authorize source/deployment implementation or a design-gate PASS.
 
 ## GitHub CI follow-up — 2026-10-05
 
-The newly pushed `5ac4c94` pipeline showed CodeQL and OpenSSF Scorecard passing.
-Agentic SDD protocol validation failed its generated specification-inventory
+The pushed [`5ac4c94` application CI run #150](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209112)
+passed, as did CodeQL and OpenSSF Scorecard. Dependency Review was skipped for
+the push. Agentic SDD run
+[#107](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209085)
+failed protocol validation at its generated specification-inventory
 check because `docs/specs/INVENTORY.md` still had the prior S30-06 DRAFT status
 text. The local generated inventory was refreshed and
 `spec_inventory.py --check` passes. The aggregate SDD gate failed from that
-inventory check. The general CI workflow later completed successfully: E2E,
+inventory check. The general CI run's E2E,
 OWASP DependencyCheck, backend, frontend, PIT, SBOM, infrastructure, Trivy,
 documentation, repository guards, and aggregate CI all passed; Dependency
 Review was skipped for the push. Local commit `100f405` contains the inventory
