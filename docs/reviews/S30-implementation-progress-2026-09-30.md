@@ -2139,6 +2139,28 @@ in [`p001-coordinated-restore-counterexample.md`](../specs/S30-AMQP-POISON-001/e
 the script SHA-256 is
 `1c7af38492d5c6b02f321155be6e2d23712c29650eaff184f04df2be4ff1fefb`.
 
+## S30-06 P-001 restore-inhibit policy model — 2026-10-05
+
+A disposable SQLite state model exercises the restore-ineligible policy
+candidate. It checks paired stale PG/Redis fixture restore, missing control,
+initial inhibit-audit failure, stale-state rejection despite supplied fencing,
+artifact-digest mismatch before re-epoch, a PG-only re-epoch crash cut and its
+monotonic reconciliation, and re-epoch/release audit failures. Explicit fixture
+transitions advance latch epoch/generation and require matching PG/Redis state
+plus a separate audited release. Missing/unreadable external control returns
+deny. The modeled RESUME is not the accepted idempotent command/audit
+protocol. The independent architecture reviewer found
+and corrected earlier overclaiming: PG/Redis state is modeled with dictionaries,
+not provider writes. Restore-path enforcement, control ownership, real backup
+digests, provider durability, consumer fencing, and a live permit service are
+untested.
+The independent architecture recommendation and this model are recorded in
+[`p001-restore-option-advice.md`](../specs/S30-AMQP-POISON-001/evidence/p001-restore-option-advice.md)
+and [`p001-restore-inhibit-model.md`](../specs/S30-AMQP-POISON-001/evidence/p001-restore-inhibit-model.md);
+five-run stdout SHA-256 is
+`164398fb2fe6a7370fb0f37d9fec1c0c75a57f5dc03644ae77376a58fa52c156`.
+The option and its owner remain unselected; P-001 and S30-06 stay open.
+
 ## S30-06 P-002 transactional retry model — 2026-10-05
 
 A SQLite-only model stores immutable command tombstones separately from

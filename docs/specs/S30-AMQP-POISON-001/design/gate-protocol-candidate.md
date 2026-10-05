@@ -464,6 +464,18 @@ test. The finding and exact test condition are recorded in
 [`p001-restore-contract-review.md`](../evidence/p001-restore-contract-review.md).
 Until this case and Redis-ahead recovery are proven, startup and admission
 remain blocked.
+The disposable [restore-inhibit model](../evidence/p001-restore-inhibit-model.md)
+exercises the recommended policy shape: paired stale snapshots remain denied
+across control-store connection reopen, and modeled release requires audited
+re-epoch plus matching PG/Redis state. It injects initial inhibit, re-epoch,
+and release audit failures and checks missing fencing, stale state, artifact
+mismatch, missing control, partial PG re-epoch, and partial-store activation.
+Fencing, digest, and restored-state checks run before the modeled re-epoch
+mutates either restored-store fixture.
+PG/Redis changes are fixture state transitions, not provider writes, and the
+modeled RESUME is not the accepted command/audit protocol. It does not test
+deployment restore-path enforcement, an independent production store, or live
+permits; the policy and owner remain unselected.
 
 The [coordinated-restore counterexample](../evidence/p001-coordinated-restore-counterexample.md)
 now restores a matching PostgreSQL custom-format logical dump and Redis RDB
