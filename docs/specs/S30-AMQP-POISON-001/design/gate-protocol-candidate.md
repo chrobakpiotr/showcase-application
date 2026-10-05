@@ -125,10 +125,13 @@ used actual disposable PostgreSQL 18.6 and Redis 8.10.2 containers. It tested
 one committed sticky-latch → Lua PAUSE/state/result/audit → same-socket
 `WAITAOF` cut before PostgreSQL finalization, then process restart, lease
 takeover, epoch-2 install, rejection of a delayed epoch-1 mutation after
-installation, and permit denial. This closes that narrow provider primitive
-gap. It did not test a gate service holding the PostgreSQL fence, high
-availability, an in-flight old write across epoch installation, or the
-coordinated stale-restore and lost-fsync-response cases; P-001 remains open.
+installation, and permit denial. It also directly injected an epoch-1 RESUME
+after lease expiry but before epoch installation; Redis became ACTIVE while
+the PostgreSQL recovery latch kept permits denied. This closes those narrow
+provider-primitive gaps. It did not test a gate service holding the PostgreSQL
+fence, high availability, an actual in-flight old write across epoch
+installation, or coordinated stale-restore and lost-fsync-response cases;
+P-001 remains open.
 
 P-002's checked-in
 [`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)

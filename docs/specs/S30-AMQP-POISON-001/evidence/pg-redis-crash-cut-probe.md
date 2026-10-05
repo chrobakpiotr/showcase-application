@@ -38,15 +38,21 @@ filesystems; no repository application service was started or changed.
    not execute PostgreSQL outcome finalization. Restarting both container
    processes leaves PostgreSQL at `PENDING` and recovers the Redis AOF command
    state.
-4. After the PostgreSQL lease expires, a conditional update takes over as
-   leader B/epoch 2, preserving `RECOVERY_REQUIRED` and setting
-   `RECONCILING`. Redis installs epoch 2 and again returns local `WAITAOF` count
-   1. An epoch-1 Lua mutation issued after installation receives `STALE_EPOCH`.
-5. The probe observes Redis epoch 2, generation 1, `PAUSED`, the original
-   `pause-1` result, and exactly one audit entry. Its explicit admission
-   predicate requires PostgreSQL `CLEAR:2` and Redis epoch 2/gate `ACTIVE`; it
-   evaluates false, so the observed recovery state denies permit issuance.
-   No PostgreSQL finalization or `ACTIVE` transition is performed.
+4. After the PostgreSQL lease expires but before takeover/epoch installation,
+   the driver directly sends an epoch-1 `RESUME` transition to Redis. This
+   models the exposed Redis pre-install window: Redis accepts it and becomes
+   `ACTIVE` at generation 2, even though PostgreSQL remains
+   `RECOVERY_REQUIRED`. This is a direct store primitive, not a live gate
+   process proving it can pass a PostgreSQL owner/lease fence.
+5. A conditional update takes over as leader B/epoch 2, preserving
+   `RECOVERY_REQUIRED` and setting `RECONCILING`. Redis installs epoch 2 and
+   returns local `WAITAOF` count 1. An epoch-1 Lua mutation after installation
+   receives `STALE_EPOCH`. The probe reconciles both Redis results/audit entries
+   to PostgreSQL while keeping its latch inhibited.
+6. The final state is Redis epoch 2, generation 2, `ACTIVE`, with both command
+   results and two audit entries. The admission predicate requires PostgreSQL
+   `CLEAR:2` and Redis epoch 2/gate `ACTIVE`; it evaluates false because
+   PostgreSQL remains `RECOVERY_REQUIRED`, so permit issuance stays denied.
 
 The exact output from the successful run was:
 
@@ -56,13 +62,14 @@ POSTGRES_IMAGE=postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810
 PG_AFTER_PREPARE=leader-a:1:RECOVERY_REQUIRED:1:PENDING
 REDIS_PAUSE=[1, 'APPLIED']; WAITAOF=[1, 0]; CLIENT_ID=12 (same socket)
 AFTER_CUT_RESTART=PG phase remains PENDING; Redis AOF process restart recovered command state
+DELAYED_EPOCH_1_BEFORE_INSTALL=[2, 'APPLIED']; WAITAOF=[1, 0]; Redis can be ACTIVE while PG latch remains inhibiting
 PG_TAKEOVER=leader-b:2:RECOVERY_REQUIRED:RECONCILING
-REDIS_INSTALL_EPOCH=2; WAITAOF=[1, 0]; CLIENT_ID=14
+REDIS_INSTALL_EPOCH=2; WAITAOF=[1, 0]; CLIENT_ID=15
 DELAYED_EPOCH_1_AFTER_INSTALL=REJECTED STALE_EPOCH
-REDIS_RECONCILED_FACTS=epoch/generation/state=['2', '1', 'PAUSED']; result=['1', 'PAUSE', '1']; audit_len=1
-PERMIT_DECISION=False (deny because PG latch=RECOVERY_REQUIRED:2, Redis state=PAUSED)
+REDIS_RECONCILED_FACTS=epoch/generation/state=['2', '2', 'ACTIVE']; results=['1', 'PAUSED', '1']/['2', 'ACTIVE', '1']; audit_len=2; PG commands reconciled=2
+PERMIT_DECISION=False (deny because PG latch=RECOVERY_REQUIRED:2, despite Redis state=ACTIVE)
 PASS: crash cut stayed inhibited, takeover epoch installed, stale command rejected, permit denied.
-LIMIT: no pre-install stale-delivery schedule, app service, signed permit, HA/failover, fencing lock, encrypted PV, backup/restore, or real power-loss test.
+LIMIT: pre-install write is a direct Redis primitive, not an in-flight network race or live PG fence; no signed permit, HA/failover, encrypted PV, backup/restore, or real power-loss test.
 ```
 
 `CLIENT ID` was read before the Lua call and checked unchanged after both the
@@ -78,12 +85,13 @@ transaction spanning PostgreSQL and Redis.
 
 This schedule supports the narrow ordering rule: commit the independent sticky
 latch before touching Redis; after a crash, leave the latch inhibited while a
-new leader installs a higher Redis epoch and reconciles the pending command;
+new leader installs a higher Redis epoch and reconciles pending commands;
 deny permit admission while either side is not in a verified active state. It
 also confirms the tested Lua fence rejects an old epoch after the new epoch is
-installed. The old command was not tested in flight across that installation,
-nor was a pre-install delayed write scheduled; the new-epoch Lua install and
-delayed traffic need a separate adversarial interleaving test.
+installed. The probe directly injected a pre-install epoch-1 `RESUME`, showing
+Redis can become `ACTIVE` while PostgreSQL remains `RECOVERY_REQUIRED`. This
+was not an actual delayed network operation and did not prove that a live
+gate-service PostgreSQL fence blocks such a write.
 
 The permit decision is a small explicit predicate over observed provider state,
 not a signed permit implementation or independently evaluated protocol. The

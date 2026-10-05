@@ -94,19 +94,21 @@ if tonumber(ARGV[1]) ~= current then return redis.error_reply('STALE_EPOCH') end
 local prior = redis.call('HGET', KEYS[4], 'generation')
 if prior then return {tonumber(prior), 'DUPLICATE'} end
 local generation = redis.call('INCR', KEYS[2])
-redis.call('SET', KEYS[3], 'PAUSED')
-redis.call('HSET', KEYS[4], 'generation', generation, 'action', 'PAUSE', 'epoch', ARGV[1])
+redis.call('SET', KEYS[3], ARGV[3])
+redis.call('HSET', KEYS[4], 'generation', generation, 'action', ARGV[3], 'epoch', ARGV[1])
 redis.call('XADD', KEYS[5], '*', 'command_id', ARGV[2], 'generation', generation,
-           'leader_epoch', ARGV[1], 'action', 'PAUSE')
+           'leader_epoch', ARGV[1], 'action', ARGV[3])
 return {generation, 'APPLIED'}
 """.strip()
 
 
-def eval_pause(client: RedisConnection, epoch: int, command_id: str) -> object:
+def eval_transition(client: RedisConnection, epoch: int, command_id: str, action: str) -> object:
+    if action not in ("PAUSED", "ACTIVE"):
+        raise ValueError("unsupported candidate state")
     result_key = f"gate:result:{command_id}"
     return client.command(
         "EVAL", PAUSE, "5", "gate:leader_epoch", "gate:generation", "gate:state",
-        result_key, "gate:audit", str(epoch), command_id,
+        result_key, "gate:audit", str(epoch), command_id, action,
     )
 
 
@@ -145,6 +147,11 @@ CREATE TABLE gate_control (
 );
 INSERT INTO gate_control VALUES
   (1, 'leader-a', 1, clock_timestamp() + interval '2 seconds', 'CLEAR', 0, NULL, 'IDLE', NULL);
+CREATE TABLE gate_commands (
+  command_id text PRIMARY KEY, action text NOT NULL, phase text NOT NULL,
+  redis_generation bigint
+);
+INSERT INTO gate_commands VALUES ('pause-1', 'PAUSED', 'PENDING', NULL);
 """)
         # First durable store transition: commit sticky inhibit before Redis I/O.
         psql(pg_name, """
@@ -162,7 +169,7 @@ UPDATE gate_control SET latch='RECOVERY_REQUIRED', latch_epoch=latch_epoch+1,
         assert client.command("EVAL", INSTALL_EPOCH, "1", "gate:leader_epoch", "1") == 1
         fsync_after(client)
         assert client.command("CLIENT", "ID") == client_id
-        applied = eval_pause(client, 1, "pause-1")
+        applied = eval_transition(client, 1, "pause-1", "PAUSED")
         durable = fsync_after(client)
         assert client.command("CLIENT", "ID") == client_id
         assert applied == [1, "APPLIED"], applied
@@ -175,11 +182,24 @@ UPDATE gate_control SET latch='RECOVERY_REQUIRED', latch_epoch=latch_epoch+1,
         wait_until(lambda: run("docker", "exec", redis_name, "redis-cli", "PING", check=False).stdout.strip() == "PONG")
         wait_until(lambda: run("docker", "exec", pg_name, "pg_isready", "-U", "postgres", check=False).returncode == 0)
         assert psql(pg_name, "SELECT phase FROM gate_control WHERE id=1;", tuples=True) == "PENDING"
+        client = RedisConnection(redis_port)
+        assert client.command("GET", "gate:leader_epoch") == "1"
         print("AFTER_CUT_RESTART=PG phase remains PENDING; Redis AOF process restart recovered command state")
 
-        # Simulate new active leader takeover from durable PostgreSQL, always sticky.
+        # An old leader's already-delayed RESUME can still land after its PG
+        # lease expires but before the new leader installs its higher epoch in
+        # Redis. This models the unprotected pre-install window. The durable PG
+        # latch stays inhibited, so even Redis ACTIVE must not grant permits.
         wait_until(lambda: psql(pg_name,
             "SELECT (lease_until < clock_timestamp())::int FROM gate_control WHERE id=1;", tuples=True) == "1")
+        psql(pg_name, "INSERT INTO gate_commands VALUES ('resume-old-1', 'ACTIVE', 'PENDING', NULL);")
+        preinstall = eval_transition(client, 1, "resume-old-1", "ACTIVE")
+        preinstall_fsync = fsync_after(client)
+        assert preinstall == [2, "APPLIED"], preinstall
+        print(f"DELAYED_EPOCH_1_BEFORE_INSTALL={preinstall}; WAITAOF={preinstall_fsync}; Redis can be ACTIVE while PG latch remains inhibiting")
+        client.close()
+
+        # Simulate new active leader takeover from durable PostgreSQL, always sticky.
         took_over = psql(pg_name, """
 UPDATE gate_control SET owner='leader-b', leader_epoch=leader_epoch+1,
   lease_until=clock_timestamp()+interval '1 hour', latch='RECOVERY_REQUIRED',
@@ -200,7 +220,7 @@ RETURNING owner||':'||leader_epoch||':'||latch||':'||phase;
 
         # A command delayed from epoch 1 is rejected once epoch 2 is installed.
         try:
-            eval_pause(client, 1, "delayed-old-command")
+            eval_transition(client, 1, "delayed-old-command", "PAUSED")
         except RedisError as error:
             assert "STALE_EPOCH" in str(error), str(error)
             print("DELAYED_EPOCH_1_AFTER_INSTALL=REJECTED STALE_EPOCH")
@@ -209,23 +229,33 @@ RETURNING owner||':'||leader_epoch||':'||latch||':'||phase;
         state = client.command("MGET", "gate:leader_epoch", "gate:generation", "gate:state")
         audit_len = client.command("XLEN", "gate:audit")
         prior_result = client.command("HMGET", "gate:result:pause-1", "generation", "action", "epoch")
-        assert state == ["2", "1", "PAUSED"], state
-        assert audit_len == 1, audit_len
-        assert prior_result == ["1", "PAUSE", "1"], prior_result
-        print(f"REDIS_RECONCILED_FACTS=epoch/generation/state={state}; result={prior_result}; audit_len={audit_len}")
+        delayed_result = client.command("HMGET", "gate:result:resume-old-1", "generation", "action", "epoch")
+        assert state == ["2", "2", "ACTIVE"], state
+        assert audit_len == 2, audit_len
+        assert prior_result == ["1", "PAUSED", "1"], prior_result
+        assert delayed_result == ["2", "ACTIVE", "1"], delayed_result
+        # Model exact command/audit reconciliation into PG, but preserve the
+        # sticky latch; reconciliation is not operator RESUME.
+        psql(pg_name, """
+UPDATE gate_commands SET phase='COMMITTED', redis_generation=1 WHERE command_id='pause-1';
+UPDATE gate_commands SET phase='COMMITTED', redis_generation=2 WHERE command_id='resume-old-1';
+UPDATE gate_control SET phase='RECONCILING', redis_generation=2 WHERE id=1;
+""")
+        assert psql(pg_name, "SELECT count(*) FROM gate_commands WHERE phase='COMMITTED';", tuples=True) == "2"
+        print(f"REDIS_RECONCILED_FACTS=epoch/generation/state={state}; results={prior_result}/{delayed_result}; audit_len={audit_len}; PG commands reconciled=2")
 
         # For this narrow candidate, issuance is allowed only with CLEAR latch,
         # matching Redis leader epoch, and ACTIVE gate state. PG is still inhibited.
         pg = psql(pg_name, "SELECT latch||':'||leader_epoch FROM gate_control WHERE id=1;", tuples=True)
         permit_allowed = pg == "CLEAR:2" and state == ["2", "1", "ACTIVE"]
         assert not permit_allowed
-        print(f"PERMIT_DECISION={permit_allowed} (deny because PG latch={pg}, Redis state={state[2]})")
+        print(f"PERMIT_DECISION={permit_allowed} (deny because PG latch={pg}, despite Redis state={state[2]})")
 
         # No finalization is performed: transition to ACTIVE requires an audited,
         # explicitly authorized recovery/resume outside the scope of this probe.
         psql(pg_name, "SELECT pg_sleep(0);")
         print("PASS: crash cut stayed inhibited, takeover epoch installed, stale command rejected, permit denied.")
-        print("LIMIT: no pre-install stale-delivery schedule, app service, signed permit, HA/failover, fencing lock, encrypted PV, backup/restore, or real power-loss test.")
+        print("LIMIT: pre-install write is a direct Redis primitive, not an in-flight network race or live PG fence; no signed permit, HA/failover, encrypted PV, backup/restore, or real power-loss test.")
     finally:
         run("docker", "rm", "-f", redis_name, check=False)
         run("docker", "rm", "-f", pg_name, check=False)
