@@ -451,6 +451,10 @@ the same lock. A late response cannot start work. Required race tests block the
 HTTP response, apply PAUSE, then release the response and assert zero handler
 starts; they also race response admission against PAUSE and prove exactly one
 linearization order.
+The local replay cache retains consumed `jti` values only until the associated
+permit's conservative request-start deadline; after that deadline, the permit
+is independently unusable. The implementation must bound stale-cache cleanup
+and must not retain one entry per handler for process lifetime.
 
 The permit endpoint compares the caller's fresh restore-episode bootstrap to
 the current authenticated deployment/DR episode on every issuance. Each request
@@ -1161,10 +1165,19 @@ fixtures and retained outputs:
 4. Redis failover to a stale replica, PostgreSQL failover/restore, and cross-
    store crash recovery; prove no permit or RESUME is possible until state,
    command records, audit, leader epoch, and latch epoch reconcile.
-5. Instance restart/incarnation races, lost revoke, five-second expiry with a
-   handler held beyond five seconds, drain acknowledgement races, and operator
-   fencing of an unavailable Rabbit connection. Verify channel closure requeues
-   unacked and prefetched-not-started messages and no new channel opens early.
+5. One-use per-handler admission races: block the permit HTTP response, apply
+   PAUSE, then release the response; race response admission against PAUSE;
+   prove nonce registration, pending invalidation, one-use `jti` consumption,
+   and active-count increment have one local linearization point. Verify an
+   unconsumed five-second permit expiry rejects that start while expiry after
+   `jti` consumption does not revoke the active handler. Include
+   restore/incarnation/connection changes, drain acknowledgement races, and
+   operator fencing of an unavailable Rabbit connection. Verify channel
+   closure requeues unacked and prefetched-not-started messages and no new
+   channel opens early. The disposable model in
+   [`p003-one-use-admission-model.py`](../evidence/p003-one-use-admission-model.py)
+   is a first abstract checkpoint only; independent review and runtime tests
+   remain required.
 6. For Compose, Kubernetes dev, and production-equivalent providers, prove
    encrypted durable volumes, TLS/identity boundaries, Redis fsync semantics,
    PostgreSQL durable commit and restore semantics, backup/export deletion, and
@@ -1184,6 +1197,11 @@ fixtures and retained outputs:
    record exists, commit the stable recovery marker, lose its response, retry
    it idempotently, then RESUME the exact new latch epoch and resulting ACTIVE
    generation.
+9. Declare numeric peak/sustained handler-start rates, maximum app-instance
+   count, permit latency budget, gate availability target, and overload behavior
+   before load testing. Exercise per-handler permit issuance at that envelope
+   with injected Redis/PostgreSQL latency and verify bounded lock duration,
+   no admission beyond the envelope, and the specified fail-closed response.
 
 These experiments must falsify the protocol under injected uncertainty, not
 only demonstrate its happy path. Until independent architecture, messaging,

@@ -2324,3 +2324,27 @@ The detailed review, open blockers, and checks are recorded in
 JSON validation, 13 focused Python tests, spec inventory, all executable SDD
 specs, 34 local Markdown links, and `git diff --check` passed. S30 remains
 document-only with no PASS design gate or source/deployment authorization.
+
+## S30-06 P-003 one-use permit admission model — 2026-10-05
+
+Replaced the insufficient lease-style expiry evidence with a disposable
+one-use-per-handler admission model. It exercises local pending-nonce
+registration, HTTP outside the local lock, post-response identity/generation/
+restore checks, one-use `jti`, active-count increment, PAUSE invalidation, and
+both response/PAUSE orderings, including 64 simultaneous races. It also checks
+that registration or broker-connection replacement, restore-episode change,
+wrong nonce, replay, and conservative deadline expiry reject; a consumed
+permit's later expiry leaves active work intact. The model passes 78 assertions
+with five identical runs (stdout SHA-256
+`b031e1fa8be5ef8b335a3b6214d00700925172e736e2ec22be1004f3f006e5d8`). Its
+local replay cache retains `jti` only through the per-request conservative
+deadline, rejects reuse before expiry, and prunes expired entries under the
+admission lock; production memory bounds remain unqualified.
+
+This remains abstract local-state evidence. JWT temporal validation, remote
+gate behavior, actual Rabbit identity, suspend handling, runtime races, and a
+numeric throughput envelope remain unproven. Independent security review
+verified the model's 78 assertions and bounded local `jti` pruning; runtime and
+provider evidence remain outstanding. Evidence is in
+[`p003-one-use-admission-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-one-use-admission-model.md);
+the updated model does not clear P-003 or the S30 design gate.
