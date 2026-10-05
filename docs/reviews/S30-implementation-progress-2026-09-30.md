@@ -1959,3 +1959,21 @@ runtime permit/handler proof, quarantine deployment controls, and audited raw
 reads remain unproven. S30-06 stays DRAFT; consumer admission and raw reads
 remain disabled. This review checkpoint is documentation/evidence progress,
 not end-to-end completion.
+
+## Verification and frontend formatting follow-up — 2026-10-05
+
+`./gradlew test --continue` passed at `7a62a4c` in 10m54s. The subsequent
+`./gradlew build --continue` at `9cdefd2` failed only at
+`:adapter:ecommerce-frontend:spotlessStylingCheck`; its report showed 29
+frontend files using double quotes against the configured single-quote
+Prettier style. The frontend `lint` script also used `ng lint --fix`, allowing
+the verification task to rewrite source during a build. Commit `76ae3d1`
+applies the configured styling and makes lint read-only. The focused
+`:adapter:ecommerce-frontend:spotlessStylingCheck` and
+`:adapter:ecommerce-frontend:runESLintCheck` now both pass; the complete
+frontend unit suite passed 477/477 before the formatting-only update. The
+aggregate build was not rerun after this narrow fix. Hosted GitHub Actions
+still report the existing `5ac4c94` runs: application CI passed, while
+Agentic SDD failed the inventory check repaired in local commit `100f405`.
+The fetched `origin/main` is still `5ac4c94`; no hosted run covers local
+commits. S30-06 remains design-gated as documented above.
