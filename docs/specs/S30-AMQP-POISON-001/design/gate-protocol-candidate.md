@@ -199,11 +199,13 @@ result purge. Eight synchronized local threads with independent SQLite
 connections also race issuance and execution: they recover one envelope and
 one resulting generation, which is verified by direct queries for persisted
 generation and single issuance/result rows. Independent review is pending for
-this update. This is a SQLite/HMAC model, not injected transport loss,
-multi-process contention, or production cryptography/durability. Issuance-ID lifetime, uncertain
-execution response policy, expired-attempt audit, restore rollback, and
-provider guarantees remain unresolved; candidate B is not selected and P-002
-remains open.
+this update. Injected failures before commit leave ACTIVE/generation 7 and no
+result; a retry after simulated post-commit response loss recovers
+PAUSED/generation 8 without advancing again. This remains SQLite/HMAC evidence, not transport
+failure, multi-process contention, or production cryptography/durability.
+Issuance-ID lifetime, expired-attempt audit, restore rollback, and provider
+guarantees remain unresolved; candidate B is not selected and P-002 remains
+open.
 
 To reduce retained sensitive-data risk, this candidate excludes human reason
 and actor from the tombstone MAC. The reason remains only in one-year

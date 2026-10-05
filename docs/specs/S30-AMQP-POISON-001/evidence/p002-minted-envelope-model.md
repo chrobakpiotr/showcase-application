@@ -27,7 +27,7 @@ cryptography guidance.
 
 An independent wrapper ran the script five times and confirmed byte-identical
 output on all runs. SHA-256 of the exact stdout bytes was
-`5f4e7f137fd50e96628510a240d8c97d33f57c7f0e165dad6e35c411c6db8746`.
+`399049b7df06343c091238740952ada2161bc01abc332394a2baa465eebbf595`.
 Each run printed:
 
 ```text
@@ -35,6 +35,7 @@ PASS: harness-discarded issuance response recovered identical canonical envelope
 PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.
 PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.
 PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.
+PASS: pre-commit failures preserved ACTIVE/generation 7 with no result; retry after lost post-commit response returned PAUSED/generation 8 once.
 LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.
 OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.
 ```
@@ -77,6 +78,11 @@ OPEN: issuance-id retention/lifetime, lost execution response policy, expired-at
   that command. This exercises SQLite `BEGIN IMMEDIATE` serialization and
   unique keys in one process; it does not prove multi-process or production-
   store contention behavior.
+- Fault injection after the control update and after the result insert, both
+  before commit, preserves ACTIVE/generation 7 and no result row, all verified
+  by direct reads. The same envelope then commits PAUSED/generation 8; an
+  injected lost response after commit followed by retry returns the stored
+  generation-8 result, and direct reads confirm the generation and single row.
 
 ## Remaining contract questions and limits
 
@@ -89,9 +95,10 @@ define an explicit new-command action with fresh caller confirmation. The
 model retains issuance records without expiry and therefore does not select a
 retention policy.
 
-The model does not test a lost execution response followed by an issuance retry,
-audited expired-envelope attempts, real caller authentication/authorization,
-multi-process or multi-replica issuance/execution races, audit retention,
+The post-commit lost-response case is local exception simulation; it does not
+test real transport failure or re-issuance after a lost execution response.
+Other gaps include audited expired-envelope attempts, caller authentication/
+authorization, multi-process or multi-replica issuance/execution races, audit retention,
 Redis/PostgreSQL behavior, `WAITAOF`, backup/restore, key rotation, or provider
 failover. SQLite commit settings are not power-loss, replicated durability, or
 production-store evidence. HMAC canonicalization and the fixed test key do not

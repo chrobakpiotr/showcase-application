@@ -172,7 +172,12 @@ class ExecutionStore:
         self.lookup_count = 0
 
     def execute_or_resolve(
-        self, envelope: dict[str, object], request: dict[str, object], now: int
+        self,
+        envelope: dict[str, object],
+        request: dict[str, object],
+        now: int,
+        *,
+        fail_at: str | None = None,
     ) -> dict[str, object]:
         # Contract under test: reject invalid/expired token before consulting
         # execution-result storage.
@@ -214,14 +219,21 @@ class ExecutionStore:
                 "UPDATE control SET generation = ?, gate_state = ? WHERE singleton = 1",
                 (next_generation, next_state),
             )
+            if fail_at == "after_state_update":
+                raise RuntimeError("INJECTED_BEFORE_RESULT_INSERT")
             db.execute(
                 "INSERT INTO execution_result VALUES (?, ?, ?, ?, ?)",
                 (command_id, request_digest, next_state, next_generation, body["expires_at"]),
             )
+            if fail_at == "before_commit":
+                raise RuntimeError("INJECTED_BEFORE_COMMIT")
             db.commit()
+            if fail_at == "after_commit":
+                raise TimeoutError("INJECTED_LOST_COMMIT_RESPONSE")
             return {"status": "OK", "state": next_state, "generation": next_generation}
         except Exception:
-            db.rollback()
+            if db.in_transaction:
+                db.rollback()
             raise
         finally:
             db.close()
@@ -364,10 +376,67 @@ def main() -> None:
         assert issuance_rows == 1
         assert result_rows == 1
 
+        # Failed initial writes roll back atomically; a lost response after
+        # commit is resolved by retrying the exact same immutable envelope.
+        boundary_request = {**request, "action": "PAUSE", "expected_generation": 7}
+        boundary_envelope = issue(
+            path, "commit-boundary-issuance", boundary_request, now=issued_at + 12
+        )
+        for fail_at, expected_error in (
+            ("after_state_update", "INJECTED_BEFORE_RESULT_INSERT"),
+            ("before_commit", "INJECTED_BEFORE_COMMIT"),
+        ):
+            try:
+                store.execute_or_resolve(
+                    boundary_envelope, boundary_request, issued_at + 13, fail_at=fail_at
+                )
+            except RuntimeError as error:
+                assert str(error) == expected_error
+            else:
+                raise AssertionError(f"{fail_at} injection did not fail")
+            db = db_connect(path)
+            try:
+                persisted = db.execute(
+                    "SELECT generation, gate_state FROM control WHERE singleton = 1"
+                ).fetchone()
+                assert (persisted["generation"], persisted["gate_state"]) == (7, "ACTIVE")
+                assert db.execute(
+                    "SELECT COUNT(*) FROM execution_result WHERE command_id = ?",
+                    (boundary_envelope["body"]["command_id"],),
+                ).fetchone()[0] == 0
+            finally:
+                db.close()
+
+        try:
+            store.execute_or_resolve(
+                boundary_envelope, boundary_request, issued_at + 13, fail_at="after_commit"
+            )
+        except TimeoutError as error:
+            assert str(error) == "INJECTED_LOST_COMMIT_RESPONSE"
+        else:
+            raise AssertionError("post-commit response-loss injection did not fail")
+        recovered_result = store.execute_or_resolve(
+            boundary_envelope, boundary_request, issued_at + 14
+        )
+        assert recovered_result == {"status": "OK", "state": "PAUSED", "generation": 8}
+        db = db_connect(path)
+        try:
+            persisted = db.execute(
+                "SELECT generation, gate_state FROM control WHERE singleton = 1"
+            ).fetchone()
+            assert (persisted["generation"], persisted["gate_state"]) == (8, "PAUSED")
+            assert db.execute(
+                "SELECT COUNT(*) FROM execution_result WHERE command_id = ?",
+                (boundary_envelope["body"]["command_id"],),
+            ).fetchone()[0] == 1
+        finally:
+            db.close()
+
         print("PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.")
         print("PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.")
         print("PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.")
         print("PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.")
+        print("PASS: pre-commit failures preserved ACTIVE/generation 7 with no result; retry after lost post-commit response returned PAUSED/generation 8 once.")
         print("LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.")
         print("OPEN: issuance-id retention/lifetime, lost execution response policy, expired-attempt audit, and safe client behavior when it loses the stable issuance key remain API contract requirements.")
 

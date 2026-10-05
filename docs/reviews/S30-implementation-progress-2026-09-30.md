@@ -2164,9 +2164,13 @@ identical output with SHA-256
 `b29eba5afe1364daa7856d9d0d7cc3c4e694bbbbad9f75ba1f92217bc0b48af9`.
 This only exercises SQLite's local transaction serialization, not
 multi-process/provider contention. Independent review of this extension is
-pending. A follow-up assertion now reads persisted generation and verifies one
-issuance row and one execution result row; updated five-run stdout SHA-256 is
-`5f4e7f137fd50e96628510a240d8c97d33f57c7f0e165dad6e35c411c6db8746`.
+pending. A follow-up assertion reads persisted generation and verifies one
+issuance row and one execution result row; a further extension injects failures
+before result insertion, before commit, and after commit/before response. The
+pre-commit failures roll back state and result together; retry after simulated
+post-commit response loss returns the one stored outcome. Five-run stdout
+SHA-256 is now
+`399049b7df06343c091238740952ada2161bc01abc332394a2baa465eebbf595`.
 
 This remains a SQLite/HMAC model; the harness does not inject transport
 failure and makes no production cryptography or durability claim. Issuance-key
