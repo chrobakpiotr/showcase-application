@@ -46,7 +46,7 @@
       "candidates": [
         {
           "id": "A",
-          "approach": "Keep a minimal PostgreSQL command tombstone indefinitely, separately from the one-year actor/reason audit, containing only an opaque random command ID, keyed canonical-request MAC plus key ID, action, result code, latch epoch, and expected/result generation; retain its verification keys and prohibit removal/rollback."
+          "approach": "Keep a minimal PostgreSQL command tombstone indefinitely, separately from the one-year actor/reason audit, containing an opaque random command ID; every non-sensitive canonical MAC input (API version, action, expected latch epoch, expected current Redis generation, barrier generation, and opaque registration ID); keyed request MAC/key ID; and result status/code/generations. Exclude actor, reason, free-text, and personal identifiers. Use resumable re-MAC rotation; prohibit key retirement until authoritative rows and retained backups have been migrated or expired."
         },
         {
           "id": "B",

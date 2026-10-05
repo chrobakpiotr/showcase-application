@@ -138,16 +138,17 @@ security and architecture review. Do not assume the one-year audit expiry
 also deletes the only command-reuse guard.
 
 The disposable P-002 SQLite comparison modeled 36,500 commands and reported
-about 7.43 MB of rows for indefinite minimal tombstones after audit deletion,
+9,416,704 bytes for indefinite minimal tombstones after audit deletion,
 versus 24 KB for the database after a 30-day purge. These are SQLite-only
 illustrative sizes, not production Redis/PostgreSQL estimates. A finite
 window with a caller-selected stable command ID is unsafe: after the result
 row is deleted, a fresh signed envelope can reuse that ID. A server-minted
 envelope whose opaque command ID is cryptographically bound to the immutable
 request and expiry can close that gap, but it changes the current command API
-and needs a separate issuance/execution contract. The minimal tombstone
-projection measured about 204 SQLite bytes per command in the final prototype
-run. The finite-envelope option remains a possible redesign, not an accepted
+and needs a separate issuance/execution contract. The revised minimal
+tombstone projection, including canonical MAC inputs and result facts, measured
+about 258 SQLite bytes per command in the final prototype run. The
+finite-envelope option remains a possible redesign, not an accepted
 choice; its issue-then-execute retry boundary and server-minted ID recovery
 after a lost issuance response remain unresolved. The SQLite result does not
 qualify production storage or retention implementation.
@@ -432,11 +433,14 @@ PostgreSQL candidate schema is owned only by the gate service:
   audit and every authenticated retry audit each store that attempt's reason
   and actor, with the accepted one-year expiry. A retry with the same command
   ID may supply a new reason, but its immutable action/generation/registration
-  fields must match; it receives a separate audit event and cannot advance the
-  generation again.
+  fields (API version, action, expected latch epoch, expected current Redis
+  generation, barrier generation, and registration ID where applicable) must
+  match; it receives a separate audit event and cannot advance the generation
+  again.
 
-Canonical request MAC input is RFC 8785 canonical JSON over API version,
-action, expected latch/gate generations, and registration identity.
+Canonical request MAC input is RFC 8785 canonical JSON over `api_version`,
+`action`, `expected_latch_epoch`, `expected_current_redis_generation`,
+`barrier_generation`, and opaque `registration_id` where applicable.
 `HMAC-SHA-256` uses a random KMS-held key. Do not store a digest, MAC input, or
 other derived value of free-text reason in the indefinitely retained
 tombstone. Store the immutable command fields needed to recompute the MAC so
@@ -553,6 +557,79 @@ assessment recommends an independent monotonic witness. This recommendation
 does not select an option or owner; details are in
 [`p001-restore-option-advice.md`](../evidence/p001-restore-option-advice.md).
 Never reconstruct a missing actor/reason audit from the command tombstone.
+
+### Candidate preferences for the next design grill
+
+These are explicit recommendations to narrow the open alternatives, not
+accepted contracts or a design-gate PASS:
+
+- **P-001 leader fence: candidate A (row lock).** Prefer the existing
+  PostgreSQL owner/epoch row lock over adding an advisory-lock protocol. The
+  gate has low-volume control traffic, and the row is already the durable
+  owner/epoch authority. Validate owner and server-time lease under the locked
+  row for every Redis mutation and permit issue. Hold it only across one
+  bounded Redis operation and its durability response; uncertainty denies
+  work. A provider test must show that a delayed old-epoch Redis command is
+  rejected after successor epoch installation, while a command that lands
+  before installation leaves the sticky latch inhibited until the successor
+  reconciles its exact command/result/generation. Lost session and takeover
+  behavior must also be tested.
+- **P-001 coordinated restore: restore-ineligible policy.** Prefer a durable
+  inhibit controlled by deployment/DR tooling outside both the gate PostgreSQL
+  and Redis backup sets. Every supported restore path must fence permit
+  issuers and consumer connections before restoring either store, bind the
+  inhibit to that restore episode, keep the restored gate inhibited, verify
+  restore provenance, reject prior commands/permits, and require a fresh
+  audited re-epoch/RESUME. The 06b fence must also prevent stale handlers from
+  committing. Partial and emergency restores, unavailable control, or
+  incomplete restore inventory all remain denied. This is viable only if the
+  deployment owner can enforce every restore path; otherwise use an independent
+  monotonic witness. The repository does not establish that owner or guarantee
+  yet. The deployment/DR control plane is the proposed authority for the
+  restore-episode inhibit, but its durable store and gate-service observation
+  protocol are unselected; the restored gate must verify the episode before
+  epoch install or permit issuance.
+- **P-002 idempotency: candidate A (minimal indefinite tombstone).** There is
+  no accepted retry-expiry window, so retain a minimal tombstone indefinitely
+  to prevent a late same-ID command from becoming new. Exclude actor and
+  operator reason; retain an opaque command ID, every non-sensitive input to
+  the canonical request MAC (API version, action, expected latch epoch,
+  expected current Redis generation, barrier generation, and opaque
+  registration ID where applicable), the keyed digest and key ID, plus
+  terminal result code/status and resulting latch/gate generations. These
+  canonical fields let the store re-compute a new MAC before a verification
+  key retires; a stored MAC alone is insufficient.
+  This is a revised candidate-A variant from the predeclared retain-keys
+  alternative; it requires resumable rotation and an authoritative check that
+  no live row or retained backup still uses the old key before retirement.
+  Keep the one-year actor/reason audit separate and durably audit every
+  authenticated retry before returning the result. This preference still
+  needs privacy, key-custody, backup, deletion, and provider recovery review;
+  command IDs may remain linkable and must stay out of unnecessary logs/metrics.
+- **P-003 permit: candidate A (signed, one-start permit).** This best matches
+  the accepted five-second maximum while allowing bounded gate-service
+  outages. Bind the permit to verified subject and deployment, unique instance
+  incarnation and registration, broker-observed connection, current
+  leader/latch/gate epochs, a signed unpredictable request nonce and one-use
+  `jti`, issuer, audience, algorithm, and expiry; atomically consume replay
+  state under the handler-start lock. New issuance or starts without a
+  currently verifiable permit/key are denied; a previously verified permit
+  can authorize only until its conservative five-second deadline. The existing
+  Keycloak probe does not qualify this runtime.
+
+Per-instance identity and Rabbit fencing remain separate decisions: candidate
+deployment provisioning would issue one non-transferable workload identity and
+Rabbit principal per consumer instance, with the gate checking the broker's
+authenticated connection record. Rabbit built-in roles do not provide a
+proven close-only fencer; a deployment-owned plugin/proxy or equivalent must
+pass least-authority, exact-target, race, and no-payload-read checks. Until a
+supported mechanism is selected and proven, operator RESUME stays blocked for
+any instance whose connection cannot be independently shown drained or fenced.
+If the fencer is a proxy holding RabbitMQ's built-in administrator credential,
+the proxy itself remains a trusted computing-base component with broad broker
+authority; a narrow proxy API alone does not reduce that upstream privilege. A
+broker extension is required if the deployment threat model cannot accept that
+isolated and monitored trust boundary.
 
 Concurrent duplicate rules also remain to be proven: one request owns
 `PREPARED`, identical retries wait for or resolve that same command, changed

@@ -27,19 +27,29 @@ actor/reason event, expired-envelope rejection, and the counterexample where a
 fresh envelope reuses a caller-selected ID after the old row has expired. It
 also simulates a bounded HMAC-key rekey batch, process restart with mixed key
 versions, resumed batches, and retirement only after no old-key rows remain.
-For 36,500 rows, the final run reported 7,434,240 bytes after audit deletion
-and compaction with indefinite minimal tombstones (203.7 SQLite bytes per row),
-versus 24,576 bytes with zero rows after a 30-day purge. These figures are
-illustrative only; they are not Redis, PostgreSQL, WAL, encrypted-volume, or
-backup estimates. The rekey test is a local SQLite transaction model, not
-provider crash or concurrent-write proof.
+For 36,500 rows, the revised final run reported 9,416,704 bytes after audit
+deletion and compaction with indefinite minimal tombstones (258.0 SQLite bytes
+per row), versus 24,576 bytes with zero rows after a 30-day purge. The tombstone
+fixture now retains API version, action, expected latch epoch, expected current
+Redis generation, barrier generation, opaque registration ID, keyed request
+MAC/key ID, result code, and resulting generations while keeping actor/reason
+out. After a simulated process restart and re-MAC rotation, an exact retry
+looked up by command ID and returned the stored result under the new key;
+changed latch epoch, current Redis generation, barrier, or registration values
+returned `COMMAND_ID_REUSED`, while an unknown ID returned `NOT_FOUND`. These
+figures are illustrative only; they are not Redis, PostgreSQL, WAL,
+encrypted-volume, or backup
+estimates. The rekey test is a local SQLite transaction model, not provider
+crash or concurrent-write proof.
 
 A gate-minted immutable envelope avoids same-ID reissue only if the client
 receives it before execution and retries that exact envelope. A lost envelope
 issuance response still needs an idempotent contract. The current candidate
 retains a minimal tombstone independently of the one-year actor/reason audit;
-this is a proposed decision, pending privacy, key-retention, backup, and
-restore review. The SQLite model does not qualify that decision.
+the revised candidate re-MACs from retained non-sensitive canonical inputs
+before retiring a key. This is a proposed decision, pending privacy,
+key-custody, backup, and restore review. The SQLite model does not qualify that
+decision.
 
 ## P-003 — permit and identity state model
 
