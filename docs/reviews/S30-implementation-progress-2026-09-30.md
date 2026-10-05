@@ -2113,6 +2113,18 @@ operator re-epoch procedure. The review is recorded in
 No option or deployment API is selected yet; P-001 and the S30-06 design gate
 remain open.
 
+A follow-up provider probe now restores an actual PostgreSQL custom-format
+logical dump and Redis RDB after both stores advance from matching
+ACTIVE/CLEAR epoch 1/generation 10 to PAUSED/RECOVERY_REQUIRED generation 11.
+The paired old snapshots restore the earlier mutually matching state, and the
+naive predicate again evaluates true. Independent review reproduced the probe
+and cleanup. This demonstrates the pairwise predicate's blind spot only; no
+service admission or permit is tested, and the independent witness/restore
+policy remains unselected. Details, exact backup hashes, and limitations are
+in [`p001-coordinated-restore-counterexample.md`](../specs/S30-AMQP-POISON-001/evidence/p001-coordinated-restore-counterexample.md);
+the script SHA-256 is
+`1c7af38492d5c6b02f321155be6e2d23712c29650eaff184f04df2be4ff1fefb`.
+
 ## S30-06 P-002 transactional retry model — 2026-10-05
 
 A SQLite-only model stores immutable command tombstones separately from

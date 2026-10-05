@@ -440,6 +440,15 @@ test. The finding and exact test condition are recorded in
 [`p001-restore-contract-review.md`](../evidence/p001-restore-contract-review.md).
 Until this case and Redis-ahead recovery are proven, startup and admission
 remain blocked.
+
+The [coordinated-restore counterexample](../evidence/p001-coordinated-restore-counterexample.md)
+now restores a matching PostgreSQL custom-format logical dump and Redis RDB
+after both stores advance to a newer inhibited state. The old pairwise
+epoch/latch/generation/state predicate returns true again after both stale
+artifacts are restored. This confirms the comparison cannot detect joint
+rollback; no application or gate service ran, so no permit/admission result
+was tested. It reinforces the need for a selected independent witness or
+restore-ineligible policy; P-001 remains open.
 Never reconstruct a missing actor/reason audit from the command tombstone.
 
 Concurrent duplicate rules also remain to be proven: one request owns
