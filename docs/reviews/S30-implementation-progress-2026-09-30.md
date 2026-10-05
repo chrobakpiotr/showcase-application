@@ -1905,6 +1905,9 @@ documentation, repository guards, and aggregate CI all passed; Dependency
 Review was skipped for the push. Local commit `100f405` contains the inventory
 repair and updated design evidence; it remains ahead of `origin/main` and has
 not been pushed, so its SDD protocol result is not hosted yet.
+Since that repair, local-only review/evidence commits have advanced through
+`314c43c`; the fetched `origin/main` remains `5ac4c94` (19 local commits ahead).
+No GitHub run covers those local commits.
 
 After the inventory repair, the remaining protocol-validation commands were
 run locally. `validate-all`, required-status policy, both verification-contract

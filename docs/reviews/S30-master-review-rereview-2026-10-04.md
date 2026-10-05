@@ -258,4 +258,6 @@ backend, frontend, PIT, SBOM, infrastructure, Trivy, documentation, repository
 guards, and the aggregate quality gate all passed. Dependency Review was
 skipped as expected for a push. The [Agentic SDD run #107](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209085)
 failed its inventory check; the repair is in local commit `100f405` and has not
-yet been pushed or exercised by hosted CI.
+yet been pushed or exercised by hosted CI. Later local evidence commits advance
+through `314c43c`; `origin/main` is still `5ac4c94`, so none has a hosted CI
+result.
