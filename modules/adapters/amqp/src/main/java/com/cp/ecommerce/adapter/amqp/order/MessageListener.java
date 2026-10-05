@@ -26,11 +26,8 @@ public class MessageListener {
         final OrderMessage orderMessage;
         try {
             orderMessage = gson.fromJson(message, OrderMessage.class);
-        } catch (JsonParseException exception) {
-            final ApplicationBadRequestException badRequestException = new ApplicationBadRequestException(
-                    "Invalid order fulfillment message JSON");
-            badRequestException.initCause(exception);
-            throw badRequestException;
+        } catch (JsonParseException ignored) {
+            throw new ApplicationBadRequestException("Invalid order fulfillment message JSON");
         }
 
         final OrderFulfillmentReceiptOutcome outcome = receiveOrderMessageInPort.receive(orderMessage);

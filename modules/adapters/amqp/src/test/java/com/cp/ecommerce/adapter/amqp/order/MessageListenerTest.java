@@ -9,7 +9,6 @@ import com.cp.ecommerce.domain.order.OrderMessage;
 import com.cp.ecommerce.domain.order.port.incoming.ReceiveOrderMessageInPort;
 import com.cp.ecommerce.foundation.exception.ApplicationBadRequestException;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -48,9 +47,11 @@ class MessageListenerTest {
     @Test
     void shouldRejectMalformedJson() {
 
-        assertThatThrownBy(() -> listener.receiveMessage("{not-json")).isInstanceOf(ApplicationBadRequestException.class)
+        assertThatThrownBy(() -> listener.receiveMessage("{\"operationId\":\"PRIVATE-OPERATION\""))
+                .isInstanceOf(ApplicationBadRequestException.class)
                 .hasMessageContaining("Invalid order fulfillment message JSON")
-                .hasCauseInstanceOf(JsonParseException.class);
+                .hasNoCause()
+                .hasMessageNotContaining("PRIVATE-OPERATION");
     }
 
     @Test
