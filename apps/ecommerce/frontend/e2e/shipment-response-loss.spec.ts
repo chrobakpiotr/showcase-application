@@ -12,6 +12,33 @@ const FIXTURE_SKU = "DEMO-USB-HUB-001";
 const FIXTURE_NAME = "USB-C Hub";
 const FIXTURE_PRICE = "69.5";
 
+interface CapturedShipmentAdvance {
+  status: number;
+  method: string;
+  url: string;
+  operationId: string;
+  expectedStatus: string;
+  body: { code?: string; status?: string };
+}
+
+async function fetchAndCaptureShipmentAdvance(
+  route: Route,
+  capture: (response: CapturedShipmentAdvance) => void,
+): Promise<void> {
+  const response = await route.fetch();
+  const body = (await response.json()) as CapturedShipmentAdvance["body"];
+  const request = route.request();
+  capture({
+    status: response.status(),
+    method: request.method(),
+    url: request.url(),
+    operationId: request.headers()["idempotency-key"] ?? "",
+    expectedStatus: request.headers()["x-expected-shipment-status"] ?? "",
+    body,
+  });
+  await route.fulfill({ response, json: body });
+}
+
 async function createShipmentAndCaptureResponse(page: Page): Promise<{
   status: number;
   shipmentNumber?: string;
@@ -340,23 +367,32 @@ test("competing shipment advances require a new explicit operation after typed c
       clientBRow.getByRole("cell", { name: "PENDING", exact: true }),
     ).toBeVisible();
 
+    let clientBResponseCapture: CapturedShipmentAdvance | undefined;
+    await competingPage.route(
+      `**/home/api/shipments/${shipmentNumber}/advance`,
+      async (route) => {
+        await fetchAndCaptureShipmentAdvance(route, (captured) => {
+          clientBResponseCapture = captured;
+        });
+      },
+    );
+
     const clientBAdvance = competingPage.waitForResponse(
       (response) =>
         response.url().endsWith(`/api/shipments/${shipmentNumber}/advance`) &&
         response.request().method() === "POST",
     );
     await clientBRow.getByTestId("advance-shipment").click();
-    const clientBResponse = await clientBAdvance;
-    expect(clientBResponse.status()).toBe(200);
-    expect(
-      clientBResponse.request().headers()["x-expected-shipment-status"],
-    ).toBe("PENDING");
-    const clientBOperationId =
-      clientBResponse.request().headers()["idempotency-key"] ?? "";
-    expect(clientBOperationId).toMatch(/^[0-9a-f-]{36}$/i);
-    expect(((await clientBResponse.json()) as { status?: string }).status).toBe(
-      "DISPATCHED",
+    await clientBAdvance;
+    expect(clientBResponseCapture?.status).toBe(200);
+    expect(clientBResponseCapture?.method).toBe("POST");
+    expect(clientBResponseCapture?.url).toContain(
+      `/api/shipments/${shipmentNumber}/advance`,
     );
+    expect(clientBResponseCapture?.expectedStatus).toBe("PENDING");
+    const clientBOperationId = clientBResponseCapture?.operationId ?? "";
+    expect(clientBOperationId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(clientBResponseCapture?.body.status).toBe("DISPATCHED");
     await expect(
       clientBRow.getByRole("cell", { name: "DISPATCHED", exact: true }),
     ).toBeVisible();
@@ -386,16 +422,15 @@ test("competing shipment advances require a new explicit operation after typed c
         if (
           route.request().headers()["x-expected-shipment-status"] !== "PENDING"
         ) {
-          const response = await route.fetch();
-          explicitResponseBody = await response.json();
-          await route.fulfill({ response, json: explicitResponseBody });
+          await fetchAndCaptureShipmentAdvance(route, (captured) => {
+            explicitResponseBody = captured.body;
+          });
           return;
         }
 
-        const response = await route.fetch();
-        const problem = (await response.json()) as { code?: string };
-        staleProblemCode = problem.code ?? "";
-        await route.fulfill({ response, json: problem });
+        await fetchAndCaptureShipmentAdvance(route, (captured) => {
+          staleProblemCode = captured.body.code ?? "";
+        });
       },
     );
 
