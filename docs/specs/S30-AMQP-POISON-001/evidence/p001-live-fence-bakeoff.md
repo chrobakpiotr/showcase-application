@@ -59,13 +59,13 @@ then proceeds with the independently committed sticky inhibit intact.
 
 ## Environment and reproduction
 
-Observed on 2026-10-05 with Docker Engine 29.8.1:
+Observed on 2026-10-05 with Docker Engine 29.8.2:
 
 - Redis `redis@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0`
   (server 8.10.2), with AOF enabled and `appendfsync always`.
 - PostgreSQL `postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873`
   (18.6).
-- Prototype SHA-256: `7894d486df05deab30a4c0bb80a8f8de57103d4371a667fad1bf13aa9b9c7451`.
+- Prototype SHA-256: `42ae516b711f326f98ca0c1d2dcb96fb8cab0e46605a56863ff968dd8583181f`.
 
 Both providers use local test credentials and ephemeral container filesystems.
 Redis has no replica, so `[1,0]` proves only the configured local AOF fsync
@@ -78,34 +78,38 @@ started or changed.
 DOCKER=29.8.1
 REDIS=redis@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0 Redis server v=8.10.2
 POSTGRES=postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873 PostgreSQL 18.6
-A-row-lock TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_A_row_lock_6d74964c:Lock:transactionid
+A-row-lock TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_A_row_lock_76756761:Lock:transactionid
 A-row-lock BUFFERED_COMPLETE_EVAL_WHILE_LEASE_VALID=true; RELEASED_AFTER_LEASE_EXPIRY=true
 A-row-lock WAITAOF_SERVER_REPLY=b'*2\r\n:1\r\n:0\r\n'; CLIENT_RESULT=EOF (same proxied TCP connection)
 A-row-lock TAKEOVER_AFTER_OLD_SESSION_LOST=leader-b:2
 A-row-lock EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
 A-row-lock PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'ACTIVE']; unknown result remains inhibited
-B-advisory-plus-CAS TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_B_advisory_plus_CAS_6d74964c:Lock:advisory
+A-row-lock DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; RESULT=STALE_EPOCH; STATE=['2', 'PAUSED', '77']
+B-advisory-plus-CAS TAKEOVER_PG_STAT_ACTIVITY=p001_takeover_B_advisory_plus_CAS_76756761:Lock:advisory
 B-advisory-plus-CAS BUFFERED_COMPLETE_EVAL_WHILE_LEASE_VALID=true; RELEASED_AFTER_LEASE_EXPIRY=true
 B-advisory-plus-CAS WAITAOF_SERVER_REPLY=b'*2\r\n:1\r\n:0\r\n'; CLIENT_RESULT=EOF (same proxied TCP connection)
 B-advisory-plus-CAS TAKEOVER_AFTER_OLD_SESSION_LOST=leader-b:2
 B-advisory-plus-CAS EPOCH_INSTALL=2; WAITAOF=[1, 0]; OLD_WRITE_AFTER_INSTALL=REJECTED
 B-advisory-plus-CAS PERMIT=False PG=leader-b:2:RECOVERY_REQUIRED REDIS=['2', 'ACTIVE']; unknown result remains inhibited
+B-advisory-plus-CAS DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; RESULT=STALE_EPOCH; STATE=['2', 'PAUSED', '77']
 COMPARISON=[('A-row-lock', 'Lock:transactionid', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'ACTIVE'], 'REJECTED', False), ('B-advisory-plus-CAS', 'Lock:advisory', 'leader-b:2:RECOVERY_REQUIRED', ['2', 'ACTIVE'], 'REJECTED', False)]
 P001=NEEDS_MORE_EVIDENCE; criteria are not all covered; no candidate selected
 ```
 
 Both candidates exhibited the same safety outcome in this schedule. For A,
 takeover waited on the row transaction (`transactionid`); for B, it waited on
-the transaction advisory lock (`advisory`). Before epoch 2 installation, the
-delayed epoch-1 write was accepted while the sticky PostgreSQL latch remained
-inhibited. After installation, the same old epoch was rejected. In both
-cases, caller-visible WAITAOF uncertainty prevented permit issuance.
+the transaction advisory lock (`advisory`). The original delayed epoch-1 write
+was released before takeover and could land while the sticky PostgreSQL latch
+remained inhibited. A second full mutating EVAL was then buffered and released
+only after epoch 2 was durably installed; Redis returned `STALE_EPOCH` and the
+sentinel state stayed `PAUSED` at generation 77. In both cases,
+caller-visible WAITAOF uncertainty prevented permit issuance.
 
 ## Predeclared criteria coverage
 
 | Criterion from `design.json` | Result in this experiment |
 | --- | --- |
-| Stale leader cannot mutate Redis after a higher epoch is installed | **Exercised:** epoch-1 mutation rejected after epoch-2 installation for both candidates. |
+| Stale leader cannot mutate Redis after a higher epoch is installed | **Exercised:** the full old-epoch mutating EVAL was delayed until after epoch-2 installation; it returned `STALE_EPOCH` and sentinel state remained unchanged for both candidates. |
 | No permit when owner, lease, lock, or epoch is uncertain | **Partial:** denied with sticky latch and lost WAITAOF reply; no live signed-permit service. |
 | Bounded recovery when delayed old-epoch command lands before installation | **Partial:** PG lock wait was observed, then takeover completed after old-session loss and installed epoch 2. Lease-renewal and failover recovery are untested. |
 | Durable monotonic epoch through restart and provider failover | **Not tested:** no restart or provider failover in this schedule. |

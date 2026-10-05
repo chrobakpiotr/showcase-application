@@ -278,6 +278,55 @@ def cleanup_operation(proxy: GatedProxy, client: Redis, thread: threading.Thread
     thread.join(timeout=3)
 
 
+def delayed_old_epoch_after_install(candidate: str, redis_port: int) -> None:
+    """Release a previously authorized epoch-1 mutation only after epoch 2 is durable."""
+    direct = Redis(redis_port)
+    try:
+        direct.command("SET", "gate:state", "PAUSED")
+        direct.command("SET", "gate:generation", 77)
+        assert direct.command("WAITAOF", 1, 0, 2000) == [1, 0]
+    finally:
+        direct.close()
+
+    proxy = GatedProxy(redis_port, reserve_port())
+    client = Redis(proxy.listener.getsockname()[1], timeout=None)
+    errors: list[BaseException] = []
+
+    def old_mutation() -> None:
+        try:
+            client.command("EVAL", MUTATION, 3, "gate:leader_epoch",
+                          "gate:state", "gate:generation", 1, MUTATION_ID)
+        except BaseException as error:
+            errors.append(error)
+
+    thread = threading.Thread(target=old_mutation, daemon=True)
+    thread.start()
+    try:
+        assert proxy.buffered.wait(5), f"{candidate}: proxy did not buffer delayed epoch-1 write"
+        direct = Redis(redis_port)
+        try:
+            epoch = direct.command("GET", "gate:leader_epoch")
+            assert epoch == "2", (candidate, "epoch 2 was not installed before release", epoch)
+        finally:
+            direct.close()
+        proxy.release.set()
+        thread.join(timeout=5)
+        assert not thread.is_alive(), f"{candidate}: delayed stale mutation did not return"
+        assert errors and "STALE_EPOCH" in str(errors[-1]), (candidate, errors)
+        direct = Redis(redis_port)
+        try:
+            state = direct.command("MGET", "gate:leader_epoch", "gate:state", "gate:generation")
+        finally:
+            direct.close()
+        assert state == ["2", "PAUSED", "77"], (candidate, state)
+        print(f"{candidate} DELAYED_OLD_WRITE_RELEASED_AFTER_EPOCH_2=true; "
+              f"RESULT=STALE_EPOCH; STATE={state}")
+    finally:
+        proxy.close()
+        client.close()
+        thread.join(timeout=3)
+
+
 def psql(container: str, sql: str, *, tuples: bool = True) -> str:
     args = ["docker", "exec", container, "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1"]
     if tuples:
@@ -439,6 +488,7 @@ INSERT INTO gate_control VALUES(1,'leader-a',1,clock_timestamp()+interval '15 se
     assert row == "leader-b:2:RECOVERY_REQUIRED" and not permit
     print(f"{candidate} EPOCH_INSTALL={installed}; WAITAOF={durable}; OLD_WRITE_AFTER_INSTALL={stale}")
     print(f"{candidate} PERMIT={permit} PG={row} REDIS={redis_state}; unknown result remains inhibited")
+    delayed_old_epoch_after_install(candidate, redis_port)
     return (candidate, wait_event, row, redis_state, stale, permit)
 
 
