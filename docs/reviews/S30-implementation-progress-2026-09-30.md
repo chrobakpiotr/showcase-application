@@ -2163,8 +2163,8 @@ the stored result and the generation advances once. Five repeat runs produce
 identical output with SHA-256
 `b29eba5afe1364daa7856d9d0d7cc3c4e694bbbbad9f75ba1f92217bc0b48af9`.
 This only exercises SQLite's local transaction serialization, not
-multi-process/provider contention. Independent review of this extension is
-pending. A follow-up assertion reads persisted generation and verifies one
+multi-process/provider contention. Independent concurrency review verified
+these exact local claims and limitations. A follow-up assertion reads persisted generation and verifies one
 issuance row and one execution result row; a further extension injects failures
 before result insertion, before commit, and after commit/before response. The
 pre-commit failures roll back state and result together; retry after simulated
