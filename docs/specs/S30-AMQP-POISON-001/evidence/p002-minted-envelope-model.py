@@ -65,6 +65,15 @@ def initialize(path: str) -> None:
             result_generation INTEGER NOT NULL,
             expires_at INTEGER NOT NULL
         );
+
+        CREATE TABLE audit_event (
+            event_id INTEGER PRIMARY KEY,
+            command_id TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            outcome TEXT NOT NULL,
+            result_generation INTEGER NOT NULL
+        );
         """
     )
     db.close()
@@ -178,6 +187,9 @@ class ExecutionStore:
         now: int,
         *,
         fail_at: str | None = None,
+        actor: str = "operator-default",
+        reason: str = "routine",
+        fail_audit: bool = False,
     ) -> dict[str, object]:
         # Contract under test: reject invalid/expired token before consulting
         # execution-result storage.
@@ -199,6 +211,12 @@ class ExecutionStore:
                 if prior["request_digest"] != request_digest:
                     db.rollback()
                     return {"status": "REJECTED", "reason": "COMMAND_REQUEST_MISMATCH"}
+                if fail_audit:
+                    raise RuntimeError("INJECTED_REPLAY_AUDIT_FAILURE")
+                db.execute(
+                    "INSERT INTO audit_event (command_id, actor, reason, outcome, result_generation) VALUES (?, ?, ?, ?, ?)",
+                    (command_id, actor, reason, "REPLAY", prior["result_generation"]),
+                )
                 result = {
                     "status": "OK",
                     "state": prior["result_state"],
@@ -224,6 +242,10 @@ class ExecutionStore:
             db.execute(
                 "INSERT INTO execution_result VALUES (?, ?, ?, ?, ?)",
                 (command_id, request_digest, next_state, next_generation, body["expires_at"]),
+            )
+            db.execute(
+                "INSERT INTO audit_event (command_id, actor, reason, outcome, result_generation) VALUES (?, ?, ?, ?, ?)",
+                (command_id, actor, reason, "APPLIED", next_generation),
             )
             if fail_at == "before_commit":
                 raise RuntimeError("INJECTED_BEFORE_COMMIT")
@@ -303,11 +325,58 @@ def main() -> None:
         assert new_key_envelope["body"]["command_id"] != command_id
 
         store = ExecutionStore(path)
-        first = store.execute_or_resolve(recovered, request, issued_at + 4)
+        first = store.execute_or_resolve(
+            recovered,
+            request,
+            issued_at + 4,
+            actor="operator-alice",
+            reason="poison delivery observed",
+        )
         assert first == {"status": "OK", "state": "PAUSED", "generation": 6}
-        retry = store.execute_or_resolve(recovered, request, issued_at + 5)
+        retry = store.execute_or_resolve(
+            recovered,
+            request,
+            issued_at + 5,
+            actor="operator-bob",
+            reason="verify pause after handoff",
+        )
         assert retry == first
         assert store.lookup_count == 2
+        db = db_connect(path)
+        try:
+            retry_audit = db.execute(
+                "SELECT actor, reason, outcome, result_generation FROM audit_event WHERE command_id = ? ORDER BY event_id",
+                (command_id,),
+            ).fetchall()
+            assert [tuple(row) for row in retry_audit] == [
+                ("operator-alice", "poison delivery observed", "APPLIED", 6),
+                ("operator-bob", "verify pause after handoff", "REPLAY", 6),
+            ]
+        finally:
+            db.close()
+        try:
+            store.execute_or_resolve(
+                recovered,
+                request,
+                issued_at + 6,
+                actor="operator-charlie",
+                reason="audit outage simulation",
+                fail_audit=True,
+            )
+        except RuntimeError as error:
+            assert str(error) == "INJECTED_REPLAY_AUDIT_FAILURE"
+        else:
+            raise AssertionError("replay audit failure did not abort the retry")
+        db = db_connect(path)
+        try:
+            assert db.execute(
+                "SELECT COUNT(*) FROM audit_event WHERE command_id = ?", (command_id,)
+            ).fetchone()[0] == 2
+            assert db.execute(
+                "SELECT generation FROM control WHERE singleton = 1"
+            ).fetchone()["generation"] == 6
+        finally:
+            db.close()
 
         # At expiry, purge the execution result. A retry must be rejected by
         # envelope validation before consulting the now-empty result store.
@@ -446,6 +515,7 @@ def main() -> None:
         print("PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.")
         print("PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.")
         print("PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.")
+        print("PASS: reason-only replay recorded its actor/reason without another transition; injected audit failure left no result response or audit event.")
         print("PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.")
         print("PASS: pre-commit failures preserved ACTIVE/generation 7; after commit response loss, same-key issuance recovery returned one PAUSED/generation-8 result.")
         print("LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.")

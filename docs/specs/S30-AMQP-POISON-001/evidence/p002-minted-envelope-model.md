@@ -27,13 +27,14 @@ cryptography guidance.
 
 An independent wrapper ran the script five times and confirmed byte-identical
 output on all runs. SHA-256 of the exact stdout bytes was
-`a77d4757493924404a14239b8202cebda63574d3ec1977dbfae474cb01603942`.
+`93e20666b43e66999c6d8faa02fb1c92242b1387a240d69eadc2927e115be60d`.
 Each run printed:
 
 ```text
 PASS: harness-discarded issuance response recovered identical canonical envelope bytes after issuer-store reopen.
 PASS: changed request under same issuance key rejected; different key minted a different opaque command ID.
 PASS: original envelope replay returned stored result before expiry; after result purge and expiry it rejected before result-store lookup.
+PASS: reason-only replay recorded its actor/reason without another transition; injected audit failure left no result response or audit event.
 PASS: eight simultaneous issuers stored one envelope; eight concurrent executes left one result row and persisted generation 7.
 PASS: pre-commit failures preserved ACTIVE/generation 7; after commit response loss, same-key issuance recovery returned one PAUSED/generation-8 result.
 LIMIT: deterministic HMAC IDs/key and SQLite model only; no production cryptographic, authentication, authorization, or durability claim.
@@ -66,6 +67,12 @@ OPEN: issuance-id retention/lifetime, lost execution response policy, expired-at
   expiry. The script then deletes its execution-result row at envelope expiry.
   At `now == expires_at`, envelope verification rejects before the execution
   store query counter increments.
+- A retry changing only actor/reason returns the same result and generation
+  while storing a separate `REPLAY` audit event with the retry actor and reason.
+  Injected audit failure aborts before a result is returned and leaves the
+  audit count unchanged. This models transactional ordering only; the actor is
+  a fixture, not authenticated identity, and the model does not enforce the
+  one-year audit deletion horizon.
 - Retrying the original issuance ID even after expiry returns the same old,
   expired envelope. The client must deliberately begin a new command with a
   different issuance ID; it cannot silently transform an old lost-response

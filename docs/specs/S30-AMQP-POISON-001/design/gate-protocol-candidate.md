@@ -204,6 +204,8 @@ response loss recovers PAUSED/generation 8 without advancing again.
 Independent concurrency review verified these persisted assertions and
 limits. The lost-response case discards the envelope, reopens the issuer store,
 and retries issuance with the same key before resolving the command result.
+The model also records a separate audit event for a reason-only retry and
+returns no result when that audit write is injected to fail.
 This remains SQLite/HMAC evidence, not transport failure, multi-process
 contention, or production cryptography/durability. Issuance-ID lifetime,
 expired-attempt audit, restore rollback, and provider guarantees remain

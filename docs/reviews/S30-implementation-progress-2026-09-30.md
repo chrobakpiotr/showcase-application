@@ -2173,6 +2173,13 @@ issuer store, and retries issuance with the same key before resolving the
 stored outcome. Five-run stdout SHA-256 is now
 `a77d4757493924404a14239b8202cebda63574d3ec1977dbfae474cb01603942`.
 
+The model now also inserts an actor/reason `REPLAY` audit event before
+returning a prior result. A reason-only retry preserves the original result
+and generation; injected audit failure returns no result and leaves no audit
+event. This does not authenticate the fixture actor or enforce one-year
+deletion. Updated five-run stdout SHA-256:
+`93e20666b43e66999c6d8faa02fb1c92242b1387a240d69eadc2927e115be60d`.
+
 This remains a SQLite/HMAC model; the harness does not inject transport
 failure and makes no production cryptography or durability claim. Issuance-key
 lifetime, uncertain execution-response handling, expired-attempt audit,
