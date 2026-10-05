@@ -1984,15 +1984,29 @@ Independent security review identified that the disposable P-003 state model
 accepted an identity payload whose JWT signature was invalid. The model now
 verifies its prototype HS256 signature and fixed algorithm/header before
 authorization; permit checks also cover fixed algorithm/header, subject
-equality and an expected request nonce. The tampering case asserts denial and
-the script passes 23 deterministic assertions. Independent evaluation returned
-**NEEDS_MORE_EVIDENCE**: identity and nonce are model inputs, not trusted
-registration/outstanding-request state. OIDC/JWKS, key rotation, Rabbit-bound
-instance drain, durable replay protection, and the runtime five-second bound
-remain unproven. This corrects model defects only and does not close P-003 or
-the S30-06 design gate.
+equality and an expected request nonce. Follow-up adds temporal/type validation,
+missing `jti` and non-object payload rejection, plus a concurrent duplicate
+start assertion using a local replay lock. The script passes 33 deterministic
+assertions; an independent concurrency reviewer confirmed those model gaps are
+closed. This remains **NEEDS_MORE_EVIDENCE**: identity and nonce are model
+inputs, not trusted registration/outstanding-request state. OIDC/JWKS, key
+rotation, Rabbit-bound instance drain, durable replay protection, atomic
+handler-start/active-count/drain, and the runtime five-second bound remain
+unproven. This corrects model defects only and does not close P-003 or the
+S30-06 design gate.
 
 The frontend module's full `./gradlew :adapter:ecommerce-frontend:build` then
 passed: Spotless, read-only ESLint, and all 477 frontend tests. No aggregate
 root build was repeated because its only failure was this module's formatter
 check and all other build tasks had completed successfully.
+
+## S30-06 platform conformance review — 2026-10-05
+
+The independent platform review at `484bec4` confirms none of the existing
+Compose, Kubernetes dev, or Helm artifacts is an acceptable quarantine/gate
+environment: the broker and app stores are plaintext/shared or non-durable,
+and there is no encrypted retention/backup, ACL, gate-service, or production
+handoff proof. The detailed findings and smallest safe pre-design conformance
+contract are in
+[`platform-review-2026-10-05.md`](../specs/S30-AMQP-POISON-001/evidence/platform-review-2026-10-05.md).
+This confirms the disabled-by-default boundary; no infrastructure was changed.

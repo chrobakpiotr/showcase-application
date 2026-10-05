@@ -200,18 +200,23 @@ signature and fixed algorithm/header before evaluating issuer, audience,
 expiry, and role claims. Permit verification now also checks the fixed
 algorithm/header, binds the verified subject to the instance/incarnation, and
 compares the permit nonce with the outstanding expected request nonce. The
-forged-payload counterexample asserts denial; the script passes 23 deterministic
-assertions. This closes model defects only. HMAC is still a test stand-in, and
-the model does not prove OIDC/JWKS, asymmetric key rotation, per-replica
-credential provisioning, authenticated connection binding, distributed replay
-prevention, handler-start linearization, timing under suspend/resume, or any
+forged-payload counterexample asserts denial. Follow-up coverage also rejects
+future/malformed temporal claims, invalid lifetime, missing `jti`, non-object
+JWT payloads, and duplicate concurrent starts through a local replay-state
+lock. The script now passes 33 deterministic assertions. An independent
+concurrency reviewer confirmed those model-level gaps are closed. This remains
+logical prototype evidence only: HMAC is a test stand-in; the nonce and
+identity tuple are model inputs; and the model does not prove OIDC/JWKS,
+asymmetric key rotation, per-replica credential provisioning, authenticated
+connection binding, durable distributed replay prevention, the atomic
+handler-start/active-count/drain boundary, timing under suspend/resume, or any
 deployed service behavior. P-003 remains **NEEDS_MORE_EVIDENCE** and the
 S30-06 design gate remains open.
 
-An independent prototype evaluator reran the corrected model and returned
-**NEEDS_MORE_EVIDENCE**. It confirms the 23 assertions cover only local claim
-predicates: the expected identity is a caller-supplied tuple, deployment is a
-constant, and the predictable `nonce-{jti}` is not backed by an outstanding
-issuance record. OIDC/JWKS, key rotation, broker-bound registration/drain,
-durable replay state, and the runtime five-second handler-start bound remain
-unproven. The model does not select either P-003 candidate.
+An independent prototype evaluator returned **NEEDS_MORE_EVIDENCE**. It
+confirms the assertions cover local claim predicates only: the expected
+identity is a caller-supplied tuple, deployment is a constant, and the
+predictable `nonce-{jti}` is not backed by an outstanding issuance record.
+OIDC/JWKS, key rotation, broker-bound registration/drain, durable replay state,
+and the runtime five-second handler-start bound remain unproven. The model
+does not select either P-003 candidate.
