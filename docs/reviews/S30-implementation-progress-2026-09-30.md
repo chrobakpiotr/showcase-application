@@ -2075,3 +2075,23 @@ latency. Candidate B's CAS also retains row-level serialization. P-001 remains
 **NEEDS_MORE_EVIDENCE**, no candidate is selected, and S30-06 remains
 design-gated pending provider failover/restore and the remaining
 P-002/P-003, Rabbit, and platform evidence.
+
+## S30-06 P-002 transactional retry model — 2026-10-05
+
+A SQLite-only model stores immutable command tombstones separately from
+actor/reason audit rows. After simulating the one-year audit horizon and
+reopening the database, it returns the retained original result for exact and
+reason-only retries, rejects changed immutable fields, and produces one
+generation advance across two concurrent same-ID callers. An injected
+replay-audit insertion failure rolls back and returns no prior result. An
+independent review reran the model and confirmed these local transaction
+observations.
+
+The experiment does not cover initial transition commit failure, a crash at
+the commit/response boundary, the production PostgreSQL/Redis stores,
+authentication, provider durability, backup/restore anti-rollback, or physical
+deletion of audit data and backups. It does not select between indefinite
+minimal tombstones and gate-minted finite envelopes. The model and criterion
+matrix are in
+[`p002-transactional-retry-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-transactional-retry-model.md);
+P-002 and the S30-06 design gate remain open.

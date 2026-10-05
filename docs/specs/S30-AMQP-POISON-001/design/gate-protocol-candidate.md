@@ -170,9 +170,14 @@ opaque ID bound to an immutable envelope avoids that specific case but requires
 an issue-then-execute API, and a lost issuance response/retry contract is still
 open. The SQLite storage comparison is illustrative; encrypted volumes,
 WAL/backup deletion, restore rollback, and production stores remain untested.
-The tombstone implementation still needs concurrent same-ID, exact retry,
-changed request after audit deletion, key/backup rotation, and stale-store
-restore tests.
+The [P-002 transactional retry model](../evidence/p002-transactional-retry-model.md)
+now exercises exact and reason-only retries, changed immutable-field reuse
+after simulated audit deletion/reopen, replay-audit failure, and a concurrent
+same-ID race against a local SQLite tombstone table. This closes those cases
+only in the local model. It does not test the production PostgreSQL/Redis
+stores, candidate A's request MAC/key lifecycle, candidate B's issuance
+contract, initial transaction failure, provider durability, backup deletion,
+or stale-store restore. P-002 remains open.
 
 To reduce retained sensitive-data risk, this candidate excludes human reason
 and actor from the tombstone MAC. The reason remains only in one-year
