@@ -99,6 +99,12 @@ delivery is redelivered; if its transient/unknown cause remains, the global
 pause repeats. Healthy messages behind the held delivery do not progress while
 PAUSED; operators investigate/correct the cause before resuming.
 
+The concrete seven-header vocabulary, AMQP field-table types, reason-code
+mapping, collision rule, provenance, and timestamp/deletion-anchor semantics
+are proposed in the [S30-06a spec](spec.md#proposed-quarantine-metadata-v1).
+Keep them proposal-only until the independent messaging review and the
+design-gate process accept the contract.
+
 This transfer is at-least-once. Broker confirm, mandatory routing, and source
 ACK are not one atomic transaction. Crashes/lost ACKs can duplicate a
 quarantine copy; ambiguous publication must preserve the source delivery and

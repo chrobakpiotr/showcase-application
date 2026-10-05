@@ -105,6 +105,88 @@ remaining delivery details still require implementation and verification:
    source identifiers are preserved as received but are not used as the transfer
    ID. Quarantine replay is not automated.
 
+### Proposed quarantine metadata v1
+
+To make the accepted metadata categories implementable, use this bounded v1
+vocabulary as the S30-06a recommendation. The schema remains a proposal until
+the independent messaging grill checks it; this does not change AsyncAPI,
+which describes the source order event rather than the deployment-provisioned
+quarantine transfer record.
+
+| AMQP header | AMQP field-table wire value | Meaning |
+|---|---|---|
+| `x-cp-quarantine-metadata-version` | signed 32-bit integer, AMQP field type `I`, value `1` | Version of this metadata vocabulary |
+| `x-cp-quarantine-reason-code` | UTF-8 AMQP `longstr`, field type `S`; one bounded string below | Permanent failure category |
+| `x-cp-quarantine-time` | UTF-8 AMQP `longstr`, field type `S`; exactly `uuuu-MM-dd'T'HH:mm:ss.SSS'Z'` | UTC time this transfer copy was constructed |
+| `x-cp-quarantine-source-queue` | UTF-8 AMQP `longstr`, field type `S`; exactly `com.cp.q.order.v1` | Trusted configured source queue name, never copied from a message header |
+| `x-cp-quarantine-source-exchange` | UTF-8 AMQP `longstr`, field type `S` | Original broker-reported exchange; empty string is preserved |
+| `x-cp-quarantine-source-routing-key` | UTF-8 AMQP `longstr`, field type `S` | Original broker-reported routing key; empty string is preserved |
+| `x-cp-quarantine-transfer-id` | UTF-8 AMQP `longstr`, field type `S`; lowercase UUIDv4 string | Identity of this individual transfer copy |
+
+AMQP field-table type codes and widths follow the
+[AMQP 0-9-1 specification](https://www.rabbitmq.com/resources/specs/amqp-xml-doc0-9-1.pdf).
+
+Reason-code mapping:
+
+| Reason code | Use only for |
+|---|---|
+| `MALFORMED_JSON` | The inbound body cannot be parsed as the expected JSON message |
+| `UNSUPPORTED_SCHEMA` | A non-null schema version is unsupported by the receive use case |
+| `INVALID_FIELDS` | A permanent message-field validation rejection, including missing or invalid required values |
+| `OPERATION_ID_PAYLOAD_CONFLICT` | The receipt adapter proves the operation ID already exists with a different immutable payload |
+
+No exception text, identifier, customer/order value, or payload-derived value
+is part of a reason code. `INVALID_FIELDS` applies only when the receive use
+case explicitly rejects the field; a value defaulted or normalized by existing
+runtime behavior is not retroactively classified as invalid. Every other
+exception or uncertain transaction result remains transient/unknown and is
+not assigned a quarantine reason. Preserve `messageId` and `correlationId`
+properties exactly as received, including absence or duplicates; they do not
+select or replace the transfer ID. The emitted names above use these exact
+lowercase spellings. AMQP names are case-sensitive, but collision protection
+is deliberately stricter: reserve the entire `x-cp-quarantine-` prefix using
+ASCII case-insensitive comparison; any source header key matching that prefix
+is a collision and fails closed. This conservative rule also rejects case
+variants so downstream readers cannot interpret one key as reserved while
+another treats it as ordinary data. The source queue name comes from trusted
+configuration and is exactly `com.cp.q.order.v1`; exchange and routing key
+come from the broker delivery envelope, never message headers. An absent or
+null broker exchange/routing value is invalid; a present empty string is valid
+and preserved.
+
+Generate `x-cp-quarantine-time` from a trusted UTC clock immediately before
+each publish attempt. The clock provider must return the UTC time sample,
+synchronization-health result, and maximum absolute error bound together for
+that same sample; cached/stale health is invalid. Require healthy sync and a
+maximum absolute UTC error of at most one second; the bound must remain valid
+in holdover. A suspend, time step, or loss of synchronization invalidates the
+provider until it supplies a fresh sample-bound healthy result. A generic
+container wall clock or an unqualified `NTP synchronized` flag is not proof of
+this bound. Subtract one second from the sampled time as a conservative lower
+bound, truncate explicitly to milliseconds, and emit exactly three fractional
+digits followed by `Z`. This
+timestamp is the conservative 30-day backup/export deletion anchor for that
+copy; it may cause earlier deletion, and does not replace the broker queue
+TTL, which begins when RabbitMQ accepts the message. If the trusted clock,
+its health/error bound, or formatting is unavailable or outside the limit,
+leave the source unacked and pause. Add the seven reserved headers only after
+collision checks. Preserve every non-colliding original header and its AMQP
+type. A collision, unsupported value that cannot be round-tripped exactly,
+missing broker source metadata, or size-limit overflow fails transfer closed
+under item 6 above.
+
+Only the authenticated application quarantine-publisher identity may write to
+the quarantine exchange. Backup/export tooling must trust this timestamp only
+from that principal and validate metadata version, exact field type, format,
+and supported date range before assigning a deletion deadline. An invalid
+timestamp must never be treated as a later deadline: refuse a new backup/export
+containing that message, alert, and fail closed; if an existing artifact
+contains invalid metadata, treat it as a retention incident and delete it
+immediately while following the accepted recovery policy. Deployment
+conformance must prove that the publisher can obtain the required bounded-error
+clock sample; an environment without that capability must keep quarantine
+publication disabled.
+
 ## Pause contract — partially accepted
 
 Fail-closed handling needs a precise lifecycle decision before implementation.
