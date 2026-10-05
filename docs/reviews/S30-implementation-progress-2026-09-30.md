@@ -2145,6 +2145,26 @@ matrix are in
 [`p002-transactional-retry-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-transactional-retry-model.md);
 P-002 and the S30-06 design gate remain open.
 
+## S30-06 P-002 minted-envelope recovery model — 2026-10-05
+
+A separate candidate-B model discards the first issuance response in the
+harness, closes/reopens the issuer database, and recovers identical canonical
+envelope bytes using the stable issuance request ID. The recovered envelope
+alone drives execution and retry. It rejects changed input under the same key,
+shows that a different key mints a different command ID, and rejects an
+expired envelope before result lookup after result-row purge. Independent
+review verified the exact script and output digest
+`549fd90b35f8b5c94950a4de602651c196ad85e529e5b4bf64b63b70999f586b`.
+
+This is a sequential SQLite/HMAC model; the harness does not inject transport
+failure and makes no production cryptography or durability claim. Issuance-key
+lifetime, uncertain execution-response handling, expired-attempt audit,
+concurrency, coordinated restore, and provider guarantees remain unresolved.
+The report and executable model are in
+[`p002-minted-envelope-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-minted-envelope-model.md)
+and its adjacent script. Candidate B is not selected; P-002 and the S30-06
+design gate remain open.
+
 ## S30-06 P-003 handler/drain race model — 2026-10-05
 
 An abstract deterministic model passes 28 assertions across three legal

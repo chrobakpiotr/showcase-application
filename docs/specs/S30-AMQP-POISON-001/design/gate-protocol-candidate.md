@@ -189,6 +189,19 @@ stores, candidate A's request MAC/key lifecycle, candidate B's issuance
 contract, initial transaction failure, provider durability, backup deletion,
 or stale-store restore. P-002 remains open.
 
+A separate [P-002 minted-envelope model](../evidence/p002-minted-envelope-model.md)
+now discards the first issuance response in the harness, closes/reopens the
+issuer database, and recovers identical canonical envelope bytes using the
+stable issuance request ID. The recovered envelope alone drives execution and
+retry; changed request under that ID rejects, while a different ID creates a
+different command. It also checks expiry rejection before result lookup after
+result purge. Independent review verified the exact script and output digest.
+This is a sequential SQLite/HMAC model, not injected transport loss or
+production cryptography/durability. Issuance-ID lifetime, uncertain execution
+response policy, expired-attempt audit, concurrency, restore rollback, and
+provider guarantees remain unresolved; candidate B is not selected and P-002
+remains open.
+
 To reduce retained sensitive-data risk, this candidate excludes human reason
 and actor from the tombstone MAC. The reason remains only in one-year
 actor-attributed audit events; every retry can record its own reason and actor
