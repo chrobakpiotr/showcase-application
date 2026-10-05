@@ -41,18 +41,17 @@ async function fetchAndCaptureShipmentAdvance(
 
 async function createShipmentAndCaptureResponse(page: Page): Promise<{
   status: number;
-  shipmentNumber?: string;
+  shipmentNumber: string;
 }> {
   let completeCapture!: (result: {
     status: number;
     shipmentNumber?: string;
   }) => void;
-  const captured = new Promise<{
-    status: number;
-    shipmentNumber?: string;
-  }>((resolve) => {
-    completeCapture = resolve;
-  });
+  const captured = new Promise<{ status: number; shipmentNumber?: string }>(
+    (resolve) => {
+      completeCapture = resolve;
+    },
+  );
   const pattern = "**/home/api/shipments";
   const captureCreationResponse = async (route: Route) => {
     if (route.request().method() !== "POST") {
@@ -72,7 +71,13 @@ async function createShipmentAndCaptureResponse(page: Page): Promise<{
   await page.route(pattern, captureCreationResponse);
   try {
     await page.getByTestId("create-shipment").click();
-    return await captured;
+    const { status, shipmentNumber } = await captured;
+    if (!shipmentNumber) {
+      throw new Error(
+        `Shipment creation returned no shipment number (status ${status})`,
+      );
+    }
+    return { status, shipmentNumber };
   } finally {
     await page.unroute(pattern, captureCreationResponse);
   }
