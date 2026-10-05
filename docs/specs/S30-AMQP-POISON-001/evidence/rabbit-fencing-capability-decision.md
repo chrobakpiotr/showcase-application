@@ -148,7 +148,8 @@ Observed results:
   broader management authority.
 - Despite its administrator tag, the fencer's empty resource permissions
   denied management queue `/get` (HTTP 401). An AMQP `basic.get` using the same
-  identity failed when RabbitMQ closed the unauthorized channel.
+  identity and an attempted `basic.consume` both failed when RabbitMQ closed
+  the unauthorized channel.
 
 This confirms the documented tradeoff on this local version: resource
 permissions deny message retrieval, but the management role needed to close
