@@ -54,10 +54,35 @@ evidence**. Do not use the model's authorization results as security evidence.
 
 The architecture grill returned **NEEDS_MORE_DESIGN**. Security returned
 **FAIL / security-design-gated**. Persistence/concurrency returned
-**NEEDS_MORE_DESIGN**. Their findings require a comparable service-level
-fencing experiment, real identity and permit validation tests, durable
-command/audit recovery across store failures and restores, real Rabbit
-drain/reconnect evidence, and enforcement evidence for quarantine access,
-encryption, and age-based deletion. The protocol candidate records proposed
-contracts, but these reviews predate those additions; a fresh independent
-review is still required.
+**NEEDS_MORE_DESIGN**. A follow-up independent rereview of commit `78f828c`
+confirmed that several contracts are clearer on paper, but still withheld
+approval. The remaining findings and our current response are:
+
+- Signed permit claims must include the request nonce; registration/drain must
+  be bound to a unique instance identity and broker-observed connection. The
+  candidate now requires a signed nonce and records unique identity binding as
+  an unresolved release requirement. Provider-backed identity and connection
+  proof remain untested.
+- Every authenticated retry must be actor-attributed before returning the old
+  result. The candidate now specifies a separate durable retry audit event;
+  atomicity and outage behavior remain to be proven.
+- Rabbit fencing needs tool-only connection inspection/close capability that
+  cannot read quarantine messages. The candidate now explicitly blocks this
+  capability until an ACL probe demonstrates the separation; no accepted
+  least-privilege implementation is established yet.
+- Cross-store recovery must handle Redis-ahead-of-PostgreSQL, an uncertain
+  `WAITAOF`, expected one-year audit expiry, and coordinated rollback of both
+  stores. The candidate now enumerates these fail-closed cases, but the
+  monotonic external witness and provider-level reconciliation are unresolved.
+- The 06b startup dependency needs an executable, versioned capability check,
+  not a configuration flag. Its owner and enforcement seam remain open.
+- Tombstone/reason privacy and KMS lifetime require an explicit decision;
+  design/spec wording must continue to distinguish accepted policy from this
+  unaccepted candidate.
+
+These edits are design clarification only. They do not qualify a service
+implementation, authorize task generation, or produce a design-gate PASS.
+Required next evidence remains a comparable cross-store service-level fence
+experiment, real OIDC/JWKS and permit validation, persistent replay and
+suspend/resume tests, Rabbit drain/reconnect and ACL tests, encrypted storage,
+audited read/export, backup deletion and sentinel-data leakage checks.

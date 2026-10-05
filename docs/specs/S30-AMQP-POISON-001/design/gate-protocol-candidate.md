@@ -57,7 +57,8 @@ generation fields, idempotent retry behavior, and TLS/CA validation. This
 candidate names responsibilities but does not yet approve HTTP paths, payload
 schemas, token claims, module paths, or deployment ownership boundaries.
 
-Identity rules are accepted but wire claims remain to be frozen: local/dev uses
+The actor-authorization split is accepted, but exact wire claims and per-instance
+identity binding remain to be frozen: local/dev uses
 the separate Keycloak gate audience/client, application workload identity, and
 individual operator role; production uses its configured equivalent. The API
 must validate issuer, audience, authorized client, signature algorithm/key,
@@ -68,7 +69,10 @@ another instance. Ecommerce workload identity may PAUSE only; operator
 identity with the dedicated gate-resume role may RESUME only. Gate API
 transport validates server certificate and hostname. Credential rotation,
 JWKS/key bootstrap, audit IDs for malformed requests, and the exact
-request/response/error schema need architecture and security review.
+request/response/error schema need architecture and security review. Binding a
+registration to a unique non-transferable instance credential and its actual
+Rabbit connection remains an explicit unresolved requirement below; a shared
+workload subject does not satisfy it.
 
 ## Audit retention and command idempotency
 
@@ -209,18 +213,34 @@ same claims. JWKS bootstrap is TLS-validated; unknown keys and issuer
 unavailability deny requests. Key overlap and rotation must be tested before
 old verification keys are retired.
 
+The current shared `gate-workload` client identity is insufficient to
+authenticate a particular replica. Instance ID, incarnation, and Rabbit
+connection name in JSON are assertions, not proof. Before implementation, the
+deployment must provide a unique, non-transferable per-instance credential or
+an equivalent broker-verifiable binding, and the gate must verify that the
+registered connection belongs to that authenticated instance. A drain ACK
+cannot trust a caller-provided `activeHandlers=0`; the consumer channel must
+provide the drain/close proof. Candidate mechanisms are a per-instance
+workload identity from the deployment identity provider or a narrow
+registration/fencing proxy that verifies the Rabbit connection. Selection
+requires a prototype in each supported deployment mode; shared client
+credentials and caller-selected connection names remain rejected.
+
 Each permit uses asymmetric RS256 signing (no shared verifier/minting secret),
 with `iss=gate-service`, `aud=amqp-admission`, `sub` equal to the verified
 workload subject, deployment, instance ID, incarnation UUID, Rabbit connection
 name, leader epoch, boot epoch, latch epoch, gate generation, registration ID,
-one-use `jti`, `iat`, and `exp`. The gate private key is available only to the
-active leader through the deployment's protected key mount/KMS integration;
-standbys cannot sign. The verifier trusts a key only after bootstrapping the
-current leader epoch over the authenticated API, binds the subject and
-connection to its own registration, and atomically consumes the `jti` in the
-local handler-start critical section. A new process always generates a new
-incarnation and starts unready. Its per-start permit, expiry check, and
-active-handler increment share one lock with pause/drain state.
+one-use `jti`, the exact unpredictable `request_nonce`, `iat`, and `exp`. The
+nonce is covered by the signature, is unique per permit request, and is
+compared with the outstanding request under the handler-start lock. A response
+for another, expired, or already-consumed request is rejected. The gate private
+key is available only to the active leader through the deployment's protected
+key mount/KMS integration; standbys cannot sign. The verifier trusts a key only
+after bootstrapping the current leader epoch over the authenticated API, binds
+the subject and connection to its own registration, and atomically consumes
+the `jti` in the local handler-start critical section. A new process always
+generates a new incarnation and starts unready. Its per-start permit, expiry
+check, and active-handler increment share one lock with pause/drain state.
 
 The instance container must run on Linux and use a monotonic clock that
 advances through host suspend (`CLOCK_BOOTTIME`). If that clock is unavailable,
@@ -276,6 +296,14 @@ records expire after one year; command tombstones do not. Redis AOF, RDB,
 replica, WAL/PITR, snapshot, and export deletion must meet the distinct audit
 and raw-message deadlines.
 
+Every authenticated retry, including an exact same-ID retry, requires fresh
+authorization and creates a separate actor-attributed retry audit event before
+the prior terminal result is returned. An audit write/retention failure returns
+no prior result. The event identifies the command and retry outcome, but does
+not duplicate or extend the original command's state transition. Test a retry
+by a different authorized subject, an unauthorized retry, and an audit-store
+failure.
+
 The first PostgreSQL transaction claims a command through the unique key,
 locks `gate_control FOR UPDATE`, validates active leader and server-time lease,
 and commits `RECOVERY_REQUIRED` before PAUSE touches Redis. The service holds
@@ -294,12 +322,35 @@ RESUME, the latch remains inhibited until a compare-and-set matches the exact
 command ID, latch epoch, and `resulting_active_generation`. If PostgreSQL final
 commit is uncertain, the instance remains sticky-inhibited and retries the
 same ID; it never reissues a generation advance without first resolving the
-Redis tombstone. PostgreSQL command rows prevent reuse if Redis loses its
-tombstone. A Redis restore below PostgreSQL's high-water generation, a missing
-committed command/audit, or an unrecognized state permanently blocks startup
-and admission until restoration from a verified non-rollback backup or a
-documented operator recovery proves monotonic history. Never reconstruct a
-missing actor/reason audit from the command tombstone.
+Redis tombstone. Redis-ahead-of-PostgreSQL recovery must verify the exact
+command ID/MAC, action, latch epoch, generation transition, durable audit
+record, and fsync evidence before advancing the PostgreSQL high-water mark or
+clearing recovery. A visible tombstone after a lost `WAITAOF` response is not
+proof of the configured durability threshold; until a provider-specific
+recovery check proves that threshold, the outcome stays unknown and the latch
+stays inhibited.
+
+During the one-year audit horizon, every committed command must have its
+actor-attributed audit event and every authenticated retry must have its own
+retry event. After expiry, absence of those expired events is expected; command
+tombstones remain and only their minimal idempotency fields can be checked.
+Unexpired missing events still block recovery. The proposal does not yet define
+how the system identifies intentional expiry versus rollback or deletion in
+Redis AOF/RDB, replica, snapshot, WAL/PITR, and exports.
+
+PostgreSQL command rows prevent reuse if Redis loses its tombstone. The current
+cross-store high-water rule does not detect PostgreSQL and Redis restored
+together from the same stale snapshot. Such coordinated rollback must be
+detected by an independently durable monotonic witness or make restore
+ineligible for admission; no such witness is selected yet. Until both this
+case and Redis-ahead recovery are proven, startup and admission remain blocked.
+Never reconstruct a missing actor/reason audit from the command tombstone.
+
+Concurrent duplicate rules also remain to be proven: one request owns
+`PREPARED`, identical retries wait for or resolve that same command, changed
+requests reject, and process death cannot strand an unresolvable
+`COMMAND_IN_PROGRESS` state or advance generation twice. The statuses and
+timeouts below are candidates, not executable guarantees.
 
 Redis registration and PAUSE share one Lua serialization point. If registration
 wins while ACTIVE, the exact member tuple and Rabbit `connection_name` enter
@@ -359,6 +410,14 @@ Audit failure returns no raw message.
 The operator tool queries the exact broker/vhost/connection name for a member,
 issues a close/fence only when the identity matches the registered connection,
 and polls until that exact connection is absent before recording fencing proof.
+This requires a tool-only broker identity and management API capability that
+can inspect and close only the intended connection while being unable to
+consume, get, export, or otherwise read quarantine messages. The deployment
+topology identity remains separate. RabbitMQ's available permission model and
+the selected management API do not yet prove this least-privilege split; until
+a broker-level ACL probe demonstrates it, expired-member fencing and operator
+raw-message access remain disabled. Never mount a broad administrator
+credential into the audited tool as a substitute.
 If the management API is unavailable, returns an ambiguous identity, or the
 broker cannot confirm closure, RESUME remains blocked. Direct Rabbit
 management UI/API reads by operators are denied; the deployment identity is
@@ -379,7 +438,10 @@ Finally, `06a` consumer admission remains mechanically disabled until the
 independent 06b stale-handler ownership/fencing contract has passed its
 PostgreSQL concurrency and real-Rabbit redelivery tests. The startup guard,
 readiness condition, and deployment chart must all fail closed when the 06b
-capability is absent; documentation alone is insufficient.
+capability is absent. The owner and executable capability signal for this
+guard are not selected: a chart value or environment flag alone is not proof
+that 06b's fencing behavior exists. Define a versioned 06b capability contract
+and test missing, stale, and incompatible versions before enabling startup.
 
 ## Transition ordering
 
