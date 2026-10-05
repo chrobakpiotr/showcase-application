@@ -1945,3 +1945,17 @@ this repository requires the formatter's `/workspace` mount; the AMQP
 review returned **PASS** for this scoped change. It did not inspect actual
 production-container logs or other raw-payload logging paths. This small
 privacy fix does not change S30-06's design-gated status.
+
+## S30-06 independent design grill follow-up — 2026-10-05
+
+Fresh architecture and security reviews at `7a62a4c` both returned
+**NEEDS_MORE_DESIGN**. Their actionable blockers and the minimum next design
+work are recorded in
+[`design-grill-2026-10-05b.md`](../specs/S30-AMQP-POISON-001/evidence/design-grill-2026-10-05b.md).
+The reviews support the direction of a separately credentialed gate service,
+but do not clear the design gate: module/API ownership, jointly stale-store
+recovery, per-instance Rabbit fencing, least-privilege close capability,
+runtime permit/handler proof, quarantine deployment controls, and audited raw
+reads remain unproven. S30-06 stays DRAFT; consumer admission and raw reads
+remain disabled. This review checkpoint is documentation/evidence progress,
+not end-to-end completion.
