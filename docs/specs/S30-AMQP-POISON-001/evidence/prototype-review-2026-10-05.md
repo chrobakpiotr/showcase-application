@@ -184,4 +184,9 @@ IDs even when both clients choose the same display name. Closing one observed
 ID left the other connection open; after reconnect, the old ID returned 404
 and did not close the replacement. This does not test inspect/close races,
 connection-ID reuse, authenticated gate-subject mapping, or a least-privilege
-fencer. Those security and 06b stale-handler gaps remain open.
+fencer. The independent prototype evaluator returned **NEEDS_MORE_EVIDENCE**
+for P-003 because the probe does not meet the predeclared identity-mismatch,
+active-consumer drain, stale-observation, timeout, or narrow-fencer criteria.
+It confirms only broker observation and one non-racy exact-ID close/reconnect
+schedule. Production and Kubernetes provisioning evidence and the security/
+06b stale-handler gaps remain open.
