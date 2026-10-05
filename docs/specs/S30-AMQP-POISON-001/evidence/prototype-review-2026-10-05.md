@@ -220,3 +220,20 @@ predictable `nonce-{jti}` is not backed by an outstanding issuance record.
 OIDC/JWKS, key rotation, broker-bound registration/drain, durable replay state,
 and the runtime five-second handler-start bound remain unproven. The model
 does not select either P-003 candidate.
+
+## P-003 supplemental Keycloak token/JWKS configuration probe — 2026-10-05
+
+A digest-pinned Keycloak 26.7.5 container and isolated minimal realm issued
+separate tokens: the workload token had `aud=gate-service`,
+`azp=gate-workload`, and only `gate-pause`; an individual synthetic operator
+token had the same audience, `azp=gate-operator-tool`, and only `gate-resume`.
+The probe verified the claims after checking each RS256 signature against the
+matching public JWK fetched from that realm's JWKS. See
+[`p003-keycloak-token-probe.md`](p003-keycloak-token-probe.md). This confirms
+only that the configured token split is expressible and the issuer exposes a
+matching verification key. It uses local HTTP and a direct password grant; it
+does not test the app/gate verifier, TLS/hostname trust, MFA/browser login,
+JWKS rotation, production provisioning, unique instance identity, or Rabbit
+connection binding. The repository realm still lacks the gate clients/roles.
+The earlier P-003 **NEEDS_MORE_EVIDENCE** result and S30-06 design-gate status
+remain unchanged.

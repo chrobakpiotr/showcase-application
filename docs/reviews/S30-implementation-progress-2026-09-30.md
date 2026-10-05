@@ -2265,6 +2265,22 @@ The evidence is in
 and [`p003-rabbit-prefetch-drain-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p003-rabbit-prefetch-drain-probe.md);
 P-003 and the S30-06 design gate remain open.
 
+## S30-06 P-003 Keycloak token/JWKS configuration probe — 2026-10-05
+
+A disposable Keycloak 26.7.5 realm issued a workload client-credentials token
+with `aud=gate-service`, `azp=gate-workload`, and only `gate-pause`, plus an
+individual test-user token through a separate client with `azp=gate-operator-tool`
+and only `gate-resume`. The script asserted issuer, audience, authorized party,
+subject presence, and exclusive role claims; it fetched the realm JWKS and
+verified both RS256 signatures with OpenSSL. The digest-pinned container used
+local HTTP, no volume, and was removed after the run. The existing repo realm
+does not yet configure these gate clients/roles. The operator token used a
+synthetic direct-password grant; TLS, MFA/browser flow, the app/gate verifier,
+JWKS rotation, instance-bound identity, and production provisioning remain
+untested. Evidence is in
+[`p003-keycloak-token-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p003-keycloak-token-probe.md).
+P-003 and S30-06 remain open.
+
 ## S30 review follow-up verification — 2026-10-05
 
 After the P-002 commit-boundary and same-key issuance-recovery evidence was

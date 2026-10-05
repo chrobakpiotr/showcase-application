@@ -242,6 +242,16 @@ the client until channel close requeues them. These results still do not prove
 concrete handler-start synchronization, authenticated broker binding, an
 application listener integration, or a wall-clock bound. P-003 remains open.
 
+The [disposable Keycloak token probe](../evidence/p003-keycloak-token-probe.md)
+confirmed that a minimal realm can issue an RS256 workload token with
+`aud=gate-service`, `azp=gate-workload`, and only `gate-pause`, plus a separate
+individual-user token with the same audience, `azp=gate-operator-tool`, and
+only `gate-resume`; both signatures verified against the realm JWKS. The
+existing repository realm lacks these clients/roles, and the probe used local
+HTTP plus a direct password grant for its synthetic operator. It does not
+prove TLS/JWKS runtime validation, MFA/browser authentication, per-instance
+identity, or app/gate integration. P-003 remains open.
+
 No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,
 verification contract, and service-level failure evidence.
