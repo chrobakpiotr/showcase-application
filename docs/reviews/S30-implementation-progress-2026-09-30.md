@@ -1991,3 +1991,8 @@ registration/outstanding-request state. OIDC/JWKS, key rotation, Rabbit-bound
 instance drain, durable replay protection, and the runtime five-second bound
 remain unproven. This corrects model defects only and does not close P-003 or
 the S30-06 design gate.
+
+The frontend module's full `./gradlew :adapter:ecommerce-frontend:build` then
+passed: Spotless, read-only ESLint, and all 477 frontend tests. No aggregate
+root build was repeated because its only failure was this module's formatter
+check and all other build tasks had completed successfully.
