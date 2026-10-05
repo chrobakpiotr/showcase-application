@@ -1853,12 +1853,15 @@ minimal command tombstone separate from the one-year actor/reason audit; this
 is not accepted until privacy, key, backup/WAL deletion, and restore policy
 are reviewed. SQLite numbers are not production storage estimates.
 
-P-003 passed 19 deterministic assertions in a pure Python state-machine model.
+P-003 passed 20 deterministic assertions in a pure Python state-machine model.
 It confirmed the five-second tradeoff: a valid signed permit can admit during
 an unseen PAUSE until expiry, while an online opaque check denies immediately
 on gate loss. Independent evaluation marked P-003 **needs more evidence**:
 the prototype used HMAC/test identities, process-local replay state, and no
 real OIDC/JWKS, handler-start lock, distributed race, or suspend/resume timing.
+The checked-in model now preserves the specific counterexample: its identity
+helper accepts a mutated JWT payload while retaining an invalid signature, so
+none of its identity-role assertions counts as security evidence.
 
 These results do not pass the design gate or authorize source changes. The
 formal architecture grill, verification contract, comparable/service-level
@@ -1891,7 +1894,11 @@ authorize source/deployment implementation or a design-gate PASS.
 The newly pushed `5ac4c94` pipeline showed CodeQL and OpenSSF Scorecard passing.
 Agentic SDD protocol validation failed its generated specification-inventory
 check because `docs/specs/INVENTORY.md` still had the prior S30-06 DRAFT status
-text. The local generated inventory is refreshed and
-`spec_inventory.py --check` now passes. The aggregate SDD gate failed from that
-inventory check; the general CI workflow was still running at the last poll.
-The inventory fix and current design updates remain local until the next push.
+text. The local generated inventory was refreshed and
+`spec_inventory.py --check` passes. The aggregate SDD gate failed from that
+inventory check. The general CI workflow later completed successfully: E2E,
+OWASP DependencyCheck, backend, frontend, PIT, SBOM, infrastructure, Trivy,
+documentation, repository guards, and aggregate CI all passed; Dependency
+Review was skipped for the push. Local commit `100f405` contains the inventory
+repair and updated design evidence; it remains ahead of `origin/main` and has
+not been pushed, so its SDD protocol result is not hosted yet.

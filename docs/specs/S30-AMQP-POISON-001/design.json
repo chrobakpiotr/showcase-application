@@ -41,11 +41,11 @@
       "candidates": [
         {
           "id": "A",
-          "approach": "Keep a separate minimal command tombstone after the audit record expires, containing only command identity, request digest, action, result, and expected/result generation facts without actor or reason."
+          "approach": "Keep a minimal PostgreSQL command tombstone indefinitely, separately from the one-year actor/reason audit, containing only an opaque random command ID, keyed canonical-request MAC plus key ID, action, result code, latch epoch, and expected/result generation; retain its verification keys and prohibit removal/rollback."
         },
         {
           "id": "B",
-          "approach": "Define a finite maximum command-replay age and reject any request older than that horizon, deleting command-result records when the horizon closes while preserving the one-year audit schedule."
+          "approach": "Use a gate-minted immutable, signed request envelope whose opaque command ID binds the canonical request and expiry; deliver the envelope before execution and reject expired envelopes before any store lookup, then delete command-result rows after the maximum retry horizon while preserving one-year actor/reason audit."
         }
       ]
     },

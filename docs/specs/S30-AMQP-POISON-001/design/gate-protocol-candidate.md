@@ -102,8 +102,10 @@ qualify production storage or retention implementation.
 
 ## Prototype evidence status (2026-10-05)
 
-P-001 tested Redis epoch mutations before and after higher-epoch installation
-and PostgreSQL takeover serialization in separate disposable experiments. An
+P-001's checked-in
+[`gate-fencing-probe.py`](../evidence/gate-fencing-probe.py) tests Redis epoch
+mutations before and after higher-epoch installation and PostgreSQL takeover
+serialization in a disposable experiment. The epoch-order test found that an
 old-epoch mutation after installation was rejected; the same mutation before
 installation succeeded and left Redis ACTIVE, so recovery must reconcile the
 durable PostgreSQL inhibit before permitting admission. Row-lock and
@@ -113,7 +115,9 @@ insufficient to choose a service-level fence: neither joined the database
 owner/lease check, Redis mutation/fsync, response uncertainty, and permit
 decision in one schedule. P-001 remains open.
 
-P-002 supports minimal tombstones for preserving the current client-held stable
+P-002's checked-in
+[`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)
+supports minimal tombstones for preserving the current client-held stable
 command-ID retry shape. A caller-selected ID with a fresh signed envelope
 still permits changed-request reuse after tombstone expiry. A gate-minted
 opaque ID bound to an immutable envelope avoids that specific case but requires
@@ -124,7 +128,9 @@ The tombstone implementation still needs concurrent same-ID, exact retry,
 changed request after audit deletion, key/backup rotation, and stale-store
 restore tests.
 
-P-003's 19-assertion pure Python model confirms the policy tradeoff: a valid
+P-003's checked-in
+[`p003-permit-state-model.py`](../evidence/p003-permit-state-model.py) is a
+20-assertion pure Python model that illustrates the policy tradeoff: a valid
 signed five-second permit can admit during an unseen PAUSE until expiry; an
 online opaque check denies immediately during gate loss. The independent
 evaluator found this illustrative only: it did not use real OIDC/JWKS
@@ -132,6 +138,9 @@ verification, asymmetric signatures, persistent one-use replay tracking,
 actual handler-start locking, or suspend/resume timing. The accepted five-
 second bound favors bounded offline signed permits as the current candidate,
 but P-003 remains open until those runtime and security properties are tested.
+The checked-in model also demonstrates that its identity helper accepts a
+mutated JWT payload with an invalid signature; none of its identity assertions
+is security evidence.
 
 No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,
