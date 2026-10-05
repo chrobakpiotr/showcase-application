@@ -625,6 +625,14 @@ decide at least:
    removed those fields and exception details from their logs. The broader
    privacy review must still include log access and retention rather than
    limiting the analysis to database and quarantine storage.
+7. Delivery ordering across multiple consumer instances, redelivery, and
+   channel-close requeue. AsyncAPI defines stable `operationId` replay identity
+   and says broker ACK is not the business exactly-once boundary, but it does
+   not promise global processing order. Decide whether operations are
+   independent and unordered or require an ordering key/serialization rule;
+   test concurrent duplicate operations and a redelivered earlier message
+   arriving after a later one. Do not infer order from one consumer's local
+   concurrency or queue FIFO behavior.
 
 This 06b checkpoint does not clear 06a's separate blockers: exact quarantine
 topology names/deployment artifacts, source ACK/pause/drain/readiness/restart
