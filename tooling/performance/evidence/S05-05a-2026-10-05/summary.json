@@ -1,0 +1,192 @@
+{
+  "sparse-parked-page-first": {
+    "executionTimeMs": [
+      1.068,
+      0.773,
+      0.786,
+      0.783,
+      1.023,
+      0.765
+    ],
+    "warmMedianMs": 0.783,
+    "rawPlans": [
+      "sparse-parked-page-first-run-1.json",
+      "sparse-parked-page-first-run-2.json",
+      "sparse-parked-page-first-run-3.json",
+      "sparse-parked-page-first-run-4.json",
+      "sparse-parked-page-first-run-5.json",
+      "sparse-parked-page-first-run-6.json"
+    ]
+  },
+  "sparse-parked-page-offset-500": {
+    "executionTimeMs": [
+      0.879,
+      1.03,
+      0.877,
+      0.871,
+      0.841,
+      0.919
+    ],
+    "warmMedianMs": 0.877,
+    "rawPlans": [
+      "sparse-parked-page-offset-500-run-1.json",
+      "sparse-parked-page-offset-500-run-2.json",
+      "sparse-parked-page-offset-500-run-3.json",
+      "sparse-parked-page-offset-500-run-4.json",
+      "sparse-parked-page-offset-500-run-5.json",
+      "sparse-parked-page-offset-500-run-6.json"
+    ]
+  },
+  "sparse-parked-count": {
+    "executionTimeMs": [
+      0.485,
+      0.322,
+      0.369,
+      0.325,
+      0.336,
+      0.37
+    ],
+    "warmMedianMs": 0.336,
+    "rawPlans": [
+      "sparse-parked-count-run-1.json",
+      "sparse-parked-count-run-2.json",
+      "sparse-parked-count-run-3.json",
+      "sparse-parked-count-run-4.json",
+      "sparse-parked-count-run-5.json",
+      "sparse-parked-count-run-6.json"
+    ]
+  },
+  "sparse-parked-oldest": {
+    "executionTimeMs": [
+      0.367,
+      0.433,
+      0.419,
+      0.33,
+      0.38,
+      0.478
+    ],
+    "warmMedianMs": 0.419,
+    "rawPlans": [
+      "sparse-parked-oldest-run-1.json",
+      "sparse-parked-oldest-run-2.json",
+      "sparse-parked-oldest-run-3.json",
+      "sparse-parked-oldest-run-4.json",
+      "sparse-parked-oldest-run-5.json",
+      "sparse-parked-oldest-run-6.json"
+    ]
+  },
+  "dense-parked-page-first": {
+    "executionTimeMs": [
+      34.521,
+      34.724,
+      35.215,
+      45.407,
+      46.035,
+      31.944
+    ],
+    "warmMedianMs": 35.215,
+    "rawPlans": [
+      "dense-parked-page-first-run-1.json",
+      "dense-parked-page-first-run-2.json",
+      "dense-parked-page-first-run-3.json",
+      "dense-parked-page-first-run-4.json",
+      "dense-parked-page-first-run-5.json",
+      "dense-parked-page-first-run-6.json"
+    ]
+  },
+  "dense-parked-page-offset-500": {
+    "executionTimeMs": [
+      33.157,
+      36.05,
+      37.663,
+      36.095,
+      33.802,
+      32.302
+    ],
+    "warmMedianMs": 36.05,
+    "rawPlans": [
+      "dense-parked-page-offset-500-run-1.json",
+      "dense-parked-page-offset-500-run-2.json",
+      "dense-parked-page-offset-500-run-3.json",
+      "dense-parked-page-offset-500-run-4.json",
+      "dense-parked-page-offset-500-run-5.json",
+      "dense-parked-page-offset-500-run-6.json"
+    ]
+  },
+  "dense-parked-count": {
+    "executionTimeMs": [
+      32.159,
+      32.853,
+      38.718,
+      42.128,
+      35.78,
+      30.713
+    ],
+    "warmMedianMs": 35.78,
+    "rawPlans": [
+      "dense-parked-count-run-1.json",
+      "dense-parked-count-run-2.json",
+      "dense-parked-count-run-3.json",
+      "dense-parked-count-run-4.json",
+      "dense-parked-count-run-5.json",
+      "dense-parked-count-run-6.json"
+    ]
+  },
+  "dense-parked-oldest": {
+    "executionTimeMs": [
+      31.737,
+      30.862,
+      30.774,
+      33.66,
+      31.059,
+      32.997
+    ],
+    "warmMedianMs": 31.059,
+    "rawPlans": [
+      "dense-parked-oldest-run-1.json",
+      "dense-parked-oldest-run-2.json",
+      "dense-parked-oldest-run-3.json",
+      "dense-parked-oldest-run-4.json",
+      "dense-parked-oldest-run-5.json",
+      "dense-parked-oldest-run-6.json"
+    ]
+  },
+  "timeline-offset-0": {
+    "executionTimeMs": [
+      427.831,
+      427.9,
+      461.804,
+      417.655,
+      458.58,
+      450.679
+    ],
+    "warmMedianMs": 450.679,
+    "rawPlans": [
+      "timeline-offset-0-run-1.json",
+      "timeline-offset-0-run-2.json",
+      "timeline-offset-0-run-3.json",
+      "timeline-offset-0-run-4.json",
+      "timeline-offset-0-run-5.json",
+      "timeline-offset-0-run-6.json"
+    ]
+  },
+  "timeline-offset-150": {
+    "executionTimeMs": [
+      477.975,
+      423.324,
+      435.074,
+      419.895,
+      431.493,
+      412.273
+    ],
+    "warmMedianMs": 423.324,
+    "rawPlans": [
+      "timeline-offset-150-run-1.json",
+      "timeline-offset-150-run-2.json",
+      "timeline-offset-150-run-3.json",
+      "timeline-offset-150-run-4.json",
+      "timeline-offset-150-run-5.json",
+      "timeline-offset-150-run-6.json"
+    ]
+  }
+}

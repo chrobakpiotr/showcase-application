@@ -1,0 +1,20 @@
+{
+  "createdAtUtc": "2026-10-05T20:59:25.106094+00:00",
+  "sourceSha": "4d61341b555e85f6873d0bfdb8278788d77c88cc",
+  "host": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit",
+    "python": "3.9.6",
+    "dockerServer": "29.8.2"
+  },
+  "image": {
+    "requested": "postgres:18.6",
+    "id": "sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+    "repoDigests": [
+      "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+    ]
+  },
+  "cacheMethod": "Container uses ephemeral filesystem with no host volume; PostgreSQL cache is not forcibly dropped. First plan run is retained separately; the median uses runs 2-6 from repeated EXPLAIN ANALYZE executions.",
+  "seedSha256": "3c3cb0a4e5665f7452931b1fc98f2ae15382d90e044480c53018b521699d9a64",
+  "timelineSourceSha256": "1d4611f061cf6ed62dd69e64b94792e58aef38246eab90658b45dcc7cb559437",
+  "rounds": 6
+}
