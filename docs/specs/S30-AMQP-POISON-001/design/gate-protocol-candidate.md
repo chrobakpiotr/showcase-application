@@ -137,6 +137,241 @@ No prototype in this section passes the design gate. Candidate recommendations
 are not accepted architecture; implementation still requires the formal grill,
 verification contract, and service-level failure evidence.
 
+## Candidate deployable and API contract
+
+This section is a contract proposal for the next architecture review. The
+source specification remains DRAFT until independent review and the required
+hash-bound gate pass. Candidate ownership follows the existing layering:
+
+- `modules/application/amqp-gate-client` defines the inward admission and
+  lifecycle port used by the AMQP adapter.
+- `modules/adapters/gate-http-client` implements that port over the gate API;
+  `modules/adapters/amqp` depends on the application port, never gate storage.
+- `modules/application/gate-control` owns the gate use cases and state
+  transition policy.
+- `modules/adapters/gate-api`, `modules/adapters/gate-redis`, and
+  `modules/adapters/gate-latch-postgres` are inbound HTTP and outbound store
+  adapters. Only the gate composition root receives Redis, PostgreSQL, and
+  permit-signing credentials.
+- `apps/gate-service` is a separate deployable composition root. The ecommerce
+  backend contains no gate-store connection or shared mutable gate state.
+
+These paths are proposed task boundaries, not authorization to create source
+files. A Gradle architecture test must reject dependencies from the ecommerce
+application/AMQP client onto gate Redis or PostgreSQL adapters and reject gate
+store secrets in ecommerce configuration.
+
+The versioned HTTP candidate uses JSON, TLS 1.2 or later with CA and hostname
+verification, and one problem response shape (`type`, `title`, `status`,
+`code`, `correlationId`). Proposed operations are:
+
+| Operation | Caller | Input binding | Success |
+|---|---|---|---|
+| `POST /v1/pauses` | `gate-workload` only | UUID `commandId`, bounded reason code, registered instance/incarnation, observed leader and gate generations | Durable PAUSED result and generation; drain may still be pending |
+| `POST /v1/instances` | `gate-workload` only | Instance ID, fresh incarnation UUID, Rabbit client connection name; subject/deployment derived from token | Registration bound to verified subject and current generations |
+| `POST /v1/instances/{id}/permits` | Registered `gate-workload` | Registration/incarnation and expected generations | Signed one-start permit expiring within five seconds |
+| `POST /v1/instances/{id}/drain-acks` | Matching registered workload | Incarnation, connection identity, pause/recovery generation, leader/latch epochs, zero-active-handler assertion | Idempotent drain acknowledgement |
+| `POST /v1/resumes` | Individual operator with `gate-resume` | UUID command ID, reason (1–1024 characters), exact latch epoch, barrier and expected current Redis generation, per-member Rabbit fencing proofs when needed | `ACTIVE` result only after Redis fsync and exact PostgreSQL latch CAS |
+| `GET /v1/status` | Workload and operator | No raw payload or identifiers | Readiness, state/generation, leader epoch and drain counts only |
+
+All command IDs are random UUIDv4 values created once by the initiating
+caller and reused unchanged on retries. An exact retry returns the original
+terminal result; a concurrent duplicate waits for the bounded first attempt
+and then returns that result or `COMMAND_IN_PROGRESS`; changed-request reuse
+returns `409 COMMAND_ID_REUSED`. A lost/unknown response is never interpreted
+as success. Public response details omit actor identity, command digest,
+reason, payload, and internal exceptions. Retryable failures use stable
+`503 GATE_UNAVAILABLE` or `503 OUTCOME_UNKNOWN`; stale expected generations
+use `409 GENERATION_CONFLICT`; a known unresolved result uses `202` with only
+the command ID and status URL. These are candidate semantics for OpenAPI
+contract tests, not a released API.
+
+The candidate Keycloak token contract is exact local issuer
+`https://<configured-host>/realms/ecommerce`, `aud=gate-service`,
+`azp=gate-workload` for PAUSE/registration/permit/drain, and
+`azp=gate-operator-tool` for RESUME. The app token has only `gate-pause`; the
+operator token has only `gate-resume`; ecommerce public client and `ORDER_WRITE`
+never authorize gate operations. Validate exact issuer, audience, authorized
+party, `RS256`, `kid` from the configured issuer JWKS, signature, `sub`, `iat`,
+`nbf`, `exp`, and a maximum 30-second clock tolerance. Derive actor as
+`issuer + subject`; never accept actor or instance subject from request JSON.
+Production supplies an allowlisted external issuer/client mapping with the
+same claims. JWKS bootstrap is TLS-validated; unknown keys and issuer
+unavailability deny requests. Key overlap and rotation must be tested before
+old verification keys are retired.
+
+Each permit uses asymmetric RS256 signing (no shared verifier/minting secret),
+with `iss=gate-service`, `aud=amqp-admission`, `sub` equal to the verified
+workload subject, deployment, instance ID, incarnation UUID, Rabbit connection
+name, leader epoch, boot epoch, latch epoch, gate generation, registration ID,
+one-use `jti`, `iat`, and `exp`. The gate private key is available only to the
+active leader through the deployment's protected key mount/KMS integration;
+standbys cannot sign. The verifier trusts a key only after bootstrapping the
+current leader epoch over the authenticated API, binds the subject and
+connection to its own registration, and atomically consumes the `jti` in the
+local handler-start critical section. A new process always generates a new
+incarnation and starts unready. Its per-start permit, expiry check, and
+active-handler increment share one lock with pause/drain state.
+
+The instance container must run on Linux and use a monotonic clock that
+advances through host suspend (`CLOCK_BOOTTIME`). If that clock is unavailable,
+the process remains unready. For each one-use permit request, the client records
+`request_started_boottime` before sending it. The signed token lifetime
+`exp-iat` must be positive and at most five seconds, and the response must bind
+the request nonce. The conservative local deadline is
+`request_started_boottime + min(5s, exp-iat) - 100ms`; a response arriving at or
+after that deadline is rejected. Since signing occurs after the request starts,
+network delay can shorten but never extend the five-second maximum. The handler
+checks the deadline again under the admission lock. Clock rollback, resume
+detection uncertainty, or a change in boot identity revokes permits and blocks
+new starts. Tests must hold the process/container through suspend and resume
+and prove no start occurs after the original five-second bound.
+
+## Candidate durable records and transaction boundaries
+
+PostgreSQL candidate schema is owned only by the gate service:
+
+- `gate_control` is one locked row with `latch_state`, monotonic
+  `latch_epoch`, active leader ID/epoch, boot epoch, lease expiry, barrier
+  generation, and the last Redis generation high-water mark.
+- `gate_commands` has a unique random `command_id`, action, keyed request MAC
+  and key version, `PREPARED|COMMITTED|REJECTED` status, latch epoch, expected
+  and resulting gate generations, bounded terminal result code, and timestamps.
+  It stores no actor, operator reason, raw request, or message payload and is
+  retained indefinitely to preserve the accepted retry identity.
+- No command state is removed because its audit event expired. Keep old keyed
+  MAC verification keys in the protected KMS for as long as tombstones using
+  them remain; rotate by assigning new key versions to new commands. Key
+  compromise makes the gate unavailable until an audited recovery/rotation
+  migration verifies every record.
+
+Canonical request MAC input is RFC 8785 canonical JSON over API version,
+action, expected latch/gate generations, bounded reason/reason code, and
+registration identity. `HMAC-SHA-256` uses a random KMS-held key; low-entropy
+operator reasons are never stored as an unkeyed digest. Actor identity is not
+part of the MAC because it is audit-only; authorization is revalidated for
+every retry and the audit captures the authenticated actor for the committed
+command. Random command IDs are never derived from order, operation, or user
+identifiers. Logs contain neither command ID nor MAC.
+
+Redis is the authoritative gate state and one-year audit store. A single Lua
+transition script conditionally checks leader epoch, latch/gate generations,
+command ID/MAC, state, and barrier membership; it then updates state, result
+tombstone, and audit record atomically. `WAITAOF` runs on the same connection
+after the script. Configure local fsync count 1 in all environments and
+replica fsync count 0 for a single-node dev broker; production requires at
+least one replica fsync before success. Unsupported command, timeout, or
+uncertain reply is failure/unknown, never a fallback to asynchronous durability.
+State, result tombstones, and audit records are durable. Actor/reason audit
+records expire after one year; command tombstones do not. Redis AOF, RDB,
+replica, WAL/PITR, snapshot, and export deletion must meet the distinct audit
+and raw-message deadlines.
+
+The first PostgreSQL transaction claims a command through the unique key,
+locks `gate_control FOR UPDATE`, validates active leader and server-time lease,
+and commits `RECOVERY_REQUIRED` before PAUSE touches Redis. The service holds
+that row fence only across bounded Redis script+`WAITAOF` work, with a 3-second
+transaction timeout and 1-second Redis command/WAITAOF bounds; any timeout
+releases the lock and leaves the local process sticky-inhibited. Every mutation
+rechecks owner/epoch/lease immediately before Redis. Permit issuance uses the
+same row fence, checks the exact CLEAR latch and Redis ACTIVE generation, and
+signs only before releasing the bounded transaction. Database session loss
+cancels the caller and prohibits permits; a Redis command already on the wire
+may still land, so the next leader follows the recovery sequence below.
+
+After Redis state+audit and its fsync threshold are confirmed, PostgreSQL
+records the command's resulting generation and raises the high-water mark. For
+RESUME, the latch remains inhibited until a compare-and-set matches the exact
+command ID, latch epoch, and `resulting_active_generation`. If PostgreSQL final
+commit is uncertain, the instance remains sticky-inhibited and retries the
+same ID; it never reissues a generation advance without first resolving the
+Redis tombstone. PostgreSQL command rows prevent reuse if Redis loses its
+tombstone. A Redis restore below PostgreSQL's high-water generation, a missing
+committed command/audit, or an unrecognized state permanently blocks startup
+and admission until restoration from a verified non-rollback backup or a
+documented operator recovery proves monotonic history. Never reconstruct a
+missing actor/reason audit from the command tombstone.
+
+Redis registration and PAUSE share one Lua serialization point. If registration
+wins while ACTIVE, the exact member tuple and Rabbit `connection_name` enter
+the PAUSE barrier set; if PAUSE wins, registration and permits are rejected.
+PAUSE snapshots all registrations in the same atomic script that advances the
+generation. Renewals stop at PAUSED. Drain acknowledgements are unique on
+`(pause_generation, registration_id, connection_name)` and require zero active
+handlers plus closed consumer channel. Reconnect creates a new incarnation and
+connection identity and cannot satisfy the old barrier. An expired member
+stays in the set until the operator tool verifies its exact broker/vhost/
+connection name is absent after an explicit close/fence; Rabbit management
+unavailability or ambiguous identity blocks RESUME. The operator proof, actor,
+reason, and verification result are stored in the durable audit before the
+barrier is cleared.
+
+These schema and timing values are a design proposal. Architecture, security,
+persistence, and performance review must verify them; tests must establish the
+transaction and lock bounds under the selected provider rather than treating
+the numbers as guarantees.
+
+## Rabbit release boundary and deployment proof
+
+The production `SimpleMessageListenerContainer` must explicitly use manual
+acknowledgement, initial `concurrentConsumers=1`, `maxConcurrentConsumers=1`,
+and `prefetchCount=1`. These conservative initial values bound work held by one
+channel while pause/drain races are verified; any higher concurrency is a
+separate measured configuration decision with the same maximum-in-flight
+bound. The gate admission check and active-handler increment occur before the
+listener invokes the receipt use case. Shutdown cancels new delivery, waits for
+the one active handler to finish, closes the channel, and only then confirms
+drain. Container stop return/timeout is never treated as proof of drain. The
+source queue stays at-least-once; a stale handler must be fenced by 06b before
+it can ACK or finalize a receipt after lease loss or redelivery.
+
+The listener's permanent-error path retains the raw Rabbit `Message`. It
+publishes persistent mandatory bytes to the deployment-provisioned quarantine
+exchange, waits for positive publisher confirm and no return, and only then
+ACKs the source. All unknown, transient, overflow, return, nack, timeout,
+channel-loss, header-collision, or serialization cases remain unacknowledged
+and request PAUSE. The application never declares quarantine topology and has
+no Rabbit configure/read permission on the quarantine queue. Deployment
+identity is split: app consumer/publisher can read the source and publish to
+the quarantine exchange; the audited tool can read the quarantine queue only;
+deployment provisioning owns configure; broad management/read credentials are
+not mounted in the app or operator tool.
+
+Quarantine deployment conformance checks the exact durable topic exchange,
+durable classic queue, binding, `x-message-ttl=2592000000`,
+`x-max-length-bytes=1073741824`, and `x-overflow=reject-publish`. It verifies
+server-authenticated TLS with hostname/CA validation, credentials and Rabbit
+ACLs, encrypted host/PVC storage, and that direct reads are denied. A missing
+or mismatched resource keeps the listener disabled. The audited operator tool
+records a durable read/export audit event before returning any body/headers,
+and logs/traces/metrics/errors are tested with sentinel payloads and headers.
+Audit failure returns no raw message.
+
+The operator tool queries the exact broker/vhost/connection name for a member,
+issues a close/fence only when the identity matches the registered connection,
+and polls until that exact connection is absent before recording fencing proof.
+If the management API is unavailable, returns an ambiguous identity, or the
+broker cannot confirm closure, RESUME remains blocked. Direct Rabbit
+management UI/API reads by operators are denied; the deployment identity is
+the only topology administrator.
+
+Retention verification tests a short-TTL fixture on the selected Rabbit
+version, then confirms an item is not retrievable after TTL plus the accepted
+one-hour grace. Production audit tooling records each raw-message creation
+time and backup/export membership. Every archive containing a message must be
+deleted by that message's original 30-day deadline; a full broker snapshot
+expires at the earliest deadline among its contained quarantine messages.
+Backup deletion and secure deletion include Rabbit data files, host/PVC
+snapshots, exports, replicas, and recovery copies. If an encrypted durable
+volume, deletion manifest, or one-hour expiry verification is absent, the
+quarantine destination is not enabled.
+
+Finally, `06a` consumer admission remains mechanically disabled until the
+independent 06b stale-handler ownership/fencing contract has passed its
+PostgreSQL concurrency and real-Rabbit redelivery tests. The startup guard,
+readiness condition, and deployment chart must all fail closed when the 06b
+capability is absent; documentation alone is insufficient.
+
 ## Transition ordering
 
 An active-leader boot or takeover starts a recovery episode before serving any

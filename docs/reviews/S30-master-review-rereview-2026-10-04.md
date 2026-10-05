@@ -238,3 +238,16 @@ A fresh public GitHub Actions API check found no run newer than `bfa093b0`.
 The only failed jobs remain Playwright E2E and its aggregate quality gate;
 the local repair commit has not been pushed, so hosted verification is still
 pending. All other jobs in run 149 passed, including DependencyCheck.
+
+The user then pushed through `5ac4c94`; its new Agentic SDD protocol run
+failed only at `Verify committed specification inventory`. The generated file
+still contained the prior S30-06 DRAFT description. `docs/specs/INVENTORY.md`
+has now been regenerated and the local `--check` passes. CodeQL and OpenSSF
+Scorecard passed; the aggregate SDD quality gate failed because of the
+inventory check. The general CI workflow was still in progress at the latest
+poll. This inventory repair remains local pending the user's next push.
+
+Follow-up architecture, security, and persistence/concurrency grills against
+the new prototype notes all keep S30-06 design-gated. A detailed candidate
+contract was added for another independent review; its new proposals have not
+yet been evaluated and are not implementation authorization.

@@ -1866,3 +1866,32 @@ failure evidence, security tests, and real Rabbit drain/reconnect tests remain
 open. Focused `test_design.py` and `test_spec_inventory.py` pass (13 tests);
 their negative fixtures intentionally print error text before the suite
 reports `OK`.
+
+## S30-06 independent gate grills — 2026-10-05
+
+Fresh architecture, security, and persistence/concurrency reviews each returned
+**NEEDS_MORE_DESIGN / FAIL**. Their blockers converge on the same acceptance
+boundary: exact service/module/API contract; durable PostgreSQL command and
+latch records plus Redis state/result/audit atomicity; command-MAC privacy and
+indefinite tombstone key/backup lifecycle; integrated PG-lock/Redis-fsync/
+permit schedules under session loss and delayed writes; registration/drain
+linearization; OIDC/JWKS and asymmetric permit-key rotation; suspend/resume
+clock behavior; stale-store restore; and real Rabbit TLS/ACL, audited-read,
+retention, and 06b stale-handler evidence.
+
+The candidate now proposes those module/API boundaries, durable records,
+request MAC, registration serialization, signed permit claims and boot-time
+clock, explicit manual-ack single-consumer limits, broker ACL split, and
+fail-closed backup/restore criteria. These are proposed contracts only. They
+have not received an independent review after these additions and do not
+authorize source/deployment implementation or a design-gate PASS.
+
+## GitHub CI follow-up — 2026-10-05
+
+The newly pushed `5ac4c94` pipeline showed CodeQL and OpenSSF Scorecard passing.
+Agentic SDD protocol validation failed its generated specification-inventory
+check because `docs/specs/INVENTORY.md` still had the prior S30-06 DRAFT status
+text. The local generated inventory is refreshed and
+`spec_inventory.py --check` now passes. The aggregate SDD gate failed from that
+inventory check; the general CI workflow was still running at the last poll.
+The inventory fix and current design updates remain local until the next push.
