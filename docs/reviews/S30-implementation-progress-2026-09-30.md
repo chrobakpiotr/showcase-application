@@ -2076,6 +2076,29 @@ latency. Candidate B's CAS also retains row-level serialization. P-001 remains
 design-gated pending provider failover/restore and the remaining
 P-002/P-003, Rabbit, and platform evidence.
 
+## S30-06 P-001 Redis replication/failover primitive — 2026-10-05
+
+A digest-pinned Redis 8.10.2 primary/replica probe exercised a network
+partition, manual promotion, AOF restarts, stale guarded writes, and old-primary
+rejoin. During partition, the primary wrote a key that `WAIT 1` did not
+replicate; local `WAITAOF 1 0` returned `[1,0]`. The promoted replica lacked
+the key, while the old primary recovered it from its own AOF until full rejoin
+replaced the stale dataset. Actual epoch-guarded writes with epochs 1/2 were
+rejected after later epoch installation, and the marker keys remained absent.
+The probe independently confirmed `WAIT` replication-offset acknowledgement
+versus `WAITAOF` local/replica AOF fsync replies; an independent reviewer reran
+the schedule and verified cleanup.
+
+This is a local, single-replica manual-promotion experiment. It does not prove
+Sentinel/automatic election, PostgreSQL owner/lease fencing, application
+admission, uncertain `WAITAOF` recovery, host/power-loss durability, encrypted
+storage, coordinated restore, or production provider HA. Exact output and
+limitations are in
+[`p001-redis-failover-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p001-redis-failover-probe.md);
+the script SHA-256 is
+`2e55eef6c5b7b7eae01a45b5660fb042ad5b8e225af40e3fcaafb74e967fab0f`.
+P-001 remains open.
+
 ## S30-06 P-002 transactional retry model — 2026-10-05
 
 A SQLite-only model stores immutable command tombstones separately from

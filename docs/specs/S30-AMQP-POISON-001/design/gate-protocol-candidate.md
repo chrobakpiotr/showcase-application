@@ -161,6 +161,16 @@ both cleanup failure paths, verified no matching processes or containers
 remained, and confirmed the report does not claim command-finalization SQL or
 a live permit service.
 
+The [P-001 Redis failover probe](../evidence/p001-redis-failover-probe.md)
+adds a pinned single-replica schedule. It confirms that a partitioned primary
+can locally fsync a write (`WAITAOF [1,0]`) that `WAIT` did not replicate; the
+manually promoted replica lacks that write, while the restarted old primary
+recovers it locally until it rejoins and synchronizes away the stale data. The
+probe verifies pre-promotion replica role, explicit manual promotion, actual
+guarded stale `SET` rejection with absent marker keys, and primary/replica AOF
+survival through controlled restarts. This is not automatic election, provider
+HA, PostgreSQL coordination, or admission proof. P-001 remains open.
+
 P-002's checked-in
 [`p002-command-retention-prototype.py`](../evidence/p002-command-retention-prototype.py)
 supports minimal tombstones for preserving the current client-held stable
