@@ -12,6 +12,9 @@ import subprocess
 import time
 import uuid
 
+REDIS_IMAGE = "redis@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0"
+POSTGRES_IMAGE = "postgres@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873"
+
 
 def run(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, text=True, capture_output=True, check=check)
@@ -122,13 +125,13 @@ def main() -> None:
         redis_port = reserve.getsockname()[1]
     try:
         run("docker", "run", "-d", "--name", redis_name, "-p", f"127.0.0.1:{redis_port}:6379",
-            "redis:8-alpine", "redis-server", "--appendonly", "yes", "--appendfsync", "always")
-        run("docker", "run", "-d", "--name", pg_name, "-e", "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:18-alpine")
+            REDIS_IMAGE, "redis-server", "--appendonly", "yes", "--appendfsync", "always")
+        run("docker", "run", "-d", "--name", pg_name, "-e", "POSTGRES_HOST_AUTH_METHOD=trust", POSTGRES_IMAGE)
         wait_until(lambda: run("docker", "exec", redis_name, "redis-cli", "PING", check=False).stdout.strip() == "PONG")
         wait_until(lambda: run("docker", "exec", pg_name, "pg_isready", "-U", "postgres", check=False).returncode == 0)
 
-        redis_digest = run("docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", "redis:8-alpine").stdout.strip()
-        pg_digest = run("docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", "postgres:18-alpine").stdout.strip()
+        redis_digest = REDIS_IMAGE
+        pg_digest = POSTGRES_IMAGE
         redis_version = run("docker", "exec", redis_name, "redis-server", "--version").stdout.strip()
         pg_version = psql(pg_name, "SELECT version();", tuples=True)
         print(f"REDIS_IMAGE={redis_digest}; {redis_version}")

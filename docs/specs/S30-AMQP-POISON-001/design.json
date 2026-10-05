@@ -40,6 +40,7 @@
         "minimal retained data and explainable backup/export deletion",
         "recovery remains fail-closed after Redis or PostgreSQL restore",
         "every authenticated duplicate retry is actor-attributed durably before returning the stored result",
+        "retrying the same command with a different audit-only reason returns the original state result, advances no generation, and records that retry separately",
         "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention"
       ],
       "candidates": [

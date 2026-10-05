@@ -124,4 +124,12 @@ permit denial. It closes that narrow provider-primitive gap, but does not
 qualify the live service protocol, HA, or recovery. The candidate also now
 excludes actor and human reason from indefinite tombstone MACs as a privacy
 recommendation; its retention and key-rotation policy still awaits acceptance
-and review.
+and review. Persistence review agrees that this removes the reason-derived MAC
+privacy concern if registration IDs are opaque and non-personal. It requires a
+test where a same-ID retry changes only the audit reason, returns the stored
+result without a generation advance, and records the retry's reason separately.
+It also flagged mutable container tags in the probe; the script now pins the
+exact Redis/PostgreSQL image digests recorded in the report.
+The accepted spec now defines reason as per-attempt audit metadata, distinct
+from state-changing command identity. The candidate adds a resumable dual-key
+re-MAC proposal; crash/restart and backup-lifecycle proof remain open.

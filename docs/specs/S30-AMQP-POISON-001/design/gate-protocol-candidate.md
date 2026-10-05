@@ -306,11 +306,21 @@ action, expected latch/gate generations, and registration identity.
 `HMAC-SHA-256` uses a random KMS-held key. Do not store a digest, MAC input, or
 other derived value of free-text reason in the indefinitely retained
 tombstone. Store the immutable command fields needed to recompute the MAC so
-an audited rotation can re-MAC all tombstones before retiring the old KMS key;
-rotation failure keeps the gate inhibited. Authorization is revalidated for
-every retry, and the audit captures that request's validated actor and reason.
-Random command IDs are never derived from order, operation, or user identifiers.
-Logs contain neither command ID nor MAC.
+an audited rotation can re-MAC all tombstones before retiring the old KMS key.
+The rotation candidate keeps old and new keys available during a resumable,
+transactional batch migration, records a key version on each row, and retires
+the old key only after an authoritative scan proves no live row or retained
+backup requires it. A failed/incomplete rotation keeps the gate inhibited and
+both keys available; crash/restart behavior needs a prototype. Authorization is
+revalidated for every retry, and the audit captures that request's validated
+actor and reason.
+The registration field in this MAC is an opaque random registration ID, never
+a subject, username, connection name, or other personal identifier. Random
+command and registration IDs are never derived from order, operation, or user
+identifiers. Logs contain neither command ID nor MAC. A same-command retry
+with only a different reason returns the original result, does not advance the
+generation, and writes a separate actor/reason retry audit event; verify this
+under concurrent retries and audit-store failure.
 
 Redis is the authoritative gate state and one-year audit store. A single Lua
 transition script conditionally checks leader epoch, latch/gate generations,

@@ -157,8 +157,12 @@ row. Before a
 PAUSE transition, durably set the independent latch to `RECOVERY_REQUIRED`; do
 not attempt the Redis transition until that write is confirmed. Retrying
 an ID with a durable command record resolves its prior outcome without a
-second generation advance; reusing an ID for a different action or request is
-rejected. Success is
+second generation advance; reusing it with different state-transition fields
+(action, expected generations, or opaque registration ID) is rejected. An
+operator reason is per-attempt audit metadata, not part of command identity. A
+same-command retry may supply a new reason only if it commits a separate,
+actor-attributed retry audit event before returning the stored result; it never
+advances generation. Success is
 returned only after Redis confirms the configured fsync durability threshold.
 If the latch write is unavailable or uncertain, do not attempt Redis mutation;
 do not issue admission permits, and treat the latch as non-CLEAR across
@@ -460,7 +464,10 @@ and, when the gate store is available, atomically commits its state outcome and
 audit record. The record contains command ID, action, validated issuer/subject,
 time, outcome, resulting generation, and RESUME reason. Replaying an ID with a
 durable record resolves the existing outcome without another generation
-advance; reusing it for a different request is rejected. Return success only
+advance; reusing it with different state-transition fields is rejected. The
+operator reason is per-attempt audit metadata: a retry with a different reason
+must durably audit that actor/reason before returning the stored result, and
+must not advance generation. Return success only
 after the atomic commit and configured same-connection Redis fsync threshold
 are confirmed. Before PAUSE, write and durably confirm the independent latch as
 `RECOVERY_REQUIRED`; if that write is unavailable or uncertain, perform no
