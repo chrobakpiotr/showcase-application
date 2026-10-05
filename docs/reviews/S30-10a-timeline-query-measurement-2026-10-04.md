@@ -74,3 +74,13 @@ representative latency: no accepted notification/event cardinality, key
 distribution, concurrency, cache state, or service-level target was available.
 The next index or query-shape decision requires those workload inputs and a
 separate persistence design review.
+
+## Reproduction follow-up
+
+[`tooling/performance`](../../tooling/performance/README.md) now provides a
+disposable fixture that extracts this adapter's current timeline SQL directly
+from source, seeds a deterministic notification/shipment distribution, and
+retains raw JSON plans plus source/image/PostgreSQL metadata. It does not
+recreate the deleted temporary test or historical raw plans, and the current
+fixture run remains synthetic sensitivity evidence rather than production
+qualification.

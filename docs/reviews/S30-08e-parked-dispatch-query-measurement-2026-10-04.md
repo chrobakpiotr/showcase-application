@@ -62,3 +62,13 @@ separate because dispatch rows also provide enqueue deduplication.
 The container and tmpfs database were removed after capture. Raw plans and the
 disposable driver were not retained; this report is a summarized run record and
 does not claim to be a standalone exact reproducer.
+
+## Reproduction follow-up
+
+The reusable synthetic fixture is now documented in
+[`tooling/performance`](../../tooling/performance/README.md). It reconstructs
+the parked projection/count/oldest query shapes and current due index on an
+isolated disposable PostgreSQL container, saves raw JSON plans and environment
+metadata, and can regenerate sensitivity measurements. It does not recreate
+the deleted 2026-10-04 raw plans or turn the original run into reproducible
+evidence retroactively.
