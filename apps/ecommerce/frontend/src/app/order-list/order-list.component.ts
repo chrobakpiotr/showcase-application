@@ -317,10 +317,7 @@ export class OrderListComponent implements OnInit {
       next: (page) => {
         this.orderReturns.set(page._embedded?.returnRequestResourceList ?? []);
         const selectedSku = this.returnForm.controls.sku.value;
-        if (
-          selectedSku &&
-          this.remainingQuantity(selectedSku) === 0
-        ) {
+        if (selectedSku && this.remainingQuantity(selectedSku) === 0) {
           const fallback = this.selectedOrder()?.items.find(
             (item) => this.remainingQuantity(item.sku) > 0
           );

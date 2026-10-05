@@ -1,37 +1,36 @@
-import type { MockedObject } from "vitest";
-import { provideRouter } from "@angular/router";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { of, throwError } from "rxjs";
+import type { MockedObject } from 'vitest';
+import { provideRouter } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
 
-import { CatalogComponent } from "@app/catalog/catalog.component";
-import { CatalogService } from "@app/catalog/catalog.service";
-import { CategoryModel } from "@app/catalog/category.model";
-import { ProductPageModel } from "@app/catalog/product-details.model";
-import { asMockedObject } from "../../test-support/mock-object";
+import { CatalogComponent } from '@app/catalog/catalog.component';
+import { CatalogService } from '@app/catalog/catalog.service';
+import { CategoryModel } from '@app/catalog/category.model';
+import { ProductPageModel } from '@app/catalog/product-details.model';
+import { asMockedObject } from '../../test-support/mock-object';
 
-
-describe("CatalogComponent", () => {
+describe('CatalogComponent', () => {
   let fixture: ComponentFixture<CatalogComponent>;
   let component: CatalogComponent;
   let catalogServiceSpy: MockedObject<CatalogService>;
 
   const categories: CategoryModel[] = [
-    { name: "Electronics", slug: "electronics" },
+    { name: 'Electronics', slug: 'electronics' },
   ];
 
   const page: ProductPageModel = {
     _embedded: {
       productDetailsResourceList: [
         {
-          sku: "SKU-1",
-          name: "Headphones",
-          description: "Over-ear",
-          categorySlug: "electronics",
-          categoryName: "Electronics",
+          sku: 'SKU-1',
+          name: 'Headphones',
+          description: 'Over-ear',
+          categorySlug: 'electronics',
+          categoryName: 'Electronics',
           unitPrice: 99.99,
-          imageUrl: "https://example.com/img.png",
+          imageUrl: 'https://example.com/img.png',
           active: true,
-          created: "2024-03-15T10:30:00.000Z",
+          created: '2024-03-15T10:30:00.000Z',
         },
       ],
     },
@@ -40,8 +39,8 @@ describe("CatalogComponent", () => {
 
   function setup(): void {
     catalogServiceSpy = asMockedObject<CatalogService>({
-      listCategories: vi.fn().mockName("CatalogService.listCategories"),
-      listProducts: vi.fn().mockName("CatalogService.listProducts"),
+      listCategories: vi.fn().mockName('CatalogService.listCategories'),
+      listProducts: vi.fn().mockName('CatalogService.listProducts'),
     });
     catalogServiceSpy.listCategories.mockReturnValue(of(categories));
     catalogServiceSpy.listProducts.mockReturnValue(of(page));
@@ -57,35 +56,35 @@ describe("CatalogComponent", () => {
   }
 
   beforeEach(() =>
-    TestBed.configureTestingModule({ providers: [provideRouter([])] }),
+    TestBed.configureTestingModule({ providers: [provideRouter([])] })
   );
 
   afterEach(() => {
     TestBed.resetTestingModule();
   });
 
-  it("should create the component", () => {
+  it('should create the component', () => {
     setup();
     expect(component).toBeTruthy();
   });
 
-  it("loads categories and products on init", () => {
+  it('loads categories and products on init', () => {
     setup();
     expect(component.categories()).toEqual(categories);
     expect(component.products()).toEqual(
-      page._embedded!.productDetailsResourceList,
+      page._embedded!.productDetailsResourceList
     );
     expect(component.totalPages()).toBe(1);
     expect(component.loading()).toBe(false);
   });
 
-  it("sets an error message when categories fail to load", () => {
+  it('sets an error message when categories fail to load', () => {
     catalogServiceSpy = asMockedObject<CatalogService>({
-      listCategories: vi.fn().mockName("CatalogService.listCategories"),
-      listProducts: vi.fn().mockName("CatalogService.listProducts"),
+      listCategories: vi.fn().mockName('CatalogService.listCategories'),
+      listProducts: vi.fn().mockName('CatalogService.listProducts'),
     });
     catalogServiceSpy.listCategories.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
     catalogServiceSpy.listProducts.mockReturnValue(of(page));
     TestBed.configureTestingModule({
@@ -96,17 +95,17 @@ describe("CatalogComponent", () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(component.errorMessage()).toBe("Failed to load categories.");
+    expect(component.errorMessage()).toBe('Failed to load categories.');
   });
 
-  it("sets an error message when products fail to load", () => {
+  it('sets an error message when products fail to load', () => {
     catalogServiceSpy = asMockedObject<CatalogService>({
-      listCategories: vi.fn().mockName("CatalogService.listCategories"),
-      listProducts: vi.fn().mockName("CatalogService.listProducts"),
+      listCategories: vi.fn().mockName('CatalogService.listCategories'),
+      listProducts: vi.fn().mockName('CatalogService.listProducts'),
     });
     catalogServiceSpy.listCategories.mockReturnValue(of(categories));
     catalogServiceSpy.listProducts.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
     TestBed.configureTestingModule({
       imports: [CatalogComponent],
@@ -116,18 +115,18 @@ describe("CatalogComponent", () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(component.errorMessage()).toBe("Failed to load products.");
+    expect(component.errorMessage()).toBe('Failed to load products.');
     expect(component.loading()).toBe(false);
   });
 
-  it("defaults to an empty product list when the page has no embedded content", () => {
+  it('defaults to an empty product list when the page has no embedded content', () => {
     catalogServiceSpy = asMockedObject<CatalogService>({
-      listCategories: vi.fn().mockName("CatalogService.listCategories"),
-      listProducts: vi.fn().mockName("CatalogService.listProducts"),
+      listCategories: vi.fn().mockName('CatalogService.listCategories'),
+      listProducts: vi.fn().mockName('CatalogService.listProducts'),
     });
     catalogServiceSpy.listCategories.mockReturnValue(of(categories));
     catalogServiceSpy.listProducts.mockReturnValue(
-      of({ page: { size: 12, totalElements: 0, totalPages: 0, number: 0 } }),
+      of({ page: { size: 12, totalElements: 0, totalPages: 0, number: 0 } })
     );
     TestBed.configureTestingModule({
       imports: [CatalogComponent],
@@ -140,28 +139,28 @@ describe("CatalogComponent", () => {
     expect(component.products()).toEqual([]);
   });
 
-  it("filters by the selected category and resets to the first page", () => {
+  it('filters by the selected category and resets to the first page', () => {
     setup();
     component.page.set(2);
 
-    component.selectCategory("electronics");
+    component.selectCategory('electronics');
 
-    expect(component.selectedCategory()).toBe("electronics");
+    expect(component.selectedCategory()).toBe('electronics');
     expect(component.page()).toBe(0);
     expect(catalogServiceSpy.listProducts).toHaveBeenCalledWith(
       0,
       12,
-      "electronics",
+      'electronics'
     );
   });
 
-  it("treats an empty category selection as no filter", () => {
+  it('treats an empty category selection as no filter', () => {
     setup();
-    component.selectCategory("");
+    component.selectCategory('');
     expect(component.selectedCategory()).toBeNull();
   });
 
-  it("advances to the next page when not on the last page", () => {
+  it('advances to the next page when not on the last page', () => {
     setup();
     component.totalPages.set(3);
     component.page.set(0);
@@ -172,7 +171,7 @@ describe("CatalogComponent", () => {
     expect(catalogServiceSpy.listProducts).toHaveBeenCalledWith(1, 12, null);
   });
 
-  it("does not advance past the last page", () => {
+  it('does not advance past the last page', () => {
     setup();
     component.totalPages.set(1);
     component.page.set(0);
@@ -182,7 +181,7 @@ describe("CatalogComponent", () => {
     expect(component.page()).toBe(0);
   });
 
-  it("goes back to the previous page", () => {
+  it('goes back to the previous page', () => {
     setup();
     component.page.set(1);
 
@@ -191,7 +190,7 @@ describe("CatalogComponent", () => {
     expect(component.page()).toBe(0);
   });
 
-  it("does not go before the first page", () => {
+  it('does not go before the first page', () => {
     setup();
     component.page.set(0);
 

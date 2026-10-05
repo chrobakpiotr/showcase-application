@@ -1,15 +1,15 @@
-import { signal } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { provideRouter } from "@angular/router";
+import { signal } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
-import { AuthService } from "@app/auth/auth.service";
-import { DashboardComponent } from "@app/dashboard/dashboard.component";
+import { AuthService } from '@app/auth/auth.service';
+import { DashboardComponent } from '@app/dashboard/dashboard.component';
 
-describe("DashboardComponent", () => {
+describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
 
-  function setup(username = "admin", roles: string[] = []): void {
+  function setup(username = 'admin', roles: string[] = []): void {
     TestBed.configureTestingModule({
       imports: [DashboardComponent],
       providers: [
@@ -30,21 +30,21 @@ describe("DashboardComponent", () => {
     TestBed.resetTestingModule();
   });
 
-  it("should create the component", () => {
+  it('should create the component', () => {
     setup();
     expect(component).toBeTruthy();
   });
 
-  it("always shows role-agnostic cards", () => {
-    setup("admin", []);
+  it('always shows role-agnostic cards', () => {
+    setup('admin', []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[href="/cart"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/wishlist"]')).toBeTruthy();
     expect(compiled.querySelector('a[href="/reviews"]')).toBeTruthy();
   });
 
-  it("hides role-gated cards without the required role", () => {
-    setup("viewer", []);
+  it('hides role-gated cards without the required role', () => {
+    setup('viewer', []);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[href="/order"]')).toBeFalsy();
     expect(compiled.querySelector('a[href="/orders"]')).toBeFalsy();
@@ -58,16 +58,16 @@ describe("DashboardComponent", () => {
     expect(compiled.querySelector('a[href="/coupons"]')).toBeFalsy();
   });
 
-  it("shows role-gated cards with the required roles", () => {
-    setup("admin", [
-      "ORDER_WRITE",
-      "ORDER_READ",
-      "CATALOG_READ",
-      "INVENTORY_READ",
-      "RETURN_READ",
-      "NOTIFICATION_READ",
-      "SHIPMENT_READ",
-      "COUPON_READ",
+  it('shows role-gated cards with the required roles', () => {
+    setup('admin', [
+      'ORDER_WRITE',
+      'ORDER_READ',
+      'CATALOG_READ',
+      'INVENTORY_READ',
+      'RETURN_READ',
+      'NOTIFICATION_READ',
+      'SHIPMENT_READ',
+      'COUPON_READ',
     ]);
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('a[href="/order"]')).toBeTruthy();
@@ -82,26 +82,26 @@ describe("DashboardComponent", () => {
     expect(compiled.querySelector('a[href="/coupons"]')).toBeTruthy();
   });
 
-  it("reports role-agnostic capabilities as visible", () => {
-    setup("admin", []);
+  it('reports role-agnostic capabilities as visible', () => {
+    setup('admin', []);
     expect(
       component.isVisible({
-        path: "/cart",
-        title: "Cart",
-        description: "Cart",
-      }),
+        path: '/cart',
+        title: 'Cart',
+        description: 'Cart',
+      })
     ).toBe(true);
   });
 
-  it("supports write-only capability visibility", () => {
-    setup("writer", ["ORDER_WRITE"]);
+  it('supports write-only capability visibility', () => {
+    setup('writer', ['ORDER_WRITE']);
     expect(
       component.isVisible({
-        path: "/order",
-        title: "Place an order",
-        description: "Place an order",
-        writeRole: "ORDER_WRITE",
-      }),
+        path: '/order',
+        title: 'Place an order',
+        description: 'Place an order',
+        writeRole: 'ORDER_WRITE',
+      })
     ).toBe(true);
   });
 });

@@ -1,30 +1,29 @@
-import type { MockedObject } from "vitest";
-import { HttpErrorResponse } from "@angular/common/http";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { signal } from "@angular/core";
-import { of, throwError } from "rxjs";
+import type { MockedObject } from 'vitest';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { of, throwError } from 'rxjs';
 
 import {
   OrderDetailsModel,
   OrderPageModel,
-} from "@app/order/order-details.model";
-import { OrderListComponent } from "@app/order-list/order-list.component";
-import { OrderService } from "@app/order/order.service";
-import { AuthService } from "@app/auth/auth.service";
-import { ReturnsService } from "@app/returns/returns.service";
-import { ReturnCollectionModel, ReturnModel } from "@app/returns/return.model";
+} from '@app/order/order-details.model';
+import { OrderListComponent } from '@app/order-list/order-list.component';
+import { OrderService } from '@app/order/order.service';
+import { AuthService } from '@app/auth/auth.service';
+import { ReturnsService } from '@app/returns/returns.service';
+import { ReturnCollectionModel, ReturnModel } from '@app/returns/return.model';
 import {
   ShipmentCollectionModel,
   ShipmentModel,
-} from "@app/shipments/shipment.model";
+} from '@app/shipments/shipment.model';
 import {
   ShipmentsService,
   ShipmentAdvanceOperationStore,
-} from "@app/shipments/shipments.service";
-import { asMockedObject } from "../../test-support/mock-object";
+} from '@app/shipments/shipments.service';
+import { asMockedObject } from '../../test-support/mock-object';
 
-
-describe("OrderListComponent", () => {
+describe('OrderListComponent', () => {
   let fixture: ComponentFixture<OrderListComponent>;
   let component: OrderListComponent;
   let orderServiceSpy: MockedObject<OrderService>;
@@ -32,23 +31,23 @@ describe("OrderListComponent", () => {
   let shipmentsServiceSpy: MockedObject<ShipmentsService>;
 
   const orderSummary: OrderDetailsModel = {
-    orderNumber: "ORDER-1",
-    status: "CONFIRMED",
-    created: "2024-03-15T10:30:00.000Z",
-    remarks: "",
+    orderNumber: 'ORDER-1',
+    status: 'CONFIRMED',
+    created: '2024-03-15T10:30:00.000Z',
+    remarks: '',
     customer: {
-      fullName: "Jane Doe",
-      email: "jane.doe@example.com",
-      phone: "",
-      street: "Main Street 1",
-      postalCode: "12-345",
-      city: "Warsaw",
-      countryCode: "PL",
+      fullName: 'Jane Doe',
+      email: 'jane.doe@example.com',
+      phone: '',
+      street: 'Main Street 1',
+      postalCode: '12-345',
+      city: 'Warsaw',
+      countryCode: 'PL',
     },
     items: [
       {
-        sku: "SKU-1",
-        productName: "Mouse",
+        sku: 'SKU-1',
+        productName: 'Mouse',
         unitPrice: 29.99,
         quantity: 2,
         subtotal: 59.98,
@@ -58,14 +57,14 @@ describe("OrderListComponent", () => {
     couponCode: null,
     discountAmount: 0,
     total: 59.98,
-    paymentMethod: "CARD",
+    paymentMethod: 'CARD',
     payment: {
-      status: "CAPTURED",
-      method: "CARD",
+      status: 'CAPTURED',
+      method: 'CARD',
       amount: 59.98,
-      gatewayReference: "mock-gw-1",
+      gatewayReference: 'mock-gw-1',
     },
-    _links: { cancel: { href: "/api/order/ORDER-1/cancel" } },
+    _links: { cancel: { href: '/api/order/ORDER-1/cancel' } },
   };
 
   const multiItemOrderSummary: OrderDetailsModel = {
@@ -73,8 +72,8 @@ describe("OrderListComponent", () => {
     items: [
       orderSummary.items[0],
       {
-        sku: "SKU-2",
-        productName: "Keyboard",
+        sku: 'SKU-2',
+        productName: 'Keyboard',
         unitPrice: 49.99,
         quantity: 1,
         subtotal: 49.99,
@@ -83,10 +82,10 @@ describe("OrderListComponent", () => {
     subtotal: 109.97,
     total: 109.97,
     payment: {
-      status: "CAPTURED",
-      method: "CARD",
+      status: 'CAPTURED',
+      method: 'CARD',
       amount: 109.97,
-      gatewayReference: "mock-gw-2",
+      gatewayReference: 'mock-gw-2',
     },
   };
 
@@ -99,13 +98,13 @@ describe("OrderListComponent", () => {
     _embedded: {
       returnRequestResourceList: [
         {
-          returnNumber: "RETURN-1",
-          orderNumber: "ORDER-1",
-          sku: "SKU-1",
+          returnNumber: 'RETURN-1',
+          orderNumber: 'ORDER-1',
+          sku: 'SKU-1',
           quantity: 1,
-          reason: "Damaged",
-          status: "REQUESTED",
-          requestedDate: "2024-03-15T10:30:00.000Z",
+          reason: 'Damaged',
+          status: 'REQUESTED',
+          requestedDate: '2024-03-15T10:30:00.000Z',
           decidedDate: null,
           refundAmount: 29.99,
         },
@@ -117,17 +116,17 @@ describe("OrderListComponent", () => {
     _embedded: {
       shipmentResourceList: [
         {
-          shipmentNumber: "SHIP-1",
-          orderNumber: "ORDER-1",
-          carrier: "DHL",
-          trackingNumber: "DHL-TRACK-1",
-          status: "PENDING",
+          shipmentNumber: 'SHIP-1',
+          orderNumber: 'ORDER-1',
+          carrier: 'DHL',
+          trackingNumber: 'DHL-TRACK-1',
+          status: 'PENDING',
           dispatchedDate: null,
           estimatedDeliveryDate: null,
           deliveredDate: null,
-          createdDate: "2024-03-15T10:30:00.000Z",
+          createdDate: '2024-03-15T10:30:00.000Z',
           _links: {
-            "advance-status": { href: "/api/shipments/SHIP-1/advance" },
+            'advance-status': { href: '/api/shipments/SHIP-1/advance' },
           },
         },
       ],
@@ -136,48 +135,48 @@ describe("OrderListComponent", () => {
 
   function setup(roles: string[] = []): void {
     orderServiceSpy = asMockedObject<OrderService>({
-      listOrders: vi.fn().mockName("OrderService.listOrders"),
-      findOrder: vi.fn().mockName("OrderService.findOrder"),
-      cancelOrder: vi.fn().mockName("OrderService.cancelOrder"),
+      listOrders: vi.fn().mockName('OrderService.listOrders'),
+      findOrder: vi.fn().mockName('OrderService.findOrder'),
+      cancelOrder: vi.fn().mockName('OrderService.cancelOrder'),
     });
     returnsServiceSpy = asMockedObject<ReturnsService>({
       listReturnsForOrder: vi
         .fn()
-        .mockName("ReturnsService.listReturnsForOrder"),
-      requestReturn: vi.fn().mockName("ReturnsService.requestReturn"),
+        .mockName('ReturnsService.listReturnsForOrder'),
+      requestReturn: vi.fn().mockName('ReturnsService.requestReturn'),
     });
     shipmentsServiceSpy = asMockedObject<ShipmentsService>({
       listShipmentsForOrder: vi
         .fn()
-        .mockName("ShipmentsService.listShipmentsForOrder"),
-      createShipment: vi.fn().mockName("ShipmentsService.createShipment"),
+        .mockName('ShipmentsService.listShipmentsForOrder'),
+      createShipment: vi.fn().mockName('ShipmentsService.createShipment'),
       advanceShipmentStatus: vi
         .fn()
-        .mockName("ShipmentsService.advanceShipmentStatus"),
+        .mockName('ShipmentsService.advanceShipmentStatus'),
       getOrCreatePendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.getOrCreatePendingAdvanceOperation"),
+        .mockName('ShipmentsService.getOrCreatePendingAdvanceOperation'),
       clearPendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.clearPendingAdvanceOperation"),
+        .mockName('ShipmentsService.clearPendingAdvanceOperation'),
     });
     const pendingStore = new ShipmentAdvanceOperationStore();
     shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.mockImplementation(
       (shipmentNumber, expectedStatus) =>
-        pendingStore.getOrCreate("operator", shipmentNumber, expectedStatus),
+        pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus)
     );
     shipmentsServiceSpy.clearPendingAdvanceOperation.mockImplementation(
       (shipmentNumber, pending) =>
         pendingStore.clear(
           pending.username,
           shipmentNumber,
-          pending.operationId,
-        ),
+          pending.operationId
+        )
     );
     orderServiceSpy.listOrders.mockReturnValue(of(page));
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(of(returnsPage));
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      of(shipmentsPage),
+      of(shipmentsPage)
     );
 
     TestBed.configureTestingModule({
@@ -196,74 +195,74 @@ describe("OrderListComponent", () => {
   }
 
   beforeEach(() =>
-    sessionStorage.removeItem("showcase.shipment-advance.v1:operator:SHIP-1"),
+    sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1')
   );
 
   afterEach(() => {
-    sessionStorage.removeItem("showcase.shipment-advance.v1:operator:SHIP-1");
+    sessionStorage.removeItem('showcase.shipment-advance.v1:operator:SHIP-1');
     TestBed.resetTestingModule();
   });
 
-  it("should create the component", () => {
+  it('should create the component', () => {
     setup();
     expect(component).toBeTruthy();
   });
 
-  it("loads orders on init", () => {
+  it('loads orders on init', () => {
     setup();
     expect(component.orders()).toEqual([orderSummary]);
     expect(component.totalPages()).toBe(1);
     expect(component.loading()).toBe(false);
   });
 
-  it("defaults to an empty list when there is no embedded content", () => {
+  it('defaults to an empty list when there is no embedded content', () => {
     orderServiceSpy = asMockedObject<OrderService>({
-      listOrders: vi.fn().mockName("OrderService.listOrders"),
-      findOrder: vi.fn().mockName("OrderService.findOrder"),
-      cancelOrder: vi.fn().mockName("OrderService.cancelOrder"),
+      listOrders: vi.fn().mockName('OrderService.listOrders'),
+      findOrder: vi.fn().mockName('OrderService.findOrder'),
+      cancelOrder: vi.fn().mockName('OrderService.cancelOrder'),
     });
     returnsServiceSpy = asMockedObject<ReturnsService>({
       listReturnsForOrder: vi
         .fn()
-        .mockName("ReturnsService.listReturnsForOrder"),
-      requestReturn: vi.fn().mockName("ReturnsService.requestReturn"),
+        .mockName('ReturnsService.listReturnsForOrder'),
+      requestReturn: vi.fn().mockName('ReturnsService.requestReturn'),
     });
     shipmentsServiceSpy = asMockedObject<ShipmentsService>({
       listShipmentsForOrder: vi
         .fn()
-        .mockName("ShipmentsService.listShipmentsForOrder"),
-      createShipment: vi.fn().mockName("ShipmentsService.createShipment"),
+        .mockName('ShipmentsService.listShipmentsForOrder'),
+      createShipment: vi.fn().mockName('ShipmentsService.createShipment'),
       advanceShipmentStatus: vi
         .fn()
-        .mockName("ShipmentsService.advanceShipmentStatus"),
+        .mockName('ShipmentsService.advanceShipmentStatus'),
       getOrCreatePendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.getOrCreatePendingAdvanceOperation"),
+        .mockName('ShipmentsService.getOrCreatePendingAdvanceOperation'),
       clearPendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.clearPendingAdvanceOperation"),
+        .mockName('ShipmentsService.clearPendingAdvanceOperation'),
     });
     const pendingStore = new ShipmentAdvanceOperationStore();
     shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.mockImplementation(
       (shipmentNumber, expectedStatus) =>
-        pendingStore.getOrCreate("operator", shipmentNumber, expectedStatus),
+        pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus)
     );
     shipmentsServiceSpy.clearPendingAdvanceOperation.mockImplementation(
       (shipmentNumber, pending) =>
         pendingStore.clear(
           pending.username,
           shipmentNumber,
-          pending.operationId,
-        ),
+          pending.operationId
+        )
     );
     orderServiceSpy.listOrders.mockReturnValue(
-      of({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } }),
+      of({ page: { size: 10, totalElements: 0, totalPages: 0, number: 0 } })
     );
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(
-      of({ _embedded: { returnRequestResourceList: [] } }),
+      of({ _embedded: { returnRequestResourceList: [] } })
     );
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      of({ _embedded: { shipmentResourceList: [] } }),
+      of({ _embedded: { shipmentResourceList: [] } })
     );
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
@@ -281,48 +280,48 @@ describe("OrderListComponent", () => {
     expect(component.orders()).toEqual([]);
   });
 
-  it("sets an error message when loading orders fails", () => {
+  it('sets an error message when loading orders fails', () => {
     orderServiceSpy = asMockedObject<OrderService>({
-      listOrders: vi.fn().mockName("OrderService.listOrders"),
-      findOrder: vi.fn().mockName("OrderService.findOrder"),
-      cancelOrder: vi.fn().mockName("OrderService.cancelOrder"),
+      listOrders: vi.fn().mockName('OrderService.listOrders'),
+      findOrder: vi.fn().mockName('OrderService.findOrder'),
+      cancelOrder: vi.fn().mockName('OrderService.cancelOrder'),
     });
     returnsServiceSpy = asMockedObject<ReturnsService>({
       listReturnsForOrder: vi
         .fn()
-        .mockName("ReturnsService.listReturnsForOrder"),
-      requestReturn: vi.fn().mockName("ReturnsService.requestReturn"),
+        .mockName('ReturnsService.listReturnsForOrder'),
+      requestReturn: vi.fn().mockName('ReturnsService.requestReturn'),
     });
     shipmentsServiceSpy = asMockedObject<ShipmentsService>({
       listShipmentsForOrder: vi
         .fn()
-        .mockName("ShipmentsService.listShipmentsForOrder"),
-      createShipment: vi.fn().mockName("ShipmentsService.createShipment"),
+        .mockName('ShipmentsService.listShipmentsForOrder'),
+      createShipment: vi.fn().mockName('ShipmentsService.createShipment'),
       advanceShipmentStatus: vi
         .fn()
-        .mockName("ShipmentsService.advanceShipmentStatus"),
+        .mockName('ShipmentsService.advanceShipmentStatus'),
       getOrCreatePendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.getOrCreatePendingAdvanceOperation"),
+        .mockName('ShipmentsService.getOrCreatePendingAdvanceOperation'),
       clearPendingAdvanceOperation: vi
         .fn()
-        .mockName("ShipmentsService.clearPendingAdvanceOperation"),
+        .mockName('ShipmentsService.clearPendingAdvanceOperation'),
     });
     const pendingStore = new ShipmentAdvanceOperationStore();
     shipmentsServiceSpy.getOrCreatePendingAdvanceOperation.mockImplementation(
       (shipmentNumber, expectedStatus) =>
-        pendingStore.getOrCreate("operator", shipmentNumber, expectedStatus),
+        pendingStore.getOrCreate('operator', shipmentNumber, expectedStatus)
     );
     shipmentsServiceSpy.clearPendingAdvanceOperation.mockImplementation(
       (shipmentNumber, pending) =>
         pendingStore.clear(
           pending.username,
           shipmentNumber,
-          pending.operationId,
-        ),
+          pending.operationId
+        )
     );
     orderServiceSpy.listOrders.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
     TestBed.configureTestingModule({
       imports: [OrderListComponent],
@@ -337,107 +336,107 @@ describe("OrderListComponent", () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
 
-    expect(component.errorMessage()).toBe("Failed to load orders.");
+    expect(component.errorMessage()).toBe('Failed to load orders.');
     expect(component.loading()).toBe(false);
   });
 
-  it("selects an order and shows its details", () => {
+  it('selects an order and shows its details', () => {
     setup();
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    expect(orderServiceSpy.findOrder).toHaveBeenCalledWith("ORDER-1");
+    expect(orderServiceSpy.findOrder).toHaveBeenCalledWith('ORDER-1');
     expect(component.selectedOrder()).toEqual(orderSummary);
   });
 
-  it("loads returns for a selected order when the user can read returns", () => {
-    setup(["RETURN_READ"]);
+  it('loads returns for a selected order when the user can read returns', () => {
+    setup(['RETURN_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(returnsServiceSpy.listReturnsForOrder).toHaveBeenCalledWith(
-      "ORDER-1",
+      'ORDER-1'
     );
     expect(component.orderReturns()).toEqual(
-      returnsPage._embedded!.returnRequestResourceList,
+      returnsPage._embedded!.returnRequestResourceList
     );
   });
 
-  it("loads shipments for a selected order when the user can read shipments", () => {
-    setup(["SHIPMENT_READ"]);
+  it('loads shipments for a selected order when the user can read shipments', () => {
+    setup(['SHIPMENT_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledWith(
-      "ORDER-1",
+      'ORDER-1'
     );
     expect(component.orderShipments()).toEqual(
-      shipmentsPage._embedded!.shipmentResourceList ?? [],
+      shipmentsPage._embedded!.shipmentResourceList ?? []
     );
   });
 
-  it("defaults order returns to an empty list when the embedded collection is missing", () => {
-    setup(["RETURN_READ"]);
+  it('defaults order returns to an empty list when the embedded collection is missing', () => {
+    setup(['RETURN_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(of({}));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(component.orderReturns()).toEqual([]);
   });
 
-  it("defaults order shipments to an empty list when the embedded collection is missing", () => {
-    setup(["SHIPMENT_READ"]);
+  it('defaults order shipments to an empty list when the embedded collection is missing', () => {
+    setup(['SHIPMENT_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(of({}));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(component.orderShipments()).toEqual([]);
   });
 
-  it("sets an error message when loading order details fails", () => {
+  it('sets an error message when loading order details fails', () => {
     setup();
     orderServiceSpy.findOrder.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    expect(component.errorMessage()).toBe("Failed to load order details.");
+    expect(component.errorMessage()).toBe('Failed to load order details.');
   });
 
-  it("sets an error message when loading order returns fails", () => {
-    setup(["RETURN_READ"]);
+  it('sets an error message when loading order returns fails', () => {
+    setup(['RETURN_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(component.returnErrorMessage()).toBe(
-      "Failed to load return requests.",
+      'Failed to load return requests.'
     );
   });
 
-  it("sets an error message when loading shipments fails", () => {
-    setup(["SHIPMENT_READ"]);
+  it('sets an error message when loading shipments fails', () => {
+    setup(['SHIPMENT_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    expect(component.shipmentErrorMessage()).toBe("Failed to load shipments.");
+    expect(component.shipmentErrorMessage()).toBe('Failed to load shipments.');
   });
 
-  it("closes the details view", () => {
+  it('closes the details view', () => {
     setup();
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.closeDetails();
 
     expect(component.selectedOrder()).toBeNull();
@@ -445,106 +444,106 @@ describe("OrderListComponent", () => {
     expect(component.orderShipments()).toEqual([]);
   });
 
-  it("cancels an order and refreshes the list", () => {
-    setup(["RETURN_READ", "SHIPMENT_READ"]);
-    const cancelled = { ...orderSummary, status: "CANCELLED", _links: {} };
+  it('cancels an order and refreshes the list', () => {
+    setup(['RETURN_READ', 'SHIPMENT_READ']);
+    const cancelled = { ...orderSummary, status: 'CANCELLED', _links: {} };
     orderServiceSpy.cancelOrder.mockReturnValue(of(cancelled));
-    component.cancelOrder("ORDER-1");
+    component.cancelOrder('ORDER-1');
 
-    expect(orderServiceSpy.cancelOrder).toHaveBeenCalledWith("ORDER-1");
+    expect(orderServiceSpy.cancelOrder).toHaveBeenCalledWith('ORDER-1');
     expect(component.selectedOrder()).toEqual(cancelled);
     expect(orderServiceSpy.listOrders).toHaveBeenCalledTimes(2);
     expect(returnsServiceSpy.listReturnsForOrder).toHaveBeenCalledWith(
-      "ORDER-1",
+      'ORDER-1'
     );
     expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledWith(
-      "ORDER-1",
+      'ORDER-1'
     );
   });
 
-  it("does not load order returns or shipments after cancellation without read roles", () => {
+  it('does not load order returns or shipments after cancellation without read roles', () => {
     setup();
-    const cancelled = { ...orderSummary, status: "CANCELLED", _links: {} };
+    const cancelled = { ...orderSummary, status: 'CANCELLED', _links: {} };
     orderServiceSpy.cancelOrder.mockReturnValue(of(cancelled));
 
-    component.cancelOrder("ORDER-1");
+    component.cancelOrder('ORDER-1');
 
     expect(returnsServiceSpy.listReturnsForOrder).not.toHaveBeenCalled();
     expect(shipmentsServiceSpy.listShipmentsForOrder).not.toHaveBeenCalled();
   });
 
-  it("sets an error message when cancelling fails", () => {
+  it('sets an error message when cancelling fails', () => {
     setup();
     orderServiceSpy.cancelOrder.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
-    component.cancelOrder("ORDER-1");
+    component.cancelOrder('ORDER-1');
 
-    expect(component.errorMessage()).toBe("Failed to cancel order.");
+    expect(component.errorMessage()).toBe('Failed to cancel order.');
   });
 
-  it("creates a return request", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('creates a return request', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.requestReturn.mockReturnValue(
-      of(returnsPage._embedded!.returnRequestResourceList[0]),
+      of(returnsPage._embedded!.returnRequestResourceList[0])
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.returnForm.setValue({
-      sku: "SKU-1",
+      sku: 'SKU-1',
       quantity: 1,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
 
     component.requestReturn();
 
     expect(returnsServiceSpy.requestReturn).toHaveBeenCalledWith({
-      orderNumber: "ORDER-1",
-      sku: "SKU-1",
+      orderNumber: 'ORDER-1',
+      sku: 'SKU-1',
       quantity: 1,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
-    expect(component.returnSuccessMessage()).toBe("Return request created.");
+    expect(component.returnSuccessMessage()).toBe('Return request created.');
   });
 
-  it("creates a return request with a defaulted quantity when the control value is null", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('creates a return request with a defaulted quantity when the control value is null', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.requestReturn.mockReturnValue(
-      of(returnsPage._embedded!.returnRequestResourceList[0]),
+      of(returnsPage._embedded!.returnRequestResourceList[0])
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.returnForm.controls.quantity.setValue(null);
-    component.returnForm.controls.reason.setValue("Damaged");
-    component.returnForm.controls.sku.setValue("SKU-1");
+    component.returnForm.controls.reason.setValue('Damaged');
+    component.returnForm.controls.sku.setValue('SKU-1');
     component.returnForm.controls.quantity.clearValidators();
     component.returnForm.controls.quantity.updateValueAndValidity();
 
     component.requestReturn();
 
     expect(returnsServiceSpy.requestReturn).toHaveBeenCalledWith({
-      orderNumber: "ORDER-1",
-      sku: "SKU-1",
+      orderNumber: 'ORDER-1',
+      sku: 'SKU-1',
       quantity: 0,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
   });
 
-  it("does not create a return request when the form is invalid", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
-    component.returnForm.setValue({ sku: "", quantity: null, reason: "" });
+  it('does not create a return request when the form is invalid', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
+    component.returnForm.setValue({ sku: '', quantity: null, reason: '' });
 
     component.requestReturn();
 
     expect(returnsServiceSpy.requestReturn).not.toHaveBeenCalled();
   });
 
-  it("does not create a return request when no order is selected", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('does not create a return request when no order is selected', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     component.returnForm.setValue({
-      sku: "SKU-1",
+      sku: 'SKU-1',
       quantity: 1,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
 
     component.requestReturn();
@@ -552,95 +551,95 @@ describe("OrderListComponent", () => {
     expect(returnsServiceSpy.requestReturn).not.toHaveBeenCalled();
   });
 
-  it("sets an error message when requested quantity exceeds remaining returnable quantity", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('sets an error message when requested quantity exceeds remaining returnable quantity', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.returnForm.setValue({
-      sku: "SKU-1",
+      sku: 'SKU-1',
       quantity: 2,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
 
     component.requestReturn();
 
     expect(component.returnErrorMessage()).toBe(
-      "Requested quantity exceeds remaining returnable quantity.",
+      'Requested quantity exceeds remaining returnable quantity.'
     );
   });
 
-  it("sets an error message when creating a return request fails", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('sets an error message when creating a return request fails', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.requestReturn.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.orderReturns.set([]);
     component.returnForm.setValue({
-      sku: "SKU-1",
+      sku: 'SKU-1',
       quantity: 1,
-      reason: "Damaged",
+      reason: 'Damaged',
     });
 
     component.requestReturn();
 
     expect(component.returnErrorMessage()).toBe(
-      "Failed to create return request.",
+      'Failed to create return request.'
     );
   });
 
-  it("calculates remaining quantity excluding rejected returns", () => {
-    setup(["RETURN_READ"]);
+  it('calculates remaining quantity excluding rejected returns', () => {
+    setup(['RETURN_READ']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.orderReturns.set([
       {
         ...(returnsPage._embedded!.returnRequestResourceList[0] as ReturnModel),
         quantity: 1,
-        status: "REJECTED",
+        status: 'REJECTED',
       },
     ]);
 
-    expect(component.remainingQuantity("SKU-1")).toBe(2);
+    expect(component.remainingQuantity('SKU-1')).toBe(2);
   });
 
-  it("reports zero remaining quantity for an unknown sku", () => {
-    setup(["RETURN_READ"]);
-    expect(component.remainingQuantity("UNKNOWN")).toBe(0);
+  it('reports zero remaining quantity for an unknown sku', () => {
+    setup(['RETURN_READ']);
+    expect(component.remainingQuantity('UNKNOWN')).toBe(0);
   });
 
-  it("keeps order returns empty when the user cannot read returns", () => {
+  it('keeps order returns empty when the user cannot read returns', () => {
     setup();
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(returnsServiceSpy.listReturnsForOrder).not.toHaveBeenCalled();
     expect(component.orderReturns()).toEqual([]);
   });
 
-  it("keeps order shipments empty when the user cannot read shipments", () => {
+  it('keeps order shipments empty when the user cannot read shipments', () => {
     setup();
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(shipmentsServiceSpy.listShipmentsForOrder).not.toHaveBeenCalled();
     expect(component.orderShipments()).toEqual([]);
   });
 
-  it("initializes the return form with the first order item when no item is returnable yet", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('initializes the return form with the first order item when no item is returnable yet', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    expect(component.returnForm.controls.sku.value).toBe("SKU-1");
+    expect(component.returnForm.controls.sku.value).toBe('SKU-1');
   });
 
-  it("switches the selected sku to another returnable item after loading returns", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('switches the selected sku to another returnable item after loading returns', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(multiItemOrderSummary));
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(
       of({
@@ -652,17 +651,17 @@ describe("OrderListComponent", () => {
             },
           ],
         },
-      }),
+      })
     );
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(component.hasReturnableItems()).toBe(true);
-    expect(component.returnForm.controls.sku.value).toBe("SKU-2");
+    expect(component.returnForm.controls.sku.value).toBe('SKU-2');
   });
 
-  it("keeps the selected sku when no items remain returnable", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('keeps the selected sku when no items remain returnable', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     returnsServiceSpy.listReturnsForOrder.mockReturnValue(
       of({
@@ -674,163 +673,163 @@ describe("OrderListComponent", () => {
             },
           ],
         },
-      }),
+      })
     );
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     expect(component.hasReturnableItems()).toBe(false);
-    expect(component.returnForm.controls.sku.value).toBe("SKU-1");
+    expect(component.returnForm.controls.sku.value).toBe('SKU-1');
   });
 
-  it("reports whether the user can manage returns", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('reports whether the user can manage returns', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     expect(component.canReadReturns).toBe(true);
     expect(component.canWriteReturns).toBe(true);
   });
 
-  it("reports whether the user can manage shipments", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('reports whether the user can manage shipments', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     expect(component.canReadShipments).toBe(true);
     expect(component.canWriteShipments).toBe(true);
   });
 
-  it("creates a shipment", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('creates a shipment', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.createShipment.mockReturnValue(
-      of(shipmentsPage._embedded!.shipmentResourceList![0]),
+      of(shipmentsPage._embedded!.shipmentResourceList![0])
     );
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      of({ _embedded: { shipmentResourceList: [] } }),
+      of({ _embedded: { shipmentResourceList: [] } })
     );
-    component.selectOrder("ORDER-1");
-    component.shipmentForm.setValue({ carrier: "DHL" });
+    component.selectOrder('ORDER-1');
+    component.shipmentForm.setValue({ carrier: 'DHL' });
 
     component.createShipment();
 
     expect(shipmentsServiceSpy.createShipment).toHaveBeenCalledWith({
-      orderNumber: "ORDER-1",
-      carrier: "DHL",
+      orderNumber: 'ORDER-1',
+      carrier: 'DHL',
     });
-    expect(component.shipmentSuccessMessage()).toBe("Shipment created.");
+    expect(component.shipmentSuccessMessage()).toBe('Shipment created.');
   });
 
-  it("does not create a shipment when the form is invalid", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
-    component.shipmentForm.setValue({ carrier: "" });
+  it('does not create a shipment when the form is invalid', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    component.shipmentForm.setValue({ carrier: '' });
 
     component.createShipment();
 
     expect(shipmentsServiceSpy.createShipment).not.toHaveBeenCalled();
   });
 
-  it("does not create a shipment when no order is selected", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
-    component.shipmentForm.setValue({ carrier: "DHL" });
+  it('does not create a shipment when no order is selected', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
+    component.shipmentForm.setValue({ carrier: 'DHL' });
 
     component.createShipment();
 
     expect(shipmentsServiceSpy.createShipment).not.toHaveBeenCalled();
   });
 
-  it("sets an error message when creating a shipment fails", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('sets an error message when creating a shipment fails', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.createShipment.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      of({ _embedded: { shipmentResourceList: [] } }),
+      of({ _embedded: { shipmentResourceList: [] } })
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     component.orderShipments.set([]);
-    component.shipmentForm.setValue({ carrier: "DHL" });
+    component.shipmentForm.setValue({ carrier: 'DHL' });
 
     component.createShipment();
 
-    expect(component.shipmentErrorMessage()).toBe("Failed to create shipment.");
+    expect(component.shipmentErrorMessage()).toBe('Failed to create shipment.');
   });
 
-  it("advances a shipment status", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('advances a shipment status', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.advanceShipmentStatus.mockReturnValue(
-      of(shipmentsPage._embedded!.shipmentResourceList![0] as ShipmentModel),
+      of(shipmentsPage._embedded!.shipmentResourceList![0] as ShipmentModel)
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
 
     expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalled();
     const args = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
-    expect(args[0]).toBe("SHIP-1");
+    expect(args[0]).toBe('SHIP-1');
     expect(args[1]).toBeTruthy();
-    expect(args[2]).toBe("PENDING");
+    expect(args[2]).toBe('PENDING');
     expect(component.shipmentSuccessMessage()).toBe(
-      "Shipment status advanced.",
+      'Shipment status advanced.'
     );
   });
 
-  it("reuses the same pending shipment operation identity after a failed order-detail advance", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('reuses the same pending shipment operation identity after a failed order-detail advance', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.advanceShipmentStatus.mockReturnValue(
-      throwError(() => new Error("lost response")),
+      throwError(() => new Error('lost response'))
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     const firstArgs = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     const secondArgs = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
 
     expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
-    expect(firstArgs[0]).toBe("SHIP-1");
+    expect(firstArgs[0]).toBe('SHIP-1');
     expect(firstArgs[1]).toBeTruthy();
-    expect(firstArgs[2]).toBe("PENDING");
+    expect(firstArgs[2]).toBe('PENDING');
     expect(secondArgs[1]).toBe(firstArgs[1]);
     expect(secondArgs[2]).toBe(firstArgs[2]);
   });
 
-  it("preserves generic conflicts and blocks corrupt pending storage without submitting", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('preserves generic conflicts and blocks corrupt pending storage without submitting', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
     shipmentsServiceSpy.advanceShipmentStatus.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 409 })),
+      throwError(() => new HttpErrorResponse({ status: 409 }))
     );
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     const first = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     expect(
-      vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock.lastCall!,
+      vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock.lastCall!
     ).toEqual(first);
     expect(
-      shipmentsServiceSpy.clearPendingAdvanceOperation,
+      shipmentsServiceSpy.clearPendingAdvanceOperation
     ).not.toHaveBeenCalled();
     expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledTimes(1);
-    sessionStorage.setItem("showcase.shipment-advance.v1:operator:SHIP-1", "{");
-    component.advanceShipmentStatus("SHIP-1");
+    sessionStorage.setItem('showcase.shipment-advance.v1:operator:SHIP-1', '{');
+    component.advanceShipmentStatus('SHIP-1');
     expect(shipmentsServiceSpy.advanceShipmentStatus).toHaveBeenCalledTimes(2);
   });
 
-  it("drops a rejected order-detail operation and retries from refreshed status after 409", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('drops a rejected order-detail operation and retries from refreshed status after 409', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
     const dispatched = {
       ...shipmentsPage._embedded!.shipmentResourceList![0],
-      status: "DISPATCHED" as const,
+      status: 'DISPATCHED' as const,
     };
     shipmentsServiceSpy.listShipmentsForOrder.mockReturnValue(
-      of({ _embedded: { shipmentResourceList: [dispatched] } }),
+      of({ _embedded: { shipmentResourceList: [dispatched] } })
     );
     shipmentsServiceSpy.advanceShipmentStatus
       .mockReturnValueOnce(
@@ -838,71 +837,71 @@ describe("OrderListComponent", () => {
           () =>
             new HttpErrorResponse({
               status: 409,
-              statusText: "Conflict",
-              error: { code: "SHIPMENT_OPERATION_FINGERPRINT_CONFLICT" },
-            }),
-        ),
+              statusText: 'Conflict',
+              error: { code: 'SHIPMENT_OPERATION_FINGERPRINT_CONFLICT' },
+            })
+        )
       )
       .mockReturnValueOnce(of(dispatched));
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     const firstArgs = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
 
     expect(shipmentsServiceSpy.listShipmentsForOrder).toHaveBeenCalledTimes(2);
-    expect(component.orderShipments()[0].status).toBe("DISPATCHED");
+    expect(component.orderShipments()[0].status).toBe('DISPATCHED');
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
     const secondArgs = vi.mocked(shipmentsServiceSpy.advanceShipmentStatus).mock
       .lastCall!;
 
     expect(secondArgs[1]).not.toBe(firstArgs[1]);
-    expect(secondArgs[2]).toBe("DISPATCHED");
+    expect(secondArgs[2]).toBe('DISPATCHED');
   });
 
-  it("sets an error message when advancing a shipment fails", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('sets an error message when advancing a shipment fails', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
     shipmentsServiceSpy.advanceShipmentStatus.mockReturnValue(
-      throwError(() => new Error("failed")),
+      throwError(() => new Error('failed'))
     );
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
 
     expect(component.shipmentErrorMessage()).toBe(
-      "Failed to advance shipment status.",
+      'Failed to advance shipment status.'
     );
   });
 
-  it("does not advance a shipment when no order is selected", () => {
-    setup(["SHIPMENT_READ", "SHIPMENT_WRITE"]);
+  it('does not advance a shipment when no order is selected', () => {
+    setup(['SHIPMENT_READ', 'SHIPMENT_WRITE']);
 
-    component.advanceShipmentStatus("SHIP-1");
+    component.advanceShipmentStatus('SHIP-1');
 
     expect(shipmentsServiceSpy.advanceShipmentStatus).not.toHaveBeenCalled();
   });
 
-  it("reports no returnable items when no order is selected", () => {
-    setup(["RETURN_READ"]);
+  it('reports no returnable items when no order is selected', () => {
+    setup(['RETURN_READ']);
     expect(component.hasReturnableItems()).toBe(false);
   });
 
-  it("initializes the return form with an empty sku when the selected order has no items", () => {
-    setup(["RETURN_READ", "RETURN_WRITE"]);
+  it('initializes the return form with an empty sku when the selected order has no items', () => {
+    setup(['RETURN_READ', 'RETURN_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(
       of({
         ...orderSummary,
         items: [],
-      }),
+      })
     );
 
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    expect(component.returnForm.controls.sku.value).toBe("");
+    expect(component.returnForm.controls.sku.value).toBe('');
   });
 
-  it("advances to the next page", () => {
+  it('advances to the next page', () => {
     setup();
     component.totalPages.set(3);
     component.page.set(0);
@@ -913,7 +912,7 @@ describe("OrderListComponent", () => {
     expect(orderServiceSpy.listOrders).toHaveBeenCalledWith(1, 10);
   });
 
-  it("does not advance past the last page", () => {
+  it('does not advance past the last page', () => {
     setup();
     component.totalPages.set(1);
     component.page.set(0);
@@ -923,7 +922,7 @@ describe("OrderListComponent", () => {
     expect(component.page()).toBe(0);
   });
 
-  it("goes back to the previous page", () => {
+  it('goes back to the previous page', () => {
     setup();
     component.page.set(1);
 
@@ -932,7 +931,7 @@ describe("OrderListComponent", () => {
     expect(component.page()).toBe(0);
   });
 
-  it("does not go before the first page", () => {
+  it('does not go before the first page', () => {
     setup();
     component.page.set(0);
 
@@ -941,12 +940,12 @@ describe("OrderListComponent", () => {
     expect(component.page()).toBe(0);
   });
 
-  it("does not advance an unknown shipment for a selected order", () => {
-    setup(["SHIPMENT_WRITE"]);
+  it('does not advance an unknown shipment for a selected order', () => {
+    setup(['SHIPMENT_WRITE']);
     orderServiceSpy.findOrder.mockReturnValue(of(orderSummary));
-    component.selectOrder("ORDER-1");
+    component.selectOrder('ORDER-1');
 
-    component.advanceShipmentStatus("SHIP-404");
+    component.advanceShipmentStatus('SHIP-404');
 
     expect(shipmentsServiceSpy.advanceShipmentStatus).not.toHaveBeenCalled();
   });

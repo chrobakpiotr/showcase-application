@@ -1,11 +1,11 @@
-import { signal } from "@angular/core";
-import { TestBed } from "@angular/core/testing";
-import { Router, UrlTree } from "@angular/router";
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { Router, UrlTree } from '@angular/router';
 
-import { AuthService } from "@app/auth/auth.service";
-import { roleGuard } from "@app/auth/role.guard";
+import { AuthService } from '@app/auth/auth.service';
+import { roleGuard } from '@app/auth/role.guard';
 
-describe("roleGuard", () => {
+describe('roleGuard', () => {
   afterEach(() => {
     TestBed.resetTestingModule();
   });
@@ -17,7 +17,7 @@ describe("roleGuard", () => {
           provide: Router,
           useValue: {
             createUrlTree: (commands: unknown[]) =>
-              ({ commands }) as unknown as UrlTree,
+              ({ commands } as unknown as UrlTree),
           },
         },
         {
@@ -30,39 +30,39 @@ describe("roleGuard", () => {
 
   function run(url: string): boolean | UrlTree {
     return TestBed.runInInjectionContext(() =>
-      roleGuard({} as never, { url } as never),
+      roleGuard({} as never, { url } as never)
     ) as boolean | UrlTree;
   }
 
-  it("allows a role-agnostic capability", () => {
+  it('allows a role-agnostic capability', () => {
     setup([]);
-    expect(run("/cart")).toBe(true);
+    expect(run('/cart')).toBe(true);
   });
 
-  it("allows an unknown route and leaves not-found handling to the router", () => {
+  it('allows an unknown route and leaves not-found handling to the router', () => {
     setup([]);
-    expect(run("/unknown")).toBe(true);
+    expect(run('/unknown')).toBe(true);
   });
 
-  it("allows a read capability when the role is present", () => {
-    setup(["ORDER_READ"]);
-    expect(run("/orders?status=CONFIRMED")).toBe(true);
+  it('allows a read capability when the role is present', () => {
+    setup(['ORDER_READ']);
+    expect(run('/orders?status=CONFIRMED')).toBe(true);
   });
 
-  it("allows a write-only capability when the role is present", () => {
-    setup(["ORDER_WRITE"]);
-    expect(run("/order")).toBe(true);
+  it('allows a write-only capability when the role is present', () => {
+    setup(['ORDER_WRITE']);
+    expect(run('/order')).toBe(true);
   });
 
-  it("redirects to forbidden when the required role is missing", () => {
+  it('redirects to forbidden when the required role is missing', () => {
     setup([]);
-    const result = run("/inventory") as UrlTree;
+    const result = run('/inventory') as UrlTree;
     expect(
       (
         result as unknown as {
           commands: string[];
         }
-      ).commands,
-    ).toEqual(["/forbidden"]);
+      ).commands
+    ).toEqual(['/forbidden']);
   });
 });
