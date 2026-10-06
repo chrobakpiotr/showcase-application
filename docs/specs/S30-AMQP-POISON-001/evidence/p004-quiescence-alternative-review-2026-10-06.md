@@ -50,6 +50,13 @@ untracked starts within the declared scope.
   proof is recorded after restore for each exact stale registration/connection.
   Do not rely on fresh app ACKs here: apps are stopped and registration during
   PAUSE is not defined by the gate protocol.
+- Freeze registration at the barrier and persist a complete generation-bound
+  inventory of app incarnations and broker connection identities with the
+  episode in the independent host-control record. Create an older Redis
+  snapshot that omits an instance registered before the barrier; after restore,
+  prove RESUME still requires audited operator fencing proof for that omitted
+  instance from the host inventory, as well as every stale Redis entry. Any
+  uncertain or incomplete inventory blocks restore.
 - With a stopped process and a broker-confirmed closed connection but no
   authorized operator proof, RESUME stays blocked. After the operator submits
   the exact bound proof, verify durable audit precedes successful RESUME.
@@ -90,7 +97,13 @@ all registrations and ACKs recovered from restored Redis as stale, with an
 explicit pre-ACK snapshot rejection test. Candidate C takes the post-restore
 operator-proof branch for every stale registration: a further architecture
 review found that the fresh-ACK branch is unreachable while apps remain stopped
-until RESUME and gate registration during PAUSE is undefined.
+until RESUME and gate registration during PAUSE is undefined. An independent
+grill then found that the proof set could omit an instance registered before
+the barrier but absent from an older restored snapshot. Candidate C now freezes
+registration, persists the complete barrier-generation instance/connection
+inventory with the episode in the independent host-control record, and
+requires proof over the union of that inventory and restored Redis
+registrations; uncertainty blocks restore.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process
