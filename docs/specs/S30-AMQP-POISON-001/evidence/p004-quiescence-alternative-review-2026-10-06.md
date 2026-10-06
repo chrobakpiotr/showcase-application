@@ -40,16 +40,21 @@ resolved the existing `infra/docker/e2e/docker-compose.yml` services (app,
 Kafka, Keycloak, PostgreSQL, RabbitMQ, Redis, and Tempo) to Docker's default
 restart policy, `no`. The file does not declare a restart policy and is not the
 future S30 REF-CORRECTNESS overlay; it has no gate service. Docker documents
-`no` as disabling automatic restart under any circumstances
+`no` as disabling automatic restart under Docker's restart policy
 ([restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/)).
 
 For Candidate C, the future REF-Q Compose target should declare
 `restart: "no"` explicitly for every app and gate issuer and must not attach a
-host-level auto-start supervisor during the restore window. This is a
-deployable constraint to test, not current target evidence. The Docker daemon
-was not restarted because it would disrupt unrelated local containers; daemon
-restart/crash-cut behavior, host supervisor fencing, and exact-target behavior
-remain unqualified.
+host-level auto-start supervisor during the restore window. The Docker policy
+does not prevent an explicit `docker compose up` or an external process
+manager from starting the container; wrapper bypass and host-level auto-start
+are separate boundaries. This is a deployable constraint to test, not current
+target evidence. The Docker daemon was not restarted because it would disrupt
+unrelated local containers; daemon restart/crash-cut behavior, host supervisor
+fencing, and exact-target behavior remain unqualified.
+A targeted architecture review found this constraint consistent with Candidate
+C and required the wording to distinguish Docker's restart policy from explicit
+Compose starts or external process managers; that distinction is now explicit.
 
 ## Required falsification tests
 
