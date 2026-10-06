@@ -31,8 +31,12 @@ and fresh evidence against the intended handbook revision.
   claimed. On 2026-10-06 the user selected process-quiescence Candidate C as
   the recommended working design for REF-Q. This does not amend `spec.md`, pass
   the design gate, authorize implementation, or qualify REF-Q. The accepted
-  spec amendment, fresh independent review, hash-bound gate and exact-target
-  prototype/failure evidence remain outstanding. See the
+  spec amendment, independent review of that future amendment, hash-bound gate
+  and exact-target prototype/failure evidence remain outstanding. Fresh
+  architecture and scope-grill follow-ups reviewed the recommendation and
+  checklist; see
+  [`p004-candidate-c-followup-review-2026-10-06.md`](../specs/S30-AMQP-POISON-001/evidence/p004-candidate-c-followup-review-2026-10-06.md).
+  See the
   [specification](../specs/S30-AMQP-POISON-001/spec.md),
   [plan](../specs/S30-AMQP-POISON-001/plan.md), and [independent P-004
   findings](../specs/S30-AMQP-POISON-001/evidence/p004-architecture-review-2026-10-06.md).
