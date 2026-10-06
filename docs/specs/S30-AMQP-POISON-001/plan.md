@@ -500,6 +500,28 @@ The independent grill found one concrete design question without changing the
 accepted scope: P-004 must prove how a wrapper's durable host inhibit is
 observed by every gate issuer and app instance across issuer restart, delayed
 or lost notification, and partial restore. No transport mechanism is selected.
+The selected design must additionally specify and test:
+
+- a freshness authority independent of restorable PostgreSQL/Redis state, so a
+  stale but well-formed `ACTIVE` host record cannot admit work;
+- a linearization point shared by permit issue/install and inhibit observation;
+  each issuer stops new permit responses and acknowledges the exact episode
+  only after pending responses are fenced or reconciled;
+- application drain/readiness/channel closure for already-issued permits,
+  prefetched deliveries, and active handlers before either service store is
+  restored;
+- exact host-record path ownership/mode, read-only mount identity, gate
+  UID/GID/capabilities, path-substitution defense, and record-integrity checks;
+- crash-cut recovery across record fsync/rename, issuer acknowledgement,
+  application drain, store restore, audited RESUME, and inhibit release; and
+- measured synchronous record-read latency/failure/resource cost as a separate
+  part of the accepted REF-PERFORMANCE capacity sweep.
+
+The local Docker Desktop probe only favors a containing-directory mount over an
+individual-file mount for that observed host; it does not close any of these
+criteria or select candidate A. An API notification by itself cannot safely
+handle a lost request. See the independent review and its evidence limits in
+[`evidence/p004-architecture-review-2026-10-06.md`](evidence/p004-architecture-review-2026-10-06.md).
 
 No ADR is proposed yet. If deployment ownership or consumer pause/restart
 semantics establish a cross-module policy not already recorded in an ADR,
