@@ -55,9 +55,12 @@ qualification.
 
 The Harness owner clarified that `agent-harness/docs/migration/cutover.md`
 describes the Python compatibility shim; it does not change the S30 DR
-contract. Five named Showcase authority tests have equivalent tests in the
-Harness suite, but no test was removed; any removal remains deferred until the
-06b cutover and explicit agreement. The Showcase consumer now includes
+contract. Four of the five named Showcase authority tests have identical
+assertions in the Harness suite; the fifth checks the same accepted-plan call
+with injected `lifecycle` and `profile_root` values. Harness reports that its
+`test_cutover_wrapper.py` covers the values Showcase passes. No Showcase test
+was removed; any removal remains deferred until the 06b cutover and explicit
+agreement. The Showcase consumer now includes
 `tooling/agent-harness/requirements.txt` in `harness.protocol_files`, with a
 focused test proving a dependency-pin change changes the protocol fingerprint
 (`4fd9abe`, 1 test passed). Harness reports its AH5-05a and AH5-06a work as
