@@ -57,6 +57,10 @@ untracked starts within the declared scope.
   prove RESUME still requires audited operator fencing proof for that omitted
   instance from the host inventory, as well as every stale Redis entry. Any
   uncertain or incomplete inventory blocks restore.
+- Race registration/permit admission against the barrier freeze. Each attempt
+  must linearize either before freeze and appear exactly once in the persisted
+  host inventory with its incarnation/connection identity, or after freeze
+  and be rejected. No active registration may be omitted from the inventory.
 - With a stopped process and a broker-confirmed closed connection but no
   authorized operator proof, RESUME stays blocked. After the operator submits
   the exact bound proof, verify durable audit precedes successful RESUME.
@@ -103,7 +107,11 @@ the barrier but absent from an older restored snapshot. Candidate C now freezes
 registration, persists the complete barrier-generation instance/connection
 inventory with the episode in the independent host-control record, and
 requires proof over the union of that inventory and restored Redis
-registrations; uncertainty blocks restore.
+registrations; uncertainty blocks restore. The architecture follow-up confirmed
+this closes the contract gap and called for an explicit registration-vs-freeze
+race test; that case now requires each registration to appear exactly once in
+the inventory or be rejected, with no omitted active registration. No review
+selects C or qualifies REF-Q.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process
