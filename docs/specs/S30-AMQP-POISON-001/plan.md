@@ -520,8 +520,19 @@ The selected design must additionally specify and test:
 The local Docker Desktop probe only favors a containing-directory mount over an
 individual-file mount for that observed host; it does not close any of these
 criteria or select candidate A. An API notification by itself cannot safely
-handle a lost request. See the independent review and its evidence limits in
+handle a lost request. A read-only follow-up identified candidate C: the
+wrapper may durably inhibit, drain and close all consumers, then stop every
+application and gate issuer process while the supervisor is fenced against
+restart; after store reconciliation, the gate starts bound to the exact fresh
+host episode in sticky inhibit, audited RESUME releases the host record, and
+applications start last. This could avoid per-permit mount polling, but shifts
+the proof burden to complete process/connection inventory, restart-policy
+fencing, wrapper-crash recovery, and stale-start rejection. It remains an
+unselected candidate and does not replace the accepted host record or expand
+REF-Q exclusions. See the independent review and its evidence limits in
 [`evidence/p004-architecture-review-2026-10-06.md`](evidence/p004-architecture-review-2026-10-06.md).
+Candidate assessment and required falsification tests are recorded in
+[`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
 
 No ADR is proposed yet. If deployment ownership or consumer pause/restart
 semantics establish a cross-module policy not already recorded in an ADR,

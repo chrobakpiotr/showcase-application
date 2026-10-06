@@ -94,7 +94,7 @@
       "question": "How does the restore wrapper’s durable host inhibit reach every gate permit issuer and application instance, remaining fail-closed across gate restart, lost notification, and partial restore?",
       "rationale": "The accepted REF-Q design puts the restore episode in a root-owned host control record outside the service backup domains, while the gate service issues admission permits. The wrapper must confirm that every issuer observes the current episode before any restore starts, and stale/unavailable observations must deny admission. The observation/acknowledgement path is not selected and can change the reference design.",
       "decision_criteria": [
-        "wrapper durably records INHIBITED before any supported restore and cannot report success until every active permit issuer confirms the exact episode and generation",
+      "wrapper durably records INHIBITED before any supported restore and cannot report success until every active permit issuer confirms the exact episode and generation, or all issuer processes are proven stopped with automatic restart fenced for the restore window",
         "gate restart, lost or delayed notification, partial restore, and stale host-record read never permit admission",
         "permit issuance/install/start is serialized against observation of INHIBITED; an issuer stops new permit responses and acknowledges the exact episode only after pending responses are fenced or reconciled",
         "application drain, readiness-down, and channel closure account for already-issued permits, prefetched deliveries, and active handlers before any service-store restore begins",
@@ -102,7 +102,7 @@
         "all registered app instances stop new handler starts and readiness remains down until audited RESUME for the exact episode",
         "no root write capability is granted to the gate service; exact host path ownership/mode, mount identity, gate UID/GID/capabilities, read-only enforcement, path-substitution defense, and record integrity are verified",
         "crash cuts around host-record fsync/rename, gate observation, drain, store restore, audited RESUME, and host-inhibit release reconcile idempotently",
-        "synchronous host-record read latency, failures, and resource cost are measured separately on the accepted reference capacity sweep",
+      "if the selected mechanism reads the host record on the admission path, synchronous read latency, failures, and resource cost are measured separately on the accepted reference capacity sweep; process-quiescence alternatives measure shutdown, restart-fence, and recovery costs",
         "host loss, root compromise, full-host rollback, and wrapper bypass remain explicitly outside REF-Q guarantees"
       ],
       "candidates": [
@@ -110,10 +110,14 @@
           "id": "A",
           "approach": "Candidate only; the local mount probe favors a read-only directory mount over an individual-file mount on the observed Docker Desktop host. The wrapper writes a complete temporary record, fsyncs it, atomically renames it over the current record, and fsyncs the directory. Before selection, define and test an independently fresh expected episode/generation, serialize each gate's permit issue/install path against PAUSE observation, fence pending responses before exact-episode acknowledgement, prove deployment least privilege/path integrity, and measure synchronous record-read cost. Unavailable, malformed, stale, or unreadable state denies admission."
         },
-        {
-          "id": "B",
-          "approach": "Use an authenticated wrapper-to-gate inhibit/release API with durable episode and acknowledgement state; gate restart bootstraps from the host record before it may issue permits, and the wrapper waits for every issuer acknowledgement. A gate that has not observed the current episode must deny permits; an API-only notification path is insufficient after a lost request unless an additional fresh host-control signal prevents stale ACTIVE admission."
-        }
+      {
+        "id": "B",
+        "approach": "Use an authenticated wrapper-to-gate inhibit/release API with durable episode and acknowledgement state; gate restart bootstraps from the host record before it may issue permits, and the wrapper waits for every issuer acknowledgement. A gate that has not observed the current episode must deny permits; an API-only notification path is insufficient after a lost request unless an additional fresh host-control signal prevents stale ACTIVE admission."
+      },
+      {
+        "id": "C",
+        "approach": "Candidate only; after durably recording the new INHIBITED episode, the wrapper blocks external admission, drains app instances and closes Rabbit consumer channels, then stops every app and gate issuer process. Before restoring any store it verifies all registered instances and issuer processes are stopped, broker connections are closed, and the local supervisor/restart policy cannot start stale processes during the restore window. It restarts the gate through a protected wrapper-controlled path bound to the exact host-record episode in sticky INHIBITED mode, reconciles restored stores, obtains audited RESUME, releases the host inhibit, then starts apps. Missing/stale startup binding or any uncertain process/connection inventory denies restore or admission. This avoids per-permit mount polling but shifts the proof burden to process-manager fencing, startup binding, and crash recovery; wrapper bypass, root compromise, and full-host rollback remain excluded."
+      }
       ]
     }
   ],
