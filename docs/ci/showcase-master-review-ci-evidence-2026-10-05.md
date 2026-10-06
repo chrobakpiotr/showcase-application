@@ -36,3 +36,30 @@ pushed baseline, but do not rewrite earlier CI evidence and do not apply to the
 local commits made after `50c18f9`. A fresh CI run is required to qualify any
 later pushed source. The workflow view also showed routine `ubuntu-latest`
 runner migration notices; they did not fail either aggregate gate.
+
+## Follow-up run and local fixes — 2026-10-06
+
+[CI run #155](https://github.com/chrobakpiotr/showcase-application/actions/runs/37377073436)
+for pushed SHA `91d4671bd8da` failed. The backend job failed its Java formatting
+check; its subsequent artifact uploads also failed because the expected gate
+outputs were not produced after that earlier failure. The frontend job failed
+Vitest coverage. The aggregate CI quality gate consequently failed. The other
+reviewed jobs, including OWASP DependencyCheck and Playwright E2E, succeeded.
+
+Two local commits address the reproducible source failures:
+
+- `85bb440` applies the required persistence Java formatting and adds the
+  missing parked-dispatch frontend cases. Full Angular coverage passed locally:
+  488 tests, 46 files, and 100% statements, branches, functions, and lines.
+- `2db5e48` replaces repeated literals in two persistence tests with named
+  constants. This fixes the PMD violation surfaced when the backend build was
+  rerun after the formatter issue was removed.
+
+Local verification after these commits: repository-wide `spotlessJavaCheck`
+passed; all repository `pmdTest` tasks passed; both affected persistence test
+classes passed (15 tests); the earlier critical PostgreSQL and RabbitMQ evidence
+scripts passed on `85bb440`. The backend aggregate build was run before the PMD
+fix and failed on exactly that PMD rule; it was not rerun end-to-end because it
+took 14m 43s. These commits are unpushed, and this local evidence does not
+change run #155 or qualify GitHub CI. The next cloud CI run must verify the
+complete backend and frontend jobs, including artifact publication.

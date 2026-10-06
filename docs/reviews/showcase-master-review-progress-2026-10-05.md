@@ -16,15 +16,15 @@ production qualification, or evidence that another agent's work is complete.
 | S05-05a — PostgreSQL measurement fixture | DONE | `0c1f4e2` records the successful PostgreSQL 18.6/Docker 29.8.2 run, source and image digests, ten query summaries, and all 60 raw JSON plans in `tooling/performance/evidence/S05-05a-2026-10-05/`. Three helper tests and artifact-count checks pass. This is reproducible synthetic sensitivity evidence, not production workload qualification or an SLO. |
 | S05-05b — query/index comparison | BLOCKED | The 05a fixture now has reproducible synthetic evidence, but this comparison still requires an accepted representative workload/latency target. No query or index change is authorized by the synthetic sensitivity reports alone. |
 | S05-06 — parked-dispatch UI | DONE | `513c7df` adds a read-only parked-dispatch page on the existing ORDER_READ endpoint, with safe reason labels, age/attempt details, refresh and responsive states. 33 focused Angular tests, app/spec/E2E TypeScript compilation, ESLint, formatting, Playwright discovery and the backend ORDER_READ/deny-mutation security test passed. The Compose/Keycloak browser test passed: anonymous endpoint access returned 401; an ORDER_READ viewer loaded the page; no redrive control appeared; viewport widths 320/768/1024/1440 had no horizontal overflow. |
-| S05-07 — status and handbook delta | PARTIAL | This file consolidates local task/proposal evidence through `6672584`; the app source snapshot exercised by Compose E2E was `1cc2d15`. Latest read-only GitHub check: [CI run #154](https://github.com/chrobakpiotr/showcase-application/actions/runs/37324541328) for pushed SHA `50c18f9` is SUCCESS (including backend, OWASP, Playwright and aggregate gate); [Agentic SDD CI #111](https://github.com/chrobakpiotr/showcase-application/actions/runs/37324541297) is also SUCCESS. The exact run record is in [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). Those runs qualify the pushed base SHA only, not these local unpushed commits. The external handbook delta is prepared below but remains for its designated owner to apply; this repo-only task does not edit another repository. |
+| S05-07 — status and handbook delta | PARTIAL | This file consolidates the task evidence and proposal status below. The app source snapshot exercised by Compose E2E was `1cc2d15`. CI run #154 for pushed SHA `50c18f9` was SUCCESS; later run #155 for pushed SHA `91d4671` failed Java formatting and frontend Vitest. Local commits `85bb440` and `2db5e48` fix those failures and the subsequently exposed persistence PMD violation. The full repository Java format check and all PMD test rules pass locally; relevant frontend tests and persistence tests pass. No fresh CI run exists for these unpushed commits, so they are locally verified only. See [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). The external handbook delta is prepared below but remains for its designated owner to apply; this repo-only task does not edit another repository. |
 | S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. The live XML check warns that the existing risk expires in 29 days on 2026-11-03. It does not renew or modify that date. |
 
 The source handover reviewed `50c18f9`; app source and browser evidence are
 current through `1cc2d15`, the proposal refinements are `048a945`, `33f7e4a`,
-and `8e8ed37`; formatting follow-up is `61aa560`; this progress snapshot
-consolidates those local results. The S05 commits are local only. The read-only
-CI links above point to pushed SHA `50c18f9`; they do not qualify subsequent
-local commits. No deployment or external handbook state is inferred.
+and `8e8ed37`; formatting follow-up is `61aa560`. CI follow-up commits
+`85bb440` and `2db5e48` are local only. Run #154 qualifies pushed SHA `50c18f9`;
+run #155 records failures on pushed SHA `91d4671`. Local fixes do not qualify a
+remote workflow or deployment. No external handbook state is inferred.
 
 ## External handbook delta for its owner
 
