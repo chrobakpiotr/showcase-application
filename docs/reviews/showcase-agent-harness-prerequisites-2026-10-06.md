@@ -104,6 +104,31 @@ and semantic contract `sha256:bfa919c5564c09ffeeccf0db2d43796c71116a23752ff59640
 `packet_sha256` and `revision_id` are distinct packet fields, not conflicting
 revision claims.
 
+Harness reviewed the active T-009 packet in
+`agent-harness/docs/specs/AH5-04a/T-009-review.md` and found it aligned with
+the shared contract. The accepted active packet is the one whose
+`packet_sha256` is `8a9778a1a9a8b9efd2cb8e6693e76ed7fb189429d2d92e518abf549378046630`;
+`d981e02e…` is its distinct active `revision_id`, not an alternate packet
+hash. Carry these review details into T-009 implementation/evidence:
+
+- fake/controlled backend outcomes test authority only and can never satisfy
+  an independent obligation or record independent success;
+- any qualification proof must bind a passing shared qualification report to
+  the exact target and policy digest; without it, execution remains
+  `environment-blocked`;
+- new lifecycle calls for reservation, consumption and receipts stay behind
+  the injected port, and every added port method is listed in task evidence
+  for Harness parity porting;
+- terminal receipts stay Showcase-internal; a receipt crossing the shared
+  contract would require explicit contract fields and separate review.
+
+Do not edit the active packet in place. The local harness currently requires a
+CAS-bound `replan-task` transition for an active packet change, and only allows
+that transition for a running task. T-009 is still pending and blocked behind
+T-006, so its active packet remains unchanged; preserve these four points as
+implementation/evidence requirements and replan through the accepted protocol
+if a contract revision is needed once the task is running.
+
 **Current code boundary (verified locally):**
 `verification/authority.py::resolve_execution` validates and reconstructs the
 accepted plan, selects the exact obligations/units, then fails closed with
