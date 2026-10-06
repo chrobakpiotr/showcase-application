@@ -44,6 +44,10 @@ untracked starts within the declared scope.
   proof to the exact deployment, instance, Rabbit connection, and episode;
   broker-observed closure alone or stopping a process/container must not count
   as operator confirmation.
+- Restore a Gate Redis AOF/RDB snapshot captured before the current-episode
+  drain acknowledgement. Treat every recovered registration and ACK as stale;
+  RESUME stays blocked until current-episode ACKs are re-established or new
+  audited operator proof is recorded after restore for each exact connection.
 - With a stopped process and a broker-confirmed closed connection but no
   authorized operator proof, RESUME stays blocked. After the operator submits
   the exact bound proof, verify durable audit precedes successful RESUME.
@@ -78,7 +82,11 @@ fresh architecture review of that update also required mount-identity and
 read-only checks to be conditional on candidates that actually mount the host
 record. The criteria now retain host path ownership, integrity and protected
 startup requirements for all candidates, with mount-specific checks gated by
-that mechanism choice.
+that mechanism choice. A second architecture follow-up found that a Gate Redis
+restore can erase a previously recorded drain ACK. The candidate now treats all
+registrations and ACKs recovered from restored Redis as stale and requires
+current-episode ACKs or fresh audited operator fencing evidence after restore;
+the pre-ACK snapshot case is an explicit rejection test.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process
