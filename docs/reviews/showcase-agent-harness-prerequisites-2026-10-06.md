@@ -121,6 +121,20 @@ These commands are planned evidence, not a claim that 04a-2 has been
 implemented. Run the first two as focused checks, then the integration files
 where the lifecycle API is changed.
 
+The current lifecycle store contains no persisted SDD-OBS-001 task state and
+reports every task as pending; only T-001 is ready. The existing T-003–T-008
+completion artifacts are bound to a different Git common-directory identity
+(`/Users/pichroba/IdeaProjects/personal/showcase-application/.git`), while this
+checkout is `/Users/pau/IdeaProjects/showcase-application`; there is no
+historical checkout/state available to migrate. T-001 and T-002 also have no
+completion artifacts. `classify-legacy-completion` therefore returns
+`CONFLICT` for T-003 and T-006. Focused T-001 tests passed (42 tests), and the
+T-002 suite passed (95 tests) in a temporary diagnostic environment using
+cryptography 48.0.1 because the pinned 49.0.0 is unavailable from this host's
+package index; these runs are not lifecycle completion evidence. Do not mark
+the tasks complete, bind old evidence, or bypass the dependency chain on this
+basis.
+
 ## AH5-04b Showcase-owned target qualification; Harness-owned mechanism
 
 Candidate order is now explicit: try the local Docker Desktop Linux guest first;
@@ -170,6 +184,17 @@ target qualification using the shared Harness mechanism, and later verifies
 end-to-end integration on the same job-bound target. Discovery, mocked
 execution, capability flags, or a report from another job cannot set
 `qualified` or `launch_ready` for the current job.
+
+**Current execution readiness (2026-10-06):** local `docker version` reports
+Docker Desktop 4.94.0 / Engine 29.8.2, Linux/amd64. The current Showcase
+`verification_sandbox.doctor()` reports `docker-container` as discovered but
+`qualification_supported=false`, `qualified=false`, and `launch_ready=false`.
+Therefore this checkout cannot produce the required Docker Q01–Q16 report.
+Showcase must not add a competing backend/report implementation; Harness needs
+to provide the supported contract-v1 qualification invocation/tooling, after
+which Showcase can run the Docker candidate and, if it fails, the exact
+GitHub-hosted job candidate. No new Q01–Q16 report or raw probe evidence has
+been produced in this checkout.
 
 ## AH5-04c acceptance and verification
 
