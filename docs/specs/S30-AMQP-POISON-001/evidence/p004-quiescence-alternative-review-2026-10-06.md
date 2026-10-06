@@ -46,8 +46,10 @@ untracked starts within the declared scope.
   as operator confirmation.
 - Restore a Gate Redis AOF/RDB snapshot captured before the current-episode
   drain acknowledgement. Treat every recovered registration and ACK as stale;
-  RESUME stays blocked until current-episode ACKs are re-established or new
-  audited operator proof is recorded after restore for each exact connection.
+  for Candidate C, RESUME stays blocked until new audited operator fencing
+  proof is recorded after restore for each exact stale registration/connection.
+  Do not rely on fresh app ACKs here: apps are stopped and registration during
+  PAUSE is not defined by the gate protocol.
 - With a stopped process and a broker-confirmed closed connection but no
   authorized operator proof, RESUME stays blocked. After the operator submits
   the exact bound proof, verify durable audit precedes successful RESUME.
@@ -83,10 +85,12 @@ read-only checks to be conditional on candidates that actually mount the host
 record. The criteria now retain host path ownership, integrity and protected
 startup requirements for all candidates, with mount-specific checks gated by
 that mechanism choice. A second architecture follow-up found that a Gate Redis
-restore can erase a previously recorded drain ACK. The candidate now treats all
-registrations and ACKs recovered from restored Redis as stale and requires
-current-episode ACKs or fresh audited operator fencing evidence after restore;
-the pre-ACK snapshot case is an explicit rejection test.
+restore can erase a previously recorded drain ACK. The P-004 criteria now mark
+all registrations and ACKs recovered from restored Redis as stale, with an
+explicit pre-ACK snapshot rejection test. Candidate C takes the post-restore
+operator-proof branch for every stale registration: a further architecture
+review found that the fresh-ACK branch is unreachable while apps remain stopped
+until RESUME and gate registration during PAUSE is undefined.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process

@@ -535,8 +535,10 @@ gate-resume operator records durable fencing proof through the audited tool,
 bound to the exact deployment, instance, broker connection, and episode.
 Broker-observed closure alone or stopping a process is not operator fencing
 proof. After restoring Gate Redis, every registration and drain ACK recovered
-from the snapshot is stale; re-establish current-episode ACKs or obtain new
-audited operator proof after restore. See the independent review and its evidence limits in
+from the snapshot is stale. Candidate C requires new audited operator proof
+for every such registration after restore; it does not rely on an unreachable
+fresh-app-ACK branch while apps are stopped and registration is unavailable
+during PAUSE. See the independent review and its evidence limits in
 [`evidence/p004-architecture-review-2026-10-06.md`](evidence/p004-architecture-review-2026-10-06.md).
 Candidate assessment and required falsification tests are recorded in
 [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
