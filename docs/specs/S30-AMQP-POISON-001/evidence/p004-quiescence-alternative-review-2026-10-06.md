@@ -33,6 +33,24 @@ crash recovery, and the trusted startup path. It is simpler only if REF-Q
 selects and qualifies one controlled local process supervisor and disallows
 untracked starts within the declared scope.
 
+## Current Compose observation
+
+On the local Docker Engine 29.8.2, `docker compose ... config --format json`
+resolved the existing `infra/docker/e2e/docker-compose.yml` services (app,
+Kafka, Keycloak, PostgreSQL, RabbitMQ, Redis, and Tempo) to Docker's default
+restart policy, `no`. The file does not declare a restart policy and is not the
+future S30 REF-CORRECTNESS overlay; it has no gate service. Docker documents
+`no` as disabling automatic restart under any circumstances
+([restart policies](https://docs.docker.com/engine/containers/start-containers-automatically/)).
+
+For Candidate C, the future REF-Q Compose target should declare
+`restart: "no"` explicitly for every app and gate issuer and must not attach a
+host-level auto-start supervisor during the restore window. This is a
+deployable constraint to test, not current target evidence. The Docker daemon
+was not restarted because it would disrupt unrelated local containers; daemon
+restart/crash-cut behavior, host supervisor fencing, and exact-target behavior
+remain unqualified.
+
 ## Required falsification tests
 
 - Stop-before-restore ordering covers every registered app, gate issuer, and
@@ -78,7 +96,9 @@ untracked starts within the declared scope.
   release, and app startup. Uncertain commits remain inhibited and same-command
   recovery does not advance generation twice.
 - Verify the process manager cannot restart a stopped service while restore is
-  active, and test daemon/service restart at every crash cut.
+  active, confirm app/gate containers declare `restart: "no"` and no host
+  supervisor starts them during the restore window, and test daemon/service
+  restart at every crash cut in an isolated reference host.
 - Repeat the full path against the exact REF-CORRECTNESS Compose target;
   separately measure quiescence, restart-fence, and recovery overhead in
   REF-PERFORMANCE. Do not infer provider or production behavior.
