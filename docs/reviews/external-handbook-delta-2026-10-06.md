@@ -64,15 +64,18 @@ succeeded; dependency review was skipped for this push event. CodeQL and
 Scorecard also succeeded. The separate Agentic SDD workflow failed because the
 generated [`docs/specs/INVENTORY.md`](../specs/INVENTORY.md) did not match the
 new S30 status text. The mismatch is fixed in pushed commit `98e733a`. The
-latest pushed SHA `d0fb4e44d2fb` has CI run
-[37526914133](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914133),
-Agentic SDD run
-[37526914410](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914410),
+latest pushed SHA `d0fb4e44d2fb` has Agentic SDD run
+[37526914410](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914410)
+and Scorecard run
+[37526914005](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914005)
+passed. CI run
+[37526914133](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914133)
 and CodeQL run
 [37526914038](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914038)
-in progress as of the latest check; Scorecard run
-[37526914005](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914005)
-passed. Do not describe every workflow as green until those runs finish.
+remain in progress. Within CI, docs links, OWASP, PIT, frontend, SBOM and
+repository guards passed; backend build, Playwright E2E, Trivy and
+infra-as-config were still running; dependency review was skipped for the push
+event. Do not describe every workflow as green until those runs finish.
 
 The separate handbook owner should link each carried statement to the
 corresponding accepted/published commit and its fresh evidence, retain the
