@@ -104,11 +104,11 @@
       "candidates": [
         {
           "id": "A",
-          "approach": "Expose the host record to each gate process through a narrowly scoped read-only host mount; permit issuance synchronously validates the current record generation and episode. The wrapper waits for per-issuer observation acknowledgements before restoring."
+          "approach": "Expose a root-owned host-control directory to each gate process through a narrowly scoped read-only directory mount. The wrapper writes a complete temporary record, fsyncs it, atomically renames it over the current record, and fsyncs the directory. Every permit issuance synchronously opens and validates the current record generation and episode; cached or watcher-only state is insufficient. Unavailable, malformed, stale, or unreadable state denies admission. The wrapper waits for per-issuer exact-episode observation acknowledgements and application drain before restoring."
         },
         {
           "id": "B",
-          "approach": "Use an authenticated wrapper-to-gate inhibit/release API with durable episode and acknowledgement state; gate restart bootstraps from the host record before it may issue permits, and the wrapper waits for every issuer acknowledgement."
+          "approach": "Use an authenticated wrapper-to-gate inhibit/release API with durable episode and acknowledgement state; gate restart bootstraps from the host record before it may issue permits, and the wrapper waits for every issuer acknowledgement. A gate that has not observed the current episode must deny permits; an API-only notification path is insufficient after a lost request unless an additional fresh host-control signal prevents stale ACTIVE admission."
         }
       ]
     }

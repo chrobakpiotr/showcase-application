@@ -2407,3 +2407,23 @@ Added [`design-exit-blockers-2026-10-05.md`](../specs/S30-AMQP-POISON-001/eviden
 The first independent review found missing P-001 integrated failure evidence; a need to state that the accepted one-year retention policy is fixed while its maximum clock-error over-retention remains unresolved; missing P-003 PAUSE-only workload / individual-operator RESUME evidence; quarantine clock qualification; and an overstatement that 06b implementation is required for the design PASS rather than a separately explicit production-admission dependency. The register was revised to cover those points and distinguish both exit thresholds. Independent re-review and focused link/diff checks are pending.
 
 The independent re-review of the blocker register found that P-001/P-002/P-003/quarantine requirements now include the omitted design and release evidence, and that 06b is separated into a design contract dependency versus a later runtime release gate. It asked for a clearer design/runtime clock boundary. The register now specifies the accepted one-second quarantine clock bound and the P-002 timestamp/deletion contract at design time, while keeping deployed provider proof under release; it assumes no audit-retention overrun tolerance. The reviewer confirmed this resolves the boundary without inventing an accepted tolerance. Local Markdown-link and whitespace checks pass.
+
+## S30-06 P-004 host-control mount prototype — 2026-10-06
+
+The disposable state model passes seven focused assertions for lost/delayed
+notifications, exact episode acknowledgements, restart, partial restore,
+unavailable host control, stale RESUME, and drain-before-release. A live Docker
+Desktop mount probe on the observed macOS x86_64 host found that an individual
+file bind mount did not expose a complete atomic replacement within four
+seconds in either of two trials; the read-only containing-directory mount
+exposed the complete replacement in 48 ms and 45 ms. The host writer fsynced
+the replacement and directory. This supports directory mount candidate A for
+further review and identifies an API-only lost-notification counterexample;
+it does not qualify filesystem durability, real issuer behavior, or other
+hosts. The criteria now require synchronous per-permit parsing and fail-closed
+handling of malformed/unavailable records. Candidate B requires a fresh host
+signal too, so API notification alone is insufficient. Evidence and
+reproduction are in
+[`p004-host-record-mount-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p004-host-record-mount-probe.md).
+P-004 remains design-gated pending fresh architecture review and integrated
+tests; no restore wrapper or consumer admission was implemented.
