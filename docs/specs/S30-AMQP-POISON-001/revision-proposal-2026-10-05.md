@@ -98,7 +98,12 @@ The wrapper protocol would be:
 
 Until the scoped spec amendment and its gate are independently accepted, these remain Candidate C refinements in the decision/design/plan/evidence artifacts, not edits to the accepted `spec.md`. The target is not implemented or qualified.
 
-**Remaining work:** update the scoped reference DR text in `spec.md` from the exact delta above, obtain a fresh grill and independent design/verification review, then pass the hash-bound design gate before implementation tasks. Exact-target prototype/failure evidence and qualification still follow; the existing local Compose probe observed `restart: "no"` stop behavior only and did not restart Docker or exercise the S30 app, gate, broker, wrapper, or stores. The complete test list and limits are in [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
+**Remaining work:** update the scoped reference DR text in `spec.md` from the exact delta above; then obtain a fresh grill and independent design/verification review of that amended spec, and pass the hash-bound design gate before implementation tasks. Exact-target prototype/failure evidence and qualification still follow; the existing local Compose probe observed `restart: "no"` stop behavior only and did not restart Docker or exercise the S30 app, gate, broker, wrapper, or stores. The complete test list and limits are in [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
+
+Fresh read-only architecture and scope-grill follow-ups after the user's
+selection confirmed the recommendation/gate distinction and the corrected
+Candidate C checklist; see
+[`evidence/p004-candidate-c-followup-review-2026-10-06.md`](evidence/p004-candidate-c-followup-review-2026-10-06.md).
 
 ## Capacity measurement plan
 
