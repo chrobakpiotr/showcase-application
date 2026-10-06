@@ -76,10 +76,10 @@ passed. CI run
 [37526914133](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914133)
 and CodeQL run
 [37526914038](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914038)
-remain in progress. Within CI, docs links, OWASP, PIT, frontend, SBOM and
-repository guards passed; backend build, Playwright E2E, Trivy and
-infra-as-config were still running; dependency review was skipped for the push
-event. Do not describe every workflow as green until those runs finish.
+remain in progress. Within CI, docs links, OWASP, PIT, frontend, Playwright
+E2E, SBOM, Trivy, infra-as-config and repository guards passed; backend
+build/quality/tests were still running; dependency review was skipped for the
+push event. Do not describe every workflow as green until those runs finish.
 
 The separate handbook owner should link each carried statement to the
 corresponding accepted/published commit and its fresh evidence, retain the
