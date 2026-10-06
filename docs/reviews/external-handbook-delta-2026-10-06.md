@@ -28,7 +28,10 @@ and fresh evidence against the intended handbook revision.
   bounds; minimum 06b business contract; and the reference capacity sweep.
   S30-06 remains OPEN. P-004 and the design gate remain OPEN; no production
   qualification, consumer enablement, or implementation completion is
-  claimed. See the [specification](../specs/S30-AMQP-POISON-001/spec.md),
+  claimed. Read-only process-quiescence Candidate C has no remaining contract
+  blocker to selection, but remains unselected pending a human choice and
+  exact-target prototype/failure evidence. See the
+  [specification](../specs/S30-AMQP-POISON-001/spec.md),
   [plan](../specs/S30-AMQP-POISON-001/plan.md), and [independent P-004
   findings](../specs/S30-AMQP-POISON-001/evidence/p004-architecture-review-2026-10-06.md).
 - **PostgreSQL measurement fixture:** `0c1f4e2` preserves deterministic
