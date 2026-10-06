@@ -39,9 +39,15 @@ untracked starts within the declared scope.
   broker consumer connection; missing inventory entries or unconfirmed Rabbit
   closure block restore.
 - RESUME rejects stale instance registrations unless each instance has a
-  current-episode drain acknowledgement or the exact Rabbit connection has an
-  accepted fencing/closure proof. Stopping a process/container alone must not
-  be accepted as proof that the broker connection is fenced.
+  current-episode drain acknowledgement or an authenticated gate-resume
+  operator records durable fencing proof through the audited tool. Bind that
+  proof to the exact deployment, instance, Rabbit connection, and episode;
+  broker-observed closure alone or stopping a process/container must not count
+  as operator confirmation.
+- With a stopped process and a broker-confirmed closed connection but no
+  authorized operator proof, RESUME stays blocked. After the operator submits
+  the exact bound proof, verify durable audit precedes successful RESUME.
+  Replayed or cross-episode proof and reused connection IDs must reject.
 - Inject races among INHIBITED fsync, PAUSE, permit response/install, handler
   start, application drain/channel close, issuer shutdown, and restore. No
   handler starts after the barrier; active handlers finish before store
@@ -66,8 +72,13 @@ An independent follow-up grill found that the initial candidate did not
 explicitly test the accepted RESUME rule for apps stopped by the wrapper. The
 criteria now require RESUME to reject stale instance registrations until each
 has a current-episode drain acknowledgement or the exact broker connection
-has an accepted fencing/closure proof. Process termination alone is not
-broker-fencing evidence.
+has an authenticated, audited operator fencing proof bound to the deployment,
+instance, connection, and episode; broker closure alone is insufficient. A
+fresh architecture review of that update also required mount-identity and
+read-only checks to be conditional on candidates that actually mount the host
+record. The criteria now retain host path ownership, integrity and protected
+startup requirements for all candidates, with mount-specific checks gated by
+that mechanism choice.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process
