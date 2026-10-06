@@ -352,6 +352,85 @@
       "test_seam": "This is documentation/generated-artifact work: correctness is checked by source/README consistency, generator --check output, extracted PDF content and explicit rendered-page visual inspection rather than red-green application tests."
     },
     {
+      "id": "T-009",
+      "title": "Implement lifecycle-bound execution-origin admission (AH5-04a-2)",
+      "objective": "Implement the existing SDD-OBS-001 execution-origin contract for concrete verification-unit admission and launch authority, specifically M53-AC37, M53-AC45 through M53-AC48, M53-AC50 through M53-AC51, M53-AC56, and M53-AC66 through M53-AC75, as mapped by AC-OBS-040 through AC-OBS-043, AC-OBS-050 through AC-OBS-052, AC-HANDOFF-01/03/05/07/09/10/12/13/14/16, and AC-LAUNCH-01 through AC-LAUNCH-15. Bind the exact lifecycle-accepted plan, attempt/generation, candidate/surface, complete obligation/member set, profile/policy and immutable task/independent origin. Commit admission plus launch_reservation in the same .agent-state CAS, preserve the reservation as a replan barrier, then require distinct single-use launch_consumption and its winner-only ephemeral capability before physical launch. Bind terminal receipt/completion to exact consumption and coverage. Keep real execution environment-blocked when no backend is qualified; controlled backends exercise lifecycle authority only. Do not change the accepted spec or relax existing fail-closed guards.",
+      "role": "builder",
+      "depends_on": [
+        "T-006"
+      ],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/runner.py",
+        "tooling/agent-harness/orchestrate.py",
+        "tooling/agent-harness/verification/authority.py",
+        "tooling/agent-harness/verification/executor.py",
+        "tooling/agent-harness/verification/supervisor.py",
+        "tooling/agent-harness/verification/store.py",
+        "tooling/agent-harness/tests/test_harness.py",
+        "tooling/agent-harness/tests/test_runner.py",
+        "tooling/agent-harness/tests/test_orchestrate.py",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_completion_boundary.py",
+        "tooling/agent-harness/tests/test_verification_executor.py",
+        "tooling/agent-harness/tests/test_verification_lifecycle.py",
+        "tooling/agent-harness/tests/test_verification_store.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py"
+      ],
+      "risk_tags": [
+        "architecture",
+        "security",
+        "concurrency",
+        "infra"
+      ],
+      "acceptance_criteria": [
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v",
+        "python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v",
+        "python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_lifecycle.py -v",
+        "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_runner.py tooling/agent-harness/tests/test_orchestrate.py -v",
+        "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Use a real disposable .agent-state lifecycle fixture and independent controlled backend. Tests must first fail for task-only-to-independent upgrade, missing/extra/stale obligation membership, replan-vs-admission CAS races, duplicate reservation consumption, crash/lost reply after every durable transition, stale executor/capability, mismatched terminal receipt, and qualified-backend absence. Prove no physical launch or independent PASS on absent qualification; do not replace lifecycle storage with a mock for CAS claims or remove fail-closed guards."
+    },
+    {
       "id": "T-900",
       "title": "Independent verification v2 evaluation",
       "objective": "Independently try to falsify the complete SDD-OBS-001 implementation against every accepted AC-OBS and VC criterion, including OS-level backend qualification, crash/admission/grant/artifact/privacy fixtures, compatibility, CI discovery, performance and handbook/PDF evidence.",
@@ -364,7 +443,8 @@
         "T-005",
         "T-006",
         "T-007",
-        "T-008"
+        "T-008",
+        "T-009"
       ],
       "allowed_paths": [
         "tooling/agent-harness/tests/**",

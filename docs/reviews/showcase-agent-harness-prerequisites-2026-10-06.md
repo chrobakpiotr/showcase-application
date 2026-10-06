@@ -5,29 +5,26 @@ AH5-06b cutover. The shared execution contract remains owned by Harness. These
 tasks do not concern the S30-06 AMQP poison gate and do not authorize that
 feature's implementation.
 
-**Ownership rule:** until AH5-06b cutover, Showcase remains the sole
-implementation owner for the source modules and Showcase integration. The
-Showcase agent owns the source implementation and evidence; Harness reviews/ports accepted shared
-runtime changes with parity and does not maintain a concurrent implementation.
-The Harness agent continues to own the public execution contract and package
-release. A task can transfer only at the accepted cutover checkpoint.
+**Ownership rule:** Showcase owns its application consumer and integration
+verification. Harness owns the shared execution contract, the 04b qualification
+mechanism and target, and package release. Neither agent maintains a competing
+implementation of the shared contract.
 
-**Task lifecycle:** this is a scoped task proposal, not yet an executable
-Harness DAG packet. `SDD-OBS-001/tasks.json` has no AH5-04 tasks, and its
-current task identity set cannot be changed through `reconcile-feature`.
-Therefore the 04a-2 task is **assigned to Showcase but not marked READY** until
-its immutable scoped packet is independently accepted and registered using the
-repo's task protocol. This avoids presenting review markdown as executable
-Harness work or replacing an in-progress accepted task. No task has been
-started by this document.
+**Task lifecycle:** Showcase registered 04a-2 as `T-009` in
+`docs/specs/SDD-OBS-001/tasks.json`, mapped to the existing accepted SDD-OBS
+criteria; no accepted requirement or guard was changed. `harness validate` and
+verification-contract validation pass. T-009 depends on T-006 to avoid overlap
+with the existing executor, orchestration and Showcase-profile tasks. The
+current lifecycle readiness reports only T-001, so T-009 is registered but
+not yet startable under the DAG. No dependency or fail-closed guard is bypassed.
 
 ## Ordered task plan
 
 | Task | Owner | Status | Depends on | Output |
 |---|---|---|---|---|
-| AH5-04a-2 / Showcase execution-origin admission | Showcase agent (current implementation owner: Codex) | ASSIGNED; task packet acceptance required before start | accepted SDD-OBS origin contract; 04a-1 lifecycle-port parity | Immutable pre-launch admission for exact accepted independent obligations, serialized with `launch_reservation` in one lifecycle CAS; task-only origin can never be upgraded. |
-| AH5-04b / Showcase backend qualification | Showcase agent (implementation and evidence owner) | BLOCKED: candidate only, no qualified target | 04a-2; one exact target passing all mandatory active checks | One real, single-use backend with durable start identity, protected authority paths, descendant containment, cancellation/drain and restart-safe reconciliation. Publish a target-bound qualification report; no capability discovery or mock may set `qualified`/`launch_ready`. |
-| AH5-04c / Showcase source-output positive path | Showcase agent | BLOCKED | 04a-2 and 04b | A controlled accepted-plan → qualified launch → protected source/read-only input and separate writable output → drained result → complete origin-bound coverage path, with negative source/output/replay cases. |
+| AH5-04a-2 / SDD-OBS T-009 | Showcase | REGISTERED; not startable until T-006 completes | T-006; accepted SDD-OBS-001 origin/lifecycle contract | Exact pre-launch origin admission and single-use launch authority, without changing the accepted policy. |
+| AH5-04b / backend qualification | Agent Harness | NOT QUALIFIED; exact target not selected | Harness selects and qualifies one exact host/backend tuple | Target-bound active qualification report; Showcase later verifies consumer integration. |
+| AH5-04c / source-output positive integration | Showcase | BLOCKED | 04a-2 and Harness-qualified 04b target | Positive end-to-end path and negative source/output/replay cases on the exact qualified target. |
 
 The dependencies are deliberately serial: origin authority is defined before
 physical launch; backend qualification precedes any positive end-to-end
@@ -89,17 +86,12 @@ lifecycle-store test. Do not loosen legacy
 history handling or the current unconditional origin-admission refusal until
 the complete 04a-2 contract is independently accepted.
 
-**Proposed packet metadata:** risk tags `architecture`, `security`,
-`concurrency`, `infra`; test mode `red-green-refactor`; seam: lifecycle-store
+**Registered packet metadata:** risk tags `architecture`, `security`,
+`concurrency`, `infra`; test mode `red-green-refactor`; the exact allowed paths,
+verification commands and red-test seam are recorded in T-009. Lifecycle-store
 tests must first demonstrate RED for task-only upgrade, missing/extra
 obligations, replan-versus-admission, duplicate reservation/consumption, stale
-generation and crash-after-commit-before-reply. Initial path candidates are
-`tooling/agent-harness/verification/authority.py`,
-`tooling/agent-harness/harness.py`,
-`tooling/agent-harness/verification/executor.py`, lifecycle/store/supervisor
-dependencies proven necessary by the accepted plan, and focused tests in
-`tooling/agent-harness/tests/`. The final allowed-path list must be generated
-from the accepted task after boundary review.
+generation and crash-after-commit-before-reply.
 
 **Current code boundary (verified locally):**
 `verification/authority.py::resolve_execution` validates and reconstructs the
@@ -114,7 +106,7 @@ Completion paths intentionally reject origin-aware evidence. The 04a-2 packet
 must cover these existing boundaries as one lifecycle protocol and must not
 mistake the repository execution lock/journal for the required lifecycle CAS.
 
-**Proposed focused verification commands after task acceptance:**
+**T-009 verification commands (not yet run):**
 
 ```sh
 python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v
@@ -124,47 +116,45 @@ python3 -m unittest tooling/agent-harness/tests/test_harness.py -v
 python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001
 ```
 
-These commands are proposed evidence, not a claim that 04a-2 has been
-implemented. The final task packet should keep the first two commands focused
-and invoke broader test files only where the lifecycle API is integrated.
+These commands are planned evidence, not a claim that 04a-2 has been
+implemented. Run the first two as focused checks, then the integration files
+where the lifecycle API is changed.
 
-## AH5-04b target discovery and qualification
+## AH5-04b Harness-owned target qualification handoff
 
 The currently available host candidate is the local Docker Desktop Linux guest:
 Docker Engine 29.8.2, LinuxKit kernel 7.0.14, x86-64, cgroup v2, 8 vCPU and
 8,322,740,224 bytes of memory. The controlling workstation is macOS 15.8.1
 x86-64. These are observations, not a qualified or portable host allocation.
 
-Existing evidence is bounded. Native `sandbox-exec` failed process-group and
-session escape containment; Codex sandbox launch was unsupported. A prior
-Docker Desktop capability spike passed container-boundary filesystem and
-descendant checks, but failed Q16 because the same stopped container ID could
-be restarted. Docker is currently discovery-only: there is no adapter-backed
-active qualification, no policy/repository/start-generation binding, and no
-restart-stable reconciliation. Therefore **no backend is qualified**.
+Existing evidence for the Harness owner:
 
-This candidate tuple is discovery input, not a selected supported target. The
-prototype must pin the workload image digest and backend policy, preserve full
-Q01-Q16 raw evidence, and state the exact Docker Desktop host tuple. A second
-independently provisioned target is not implied. The first 04b action is an
-isolated Docker adapter prototype on this exact
-candidate. It must use a unique single-use container identity per admission,
-persist identity before payload start, never restart a consumed container,
-keep the Docker socket and authority stores outside the payload, disable
-network, drop capabilities, set no-new-privileges, use a read-only root/source
-and separately declared writable outputs, and use backend-authoritative
-container inspection/drainage after caller or supervisor loss. Crash cuts
-around create/start, lost CLI replies, daemon restart, cancellation and
-terminal-ID reuse must reconcile from durable per-start identity without a
-second launch. Any uncertain state denies launch and completion.
+- [`S30-03a qualification report`](S30-03a-qualification-2026-10-04.json):
+  native macOS and Codex sandbox candidates were rejected; neither is a
+  qualified target.
+- [`S30 implementation progress`](S30-implementation-progress-2026-09-30.md),
+  §S30-03c: the bounded Docker Desktop spike passed Q01–Q10 and Q13–Q15,
+  failed Q16 because the same stopped container ID could be restarted, and did
+  not retain raw Q13–Q16 evidence. This is not active qualification.
 
-Qualify only on the exact pinned image/engine/policy/host tuple, with all
-required protection, process escape, stale identity, crash, cancellation,
-drain and restart checks passing. The local host remains a candidate until that
-full report passes independent review. If Docker Desktop cannot prove the
-required lifecycle or authority boundary, record BLOCKED and request a
-dedicated supported Linux runner; do not silently substitute the prior
-macOS-native backend or call a fake qualified.
+The local Docker Desktop Linux guest observation (Engine 29.8.2, LinuxKit
+7.0.14, x86-64, cgroup v2, 8 vCPU, about 7.75 GiB) is candidate information
+only. **04b remains NOT QUALIFIED.** Showcase does not select this as the
+target or build a parallel backend adapter/qualification mechanism.
+
+Harness must identify one exact target record: host/VM identity, operating
+system and version, backend and version, workload image digest, policy/config
+digest, resource allocation, and evidence for authority-path isolation,
+network policy, descendant containment, cancellation/drain, start identity,
+restart/reconciliation and stale-launch prevention. Qualification applies only
+to that tuple. If it requires purchased or externally provisioned
+infrastructure, Harness should provide Piotr the concrete option and cost
+before treating it as available.
+
+Showcase supplies the accepted consumer requirements from SDD-OBS-001 and, once
+Harness has a qualified target, verifies end-to-end integration. Discovery,
+mocked execution, and capability flags cannot set `qualified` or
+`launch_ready`.
 
 ## AH5-04c acceptance and verification
 
@@ -181,12 +171,9 @@ independent origin. A green command exit alone is insufficient.
 
 ## Current blockers and cutover boundary
 
-- No qualified backend exists. The local Docker candidate is available but
-  failed a required restart-identity check and lacks an adapter-backed
-  qualification. The `docker info` resource snapshot does not resolve this.
-- No remote/dedicated Linux qualification runner has been identified or
-  provisioned in Showcase. If the local Docker candidate fails the new complete
-  qualification, that runner becomes an external prerequisite for 04b.
+- No exact supported backend target has been selected or qualified. Harness
+  owns that selection and qualification; Showcase retains only the integration
+  verification responsibility.
 - The SDD-OBS source spec contains the origin rules; the `04a-2` packet above
   decomposes that accepted behavior. Do not alter origin policy, profile
   eligibility, retry semantics or required coverage without a reviewed spec
@@ -199,11 +186,12 @@ independent origin. A green command exit alone is insufficient.
 
 ## Checkpoints
 
-1. Independently review and accept the 04a-2 packet against SDD-OBS-001; then
-   implement and commit that checkpoint in Showcase.
-2. Prototype the exact local Docker target, run the full active qualification,
-   obtain independent security/concurrency review, and record PASS or BLOCKED.
-3. Only after 04a-2 and 04b PASS, implement and verify 04c on that same target.
+1. Complete the existing DAG prerequisites through T-006; then implement and
+   commit registered Showcase task T-009 without changing SDD-OBS-001 policy.
+2. Harness selects one exact target, implements/runs its active qualification,
+   obtains independent security/concurrency review, and records PASS or BLOCKED.
+3. Only after 04a-2 and Harness 04b PASS, Showcase implements and verifies 04c
+   on that same target.
 4. Harness reviews accepted Showcase evidence, ports shared changes with parity,
    releases a pinned package, and then coordinates AH5-06b cutover with Showcase.
 
