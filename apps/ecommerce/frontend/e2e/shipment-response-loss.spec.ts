@@ -267,11 +267,14 @@ test("shipment advance replays after the committed HTTP response is lost", async
     reloadedRow.getByRole("cell", { name: "DISPATCHED", exact: true }),
   ).toBeVisible();
 
-  const replay = page.waitForResponse(
-    (response) =>
-      response.url().endsWith(`/api/shipments/${shipmentNumber}/advance`) &&
-      response.request().method() === "POST",
-  );
+  let resolveReplayCapture!: (capture: CapturedShipmentAdvance) => void;
+  const replayCapture = new Promise<CapturedShipmentAdvance>((resolve) => {
+    resolveReplayCapture = resolve;
+  });
+  const replayPattern = `**/home/api/shipments/${shipmentNumber}/advance`;
+  const captureReplay = (route: Route) =>
+    fetchAndCaptureShipmentAdvance(route, resolveReplayCapture);
+  await page.route(replayPattern, captureReplay);
   const refreshedShipments = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return (
@@ -281,17 +284,14 @@ test("shipment advance replays after the committed HTTP response is lost", async
     );
   });
   await reloadedRow.getByTestId("advance-shipment").click();
-  const replayResponse = await replay;
+  const replayResponse = await replayCapture;
   const refreshedShipmentsResponse = await refreshedShipments;
-  expect(replayResponse.status()).toBe(200);
+  expect(replayResponse.status).toBe(200);
   expect(refreshedShipmentsResponse.status()).toBe(200);
-  expect(replayResponse.request().headers()["idempotency-key"]).toBe(
-    firstOperationId,
-  );
-  expect(replayResponse.request().headers()["x-expected-shipment-status"]).toBe(
-    firstExpectedStatus,
-  );
-  expect(await replayResponse.json()).toEqual(committedBody);
+  expect(replayResponse.operationId).toBe(firstOperationId);
+  expect(replayResponse.expectedStatus).toBe(firstExpectedStatus);
+  expect(replayResponse.body).toEqual(committedBody);
+  await page.unroute(replayPattern, captureReplay);
   await expect(page.getByTestId("shipments-loading")).toBeHidden();
   const persistedRow = page
     .getByTestId("shipment-row")
