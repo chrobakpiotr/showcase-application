@@ -186,7 +186,26 @@ evidence reference in that same report; a combined or inferred B result is not
 enough. B1–B10 are defined by
 `agent-harness/docs/specs/AH5-04b/grading-requirements.md`; Harness owns those
 authoritative definitions and the report mechanism, and Showcase must execute
-them without reinterpreting or replacing them. `qualified` and `launch_ready`
+them without reinterpreting or replacing them:
+
+| Check | Required target evidence |
+|---|---|
+| B1 | Hidden bundle canary is absent from sandbox mounts, image layers and Git history, and is not exposed through network or environment. |
+| B2 | A hidden expected-value canary outside the sandbox remains unreadable. |
+| B3 | Each grade gets a fresh sandbox that is destroyed; a prior grade's marker is absent in the next. |
+| B4 | Workspace is writable; test inputs and root filesystem are read-only; `/tmp` is tmpfs; host home, Git metadata, Docker socket and SSH/GPG agents are unavailable. |
+| B5 | Egress, DNS and metadata access fail; loopback remains available. |
+| B6 | Only explicitly passed environment is visible; host credential files and inherited canaries are absent. |
+| B7 | Payload runs non-root with no capabilities, `no_new_privs` and default seccomp; setuid, mount and raw-socket probes fail. |
+| B8 | Wall-time equal to `timeout_seconds`, 1 vCPU, 512 MiB memory with no swap, 64 PIDs, 256 MiB writable disk, kill/report behavior for limit breaches, and output beyond 1 MiB dropped (not killed) are evidenced. |
+| B9 | One output file of at most 1 MiB is returned after sandbox destruction and matches the bytes written by the payload. |
+| B10 | Per-grade evidence includes target ID, qualification-report digest, image digest, applied limits, fired limit and exit code. |
+
+Contract v1's consumer result cannot expose B8's applied limits/limit kinds or
+output-truncation flag, and cannot expose all B10 provenance fields. Keep that
+information as individual evidence in the qualification report; do not claim
+the current grade result provides it or change the Showcase contract. Harness
+ADR 0005 tracks those as contract-v2 gaps. `qualified` and `launch_ready`
 require passing evidence for every Q01–Q16 and B1–B10 check. GitHub-hosted jobs
 are fresh VMs with changing images: qualification never carries between jobs.
 Each job must qualify its own exact setup before any job-local
