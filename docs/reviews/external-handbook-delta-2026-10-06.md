@@ -28,9 +28,11 @@ and fresh evidence against the intended handbook revision.
   bounds; minimum 06b business contract; and the reference capacity sweep.
   S30-06 remains OPEN. P-004 and the design gate remain OPEN; no production
   qualification, consumer enablement, or implementation completion is
-  claimed. Read-only process-quiescence Candidate C has no remaining contract
-  blocker to selection, but remains unselected pending a human choice and
-  exact-target prototype/failure evidence. See the
+  claimed. On 2026-10-06 the user selected process-quiescence Candidate C as
+  the recommended working design for REF-Q. This does not amend `spec.md`, pass
+  the design gate, authorize implementation, or qualify REF-Q. The accepted
+  spec amendment, fresh independent review, hash-bound gate and exact-target
+  prototype/failure evidence remain outstanding. See the
   [specification](../specs/S30-AMQP-POISON-001/spec.md),
   [plan](../specs/S30-AMQP-POISON-001/plan.md), and [independent P-004
   findings](../specs/S30-AMQP-POISON-001/evidence/p004-architecture-review-2026-10-06.md).
@@ -61,9 +63,16 @@ On pushed `a6fac3c33376`, the main CI aggregate and every required job
 succeeded; dependency review was skipped for this push event. CodeQL and
 Scorecard also succeeded. The separate Agentic SDD workflow failed because the
 generated [`docs/specs/INVENTORY.md`](../specs/INVENTORY.md) did not match the
-new S30 status text. The mismatch is fixed locally in `98e733a`; exact protocol
-validation commands pass under Python 3.13, but that fix is unpushed and needs
-a fresh workflow. Do not describe every workflow as green until it is rerun.
+new S30 status text. The mismatch is fixed in pushed commit `98e733a`. The
+latest pushed SHA `d0fb4e44d2fb` has CI run
+[37526914133](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914133),
+Agentic SDD run
+[37526914410](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914410),
+and CodeQL run
+[37526914038](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914038)
+in progress as of the latest check; Scorecard run
+[37526914005](https://github.com/chrobakpiotr/showcase-application/actions/runs/37526914005)
+passed. Do not describe every workflow as green until those runs finish.
 
 The separate handbook owner should link each carried statement to the
 corresponding accepted/published commit and its fresh evidence, retain the

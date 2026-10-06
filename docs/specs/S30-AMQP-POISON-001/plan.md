@@ -499,8 +499,11 @@ complete until the required design and verification artifacts pass their gates.
 The independent grill found one concrete design question without changing the
 accepted scope: P-004 must prove how a wrapper's durable host inhibit is
 observed by every gate issuer and app instance across issuer restart, delayed
-or lost notification, and partial restore. No transport mechanism is selected.
-The selected design must additionally specify and test:
+or lost notification, and partial restore. The user selected process-
+quiescence Candidate C as the recommended REF-Q working design on 2026-10-06.
+The accepted spec has not been amended and the design gate remains OPEN; the
+candidate is recorded in `design.json` but is not a gate approval. It must
+additionally specify and test:
 
 - a freshness authority independent of restorable PostgreSQL/Redis state, so a
   stale but well-formed `ACTIVE` host record cannot admit work;
@@ -510,26 +513,35 @@ The selected design must additionally specify and test:
 - application drain/readiness/channel closure for already-issued permits,
   prefetched deliveries, and active handlers before either service store is
   restored;
-- exact host-record path ownership/mode, read-only mount identity, gate
-  UID/GID/capabilities, path-substitution defense, and record-integrity checks;
-- crash-cut recovery across record fsync/rename, issuer acknowledgement,
-  application drain, store restore, audited RESUME, and inhibit release; and
-- measured synchronous record-read latency/failure/resource cost as a separate
-  part of the accepted REF-PERFORMANCE capacity sweep.
+- exact host-record path ownership/mode, gate UID/GID/capabilities,
+  path-substitution defense, and record-integrity checks for all candidates;
+  read-only mount identity/enforcement applies only if a candidate mounts the
+  host record;
+- Candidate C process-manager fencing: explicitly set `restart: "no"` for
+  app and gate issuers, exclude host-level auto-start during restore, bind gate
+  startup to the exact fresh episode, and prove wrapper/daemon crash cuts do
+  not restart stale processes; and
+- crash-cut recovery across host-record fsync/rename, issuer stop/start,
+  application drain, store restore, audited RESUME, and inhibit release. Measure
+  shutdown, restart-fence, and recovery costs for C; synchronous record-read
+  latency/failure/resource cost belongs in REF-PERFORMANCE only if the selected
+  mechanism reads the record on the admission path.
 
 The local Docker Desktop probe only favors a containing-directory mount over an
 individual-file mount for that observed host; it does not close any of these
 criteria or select candidate A. An API notification by itself cannot safely
-handle a lost request. A read-only follow-up identified candidate C: the
+handle a lost request. A read-only follow-up identified candidate C, which the
+user selected on 2026-10-06 as the recommended working design for REF-Q:
 wrapper may durably inhibit, drain and close all consumers, then stop every
 application and gate issuer process while the supervisor is fenced against
 restart; after store reconciliation, the gate starts bound to the exact fresh
 host episode in sticky inhibit, audited RESUME releases the host record, and
 applications start last. This could avoid per-permit mount polling, but shifts
 the proof burden to complete process/connection inventory, restart-policy
-fencing, wrapper-crash recovery, and stale-start rejection. It remains an
-unselected candidate and does not replace the accepted host record or expand
-REF-Q exclusions. RESUME must still reject stale instance registrations unless
+fencing, wrapper-crash recovery, and stale-start rejection. This recommendation
+does not yet amend the accepted spec or pass the design gate. Candidate C does
+not replace the accepted host record or expand REF-Q exclusions. RESUME must
+still reject stale instance registrations unless
 each instance has a current-episode drain acknowledgement or an authenticated
 gate-resume operator records durable fencing proof through the audited tool,
 bound to the exact deployment, instance, broker connection, and episode.

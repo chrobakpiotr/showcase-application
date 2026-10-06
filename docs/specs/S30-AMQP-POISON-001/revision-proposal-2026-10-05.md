@@ -73,9 +73,9 @@ Direct DB-console restore, direct volume replacement, provider-managed PITR, ful
 
 ### P-004 decision memo — process quiescence for REF-Q
 
-**Status:** recommendation for user decision; no mechanism is selected. P-004 and the design gate remain OPEN. The independent architecture review and grill found no remaining contract blocker to selecting Candidate C after the listed criteria were added; neither review selects it or supplies exact-target qualification evidence.
+**Status:** on 2026-10-06, the user selected Candidate C as the recommended working design for REF-Q. This resolves which P-004 alternative to advance; it does not by itself amend the accepted `spec.md`, pass the design gate, authorize implementation, or qualify REF-Q. P-004 and the design gate remain OPEN. The independent architecture review and grill found no remaining contract blocker to advancing Candidate C; neither review supplies exact-target qualification evidence.
 
-**Recommendation:** select process-quiescence Candidate C for the single-host REF-Q Compose target, subject to the exact spec delta and evidence below. It removes per-permit shared-mount polling from the admission path and can use the existing Docker Compose process boundary, while keeping the accepted host-control record, audited operator RESUME, and explicit REF-Q exclusions. The tradeoff is a stricter operational flow: a Gate Redis restore requires fresh audited operator fencing proof for every stale connection in a complete pre-restore barrier inventory, and no app/gate auto-start may occur during restore.
+**Selected recommendation:** advance process-quiescence Candidate C for the single-host REF-Q Compose target, subject to the exact spec delta and evidence below. It removes per-permit shared-mount polling from the admission path and can use the existing Docker Compose process boundary, while keeping the accepted host-control record, audited operator RESUME, and explicit REF-Q exclusions. The tradeoff is a stricter operational flow: a Gate Redis restore requires fresh audited operator fencing proof for every stale connection in a complete pre-restore barrier inventory, and no app/gate auto-start may occur during restore.
 
 The wrapper protocol would be:
 
@@ -96,9 +96,9 @@ The wrapper protocol would be:
 - Add the REF-Q Compose lifecycle constraint: app and gate issuer containers explicitly use `restart: "no"`; no host-level supervisor may auto-start them during restore; only the wrapper starts them after RESUME. Preserve wrapper bypass, root compromise, host loss, full-host rollback, direct/provider restore, and unlisted paths as exclusions.
 - Add falsification tests for the registration/freeze race, a pre-barrier instance omitted by an old Redis snapshot, missing/replayed/cross-episode operator proof, wrapper and daemon crash cuts, restart-policy/autostart fencing, and end-to-end ordering through audited RESUME and app startup.
 
-Until this choice is accepted, these are proposed Candidate C refinements in the design/plan/evidence artifacts, not edits to the accepted spec. The target is not implemented or qualified.
+Until the scoped spec amendment and its gate are independently accepted, these remain Candidate C refinements in the decision/design/plan/evidence artifacts, not edits to the accepted `spec.md`. The target is not implemented or qualified.
 
-**Remaining decision:** whether to select C for REF-Q, retain Candidate A/B for another prototype, or keep P-004 unresolved. Selection does not close REF-Q: exact-target prototype/failure evidence and fresh design/verification review still follow. The local Compose probe observed `restart: "no"` stop behavior only; it did not restart Docker or exercise the S30 app, gate, broker, wrapper, or stores. The complete test list and limits are in [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
+**Remaining work:** update the scoped reference DR text in `spec.md` from the exact delta above, obtain a fresh grill and independent design/verification review, then pass the hash-bound design gate before implementation tasks. Exact-target prototype/failure evidence and qualification still follow; the existing local Compose probe observed `restart: "no"` stop behavior only and did not restart Docker or exercise the S30 app, gate, broker, wrapper, or stores. The complete test list and limits are in [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
 
 ## Capacity measurement plan
 
