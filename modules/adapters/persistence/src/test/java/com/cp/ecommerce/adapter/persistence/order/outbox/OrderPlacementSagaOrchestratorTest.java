@@ -7,8 +7,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
-import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.common.utils.LogCapture;
+import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.inventory.port.incoming.ManageStockInPort;
 import com.cp.ecommerce.domain.order.Order;
@@ -294,7 +294,9 @@ class OrderPlacementSagaOrchestratorTest {
         try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
             assertDoesNotThrow(orderPlacementSagaOrchestrator::publishPendingEvents);
             assertThat(logs.formattedMessages()).doesNotContain(
-                    failedOrder.getOrderNumber(), successfulOrder.getOrderNumber(), RABBITMQ_UNAVAILABLE_MESSAGE);
+                    failedOrder.getOrderNumber(),
+                    successfulOrder.getOrderNumber(),
+                    RABBITMQ_UNAVAILABLE_MESSAGE);
             assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
         }
 
@@ -917,8 +919,7 @@ class OrderPlacementSagaOrchestratorTest {
 
         try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
             assertDoesNotThrow(newOrchestrator()::publishPendingEvents);
-            assertThat(logs.formattedMessages()).doesNotContain(
-                    "ORDER-COMPENSATION-CLAIM-FAILURE", "claim lock unavailable");
+            assertThat(logs.formattedMessages()).doesNotContain("ORDER-COMPENSATION-CLAIM-FAILURE", "claim lock unavailable");
             assertThat(logs.events()).allSatisfy(loggingEvent -> assertThat(loggingEvent.getThrowableProxy()).isNull());
         }
 

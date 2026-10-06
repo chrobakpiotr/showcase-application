@@ -102,9 +102,7 @@ public class OrderPlacementDispatchManager {
             }
             markSent(claim, now());
         } catch (final RuntimeException exception) { // SUPPRESS CHECKSTYLE IllegalCatch
-            log.warn(
-                    "Could not deliver durable placement dispatch: type={}",
-                    claim.dispatchType());
+            log.warn("Could not deliver durable placement dispatch: type={}", claim.dispatchType());
             markFailed(claim, exception.getMessage(), now());
         }
     }

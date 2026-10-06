@@ -11,8 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -45,14 +45,8 @@ class MockNotificationDeliveryAdapterTest {
         final String operationId = "PRIVATE_IDEMPOTENCY_KEY";
         try (LogCapture logs = new LogCapture(MockNotificationDeliveryAdapter.class)) {
             mockNotificationDeliveryAdapter.deliver(operationId, NotificationBuilder.mockNotification());
-            assertThat(logs.formattedMessages())
-                    .contains("Mock notification delivery outcome=RECORDED channel=EMAIL")
-                    .doesNotContain(
-                            operationId,
-                            TEST_NOTIFICATION_ID,
-                            TEST_RECIPIENT_EMAIL,
-                            TEST_SUBJECT,
-                            TEST_BODY);
+            assertThat(logs.formattedMessages()).contains("Mock notification delivery outcome=RECORDED channel=EMAIL")
+                    .doesNotContain(operationId, TEST_NOTIFICATION_ID, TEST_RECIPIENT_EMAIL, TEST_SUBJECT, TEST_BODY);
         }
 
         verify(resilientExecutor).callResilientOrElse(anyString(), any(), any());

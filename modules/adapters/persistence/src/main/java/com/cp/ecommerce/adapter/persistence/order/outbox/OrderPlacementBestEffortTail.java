@@ -46,21 +46,10 @@ public class OrderPlacementBestEffortTail {
         orderPlacementDispatchManager.enqueue(order);
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            executor.execute(() -> runSimple("s3-export", order, exportOrderInPort::exportOrder));
+            executor.execute(() -> runSimple("sqs-audit", order, publishOrderAuditEventInPort::publishAuditEvent));
             executor.execute(
-                    () -> runSimple(
-                            "s3-export",
-                    order,
-                    exportOrderInPort::exportOrder));
-            executor.execute(
-                    () -> runSimple(
-                            "sqs-audit",
-                    order,
-                    publishOrderAuditEventInPort::publishAuditEvent));
-            executor.execute(
-                    () -> runSimple(
-                            "kafka-analytics",
-                    order,
-                    publishOrderAnalyticsEventInPort::publishAnalyticsEvent));
+                    () -> runSimple("kafka-analytics", order, publishOrderAnalyticsEventInPort::publishAnalyticsEvent));
             executor.execute(() -> classifyRemarks(order));
             executor.execute(() -> detectDuplicateOrder(order));
         }
@@ -74,8 +63,7 @@ public class OrderPlacementBestEffortTail {
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), true);
             sagaMetrics.recordRemarksClassification(result.getCategory());
             if (result.getCategory() == RemarksTriageCategory.SUSPICIOUS) {
-                log.warn(
-                        "Order remarks triage outcome=REVIEW_REQUIRED");
+                log.warn("Order remarks triage outcome=REVIEW_REQUIRED");
             }
         }, exception -> {
             sagaMetrics.recordStepDuration("ai-remarks-triage", elapsedSince(startNanos), false);
@@ -91,8 +79,7 @@ public class OrderPlacementBestEffortTail {
             sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), true);
             sagaMetrics.recordDuplicateOrderDetection(result.isDuplicate());
             if (result.isDuplicate()) {
-                log.warn(
-                        "Order duplicate detection outcome=REVIEW_REQUIRED");
+                log.warn("Order duplicate detection outcome=REVIEW_REQUIRED");
             }
         }, exception -> {
             sagaMetrics.recordStepDuration("ai-duplicate-order-detection", elapsedSince(startNanos), false);

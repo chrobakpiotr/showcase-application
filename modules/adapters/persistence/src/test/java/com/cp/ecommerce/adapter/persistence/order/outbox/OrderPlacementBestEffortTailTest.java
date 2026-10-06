@@ -1,7 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
-import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.common.utils.LogCapture;
+import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager;
 import com.cp.ecommerce.adapter.persistence.order.outbox.metrics.SagaMetrics;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
@@ -20,8 +20,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -138,11 +138,10 @@ class OrderPlacementBestEffortTailTest {
         try (LogCapture logs = new LogCapture(OrderPlacementBestEffortTail.class)) {
             assertDoesNotThrow(() -> tail.run(order));
             tail.run(order);
-            assertThat(logs.formattedMessages())
-                    .doesNotContain(
-                            order.getOrderNumber(),
-                            "AI unavailable",
-                            "Requests shipping to an address different from billing.");
+            assertThat(logs.formattedMessages()).doesNotContain(
+                    order.getOrderNumber(),
+                    "AI unavailable",
+                    "Requests shipping to an address different from billing.");
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
         }
 
@@ -168,12 +167,11 @@ class OrderPlacementBestEffortTailTest {
         try (LogCapture logs = new LogCapture(OrderPlacementBestEffortTail.class)) {
             assertDoesNotThrow(() -> tail.run(order));
             tail.run(order);
-            assertThat(logs.formattedMessages())
-                    .doesNotContain(
-                            order.getOrderNumber(),
-                            "AI unavailable",
-                            "PRE-EXISTING-1",
-                            "Remarks nearly identical to a recent order from the same customer.");
+            assertThat(logs.formattedMessages()).doesNotContain(
+                    order.getOrderNumber(),
+                    "AI unavailable",
+                    "PRE-EXISTING-1",
+                    "Remarks nearly identical to a recent order from the same customer.");
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
         }
 

@@ -107,7 +107,12 @@ describe("ParkedDispatchesComponent", () => {
   it("renders an empty state for an empty page", () => {
     setup();
     service.listParkedDispatches.mockReturnValue(
-      of({ ...page, content: [], totalElements: 0, totalPages: 0 }),
+      of({
+        ...page,
+        content: undefined,
+        totalElements: 0,
+        totalPages: 0,
+      } as unknown as ParkedDispatchPage),
     );
     component.retry();
     fixture.detectChanges();
@@ -122,6 +127,9 @@ describe("ParkedDispatchesComponent", () => {
     expect(component.formatAge(Number.NaN)).toBe("Unknown");
     expect(component.formatAge(-1)).toBe("Unknown");
     expect(component.formatAge(30)).toBe("30 seconds");
+    expect(component.formatAge(1)).toBe("1 second");
+    expect(component.formatAge(60)).toBe("1 minute");
+    expect(component.formatAge(3600)).toBe("1 hour");
     expect(component.formatAge(7200)).toBe("2 hours");
     expect(component.formatAge(172800)).toBe("2 days");
     expect(component.ageOf("not-a-date")).toBe("Unknown");

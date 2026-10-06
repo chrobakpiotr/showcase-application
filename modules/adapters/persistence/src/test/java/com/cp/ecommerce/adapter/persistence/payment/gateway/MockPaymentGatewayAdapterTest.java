@@ -56,8 +56,7 @@ class MockPaymentGatewayAdapterTest {
         try (LogCapture logs = new LogCapture(MockPaymentGatewayAdapter.class)) {
             result = mockPaymentGatewayAdapter
                     .charge(ORDER_NUMBER, CAPTURE_OPERATION_ID, new BigDecimal(ORDER_AMOUNT), PaymentMethod.CARD);
-            assertThat(logs.formattedMessages())
-                    .contains("Mock payment gateway operation=CAPTURE outcome=ACCEPTED")
+            assertThat(logs.formattedMessages()).contains("Mock payment gateway operation=CAPTURE outcome=ACCEPTED")
                     .doesNotContain(ORDER_NUMBER, CAPTURE_OPERATION_ID, ORDER_AMOUNT, result);
         }
 
@@ -111,8 +110,7 @@ class MockPaymentGatewayAdapterTest {
 
         try (LogCapture logs = new LogCapture(MockPaymentGatewayAdapter.class)) {
             mockPaymentGatewayAdapter.refund(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", new BigDecimal("10.00"));
-            assertThat(logs.formattedMessages())
-                    .contains("Mock payment gateway operation=REFUND outcome=ACCEPTED")
+            assertThat(logs.formattedMessages()).contains("Mock payment gateway operation=REFUND outcome=ACCEPTED")
                     .doesNotContain(ORDER_NUMBER, "mock-gw-1234", "RETURN-1", "10.00");
         }
 
