@@ -96,15 +96,19 @@
       "decision_criteria": [
         "wrapper durably records INHIBITED before any supported restore and cannot report success until every active permit issuer confirms the exact episode and generation",
         "gate restart, lost or delayed notification, partial restore, and stale host-record read never permit admission",
+        "permit issuance/install/start is serialized against observation of INHIBITED; an issuer stops new permit responses and acknowledges the exact episode only after pending responses are fenced or reconciled",
+        "application drain, readiness-down, and channel closure account for already-issued permits, prefetched deliveries, and active handlers before any service-store restore begins",
+        "a stale but well-formed ACTIVE host record is rejected against an independently trusted fresh expected episode/generation; the freshness source and its trust boundary are explicit",
         "all registered app instances stop new handler starts and readiness remains down until audited RESUME for the exact episode",
-        "no root write capability is granted to the gate service; host-record read capability is narrowly scoped and integrity is verified",
+        "no root write capability is granted to the gate service; exact host path ownership/mode, mount identity, gate UID/GID/capabilities, read-only enforcement, path-substitution defense, and record integrity are verified",
         "crash cuts around host-record fsync/rename, gate observation, drain, store restore, audited RESUME, and host-inhibit release reconcile idempotently",
+        "synchronous host-record read latency, failures, and resource cost are measured separately on the accepted reference capacity sweep",
         "host loss, root compromise, full-host rollback, and wrapper bypass remain explicitly outside REF-Q guarantees"
       ],
       "candidates": [
         {
           "id": "A",
-          "approach": "Expose a root-owned host-control directory to each gate process through a narrowly scoped read-only directory mount. The wrapper writes a complete temporary record, fsyncs it, atomically renames it over the current record, and fsyncs the directory. Every permit issuance synchronously opens and validates the current record generation and episode; cached or watcher-only state is insufficient. Unavailable, malformed, stale, or unreadable state denies admission. The wrapper waits for per-issuer exact-episode observation acknowledgements and application drain before restoring."
+          "approach": "Candidate only; the local mount probe favors a read-only directory mount over an individual-file mount on the observed Docker Desktop host. The wrapper writes a complete temporary record, fsyncs it, atomically renames it over the current record, and fsyncs the directory. Before selection, define and test an independently fresh expected episode/generation, serialize each gate's permit issue/install path against PAUSE observation, fence pending responses before exact-episode acknowledgement, prove deployment least privilege/path integrity, and measure synchronous record-read cost. Unavailable, malformed, stale, or unreadable state denies admission."
         },
         {
           "id": "B",
