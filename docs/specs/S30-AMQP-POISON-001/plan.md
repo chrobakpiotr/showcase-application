@@ -529,7 +529,10 @@ applications start last. This could avoid per-permit mount polling, but shifts
 the proof burden to complete process/connection inventory, restart-policy
 fencing, wrapper-crash recovery, and stale-start rejection. It remains an
 unselected candidate and does not replace the accepted host record or expand
-REF-Q exclusions. See the independent review and its evidence limits in
+REF-Q exclusions. RESUME must still reject stale instance registrations unless
+each instance has a current-episode drain acknowledgement or the exact broker
+connection has an accepted fencing/closure proof; stopping a process alone is
+not broker-fencing evidence. See the independent review and its evidence limits in
 [`evidence/p004-architecture-review-2026-10-06.md`](evidence/p004-architecture-review-2026-10-06.md).
 Candidate assessment and required falsification tests are recorded in
 [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).

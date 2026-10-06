@@ -38,6 +38,10 @@ untracked starts within the declared scope.
 - Stop-before-restore ordering covers every registered app, gate issuer, and
   broker consumer connection; missing inventory entries or unconfirmed Rabbit
   closure block restore.
+- RESUME rejects stale instance registrations unless each instance has a
+  current-episode drain acknowledgement or the exact Rabbit connection has an
+  accepted fencing/closure proof. Stopping a process/container alone must not
+  be accepted as proof that the broker connection is fenced.
 - Inject races among INHIBITED fsync, PAUSE, permit response/install, handler
   start, application drain/channel close, issuer shutdown, and restore. No
   handler starts after the barrier; active handlers finish before store
@@ -57,6 +61,13 @@ untracked starts within the declared scope.
   REF-PERFORMANCE. Do not infer provider or production behavior.
 
 ## Limits
+
+An independent follow-up grill found that the initial candidate did not
+explicitly test the accepted RESUME rule for apps stopped by the wrapper. The
+criteria now require RESUME to reject stale instance registrations until each
+has a current-episode drain acknowledgement or the exact broker connection
+has an accepted fencing/closure proof. Process termination alone is not
+broker-fencing evidence.
 
 The accepted REF-Q exclusions remain: root compromise, full-host rollback,
 direct/provider restore, unlisted restore paths, and wrapper bypass. Process
