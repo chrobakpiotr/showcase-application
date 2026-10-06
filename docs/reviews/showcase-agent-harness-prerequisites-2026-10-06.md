@@ -5,10 +5,11 @@ AH5-06b cutover. The shared execution contract remains owned by Harness. These
 tasks do not concern the S30-06 AMQP poison gate and do not authorize that
 feature's implementation.
 
-**Ownership rule:** Showcase owns its application consumer and integration
-verification. Harness owns the shared execution contract, the 04b qualification
-mechanism and target, and package release. Neither agent maintains a competing
-implementation of the shared contract.
+**Ownership rule:** Showcase owns its application consumer, the 04b target
+qualification runs/evidence, and integration verification. Harness owns the
+shared execution contract, its qualification/report mechanism, and package
+release. Neither agent maintains a competing implementation of the shared
+contract.
 
 **Task lifecycle:** Showcase registered 04a-2 as `T-009` in
 `docs/specs/SDD-OBS-001/tasks.json`, mapped to the existing accepted SDD-OBS
@@ -23,8 +24,8 @@ not yet startable under the DAG. No dependency or fail-closed guard is bypassed.
 | Task | Owner | Status | Depends on | Output |
 |---|---|---|---|---|
 | AH5-04a-2 / SDD-OBS T-009 | Showcase | REGISTERED; not startable until T-006 completes | T-006; accepted SDD-OBS-001 origin/lifecycle contract | Exact pre-launch origin admission and single-use launch authority, without changing the accepted policy. |
-| AH5-04b / backend qualification | Agent Harness | NOT QUALIFIED; exact target not selected | Harness selects and qualifies one exact host/backend tuple | Target-bound active qualification report; Showcase later verifies consumer integration. |
-| AH5-04c / source-output positive integration | Showcase | BLOCKED | 04a-2 and Harness-qualified 04b target | Positive end-to-end path and negative source/output/replay cases on the exact qualified target. |
+| AH5-04b / backend qualification | Showcase (qualification run owner); Harness (contract/tool owner) | NOT QUALIFIED; candidate order now set, exact job-bound target evidence outstanding | Q01–Q16 on one exact target setup, with per-job raw evidence and a target ID plus policy digest | A passing CapabilityReport for that job only; no cross-job qualification carryover. |
+| AH5-04c / source-output positive integration | Showcase | BLOCKED | 04a-2 and a passing 04b report for the same job-bound target | Positive end-to-end path and negative source/output/replay cases on the exact qualified target. |
 
 The dependencies are deliberately serial: origin authority is defined before
 physical launch; backend qualification precedes any positive end-to-end
@@ -74,9 +75,9 @@ Tests must prove, at plan, admission, launch and completion boundaries:
   the exact plan, family, lifecycle generation, candidate/surface,
   obligation/member set, admission, reservation, consumption and immutable
   origin; an origin label or successful process result alone is insufficient;
-- until AH5-04b has an exact qualified/launch-ready report, the real execution
-  path remains `environment-blocked` and cannot launch or record independent
-  success. Controlled backends test authority logic only.
+- until the current job has its own exact qualified/launch-ready 04b report, the
+  real execution path remains `environment-blocked` and cannot launch or record
+  independent success. Controlled backends test authority logic only.
 
 Verify focused authority, executor, lifecycle, completion-boundary, runner and
 orchestrator cases. Include a real lifecycle-store fixture for pre-launch CAS;
@@ -120,14 +121,23 @@ These commands are planned evidence, not a claim that 04a-2 has been
 implemented. Run the first two as focused checks, then the integration files
 where the lifecycle API is changed.
 
-## AH5-04b Harness-owned target qualification handoff
+## AH5-04b Showcase-owned target qualification; Harness-owned mechanism
 
-The currently available host candidate is the local Docker Desktop Linux guest:
+Candidate order is now explicit: try the local Docker Desktop Linux guest first;
+if it fails the complete Q01–Q16 qualification, use a GitHub-hosted Ubuntu
+runner job as the fallback. The GitHub runner has sudo and Docker, which allows
+the daemon-restart and crash checks to run. Showcase owns executing the
+qualification and preserving its raw evidence; Harness owns the shared
+CapabilityReport and qualification mechanism. Contract v1 already represents
+each target with a target ID and policy digest, so no parallel mechanism or
+contract change is needed.
+
+The local candidate has previously been observed as:
 Docker Engine 29.8.2, LinuxKit kernel 7.0.14, x86-64, cgroup v2, 8 vCPU and
 8,322,740,224 bytes of memory. The controlling workstation is macOS 15.8.1
 x86-64. These are observations, not a qualified or portable host allocation.
 
-Existing evidence for the Harness owner:
+Existing evidence for both candidates:
 
 - [`S30-03a qualification report`](S30-03a-qualification-2026-10-04.json):
   native macOS and Codex sandbox candidates were rejected; neither is a
@@ -137,24 +147,29 @@ Existing evidence for the Harness owner:
   failed Q16 because the same stopped container ID could be restarted, and did
   not retain raw Q13–Q16 evidence. This is not active qualification.
 
-The local Docker Desktop Linux guest observation (Engine 29.8.2, LinuxKit
-7.0.14, x86-64, cgroup v2, 8 vCPU, about 7.75 GiB) is candidate information
-only. **04b remains NOT QUALIFIED.** Showcase does not select this as the
-target or build a parallel backend adapter/qualification mechanism.
+The previous Docker observation (Engine 29.8.2, LinuxKit 7.0.14, x86-64,
+cgroup v2, 8 vCPU, about 7.75 GiB) is candidate information only. The prior
+spike failed Q16 and did not retain all raw evidence, so Docker Desktop remains
+**NOT QUALIFIED** until a fresh complete run passes. The GitHub-hosted runner is
+also **NOT QUALIFIED** until its own complete run passes.
 
-Harness must identify one exact target record: host/VM identity, operating
-system and version, backend and version, workload image digest, policy/config
-digest, resource allocation, and evidence for authority-path isolation,
-network policy, descendant containment, cancellation/drain, start identity,
-restart/reconciliation and stale-launch prevention. Qualification applies only
-to that tuple. If it requires purchased or externally provisioned
-infrastructure, Harness should provide Piotr the concrete option and cost
-before treating it as available.
+For every job that relies on the qualification, capture the exact runner image
+version, kernel, Docker Engine version, pinned workload image digest, policy
+digest, resource allocation, and host/job identity. Run all Q01–Q16 in that
+job, preserve raw evidence, and emit a CapabilityReport bound to that target ID
+and policy digest. GitHub-hosted jobs are fresh VMs with changing images:
+qualification never carries between jobs. Each job must qualify its own exact
+setup before any job-local `qualified` or `launch_ready` result may be used.
+Evidence must cover authority-path isolation, network policy, descendant
+containment, cancellation/drain, start identity, restart/reconciliation and
+stale-launch prevention. Discovery, a mocked execution, or another job's
+report cannot qualify the current job.
 
-Showcase supplies the accepted consumer requirements from SDD-OBS-001 and, once
-Harness has a qualified target, verifies end-to-end integration. Discovery,
-mocked execution, and capability flags cannot set `qualified` or
-`launch_ready`.
+Showcase supplies the accepted consumer requirements from SDD-OBS-001, runs the
+target qualification using the shared Harness mechanism, and later verifies
+end-to-end integration on the same job-bound target. Discovery, mocked
+execution, capability flags, or a report from another job cannot set
+`qualified` or `launch_ready` for the current job.
 
 ## AH5-04c acceptance and verification
 
@@ -171,9 +186,10 @@ independent origin. A green command exit alone is insufficient.
 
 ## Current blockers and cutover boundary
 
-- No exact supported backend target has been selected or qualified. Harness
-  owns that selection and qualification; Showcase retains only the integration
-  verification responsibility.
+- No exact supported backend target has passed Q01–Q16. Candidate order is
+  Docker Desktop first, then a GitHub-hosted Ubuntu runner; Showcase owns the
+  qualification runs and raw evidence while Harness owns the shared report
+  mechanism.
 - The SDD-OBS source spec contains the origin rules; the `04a-2` packet above
   decomposes that accepted behavior. Do not alter origin policy, profile
   eligibility, retry semantics or required coverage without a reviewed spec
@@ -188,10 +204,12 @@ independent origin. A green command exit alone is insufficient.
 
 1. Complete the existing DAG prerequisites through T-006; then implement and
    commit registered Showcase task T-009 without changing SDD-OBS-001 policy.
-2. Harness selects one exact target, implements/runs its active qualification,
-   obtains independent security/concurrency review, and records PASS or BLOCKED.
-3. Only after 04a-2 and Harness 04b PASS, Showcase implements and verifies 04c
-   on that same target.
+2. Showcase runs Q01–Q16 on Docker Desktop; if that candidate fails, Showcase
+   runs the complete suite on a GitHub-hosted Ubuntu job, using the Harness
+   report mechanism and obtaining independent security/concurrency review.
+   Each job records PASS or BLOCKED for only its exact target setup.
+3. Only after 04a-2 and a passing 04b report in the current job, Showcase
+   implements and verifies 04c on that same target.
 4. Harness reviews accepted Showcase evidence, ports shared changes with parity,
    releases a pinned package, and then coordinates AH5-06b cutover with Showcase.
 
