@@ -151,8 +151,9 @@ ACK counts; Redis script/fsync and PostgreSQL claim/fence/transaction latency;
 CPU, memory, GC, disk, readiness, drain time, and last-renewal-to-last-start.
 Report the largest passing reference range with instance/concurrency/prefetch,
 headroom, gate traffic, failing next point, and limits; do not extrapolate to
-production. Accepted reference guardrails are no lost valid receipt, idempotent duplicate
-receipt, no unbounded sustained queue growth, passing renewal p99 below 1 s,
+production. Accepted reference guardrails are no lost valid receipt,
+idempotent duplicate receipt, no unbounded sustained queue growth, passing
+renewal p99 below 1 s,
 and no new handler start after the conservative five-second lease deadline.
 Overload, gate loss, and lease expiry must be exercised; active handlers may
 finish, but admission stops and recovery requires gate health and audited

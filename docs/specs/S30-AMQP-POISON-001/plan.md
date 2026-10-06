@@ -496,6 +496,10 @@ The design gate remains OPEN pending fresh grill and independent reviews;
 there is no `verification-contract.json` or `design/gate.json` for this feature
 yet. Do not generate implementation tasks, enable consumers, or mark S30-06
 complete until the required design and verification artifacts pass their gates.
+The independent grill found one concrete design question without changing the
+accepted scope: P-004 must prove how a wrapper's durable host inhibit is
+observed by every gate issuer and app instance across issuer restart, delayed
+or lost notification, and partial restore. No transport mechanism is selected.
 
 No ADR is proposed yet. If deployment ownership or consumer pause/restart
 semantics establish a cross-module policy not already recorded in an ADR,
