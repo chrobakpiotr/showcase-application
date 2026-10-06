@@ -112,7 +112,7 @@ jobs:
         run: tooling/scripts/verify-critical-postgres-tests.sh
 
       - name: Publish isolated critical PostgreSQL evidence
-        if: always()
+        if: always() && hashFiles('apps/ecommerce/backend/build/critical-postgres-results/**') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: critical-postgres-evidence
@@ -124,7 +124,7 @@ jobs:
         run: tooling/scripts/verify-critical-rabbitmq-tests.sh
 
       - name: Publish isolated critical RabbitMQ evidence
-        if: always()
+        if: always() && hashFiles('apps/ecommerce/backend/build/critical-rabbitmq-results/**') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: critical-rabbitmq-evidence

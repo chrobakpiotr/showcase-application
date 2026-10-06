@@ -63,3 +63,10 @@ fix and failed on exactly that PMD rule; it was not rerun end-to-end because it
 took 14m 43s. These commits are unpushed, and this local evidence does not
 change run #155 or qualify GitHub CI. The next cloud CI run must verify the
 complete backend and frontend jobs, including artifact publication.
+
+The workflow now guards the PostgreSQL and RabbitMQ evidence-upload steps with
+`hashFiles(...)`, so a skipped verifier does not cause a second, misleading
+missing-artifact failure. Existing evidence is still uploaded with
+`if-no-files-found: error`, and a successful verifier independently requires
+its evidence. The CI quality-gate unit suite includes a regression check for
+both conditions and passes locally.

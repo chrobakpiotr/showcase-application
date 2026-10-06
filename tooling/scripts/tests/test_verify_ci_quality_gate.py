@@ -1,8 +1,10 @@
+import re
 import sys
 import unittest
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
+REPOSITORY = SCRIPTS.parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
 import verify_ci_quality_gate as gate
@@ -69,6 +71,31 @@ class VerifyCiQualityGateTest(unittest.TestCase):
         del results["DEPENDENCY_CHECK_RESULT"]
         errors = gate.evaluate("push", results)
         self.assertTrue(any("<missing>" in error for error in errors))
+
+    def test_critical_evidence_uploads_skip_when_no_evidence_was_created(self):
+        workflow = (REPOSITORY / ".github/workflows/ci.yml").read_text()
+        for step_name, evidence_path in (
+            (
+                "Publish isolated critical PostgreSQL evidence",
+                "apps/ecommerce/backend/build/critical-postgres-results/**",
+            ),
+            (
+                "Publish isolated critical RabbitMQ evidence",
+                "apps/ecommerce/backend/build/critical-rabbitmq-results/**",
+            ),
+        ):
+            with self.subTest(step=step_name):
+                step = re.search(
+                    rf"- name: {re.escape(step_name)}(?P<body>.*?)(?=\n      - name:|\n  [a-z-]+:|\Z)",
+                    workflow,
+                    flags=re.DOTALL,
+                )
+                self.assertIsNotNone(step)
+                self.assertIn(
+                    f"if: always() && hashFiles('{evidence_path}') != ''",
+                    step.group("body"),
+                )
+                self.assertIn("if-no-files-found: error", step.group("body"))
 
 
 if __name__ == "__main__":
