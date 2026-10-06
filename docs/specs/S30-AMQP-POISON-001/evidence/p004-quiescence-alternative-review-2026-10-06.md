@@ -56,6 +56,15 @@ A targeted architecture review found this constraint consistent with Candidate
 C and required the wording to distinguish Docker's restart policy from explicit
 Compose starts or external process managers; that distinction is now explicit.
 
+A disposable Alpine probe (`restart: "no"`, command `while :; do sleep 1;
+done`) ran as Compose project `showcase-p004-restart-probe`. `docker inspect`
+reported `no running 0`; after `docker compose stop worker`, it reported `no
+exited 0` both immediately and three seconds later, after the Compose CLI had
+exited. The probe passed that bounded stop/controller-exit check and removed
+its temporary project. It did not restart Docker, exercise an external
+supervisor or explicit `compose up`, or include the real app, gate, broker,
+wrapper, or restore stores; it is candidate evidence only.
+
 ## Required falsification tests
 
 - Stop-before-restore ordering covers every registered app, gate issuer, and
