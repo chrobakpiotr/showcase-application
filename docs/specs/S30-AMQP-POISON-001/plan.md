@@ -141,10 +141,12 @@ D4 data access + retention policy ──────┘             v
                                              E2 independent evaluator + Rabbit gate
 ```
 
-T1–T5 must not start until D1–D4 close. T2 and T3 may be implemented in
-separate bounded tasks only if their file ownership is disjoint; otherwise one
-builder owns the listener/configuration seam. E1/E2 cannot be self-review by a
-builder. Security review is required because the raw payload crosses into a
+The earlier D1–D4 product-policy decisions are closed. T1–T5 still must not
+start until the revised specification passes its design gate and executable
+task packets bind the accepted reference target. T2 and T3 may be implemented
+in separate bounded tasks only if their file ownership is disjoint; otherwise
+one builder owns the listener/configuration seam. E1/E2 cannot be self-review
+by a builder. Security review is required because raw payload crosses into a
 new persisted broker destination.
 
 ### D1 — topology names and deployment handoff
@@ -473,6 +475,27 @@ permissions remain disabled until the audited tool is implemented and tested.
 `integration-test`.
 
 ## Decision status
+
+### Master-review scope decisions — 2026-10-06
+
+The user accepted D1–D5 in
+[`revision-proposal-2026-10-05.md`](revision-proposal-2026-10-05.md). These
+decisions revise qualification scope and the minimum 06b business contract;
+they do not grant implementation authorization or close the S30-06 parent.
+
+| Decision | Accepted result | Status/effect |
+|---|---|---|
+| D1 | Separate bounded REF-Q from target-specific PROD-Q; REF-Q may close independently, while S30-06 remains OPEN until its production obligations are met or explicitly transferred with linked obligations. | Recorded in spec; not a qualification result. |
+| D2 | REF-CORRECTNESS on the observed host and separately provisioned 20-vCPU/40-GiB REF-PERFORMANCE; wrapper + host control record for explicitly enumerated restore paths. Full-host rollback, direct/provider restore and wrapper bypass are outside REF-Q guarantees. | Recorded in spec; target and DR tests still required. |
+| D3 | Retention A: minimum 365 days, then delete within 1 h + 2 s only if epsilon <= 1 s and W <= 1 h are measured for every copy. | Accepted bounds; no environment is qualified yet. |
+| D4 | Minimum 06b identity/fingerprint, attempt/generation ownership, transaction fencing, stale-owner behavior, uncertain-commit reconciliation, protected effects, and separate broker ACK contract. | Recorded in spec; retry budget, parking, identity-invalid cases, retention, ordering and implementation remain open. |
+| D5 | Accepted reference capacity sweep and measurement plan, including distinct handler-start and gate traffic metrics. | Recorded in spec; measurement is not run and no production SLO is set. |
+
+The external production owners and restore/failover inventory remain OPEN.
+The design gate remains OPEN pending fresh grill and independent reviews;
+there is no `verification-contract.json` or `design/gate.json` for this feature
+yet. Do not generate implementation tasks, enable consumers, or mark S30-06
+complete until the required design and verification artifacts pass their gates.
 
 No ADR is proposed yet. If deployment ownership or consumer pause/restart
 semantics establish a cross-module policy not already recorded in an ADR,

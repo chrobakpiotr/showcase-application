@@ -1,6 +1,6 @@
 # S30-AMQP-POISON-001 — fail-closed AMQP poison quarantine (06a)
 
-Status: **DRAFT — policy decisions accepted; architecture design gate remains open**
+Status: **DRAFT — REF-Q scope decisions accepted; S30-06 parent and architecture design gate remain OPEN**
 
 The accepted decisions are recorded below. Their implementation protocol is
 not yet approved. See the [gate protocol candidate](design/gate-protocol-candidate.md)
@@ -12,10 +12,15 @@ Narrow, disposable leader-fencing evidence is recorded in
 [`evidence/gate-fencing-probe.md`](evidence/gate-fencing-probe.md). It does not
 qualify the service, provider failover, or production admission.
 
-Master review input: S30 review plan, §12 (S30-06). This slice covers only the
-production Rabbit listener's manual acknowledgement and transfer of classified
-permanent poison messages to a separate quarantine destination. Durable attempt
-accounting and audited replay are separate follow-up slices (06b and 06c).
+Master review input: S30 review plan, §12 (S30-06). This specification separates
+Showcase Reference Qualification (REF-Q) from External Production Qualification
+(PROD-Q). REF-Q is a bounded qualification milestone for the exact reference
+target below; PROD-Q is separate and requires a named external target and its
+own evidence. REF-Q PASS never qualifies PROD-Q and does not close the original
+S30-06 parent while production obligations remain unqualified or unselected.
+S30-06 remains OPEN. This remains a draft, is not implementation authorization,
+and does not authorize enabling any consumer. Durable attempt accounting and
+audited replay remain separate follow-up slices (06b and 06c).
 
 ## Problem and current boundary
 
@@ -49,6 +54,126 @@ The original queue/exchange/binding remain unchanged. Quarantine topology is
 additive and provisioned by deployment tooling only; the application must not
 declare the quarantine resources. No finance or stock mutation is introduced
 by quarantine handling.
+
+## Qualification targets and boundaries
+
+**REF-CORRECTNESS** is the exact observed Showcase host profile: macOS 15.8.1
+x86-64 host, Linux x86-64 Docker guest, Docker Engine 29.8.2, 8 vCPU and
+7.75 GiB available to Docker. Each qualification run records the actual host
+allocation, OS/kernel, Docker/Compose versions, filesystem/encryption state,
+source SHA, and pinned image digests. It uses one application instance and
+serial synthetic correctness scenarios. It qualifies protocol/state
+transitions only; it makes no throughput, headroom, replica-scaling, or
+production claim. Compose service use must fit the measured envelope.
+
+**REF-PERFORMANCE** is a separately provisioned Linux x86-64 cgroup-v2 host
+with 20 vCPU, 40 GiB RAM, and dedicated encrypted persistent storage. The
+largest proposed service allocation is 15.5 vCPU/21 GiB:
+
+| Service | Largest-test count | Per-container limit |
+|---|---:|---:|
+| Ecommerce application | 4 | 1 vCPU, 1.5 GiB |
+| Gate service (one active, one standby) | 2 | 1 vCPU, 1 GiB |
+| RabbitMQ | 1 | 2 vCPU, 2 GiB |
+| Ecommerce PostgreSQL | 1 | 1 vCPU, 2 GiB |
+| Gate-latch PostgreSQL | 1 | 1 vCPU, 2 GiB |
+| App Redis | 1 | 0.5 vCPU, 0.5 GiB |
+| Gate Redis | 1 | 0.5 vCPU, 0.5 GiB |
+| Keycloak | 1 | 1 vCPU, 1 GiB |
+| Kafka | 1 | 1 vCPU, 2 GiB |
+| Load generator | 1 | 2 vCPU, 2 GiB |
+| Metrics collector | 1 | 0.5 vCPU, 1 GiB |
+
+It is not qualified until provisioned and measured; REF-CORRECTNESS results
+cannot substitute for it. Both targets use a dedicated S30 Compose overlay and
+record immutable image digests. The target includes one Rabbit node, two gate
+processes (one active), separate app and gate Redis, separate ecommerce and
+gate-latch PostgreSQL, Keycloak, and the app-required Kafka. Neither target
+claims node-loss high availability. Kubernetes dev manifests are outside
+REF-Q until their encryption and persistence controls are qualified.
+
+REF-Q PASS applies only to its recorded target/configuration/evidence packet.
+PROD-Q requires a separately named provider/deployment and qualification of
+its identity, storage/encryption, restore/failover, deletion, clock, and
+capacity behavior. Unselected or unqualified production remains NOT_QUALIFIED;
+it is not converted into a non-goal by this split.
+
+### Reference disaster-recovery contract
+
+For REF-Q, supported restores run only through a versioned, root-owned wrapper.
+Before each restore it writes and fsyncs an INHIBITED host control record on
+encrypted storage outside the PostgreSQL, Redis, RabbitMQ, and app backup sets;
+the record includes a non-reused restore-episode UUID and generation. The
+wrapper confirms gate inhibition, consumer stop, active-handler drain, channel
+closure, and readiness-down before restoring. It then reconciles restored
+stores while inhibited. RESUME is episode- and command-bound, audited, and
+requires all live instances to confirm drain or an operator to prove the exact
+Rabbit connection fenced. Store commits precede release of the host inhibit;
+uncertain outcomes stay inhibited. Atomic file replacement requires file
+fsync, rename, and parent-directory fsync.
+
+| Supported wrapper path | Required REF-Q test |
+|---|---|
+| Ecommerce PostgreSQL snapshot/PITR | Crash at every inhibit/drain/restore/reconcile/release boundary; no admission before audited RESUME. |
+| Gate-latch PostgreSQL snapshot/PITR | Restore stale CLEAR and RECOVERY_REQUIRED; neither admits or clears a newer episode. |
+| Gate Redis AOF/RDB restore | Restore stale ACTIVE; episode mismatch keeps admission inhibited. |
+| Coordinated PostgreSQL + Redis restore | Restore mutually consistent stale snapshots; independent host episode still denies admission. |
+| RabbitMQ data restore/import including quarantine | Keep consumer closed; preserve original message-age deletion deadlines and audited-read controls. |
+| Isolated Compose clone | Create a fresh deployment/episode; prove clone cannot join source deployment or consume its live queue. |
+
+Direct database-console restore, direct volume replacement, provider-managed
+PITR, full-host rollback, unlisted import/clone, and wrapper bypass are outside
+REF-Q guarantees and are not claimed to be blocked. The host record shares the
+host trust domain: root compromise, host loss, or rollback of a host snapshot
+containing the record can bypass it. Any production path outside the wrapper
+requires separately qualified provider-enforced control or an independent
+monotonic witness; it is outside this reference contract.
+
+### Reference capacity qualification
+
+These are accepted reference experiment parameters, not production SLOs:
+
+| Dimension | Sweep |
+|---|---|
+| App instances | 1, 2, 4 |
+| Handler concurrency per instance | 1, 2, 4, 8 |
+| Rabbit prefetch per consumer | 1, 4, 16 |
+| Lease validity / renewal | 4 s / every 2 s with jitter; also synchronized restart bursts |
+| Offered handler-start rate | 1, 10, 25, 50, 100 starts/s; stop after first unstable point |
+| Burst and sustained load | 2x highest sustained passing rate for 60 s; 15 min sustained |
+| Repetitions | 3 identical runs at the apparent boundary |
+
+At steady state, expect 0.5/1/2 gate renewals per second for 1/2/4 app
+instances respectively; measure registration, startup, reconnect, and burst
+traffic separately. Measure handler-start/success/failure separately from gate
+registration/renewal RPS, latency, timeout, and denial. Also record broker ready/unacked/redelivery/
+ACK counts; Redis script/fsync and PostgreSQL claim/fence/transaction latency;
+CPU, memory, GC, disk, readiness, drain time, and last-renewal-to-last-start.
+Report the largest passing reference range with instance/concurrency/prefetch,
+headroom, gate traffic, failing next point, and limits; do not extrapolate to
+production. Accepted reference guardrails are no lost valid receipt, idempotent duplicate
+receipt, no unbounded sustained queue growth, passing renewal p99 below 1 s,
+and no new handler start after the conservative five-second lease deadline.
+Overload, gate loss, and lease expiry must be exercised; active handlers may
+finish, but admission stops and recovery requires gate health and audited
+RESUME. Kafka/app-required load and receipt-only synthetic events are recorded;
+this listener does not demonstrate finance or inventory completion.
+
+### Gate-audit deletion policy
+
+Policy A is accepted: retain every gate-audit entry at least 365 days, then
+physically delete every copy within a bounded window. Qualification bounds are
+maximum absolute clock error epsilon <= 1 second and maximum scheduling plus
+physical-deletion lag W <= 1 hour across primary, replicas, WAL/AOF, snapshots,
+exports, clones, and restores. Schedule no earlier than recorded event time
+plus epsilon plus 365 days; under the qualified bounds, maximum retention is
+365 days + 1 hour + 2 seconds. Backup copies inherit the event deadline, even
+if that forces early deletion of a newer full-broker snapshot. Logical
+inaccessibility is not physical deletion. If either bound or deletion of every
+copy cannot be demonstrated, the policy is not qualified and the feature stays
+disabled; do not claim the accepted bounds for production without target-specific
+evidence. This policy concerns gate audit only; quarantine raw data retains its
+separate accepted 30-day policy.
 
 ## Quarantine topology and delivery proposal
 
@@ -256,8 +381,11 @@ leave the latch set, return unknown, and keep consumers fail-closed until the
 same command ID resolves to a durable result. A retry with no prior durable
 command record reconciles the original command against the expected generation;
 a committed command must never advance the generation twice. The
-gate audit entries are retained for one year, then securely deleted under a
-documented retention/deletion procedure. This applies to the gate audit, not
+gate audit entries are retained at least 365 days, then every copy is
+physically deleted within the qualified bounded window. REF-Q uses epsilon <=
+1 second and W <= 1 hour, producing at most 365 days + 1 hour + 2 seconds of
+retention; the bounds must be measured across every copy before the policy is
+qualified. This applies to the gate audit, not
 the separately retained raw quarantine payloads. The gate protocol candidate
 proposes example token claims, timestamps, and Redis retry/crash-recovery
 rules; none is accepted as an API, persistence, or deployment contract. Exact
@@ -451,6 +579,42 @@ environment until it can.
 
 ## Acceptance criteria
 
+### AC-06A-REF-CORRECTNESS
+
+Qualification records the exact REF-CORRECTNESS host allocation, OS/kernel,
+Docker/Compose versions, filesystem/encryption state, source SHA, and image
+digests. The bounded one-instance serial scenarios pass all applicable
+correctness and failure-state criteria. This result makes no capacity,
+multi-instance, production, or provider-failover claim.
+
+### AC-06A-REF-PERFORMANCE
+
+Only a separately provisioned host matching the accepted 20-vCPU/40-GiB
+encrypted-storage profile can run the accepted capacity sweep. It records the
+resource limits and all offered dimensions, three boundary repetitions, and
+separate handler-start and gate-traffic results. It includes overload, gate
+loss, renewal expiry, burst, sustained, drain, and recovery behavior. Report
+the largest passing reference range, headroom, gate traffic, next failing
+point, and limits; no result is translated into a production SLO.
+
+### AC-06A-PROD
+
+PROD-Q passes only for a named, versioned production target after its owners
+inventory and qualify every supported restore, failover, backup/deletion,
+identity, encryption, clock, and capacity path. Reference results do not
+satisfy this criterion. If no production target is selected or any path lacks
+evidence, PROD-Q remains NOT_QUALIFIED and the S30-06 parent remains OPEN.
+
+### AC-06B-RELEASE
+
+No consumer admission is enabled until the accepted 06b minimum contract is
+implemented and independently verified at the PostgreSQL transaction and real
+Rabbit ACK/redelivery boundaries. Takeover/finalization and takeover/ACK races,
+stale-handler rejection, uncertain-commit read reconciliation, duplicate
+redelivery, and commit-before-ACK are covered. The generation fence protects
+each claimed effect; broker ACK remains a separate, non-atomic action. Passing
+this criterion does not assert exactly-once across stores or external systems.
+
 ### Current error-taxonomy evidence
 
 The source audit on 2026-10-04 found that `MessageListener.receiveMessage`
@@ -587,7 +751,9 @@ requires a new audited RESUME.
 RESUME requires drain
 confirmation from every live instance and operator fencing confirmation for
 each expired/unresponsive instance; lease expiry alone is insufficient. The
-gate audit is retained for one year then securely deleted. Missing, malformed,
+gate audit is retained at least 365 days, then physically deleted within the
+accepted A window of at most 1 hour + 2 seconds under qualified bounds.
+Missing, malformed,
 unavailable, or durability-uncertain gate state keeps consumers stopped and
 readiness down.
 Only one fenced active leader may issue permits; standbys cannot grant or
@@ -625,10 +791,11 @@ message-age-based backup/export deletion match the accepted policy.
 
 ## S30-06b durable admission and attempt-accounting discovery
 
-Status: **DISCOVERY ONLY — lifecycle and retry contract are unresolved; no
-implementation contract is accepted.** This checkpoint records what current
-code and durable evidence establish so 06b can be planned without treating
-delivery count, operation attempts, and receipt state as interchangeable.
+Status: **MINIMUM BUSINESS CONTRACT ACCEPTED — implementation design and
+qualification remain open; no implementation authorization.** This checkpoint
+records current code/evidence and the accepted minimum so 06b can be planned
+without treating delivery count, operation attempts, and receipt state as
+interchangeable.
 
 ### Evidence-backed identity and receipt boundary
 
@@ -654,7 +821,7 @@ supported by `contracts/asyncapi/asyncapi.yml`,
 `ReceiveOrderMessageService`, `SaveOrderFulfillmentReceiptAdapter`, the receipt
 Liquibase changeset, and `OrderFulfillmentReceiptPostgresIntegrationTest`.
 
-| Observed delivery/result | Identity evidence available to an operation-keyed ledger | Current receipt/consumer evidence | 06b contract still required |
+| Observed delivery/result | Identity evidence available to an operation-keyed ledger | Current receipt/consumer evidence | Remaining 06b decisions/evidence |
 |---|---|---|---|
 | Parseable JSON with valid `operationId`, then successful receipt insert | The validated operation ID and message fields are available before the receipt call. | `RECORDED` means the insert resolved. The hand-built `SimpleMessageListenerContainer` does not explicitly set an acknowledgement mode; production-container ACK behavior and its exception mapping have not been verified by the current unit or PostgreSQL tests. | Define whether this consumes one bounded attempt, how a claim is finalized, and when the delivery becomes ACK-eligible; verify the exact behavior with the configured production container. |
 | Parseable JSON with valid identity, schema/field validation failure | Parsed field values, including operation ID if supplied, are available; validity of that identity is not established until its validation succeeds. | `ApplicationBadRequestException` is used for unsupported schema, missing/blank/oversized operation ID or order number, missing customer/created values, or null message. No receipt call occurs. A null schema version is defaulted to `1.0` by the domain record, so rejection of a missing JSON field is not established. | Decide whether a syntactically available but invalid identity may key durable accounting, whether each category is terminal or retryable, and resolve the schema-required/runtime-default discrepancy. |
@@ -669,20 +836,58 @@ The [06b conditional claim-generation prototype](evidence/06b-claim-generation-p
 demonstrates one PostgreSQL CAS primitive: after B commits generation 2,
 handler A's generation-1 finalization updates zero rows. It injects B's claim
 eligibility and makes ACK eligibility conditional in the model; it does not
-establish the claim lifecycle, actual Rabbit ACK behavior, or production
-stale-owner fencing. The 06b decisions below remain open.
+establish the claim lifecycle, actual Rabbit ACK behavior, or runtime
+stale-owner fencing. These remain implementation and qualification evidence,
+not a reason to reopen the accepted minimum contract.
 
-### Candidate lifecycle shape — assumption for review only
+### Accepted minimum lifecycle contract; implementation design remains open
 
-One possible durable model is keyed by validated operation ID and records a
-claim generation plus bounded attempt outcomes, with candidate transitions
-`READY → CLAIMED → RETRY_WAIT`, `COMPLETED`, or `PARKED`. A claim generation
-would fence late completion/failure writes from a superseded handler. This is
-only a discussion model: no state names, schema, lease policy, retry budget,
-delay/backoff, or terminal transition is accepted by this checkpoint. The
-model does not solve malformed JSON or invalid/missing operation identity; those
-need a separately decided quarantine/admission key that is not misrepresented
-as the business operation ID.
+The following minimum business contract is accepted; it does not select a
+schema, lease duration, state machine, retry budget, backoff, parking policy,
+attempt-count meaning, retention, or message-ordering guarantee:
+
+- Stable identity is validated `operationId` plus a canonical immutable
+  payload fingerprint. Same identity/fingerprint is replay; same identity with
+  a different fingerprint is the existing permanent conflict. Delivery tag,
+  AMQP message/correlation ID, attempt ID, and worker name are not business
+  identity.
+- Each ownership attempt has a unique `attemptId`, deployment/instance
+  incarnation, and monotonically increasing per-operation claim generation.
+  Takeover atomically compares the current owner/generation, establishes an
+  allowed expired-lease or handoff condition, increments generation, and
+  installs the new owner.
+- Finalization checks attempt, incarnation, fingerprint, and generation in the
+  same PostgreSQL transaction that commits the receipt, claim/attempt terminal
+  state, and any protected same-database side effect or generation-bound outbox
+  intent. An entry-only handler check is insufficient. A stale owner receives
+  a typed stale result and cannot finalize or ACK from that result.
+- A connection/response failure around commit is unknown. Resolve it by
+  reading the operation and fingerprint in a fresh transaction. Until terminal
+  state is confirmed, do not ACK and follow the accepted fail-closed pause
+  behavior. Redelivery with the same identity resolves through durable state;
+  it must not race an unresolved current claim into a competing effect.
+- ACK is a separate Rabbit channel action after confirmed durable terminal or
+  idempotent replay evidence. PostgreSQL commit and broker ACK are not atomic.
+  A crash after commit and before ACK can redeliver; a lost ACK outcome is
+  unknown and must be reconciled by operation identity. Do not promise exactly
+  once across PostgreSQL, RabbitMQ, or external systems.
+
+The currently observed durable business effect is insert-once
+`ORDER_FULFILLMENT_RECEIPT`. This contract protects that receipt and the
+attempt/terminal records, plus deliberately added same-transaction mutations
+or outbox intents. It does not claim payment, stock, shipment, or remote effects
+are protected without their own idempotency/fencing boundary. Any external
+effect lacking such a boundary is outside the guarantee and cannot be an
+unguarded synchronous side effect.
+
+Required design evidence includes takeover-versus-finalization and
+takeover-versus-ACK races, stale-handler rejection, uncertain commit followed
+by read reconciliation, same-ID redelivery after commit-before-ACK, and
+duplicate delivery while ownership is unresolved. Run against PostgreSQL and
+RabbitMQ seams that observe committed rows and broker ACK/redelivery. Remaining
+retry, parking, invalid-identity, retention, ordering, and external-effect
+contracts must be decided before the corresponding implementation; the whole
+06b slice is not complete by accepting this minimum contract.
 
 Before any 06b implementation, the product/operations and data owners must
 decide at least:
@@ -695,9 +900,9 @@ decide at least:
    fingerprint conflict, transient database/network failures, and exceptions
    with uncertain transaction-commit outcome. The current exception classes
    alone do not resolve these classifications.
-3. The claim/fencing model, including stale owners after process restart,
-   lease expiry/renewal, and the exact conditions under which finalization is
-   ignored or accepted.
+3. The concrete claim schema, lease duration/renewal, allowed takeover
+   conditions, attempt-count meaning, and finite retry/backoff/terminal action.
+   These details must implement the accepted generation-fencing contract.
 4. Behavior when the database needed for admission, receipt reconciliation,
    or attempt recording is unavailable. A ledger stored in that unavailable
    database cannot itself bound broker redelivery; a pause/readiness/operator
@@ -733,53 +938,39 @@ production listener container. Quarantine transfer, attempt recording, receipt
 commit, and source ACK are not one atomic transaction; the accepted contract
 must state duplicate and uncertain-outcome behavior at each boundary.
 
-## Unresolved decisions required before READY
+## Remaining decisions and qualification blockers
 
-1. Packet the exact root/standalone/E2E Compose and Kubernetes development
-   artifacts that provision the accepted durable classic topology, require
-   server-authenticated TLS and encrypted host/storage-class volumes,
-   configure `x-message-ttl`, and verify non-retrievability one hour after
-   expiry. Delete each backup/export by the message's original 30-day deadline
-   and document the external production RabbitMQ handoff.
-   Owner, names, all-environment scope, and TTL-plus-verification policy are
-   accepted; application declaration remains forbidden. Queue conformance is
-   a deployment-owned check; no quarantine configure permission is granted to
-   the app.
-2. Implement and test the accepted pause/drain/readiness/operator-resume
-   behavior, while defining alert and channel-loss mechanics. Stopping new
-   deliveries, draining active handlers, readiness-down, and operator-only
-   resume across restart are accepted. The deployment-owned gate service and
-   06b stale-handler fencing remain unimplemented. Atomic state-plus-audit for
-   every authenticated PAUSE/RESUME, required audit fields, fsync-before-success,
-   and confirmation from every registered live instance before RESUME are
-   accepted. Gate audit retention is one year followed by secure deletion.
-   The accepted no-mutation/no-audit-claim behavior for Redis outage also
-   applies when the required latch write is unavailable/uncertain, because
-   Redis mutation is forbidden until the latch commit is known. This is the
-   fail-closed infrastructure exception to durable audit; telemetry is not an
-   audit row. Authenticated malformed requests and changed-request ID reuse
-   attempts get a rejected-attempt audit outcome when the gate store is
-   available, with no state/generation change. The architecture grill must
-   verify this scoped reading of the accepted failure decisions. Exact
-   token/signature claims and rotation, Redis
-   failover and rollback recovery, instance liveness/expiry, proof of operator
-   fencing, prefetched/unacknowledged-message mechanics, and alerting still
-   require independent design review and failure evidence.
-3. Implement and verify enforcement for the accepted TLS-in-transit,
-   encrypted host/storage-class volumes, and restricted access. Operators may
-   read/export only through the audited tool; direct AMQP and management reads
-   remain disabled. Verify message-age-based backup deletion, TTL expiry, audit
-   records, the 1 MiB per-message body-plus-headers limit, and the 1 GiB queue
-   cap before enabling any reader. Overflow must leave the source unacknowledged
-   and pause consumption.
-4. Confirm the permanent-error allowlist against actual exception types and
-   receipt transaction behavior; unknown remains fail-closed.
-5. Approve required headers and behavior for collisions, unsupported header
-   types, and absent/duplicate message identifiers.
+1. Name the external production deployment/DR, database, Redis, RabbitMQ,
+   backup, clock, encryption/KMS, and capacity owners; inventory every
+   production restore/failover path. PROD-Q remains NOT_QUALIFIED and the
+   original S30-06 parent remains OPEN until then.
+2. Complete the exact REF-Q Compose overlay and wrapper, demonstrate encrypted
+   persistent storage and pinned images, then execute every supported restore
+   test and capacity measurement stated above. These target descriptions are
+   accepted; the environment and claims are not yet qualified.
+3. Resolve the gate protocol's remaining token/signature/rotation, Redis
+   failover/rollback, instance liveness, Rabbit fencing proof, lease race,
+   channel drain, and alerting questions through architecture/security/messaging
+   review and deterministic failure evidence. The scope limits for wrapper
+   bypass and production restore paths are accepted and must not be widened by
+   implication.
+4. Verify accepted quarantine TLS, encrypted-volume, access, audit, TTL,
+   message-age backup-deletion, size and queue-cap controls before any operator
+   reader or consumer is enabled. Keep overflow fail-closed.
+5. Confirm the permanent-error allowlist at the real transaction/listener
+   boundary, including immutable receipt preservation on conflict and unknown
+   treatment for persistence/commit failures.
+6. For 06b, decide attempt meaning/count, retry budget/backoff, parking,
+   invalid/missing identity treatment, ledger retention/privacy, ordering, and
+   idempotency/fencing at every external-effect boundary. Then implement and
+   test the accepted minimum contract independently of ACK behavior.
 
 ## Completion posture
 
-This draft is not implementation authorization by itself. The spec must be
-reviewed and unresolved decisions closed before task generation. Implementation
-completion requires independent messaging and persistence review plus an
-independent evaluator of the real-container Rabbit evidence.
+This draft is not implementation authorization. The design gate remains OPEN;
+no task generation, consumer enablement, or S30-06 completion follows from the
+accepted scope decisions. REF-Q and PROD-Q results are separate, and only the
+recorded reference target can earn REF-Q. Completion requires a fresh grill,
+design PASS, independent risk-driven reviews, and evaluator evidence from the
+real-container Rabbit and PostgreSQL seams. S30-06 remains OPEN while production
+obligations are unqualified or unselected.

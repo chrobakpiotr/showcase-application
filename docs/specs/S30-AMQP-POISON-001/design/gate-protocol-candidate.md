@@ -9,6 +9,17 @@ in their evidence files. Cross-store recovery, leader fencing, permit admission,
 deployment encryption/durability, and Rabbit consumer drain still need an
 independent architecture grill and executable failure-injection evidence.
 
+**Scope amendment (2026-10-06):** the accepted REF-Q DR contract is the
+root-owned restore wrapper plus host control record described in
+[`../spec.md`](../spec.md#reference-disaster-recovery-contract), limited to its
+enumerated restore paths. This candidate's older universal requirement for an
+independent external monotonic service on every provider/full-host restore path
+does not apply to REF-Q and must not be used to claim those bypass paths are
+blocked. Provider failover, direct/provider restore, and full-host rollback
+remain PROD-Q concerns and are unqualified. Keep the candidate's gate-service
+and admission mechanics subject to fresh architecture review; this amendment
+does not select their detailed wire/storage protocol.
+
 ## Authoritative state
 
 - PostgreSQL is the durable recovery latch, monotonic latch-epoch source, and

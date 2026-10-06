@@ -13,13 +13,13 @@
         "stale leader cannot mutate Redis after a higher epoch is installed",
         "no permit issuance when owner, lease, lock, or epoch is uncertain",
         "bounded recovery when a delayed old-epoch command lands before installation",
-        "durable monotonic epoch behavior across process restart and provider failover",
+        "durable monotonic epoch behavior across REF-Q process restart; provider failover remains a separate PROD-Q qualification",
         "bounded lock duration and simple operational recovery",
-        "lost PostgreSQL finalization and uncertain WAITAOF responses remain inhibited until provider evidence establishes the exact durable result",
-        "coordinated PostgreSQL and Redis restore cannot admit from a mutually consistent stale snapshot",
-        "every restore path enters a durable inhibit outside both backup domains before restoring either store",
-        "a trusted current restore-episode ID invalidates pre-restore commands and permits; unavailable or unverified control denies admission",
-        "external inhibit release is idempotently bound to the audited RESUME command; admission remains denied until durable release acknowledgement"
+        "lost PostgreSQL finalization and uncertain WAITAOF responses remain inhibited until reference-target evidence establishes the exact durable result",
+        "coordinated PostgreSQL and Redis restore cannot admit from mutually consistent stale snapshots on a supported wrapper path",
+        "each supported REF-Q restore path writes and fsyncs the host inhibit record before restoring either store; direct/provider restore, full-host rollback, and wrapper bypass are outside REF-Q guarantees",
+        "the current restore-episode ID invalidates pre-restore commands and permits on supported paths; unavailable or unverified control denies admission",
+        "resume release is idempotently bound to the audited RESUME command; admission remains denied until durable release acknowledgement"
       ],
       "candidates": [
         {
@@ -35,11 +35,11 @@
     {
       "id": "P-002",
       "question": "How can command retries remain idempotent after one-year actor-audit deletion without retaining actor identity or operator reason indefinitely?",
-      "rationale": "PAUSE and RESUME command IDs must not produce duplicate transitions or become reusable with different requests. The accepted audit horizon is one year, so the persistent command-result/deduplication record needs a separate retention and deletion design. Prototype the smallest privacy-preserving option and measure storage/restore behavior.",
+      "rationale": "PAUSE and RESUME command IDs must not produce duplicate transitions or become reusable with different requests. Actor/reason audit follows accepted retention policy A (minimum 365 days, then deletion within the qualified bounded window); command deduplication has a separate retention design. Prototype the smallest privacy-preserving option and measure storage/restore behavior.",
       "decision_criteria": [
         "same command never advances generation twice",
         "changed-request reuse is rejected after audit expiry",
-        "actor identity and operator reason are deleted on the accepted one-year horizon",
+        "actor identity and operator reason are deleted on the accepted A deletion deadline of event time plus at most 365 days + 1 hour + 2 seconds, if epsilon <= 1 second and W <= 1 hour are qualified for every copy",
         "minimal retained data and explainable backup/export deletion",
         "recovery remains fail-closed after Redis or PostgreSQL restore",
         "every authenticated duplicate retry is actor-attributed durably before returning the stored result",
@@ -47,7 +47,7 @@
         "long-lived tombstones do not retain recoverable low-entropy operator reasons or require unsafe key retention",
         "MAC rotation remains consistent across PostgreSQL, Redis, and every retained backup at every crash cut",
         "NEW_ONLY cannot be declared while PostgreSQL/Redis tombstone key sets differ or any live tombstone lacks a valid new-key primary MAC",
-        "every actor/reason audit copy is securely deleted by its accepted one-year deadline without retaining it to preserve tombstones",
+        "every actor/reason audit copy is securely deleted by its accepted A deadline (365 days plus at most 1 hour + 2 seconds under qualified bounds) without retaining it to preserve tombstones",
         "the qualified timestamp error bound, tamper-evident inherited backup deadline, and restore/promotion rollback checks cannot shorten retention"
       ],
       "candidates": [
