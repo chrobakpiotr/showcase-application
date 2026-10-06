@@ -50,3 +50,15 @@ checks; accepted-risk expiry checker warns before and fails after the unchanged
 each statement to the eventual accepted commit and
 fresh evidence; do not label this local snapshot as current CI or production
 qualification.
+
+## Harness coordination — 2026-10-06
+
+The Harness owner clarified that `agent-harness/docs/migration/cutover.md`
+describes the Python compatibility shim; it does not change the S30 DR
+contract. Five named Showcase authority tests have equivalent tests in the
+Harness suite, but no test was removed; any removal remains deferred until the
+06b cutover and explicit agreement. The Showcase consumer now includes
+`tooling/agent-harness/requirements.txt` in `harness.protocol_files`, with a
+focused test proving a dependency-pin change changes the protocol fingerprint
+(`4fd9abe`, 1 test passed). Harness reports its AH5-05a and AH5-06a work as
+local and under independent evaluation; no remote CI claim is made here.
