@@ -94,6 +94,16 @@ tests must first demonstrate RED for task-only upgrade, missing/extra
 obligations, replan-versus-admission, duplicate reservation/consumption, stale
 generation and crash-after-commit-before-reply.
 
+Harness review reports T-009 aligned with the shared contract. The generated
+packet identifies `packet_sha256`
+`8a9778a1a9a8b9efd2cb8e6693e76ed7fb189429d2d92e518abf549378046630`; the
+Harness command `harness.py packet --identity docs/specs/SDD-OBS-001 T-009`
+reports active `revision_id`
+`sha256:d981e02e2eceb30396835995e869c80cad77c973f1772768de310a0baafd2513`
+and semantic contract `sha256:bfa919c5564c09ffeeccf0db2d43796c71116a23752ff596403dd004dda415fa`.
+`packet_sha256` and `revision_id` are distinct packet fields, not conflicting
+revision claims.
+
 **Current code boundary (verified locally):**
 `verification/authority.py::resolve_execution` validates and reconstructs the
 accepted plan, selects the exact obligations/units, then fails closed with
@@ -201,7 +211,12 @@ report. Showcase must not add a competing backend/report implementation;
 Harness needs to provide the supported contract-v1 qualification invocation
 and report tooling, after which Showcase can run the Docker candidate and, if
 it fails, the exact GitHub-hosted job candidate. No new Q01–Q16/B1–B10 report
-or raw probe evidence has been produced in this checkout.
+or raw probe evidence has been produced in this checkout. Harness has announced
+the report validator command for its next release:
+`agent-harness qualification --check report.json --evidence-root <dir> --capability-report <capability.json>`.
+Use it once Harness supplies the release tag SHA; the probes, runs, and raw
+evidence remain Showcase-owned, with Docker Desktop first and the GitHub runner
+fallback requalified independently for each job.
 
 ## AH5-04c acceptance and verification
 
