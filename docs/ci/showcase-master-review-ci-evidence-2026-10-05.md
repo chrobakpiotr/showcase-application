@@ -94,16 +94,11 @@ response. Prettier, E2E TypeScript compilation, Playwright test discovery, and
 no E2E application/Compose stack is available; CI has not evaluated these
 commits.
 
-The OWASP finding remains open. Maven Central's latest `org.webjars:swagger-ui`
-artifact available during this check was 5.33.1, and inspection of its
-`swagger-ui-bundle.js` still found bundled DOMPurify 3.4.13. The latest
-`springdoc-openapi-starter-webmvc-ui` artifact was 3.1.1. The existing
-accepted-risk entry is narrowly scoped to a different advisory and explicitly
-says a version-only Swagger UI update does not remediate it. No suppression,
-scanner threshold, or accepted-risk policy was changed. Remediation now
-requires either an upstream WebJar containing DOMPurify 3.4.16+, removing the
-interactive Swagger UI runtime dependency, or an explicit policy/product
-resolution; until then DependencyCheck correctly remains a failing gate.
+At the time of run #157, the OWASP finding remained open. Maven Central's
+latest `org.webjars:swagger-ui` artifact available during that check was 5.33.1,
+and inspection of its `swagger-ui-bundle.js` still found bundled DOMPurify
+3.4.13. The latest `springdoc-openapi-starter-webmvc-ui` artifact was 3.1.1.
+The accepted-risk entry then covered only a different advisory.
 
 Run #157 qualifies only pushed SHA `e83d25704835`; local commits do not alter
 that result. Run #158 below qualifies the frontend audit and E2E fixes on
@@ -123,10 +118,26 @@ succeeded. Dependency review was skipped for the push event.
 In particular, the Playwright E2E job passed in 5m 10s, confirming the replay
 body capture fix from `69beca0` against the real CI Compose/Keycloak stack. The
 frontend job passed in 42s, confirming the `source-map-js` lockfile remediation
-from `5a87e92`. The OWASP result is unchanged from the prior section: the latest
-available Swagger UI WebJar still bundles vulnerable DOMPurify 3.4.13, and this
-repository's accepted-risk policy was not broadened to suppress the new
-advisory.
+from `5a87e92`. The OWASP result at run time was a failure: the new advisory
+was not yet in the accepted-risk file. The external handbook delta remains for its designated
+owner. This run does not qualify production or resolve S30-06 design decisions.
 
-The external handbook delta remains for its designated owner. This result does
-not qualify production or resolve the open S30-06 decisions.
+
+## Local OWASP accepted-risk follow-up — 2026-10-06
+
+At the user's direction, this local follow-up adds a separate time-limited
+accepted-risk entry for `GHSA-6688-9rhm-gjv2`, scoped to the exact
+`pkg:javascript/DOMPurify@3.4.13` package URL and expiring `2026-11-03Z`. The
+existing threshold `failBuildOnCVSS = 0` is unchanged; other advisories and
+versions remain unsuppressed. The entry is documented as an accepted vulnerable
+dependency, not a false positive. Removal condition: upgrade to a Swagger UI
+WebJar containing DOMPurify 3.4.16 or later, or remove Swagger UI.
+
+Verification: all 7 accepted-risk validator tests passed; the live checker
+passed and warned that both accepted entries expire in 28 days; forced
+DependencyCheck reruns for `:adapter:web` and `:application:ecommerce` both
+completed successfully and reported 0 vulnerabilities. The generated reports
+show `GHSA-6688-9rhm-gjv2` as suppressed for the exact vendored DOMPurify PURL.
+This is local verification only; CI run #158 predates this addition and still
+records its original failure. A fresh CI run is required to qualify the new
+suppression.

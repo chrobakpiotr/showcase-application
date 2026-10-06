@@ -1,5 +1,7 @@
 import datetime as dt
+import xml.etree.ElementTree as ET
 import unittest
+from pathlib import Path
 
 from tooling.quality.dependencycheck.check_accepted_risks import validate_document
 
@@ -13,6 +15,33 @@ def document(until="2026-11-03Z", notes=None, package_url=r"^pkg:javascript/DOMP
 
 
 class AcceptedRiskValidationTest(unittest.TestCase):
+    def test_checked_in_dom_purify_risks_are_exact_and_share_expiry(self):
+        accepted_risks_path = Path(__file__).parents[1] / "accepted-risks.xml"
+        root = ET.parse(accepted_risks_path).getroot()
+        actual = set()
+        for suppression in root.iter():
+            if suppression.tag.rsplit("}", 1)[-1] != "suppress":
+                continue
+            children = {
+                child.tag.rsplit("}", 1)[-1]: child for child in suppression
+            }
+            actual.add(
+                (
+                    suppression.get("until"),
+                    children["packageUrl"].text.strip(),
+                    children["vulnerabilityName"].text.strip(),
+                )
+            )
+
+        exact_package = r"^pkg:javascript/DOMPurify@3\.4\.13$"
+        self.assertEqual(
+            {
+                ("2026-11-03Z", exact_package, "GHSA-p98j-92pf-mc4p"),
+                ("2026-11-03Z", exact_package, "GHSA-6688-9rhm-gjv2"),
+            },
+            actual,
+        )
+
     def test_warns_inside_review_window_and_passes_before_expiry(self):
         result = validate_document(document(), dt.date(2026, 10, 20), warn_days=30)
         self.assertEqual([], result.errors)

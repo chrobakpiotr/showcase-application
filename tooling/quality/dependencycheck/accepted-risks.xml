@@ -19,4 +19,23 @@
         <packageUrl regex="true">^pkg:javascript/DOMPurify@3\.4\.13$</packageUrl>
         <vulnerabilityName>GHSA-p98j-92pf-mc4p</vulnerabilityName>
     </suppress>
+    <!--
+      Separate temporary accepted risk for the newly published GHSA-6688-9rhm-gjv2.
+      The exact same vendored package/version is present in Swagger UI 5.32.14.
+      Remove both entries once a Swagger UI WebJar bundles DOMPurify >=3.4.16 and the
+      application dependency is upgraded, or Swagger UI is removed.
+    -->
+    <suppress until="2026-11-03Z">
+        <notes><![CDATA[
+        Time-limited accepted dependency risk for the exact vendored DOMPurify package/version
+        and GHSA-6688-9rhm-gjv2 only. The advisory requires IN_PLACE sanitization of a raw-text
+        root followed by serialization and HTML reparsing. The app uses stock Swagger UI settings
+        and its generated API document; it does not configure IN_PLACE or attacker-controlled
+        sanitizer hooks. Owner: PC. Review/expiry: 2026-11-03. Remove when the Swagger UI WebJar
+        contains DOMPurify 3.4.16 or later and the dependency is upgraded, or when Swagger UI is
+        removed. Keep the DependencyCheck threshold unchanged.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:javascript/DOMPurify@3\.4\.13$</packageUrl>
+        <vulnerabilityName>GHSA-6688-9rhm-gjv2</vulnerabilityName>
+    </suppress>
 </suppressions>
