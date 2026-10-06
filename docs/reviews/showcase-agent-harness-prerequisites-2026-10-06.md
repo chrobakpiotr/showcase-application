@@ -101,6 +101,33 @@ dependencies proven necessary by the accepted plan, and focused tests in
 `tooling/agent-harness/tests/`. The final allowed-path list must be generated
 from the accepted task after boundary review.
 
+**Current code boundary (verified locally):**
+`verification/authority.py::resolve_execution` validates and reconstructs the
+accepted plan, selects the exact obligations/units, then fails closed with
+`VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE`. `harness.py` currently accepts a
+plan binding in `accept_verification_plan`; that binding is not concrete
+per-unit launch admission. `verification/supervisor.py` and
+`verification/store.py` have repository-scoped execution admission and
+started/drained journals, but these do not commit the accepted plan's
+`launch_reservation` or single-use `launch_consumption` in `.agent-state`.
+Completion paths intentionally reject origin-aware evidence. The 04a-2 packet
+must cover these existing boundaries as one lifecycle protocol and must not
+mistake the repository execution lock/journal for the required lifecycle CAS.
+
+**Proposed focused verification commands after task acceptance:**
+
+```sh
+python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v
+python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v
+python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py -v
+python3 -m unittest tooling/agent-harness/tests/test_harness.py -v
+python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001
+```
+
+These commands are proposed evidence, not a claim that 04a-2 has been
+implemented. The final task packet should keep the first two commands focused
+and invoke broader test files only where the lifecycle API is integrated.
+
 ## AH5-04b target discovery and qualification
 
 The currently available host candidate is the local Docker Desktop Linux guest:
