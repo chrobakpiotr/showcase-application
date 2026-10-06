@@ -218,6 +218,7 @@ def protocol_files(feature_dir: pathlib.Path) -> list[pathlib.Path]:
     candidates = [
         root / 'AGENTS.md',
         root / 'CLAUDE.md',
+        root / 'tooling' / 'agent-harness' / 'requirements.txt',
         root / 'tooling' / 'agent-harness' / 'harness.py',
         root / 'tooling' / 'agent-harness' / 'runner.py',
         root / 'tooling' / 'agent-harness' / 'orchestrate.py',

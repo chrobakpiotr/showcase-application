@@ -154,6 +154,20 @@ class HarnessTest(unittest.TestCase):
                 feature_dir=feature, task_id='T-001', reason='fixture exceptional retry', by='fixture-operator'))
         return feature, doc
 
+    def test_library_dependency_pin_is_part_of_protocol_fingerprint(self):
+        feature = self.feature()
+        requirements = self.root / 'tooling' / 'agent-harness' / 'requirements.txt'
+        requirements.parent.mkdir(parents=True, exist_ok=True)
+        requirements.write_text('cryptography==49.0.0\n', encoding='utf-8')
+
+        protocol_inputs = harness.protocol_files(feature)
+        self.assertIn(requirements.resolve(), protocol_inputs)
+        original_fingerprint = harness.protocol_fingerprint(feature)
+
+        requirements.write_text('cryptography==49.0.1\n', encoding='utf-8')
+
+        self.assertNotEqual(original_fingerprint, harness.protocol_fingerprint(feature))
+
     def assert_precommit_claim_state(self, feature, doc, grant_id):
         state = harness.load_state(feature, doc)
         entry = state['tasks']['T-001']
