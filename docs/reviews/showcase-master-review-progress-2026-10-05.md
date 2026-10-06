@@ -4,8 +4,8 @@ This is a source-bound implementation handoff for the Showcase slice of the
 master review plan. It is not a whole-repository audit, evaluator approval,
 production qualification, or evidence that another agent's work is complete.
 
-Showcase slice estimate: **83%** using equal task weighting across the ten
-listed S05 tasks (6 DONE, 3 PARTIAL/IN REVIEW, 1 BLOCKED; partial values are
+Showcase slice estimate: **85%** using equal task weighting across the ten
+listed S05 tasks (7 DONE, 2 PARTIAL/IN REVIEW, 1 BLOCKED; partial values are
 estimated at 70–80%). This is not the percentage for the combined
 Showcase+Harness+Benchmark master plan; those task states are not aggregated
 here.
@@ -14,7 +14,7 @@ here.
 
 | Task | Status | Evidence and remaining work |
 |---|---|---|
-| S05-01 — shipment response capture | PARTIAL | CI run #158 for pushed SHA `34384e9` passed the Playwright job after local commit `69beca0` captured the replay response with `route.fetch()` before fulfillment and navigation. Prettier, E2E TypeScript compilation, Playwright discovery, and `git diff --check` also passed. The bounded repeat-each run required by the task packet has not been recorded for this final replay fix; the local Compose attempt was not usable because RabbitMQ/Kafka healthchecks timed out on this host. |
+| S05-01 — shipment response capture | DONE | CI run #158 for pushed SHA `34384e9` passed the Playwright job after local commit `69beca0` captured the replay response with `route.fetch()` before fulfillment and navigation. On 2026-10-06, the dedicated `infra/docker/e2e/docker-compose.yml` stack became healthy after repairing the disposable RabbitMQ volume's cookie ownership; `shipment-response-loss.spec.ts --repeat-each=3 --retries=0` passed all 6 executions (both replay-after-response-loss and competing-advance cases). The temporary Compose project and its volumes were removed. |
 | S05-02 — duplicate Rabbit testcase evidence | DONE | `baaaef7`; regression reproducer and validator guard. `python3 -m unittest discover -s tooling/scripts/tests` passed 50 tests. |
 | S05-03a — order summary log privacy | DONE | `f7526d3`; focused `LogOrderAdapterTest` passed, including sensitive-field and exception-marker checks. |
 | S05-03b — dispatch/mock log privacy | DONE | `52e1837`; capture tests and bounded inventory in `S05-03b-log-privacy-inventory-2026-10-05.md`. Focused persistence, Camel, Kafka and AWS tests passed. `61aa560` applies formatter-only changes to seven AWS/Camel/Kafka test files; persistence plus AWS/Camel/Kafka Spotless checks now all pass in the Java 25 `/workspace` builder container. |
