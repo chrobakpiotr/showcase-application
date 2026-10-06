@@ -37,6 +37,15 @@ dependency re-pin changes the protocol fingerprint; preserve that behavior in
 the later cutover. Do not remove the five duplicated Showcase tests before
 that cutover.
 
+An attempted T-010 DAG registration for AH5-04b was rejected by the local
+harness readiness guard with `TASK_REPLAN_REQUIRED`: adding the task changes the
+planning contract bound by T-009's existing packet. The accepted `replan-task`
+command permits a packet replan only for a running task; T-009 remains pending
+behind T-006, so the DAG and packet were left unchanged. Do not bypass this
+guard. Revisit registration after the accepted lifecycle makes the required
+replan transition available, or through a reviewed feature-level planning
+revision if the protocol owner supplies one.
+
 ## AH5-04a-2 acceptance and verification
 
 Use the accepted `SDD-OBS-001` requirements for final-plan obligation
@@ -212,6 +221,14 @@ enough. B1–B10 are defined by
 `agent-harness/docs/specs/AH5-04b/grading-requirements.md`; Harness owns those
 authoritative definitions and the report mechanism, and Showcase must execute
 them without reinterpreting or replacing them:
+
+Harness has further specified the checker invocation as
+`agent-harness qualification --check report.json --evidence-root <dir>
+--capability-report <capability.json> --job-id <current job>`. Every report
+must state that exact `job_id`, `host`, `kernel`, `engine`, and
+`workload_image` digest. Each passing check needs its own evidence, and the
+independent review is signed against that report's `review_subject`. A report
+or review from a different job cannot qualify the current target.
 
 | Check | Required target evidence |
 |---|---|
