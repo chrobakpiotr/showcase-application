@@ -105,5 +105,28 @@ requires either an upstream WebJar containing DOMPurify 3.4.16+, removing the
 interactive Swagger UI runtime dependency, or an explicit policy/product
 resolution; until then DependencyCheck correctly remains a failing gate.
 
-A fresh CI run is needed to qualify the frontend audit and E2E fixes. Run #157
-qualifies only pushed SHA `e83d25704835`; local commits do not alter that result.
+Run #157 qualifies only pushed SHA `e83d25704835`; local commits do not alter
+that result. Run #158 below qualifies the frontend audit and E2E fixes on
+`34384e9d2d12`.
+
+
+## Follow-up run #158 — final CI result for frontend and E2E fixes
+
+[CI run #158](https://github.com/chrobakpiotr/showcase-application/actions/runs/37506509814)
+for pushed SHA `34384e9d2d12` completed **FAILURE** after 12m 11s. The only
+failed required job was OWASP DependencyCheck for `GHSA-6688-9rhm-gjv2`; the
+aggregate quality gate failed because that required job failed. Backend build,
+PostgreSQL and RabbitMQ evidence, PIT, SBOM, infra validation, Trivy, frontend
+build/audit/lint/tests, Playwright E2E, repository guards, and docs links
+succeeded. Dependency review was skipped for the push event.
+
+In particular, the Playwright E2E job passed in 5m 10s, confirming the replay
+body capture fix from `69beca0` against the real CI Compose/Keycloak stack. The
+frontend job passed in 42s, confirming the `source-map-js` lockfile remediation
+from `5a87e92`. The OWASP result is unchanged from the prior section: the latest
+available Swagger UI WebJar still bundles vulnerable DOMPurify 3.4.13, and this
+repository's accepted-risk policy was not broadened to suppress the new
+advisory.
+
+The external handbook delta remains for its designated owner. This result does
+not qualify production or resolve the open S30-06 decisions.
