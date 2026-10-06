@@ -71,6 +71,35 @@ Also inject failures after inhibit, after drain, during restore/reconcile, after
 
 Direct DB-console restore, direct volume replacement, provider-managed PITR, full-host rollback, unlisted clone/import, and emergency procedures bypassing the wrapper are **unsupported and unqualified**; this proposal does not claim they are blocked. If any must be supported, the host-file option is insufficient and external monotonic control must be qualified before design PASS.
 
+### P-004 decision memo — process quiescence for REF-Q
+
+**Status:** recommendation for user decision; no mechanism is selected. P-004 and the design gate remain OPEN. The independent architecture review and grill found no remaining contract blocker to selecting Candidate C after the listed criteria were added; neither review selects it or supplies exact-target qualification evidence.
+
+**Recommendation:** select process-quiescence Candidate C for the single-host REF-Q Compose target, subject to the exact spec delta and evidence below. It removes per-permit shared-mount polling from the admission path and can use the existing Docker Compose process boundary, while keeping the accepted host-control record, audited operator RESUME, and explicit REF-Q exclusions. The tradeoff is a stricter operational flow: a Gate Redis restore requires fresh audited operator fencing proof for every stale connection in a complete pre-restore barrier inventory, and no app/gate auto-start may occur during restore.
+
+The wrapper protocol would be:
+
+1. Fsync a new INHIBITED episode to the root-owned host-control record.
+2. Linearize PAUSE against permit issue/install, freeze registrations, fence pending permit responses, and capture the complete barrier-generation inventory of instance incarnations and Rabbit connection identities. Fsync that inventory with the episode; uncertainty blocks restore.
+3. Stop new handler starts, drain active handlers/prefetch, close consumer channels, and stop every app and gate issuer. Verify every inventoried process stopped and Rabbit confirms the exact connections closed.
+4. Keep app/gate Compose services at explicit `restart: "no"`; disable host-level auto-start during the critical section. Only the versioned wrapper may start the services in supported operation. Explicit Compose starts and wrapper bypass remain outside the guarantee.
+5. Restore and reconcile stores while all apps remain stopped and the gate remains sticky-INHIBITED. For Gate Redis restore, treat every recovered registration/drain ACK as stale and require fresh authenticated gate-resume operator proof, durably audited after restore, over the union of the host barrier inventory and restored Redis registrations. Broker closure alone is not the operator proof.
+6. Commit RESUME state/audit, release/fsync the host inhibit, then start apps. Any uncertain result remains inhibited.
+
+**Alternatives:** Candidate A keeps a read-only host-record mount in the admission path. It needs fresh-generation validation, serialized permit/freeze reads, mount integrity/permissions, Linux-native and multi-issuer propagation tests, and measured per-permit read overhead. The existing local probe only favors directory mounts on Docker Desktop and showed truncated reads for file mounts; it does not qualify A. Candidate B uses wrapper-to-gate API notifications. An API-only notification can be lost; it needs a separate fresh host signal or equivalent restart barrier and does not avoid the stale-episode problem. For production paths that bypass the wrapper or restore the host itself, use an independently managed monotonic/provider-enforced control plane and qualify it as PROD-Q; Candidate C makes no claim for those paths.
+
+**Exact accepted-spec delta if Candidate C is selected:** amend only the “Reference disaster-recovery contract” in `spec.md`; do not change business behavior, quarantine policy, retention, identity/auth policy, or PROD-Q exclusions.
+
+- Extend the host-control record fields from episode/generation to include a complete, generation-bound pre-restore instance-incarnation and broker-connection inventory. State that registration is frozen at the barrier and the wrapper refuses restore if the inventory is incomplete or uncertain.
+- Add the linearization rule: registration/permit issuance either wins before freeze and appears exactly once in that inventory, or loses and is rejected; pending permit responses are fenced before the wrapper advances to app drain/restore.
+- Amend the Gate Redis AOF/RDB and coordinated PostgreSQL+Redis rows: all registrations and drain ACKs recovered from those snapshots are stale. For Candidate C, audited RESUME requires new operator fencing proof after restore for the union of the host inventory and restored registrations. Proof binds exact deployment, instance incarnation, broker connection, and episode; broker-observed closure alone is insufficient.
+- Add the REF-Q Compose lifecycle constraint: app and gate issuer containers explicitly use `restart: "no"`; no host-level supervisor may auto-start them during restore; only the wrapper starts them after RESUME. Preserve wrapper bypass, root compromise, host loss, full-host rollback, direct/provider restore, and unlisted paths as exclusions.
+- Add falsification tests for the registration/freeze race, a pre-barrier instance omitted by an old Redis snapshot, missing/replayed/cross-episode operator proof, wrapper and daemon crash cuts, restart-policy/autostart fencing, and end-to-end ordering through audited RESUME and app startup.
+
+Until this choice is accepted, these are proposed Candidate C refinements in the design/plan/evidence artifacts, not edits to the accepted spec. The target is not implemented or qualified.
+
+**Remaining decision:** whether to select C for REF-Q, retain Candidate A/B for another prototype, or keep P-004 unresolved. Selection does not close REF-Q: exact-target prototype/failure evidence and fresh design/verification review still follow. The local Compose probe observed `restart: "no"` stop behavior only; it did not restart Docker or exercise the S30 app, gate, broker, wrapper, or stores. The complete test list and limits are in [`evidence/p004-quiescence-alternative-review-2026-10-06.md`](evidence/p004-quiescence-alternative-review-2026-10-06.md).
+
 ## Capacity measurement plan
 
 The accepted reference sweep discovers a supported range. It does not set production SLOs.
