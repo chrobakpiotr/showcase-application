@@ -30,6 +30,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class OrderPlacementBestEffortTailTest {
 
+    private static final String AI_UNAVAILABLE_MESSAGE = "AI unavailable";
+
     @Mock
     private OrderPlacementDispatchManager orderPlacementDispatchManager;
 
@@ -126,7 +128,7 @@ class OrderPlacementBestEffortTailTest {
     void shouldContainRemarksFailureAndRecordSuspiciousResult() {
 
         final Order order = OrderBuilder.mockOrder();
-        doThrow(new IllegalStateException("AI unavailable"))
+        doThrow(new IllegalStateException(AI_UNAVAILABLE_MESSAGE))
                 .doReturn(
                         RemarksTriageResult.builder()
                                 .category(RemarksTriageCategory.SUSPICIOUS)
@@ -140,7 +142,7 @@ class OrderPlacementBestEffortTailTest {
             tail.run(order);
             assertThat(logs.formattedMessages()).doesNotContain(
                     order.getOrderNumber(),
-                    "AI unavailable",
+                    AI_UNAVAILABLE_MESSAGE,
                     "Requests shipping to an address different from billing.");
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
         }
@@ -153,7 +155,7 @@ class OrderPlacementBestEffortTailTest {
     void shouldContainDuplicateFailureAndRecordDuplicateResult() {
 
         final Order order = OrderBuilder.mockOrder();
-        doThrow(new IllegalStateException("AI unavailable"))
+        doThrow(new IllegalStateException(AI_UNAVAILABLE_MESSAGE))
                 .doReturn(
                         DuplicateOrderCheckResult.builder()
                                 .duplicate(true)
@@ -169,7 +171,7 @@ class OrderPlacementBestEffortTailTest {
             tail.run(order);
             assertThat(logs.formattedMessages()).doesNotContain(
                     order.getOrderNumber(),
-                    "AI unavailable",
+                    AI_UNAVAILABLE_MESSAGE,
                     "PRE-EXISTING-1",
                     "Remarks nearly identical to a recent order from the same customer.");
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());

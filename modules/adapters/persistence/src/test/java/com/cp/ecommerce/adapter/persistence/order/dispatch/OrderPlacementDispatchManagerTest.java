@@ -45,6 +45,7 @@ class OrderPlacementDispatchManagerTest {
     private static final Instant NOW = Instant.parse("2026-09-24T12:00:00Z");
     private static final String OWNER_ID = "owner";
     private static final String BUDGET_DISPATCH_ID = "budget";
+    private static final String FAILED_DISPATCH_ID = "fail";
     @Mock
     OrderPlacementDispatchEntityRepository repository;
     @Mock
@@ -138,14 +139,14 @@ class OrderPlacementDispatchManagerTest {
     @Test
     void shouldPersistFailureAndIgnoreLostOwnerFinalization() {
         final Order order = OrderBuilder.mockOrder();
-        final OrderPlacementDispatchEntity row = dispatch("fail", OrderPlacementDispatchType.CONFIRMATION_EMAIL);
-        given(repository.findByIdForUpdate("fail")).willReturn(Optional.of(row));
+        final OrderPlacementDispatchEntity row = dispatch(FAILED_DISPATCH_ID, OrderPlacementDispatchType.CONFIRMATION_EMAIL);
+        given(repository.findByIdForUpdate(FAILED_DISPATCH_ID)).willReturn(Optional.of(row));
         given(manageOrderInPort.findOrder(order.getOrderNumber())).willReturn(order);
         doThrow(new IllegalStateException("smtp outcome unknown")).when(email).sendConfirmationEmail(order);
         try (LogCapture logs = new LogCapture(OrderPlacementDispatchManager.class)) {
-            manager.deliverDueDispatch("fail");
+            manager.deliverDueDispatch(FAILED_DISPATCH_ID);
             assertThat(logs.formattedMessages()).contains("Could not deliver durable placement dispatch")
-                    .doesNotContain("fail", order.getOrderNumber(), "smtp outcome unknown");
+                    .doesNotContain(FAILED_DISPATCH_ID, order.getOrderNumber(), "smtp outcome unknown");
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
         }
         assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.FAILED);
