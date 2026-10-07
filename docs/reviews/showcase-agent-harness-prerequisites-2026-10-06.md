@@ -15,9 +15,13 @@ contract.
 `docs/specs/SDD-OBS-001/tasks.json`, mapped to the existing accepted SDD-OBS
 criteria; no accepted requirement or guard was changed. `harness validate` and
 verification-contract validation pass. T-009 depends on T-006 to avoid overlap
-with the existing executor, orchestration and Showcase-profile tasks. The
-current lifecycle readiness reports only T-001, so T-009 is registered but
-not yet startable under the DAG. No dependency or fail-closed guard is bypassed.
+with the existing executor, orchestration and Showcase-profile tasks. T-009 is
+not yet startable under the DAG. T-001 is currently `escalated` after the task
+runner's Codex invocation failed schema validation and the Claude CLI reported
+that it is not logged in. Its focused suite passed (42 tests) and `py_compile`
+passed, but these are not lifecycle completion evidence. An auditable
+human-resolve record authorizes one retry; no task completion or source change
+is claimed. No dependency or fail-closed guard is bypassed.
 
 ## Ordered task plan
 
@@ -31,11 +35,12 @@ The dependencies are deliberately serial: origin authority is defined before
 physical launch; backend qualification precedes any positive end-to-end
 completion claim. AH5-06b real cutover remains Harness-owned and follows all
 three tasks plus the accepted package version/digest and Showcase adapter
-checks. `tooling/agent-harness/requirements.txt` is already included in
-`harness.protocol_files` locally at `4fd9abe`, with a focused test proving a
-dependency re-pin changes the protocol fingerprint; preserve that behavior in
-the later cutover. Do not remove the five duplicated Showcase tests before
-that cutover.
+checks. `tooling/agent-harness/requirements.txt` is included in
+`harness.protocol_files` at `4fd9abe`; its dependency pin changes the protocol
+fingerprint, as covered by `test_library_dependency_pin_is_part_of_protocol_fingerprint`.
+It now pins Harness v0.3.0 at immutable release commit
+`0ef88c5b5751e18b88a9f7b454823c7bf3012e0b`, with the `grants` extra. Do not
+remove the five duplicated Showcase tests before the later cutover.
 
 An attempted T-010 DAG registration for AH5-04b was rejected by the local
 harness readiness guard with `TASK_REPLAN_REQUIRED`: adding the task changes the
@@ -222,13 +227,27 @@ enough. B1–B10 are defined by
 authoritative definitions and the report mechanism, and Showcase must execute
 them without reinterpreting or replacing them:
 
-Harness has further specified the checker invocation as
+Harness v0.3.0 was released at immutable commit
+`0ef88c5b5751e18b88a9f7b454823c7bf3012e0b` (tag `v0.3.0`). Showcase pins
+`agent-harness[grants]` to that commit in
+`tooling/agent-harness/requirements.txt`. The checker invocation is
 `agent-harness qualification --check report.json --evidence-root <dir>
 --capability-report <capability.json> --job-id <current job>`. Every report
 must state that exact `job_id`, `host`, `kernel`, `engine`, and
 `workload_image` digest. Each passing check needs its own evidence, and the
 independent review is signed against that report's `review_subject`. A report
-or review from a different job cannot qualify the current target.
+or review from a different job cannot qualify the current target. All 26
+checks must be present. The checker validates evidence and capability binding;
+it does not establish report authenticity. Authenticity comes from the exact
+qualifying CI job and an independent reviewer who is not the report author.
+
+The released package installed as version 0.3.0 without dependencies in a
+temporary Python 3.13 environment; its `qualification --help` was correct and
+all 9 qualification tests from the exact release commit passed. Installing the
+full requirements file locally still fails while building the pinned
+`cryptography==49.0.0`: this host has no `pkg-config`/OpenSSL development
+headers and the configured package index provides only the source archive.
+This environment limitation does not replace CI installation evidence.
 
 | Check | Required target evidence |
 |---|---|
@@ -263,21 +282,17 @@ end-to-end integration on the same job-bound target. Discovery, mocked
 execution, capability flags, or a report from another job cannot set
 `qualified` or `launch_ready` for the current job.
 
-**Current execution readiness (2026-10-06):** local `docker version` reports
+**Current execution readiness (2026-10-07):** local `docker version` reports
 Docker Desktop 4.94.0 / Engine 29.8.2, Linux/amd64. The current Showcase
 `verification_sandbox.doctor()` reports `docker-container` as discovered but
 `qualification_supported=false`, `qualified=false`, and `launch_ready=false`.
 Therefore this checkout cannot produce the required Docker Q01–Q16/B1–B10
-report. Showcase must not add a competing backend/report implementation;
-Harness needs to provide the supported contract-v1 qualification invocation
-and report tooling, after which Showcase can run the Docker candidate and, if
-it fails, the exact GitHub-hosted job candidate. No new Q01–Q16/B1–B10 report
-or raw probe evidence has been produced in this checkout. Harness has announced
-the report validator command for its next release:
-`agent-harness qualification --check report.json --evidence-root <dir> --capability-report <capability.json>`.
-Use it once Harness supplies the release tag SHA; the probes, runs, and raw
-evidence remain Showcase-owned, with Docker Desktop first and the GitHub runner
-fallback requalified independently for each job.
+report. Showcase must not add a competing backend/report implementation. The
+released v0.3.0 checker is available, but it validates supplied reports only;
+it does not execute probes. No new Q01–Q16/B1–B10 report or raw probe evidence
+has been produced in this checkout. Showcase still owns the probes, runs and
+raw evidence, with Docker Desktop first and a separate GitHub-hosted job as
+fallback, requalified independently for every job.
 
 ## AH5-04c acceptance and verification
 
