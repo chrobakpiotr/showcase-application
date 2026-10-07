@@ -1,0 +1,29 @@
+# AH5-04B-QUAL-001 — exact-target execution sandbox qualification
+
+## Objective
+
+Produce an auditable, job-bound qualification result for one exact Showcase execution target, covering the existing Q01–Q16 sandbox and lifecycle checks plus the Harness-owned B1–B10 grading boundary checks. This feature qualifies target behavior only; it does not implement or enable an execution backend and does not change SDD-OBS-001 policy.
+
+## Scope and acceptance criteria
+
+- AC-001: Every qualification run records exactly one target ID, policy digest, author, UTC creation time, and target tuple containing the current `job_id`, host/runner image, kernel, engine, and workload image SHA-256 digest. A fresh GitHub-hosted job gets a new tuple and cannot reuse another job's qualification.
+- AC-002: The report has one distinct check record and per-check evidence for every required ID Q01–Q16 and B1–B10. Q01–Q10 cover permitted/protected writes and descendant containment; Q11–Q12 cover durable execution identity and stale-identity rejection; Q13–Q16 cover cancellation, drainage, active restart and drained restart. B1–B10 follow the accepted Harness grading requirements.
+- AC-003: Docker Desktop Linux guest is attempted first. The complete 26-check suite runs there even when an early check fails. If that report does not pass, a fresh GitHub-hosted Ubuntu job runs the full suite and creates a new report bound to that job. If Docker passes, the fallback is explicitly recorded as not required; it is not represented as qualified.
+- AC-004: Each passing check's raw evidence is unique to that check, names the exact `job_id`, and is hashed with its byte size in the report. Review evidence is separate from check evidence and names the report's `review_subject`.
+- AC-005: The installed Harness v0.3.0 qualification checker validates the report and evidence. A capability report is qualified only when it binds the same target, policy digest and current job to a passing qualification report. Missing, failed, `not-run`, stale-job or mismatched-binding cases never produce a passing qualification.
+- AC-006: An independent reviewer other than the report author reviews the raw evidence and report, records a pass/fail review bound to `review_subject(report)`, and reruns the installed checker. The checker is structural and digest validation; it does not authenticate the author, job, runner, evidence origin, or review identity.
+- AC-007: No result from this feature is described as general Docker, GitHub runner, production, or cross-job qualification. Until one exact job has a complete passing report, matching capability binding, and independent review, the target status remains NOT QUALIFIED and no payload execution is authorized.
+
+## Q checks and accepted sources
+
+The Q identifiers retain the existing Showcase qualification meanings: Q01 `PERMITTED_WRITE`; Q02 `PROTECTED_WRITE_DIRECT`; Q03 `PROTECTED_WRITE_CHILD`; Q04 `PROTECTED_WRITE_GRANDCHILD`; Q05 `CONTAINMENT_CHILD`; Q06 `CONTAINMENT_GRANDCHILD`; Q07 `CONTAINMENT_PARENT_EXIT`; Q08 `CONTAINMENT_NEW_PROCESS_GROUP`; Q09 `CONTAINMENT_NEW_SESSION`; Q10 `CONTAINMENT_BACKGROUND_SHELL`; Q11 `EXECUTION_IDENTITY_DURABLE`; Q12 `EXECUTION_IDENTITY_STALE_REJECTED`; Q13 `CANCEL_EXECUTION_UNIT`; Q14 `DRAIN_EXECUTION_UNIT`; Q15 `RESTART_ACTIVE`; Q16 `RESTART_DRAINED`. Their security and lifecycle expectations come from the accepted SDD-OBS-001 strong-sandbox, protected-path, one-shot identity and process-drain requirements and the existing qualification evidence in `docs/reviews/S30-03a-qualification-2026-10-04.json`.
+
+B1–B10 are the accepted consumer requirements in Harness `docs/specs/AH5-04b/grading-requirements.md`: hidden input isolation; hidden expected-value isolation; fresh and destroyed sandbox; exact filesystem/mount boundaries; no network; exact environment/no inherited credentials; non-root/no capabilities/no-new-privileges/seccomp; enforced wall/CPU/memory/PID/disk/output limits; one bounded output artifact returned only after sandbox destruction; and per-grade target/report/image/limit/exit evidence. B8 and B10 evidence is recorded in the report; this feature does not change contract v1 or claim that current consumers can read contract v2 fields.
+
+## Trust boundary and limitations
+
+The probe process controls only the named disposable target and its submitted workload. Docker Desktop host/provider administration, unlisted restore or launch paths, and other GitHub runner jobs are outside the claim. Raw evidence, report fields, job IDs and review identity are claims until independently checked against the live job and its logs. The Harness checker verifies shape, digest, path containment and same-job token binding; it does not cryptographically attest the CI provider or prevent a privileged operator from fabricating replacement evidence. The only supported claim is the exact target/job whose raw run is independently reviewed.
+
+## Verification
+
+The focused probe suite must first demonstrate expected failure for a controlled counterexample and then pass for the target under test. Run all 26 checks even if some fail, preserve raw per-check evidence, validate the report and capability binding with Harness v0.3.0, and have an independent reviewer rerun the checker against the same evidence root and job ID.

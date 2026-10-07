@@ -6,6 +6,7 @@
 
 | Feature | Declared status | spec.md | plan.md | tasks.json | Harness mode | validate-all |
 | --- | --- | --- | --- | --- | --- | --- |
+| `AH5-04B-QUAL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `API-ACCESS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `APP-ORCH-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `DEMO-002` | UNDECLARED | yes | yes | yes | executable | selected |

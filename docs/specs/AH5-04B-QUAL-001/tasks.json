@@ -1,0 +1,101 @@
+{
+  "feature": "AH5-04B-QUAL-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Implement Q01-Q10 isolation probes",
+      "objective": "Add disposable probes and raw evidence capture for permitted writes, protected direct/child/grandchild writes, descendant survival, and process-tree escape modes. Probe only an explicitly named disposable target; fail closed when an observation is unsupported.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_probes.py"],
+      "risk_tags": ["security", "infra"],
+      "acceptance_criteria": ["AC-002", "AC-007"],
+      "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_probes.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py"],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Fake target responses first demonstrate rejection of a protected write, escaped descendant, missing identity or absent per-check evidence; real Docker execution is a later task and cannot be replaced by the fake."
+    },
+    {
+      "id": "T-002",
+      "title": "Implement Q11-Q16 identity and lifecycle probes",
+      "objective": "Add probes for durable execution identity, stale identity rejection, cancellation, drainage, active restart and drained restart, preserving per-start generation and terminal-state observations without adding launch authority to the production runner.",
+      "role": "builder",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_probes.py"],
+      "risk_tags": ["security", "concurrency", "infra"],
+      "acceptance_criteria": ["AC-002", "AC-007"],
+      "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_probes.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py"],
+      "test_mode": "red-green-refactor",
+      "test_seam": "RED cases reuse a stopped identity, omit generation/tombstone state, or acknowledge drain before descendants terminate; GREEN requires distinct start identity and observed full drainage."
+    },
+    {
+      "id": "T-003",
+      "title": "Implement B1-B10 grading boundary probes",
+      "objective": "Add one isolated, independently evidenced probe for each accepted Harness grading boundary requirement B1-B10, including bounded output and resource-limit behavior; never infer a pass from container configuration alone.",
+      "role": "builder",
+      "depends_on": ["T-002"],
+      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_grading.py"],
+      "risk_tags": ["security", "infra", "performance"],
+      "acceptance_criteria": ["AC-002", "AC-004", "AC-007"],
+      "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_grading.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py"],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Each B check has a named adversarial payload/counterexample and its own evidence file; hidden canaries, leaked environment, egress, resource breach and oversized output must be observable failures."
+    },
+    {
+      "id": "T-004",
+      "title": "Bind reports and capability evidence to the current target job",
+      "objective": "Add the qualification driver and CI invocation that record exact target/job identity, workload digest, policy digest and unique per-check evidence, then validate with the installed Harness v0.3.0 CLI. Keep reports non-passing until every check and independent review passes.",
+      "role": "builder",
+      "depends_on": ["T-003"],
+      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_report.py", "tooling/scripts/run-verification-sandbox-qualification.sh", ".github/workflows/verification-sandbox-qualification.yml"],
+      "risk_tags": ["security", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-004", "AC-005", "AC-007"],
+      "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_report.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py", "bash -n tooling/scripts/run-verification-sandbox-qualification.sh"],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Mutate job ID, host tuple, image digest, policy digest, evidence path/hash/size, duplicate check, missing check and capability binding; the installed CLI must reject or return not-passing with the documented exit status."
+    },
+    {
+      "id": "T-005",
+      "title": "Run all qualification checks on Docker Desktop first",
+      "objective": "Execute Q01-Q16 and B1-B10 against the exact observed Docker Desktop Linux guest, preserve raw evidence and record a complete report even when checks fail. Do not claim Docker Desktop qualification unless the installed checker returns 0 for this job and an independent review passes.",
+      "role": "builder",
+      "depends_on": ["T-004"],
+      "allowed_paths": ["docs/specs/AH5-04B-QUAL-001/evidence/**"],
+      "risk_tags": ["security", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-004", "AC-005", "AC-007"],
+      "verification": ["bash tooling/scripts/run-verification-sandbox-qualification.sh --target docker-desktop --all-checks"],
+      "test_mode": "existing-suite",
+      "test_seam": "This is a real-target measurement, never simulated. All checks run to completion; any failed or not-run record keeps the target NOT QUALIFIED."
+    },
+    {
+      "id": "T-006",
+      "title": "Use a fresh GitHub-hosted Ubuntu runner only if Docker fails",
+      "objective": "If and only if the Docker Desktop report is not passing, run the full 26-check suite in a fresh GitHub-hosted Ubuntu job and produce a separate report bound to that job. If Docker passes, record NOT_REQUIRED with the passing Docker report digest and do not imply the GitHub runner was qualified.",
+      "role": "builder",
+      "depends_on": ["T-005"],
+      "allowed_paths": [".github/workflows/verification-sandbox-qualification.yml", "docs/specs/AH5-04B-QUAL-001/evidence/**"],
+      "risk_tags": ["security", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-003", "AC-004", "AC-005", "AC-007"],
+      "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_report.py -v", "python3 tooling/agent-harness/harness.py validate docs/specs/AH5-04B-QUAL-001"],
+      "test_mode": "existing-suite",
+      "test_seam": "A fallback report must use the fresh job's own job_id, runner image, kernel, Docker Engine, workload digest and policy digest; stale evidence from Docker Desktop or another GitHub job is rejected."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently review the selected target report and evidence",
+      "objective": "Independently inspect every Q01-Q16 and B1-B10 raw evidence item for the selected target, verify job and report-subject binding, confirm the fallback rule, and run the installed Harness checker. Write a review bound to review_subject(report), with reviewer identity different from the author.",
+      "role": "evaluator",
+      "depends_on": ["T-001", "T-002", "T-003", "T-004", "T-005", "T-006"],
+      "allowed_paths": ["docs/specs/AH5-04B-QUAL-001/evidence/**"],
+      "risk_tags": ["evaluation", "security", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "VC-001", "VC-002", "VC-003", "VC-004", "VC-005", "VC-006", "VC-007"],
+      "verification": ["python3 tooling/agent-harness/qualification/check_selected_report.py --report docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json --evidence-root docs/specs/AH5-04B-QUAL-001/evidence/selected --capability-report docs/specs/AH5-04B-QUAL-001/evidence/selected/capability.json --job-id-file docs/specs/AH5-04B-QUAL-001/evidence/selected/job-id.txt"],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context adversarial review against the accepted sources and actual CI job, not only report shape. Any unauthenticated, absent or unverifiable raw evidence forces NOT QUALIFIED."
+    }
+  ]
+}

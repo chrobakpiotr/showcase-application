@@ -1,0 +1,102 @@
+{
+  "assumptions": [],
+  "authored_by": {
+    "profile": "verification-author",
+    "provider": "codex",
+    "run_id": "ah5-04b-qual-001-independent-contract-20261007"
+  },
+  "criteria": [
+    {
+      "id": "VC-001",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/AH5-04B-QUAL-001/spec.md: AC-001 through AC-005",
+        "../agent-harness/docs/specs/AH5-04b/report-packet.md: final check and job-binding requirements"
+      ],
+      "statement": "A passing qualification report covers exactly one target and one current job, binds the target and policy digests to that job, and cannot reuse evidence or a capability result from another target, policy, or job.",
+      "verification_hint": "Construct reports with a changed target, policy digest, job_id, host, kernel, engine, or workload image digest; reuse a report from another job; and mutate capability bindings one field at a time. Run the pinned Harness checker with the current --job-id and require nonzero/not-passing results for every mismatch. Confirm a second job gets a new report and that no result is carried forward."
+    },
+    {
+      "id": "VC-002",
+      "origin": "spec-derived",
+      "source_type": "external-standard",
+      "sources": [
+        "../agent-harness/docs/specs/AH5-04b/report-packet.md: mandatory check set and per-check evidence",
+        "../agent-harness/docs/specs/AH5-04b/grading-requirements.md: B1-B10"
+      ],
+      "statement": "A report passes only when all 26 distinct checks Q01-Q16 and B1-B10 are present exactly once, each passing check has its own raw evidence, and that evidence demonstrably supports the claimed observation for the same job.",
+      "verification_hint": "Test missing, duplicate, unknown, failed, and not-run check records; missing, shared, tampered, wrong-size, outside-root, or wrong-job evidence; and evidence whose bytes contradict the stated outcome. The installed checker must reject structural/integrity failures, and independent review must reject semantically irrelevant or contradictory evidence even when its digest is valid. Include named adversarial probes for each B1-B10 requirement rather than inferring a pass from container flags or configuration."
+    },
+    {
+      "id": "VC-003",
+      "origin": "spec-derived",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/AH5-04B-QUAL-001/spec.md: AC-003, AC-006, Trust boundary and limitations",
+        "../agent-harness/docs/specs/AH5-04b/report-packet.md: independent review and whole-token job binding"
+      ],
+      "statement": "Qualification requires execution and retained evidence from the exact live target job; the report's job_id and evidence text are claims until an independent reviewer verifies them against that job's actual identity and logs.",
+      "verification_hint": "During review, independently open the originating job and compare its immutable job identifier, runner/image version, kernel, engine, workload image digest, policy digest, command invocations, and per-check raw artifacts with the report. Confirm job identifiers are matched as whole tokens and cannot be satisfied by a prefix/suffix collision. Deliberately test the checker with a wholly fabricated but internally self-consistent report and record that structural validation alone cannot authenticate its origin; do not describe the checker as attestation."
+    },
+    {
+      "id": "VC-004",
+      "origin": "spec-derived",
+      "source_type": "security",
+      "sources": [
+        "docs/specs/AH5-04B-QUAL-001/spec.md: AC-004 and AC-006",
+        "../agent-harness/docs/specs/AH5-04b/report-packet.md: review_subject and reviewer separation"
+      ],
+      "statement": "The independent review is bound to the exact report subject, is authored by an identity distinct from the report author, and is supported by review evidence separate from all check evidence.",
+      "verification_hint": "Recompute review_subject from the report excluding its review, then mutate any checked report field and verify the old review no longer binds. Try same-identity review with case variations, review evidence that omits or misstates the subject, and reuse of any check evidence as review evidence. Independently verify the reviewer's identity and actual inspection of the raw evidence; a self-asserted reviewer field is not identity authentication."
+    },
+    {
+      "id": "VC-005",
+      "origin": "spec-derived",
+      "source_type": "spec",
+      "sources": [
+        "docs/specs/AH5-04B-QUAL-001/spec.md: AC-002 and AC-003",
+        "docs/specs/AH5-04B-QUAL-001/plan.md: steps 3-5",
+        "../agent-harness/docs/specs/AH5-04b/grading-requirements.md: B1-B10"
+      ],
+      "statement": "The qualification run executes and records every Q01-Q16 and B1-B10 probe even after an earlier failure; Docker Desktop is tried first, and only a non-passing Docker report triggers a complete new run on a fresh GitHub-hosted Ubuntu job.",
+      "verification_hint": "Inject an early probe failure and show all later check IDs still execute and receive individual outcomes/evidence. Inspect ordered run logs to verify the Docker Desktop attempt precedes fallback. When Docker fails, require a fresh GitHub job and all 26 checks there with a new tuple and evidence; when Docker passes, require fallback marked not required and ensure no GitHub target is described as qualified."
+    },
+    {
+      "id": "VC-006",
+      "origin": "independent",
+      "source_type": "architecture-invariant",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: sections 5, 8, 12, 13, and 25",
+        "AGENTS.md: mandatory invariants 7-10",
+        "docs/specs/SDD-OBS-001/spec.md: strong-sandbox, protected-path, identity, and process-drain requirements",
+        "docs/reviews/S30-03a-qualification-2026-10-04.json"
+      ],
+      "statement": "A qualification claim never exceeds the exact target, policy, job, workload image, and tested behaviors in independently inspected evidence; no result qualifies generic Docker, other jobs, unlisted restore/launch paths, host/provider administration, or production, and qualification alone grants no execution authority.",
+      "verification_hint": "Challenge each report and handoff statement against its evidence. Confirm Q01-Q16 and B1-B10 are actually exercised, including process descendants, stale identities, cancellation/drainage and restart states, and that the feature does not mutate SDD-OBS-001 policy or enable a backend. Review Docker Desktop and GitHub runner claims separately. Ask whether a privileged host operator, unlisted restore path, or fabricated/replaced evidence could bypass the observed procedure; document those as outside the guarantee instead of claiming they are prevented. Require NOT QUALIFIED and no payload execution authorization when evidence is incomplete, unsupported, unauthenticated, mismatched, or not independently reviewable."
+    },
+    {
+      "id": "VC-007",
+      "origin": "independent",
+      "source_type": "security",
+      "sources": [
+        "docs/agentic-sdd/constitution.md: sections 1, 5, 8, 15, and 23",
+        "../agent-harness/docs/specs/AH5-04b/report-packet.md: known authenticity limits",
+        "../agent-harness/docs/specs/AH5-04b/grading-requirements.md: B8 and B10 contract-v1 gaps"
+      ],
+      "statement": "The qualification record and its conclusions preserve the boundary between observed target properties and unauthenticated assertions, and do not imply consumer-readable contract-v2 grading guarantees that contract v1 does not provide.",
+      "verification_hint": "Inspect report schema, evidence, CI workflow, independent review, and user-facing status language for unsupported claims of cryptographic provenance, provider attestation, universal restore-path coverage, or production readiness. Verify B8 applied-limit and limit-fired observations and B10 target/report/image/limit/exit observations are present as qualification evidence, while explicitly noting that consumers cannot read these fields through contract v1. Confirm capability qualified/launch_ready state is not converted into permission to run workloads by this feature."
+    }
+  ],
+  "exemptions": [],
+  "feature": "AH5-04B-QUAL-001",
+  "generated_at": "2026-10-07T00:00:00Z",
+  "inputs": {
+    "spec_sha256": "87e42d8a0cab46e5d21c61a5512118b36b6846f1b4eb904696450866f43648e3",
+    "plan_sha256": "e1ac6e5ddca3f6637656ef03045e553a81d55ccff19724a7115b8dd2cd130168",
+    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079"
+  },
+  "schema_version": 1,
+  "status": "accepted",
+  "summary": "Independent verification criteria for complete per-check evidence, exact target/job binding, review independence, honest trust-boundary claims, and the limits of Harness v0.3.0 qualification validation."
+}
