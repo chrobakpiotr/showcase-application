@@ -1,0 +1,14 @@
+{
+  "check_id": "B9",
+  "details": {
+    "artifact_bytes": 12,
+    "artifact_sha256": "22088ecf0cae358847d59ab20eef014d79fb25a2a0d530d7b6863be48cdea6ab",
+    "container_gone_before_result_read": true
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "BOUNDED_ARTIFACT_AFTER_SANDBOX_DESTROYED",
+  "reason_code": "BOUNDED_ARTIFACT_AFTER_DESTROY",
+  "status": "pass",
+  "stderr": "",
+  "stdout": ""
+}

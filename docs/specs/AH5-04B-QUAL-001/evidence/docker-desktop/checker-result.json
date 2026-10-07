@@ -1,0 +1,7 @@
+{
+  "checker_version": "agent-harness 0.3.0",
+  "exit_code": 1,
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "stderr": "",
+  "stdout": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-005/docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json: qualification showcase-docker-desktop job showcase-docker-desktop-local-2026-10-07-run1 sha256:546de67c12bef4fa4c8ddc82da69bbd117ff5e7907697b83a22922ef681f7524 does not pass\n"
+}
