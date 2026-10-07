@@ -2095,6 +2095,83 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual('deadbeef', archived['last_attempt_commit'])
         self.assertEqual('evidence/result.json', archived['completion_evidence'])
 
+    def test_reopen_ignores_unrelated_legacy_packets(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 1})
+        state['tasks']['T-900'].update({'status': 'completed', 'attempts': 1})
+        harness.save_state(feature, state)
+        # T-001 is not a descendant of T-900; its historical legacy packet must not block the reopen.
+        legacy = feature / 'packets' / 'T-001.json'
+        legacy.parent.mkdir(exist_ok=True)
+        legacy.write_text('{"task": "unrelated historical packet"}\n', encoding='utf-8')
+        before = legacy.read_bytes()
+
+        with mock.patch.object(harness, 'prune_task_workspace'):
+            harness.cmd_reopen(argparse.Namespace(
+                feature_dir=feature,
+                task_id='T-900',
+                reason='B9 fix',
+                evidence=None,
+            ))
+
+        updated = harness.load_state(feature, doc)
+        self.assertEqual('failed', updated['tasks']['T-900']['status'])
+        self.assertEqual('completed', updated['tasks']['T-001']['status'])
+        self.assertEqual(before, legacy.read_bytes())
+
+    def test_reopen_refuses_malformed_descendant_attempt_ledger(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 1})
+        state['tasks']['T-900'].update({
+            'status': 'completed',
+            'attempts': 1,
+            'attempt_bindings': [{'attempt': 1, 'binding_status': 'proven'}],
+        })
+        harness.save_state(feature, state)
+        state_file = harness.state_path(feature)
+        before = state_file.read_bytes()
+
+        with mock.patch.object(harness, 'prune_task_workspace') as prune:
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-001',
+                    reason='test malformed descendant ledger',
+                    evidence=None,
+                ))
+            prune.assert_not_called()
+
+        self.assertEqual(before, state_file.read_bytes())
+
+    def test_reopen_fails_closed_for_missing_active_revision(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'completed',
+            'attempts': 1,
+            'active_packet_revision': 'sha256:' + '0' * 64,
+        })
+        harness.save_state(feature, state)
+        state_file = harness.state_path(feature)
+        before = state_file.read_bytes()
+
+        with mock.patch.object(harness, 'prune_task_workspace') as prune:
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-001',
+                    reason='test missing active revision',
+                    evidence=None,
+                ))
+            prune.assert_not_called()
+
+        self.assertEqual(before, state_file.read_bytes())
+
 
     def test_evidence_contract(self):
         evidence = self.root / 'result.json'

@@ -4596,6 +4596,19 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
     print(f'HUMAN_RESOLVED {args.task_id} -> retry authorized; artifact={artifact}')
 
 
+def reopen_dependency_graph(feature_dir: pathlib.Path, doc: dict[str, Any],
+                            state: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Build reopen dependencies without resolving unrelated legacy packets."""
+    graph = {}
+    for tid, task in task_index(doc).items():
+        validate_attempt_binding_ledger(state['tasks'][tid])
+        if state['tasks'].get(tid, {}).get('active_packet_revision') is not None:
+            graph[tid] = active_task_contract(feature_dir, doc, tid, state=state)
+        else:
+            graph[tid] = task
+    return graph
+
+
 def cmd_reopen(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     idx = task_index(doc)
@@ -4608,9 +4621,7 @@ def cmd_reopen(args: argparse.Namespace) -> None:
     # the state lock before deleting any task-local workspace, otherwise a racing worker can lose a
     # live worktree even though the reopen itself is rejected.
     with locked_state(args.feature_dir, doc) as state:
-        active_idx = {tid: active_task_contract(args.feature_dir, doc, tid, state=state)
-                      for tid in idx}
-        stale = sorted(descendants(active_idx, args.task_id))
+        stale = sorted(descendants(reopen_dependency_graph(args.feature_dir, doc, state), args.task_id))
         target = state['tasks'][args.task_id]
         if target.get('status') != 'completed':
             die(f'{args.task_id} must be completed before it can be reopened')
