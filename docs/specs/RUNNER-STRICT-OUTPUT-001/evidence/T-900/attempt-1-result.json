@@ -1,0 +1,39 @@
+{
+  "assumptions": [
+    "The `--print-command` preview is existing provider-execution behavior that AC-007 requires to keep working.",
+    "The spec's live probe evidence for Claude Code 2.1.289 restricted-mode OAuth and schema acceptance is trusted and was not re-run."
+  ],
+  "changed_paths": [],
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v -> Ran 22 tests, OK",
+    "python3 -m py_compile tooling/agent-harness/runner.py -> did not run to completion: the sandbox blocked writing the bytecode cache under ~/Library/Caches/com.apple.python (PermissionError). The module imports and runs under the unittest run above, so there is no syntax error. A retry with PYTHONPYCACHEPREFIX was refused by the permission mode.",
+    "git diff main --quiet -- tooling/agent-harness/schemas/task-result.schema.json -> no change",
+    "git show HEAD -- tooling/agent-harness/runner.py (reviewed the T-001 diff)"
+  ],
+  "findings": [
+    "AC-001 PASS: `git diff main` shows no change to tooling/agent-harness/schemas/task-result.schema.json. The provider schema is generated in project_task_result_schema and read from TASK_RESULT_SCHEMA_PATH.",
+    "AC-002 PASS: the projection sets additionalProperties:false and required=sorted(properties) on every object, root and tdd_evidence included. It drops only keywords in the profile's drop_keywords: uniqueItems for ('codex','codex-cli 0.160.0') and nothing for ('claude','2.1.289 (Claude Code)'). Unknown keywords raise ValueError.",
+    "AC-003 PASS: validate_result runs canonical_schema_errors before the older hand-written checks, and main passes in the canonical schema it already loaded. The dependency-free validator covers type, enum, minLength, pattern (re.search, safe here because the canonical patterns are anchored), required, additionalProperties and uniqueItems. Schema definitions it cannot enforce are rejected.",
+    "AC-005 PASS with a caveat: run.json stores provider_cli_version and output_schema_projection (provider, cli_version, canonical_schema_sha256, projection_sha256, dropped_constraints). A missing or unknown CLI version, or a schema that cannot be projected, calls die() before the provider runs. Caveat: extract_claude_result still parses envelope['result'] as JSON when structured_output is missing. That code predates this change and its output is still checked against the canonical schema, but it partly conflicts with 'no unstructured-output fallback'.",
+    "AC-007 FAIL (counterexample): runner.py:813-816 builds preview_schema=Path('<GENERATED_TASK_RESULT_SCHEMA>') and passes it to claude_command, whose claude_schema_text (runner.py:437-440) calls read_text on it. That raises FileNotFoundError, so die('invalid Claude output schema ...') runs and `--print-command --provider claude` no longer renders a command. Codex is unaffected because codex_command only puts the path on the command line. No test covers the Claude print-command path.",
+    "AC-007 minor: `--print-command` now calls cli_version and dies if the provider CLI is missing (runner.py:802-804). Before this change, codex_command and claude_command deliberately skipped the installed-CLI check in print-command mode.",
+    "AC-008 PARTIAL: the command now uses `--restricted --strict-mcp-config` with explicit --settings and --tools, and no credential handling was added to the prompt or the result. Whether restricted mode authenticates through OAuth was not checked live here; that rests on the spec's recorded probe.",
+    "AC-004/AC-006: the new tests cover both CLI versions, unknown versions and keywords failing closed, and canonical rejection of the omitted uniqueItems constraint. 22 tests pass."
+  ],
+  "provenance": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/RUNNER-STRICT-OUTPUT-001/T-900/.agent-runs/RUNNER-STRICT-OUTPUT-001/T-900/manual/20261007T084726.346194Z/provenance.json",
+  "residual_risks": [
+    "The outer harness should rerun py_compile in an environment where the bytecode cache directory is writable.",
+    "The extract_claude_result fallback that parses envelope['result'] remains, though its output is still validated against the canonical schema.",
+    "Live provider acceptance of the projected schemas was not re-run during this evaluation."
+  ],
+  "rework_tasks": [
+    "T-001"
+  ],
+  "status": "fail",
+  "summary": "Most of T-001 holds up. The canonical schema is unchanged. The provider schema is generated from it with all objects closed and every property required. Codex 0.160.0 drops only uniqueItems and Claude Code 2.1.289 drops nothing. Every result is checked against the canonical schema, the run record stores the provenance, and unknown CLI versions are refused before the provider runs. All 22 focused tests pass. However, `--print-command --provider claude` is now broken, which is a counterexample to AC-007. The preview passes the placeholder path `<GENERATED_TASK_RESULT_SCHEMA>` to claude_command, which hands it to claude_schema_text, which tries to read it as a real file and dies with 'invalid Claude output schema'. The Codex path only puts the placeholder on the command line, so it is not affected. There is also a smaller issue: `--print-command` now needs the provider CLI to be installed, because cli_version runs first. Rework goes to T-001.",
+  "tdd_evidence": {
+    "green": "The focused suite passes (22 tests OK) against the T-001 checkpoint.",
+    "red": "Not applicable (existing-suite mode). The counterexample comes from reading the code: the placeholder schema path is read with read_text in claude_schema_text, and no test exercises it.",
+    "refactor": "No changes made; this evaluation is read-only."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "assumptions": [
+    "The spec's account of the live probe (Claude Code 2.1.289 accepting --restricted with OAuth and the strict schema features) is trusted, because I could not run the CLI here.",
+    "Requiring the canonically optional fields (findings, rework_tasks, tdd_evidence) in the provider schema is allowed by the spec's Risks section, as long as the canonical schema still validates the result."
+  ],
+  "changed_paths": [],
+  "commands": [
+    "git diff --stat acc644b HEAD -> only tooling/agent-harness/runner.py and tests/test_runner.py changed",
+    "git diff --quiet acc644b HEAD -- tooling/agent-harness/schemas/ -> SCHEMA_UNCHANGED (AC-001)",
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -> Ran 25 tests, OK",
+    "python3 -m py_compile tooling/agent-harness/runner.py -> PermissionError: the sandbox would not let it create the bytecode cache under ~/Library/Caches/com.apple.python (an environment limit, not a syntax error); the unittest import above loaded the module without error",
+    "PYTHONPYCACHEPREFIX=$TMPDIR/pyc python3 -m py_compile ... -> blocked by the don't-ask permission mode, not run",
+    "claude --version / codex --version / claude --help -> blocked by the permission mode, not run"
+  ],
+  "findings": [
+    "AC-001 holds: project_task_result_schema builds the provider schema from TASK_RESULT_SCHEMA_PATH, which points at the runner's repository, and the canonical file is unchanged since acc644b.",
+    "AC-002 holds: every object node gets additionalProperties:false and requires all of its declared properties. Only keywords listed in the exact (provider, version) profile are dropped: uniqueItems for 'codex-cli 0.160.0', nothing for '2.1.289 (Claude Code)'. Each dropped keyword is recorded in dropped_constraints.",
+    "AC-003 holds: validate_result runs canonical_schema_errors first, and main passes in the canonical schema it loaded. The validator handles every keyword the canonical schema uses (type, enum, minLength, pattern, items, uniqueItems, required, additionalProperties false or schema, nested objects). Unsupported keywords are refused, and bool and int values are not treated as interchangeable.",
+    "AC-004 and AC-006 hold: the tests cover both exact versions, show valid output passing each projection, and show that a duplicate rework_tasks entry, nested enum or pattern violations, and unknown fields are rejected by canonical validation.",
+    "AC-005 holds: when the CLI version is missing or unsupported, the runner stops before run_dir and before the provider runs. The run record stores output_schema_projection (provider, cli_version, canonical_schema_sha256, projection_sha256, dropped_constraints). The fallback that parsed envelope.result is removed, and a regression test covers this.",
+    "Minor provenance gap (does not block): for Claude, claude_schema_text removes '$schema' after projection. The projection_sha256 in the run record is therefore the hash of the written task-result-output-schema.json file, not of the exact --json-schema text Claude receives. The removal only drops metadata, not a constraint, but it is not listed in dropped_constraints either. Recommended follow-up: also record the SHA-256 of the transmitted text.",
+    "AC-007 looks intact: packet-hash and lease checks, enforce_postconditions and verification reruns are unchanged and still run after canonical validation, and their existing tests still pass.",
+    "AC-008 is met as far as the code goes: --bare is replaced by --restricted --strict-mcp-config, and the explicit --settings, --tools and --allowedTools are still passed. Nothing in the change copies keys or tokens into the prompt, worktree or result. I could not run claude --help to confirm the flag exists in this CLI version."
+  ],
+  "provenance": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/RUNNER-STRICT-OUTPUT-001/T-900/.agent-runs/RUNNER-STRICT-OUTPUT-001/T-900/manual/20261007T085700.201906Z/provenance.json",
+  "residual_risks": [
+    "I did not confirm locally that the --restricted and --strict-mcp-config flags exist in the installed Claude Code 2.1.289; running the CLI was denied.",
+    "Under the projection, providers must always return tdd_evidence with non-empty red, green and refactor strings, even for existing-suite tasks. That can push agents toward filler text.",
+    "For Claude, projection_sha256 does not cover the exact transmitted schema text, which has '$schema' removed.",
+    "The py_compile check could not write its bytecode cache in this sandbox. The outer harness rerun is the authoritative compile check."
+  ],
+  "rework_tasks": [],
+  "status": "pass",
+  "summary": "I tried to break the T-001 runner change against AC-001 to AC-008 and couldn't. The focused suite passes (25 tests, OK). The canonical task-result schema is byte-identical to the base commit. Unknown provider/version pairs and schema keywords are refused before any provider runs. Every result is checked against the canonical schema loaded from the runner's repository, not the task worktree, and the old unstructured-output fallback for Claude is gone. My own py_compile run failed, but only because the sandbox blocked writing to its bytecode cache. One small provenance gap: for Claude, the recorded projection hash is not the hash of the exact schema text sent to the CLI.",
+  "tdd_evidence": {
+    "green": "python3 -m unittest tooling/agent-harness/tests/test_runner.py -> 25 tests OK; canonical schema diff against acc644b is empty.",
+    "red": "Not applicable: this is an existing-suite evaluation. I looked for counterexamples instead (schema drift, unknown versions, dropped constraints, the unstructured fallback, provenance) and found only the minor Claude '$schema' hash gap.",
+    "refactor": "No code changes (read-only evaluator). The existing packet, postcondition and fingerprint regression tests still pass."
+  }
+}
