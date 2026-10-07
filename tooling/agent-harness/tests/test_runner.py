@@ -47,6 +47,101 @@ class RunnerTest(unittest.TestCase):
         self.assertIn('--json', cmd)
         self.assertIn('sandbox_workspace_write.network_access=false', cmd)
 
+    def test_codex_and_claude_result_schemas_are_projected_per_exact_cli_version(self):
+        canonical = runner.load(runner.REPO / 'tooling/agent-harness/schemas/task-result.schema.json')
+        codex, codex_dropped = runner.project_task_result_schema(canonical, 'codex', 'codex-cli 0.160.0')
+        claude, claude_dropped = runner.project_task_result_schema(canonical, 'claude', '2.1.289 (Claude Code)')
+
+        self.assertFalse(codex['additionalProperties'])
+        self.assertEqual(set(codex['properties']), set(codex['required']))
+        self.assertFalse(codex['properties']['tdd_evidence']['additionalProperties'])
+        self.assertEqual(set(codex['properties']['tdd_evidence']['properties']),
+                         set(codex['properties']['tdd_evidence']['required']))
+        self.assertNotIn('uniqueItems', codex['properties']['rework_tasks'])
+        self.assertEqual(['/properties/rework_tasks/uniqueItems'], codex_dropped)
+        self.assertIn('uniqueItems', claude['properties']['rework_tasks'])
+        self.assertEqual([], claude_dropped)
+
+        valid = {
+            'status': 'pass', 'summary': 'ok', 'changed_paths': [], 'commands': [],
+            'assumptions': [], 'residual_risks': [], 'findings': [], 'rework_tasks': [],
+            'tdd_evidence': {'red': 'failed', 'green': 'passed', 'refactor': 'passed'},
+        }
+        self.assertEqual([], runner.canonical_schema_errors(valid, canonical))
+        self.assertEqual([], runner.canonical_schema_errors(valid, codex))
+        self.assertEqual([], runner.canonical_schema_errors(valid, claude))
+
+    def test_canonical_validation_enforces_dropped_unique_items_constraint(self):
+        canonical = runner.load(runner.REPO / 'tooling/agent-harness/schemas/task-result.schema.json')
+        projected, dropped = runner.project_task_result_schema(canonical, 'codex', 'codex-cli 0.160.0')
+        self.assertIn('/properties/rework_tasks/uniqueItems', dropped)
+        invalid = {
+            'status': 'fail', 'summary': 'bad duplicate', 'changed_paths': [], 'commands': [],
+            'assumptions': [], 'residual_risks': [], 'findings': [],
+            'rework_tasks': ['T-001', 'T-001'],
+            'tdd_evidence': {'red': 'r', 'green': 'g', 'refactor': 'f'},
+        }
+        self.assertEqual([], runner.canonical_schema_errors(invalid, projected))
+        self.assertTrue(any('uniqueItems' in error for error in runner.canonical_schema_errors(invalid, canonical)))
+        with self.assertRaises(SystemExit):
+            runner.validate_result(invalid, canonical_schema=canonical)
+
+    def test_canonical_validation_enforces_nested_enum_pattern_and_unknown_fields(self):
+        canonical = runner.load(runner.REPO / 'tooling/agent-harness/schemas/task-result.schema.json')
+        valid = {
+            'status': 'fail', 'summary': 'ok', 'changed_paths': [], 'commands': [],
+            'assumptions': [], 'residual_risks': [], 'rework_tasks': ['T-001'],
+            'tdd_evidence': {'red': 'r', 'green': 'g', 'refactor': 'f'},
+        }
+        for mutate in (
+            lambda value: value.update(status='unknown'),
+            lambda value: value.update(rework_tasks=['bad-id']),
+            lambda value: value['tdd_evidence'].update(extra='x'),
+        ):
+            invalid = json.loads(json.dumps(valid))
+            mutate(invalid)
+            self.assertTrue(runner.canonical_schema_errors(invalid, canonical))
+
+    def test_unknown_provider_version_or_schema_keyword_fails_closed(self):
+        canonical = runner.load(runner.REPO / 'tooling/agent-harness/schemas/task-result.schema.json')
+        with self.assertRaises(ValueError):
+            runner.project_task_result_schema(canonical, 'codex', 'codex-cli 0.161.0')
+        with self.assertRaises(ValueError):
+            runner.project_task_result_schema(canonical, 'unknown', '1.0')
+        incompatible = json.loads(json.dumps(canonical))
+        incompatible['patternProperties'] = {'.*': {'type': 'string'}}
+        with self.assertRaises(ValueError):
+            runner.project_task_result_schema(incompatible, 'codex', 'codex-cli 0.160.0')
+        incompatible = json.loads(json.dumps(canonical))
+        incompatible['properties']['findings']['prefixItems'] = [{'type': 'string'}]
+        self.assertTrue(runner.canonical_schema_errors({}, incompatible))
+
+    def test_projection_manifest_hashes_exact_provider_schema_bytes(self):
+        canonical_bytes = runner.TASK_RESULT_SCHEMA_PATH.read_bytes()
+        _, projected_bytes, record = runner.task_result_projection(
+            canonical_bytes, 'codex', 'codex-cli 0.160.0')
+        self.assertEqual('codex', record['provider'])
+        self.assertEqual('codex-cli 0.160.0', record['cli_version'])
+        self.assertEqual(runner.hashlib.sha256(canonical_bytes).hexdigest(),
+                         record['canonical_schema_sha256'])
+        self.assertEqual(runner.hashlib.sha256(projected_bytes).hexdigest(),
+                         record['projection_sha256'])
+        self.assertEqual(['/properties/rework_tasks/uniqueItems'], record['dropped_constraints'])
+
+    def test_claude_command_uses_restricted_oauth_auth_not_bare_mode(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            schema = root / 'result.schema.json'
+            schema.write_text(json.dumps({'type': 'object', 'properties': {}, 'required': []}), encoding='utf-8')
+            args = argparse.Namespace(
+                print_command=True, review_existing=False, profile=None, max_turns=1,
+                max_budget_usd=None, model=None,
+            )
+            cmd = runner.claude_command(args, 'prompt', root, schema_path=schema)
+            self.assertIn('--restricted', cmd)
+            self.assertNotIn('--bare', cmd)
+            self.assertIn('--strict-mcp-config', cmd)
+
     def test_codex_command_accepts_explicit_output_schema(self):
         args = argparse.Namespace(print_command=True, sandbox='read-only', model=None, reasoning='high')
         schema = pathlib.Path('/tmp/design-result.schema.json')

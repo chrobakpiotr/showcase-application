@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shlex
 import stat
 import shutil
@@ -26,6 +27,15 @@ from typing import Any
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 RUNS = REPO / '.agent-runs'
+TASK_RESULT_SCHEMA_PATH = REPO / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json'
+TASK_RESULT_PROJECTION_PROFILES = {
+    ('codex', 'codex-cli 0.160.0'): {'drop_keywords': frozenset({'uniqueItems'})},
+    ('claude', '2.1.289 (Claude Code)'): {'drop_keywords': frozenset()},
+}
+SUPPORTED_SCHEMA_KEYWORDS = frozenset({
+    '$schema', 'title', 'type', 'additionalProperties', 'required', 'properties',
+    'enum', 'minLength', 'items', 'uniqueItems', 'pattern',
+})
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import telemetry  # noqa: E402
@@ -47,6 +57,228 @@ def load(path: pathlib.Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         die(f'expected JSON object: {path}')
     return value
+
+
+def canonical_json(value: Any) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False,
+                      allow_nan=False).encode('utf-8')
+
+
+def project_task_result_schema(
+    schema: dict[str, Any], provider: str, provider_cli_version: str,
+) -> tuple[dict[str, Any], list[str]]:
+    """Generate one tested provider schema without weakening canonical validation."""
+    profile = TASK_RESULT_PROJECTION_PROFILES.get((provider, provider_cli_version))
+    if profile is None:
+        raise ValueError(f'unsupported task-result schema profile: {provider} {provider_cli_version!r}')
+    definition_errors = schema_definition_errors(schema)
+    if definition_errors:
+        raise ValueError(f'canonical task-result schema cannot be projected: {definition_errors[:8]}')
+    dropped: list[str] = []
+    drop_keywords = profile['drop_keywords']
+
+    def project(node: Any, pointer: str) -> Any:
+        if isinstance(node, list):
+            return [project(child, f'{pointer}/{index}') for index, child in enumerate(node)]
+        if not isinstance(node, dict):
+            return node
+        unknown = set(node) - SUPPORTED_SCHEMA_KEYWORDS
+        if unknown:
+            raise ValueError(f'unsupported canonical schema keywords at {pointer or "/"}: {sorted(unknown)}')
+        out: dict[str, Any] = {}
+        for key, child in node.items():
+            child_pointer = f'{pointer}/{key}'
+            if key in drop_keywords:
+                dropped.append(child_pointer)
+                continue
+            if key == 'properties':
+                if not isinstance(child, dict):
+                    raise ValueError(f'properties must be an object at {child_pointer}')
+                out[key] = {name: project(value, f'{child_pointer}/{name}')
+                            for name, value in sorted(child.items())}
+            elif key == 'items':
+                out[key] = project(child, child_pointer)
+            elif key in {'additionalProperties', 'required'} and node.get('type') == 'object':
+                # Object openness and optional fields are not portable in strict output modes.
+                continue
+            else:
+                out[key] = project(child, child_pointer)
+        if node.get('type') == 'object':
+            properties = node.get('properties')
+            if not isinstance(properties, dict):
+                raise ValueError(f'object schema has no properties object at {pointer or "/"}')
+            out['additionalProperties'] = False
+            out['required'] = sorted(properties)
+        return out
+
+    result = project(schema, '')
+    if not isinstance(result, dict):
+        raise ValueError('canonical task-result schema must be an object')
+    return result, sorted(dropped)
+
+
+def task_result_projection(
+    canonical_schema_bytes: bytes, provider: str, provider_cli_version: str,
+) -> tuple[dict[str, Any], bytes, dict[str, Any]]:
+    try:
+        canonical_schema = json.loads(canonical_schema_bytes)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f'invalid canonical task-result schema: {exc}') from exc
+    output_schema, dropped_constraints = project_task_result_schema(
+        canonical_schema, provider, provider_cli_version)
+    output_schema_bytes = canonical_json(output_schema)
+    metadata = {
+        'provider': provider,
+        'cli_version': provider_cli_version,
+        'canonical_schema_sha256': hashlib.sha256(canonical_schema_bytes).hexdigest(),
+        'projection_sha256': hashlib.sha256(output_schema_bytes).hexdigest(),
+        'dropped_constraints': dropped_constraints,
+    }
+    return canonical_schema, output_schema_bytes, metadata
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    if isinstance(left, dict) and isinstance(right, dict):
+        return (left.keys() == right.keys() and
+                all(_json_equal(left[key], right[key]) for key in left))
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right))
+    return type(left) is type(right) and left == right
+
+
+def schema_definition_errors(schema: Any) -> list[str]:
+    """Reject schema constructs this dependency-free canonical validator cannot enforce."""
+    errors: list[str] = []
+    known_types = {'object', 'array', 'string', 'integer', 'number', 'boolean', 'null'}
+
+    def visit(rule: Any, pointer: str) -> None:
+        if not isinstance(rule, dict):
+            errors.append(f'{pointer or "/"}: schema node must be an object')
+            return
+        unknown = set(rule) - SUPPORTED_SCHEMA_KEYWORDS
+        if unknown:
+            errors.append(f'{pointer or "/"}: unsupported schema keywords {sorted(unknown)}')
+            return
+        expected = rule.get('type')
+        types = expected if isinstance(expected, list) else ([expected] if expected is not None else [])
+        if any(not isinstance(item, str) or item not in known_types for item in types):
+            errors.append(f'{pointer or "/"}: unsupported schema type {expected!r}')
+        if 'required' in rule and (
+            not isinstance(rule['required'], list) or
+            any(not isinstance(item, str) for item in rule['required'])
+        ):
+            errors.append(f'{pointer or "/"}: required must be an array of strings')
+        if 'properties' in rule:
+            if not isinstance(rule['properties'], dict):
+                errors.append(f'{pointer or "/"}: properties must be an object')
+            else:
+                for name, child in rule['properties'].items():
+                    visit(child, f'{pointer}/properties/{name}')
+        if 'items' in rule:
+            visit(rule['items'], f'{pointer}/items')
+        additional = rule.get('additionalProperties', True)
+        if not isinstance(additional, (bool, dict)):
+            errors.append(f'{pointer or "/"}: additionalProperties must be boolean or schema')
+        elif isinstance(additional, dict):
+            visit(additional, f'{pointer}/additionalProperties')
+        if 'enum' in rule and not isinstance(rule['enum'], list):
+            errors.append(f'{pointer or "/"}: enum must be an array')
+        if 'minLength' in rule and (
+            type(rule['minLength']) is not int or rule['minLength'] < 0
+        ):
+            errors.append(f'{pointer or "/"}: minLength must be a non-negative integer')
+        if 'pattern' in rule:
+            if not isinstance(rule['pattern'], str):
+                errors.append(f'{pointer or "/"}: pattern must be a string')
+            else:
+                try:
+                    re.compile(rule['pattern'])
+                except re.error:
+                    errors.append(f'{pointer or "/"}: pattern is invalid')
+        if 'uniqueItems' in rule and type(rule['uniqueItems']) is not bool:
+            errors.append(f'{pointer or "/"}: uniqueItems must be boolean')
+
+    visit(schema, '')
+    return errors
+
+
+def canonical_schema_errors(value: Any, schema: dict[str, Any]) -> list[str]:
+    """Validate the repository's deliberately small JSON Schema subset fail-closed."""
+    errors = schema_definition_errors(schema)
+    if errors:
+        return errors
+
+    def visit(instance: Any, rule: Any, pointer: str) -> None:
+        if not isinstance(rule, dict):
+            errors.append(f'{pointer or "/"}: invalid schema node')
+            return
+        expected = rule.get('type')
+        expected_types = expected if isinstance(expected, list) else [expected]
+        type_names = {
+            'object': lambda item: isinstance(item, dict),
+            'array': lambda item: isinstance(item, list),
+            'string': lambda item: isinstance(item, str),
+            'integer': lambda item: isinstance(item, int) and not isinstance(item, bool),
+            'number': lambda item: isinstance(item, (int, float)) and not isinstance(item, bool),
+            'boolean': lambda item: isinstance(item, bool),
+            'null': lambda item: item is None,
+        }
+        if expected is not None:
+            unknown_types = [name for name in expected_types if name not in type_names]
+            if unknown_types:
+                errors.append(f'{pointer or "/"}: unsupported schema types {unknown_types}')
+                return
+            if not any(type_names[name](instance) for name in expected_types):
+                errors.append(f'{pointer or "/"}: expected {expected}, got {type(instance).__name__}')
+                return
+
+        if 'enum' in rule and not any(_json_equal(instance, item) for item in rule['enum']):
+            errors.append(f'{pointer or "/"}: value is not in enum')
+        if isinstance(instance, str):
+            if len(instance) < rule.get('minLength', 0):
+                errors.append(f'{pointer or "/"}: string shorter than minLength')
+            pattern = rule.get('pattern')
+            if pattern is not None:
+                try:
+                    if re.search(pattern, instance) is None:
+                        errors.append(f'{pointer or "/"}: string does not match pattern')
+                except re.error:
+                    errors.append(f'{pointer or "/"}: invalid schema pattern')
+
+        if isinstance(instance, dict):
+            properties = rule.get('properties', {})
+            if not isinstance(properties, dict):
+                errors.append(f'{pointer or "/"}: invalid properties schema')
+                return
+            for name in rule.get('required', []):
+                if name not in instance:
+                    errors.append(f'{pointer}/{name}: required property is missing' if pointer else
+                                  f'/{name}: required property is missing')
+            additional = rule.get('additionalProperties', True)
+            for name, child in instance.items():
+                child_pointer = f'{pointer}/{name}'
+                if name in properties:
+                    visit(child, properties[name], child_pointer)
+                elif additional is False:
+                    errors.append(f'{child_pointer}: additional property is not allowed')
+                elif isinstance(additional, dict):
+                    visit(child, additional, child_pointer)
+        elif isinstance(instance, list):
+            if 'items' in rule:
+                for index, child in enumerate(instance):
+                    visit(child, rule['items'], f'{pointer}/{index}')
+            if rule.get('uniqueItems') is True:
+                for index, child in enumerate(instance):
+                    if any(_json_equal(child, earlier) for earlier in instance[:index]):
+                        errors.append(f'{pointer or "/"}: uniqueItems constraint violated')
+                        break
+
+    visit(value, schema, '')
+    return errors
 
 
 def packet_hash(packet: dict[str, Any]) -> str:
@@ -239,7 +471,7 @@ def claude_command(
         'Bash(argocd *)', 'Bash(terraform apply *)', 'Bash(terraform destroy *)', 'Bash(docker login *)',
     ]
     cmd = [
-        'claude', '--bare', '-p', prompt,
+        'claude', '--restricted', '--strict-mcp-config', '-p', prompt,
         '--output-format', 'json',
         '--json-schema', schema,
         '--no-session-persistence',
@@ -283,7 +515,14 @@ def extract_claude_result(stdout: str) -> dict[str, Any]:
     die('Claude response did not contain structured_output matching the task result schema')
 
 
-def validate_result(result: dict[str, Any], packet: dict[str, Any] | None = None) -> None:
+def validate_result(
+    result: dict[str, Any], packet: dict[str, Any] | None = None,
+    *, canonical_schema: dict[str, Any] | None = None,
+) -> None:
+    schema = canonical_schema if canonical_schema is not None else load(TASK_RESULT_SCHEMA_PATH)
+    schema_errors = canonical_schema_errors(result, schema)
+    if schema_errors:
+        die(f'agent result violates canonical task-result schema: {schema_errors[:8]}')
     required = {'status', 'summary', 'changed_paths', 'commands', 'assumptions', 'residual_risks'}
     missing = required - set(result)
     if missing:
@@ -560,9 +799,21 @@ def main() -> None:
         args.sandbox = 'read-only'
     before = git_snapshot(worktree)
 
+    provider_cli_version = cli_version(args.provider)
+    if not provider_cli_version:
+        die(f'{args.provider} CLI version is unavailable; refusing structured-output execution')
+    try:
+        canonical_schema, output_schema_bytes, projection_metadata = task_result_projection(
+            TASK_RESULT_SCHEMA_PATH.read_bytes(), args.provider, provider_cli_version)
+    except ValueError as exc:
+        die(f'provider task-result schema is blocked: {exc}')
+
     preview_result = worktree / '.agent-result-preview.json'
-    cmd = codex_command(args, prompt, worktree, preview_result) if args.provider == 'codex' else claude_command(args, prompt, worktree)
     if args.print_command:
+        preview_schema = pathlib.Path('<GENERATED_TASK_RESULT_SCHEMA>')
+        cmd = (codex_command(args, prompt, worktree, preview_result, schema_path=preview_schema)
+               if args.provider == 'codex'
+               else claude_command(args, prompt, worktree, schema_path=preview_schema))
         rendered = [
             '<RESULT_PATH>' if item == str(preview_result) else '<PROMPT>' if item == prompt else item for item in cmd
         ]
@@ -573,7 +824,11 @@ def main() -> None:
     (out / 'prompt.txt').write_text(prompt, encoding='utf-8')
     (out / 'packet.json').write_text(json.dumps(packet, indent=2, sort_keys=True) + '\n', encoding='utf-8')
     result_path = out / 'result.json'
-    cmd = codex_command(args, prompt, worktree, result_path) if args.provider == 'codex' else claude_command(args, prompt, worktree)
+    output_schema_path = out / 'task-result-output-schema.json'
+    output_schema_path.write_bytes(output_schema_bytes)
+    cmd = (codex_command(args, prompt, worktree, result_path, schema_path=output_schema_path)
+           if args.provider == 'codex'
+           else claude_command(args, prompt, worktree, schema_path=output_schema_path))
     invocation_id = uuid.uuid4().hex
     started_at = telemetry.iso_now()
     started = time.monotonic()
@@ -584,7 +839,8 @@ def main() -> None:
         'feature': packet.get('feature'), 'task': packet.get('task'), 'role': packet.get('role'),
         'profile': args.profile or packet.get('agent_profile'),
         'provider': args.provider, 'model_requested': args.model,
-        'provider_cli_version': cli_version(args.provider),
+        'provider_cli_version': provider_cli_version,
+        'output_schema_projection': projection_metadata,
         'packet_sha256': packet.get('packet_sha256'),
         'feature_fingerprint': packet.get('feature_fingerprint'),
         'protocol_fingerprint': packet.get('protocol_fingerprint'),
@@ -618,7 +874,7 @@ def main() -> None:
             (out / 'provider-envelope.json').write_text(proc.stdout, encoding='utf-8')
         else:
             result = load(result_path)
-        validate_result(result, packet)
+        validate_result(result, packet, canonical_schema=canonical_schema)
         enforce_postconditions(packet, worktree, before, result, review_existing=read_only_run)
 
         if result['status'] == 'pass' and not args.skip_verification and not args.review_existing:
