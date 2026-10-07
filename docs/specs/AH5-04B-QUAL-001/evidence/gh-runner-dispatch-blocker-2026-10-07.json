@@ -1,0 +1,18 @@
+{
+  "task": "T-006",
+  "status": "needs-human",
+  "reason": "Docker Desktop report is not passing, so fallback is required. The qualification workflow exists only in the local task checkout; GitHub Actions cannot see or dispatch it before it exists on the remote default branch. No push was performed because repository instructions prohibit it.",
+  "observed_default_branch_workflows": [
+    "Agentic SDD CI",
+    "CI",
+    "CodeQL",
+    "OpenSSF Scorecard",
+    "Dependabot Updates",
+    "Dependency Graph"
+  ],
+  "dispatch_lookup": {
+    "command": "gh workflow view verification-sandbox-qualification.yml --yaml",
+    "result": "HTTP 404: workflow ... not found on the default branch"
+  },
+  "required_next_action": "Make the local qualification workflow commit available on the remote default branch, then run it in a fresh GitHub-hosted Ubuntu job with docker_desktop_failed=true and the Docker report digest; retain the job-specific raw evidence."
+}
