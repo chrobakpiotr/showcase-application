@@ -1,0 +1,45 @@
+{
+  "feature": "COMPLETION-AUTHORITY-BINDING-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Match running completion evidence to active packet identity",
+      "objective": "Prevent a preserved completion row from an old feature generation from closing a task attempt that reused its number under a different active packet revision and semantic fingerprint.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["concurrency", "lifecycle"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "First reproduce a stale immutable completion for attempt 2 while current state is failed attempt 1 on a new revision; after normal start to attempt 2, prove status stays running and downstream work is not unlocked. Also prove a matching current revision/fingerprint completion remains visible in the completion-record-before-state-save crash window."
+    },
+    {
+      "id": "T-900",
+      "title": "Adversarially evaluate completion identity across feature generations",
+      "objective": "Independently verify that completion effectiveness binds repository, feature, task, attempt, active packet revision, and semantic fingerprint without changing historical records or current correction/repair behavior.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/COMPLETION-AUTHORITY-BINDING-001/evidence/**"],
+      "risk_tags": ["evaluation", "concurrency", "lifecycle"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py -k completion_identity",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context review of the active completion identity and old-generation collision fixture; attempt to make a stale attempt-only record unlock dependents or mask a current running status."
+    }
+  ]
+}
