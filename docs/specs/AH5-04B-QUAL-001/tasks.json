@@ -22,7 +22,7 @@
     {
       "id": "T-002",
       "title": "Implement Q11-Q16 identity and lifecycle probes",
-      "objective": "Add probes for durable execution identity, stale identity rejection, cancellation, drainage, active restart and drained restart, preserving per-start generation and terminal-state observations without adding launch authority to the production runner.",
+      "objective": "Add probes for durable execution identity, stale identity rejection, cancellation, drainage, active restart and drained restart, preserving per-start generation and terminal-state observations without adding launch authority to the production runner. Exception details committed as evidence must be bounded and must not include secret-bearing values.",
       "role": "builder",
       "depends_on": ["T-001"],
       "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_probes.py"],
@@ -35,12 +35,12 @@
     {
       "id": "T-003",
       "title": "Implement B1-B10 grading boundary probes",
-      "objective": "Add one isolated, independently evidenced probe for each accepted Harness grading boundary requirement B1-B10, including bounded output and resource-limit behavior; never infer a pass from container configuration alone.",
+      "objective": "Add one isolated, independently evidenced probe for each accepted Harness grading boundary requirement B1-B10. B8 must enforce a combined 256 MiB workspace plus /tmp budget and stop timed-out containers by ID, recording observed container state. B10 must emit and validate an observed contract-v2 result against its exact request; never infer a pass from configuration or a fictional fixture.",
       "role": "builder",
       "depends_on": ["T-002"],
       "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_grading.py"],
       "risk_tags": ["security", "infra", "performance"],
-      "acceptance_criteria": ["AC-002", "AC-004", "AC-007"],
+      "acceptance_criteria": ["AC-002", "AC-004", "AC-007", "AC-008"],
       "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_grading.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py"],
       "test_mode": "red-green-refactor",
       "test_seam": "Each B check has a named adversarial payload/counterexample and its own evidence file; hidden canaries, leaked environment, egress, resource breach and oversized output must be observable failures."
@@ -48,10 +48,10 @@
     {
       "id": "T-004",
       "title": "Bind reports and capability evidence to the current target job",
-      "objective": "Add the qualification driver and CI invocation that record exact target/job identity, workload digest, policy digest and unique per-check evidence, then validate with the installed Harness v0.3.0 CLI. Keep reports non-passing until every check and independent review passes.",
+      "objective": "Add the qualification driver and CI invocation that record exact target/job identity, workload digest, policy digest and unique per-check evidence, pin Harness v0.4.0, and validate with its qualification CLI. Pin every workflow Action by commit SHA. Keep reports non-passing until every check and independent review passes.",
       "role": "builder",
       "depends_on": ["T-003"],
-      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_report.py", "tooling/scripts/run-verification-sandbox-qualification.sh", ".github/workflows/verification-sandbox-qualification.yml"],
+      "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_report.py", "tooling/agent-harness/requirements.txt", "tooling/scripts/run-verification-sandbox-qualification.sh", ".github/workflows/verification-sandbox-qualification.yml"],
       "risk_tags": ["security", "infra"],
       "acceptance_criteria": ["AC-001", "AC-004", "AC-005", "AC-007"],
       "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_report.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py", "bash -n tooling/scripts/run-verification-sandbox-qualification.sh"],
@@ -92,7 +92,7 @@
       "depends_on": ["T-001", "T-002", "T-003", "T-004", "T-005", "T-006"],
       "allowed_paths": ["docs/specs/AH5-04B-QUAL-001/evidence/**"],
       "risk_tags": ["evaluation", "security", "infra"],
-      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "VC-001", "VC-002", "VC-003", "VC-004", "VC-005", "VC-006", "VC-007"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "AC-008", "VC-001", "VC-002", "VC-003", "VC-004", "VC-005", "VC-006", "VC-007"],
       "verification": ["python3 tooling/agent-harness/qualification/check_selected_report.py --report docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json --evidence-root docs/specs/AH5-04B-QUAL-001/evidence/selected --capability-report docs/specs/AH5-04B-QUAL-001/evidence/selected/capability.json --job-id-file docs/specs/AH5-04B-QUAL-001/evidence/selected/job-id.txt"],
       "test_mode": "existing-suite",
       "test_seam": "Fresh-context adversarial review against the accepted sources and actual CI job, not only report shape. Any unauthenticated, absent or unverifiable raw evidence forces NOT QUALIFIED."

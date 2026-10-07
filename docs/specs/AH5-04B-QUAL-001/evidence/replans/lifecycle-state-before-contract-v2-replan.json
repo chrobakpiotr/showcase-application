@@ -1,0 +1,52 @@
+{
+  "created_at": "2026-10-07T09:05:48.618082+00:00",
+  "feature": "AH5-04B-QUAL-001",
+  "fingerprint": "ffc4791034cdaf8f68f8d4e821a9e67f4b96034dd3ba35c0f0f133fd206c8fb6",
+  "protocol_fingerprint": "3707e709c003aa40e26da654364068a9f8abddb76cc8d866d0da8d48813ec934",
+  "protocol_version": 1,
+  "state_version": 2,
+  "tasks": {
+    "T-001": {
+      "attempts": 2,
+      "checkpoint_commit": "11adccadb978ffc4040c70780d1d4724f7d482e1",
+      "completion_record_id": "completion:sha256:c0872e18468ffbab72caad818c39d27928d52cce564228a2ea4eaffabe69c3af",
+      "historical_status": null
+    },
+    "T-002": {
+      "attempts": 1,
+      "checkpoint_commit": "4b8a95e4e447c5c787e1afdedc304afaa5ea5d5c",
+      "completion_record_id": "completion:sha256:25824b9163155417f44934393334fc0d67330fca99999ca399b6aa75a482127e",
+      "historical_status": null
+    },
+    "T-003": {
+      "attempts": 2,
+      "checkpoint_commit": "81e682367291cf61dc2556a0f48f12aa629ebfe7",
+      "completion_record_id": "completion:sha256:ee09dc2222ce8a6b1ab27238fae15fe24fbfe6a9a37258f5590d622d020f88ca",
+      "historical_status": null
+    },
+    "T-004": {
+      "attempts": 1,
+      "checkpoint_commit": "70206b4b07575d285bddb9eb354403a1be2cd3b3",
+      "completion_record_id": "completion:sha256:0ad4be7152744535065d1a6d2cabb00a788793f9953d13ce5d99194c3ae83ae6",
+      "historical_status": null
+    },
+    "T-005": {
+      "attempts": 1,
+      "checkpoint_commit": "fe5c639dea8992f4f4a41daaeeaaa9b27c7f2b55",
+      "completion_record_id": "completion:sha256:70f6b9dc6227014cbed66728a5aec750ccbdc83cf60ea14fbfd8c3eff72de67b",
+      "historical_status": null
+    },
+    "T-006": {
+      "attempts": 0,
+      "checkpoint_commit": null,
+      "completion_record_id": null,
+      "historical_status": null
+    },
+    "T-900": {
+      "attempts": 0,
+      "checkpoint_commit": null,
+      "completion_record_id": null,
+      "historical_status": null
+    }
+  }
+}

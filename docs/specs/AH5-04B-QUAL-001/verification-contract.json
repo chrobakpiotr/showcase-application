@@ -82,21 +82,22 @@
       "sources": [
         "docs/agentic-sdd/constitution.md: sections 1, 5, 8, 15, and 23",
         "../agent-harness/docs/specs/AH5-04b/report-packet.md: known authenticity limits",
-        "../agent-harness/docs/specs/AH5-04b/grading-requirements.md: B8 and B10 contract-v1 gaps"
+        "../agent-harness/docs/specs/AH5-04b/grading-requirements.md: B8 and B10",
+        "../agent-harness/docs/adr/0005-contract-v2-target-evidence.md: request/result v2 validation"
       ],
-      "statement": "The qualification record and its conclusions preserve the boundary between observed target properties and unauthenticated assertions, and do not imply consumer-readable contract-v2 grading guarantees that contract v1 does not provide.",
-      "verification_hint": "Inspect report schema, evidence, CI workflow, independent review, and user-facing status language for unsupported claims of cryptographic provenance, provider attestation, universal restore-path coverage, or production readiness. Verify B8 applied-limit and limit-fired observations and B10 target/report/image/limit/exit observations are present as qualification evidence, while explicitly noting that consumers cannot read these fields through contract v1. Confirm capability qualified/launch_ready state is not converted into permission to run workloads by this feature."
+      "statement": "The qualification record preserves the boundary between observed target properties and unauthenticated assertions; every B10 contract-v2 result is validated against its request, and evidence does not imply production readiness or backend execution authority.",
+      "verification_hint": "Inspect report schema, raw evidence, CI workflow, independent review, and user-facing status language for unsupported claims of cryptographic provenance, provider attestation, universal restore-path coverage, or production readiness. Independently reconstruct B10 request/result pairs from the observed probe, validate each with the pinned contract API, verify exact integer limits, target digests, fired-limit/outcome rules and output truncation, and confirm the fictional fixture is not used as evidence. Confirm capability qualified/launch_ready state is not converted into permission to run workloads by this feature."
     }
   ],
   "exemptions": [],
   "feature": "AH5-04B-QUAL-001",
   "generated_at": "2026-10-07T00:00:00Z",
   "inputs": {
-    "spec_sha256": "87e42d8a0cab46e5d21c61a5512118b36b6846f1b4eb904696450866f43648e3",
-    "plan_sha256": "e1ac6e5ddca3f6637656ef03045e553a81d55ccff19724a7115b8dd2cd130168",
-    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079"
+    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079",
+    "plan_sha256": "23b675c3abbb240f61df5e634aee87565b72ee16827e79c54e62a6d20b602466",
+    "spec_sha256": "fc4eb9d8f603db0a4945e7161a55842a4c7439c780ad22d4e8cb24123e4dc528"
   },
   "schema_version": 1,
   "status": "accepted",
-  "summary": "Independent verification criteria for complete per-check evidence, exact target/job binding, review independence, honest trust-boundary claims, and the limits of Harness v0.3.0 qualification validation."
+  "summary": "Independent verification criteria for complete per-check evidence, exact target/job binding, review independence, honest trust-boundary claims, and Harness v0.4.0 qualification and contract-v2 validation."
 }
