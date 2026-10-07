@@ -35,7 +35,7 @@
     {
       "id": "T-003",
       "title": "Implement B1-B10 grading boundary probes",
-      "objective": "Add one isolated, independently evidenced probe for each accepted Harness grading boundary requirement B1-B10. B8 must enforce a combined 256 MiB workspace plus /tmp budget and stop timed-out containers by ID, recording observed container state. B10 must emit and validate an observed contract-v2 result against its exact request; never infer a pass from configuration or a fictional fixture.",
+      "objective": "Add one isolated, independently evidenced probe for each accepted Harness grading boundary requirement B1-B10. B8 must assert cpu.max=100000 100000, memory.max=536870912, memory.swap.max=0, and pids.max=64; identify OOM from OOMKilled/cgroup oom_kill state; enforce a combined 256 MiB workspace plus /tmp budget; and stop timed-out containers by ID, recording observed state. B10 must emit unqualified contract-v2 candidate results with {id, image_digest, qualification_digest:null}, validate each against its exact request and candidate target, and fail closed on unknown outcomes; never infer a pass from configuration or a fictional fixture.",
       "role": "builder",
       "depends_on": ["T-002"],
       "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_grading.py"],
@@ -43,12 +43,12 @@
       "acceptance_criteria": ["AC-002", "AC-004", "AC-007", "AC-008"],
       "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_grading.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py"],
       "test_mode": "red-green-refactor",
-      "test_seam": "Each B check has a named adversarial payload/counterexample and its own evidence file; hidden canaries, leaked environment, egress, resource breach and oversized output must be observable failures."
+      "test_seam": "Each B check has a named adversarial payload/counterexample and its own evidence file. B8 RED cases include unlimited/wrong cgroup values and unrelated nonzero memory exits; GREEN requires exact cgroup values and observed OOM state. B10 RED cases include qualified candidate isolation, non-null candidate qualification digest, target/image mismatch, request/applied-limit mismatch and unknown outcomes; GREEN validates real unqualified candidate results. Hidden canaries, leaked environment, egress, resource breach and oversized output must be observable failures."
     },
     {
       "id": "T-004",
       "title": "Bind reports and capability evidence to the current target job",
-      "objective": "Add the qualification driver and CI invocation that record exact target/job identity, workload digest, policy digest and unique per-check evidence, pin Harness v0.4.0, and validate with its qualification CLI. Pin every workflow Action by commit SHA. Keep reports non-passing until every check and independent review passes.",
+      "objective": "Add the qualification driver and CI invocation that record exact target/job identity, workload digest, policy digest and unique per-check evidence, pin agent-harness[grants] v0.5.0 at commit 16bb93821292096b94889306288ee2caec5f4006, and validate with its qualification CLI. Pin every workflow Action by commit SHA. Keep reports non-passing until every check and independent review passes.",
       "role": "builder",
       "depends_on": ["T-003"],
       "allowed_paths": ["tooling/agent-harness/qualification/**", "tooling/agent-harness/tests/test_qualification_report.py", "tooling/agent-harness/requirements.txt", "tooling/scripts/run-verification-sandbox-qualification.sh", ".github/workflows/verification-sandbox-qualification.yml"],
@@ -56,7 +56,7 @@
       "acceptance_criteria": ["AC-001", "AC-004", "AC-005", "AC-007"],
       "verification": ["python3 -m unittest tooling/agent-harness/tests/test_qualification_report.py -v", "python3 -m py_compile tooling/agent-harness/qualification/*.py", "bash -n tooling/scripts/run-verification-sandbox-qualification.sh"],
       "test_mode": "red-green-refactor",
-      "test_seam": "Mutate job ID, host tuple, image digest, policy digest, evidence path/hash/size, duplicate check, missing check and capability binding; the installed CLI must reject or return not-passing with the documented exit status."
+      "test_seam": "Mutate job ID, host tuple, image digest, policy digest, evidence path/hash/size, duplicate check, missing check and capability binding; the installed v0.5 CLI must reject or return not-passing with the documented exit status. Pin checkout/setup-python/upload-artifact by full commit SHA and test the workflow's exact pinned references."
     },
     {
       "id": "T-005",

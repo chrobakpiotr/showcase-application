@@ -86,18 +86,18 @@
         "../agent-harness/docs/adr/0005-contract-v2-target-evidence.md: request/result v2 validation"
       ],
       "statement": "The qualification record preserves the boundary between observed target properties and unauthenticated assertions; every B10 contract-v2 result is validated against its request, and evidence does not imply production readiness or backend execution authority.",
-      "verification_hint": "Inspect report schema, raw evidence, CI workflow, independent review, and user-facing status language for unsupported claims of cryptographic provenance, provider attestation, universal restore-path coverage, or production readiness. Independently reconstruct B10 request/result pairs from the observed probe, validate each with the pinned contract API, verify exact integer limits, target digests, fired-limit/outcome rules and output truncation, and confirm the fictional fixture is not used as evidence. Confirm capability qualified/launch_ready state is not converted into permission to run workloads by this feature."
+      "verification_hint": "Inspect report schema, raw evidence, CI workflow, independent review, and user-facing status language for unsupported claims of cryptographic provenance, provider attestation, universal restore-path coverage, or production readiness. Independently reconstruct B10 request/result pairs from the observed probe, validate each with the pinned v0.5 contract API, verify candidate targets use unqualified isolation and qualification_digest=null, validate the target with qualified=false, check exact integer limits, fired-limit/outcome rules and output truncation, and confirm unknown results carry no target and the fictional fixture is not used as evidence. Confirm qualified results only carry the passing report digest and consumers bind it with validate_capability_binding; qualification must not grant workload execution permission by itself."
     }
   ],
   "exemptions": [],
   "feature": "AH5-04B-QUAL-001",
   "generated_at": "2026-10-07T00:00:00Z",
   "inputs": {
-    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079",
-    "plan_sha256": "23b675c3abbb240f61df5e634aee87565b72ee16827e79c54e62a6d20b602466",
-    "spec_sha256": "fc4eb9d8f603db0a4945e7161a55842a4c7439c780ad22d4e8cb24123e4dc528"
+    "spec_sha256": "11f6d153b66031a0c19794dcd40e27b47de5450294197cbb25946a52f1a0643e",
+    "plan_sha256": "cbac88fdfc997a825a012f03f51a6f80b3adc73ba1aeaf43f848cef4e58811fe",
+    "constitution_sha256": "cd38fb96cc458840f22e22cfd273db0388e736b3b736df6993f67f3f9f333079"
   },
   "schema_version": 1,
   "status": "accepted",
-  "summary": "Independent verification criteria for complete per-check evidence, exact target/job binding, review independence, honest trust-boundary claims, and Harness v0.4.0 qualification and contract-v2 validation."
+  "summary": "Independent verification criteria for complete per-check evidence, exact target/job binding, review independence, honest trust-boundary claims, and Harness v0.5.0 candidate-target qualification and contract-v2 validation."
 }
