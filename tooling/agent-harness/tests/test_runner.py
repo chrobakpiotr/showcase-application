@@ -1,5 +1,7 @@
 import importlib.util
 import argparse
+import contextlib
+import io
 import json
 import pathlib
 import tempfile
@@ -223,6 +225,41 @@ class RunnerTest(unittest.TestCase):
             'assumptions': [], 'residual_risks': []
         }
         self.assertEqual(expected, runner.extract_claude_result(json.dumps({'structured_output': expected})))
+
+    def test_claude_result_rejects_unstructured_result_fallback(self):
+        raw = json.dumps({'result': json.dumps({'status': 'pass'})})
+        with self.assertRaises(SystemExit):
+            runner.extract_claude_result(raw)
+
+    def test_claude_print_command_uses_a_real_generated_projection(self):
+        args = argparse.Namespace(
+            provider='claude', print_command=True, review_existing=False, profile=None,
+            max_turns=1, max_budget_usd=None, model=None,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            preview_root = pathlib.Path(tmp)
+            with mock.patch.object(runner, 'RUNS', preview_root):
+                cmd, version = runner.preview_command(
+                    args, 'prompt', preview_root, preview_root / 'result.json', '2.1.289 (Claude Code)')
+            self.assertEqual('2.1.289 (Claude Code)', version)
+            schema = json.loads(cmd[cmd.index('--json-schema') + 1])
+            self.assertFalse(schema['additionalProperties'])
+
+    def test_print_command_without_provider_cli_uses_explicit_preview_profile(self):
+        args = argparse.Namespace(
+            provider='claude', print_command=True, review_existing=False, profile=None,
+            max_turns=1, max_budget_usd=None, model=None,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            preview_root = pathlib.Path(tmp)
+            stderr = io.StringIO()
+            with mock.patch.object(runner, 'RUNS', preview_root), mock.patch.object(runner, 'cli_version', return_value=None), \
+                    contextlib.redirect_stderr(stderr):
+                cmd, version = runner.preview_command(
+                    args, 'prompt', preview_root, preview_root / 'result.json', None)
+            self.assertEqual('2.1.289 (Claude Code)', version)
+            self.assertIn('Preview only', stderr.getvalue())
+            self.assertFalse(json.loads(cmd[cmd.index('--json-schema') + 1])['additionalProperties'])
 
     def test_read_only_postcondition_rejects_reviewer_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:

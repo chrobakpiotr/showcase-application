@@ -504,14 +504,6 @@ def extract_claude_result(stdout: str) -> dict[str, Any]:
     structured = envelope.get('structured_output')
     if isinstance(structured, dict):
         return structured
-    raw = envelope.get('result')
-    if isinstance(raw, str):
-        try:
-            value = json.loads(raw)
-            if isinstance(value, dict):
-                return value
-        except json.JSONDecodeError:
-            pass
     die('Claude response did not contain structured_output matching the task result schema')
 
 
@@ -739,6 +731,42 @@ def cli_version(executable: str) -> str | None:
     return text[:300] if text else None
 
 
+def preview_command(
+    args: argparse.Namespace, prompt: str, worktree: pathlib.Path, result_path: pathlib.Path,
+    provider_cli_version: str | None,
+) -> tuple[list[str], str]:
+    """Render a command using an exact schema profile, without requiring a provider executable."""
+    version = provider_cli_version
+    if version is None:
+        versions = [
+            supported_version for provider, supported_version in TASK_RESULT_PROJECTION_PROFILES
+            if provider == args.provider
+        ]
+        if not versions:
+            die(f'no supported task-result schema profile exists for {args.provider}')
+        version = versions[-1]
+        print(
+            f'Preview only: CLI unavailable; using the tested {args.provider} schema profile {version}.',
+            file=sys.stderr,
+        )
+
+    try:
+        _, schema_bytes, _ = task_result_projection(
+            TASK_RESULT_SCHEMA_PATH.read_bytes(), args.provider, version)
+    except (OSError, ValueError) as exc:
+        die(f'provider task-result schema preview is blocked: {exc}')
+    digest = hashlib.sha256(schema_bytes).hexdigest()
+    preview_dir = RUNS / 'schema-previews'
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    schema_path = preview_dir / f'{args.provider}-{digest}.json'
+    if not schema_path.exists() or schema_path.read_bytes() != schema_bytes:
+        schema_path.write_bytes(schema_bytes)
+    cmd = (codex_command(args, prompt, worktree, result_path, schema_path=schema_path)
+           if args.provider == 'codex'
+           else claude_command(args, prompt, worktree, schema_path=schema_path))
+    return cmd, version
+
+
 def provider_metadata(provider: str, stdout: str) -> dict[str, Any]:
     if provider == 'codex':
         return telemetry.parse_codex_jsonl(stdout)
@@ -800,6 +828,15 @@ def main() -> None:
     before = git_snapshot(worktree)
 
     provider_cli_version = cli_version(args.provider)
+    preview_result = worktree / '.agent-result-preview.json'
+    if args.print_command:
+        cmd, _ = preview_command(args, prompt, worktree, preview_result, provider_cli_version)
+        rendered = [
+            '<RESULT_PATH>' if item == str(preview_result) else '<PROMPT>' if item == prompt else item for item in cmd
+        ]
+        print(shlex.join(rendered))
+        return
+
     if not provider_cli_version:
         die(f'{args.provider} CLI version is unavailable; refusing structured-output execution')
     try:
@@ -807,18 +844,6 @@ def main() -> None:
             TASK_RESULT_SCHEMA_PATH.read_bytes(), args.provider, provider_cli_version)
     except ValueError as exc:
         die(f'provider task-result schema is blocked: {exc}')
-
-    preview_result = worktree / '.agent-result-preview.json'
-    if args.print_command:
-        preview_schema = pathlib.Path('<GENERATED_TASK_RESULT_SCHEMA>')
-        cmd = (codex_command(args, prompt, worktree, preview_result, schema_path=preview_schema)
-               if args.provider == 'codex'
-               else claude_command(args, prompt, worktree, schema_path=preview_schema))
-        rendered = [
-            '<RESULT_PATH>' if item == str(preview_result) else '<PROMPT>' if item == prompt else item for item in cmd
-        ]
-        print(shlex.join(rendered))
-        return
 
     out = run_dir(packet, args.orchestration_id)
     (out / 'prompt.txt').write_text(prompt, encoding='utf-8')
