@@ -1,0 +1,16 @@
+{
+  "task": "T-003",
+  "status": "needs-human",
+  "reason_code": "NO_PRIOR_PASSING_QUALIFICATION_DIGEST",
+  "summary": "The accepted v2 B10 result requires target.qualification_digest to identify a passing qualification report. The same report includes B10 and hashes the B10 evidence, so using its own digest is circular. No separate passing report for this target and policy exists; using the fictional fixture or an invented digest would be false evidence.",
+  "implementation": {
+    "branch_commits": [
+      "b65fc364d91f7f4c639c0a063ffd4ae88214c1ab",
+      "3d2842b"
+    ],
+    "tests": "python3 -m unittest tooling/agent-harness/tests/test_qualification_grading.py -v (9 passed)",
+    "b8_observation": "Workspace 240 MiB plus /tmp 16 MiB; combined writable budget 256 MiB. The probe verified ENOSPC on the first byte beyond the combined budget. A timed-out container was killed by ID and its exited state recorded.",
+    "exception_evidence": "Lifecycle subprocess stderr is redacted and stdout is bounded before evidence is written."
+  },
+  "required_decision": "Harness must define a non-circular bootstrap for the first qualification digest, or revise the accepted B10 contract to reference an independently established qualification identity. Until then B10 stays not-run and no target can pass qualification."
+}
