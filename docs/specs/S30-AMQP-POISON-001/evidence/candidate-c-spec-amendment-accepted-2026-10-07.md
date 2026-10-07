@@ -1,7 +1,7 @@
 # Candidate C reference DR contract amendment
 
-Date: 2026-10-07  
-Decision authority: Piotr, in the current Showcase agent session  
+Date: 2026-10-07
+Decision authority: Piotr, in the current Showcase agent session
 Status: accepted scope delta recorded; design gate remains OPEN
 
 Piotr accepted the exact Candidate C delta proposed for the `Reference disaster-
@@ -40,4 +40,3 @@ direct/provider/full-host restore and wrapper bypass, trust-domain limitations,
 retention policy, identity/authentication decisions, quarantine behavior, and
 the separate production qualification requirement. It does not claim that
 uncontrolled restore paths are blocked.
-
