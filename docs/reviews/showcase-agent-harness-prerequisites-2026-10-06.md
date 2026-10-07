@@ -224,6 +224,12 @@ spike failed Q16 and did not retain all raw evidence, so Docker Desktop remains
 **NOT QUALIFIED** until a fresh complete run passes. The GitHub-hosted runner is
 also **NOT QUALIFIED** until its own complete run passes.
 
+Read-only recheck on 2026-10-07 confirmed Docker Desktop Engine 29.8.2,
+LinuxKit kernel 7.0.14, x86-64, cgroup v2, 8 CPUs and 8,322,740,224 bytes of
+memory. `harness.py doctor` passed its local tooling checks. These checks only
+confirm that the daemon and local tooling are discoverable; they do not run
+Q01–Q16 or B1–B10, capture a workload image digest, or qualify this target.
+
 For every job that relies on the qualification, capture the exact runner image
 version, kernel, Docker Engine version, pinned workload image digest, policy
 digest, resource allocation, and host/job identity. Run Q01–Q16 and B1–B10 in
