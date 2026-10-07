@@ -6,6 +6,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from qualification.q_probes import Q01_Q10, run_q01_q10
+from qualification.q_lifecycle import Q11_Q16, run_q11_q16
 
 
 class QualificationProbeTest(unittest.TestCase):
@@ -74,6 +75,42 @@ class QualificationProbeTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result = run_q01_q10(execute, pathlib.Path(tmp))
         self.assertEqual({'not-run'}, {record.status for record in result})
+
+    def test_q11_q16_run_to_completion_and_preserve_distinct_evidence(self):
+        self.assertEqual([
+            ('Q11', 'EXECUTION_IDENTITY_DURABLE'),
+            ('Q12', 'EXECUTION_IDENTITY_STALE_REJECTED'),
+            ('Q13', 'CANCEL_EXECUTION_UNIT'),
+            ('Q14', 'DRAIN_EXECUTION_UNIT'),
+            ('Q15', 'RESTART_ACTIVE'),
+            ('Q16', 'RESTART_DRAINED'),
+        ], list(Q11_Q16.items()))
+        calls = []
+
+        def execute(check_id, name, evidence_dir):
+            calls.append((check_id, name))
+            return {'status': 'pass', 'reason_code': 'OBSERVED', 'stdout': check_id,
+                    'stderr': '', 'details': {'evidence_dir': str(evidence_dir)}}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            records = run_q11_q16(execute, pathlib.Path(tmp))
+            self.assertEqual(list(Q11_Q16.items()), calls)
+            self.assertEqual(6, len(records))
+            self.assertEqual(6, len({record.evidence_path for record in records}))
+
+    def test_q11_q16_exception_is_not_pass_and_later_checks_still_run(self):
+        calls = []
+
+        def execute(check_id, _name, _evidence_dir):
+            calls.append(check_id)
+            if check_id == 'Q13':
+                raise TimeoutError('probe timed out')
+            return {'status': 'pass', 'reason_code': 'OBSERVED', 'stdout': '', 'stderr': '', 'details': {}}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            records = run_q11_q16(execute, pathlib.Path(tmp))
+        self.assertEqual(list(Q11_Q16), calls)
+        self.assertEqual('not-run', records[2].status)
 
 
 if __name__ == '__main__':
