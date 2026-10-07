@@ -101,25 +101,49 @@ it is not converted into a non-goal by this split.
 ### Reference disaster-recovery contract
 
 For REF-Q, supported restores run only through a versioned, root-owned wrapper.
-Before each restore it writes and fsyncs an INHIBITED host control record on
-encrypted storage outside the PostgreSQL, Redis, RabbitMQ, and app backup sets;
-the record includes a non-reused restore-episode UUID and generation. The
-wrapper confirms gate inhibition, consumer stop, active-handler drain, channel
-closure, and readiness-down before restoring. It then reconciles restored
-stores while inhibited. RESUME is episode- and command-bound, audited, and
-requires all live instances to confirm drain or an operator to prove the exact
-Rabbit connection fenced. Store commits precede release of the host inhibit;
-uncertain outcomes stay inhibited. Atomic file replacement requires file
-fsync, rename, and parent-directory fsync.
+Before each restore it freezes instance registration and permit issuance, then
+writes and fsyncs an INHIBITED host control record on encrypted storage outside
+the PostgreSQL, Redis, RabbitMQ, and app backup sets. The record includes a
+non-reused restore-episode UUID and generation plus the complete barrier-
+generation inventory of app/gate-issuer incarnations and their RabbitMQ
+connections. If inventory completeness cannot be established, restore is
+refused. Registration and permit issuance have one linearization point with
+the freeze: an operation ordered before the freeze appears exactly once in the
+inventory; one ordered after it is rejected. Pending permit responses are
+fenced or reconciled before drain proceeds.
+
+The wrapper stops app and gate-issuer processes, drains active handlers, closes
+consumer channels, and verifies that all inventoried processes/issuers have
+stopped and their RabbitMQ connections are closed before restoring. In the
+reference Compose deployment, app and gate-issuer services use `restart: "no"`;
+host-level auto-start is disabled during restore, and only the wrapper may
+start these services through the supported procedure. Restored stores are
+reconciled while all apps remain stopped and the gate remains sticky inhibited.
+After Gate Redis restore, every restored registration and drain acknowledgement
+is stale. Audited RESUME requires fresh operator fencing proof, submitted via
+the audited tool, for the union of the host inventory and registrations
+recovered from Redis. Each proof binds deployment, instance incarnation,
+broker connection, and restore episode. Broker-observed connection closure or
+process stoppage alone is not operator proof. Only after durable audited RESUME
+may the wrapper release/fsync the host inhibit and start apps; any uncertainty
+fails closed. Atomic file replacement requires file fsync, rename, and
+parent-directory fsync.
 
 | Supported wrapper path | Required REF-Q test |
 |---|---|
-| Ecommerce PostgreSQL snapshot/PITR | Crash at every inhibit/drain/restore/reconcile/release boundary; no admission before audited RESUME. |
+| Ecommerce PostgreSQL snapshot/PITR | Crash at every freeze/inventory/inhibit/drain/restore/reconcile/release boundary; no admission before audited RESUME. |
 | Gate-latch PostgreSQL snapshot/PITR | Restore stale CLEAR and RECOVERY_REQUIRED; neither admits or clears a newer episode. |
-| Gate Redis AOF/RDB restore | Restore stale ACTIVE; episode mismatch keeps admission inhibited. |
-| Coordinated PostgreSQL + Redis restore | Restore mutually consistent stale snapshots; independent host episode still denies admission. |
-| RabbitMQ data restore/import including quarantine | Keep consumer closed; preserve original message-age deletion deadlines and audited-read controls. |
-| Isolated Compose clone | Create a fresh deployment/episode; prove clone cannot join source deployment or consume its live queue. |
+| Gate Redis AOF/RDB restore | Restore stale ACTIVE and pre-barrier registrations omitted from that snapshot; admission stays inhibited and RESUME requires proof for the union. |
+| Coordinated PostgreSQL + Redis restore | Restore mutually consistent stale snapshots; independent host episode still denies admission; test freeze/registration and pending-permit races. |
+| RabbitMQ data restore/import including quarantine | Keep consumer closed; preserve original message-age deletion deadlines and audited-read controls; verify inventoried broker connections are fenced. |
+| Isolated Compose clone | Create a fresh deployment/episode; prove clone cannot join source deployment or consume its live queue; test wrapper and daemon crash cuts plus restart/autostart fencing. |
+
+Also falsify missing, replayed, and cross-episode operator proofs; incomplete
+inventories; and every crash cut across process stop, store restore, audited
+RESUME, inhibit release, and app start. These tests qualify only the enumerated
+wrapper paths. Direct database-console restore, direct volume replacement,
+provider-managed PITR, full-host rollback, unlisted import/clone, and wrapper
+bypass remain outside REF-Q guarantees and are not claimed to be blocked.
 
 Direct database-console restore, direct volume replacement, provider-managed
 PITR, full-host rollback, unlisted import/clone, and wrapper bypass are outside

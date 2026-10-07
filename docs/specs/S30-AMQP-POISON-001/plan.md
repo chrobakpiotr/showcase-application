@@ -501,9 +501,11 @@ accepted scope: P-004 must prove how a wrapper's durable host inhibit is
 observed by every gate issuer and app instance across issuer restart, delayed
 or lost notification, and partial restore. The user selected process-
 quiescence Candidate C as the recommended REF-Q working design on 2026-10-06.
-The accepted spec has not been amended and the design gate remains OPEN; the
-candidate is recorded in `design.json` but is not a gate approval. It must
-additionally specify and test:
+The user accepted a narrow Candidate C contract delta on 2026-10-07, now
+recorded in the Reference disaster-recovery contract in `spec.md` and detailed
+in [`evidence/candidate-c-spec-amendment-accepted-2026-10-07.md`](evidence/candidate-c-spec-amendment-accepted-2026-10-07.md).
+The design gate remains OPEN; this amendment is not a gate approval. Candidate
+C must additionally demonstrate:
 
 - a freshness authority independent of restorable PostgreSQL/Redis state, so a
   stale but well-formed `ACTIVE` host record cannot admit work;
@@ -539,7 +541,7 @@ host episode in sticky inhibit, audited RESUME releases the host record, and
 applications start last. This could avoid per-permit mount polling, but shifts
 the proof burden to complete process/connection inventory, restart-policy
 fencing, wrapper-crash recovery, and stale-start rejection. This recommendation
-does not yet amend the accepted spec or pass the design gate. Candidate C does
+does not pass the design gate. Candidate C does
 not replace the accepted host record or expand REF-Q exclusions. RESUME must
 still reject stale instance registrations unless
 each instance has a current-episode drain acknowledgement or an authenticated
