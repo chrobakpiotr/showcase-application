@@ -16,12 +16,20 @@ contract.
 criteria; no accepted requirement or guard was changed. `harness validate` and
 verification-contract validation pass. T-009 depends on T-006 to avoid overlap
 with the existing executor, orchestration and Showcase-profile tasks. T-009 is
-not yet startable under the DAG. T-001 is currently `escalated` after the task
-runner's Codex invocation failed schema validation and the Claude CLI reported
-that it is not logged in. Its focused suite passed (42 tests) and `py_compile`
-passed, but these are not lifecycle completion evidence. An auditable
-human-resolve record authorizes one retry; no task completion or source change
-is claimed. No dependency or fail-closed guard is bypassed.
+not yet startable under the DAG. T-001 is `escalated` at attempt 3/3. The
+Codex CLI 0.160 provider failure is reproducible: the canonical task-result
+schema first fails strict validation because root `additionalProperties` is
+true; a temporary strict projection then exposed unsupported `uniqueItems`.
+A temporary projection that sets object schemas closed, requires declared
+fields and removes `uniqueItems` passed a minimal Codex structured-output call.
+This indicates the runner needs a provider-specific strict output schema while
+retaining post-response validation against the canonical schema. No repository
+source was changed for this experiment. Claude Code 2.1.289 also failed before
+execution because it is not logged in. T-001's focused suite passed (42 tests)
+and `py_compile` passed, but neither is lifecycle completion evidence. The
+audited human-resolve authorized one retry; that retry also failed, so the task
+needs a new scoped human resolution or an authorized task-plan repair before
+another attempt. No dependency or fail-closed guard was bypassed.
 
 ## Ordered task plan
 
@@ -293,6 +301,24 @@ it does not execute probes. No new Q01–Q16/B1–B10 report or raw probe eviden
 has been produced in this checkout. Showcase still owns the probes, runs and
 raw evidence, with Docker Desktop first and a separate GitHub-hosted job as
 fallback, requalified independently for every job.
+
+## 2026-10-07 handoff update
+
+The Showcase requirements now pin `agent-harness[grants]` to the exact v0.3.0
+release commit and the package's qualification suite passes in a temporary
+environment. The full requirements install is not qualified on this Mac because
+the existing cryptography pin builds from source and OpenSSL development files
+are absent. The installed Harness checker and its exact release tests are
+validated; target probe execution is still outstanding.
+
+Immediate next actions for the Showcase owner are to restore an authenticated
+task provider or repair the provider-specific Codex output schema through the
+accepted task replan flow; complete the pre-T-006 DAG chain; then resolve the
+packet/DAG registration blocker before introducing a first-class 04b task. Do
+not retry T-001 by bypassing its escalated lifecycle state, do not create a
+CapabilityReport from the example fixture, and do not mark Docker or a GitHub
+job qualified until the report contains raw job-bound evidence for all 26
+checks and a distinct reviewer signature bound to `review_subject`.
 
 ## AH5-04c acceptance and verification
 
