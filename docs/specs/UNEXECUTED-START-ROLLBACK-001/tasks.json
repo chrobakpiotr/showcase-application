@@ -1,0 +1,45 @@
+{
+  "feature": "UNEXECUTED-START-ROLLBACK-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Keep unexecuted-start rollback attempt bindings consistent",
+      "objective": "Fix normal start rollback and add an explicit audited CAS recovery for the exact legacy orphan-binding state, preserving prior task history and retry authorization.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["concurrency", "lifecycle", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Add failing tests for exact unexecuted rollback and recovery CAS boundaries; verify no attempt-binding row remains above attempts, historical rows/grants are unchanged, audit is atomic/idempotent, and normal start works afterward."
+    },
+    {
+      "id": "T-900",
+      "title": "Adversarially evaluate start rollback and recovery",
+      "objective": "Independently verify rollback state consistency, exact recognition of legacy orphan-binding state, CAS/audit atomicity, preservation of attempt and authorization history, and refusal behavior.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/UNEXECUTED-START-ROLLBACK-001/evidence/**"],
+      "risk_tags": ["evaluation", "concurrency", "lifecycle", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context review of normal rollback plus the exact legacy recovery fixture; attempt stale replay, command-ID substitution, active-packet mismatch, and any path that changes or consumes retry authorization."
+    }
+  ]
+}
