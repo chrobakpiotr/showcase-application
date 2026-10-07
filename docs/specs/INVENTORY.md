@@ -49,6 +49,7 @@
 | `STABILIZATION-N15-N20` | UNDECLARED | yes | no | no | document-only | not selected |
 | `TIME-CONTROL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `TIME-POLICY-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `UNEXECUTED-START-ROLLBACK-001` | UNDECLARED | yes | yes | yes | executable | selected |
 
 ## Policy
 
