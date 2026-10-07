@@ -1,0 +1,59 @@
+name: Verification sandbox qualification fallback
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_desktop_failed:
+        description: Confirm the preceding Docker Desktop report did not qualify the target.
+        required: true
+        type: boolean
+      docker_desktop_report_sha256:
+        description: SHA-256 digest of the preceding Docker Desktop report, for independent review.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  qualify-fresh-github-runner:
+    if: ${{ inputs.docker_desktop_failed && inputs.docker_desktop_report_sha256 != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pinned Harness qualification checker
+        run: python -m pip install -r tooling/agent-harness/requirements.txt
+
+      - name: Capture fresh runner identity
+        id: identity
+        shell: bash
+        run: |
+          echo "job_id=${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "host=${ImageOS}-${ImageVersion}-${RUNNER_OS}-${RUNNER_ARCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Docker daemon
+        run: docker info
+
+      - name: Run all 26 qualification probes
+        env:
+          QUALIFICATION_TARGET: showcase-github-hosted-ubuntu
+          QUALIFICATION_JOB_ID: ${{ steps.identity.outputs.job_id }}
+          QUALIFICATION_HOST: ${{ steps.identity.outputs.host }}
+          QUALIFICATION_OUTPUT_ROOT: artifacts/verification-sandbox-qualification/github-${{ github.run_id }}-${{ github.run_attempt }}
+          SHOWCASE_DOCKER_DESKTOP_PREDECESSOR_SHA256: ${{ inputs.docker_desktop_report_sha256 }}
+        run: tooling/scripts/run-verification-sandbox-qualification.sh
+
+      - name: Upload job-bound report and raw evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-sandbox-qualification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/verification-sandbox-qualification/github-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
