@@ -1,4 +1,4 @@
-# External handbook delta — Showcase master review — 2026-10-06
+# External handbook delta — Showcase master review — updated 2026-10-07
 
 Prepared for the designated owner of the separate handbook. This is a
 source-bound handoff from the Showcase repository; it does not update that
@@ -60,6 +60,18 @@ and fresh evidence against the intended handbook revision.
   a focused regression test proves a pin change changes the digest. This
   Showcase-side consumer change does not alter ownership of the shared
   execution contract, which remains with Harness.
+- **04b reference-target qualification:** local Showcase commit `ed313f9`
+  corrects Q15/Q16 so controller A is killed and a distinct controller process
+  recovers persisted state; local report SHA-256
+  `e07c4e947ddc5f3e4e5328d86ccb98a58be14ca77e97293d69f68d9c28e84659`
+  records 24 PASS, B8 FAIL, and B10 NOT-RUN on the exact Docker Desktop target.
+  Harness 0.3.0 returns 1 and the capability remains
+  `qualified=false`/`launch_ready=false`; the target is NOT QUALIFIED. An
+  independent provisional review confirmed the report bindings and Q15/Q16
+  process-restart observations. A fresh GitHub-hosted fallback is still
+  required. GitHub currently returns 404 for the workflow on the remote
+  default branch, so T-006 is `needs-human` and T-900 remains pending. Do not
+  present the local report as a qualified backend or as production evidence.
 
 ## Current workflow status and limits
 
@@ -85,3 +97,14 @@ The separate handbook owner should link each carried statement to the
 corresponding accepted/published commit and its fresh evidence, retain the
 limitations above, and avoid copying this file's local branch status as
 current CI or production qualification.
+
+### 2026-10-07 refresh
+
+Remote CI run
+[37593226168](https://github.com/chrobakpiotr/showcase-application/actions/runs/37593226168)
+and its aggregate quality gate succeeded on pushed SHA `51bf45dfce56`;
+Dependency Review was skipped because the run was not for a pull request. The
+Showcase checkout was at local head `becfc64` when this delta was refreshed,
+15 commits ahead of the fetched `origin/main`; the green run does not cover
+those local commits. GitHub also reports the qualification fallback workflow
+missing from the remote default branch. No push was performed.
