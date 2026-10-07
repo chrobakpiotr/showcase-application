@@ -1,0 +1,43 @@
+{
+  "acceptance_criteria": [
+    "AC-001",
+    "AC-002",
+    "AC-003",
+    "AC-004",
+    "AC-005",
+    "AC-006",
+    "AC-007",
+    "VC-001",
+    "VC-002",
+    "VC-003",
+    "VC-004",
+    "VC-005",
+    "VC-006",
+    "VC-007"
+  ],
+  "allowed_paths": [
+    "docs/specs/AH5-04B-QUAL-001/evidence/**"
+  ],
+  "depends_on": [
+    "T-001",
+    "T-002",
+    "T-003",
+    "T-004",
+    "T-005",
+    "T-006"
+  ],
+  "id": "T-900",
+  "objective": "Independently inspect every Q01-Q16 and B1-B10 raw evidence item for the selected target, verify job and report-subject binding, confirm the fallback rule, and run the installed Harness checker. Write a review bound to review_subject(report), with reviewer identity different from the author.",
+  "risk_tags": [
+    "evaluation",
+    "security",
+    "infra"
+  ],
+  "role": "evaluator",
+  "test_mode": "existing-suite",
+  "test_seam": "Fresh-context adversarial review against the accepted sources and actual CI job, not only report shape. Any unauthenticated, absent or unverifiable raw evidence forces NOT QUALIFIED.",
+  "title": "Independently review the selected target report and evidence",
+  "verification": [
+    "python3 docs/specs/AH5-04B-QUAL-001/evidence/reviews/verify_github_runner_report.py"
+  ]
+}
