@@ -124,16 +124,25 @@ is stale. Audited RESUME requires fresh operator fencing proof, submitted via
 the audited tool, for the union of the host inventory and registrations
 recovered from Redis. Each proof binds deployment, instance incarnation,
 broker connection, and restore episode. Broker-observed connection closure or
-process stoppage alone is not operator proof. Only after durable audited RESUME
-may the wrapper release/fsync the host inhibit and start apps; any uncertainty
-fails closed. Atomic file replacement requires file fsync, rename, and
-parent-directory fsync.
+process stoppage alone is not operator proof.
+
+After store reconciliation, the wrapper may start the gate issuer in a
+recovery-only mode bound to the exact fresh host episode. It must verify that
+episode and remain sticky inhibited; it may serve the audited RESUME control
+operation but may not issue or install admission permits while the host inhibit
+record exists. A stale, missing, mismatched, or unreadable record keeps
+admission denied. After all required proofs are durably audited and RESUME is
+committed, the wrapper removes and fsyncs the host inhibit record. Only then
+may the gate issuer transition to ACTIVE for that episode and the wrapper start
+apps. Any uncertainty fails closed. Atomic file replacement requires file
+fsync, rename, and parent-directory fsync.
 
 | Supported wrapper path | Required REF-Q test |
 |---|---|
 | Ecommerce PostgreSQL snapshot/PITR | Crash at every freeze/inventory/inhibit/drain/restore/reconcile/release boundary; no admission before audited RESUME. |
 | Gate-latch PostgreSQL snapshot/PITR | Restore stale CLEAR and RECOVERY_REQUIRED; neither admits or clears a newer episode. |
 | Gate Redis AOF/RDB restore | Restore stale ACTIVE and pre-barrier registrations omitted from that snapshot; admission stays inhibited and RESUME requires proof for the union. |
+| Gate issuer crash/restart during wrapper restore | Verify recovery-only startup is bound to the fresh episode, accepts only audited RESUME controls, issues no permits while host inhibit exists, and cannot become ACTIVE until host-record release is durable. Crash each transition and verify admission remains denied. |
 | Coordinated PostgreSQL + Redis restore | Restore mutually consistent stale snapshots; independent host episode still denies admission; test freeze/registration and pending-permit races. |
 | RabbitMQ data restore/import including quarantine | Keep consumer closed; preserve original message-age deletion deadlines and audited-read controls; verify inventoried broker connections are fenced. |
 | Isolated Compose clone | Create a fresh deployment/episode; prove clone cannot join source deployment or consume its live queue; test wrapper and daemon crash cuts plus restart/autostart fencing. |

@@ -29,11 +29,17 @@ The amendment requires:
    from Redis. Bind proof to deployment, instance incarnation, broker
    connection, and episode; broker observation or process stop alone is not
    operator proof.
-4. Release/fsync the host inhibit and start apps only after durable audited
-   RESUME. Fail closed on uncertainty.
-5. Test registration/permit barrier races, omitted stale-Redis instances,
+4. After store reconciliation, start the gate issuer in recovery-only mode,
+   bound to the exact fresh episode. It may accept the audited RESUME control
+   operation but cannot issue/install permits while the host inhibit exists.
+   Missing, stale, mismatched, or unreadable host state keeps admission denied.
+5. After required proofs are durably audited and RESUME commits, remove/fsync
+   the host inhibit. Only then may the gate become ACTIVE and the wrapper start
+   apps. Fail closed on uncertainty.
+6. Test registration/permit barrier races, omitted stale-Redis instances,
    missing/replayed/cross-episode proofs, wrapper and daemon crash cuts,
-   restart/autostart fencing, and the full restore ordering.
+   recovery-only issuer restart, restart/autostart fencing, and the full restore
+   ordering.
 
 The amendment leaves unchanged the enumerated restore paths, exclusions for
 direct/provider/full-host restore and wrapper bypass, trust-domain limitations,
