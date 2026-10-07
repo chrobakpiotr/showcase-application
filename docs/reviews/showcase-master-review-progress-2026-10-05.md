@@ -1,4 +1,4 @@
-# Showcase master review progress — updated 2026-10-06
+# Showcase master review progress — updated 2026-10-07
 
 This is a source-bound implementation handoff for the Showcase slice of the
 master review plan. It is not a whole-repository audit, evaluator approval,
@@ -22,7 +22,7 @@ here.
 | S05-05a — PostgreSQL measurement fixture | DONE | `0c1f4e2` records the successful PostgreSQL 18.6/Docker 29.8.2 run, source and image digests, ten query summaries, and all 60 raw JSON plans in `tooling/performance/evidence/S05-05a-2026-10-05/`. Three helper tests and artifact-count checks pass. This is reproducible synthetic sensitivity evidence, not production workload qualification or an SLO. |
 | S05-05b — query/index comparison | BLOCKED | The 05a fixture now has reproducible synthetic evidence, but this comparison still requires an accepted representative workload/latency target. No query or index change is authorized by the synthetic sensitivity reports alone. |
 | S05-06 — parked-dispatch UI | DONE | `513c7df` adds a read-only parked-dispatch page on the existing ORDER_READ endpoint, with safe reason labels, age/attempt details, refresh and responsive states. 33 focused Angular tests, app/spec/E2E TypeScript compilation, ESLint, formatting, Playwright discovery and the backend ORDER_READ/deny-mutation security test passed. The Compose/Keycloak browser test passed: anonymous endpoint access returned 401; an ORDER_READ viewer loaded the page; no redrive control appeared; viewport widths 320/768/1024/1440 had no horizontal overflow. |
-| S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. On pushed SHA `d0fb4e44d2fb`, Agentic SDD CI run `37526914410`, Scorecard `37526914005`, and CodeQL `37526914038` passed. CI run `37526914133`: documentation links, OWASP, PIT, frontend, Playwright E2E, SBOM, Trivy, infra-as-config and repository guards passed; backend build/quality/tests remained in progress at the latest poll; dependency review was skipped for the push event. Local `98e733a` fixed the earlier stale inventory issue and protocol validation passed under Python 3.13. Earlier #154/#155/#157/#158 remain historical. See [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). The source-linked delta in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md) is refreshed; the designated owner still must apply it to the separate handbook. This repo-only task does not edit another repository. |
+| S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. On pushed SHA `d0fb4e44d2fb`, Agentic SDD CI run `37526914410`, Scorecard `37526914005`, and CodeQL `37526914038` passed. CI run `37526914133`: documentation links, OWASP, PIT, frontend, Playwright E2E, SBOM, Trivy, infra-as-config and repository guards passed; backend build/quality/tests remained in progress at the latest poll; dependency review was skipped for the push event. Local `98e733a` fixed the earlier stale inventory issue and protocol validation passed under Python 3.13. On 2026-10-07 the latest observed remote CI run `37593226168` completed successfully on pushed SHA `51bf45dfce56`; Dependency Review was skipped because this was not a PR. This run does not cover the 14 commits now local-only on `main` (`a4f9422ba1d4`). Earlier #154/#155/#157/#158 remain historical. See [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). The source-linked delta in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md) is refreshed; the designated owner still must apply it to the separate handbook. This repo-only task does not edit another repository. |
 | S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. Local follow-up `a675836` adds an exact PURL+advisory suppression for `GHSA-6688-9rhm-gjv2` through the existing 2026-11-03 review deadline, with the CVSS threshold unchanged. Seven validator tests passed, forced DependencyCheck scans for `:adapter:web` and `:application:ecommerce` reported zero unsuppressed vulnerabilities, and OWASP succeeded on pushed `a6fac3c33376` in run `37512052634`. The advisory remains accepted risk pending its removal condition, not a remediated dependency. |
 
 The source handover reviewed `50c18f9`; app source and browser evidence are
@@ -65,3 +65,25 @@ agreement. The Showcase consumer now includes
 focused test proving a dependency-pin change changes the protocol fingerprint
 (`4fd9abe`, 1 test passed). Harness reports its AH5-05a and AH5-06a work as
 local and under independent evaluation; no remote CI claim is made here.
+
+## Harness qualification follow-up — 2026-10-07
+
+The separate Showcase target-qualification feature `AH5-04B-QUAL-001` now
+records a fresh Docker Desktop run after correcting Q15/Q16 to restart the
+controller in a distinct OS process and recover persisted state. The report
+and raw evidence are under
+[`evidence/docker-desktop-rerun-2026-10-07-run2`](../specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/).
+Harness 0.3.0 returned 1: the report is valid but nonpassing, with 24 PASS,
+B8 FAIL and B10 NOT-RUN. The independent provisional evidence review confirmed
+the report bindings and the Q15/Q16 process-restart observations. The target
+remains `NOT QUALIFIED`, with `qualified=false` and `launch_ready=false`.
+
+Because Docker Desktop did not qualify, T-006 requires a fresh GitHub-hosted
+runner. The workflow exists in the local checkout but GitHub returned 404 when
+queried for it on the remote default branch. T-006 is recorded as
+`needs-human`; T-900 remains pending until the fallback report is available.
+The local main head is `a4f9422ba1d4`, 14 commits ahead of the fetched
+`origin/main`; none of those local commits is represented by the green remote
+run above. No push was performed. Once the workflow is available remotely, the
+fallback dispatch must pass the raw Docker report SHA-256
+`sha256:e07c4e947ddc5f3e4e5328d86ccb98a58be14ca77e97293d69f68d9c28e84659`.
