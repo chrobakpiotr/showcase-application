@@ -1,0 +1,45 @@
+{
+  "feature": "FAILED-TASK-REPLAN-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Enable CAS-bound replanning of human-resolved failed tasks",
+      "objective": "Implement and test a failed-task replan transition that is authorized by the recorded human resolution, binds status/attempt/revision/fingerprint/feature generation, atomically activates an immutable packet revision, preserves attempt and authorization history and legacy bytes, and leaves the task failed for ordinary claim/start.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["concurrency", "security", "lifecycle"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Add failing behavioral tests before implementation: missing or mismatched human-resolution evidence; stale status, attempt, revision, fingerprint or feature generation; completed task; competing request; and a passing failed-task transition proving atomic active revision selection, byte-identical legacy packet, unchanged attempts/authorization history, then normal claim/start binding to the new revision."
+    },
+    {
+      "id": "T-900",
+      "title": "Adversarially evaluate failed-task replan lifecycle safety",
+      "objective": "Independently verify every acceptance criterion, including the state replacement boundary, retry authorization invariants, crash behavior, stale/concurrent request rejection, and claim/start binding to the active immutable revision.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/FAILED-TASK-REPLAN-001/evidence/**"],
+      "risk_tags": ["evaluation", "concurrency", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context adversarial review of the accepted spec against implementation and tests; explicitly attempt state mutation through stale human-resolution evidence, generation drift, concurrent replans, and failures between immutable publication and state replacement."
+    }
+  ]
+}
