@@ -252,10 +252,15 @@ qualifying CI job and an independent reviewer who is not the report author.
 The released package installed as version 0.3.0 without dependencies in a
 temporary Python 3.13 environment; its `qualification --help` was correct and
 all 9 qualification tests from the exact release commit passed. Installing the
-full requirements file locally still fails while building the pinned
-`cryptography==49.0.0`: this host has no `pkg-config`/OpenSSL development
-headers and the configured package index provides only the source archive.
-This environment limitation does not replace CI installation evidence.
+full requirements file locally fails while building the pinned
+`cryptography==49.0.0`. This workstation runs macOS x86-64, while the official
+49.0.0 release publishes macOS wheels for ARM64 only; this host therefore has
+to build from the source archive. It has neither `pkg-config` nor OpenSSL
+development headers. Retrying against another package index will not provide
+a compatible macOS x86-64 wheel. Keep the accepted immutable dependency pin;
+use a supported Linux CI environment for installation evidence, or separately
+provision the local build prerequisites if local execution becomes necessary.
+This host limitation does not replace CI installation evidence.
 
 | Check | Required target evidence |
 |---|---|
