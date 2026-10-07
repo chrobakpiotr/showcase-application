@@ -1,12 +1,14 @@
 import json
+import os
 import pathlib
+import platform
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from qualification.q_probes import Q01_Q10, run_q01_q10
-from qualification.q_lifecycle import Q11_Q16, run_q11_q16
+from qualification.q_lifecycle import Q11_Q16, run_q11_q16, run_process_restart_probe
 
 
 class QualificationProbeTest(unittest.TestCase):
@@ -111,6 +113,39 @@ class QualificationProbeTest(unittest.TestCase):
             records = run_q11_q16(execute, pathlib.Path(tmp))
         self.assertEqual(list(Q11_Q16), calls)
         self.assertEqual('not-run', records[2].status)
+
+    @unittest.skipUnless(os.name == 'posix' and platform.system().lower() in {'darwin', 'linux'},
+                         'process-group restart probe requires a supported POSIX host')
+    def test_q15_recovers_active_identity_after_controller_process_exits(self):
+        sandbox = pathlib.Path(__file__).resolve().parents[1] / 'verification_sandbox.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_process_restart_probe('Q15', pathlib.Path(tmp), sandbox)
+
+        self.assertEqual('pass', result['status'], result)
+        details = result['details']
+        self.assertNotEqual((details['controller_a']['pid'], details['controller_a']['birth']),
+                            (details['controller_b']['pid'], details['controller_b']['birth']))
+        self.assertEqual('ACTIVE', details['controller_a']['persisted_state'])
+        self.assertEqual('ACTIVE', details['controller_b']['recovered_status'])
+        self.assertEqual(details['execution_identity'], details['controller_b']['execution_identity'])
+        self.assertEqual('DRAINED', details['controller_b']['cleanup_status'])
+
+    @unittest.skipUnless(os.name == 'posix' and platform.system().lower() in {'darwin', 'linux'},
+                         'process-group restart probe requires a supported POSIX host')
+    def test_q16_recovers_terminal_identity_after_controller_process_exits_and_rejects_relaunch(self):
+        sandbox = pathlib.Path(__file__).resolve().parents[1] / 'verification_sandbox.py'
+        with tempfile.TemporaryDirectory() as tmp:
+            result = run_process_restart_probe('Q16', pathlib.Path(tmp), sandbox)
+
+        self.assertEqual('pass', result['status'], result)
+        details = result['details']
+        self.assertNotEqual((details['controller_a']['pid'], details['controller_a']['birth']),
+                            (details['controller_b']['pid'], details['controller_b']['birth']))
+        self.assertEqual('DRAINED', details['controller_a']['persisted_state'])
+        self.assertEqual('DRAINED', details['controller_b']['recovered_status'])
+        self.assertEqual(details['execution_identity'], details['controller_b']['execution_identity'])
+        self.assertEqual('RELAUNCH_REJECTED', details['controller_b']['relaunch_status'])
+        self.assertFalse(details['controller_b']['relaunch_marker_created'])
 
 
 if __name__ == '__main__':
