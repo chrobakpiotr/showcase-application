@@ -1,0 +1,45 @@
+{
+  "feature": "RUNNER-STRICT-OUTPUT-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Project provider schemas and validate canonical task results",
+      "objective": "Implement tested exact provider/CLI schema projections without changing the canonical task-result schema; validate all decoded results against that canonical schema; bind provider, version and projection digest in run provenance; and allow Claude's existing OAuth session without weakening restricted execution.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/runner.py",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "risk_tags": ["ai", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "AC-008"],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+        "python3 -m py_compile tooling/agent-harness/runner.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Before implementation, projection tests must reject unknown provider/version pairs and prove exact closure/required-field transformations; canonical validation tests must fail for each dropped uniqueItems constraint and for representative nested, enum, pattern and additional-properties violations; the Claude command test must show restricted OAuth-compatible flags with no --bare."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate provider schema projection",
+      "objective": "Try to falsify the runner change against every RUNNER-STRICT-OUTPUT-001 acceptance criterion, canonical task-result schema and provenance requirement without modifying implementation files.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/RUNNER-STRICT-OUTPUT-001/evidence/**"],
+      "risk_tags": ["evaluation", "ai", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006", "AC-007", "AC-008"],
+      "verification": [
+        "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+        "python3 -m py_compile tooling/agent-harness/runner.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context adversarial review plus independently rerun focused suite and compilation."
+    }
+  ]
+}

@@ -34,6 +34,7 @@
 | `RECOVERY-OPS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-TIMELINE-001` | **CLOSED** | yes | no | no | document-only | not selected |
 | `RMA-CONCURRENCY-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `RUNNER-STRICT-OUTPUT-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `S30-AMQP-POISON-001` | **DRAFT — REF-Q scope decisions accepted; S30-06 parent and architecture design gate remain OPEN** | yes | yes | no | document-only | not selected |
 | `SDD-001` | ACCEPTED | yes | yes | yes | executable | selected |
 | `SDD-OBS-001` | DRAFT | yes | yes | yes | executable | selected |
