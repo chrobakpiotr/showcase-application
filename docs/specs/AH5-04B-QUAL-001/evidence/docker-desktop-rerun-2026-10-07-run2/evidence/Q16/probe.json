@@ -1,0 +1,50 @@
+{
+  "check_id": "Q16",
+  "details": {
+    "controller_a": {
+      "birth": "7149:7",
+      "exit_code": -9,
+      "persisted_state": "DRAINED",
+      "pid": 7,
+      "stdout": "{\"ready\": true, \"controller\": {\"pid\": 7, \"birth\": \"7149:7\"}}"
+    },
+    "controller_b": {
+      "birth": "7213:10",
+      "execution_identity": {
+        "backend_identity": "posix-process-group/v1",
+        "birth_identity": "6f9d8226ce274ff3a24b9d9ec590bbd4",
+        "execution_id": "5377477dafbc4df8b35d6b2a96dff932",
+        "policy_identity": "q15-q16-process-restart-v1",
+        "repository_id": "showcase-qualification-probe",
+        "schema_version": 1,
+        "unit_id": "/work/q16-c45cb92d2ed34c7d8986411ec22e6712/units/5377477dafbc4df8b35d6b2a96dff932"
+      },
+      "exit_code": 0,
+      "persisted_state": "DRAINED",
+      "pid": 10,
+      "recovered_reason": "DRAINED_MARKER",
+      "recovered_status": "DRAINED",
+      "relaunch_error": "execution-unit-not-prepared",
+      "relaunch_marker_created": false,
+      "relaunch_status": "RELAUNCH_REJECTED"
+    },
+    "execution_identity": {
+      "backend_identity": "posix-process-group/v1",
+      "birth_identity": "6f9d8226ce274ff3a24b9d9ec590bbd4",
+      "execution_id": "5377477dafbc4df8b35d6b2a96dff932",
+      "policy_identity": "q15-q16-process-restart-v1",
+      "repository_id": "showcase-qualification-probe",
+      "schema_version": 1,
+      "unit_id": "/work/q16-c45cb92d2ed34c7d8986411ec22e6712/units/5377477dafbc4df8b35d6b2a96dff932"
+    },
+    "payload_birth_identity": "7183:8",
+    "payload_pid": 8,
+    "relaunch_marker_created": false
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "RESTART_DRAINED",
+  "reason_code": "CONTROLLER_PROCESS_RESTART_RECOVERED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"pass\", \"reason_code\": \"CONTROLLER_PROCESS_RESTART_RECOVERED\", \"stdout\": \"{\\\"controller\\\": {\\\"birth\\\": \\\"7213:10\\\", \\\"pid\\\": 10}, \\\"execution_identity\\\": {\\\"backend_identity\\\": \\\"posix-process-group/v1\\\", \\\"birth_identity\\\": \\\"6f9d8226ce274ff3a24b9d9ec590bbd4\\\", \\\"execution_id\\\": \\\"5377477dafbc4df8b35d6b2a96dff932\\\", \\\"policy_identity\\\": \\\"q15-q16-process-restart-v1\\\", \\\"repository_id\\\": \\\"showcase-qualification-probe\\\", \\\"schema_version\\\": 1, \\\"unit_id\\\": \\\"/work/q16-c45cb92d2ed34c7d8986411ec22e6712/units/5377477dafbc4df8b35d6b2a96dff932\\\"}, \\\"persisted_state\\\": \\\"DRAINED\\\", \\\"recovered_reason\\\": \\\"DRAINED_MARKER\\\", \\\"recovered_status\\\": \\\"DRAINED\\\", \\\"relaunch_error\\\": \\\"execution-unit-not-prepared\\\", \\\"relaunch_marker_created\\\": false, \\\"relaunch_status\\\": \\\"RELAUNCH_REJECTED\\\"}\\n\", \"stderr\": \"\", \"details\": {\"controller_a\": {\"birth\": \"7149:7\", \"pid\": 7, \"exit_code\": -9, \"stdout\": \"{\\\"ready\\\": true, \\\"controller\\\": {\\\"pid\\\": 7, \\\"birth\\\": \\\"7149:7\\\"}}\", \"persisted_state\": \"DRAINED\"}, \"controller_b\": {\"birth\": \"7213:10\", \"pid\": 10, \"execution_identity\": {\"backend_identity\": \"posix-process-group/v1\", \"birth_identity\": \"6f9d8226ce274ff3a24b9d9ec590bbd4\", \"execution_id\": \"5377477dafbc4df8b35d6b2a96dff932\", \"policy_identity\": \"q15-q16-process-restart-v1\", \"repository_id\": \"showcase-qualification-probe\", \"schema_version\": 1, \"unit_id\": \"/work/q16-c45cb92d2ed34c7d8986411ec22e6712/units/5377477dafbc4df8b35d6b2a96dff932\"}, \"persisted_state\": \"DRAINED\", \"recovered_reason\": \"DRAINED_MARKER\", \"recovered_status\": \"DRAINED\", \"relaunch_error\": \"execution-unit-not-prepared\", \"relaunch_marker_created\": false, \"relaunch_status\": \"RELAUNCH_REJECTED\", \"exit_code\": 0}, \"execution_identity\": {\"backend_identity\": \"posix-process-group/v1\", \"birth_identity\": \"6f9d8226ce274ff3a24b9d9ec590bbd4\", \"execution_id\": \"5377477dafbc4df8b35d6b2a96dff932\", \"policy_identity\": \"q15-q16-process-restart-v1\", \"repository_id\": \"showcase-qualification-probe\", \"schema_version\": 1, \"unit_id\": \"/work/q16-c45cb92d2ed34c7d8986411ec22e6712/units/5377477dafbc4df8b35d6b2a96dff932\"}, \"payload_pid\": 8, \"payload_birth_identity\": \"7183:8\", \"relaunch_marker_created\": false}}\n"
+}

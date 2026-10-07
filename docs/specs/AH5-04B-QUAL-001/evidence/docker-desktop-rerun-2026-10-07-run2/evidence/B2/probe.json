@@ -1,0 +1,15 @@
+{
+  "check_id": "B2",
+  "details": {
+    "exit_code": 0,
+    "host_expected_value_created": true,
+    "host_path_was_mounted": false,
+    "tested_container_path": "/host-hidden/expected-73898bd4d12940c6bef09b6ccbfc8d0c.txt"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "HIDDEN_EXPECTED_VALUES_UNREADABLE",
+  "reason_code": "HIDDEN_EXPECTED_VALUE_UNREADABLE",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "expected-unreadable\n"
+}

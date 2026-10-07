@@ -1,0 +1,15 @@
+{
+  "check_id": "Q12",
+  "details": {
+    "details": "STALE_EXECUTION_IDENTITY",
+    "exit_code": 0,
+    "reason_code": "STALE_IDENTITY_REJECTED",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "EXECUTION_IDENTITY_STALE_REJECTED",
+  "reason_code": "STALE_IDENTITY_REJECTED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"STALE_IDENTITY_REJECTED\", \"details\": \"STALE_EXECUTION_IDENTITY\"}\n"
+}

@@ -1,0 +1,19 @@
+{
+  "check_id": "B4",
+  "details": {
+    "exit_code": 0,
+    "git_mounted": false,
+    "host_paths_mounted": [],
+    "input_ro": true,
+    "root_ro": true,
+    "tmpfs": true,
+    "uid": 65532,
+    "workspace_rw": true
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "FILESYSTEM_AND_MOUNT_BOUNDARIES",
+  "reason_code": "FILESYSTEM_BOUNDARIES_OBSERVED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"uid\": 65532, \"workspace_rw\": true, \"input_ro\": true, \"root_ro\": true, \"tmpfs\": true, \"host_paths_mounted\": [], \"git_mounted\": false}\n"
+}
