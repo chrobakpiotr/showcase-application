@@ -1,0 +1,45 @@
+{
+  "feature": "REOPEN-LEGACY-PACKET-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Reopen tasks without resolving unrelated legacy packets",
+      "objective": "Calculate descendants from active immutable packet dependencies where present and otherwise from the validated current DAG, preserving existing reopen invariants and unrelated legacy packet bytes.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "A completed task can be reopened while an unrelated no-revision task has malformed legacy packet bytes; the operation leaves the unrelated task untouched and its packet byte-identical. Existing tests prove descendants still invalidate and active-revision resolution still fails closed."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate reopen dependency selection",
+      "objective": "Try to falsify descendant selection and reopen safety, including active revision resolution, unrelated malformed legacy packets, state-lock scope, target status checks, and descendant invalidation compatibility.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/REOPEN-LEGACY-PACKET-001/evidence/**"],
+      "risk_tags": ["evaluation", "lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Fresh-context review of the helper, locked reopen path, regression test, and existing descendant invalidation tests; attempt a stale active-revision case and malformed unrelated legacy packet case."
+    }
+  ]
+}
