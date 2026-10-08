@@ -4900,23 +4900,85 @@ def execution_protocol_paths(feature_dir: pathlib.Path) -> list[str]:
     ]
 
 
+def legacy_execution_snapshot_paths(feature_dir: pathlib.Path) -> list[str]:
+    """Keep the pre-task synthetic snapshot scope for design and wayfinder callers."""
+    root = repo_root()
+    try:
+        feature_rel = feature_dir.resolve().relative_to(root)
+    except ValueError:
+        die('feature_dir must be inside the repository')
+    candidates = [
+        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents',
+        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml', str(feature_rel),
+    ]
+    return [candidate for candidate in candidates if (root / candidate).exists()]
+
+
 def _path_is_selected(path: str, selected: list[str]) -> bool:
     return any(path == item or path.startswith(item.rstrip('/') + '/')
                for item in selected if item)
 
 
 def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any]) -> tuple[str, bool]:
-    """Return committed HEAD after refusing uncommitted selected protocol/spec files."""
+    """Return an immutable snapshot for non-task orchestration callers."""
     root = repo_root()
     head = subprocess.run(
         ['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True
     ).stdout.strip()
+    dirty = changed_paths(root)
+    try:
+        feature_rel = feature_dir.resolve().relative_to(root)
+    except ValueError:
+        die('feature_dir must be inside the repository')
+    unrelated = [path for path in dirty if not bootstrap_path_allowed(path, feature_rel)]
+    if unrelated:
+        die('primary checkout has uncommitted changes outside the SDD protocol/active feature; '
+            f'create a deliberate local checkpoint or stash them before orchestration: {unrelated}')
+    selected = legacy_execution_snapshot_paths(feature_dir)
+    if not dirty:
+        return head, False
+
+    # Preserve the legacy synthetic snapshot for design/wayfinder/verification-contract
+    # callers. Task worktrees use task_worktree_snapshot below and never consume this.
+    fd, index_name = tempfile.mkstemp(prefix='agent-sdd-index-')
+    os.close(fd)
+    os.unlink(index_name)
+    env = os.environ.copy()
+    env['GIT_INDEX_FILE'] = index_name
+    try:
+        subprocess.run(['git', 'read-tree', head], cwd=root, env=env, check=True, capture_output=True)
+        tracked = subprocess.run(['git', 'ls-files'], cwd=root, capture_output=True,
+                                 text=True, check=True).stdout.splitlines()
+        selected_existing = [path for path in selected
+                             if (root / path).exists()
+                             or any(_path_is_selected(tracked_path, [path]) for tracked_path in tracked)]
+        subprocess.run(['git', 'add', '-A', '--', *selected_existing], cwd=root, env=env, check=True,
+                       capture_output=True)
+        tree = subprocess.run(['git', 'write-tree'], cwd=root, env=env, capture_output=True,
+                              text=True, check=True).stdout.strip()
+        commit = subprocess.run(
+            ['git', '-c', 'user.name=Agent Harness', '-c',
+             'user.email=agent-harness@local.invalid', 'commit-tree', tree, '-p', head,
+             '-m', f'agent orchestration base {doc.get("feature", feature_dir.name)}'],
+            cwd=root, env=env, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    finally:
+        if os.path.exists(index_name):
+            os.unlink(index_name)
+    return commit, True
+
+
+def task_worktree_snapshot(feature_dir: pathlib.Path) -> str:
+    """Return committed HEAD only, rejecting dirty paths that define task freshness."""
+    root = repo_root()
+    head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True,
+                          text=True, check=True).stdout.strip()
     selected = execution_protocol_paths(feature_dir)
     dirty = [path for path in changed_paths(root) if _path_is_selected(path, selected)]
     if dirty:
         die('primary checkout has uncommitted protocol/feature files; commit them before task worktree creation: '
             f'{dirty}')
-    return head, False
+    return head
 
 
 def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
@@ -4976,7 +5038,7 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         if commit not in dep_commits:
             dep_commits.append(commit)
 
-    base = dep_commits[0] if dep_commits else execution_base(feature_dir, doc, state)
+    base = dep_commits[0] if dep_commits else task_worktree_snapshot(feature_dir)
     subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, base], check=True)
     try:
         for commit in dep_commits[1:]:
@@ -5012,14 +5074,21 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
                 f'{missing}. Reset/re-plan the feature; the harness can synthesize a local base without moving your branch.'
             )
 
-        snapshot, _ = current_execution_snapshot(feature_dir, doc)
+        snapshot = task_worktree_snapshot(feature_dir)
         protocol_paths = execution_protocol_paths(feature_dir)
-        path_diff = subprocess.run(
-            ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
+        needs_refresh = (
+            feature_fingerprint(target / rel_feature) != feature_fingerprint(feature_dir)
+            or protocol_version(target / rel_feature) != protocol_version(feature_dir)
         )
-        if path_diff.returncode not in (0, 1):
-            die(f'cannot compare task worktree protocol snapshot: {target}')
-        stale_paths = path_diff.returncode == 1
+        if needs_refresh:
+            path_diff = subprocess.run(
+                ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
+            )
+            if path_diff.returncode not in (0, 1):
+                die(f'cannot compare task worktree protocol snapshot: {target}')
+            stale_paths = path_diff.returncode == 1
+        else:
+            stale_paths = False
         if stale_paths:
             root_paths = subprocess.run(['git', 'ls-tree', '-r', '--name-only', snapshot],
                                         cwd=repo_root(), capture_output=True, text=True, check=True).stdout.splitlines()

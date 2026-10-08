@@ -1517,7 +1517,7 @@ class HarnessTest(unittest.TestCase):
         ]
         feature = self.feature(tasks)
         (self.root / 'AGENTS.md').write_text('# agents\n')
-        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / '.gitignore').write_text('.agent-state/\ndocs/specs/*/design.json\n')
         (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
         harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
         harness_copy.parent.mkdir(parents=True, exist_ok=True)
@@ -1535,7 +1535,11 @@ class HarnessTest(unittest.TestCase):
         dead_path = self.root / 'agent-harness' / 'dependency-output.txt'
         dead_path.parent.mkdir()
         dead_path.write_text('preserve unrelated dependency content\n')
+        (self.root / '.gitignore').write_text('.agent-state/\ndocs/specs/*/design.json\n# dependency policy\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text(
+            '# constitution\nDependency-authored protocol addition.\n')
         subprocess.run(['git', 'add', 'dependency-output.txt', 'agent-harness',
+                        '.gitignore', 'docs/agentic-sdd/constitution.md',
                         str(dependency_evidence.relative_to(self.root))], cwd=self.root, check=True)
         subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
                         'commit', '-q', '-m', 'dependency checkpoint'], cwd=self.root, check=True)
@@ -1613,6 +1617,44 @@ class HarnessTest(unittest.TestCase):
             ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True
         ).stdout.strip())
         self.assertEqual([], harness.changed_paths(target))
+
+        self.assertEqual(dependency_checkpoint, subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True
+        ).stdout.strip())
+        self.assertIn('# dependency policy', (target / '.gitignore').read_text())
+        self.assertIn('Dependency-authored protocol addition.',
+                      (target / 'docs/agentic-sdd/constitution.md').read_text())
+
+    def test_real_freshness_guard_failure_cleans_worktree_when_design_is_ignored(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture()
+        root_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                         capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(['git', 'checkout', '--quiet', dependency_checkpoint], cwd=self.root, check=True)
+        dep_design = feature / 'design.json'
+        dep_design.write_text('{"source":"dependency"}\n')
+        subprocess.run(['git', 'add', '-f', str(dep_design.relative_to(self.root))],
+                       cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'dependency adds ignored design'], cwd=self.root, check=True)
+        dependency_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                               capture_output=True, text=True, check=True).stdout.strip()
+        state['tasks']['T-A']['checkpoint_commit'] = dependency_checkpoint
+        harness.save_state(feature, state)
+        subprocess.run(['git', 'checkout', '--quiet', root_checkpoint], cwd=self.root, check=True)
+        (self.root / 'docs/specs/TST-001/design.json').write_text('{"source":"uncommitted root"}\n')
+        target = harness.worktree_path('TST-001', 'T-B')
+        branch = 'agent/TST-001/T-B'
+
+        with contextlib.redirect_stderr(io.StringIO()) as error:
+            with self.assertRaises(SystemExit):
+                harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+        self.assertIn('stale spec/plan/tasks', error.getvalue())
+
+        self.assertFalse(target.exists())
+        self.assertNotEqual(0, subprocess.run(
+            ['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}'], cwd=self.root
+        ).returncode)
+        self.assertTrue((self.root / 'docs/specs/TST-001/design.json').exists())
 
     def test_uncommitted_root_feature_evidence_is_not_copied_into_task_branch(self):
         feature, doc, state, _ = self._worktree_refresh_fixture()
