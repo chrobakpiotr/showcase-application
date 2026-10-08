@@ -1610,6 +1610,8 @@ class HarnessTest(unittest.TestCase):
                          ['feature_generation'])
 
     def test_start_persists_base_created_in_staged_state(self):
+        from unittest.mock import patch
+
         self.addCleanup(shutil.rmtree,
                         self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}',
                         ignore_errors=True)
@@ -1634,6 +1636,15 @@ class HarnessTest(unittest.TestCase):
         initial_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
                                       capture_output=True, text=True, check=True).stdout.strip()
         doc = harness.load_json(feature / 'tasks.json')
+
+        with patch.object(harness, 'append_attempt_binding', side_effect=RuntimeError('injected start failure')):
+            with self.assertRaisesRegex(RuntimeError, 'injected start failure'):
+                harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+        failed_start = harness.load_state(feature, doc)
+        self.assertEqual(initial_head, failed_start.get('base_commit'))
+        self.assertEqual('head', failed_start.get('base_kind'))
+        self.assertEqual('pending', failed_start['tasks']['T-A']['status'])
+        self.assertEqual(0, failed_start['tasks']['T-A']['attempts'])
 
         harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
         state = harness.load_state(feature, doc)
