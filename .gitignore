@@ -2,6 +2,7 @@
 .idea/
 out/
 lib/
+/graphify-out/
 .pmd
 .checkstyle
 .DS_Store
