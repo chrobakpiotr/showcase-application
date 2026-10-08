@@ -1,0 +1,186 @@
+{
+  "checks_reviewed": [
+    {
+      "check_id": "Q01",
+      "path": "Q01/probe.json",
+      "sha256": "sha256:5836ebc24248dab0ebc1893c3a8c40626e4a870476abbf627eae68f708cda6bf",
+      "size": 346
+    },
+    {
+      "check_id": "Q02",
+      "path": "Q02/probe.json",
+      "sha256": "sha256:3313d0b2daf86a29d7609e01759b48a8b7241ad8d46a819dde7aaab52760b762",
+      "size": 344
+    },
+    {
+      "check_id": "Q03",
+      "path": "Q03/probe.json",
+      "sha256": "sha256:8f3ddebf564d4851917a12d40c85e839d5cc6d815ea438aa395c93a6fa9a6119",
+      "size": 1353
+    },
+    {
+      "check_id": "Q04",
+      "path": "Q04/probe.json",
+      "sha256": "sha256:9823fc4055fcaae3d06434f772fefbc93935a5b4410e36aa33e37e74f8cb2017",
+      "size": 1363
+    },
+    {
+      "check_id": "Q05",
+      "path": "Q05/probe.json",
+      "sha256": "sha256:aa7d846b600d66d0860fbe3bcdb6f3338b75e1882ba33c63faf309569eeb063d",
+      "size": 1044
+    },
+    {
+      "check_id": "Q06",
+      "path": "Q06/probe.json",
+      "sha256": "sha256:81f970941eb8ac26567279d5d4b115c40b88b35c0bbf64e5ca90b45789b00294",
+      "size": 1049
+    },
+    {
+      "check_id": "Q07",
+      "path": "Q07/probe.json",
+      "sha256": "sha256:83d3091eba49c7065087b3c205e2cbe2f4373664558c7fae57b62f4a5941e38a",
+      "size": 720
+    },
+    {
+      "check_id": "Q08",
+      "path": "Q08/probe.json",
+      "sha256": "sha256:997bfc96acc5fc335e8344c209633c0a90417ced588f28bee1d95fc04c788399",
+      "size": 1056
+    },
+    {
+      "check_id": "Q09",
+      "path": "Q09/probe.json",
+      "sha256": "sha256:e3b1dc1fd03af2e45d9490a0a047ea6bb50cd27e4de724d9ac69af7aa7f2c3f2",
+      "size": 1050
+    },
+    {
+      "check_id": "Q10",
+      "path": "Q10/probe.json",
+      "sha256": "sha256:8bd6e8cd1a0d5368c22dc57b2d75bf33aad739a084ab25e4647a7702f2525555",
+      "size": 1139
+    },
+    {
+      "check_id": "Q11",
+      "path": "Q11/probe.json",
+      "sha256": "sha256:87cc49df6386a0df4ab185ccd346a7974bc467161551b5a7f74bdfe9798a2054",
+      "size": 539
+    },
+    {
+      "check_id": "Q12",
+      "path": "Q12/probe.json",
+      "sha256": "sha256:c9aa85a4f3adfcf640ef8bee828aba4087ea288e242bb40c14eda9145344cfab",
+      "size": 535
+    },
+    {
+      "check_id": "Q13",
+      "path": "Q13/probe.json",
+      "sha256": "sha256:be457c977cc960b0bab82920e2f4e0d4818815e1000fcde9cac4535122e8a765",
+      "size": 576
+    },
+    {
+      "check_id": "Q14",
+      "path": "Q14/probe.json",
+      "sha256": "sha256:a9014c84e95d51d448b266a8baf38a7ddedd4179892b09fea807f3f9c3358faa",
+      "size": 553
+    },
+    {
+      "check_id": "Q15",
+      "path": "Q15/probe.json",
+      "sha256": "sha256:b543c5656ea53c1fbb5cb7bdd9ac1f54f323d118aa5da7e710cc21ceef60d3c3",
+      "size": 3476
+    },
+    {
+      "check_id": "Q16",
+      "path": "Q16/probe.json",
+      "sha256": "sha256:68ca5c8c0a2ecc1262f22847081bceeeee26e8803d7db4fdcf73a3dbb336781b",
+      "size": 3689
+    },
+    {
+      "check_id": "B1",
+      "path": "B1/probe.json",
+      "sha256": "sha256:ddf1846ca7e2391d4a892d16842b519fd946e072d39080d27041766dff23832d",
+      "size": 404
+    },
+    {
+      "check_id": "B2",
+      "path": "B2/probe.json",
+      "sha256": "sha256:66c4a8a4780912c02c0059d995cc782bb2986362139fbee7bbd353b1101e9826",
+      "size": 508
+    },
+    {
+      "check_id": "B3",
+      "path": "B3/probe.json",
+      "sha256": "sha256:78bdf1de7630dea872e226e11b2503e412373bcabe01a5fde0927154477ac38c",
+      "size": 384
+    },
+    {
+      "check_id": "B4",
+      "path": "B4/probe.json",
+      "sha256": "sha256:b3c92c57420b38dd97d0c1c019510857c22c772fb6d955de587183ad6b4ea30d",
+      "size": 627
+    },
+    {
+      "check_id": "B5",
+      "path": "B5/probe.json",
+      "sha256": "sha256:8ed1ba5ece2ee5e8d69345d9d0958c38e6a7c20fceb3f7ffa8a136c8e0ed7c69",
+      "size": 600
+    },
+    {
+      "check_id": "B6",
+      "path": "B6/probe.json",
+      "sha256": "sha256:77d50d63ee57a943217d4b425aa77c7a0579d0338ec4402ee104c99b74df9019",
+      "size": 789
+    },
+    {
+      "check_id": "B7",
+      "path": "B7/probe.json",
+      "sha256": "sha256:09824fa5317d38ec8d4671265ee7d3329e0969ef05b02cb6afd5f253ac1d2372",
+      "size": 661
+    },
+    {
+      "check_id": "B8",
+      "path": "B8/probe.json",
+      "sha256": "sha256:618e1843dbb5611532ab19e323126c5f80cd755b90ee181abd3bfca3360f828c",
+      "size": 3216
+    },
+    {
+      "check_id": "B9",
+      "path": "B9/probe.json",
+      "sha256": "sha256:2d802b5c3599d623872223c0458e8d8a817073c18d54081552fbd2bff56ef723",
+      "size": 689
+    },
+    {
+      "check_id": "B10",
+      "path": "B10/probe.json",
+      "sha256": "sha256:da8c33ed5d9cf991af16f2d7e7f9c3c788f4478380117ee8f003b154b864843c",
+      "size": 3676
+    }
+  ],
+  "findings": [
+    "The report contains exactly Q01-Q16 and B1-B10, each once, with 26 distinct evidence paths; all sizes, digests, exact job IDs, check IDs and pass outcomes match.",
+    "T-005 completion proof command hash and result hash recompute from captured stdout/stderr; stdout names this report path and job ID, its qualification digest, and the checker exit 1 caused by the intentionally absent review.",
+    "The T-006 NOT_REQUIRED record names this Docker job, records all 26 passes and NOT_QUALIFIED_PENDING_INDEPENDENT_REVIEW; its report SHA-256 matches this report.",
+    "The policy digest recomputes from the accepted spec and verification contract. Current Docker Desktop daemon host, kernel, engine version and pinned image digest match the tuple.",
+    "B8 records exact cgroup values, combined 256 MiB workspace plus /tmp ENOSPC, observed OOMKilled state, timeout kill by container ID and 1 MiB truncation. B9 records successful removal, inventory absence and exact 12-byte artifact equality. B10 candidate target/result pass the pinned v0.5.0 validate_target(qualified=false) and validate_result(request) APIs.",
+    "The accepted trust boundary explicitly provides no cryptographic/provider attestation; none is claimed here."
+  ],
+  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "provenance": {
+    "completion_record": ".agent-runs/completion-capture/AH5-04B-QUAL-001-T-005-attempt-1-resume-20261008/completion.json",
+    "limitations": [
+      "The job ID is generated locally; this review does not claim GitHub/provider attestation or tamper-proof local provenance.",
+      "The result applies only to this reported Docker Desktop tuple, workload image digest, policy digest and local invocation.",
+      "No production readiness or workload execution authority is implied."
+    ],
+    "scope": "the exact local Docker Desktop invocation recorded by Showcase T-005 attempt 1",
+    "verification_command": "bash tooling/scripts/run-verification-sandbox-qualification.sh --target docker-desktop --all-checks",
+    "verification_stderr": "verify-0.stderr",
+    "verification_stdout": "verify-0.stdout"
+  },
+  "reviewed_at": "2026-10-08T08:24:45Z",
+  "reviewer": "codex-independent-evaluator-2026-10-08",
+  "subject": "sha256:a75a4b34e6ffcc1f1d044cc8b65a3f7e842edfe97938f4ae0de754eef7878154",
+  "target": "showcase-docker-desktop-linux-guest",
+  "verdict": "pass"
+}

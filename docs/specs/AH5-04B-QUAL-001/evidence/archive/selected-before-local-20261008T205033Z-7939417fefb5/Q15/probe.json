@@ -1,0 +1,49 @@
+{
+  "check_id": "Q15",
+  "details": {
+    "controller_a": {
+      "birth": "121101:7",
+      "exit_code": -9,
+      "persisted_state": "ACTIVE",
+      "pid": 7,
+      "stdout": "{\"ready\": true, \"controller\": {\"pid\": 7, \"birth\": \"121101:7\"}}"
+    },
+    "controller_b": {
+      "birth": "121135:9",
+      "cleanup_status": "DRAINED",
+      "execution_identity": {
+        "backend_identity": "posix-process-group/v1",
+        "birth_identity": "0d2d572593624f45ad19781e0386ffb8",
+        "execution_id": "9fdf7f81097b44b9866ee9cfa523aa9d",
+        "policy_identity": "q15-q16-process-restart-v1",
+        "repository_id": "showcase-qualification-probe",
+        "schema_version": 1,
+        "unit_id": "/work/q15-60fa5430370a49a4919c73c16fcd92cc/units/9fdf7f81097b44b9866ee9cfa523aa9d"
+      },
+      "exit_code": 0,
+      "persisted_state": "ACTIVE",
+      "pid": 9,
+      "recovered_reason": "GROUP_PRESENT",
+      "recovered_status": "ACTIVE"
+    },
+    "execution_identity": {
+      "backend_identity": "posix-process-group/v1",
+      "birth_identity": "0d2d572593624f45ad19781e0386ffb8",
+      "execution_id": "9fdf7f81097b44b9866ee9cfa523aa9d",
+      "policy_identity": "q15-q16-process-restart-v1",
+      "repository_id": "showcase-qualification-probe",
+      "schema_version": 1,
+      "unit_id": "/work/q15-60fa5430370a49a4919c73c16fcd92cc/units/9fdf7f81097b44b9866ee9cfa523aa9d"
+    },
+    "payload_birth_identity": "121133:8",
+    "payload_pid": 8,
+    "relaunch_marker_created": false
+  },
+  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "name": "RESTART_ACTIVE",
+  "reason_code": "CONTROLLER_PROCESS_RESTART_RECOVERED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"pass\", \"reason_code\": \"CONTROLLER_PROCESS_RESTART_RECOVERED\", \"stdout\": \"{\\\"cleanup_status\\\": \\\"DRAINED\\\", \\\"controller\\\": {\\\"birth\\\": \\\"121135:9\\\", \\\"pid\\\": 9}, \\\"execution_identity\\\": {\\\"backend_identity\\\": \\\"posix-process-group/v1\\\", \\\"birth_identit\", \"stderr\": \"\", \"details\": {\"controller_a\": {\"birth\": \"121101:7\", \"pid\": 7, \"exit_code\": -9, \"stdout\": \"{\\\"ready\\\": true, \\\"controller\\\": {\\\"pid\\\": 7, \\\"birth\\\": \\\"121101:7\\\"}}\", \"persisted_state\": \"ACTIVE\"}, \"controller_b\": {\"birth\": \"121135:9\", \"pid\": 9, \"cleanup_status\": \"DRAINED\", \"execution_identity\": {\"backend_identity\": \"posix-process-group/v1\", \"birth_identity\": \"0d2d572593624f45ad19781e0386ffb8\", \"execution_id\": \"9fdf7f81097b44b9866ee9cfa523aa9d\", \"policy_identity\": \"q15-q16-process-restart-v1\", \"repository_id\": \"showcase-qualification-probe\", \"schema_version\": 1, \"unit_id\": \"/work/q15-60fa5430370a49a4919c73c16fcd92cc/units/9fdf7f81097b44b9866ee9cfa523aa9d\"}, \"persisted_state\": \"ACTIVE\", \"recovered_reason\": \"GROUP_PRESENT\", \"recovered_status\": \"ACTIVE\", \"exit_code\": 0}, \"execution_identity\": {\"backend_identity\": \"posix-process-group/v1\", \"birth_identity\": \"0d2d572593624f45ad19781e0386ffb8\", \"execution_id\": \"9fdf7f81097b44b9866ee9cfa523aa9d\", \"policy_identity\": \"q15-q16-process-restart-v1\", \"repository_id\": \"showcase-qualification-probe\", \"schema_version\": 1, \"unit_id\": \"/work/q15-60fa5430370a49a4919c73c16fcd92cc/units/9fdf7f81097b44b9866ee9cfa523aa9d\"}, \"payload_pid\": 8, \"payload_birth_identity\": \"121133:8\", \"relaunch_marker_created\": false}}\n",
+  "target_id": "showcase-docker-desktop-linux-guest"
+}

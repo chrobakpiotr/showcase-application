@@ -2,33 +2,60 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$repo_root"
+target=""
+all_checks=false
+workload_image="${SHOWCASE_WORKLOAD_IMAGE:-python@sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5}"
 
-python_bin="${PYTHON:-python3.13}"
-if ! command -v "$python_bin" >/dev/null 2>&1; then
-  python_bin="python3"
+while (($#)); do
+  case "$1" in
+    --target)
+      (($# >= 2)) || { echo "--target requires a value" >&2; exit 2; }
+      target="$2"
+      shift 2
+      ;;
+    --all-checks)
+      all_checks=true
+      shift
+      ;;
+    --workload-image)
+      (($# >= 2)) || { echo "--workload-image requires a value" >&2; exit 2; }
+      workload_image="$2"
+      shift 2
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$all_checks" != true || ( "$target" != docker-desktop && "$target" != github-runner ) ]]; then
+  echo "usage: $0 --target {docker-desktop|github-runner} --all-checks [--workload-image NAME@sha256:DIGEST]" >&2
+  exit 2
 fi
 
-target="${QUALIFICATION_TARGET:-showcase-docker-desktop}"
-job_id="${QUALIFICATION_JOB_ID:-}"
-workload_image="${QUALIFICATION_WORKLOAD_IMAGE:-python:3.12@sha256:4d1caded1f729ae443eb803f26ffde7b61e696aeaef62f099abb6dd6b14257c7}"
-harness_cli="${QUALIFICATION_HARNESS_CLI:-agent-harness}"
-output_root="${QUALIFICATION_OUTPUT_ROOT:-artifacts/verification-sandbox-qualification/${job_id:-local-$(date -u +%Y%m%dT%H%M%SZ)}}"
-
-args=(
-  --target "$target"
-  --workload-image "$workload_image"
-  --harness-cli "$harness_cli"
-  --evidence-root "$output_root/evidence"
-  --report "$output_root/report.json"
-  --capability-report "$output_root/capability.json"
-)
-if [[ -n "$job_id" ]]; then
-  args+=(--job-id "$job_id")
+if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
+  job_id="${GITHUB_RUN_ID}-attempt-${GITHUB_RUN_ATTEMPT:-1}-${GITHUB_JOB:-job}"
+else
+  job_id="local-$(python3 -c 'import datetime,uuid; print(datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:12])')"
 fi
-if [[ -n "${QUALIFICATION_HOST:-}" ]]; then
-  args+=(--host "$QUALIFICATION_HOST")
+target_id="showcase-docker-desktop-linux-guest"
+if [[ "$target" == github-runner ]]; then
+  target_id="showcase-github-hosted-ubuntu-runner"
 fi
+evidence_root="${SHOWCASE_QUALIFICATION_EVIDENCE_ROOT:-$repo_root/docs/specs/AH5-04B-QUAL-001/evidence/$target/$job_id}"
 
-PYTHONPATH="$repo_root/tooling/agent-harness${PYTHONPATH:+:$PYTHONPATH}" \
-  "$python_bin" -m qualification.report "${args[@]}"
+if ! docker pull "$workload_image"; then
+  echo "workload image pull failed; qualification will record a non-passing preflight report" >&2
+fi
+export PYTHONPATH="$repo_root/tooling/agent-harness${PYTHONPATH:+:$PYTHONPATH}"
+python3 -m qualification.report run \
+  --target "$target" \
+  --target-id "$target_id" \
+  --job-id "$job_id" \
+  --workload-image "$workload_image" \
+  --repository-root "$repo_root" \
+  --sandbox-source "$repo_root/tooling/agent-harness/verification_sandbox.py" \
+  --evidence-root "$evidence_root" \
+  --report "$evidence_root/report.json" \
+  --capability-report "$evidence_root/capability.json"

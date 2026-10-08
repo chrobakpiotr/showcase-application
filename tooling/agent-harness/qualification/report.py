@@ -1,4 +1,4 @@
-"""Create a job-bound Harness v0.3.0 qualification report from all 26 probes."""
+"""Create exact-job qualification reports; report validation is delegated to Harness v0.5."""
 from __future__ import annotations
 
 import argparse
@@ -7,281 +7,339 @@ import hashlib
 import json
 import os
 import pathlib
-import platform
 import re
-import shutil
 import subprocess
 import sys
 import uuid
 from typing import Any
 
+from agent_harness import __version__ as HARNESS_VERSION, contract
+
 from .b_probes import B1_B10, DockerGradingProbeTarget, run_b1_b10
-from .q_lifecycle import Q11_Q16, DockerLifecycleProbeTarget, run_q11_q16
-from .q_probes import Q01_Q10, DockerProbeTarget, run_q01_q10
+from .q_lifecycle import DockerLifecycleProbeTarget, Q11_Q16, run_q11_q16
+from .q_probes import DockerProbeTarget, Q01_Q10, run_q01_q10
 
 
 CHECK_IDS = tuple(Q01_Q10) + tuple(Q11_Q16) + tuple(B1_B10)
-ROOT = pathlib.Path(__file__).resolve().parents[3]
-POLICY_FILES = (
-    'docs/specs/SDD-OBS-001/spec.md',
-    'docs/reviews/S30-03a-qualification-2026-10-04.json',
-    'docs/specs/AH5-04B-QUAL-001/spec.md',
-    'tooling/agent-harness/requirements.txt',
-)
 DEFAULT_WORKLOAD_IMAGE = (
-    'python:3.12@sha256:4d1caded1f729ae443eb803f26ffde7b61e696aeaef62f099abb6dd6b14257c7'
+    'python@sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5'
 )
-_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}')
-_DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
+POLICY_FILES = ('docs/specs/AH5-04B-QUAL-001/spec.md',
+                'docs/specs/AH5-04B-QUAL-001/verification-contract.json')
+_SAFE_ID = re.compile(r'[^A-Za-z0-9._:/@+-]+')
+PINNED_HARNESS_VERSION = '0.5.0'
 
 
-def policy_digest(repository: pathlib.Path = ROOT) -> str:
-    """Hash the accepted qualification policy inputs, with paths and order bound."""
-    digest = hashlib.sha256()
-    for relative in POLICY_FILES:
-        source = repository / relative
-        raw = source.read_bytes()
-        digest.update(relative.encode('utf-8') + b'\0')
-        digest.update(hashlib.sha256(raw).digest())
-    return 'sha256:' + digest.hexdigest()
+def policy_digest(spec_path: pathlib.Path, verification_contract_path: pathlib.Path) -> str:
+    """Bind the report to the accepted behavior and its independent verification contract."""
+    manifest = {}
+    for path in sorted((spec_path, verification_contract_path), key=lambda item: item.name):
+        manifest[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    encoded = json.dumps(manifest, sort_keys=True, separators=(',', ':')).encode()
+    return 'sha256:' + hashlib.sha256(encoded).hexdigest()
 
 
-def assemble_report(records: list[Any], metadata: dict[str, str], evidence_root: pathlib.Path) -> dict[str, Any]:
-    """Bind the exact check set to a job and unique, hashed evidence files."""
-    seen: dict[str, Any] = {}
-    for record in records:
-        check_id = _field(record, 'check_id')
-        if check_id not in CHECK_IDS or check_id in seen:
-            raise ValueError(f'unknown or duplicate qualification check: {check_id}')
-        status = _field(record, 'status')
-        if status not in {'pass', 'fail', 'not-run'}:
-            raise ValueError(f'invalid status for {check_id}: {status!r}')
-        seen[check_id] = record
-    if set(seen) != set(CHECK_IDS):
-        raise ValueError(f'qualification check set mismatch: missing={sorted(set(CHECK_IDS)-set(seen))}')
-
-    required = ('target', 'policy_digest', 'author', 'job_id', 'host', 'kernel', 'engine',
-                'workload_image', 'created_at')
-    if any(not isinstance(metadata.get(key), str) or not metadata[key] for key in required):
-        raise ValueError('qualification metadata is incomplete')
-    for key in ('target', 'author', 'job_id', 'host', 'kernel', 'engine'):
-        if not _ID.fullmatch(metadata[key]):
-            raise ValueError(f'invalid report identifier {key}: {metadata[key]!r}')
-    if not _DIGEST.fullmatch(metadata['policy_digest']) or not _DIGEST.fullmatch(metadata['workload_image']):
-        raise ValueError('policy_digest and workload_image must be sha256 digests')
-    predecessor = metadata.get('docker_desktop_report_sha256')
-    if predecessor is not None and not _DIGEST.fullmatch(predecessor):
-        raise ValueError('docker_desktop_report_sha256 must be a sha256 digest')
-
+def evidence_reference(path: pathlib.Path, evidence_root: pathlib.Path) -> dict[str, Any]:
     root = evidence_root.resolve(strict=True)
-    checks = []
-    owners: dict[str, str] = {}
-    digest_owners: dict[str, str] = {}
-    for check_id in CHECK_IDS:
-        record = seen[check_id]
-        source = pathlib.Path(_field(record, 'evidence_path')).resolve(strict=True)
-        if not source.is_file() or not source.is_relative_to(root):
-            raise ValueError(f'evidence for {check_id} must be a regular file inside {root}')
-        relative = source.relative_to(root).as_posix()
-        if relative in owners:
-            raise ValueError(f'evidence file reused by {check_id} and {owners[relative]}')
-        owners[relative] = check_id
-        try:
-            raw = json.loads(source.read_text(encoding='utf-8'))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise ValueError(f'evidence for {check_id} is not readable JSON: {exc}') from exc
-        if (not isinstance(raw, dict) or raw.get('check_id') != check_id or
-                raw.get('status') != _field(record, 'status')):
-            raise ValueError(f'evidence file does not identify {check_id}')
-        raw['job_id'] = metadata['job_id']
-        source.write_text(json.dumps(raw, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-        payload = source.read_bytes()
-        evidence_digest = 'sha256:' + hashlib.sha256(payload).hexdigest()
-        if evidence_digest in digest_owners:
-            raise ValueError(f'evidence content reused by {check_id} and {digest_owners[evidence_digest]}')
-        digest_owners[evidence_digest] = check_id
-        check_status = _field(record, 'status')
-        checks.append({
-            'id': check_id,
-            'result': check_status,
-            'evidence': [{
-                'path': relative,
-                'sha256': evidence_digest,
-                'size': len(payload),
-            }],
-        })
+    resolved = path.resolve(strict=True)
+    if not resolved.is_file() or not resolved.is_relative_to(root):
+        raise ValueError('check evidence must be a regular file below evidence_root')
+    payload = resolved.read_bytes()
+    return {'path': resolved.relative_to(root).as_posix(),
+            'sha256': 'sha256:' + hashlib.sha256(payload).hexdigest(), 'size': len(payload)}
 
-    target_tuple = {
-        'job_id': metadata['job_id'], 'host': metadata['host'], 'kernel': metadata['kernel'],
-        'engine': metadata['engine'], 'workload_image': metadata['workload_image'],
+
+def assemble_report(*, target: str, policy_digest: str, author: str,
+                    target_tuple: dict[str, str], checks: list[dict[str, Any]],
+                    evidence_root: pathlib.Path, independent_review: dict[str, Any] | None = None,
+                    created_at: str | None = None) -> dict[str, Any]:
+    by_id: dict[str, dict[str, Any]] = {}
+    evidence_paths: set[str] = set()
+    for record in checks:
+        check_id = record.get('check_id')
+        if check_id not in CHECK_IDS or check_id in by_id:
+            raise ValueError(f'invalid or duplicate qualification check: {check_id!r}')
+        status = record.get('status')
+        if status not in {'pass', 'fail', 'not-run'}:
+            raise ValueError(f'invalid qualification status for {check_id}')
+        reference = evidence_reference(pathlib.Path(record['evidence_path']), evidence_root)
+        if reference['path'] in evidence_paths:
+            raise ValueError('every qualification check must have distinct evidence')
+        evidence_paths.add(reference['path'])
+        refs = [reference]
+        by_id[check_id] = {'id': check_id, 'result': status, 'evidence': refs}
+    if set(by_id) != set(CHECK_IDS):
+        raise ValueError('qualification report must contain all Q01-Q16 and B1-B10 checks exactly once')
+    report = {
+        'contract_version': 1, 'target': target, 'policy_digest': policy_digest, 'author': author,
+        'tuple': target_tuple, 'checks': [by_id[check_id] for check_id in CHECK_IDS],
+        'independent_review': independent_review, 'created_at': created_at or _utc_now(),
     }
-    if metadata.get('docker_desktop_report_sha256'):
-        target_tuple['docker_desktop_report_sha256'] = metadata['docker_desktop_report_sha256']
-    return {
-        'contract_version': 1,
-        'target': metadata['target'],
-        'policy_digest': metadata['policy_digest'],
-        'author': metadata['author'],
-        'tuple': target_tuple,
-        'checks': checks,
-        'independent_review': None,
-        'created_at': metadata['created_at'],
-    }
+    return contract.validate_qualification_report(report)
 
 
-def _field(record: Any, key: str) -> Any:
-    if isinstance(record, dict):
-        return record.get(key)
-    return getattr(record, key)
-
-
-def capability_report(qualification: dict[str, Any]) -> dict[str, Any]:
-    checks_pass = all(check['result'] == 'pass' for check in qualification['checks'])
-    review = qualification['independent_review']
-    target_online = (qualification['tuple']['engine'] != 'unavailable' and
-                     qualification['tuple']['kernel'] != 'unavailable')
-    observed = any(check['result'] in {'pass', 'fail'} for check in qualification['checks'])
-    discovered = qualification['tuple']['engine'] != 'unavailable'
-    supported = target_online and observed
-    qualified = supported and checks_pass and review is not None and review.get('verdict') == 'pass'
-    return {
-        'contract_version': 1,
-        'target': qualification['target'],
-        'policy_digest': qualification['policy_digest'],
-        'discovered': discovered,
-        'supported': supported,
-        'qualified': qualified,
-        # This feature qualifies evidence; it never enables a runtime launch backend.
-        'launch_ready': False,
-        'capabilities': [],
-        'refusal': ('CAPABILITY_UNSUPPORTED' if qualified else
-                    'NOT_QUALIFIED' if supported else 'BACKEND_UNAVAILABLE'),
-    }
-
-
-def _job_id(override: str | None) -> str:
-    if override:
-        return override
-    run_id, attempt = os.getenv('GITHUB_RUN_ID'), os.getenv('GITHUB_RUN_ATTEMPT')
-    return f'{run_id}-attempt-{attempt}' if run_id and attempt else f'local-{uuid.uuid4().hex}'
-
-
-def _probe_identity(docker: str, workload_image: str) -> tuple[str, str]:
+def capability_report(report: dict[str, Any], evidence_root: pathlib.Path) -> dict[str, Any]:
+    """Qualification is evidence only; this feature never enables a workload backend."""
+    contract.validate_qualification_report(report)
+    all_checks_pass = all(check['result'] == 'pass' for check in report['checks'])
+    supported = all_checks_pass
     try:
-        version = subprocess.run([docker, 'version', '--format', '{{.Server.Version}}'],
-                                 capture_output=True, text=True, check=False, timeout=30)
-        kernel = subprocess.run(
-            [docker, 'run', '--rm', '--network=none', workload_image, 'python3', '-c',
-             'import platform; print(platform.release())'], capture_output=True, text=True,
-            check=False, timeout=30,
-        )
-    except subprocess.TimeoutExpired:
-        return 'unavailable', 'unavailable'
-    engine = version.stdout.strip() if version.returncode == 0 else 'unavailable'
-    target_kernel = kernel.stdout.strip() if kernel.returncode == 0 else 'unavailable'
-    return engine, target_kernel
+        qualified = all_checks_pass and contract.qualification_passes(report, evidence_root)
+    except (OSError, ValueError):
+        qualified = False
+    return contract.validate_capability_report({
+        'contract_version': 1, 'target': report['target'], 'policy_digest': report['policy_digest'],
+        'discovered': True, 'supported': supported, 'qualified': qualified, 'launch_ready': False,
+        'capabilities': ['qualified_isolation'] if qualified else [],
+        'refusal': 'BACKEND_UNAVAILABLE' if qualified else 'NOT_QUALIFIED',
+    })
 
 
-def _metadata(args: argparse.Namespace) -> dict[str, str]:
-    match = re.search(r'@(?P<digest>sha256:[0-9a-f]{64})$', args.workload_image)
-    if not match:
-        raise ValueError('--workload-image must include an immutable sha256 digest')
-    engine, kernel = _probe_identity(args.docker, args.workload_image)
-    if args.host:
-        host = args.host
-    elif os.getenv('GITHUB_ACTIONS') == 'true':
-        host = '-'.join(filter(None, (os.getenv('ImageOS'), os.getenv('ImageVersion'),
-                                      os.getenv('RUNNER_OS'), os.getenv('RUNNER_ARCH'))))
+def _utc_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+
+def _safe(value: str) -> str:
+    text = _SAFE_ID.sub('_', value.strip()).strip('_')
+    if not text:
+        raise ValueError('target identity is empty')
+    return text[:128]
+
+
+def _docker_text(docker: str, *args: str) -> str:
+    proc = subprocess.run([docker, *args], capture_output=True, text=True, timeout=30, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(f'{pathlib.Path(docker).name} identity probe failed with exit {proc.returncode}')
+    return proc.stdout.strip()
+
+
+def _target_tuple(target_kind: str, docker: str, workload_image: str, job_id: str,
+                  identity_errors: list[str] | None = None) -> dict[str, str]:
+    errors = identity_errors if identity_errors is not None else []
+    try:
+        info = _docker_text(docker, 'info', '--format={{.OSType}}|{{.OperatingSystem}}|{{.KernelVersion}}')
+        fields = info.split('|', 2)
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        fields = []
+        errors.append('docker_info_unavailable')
+    if len(fields) != 3 or fields[0] != 'linux' or not fields[1] or not fields[2]:
+        errors.append('docker_target_identity_incomplete')
+    try:
+        engine = _docker_text(docker, 'version', '--format={{.Server.Version}}')
+    except (OSError, RuntimeError, subprocess.SubprocessError):
+        engine = ''
+        errors.append('docker_engine_unavailable')
+    digest = workload_image.rsplit('@sha256:', 1)[1]
+    try:
+        image_digests = json.loads(_docker_text(
+            docker, 'image', 'inspect', '--format={{json .RepoDigests}}', workload_image,
+        ))
+        if not isinstance(image_digests, list) or not any(
+                isinstance(item, str) and item.endswith('@sha256:' + digest) for item in image_digests):
+            errors.append('workload_image_digest_not_observed')
+    except (OSError, RuntimeError, subprocess.SubprocessError, json.JSONDecodeError):
+        errors.append('workload_image_digest_unavailable')
+    if target_kind == 'github-runner':
+        runner_os = os.environ.get('RUNNER_OS')
+        image_os, image_version = os.environ.get('ImageOS'), os.environ.get('ImageVersion')
+        if runner_os != 'Linux' or not image_os or not image_version:
+            errors.append('github_runner_image_identity_unavailable')
+        host = _safe(f'GitHubHosted_{image_os}_{image_version}') if image_os and image_version else 'unavailable'
     else:
-        host = f'{platform.system().lower()}-{platform.release().lower()}-{platform.machine().lower()}-docker-desktop'
-    predecessor = os.getenv('SHOWCASE_DOCKER_DESKTOP_PREDECESSOR_SHA256')
-    if predecessor and not _DIGEST.fullmatch(predecessor):
-        raise ValueError('SHOWCASE_DOCKER_DESKTOP_PREDECESSOR_SHA256 must be sha256:<64 hex>')
-    metadata = {
-        'target': args.target, 'policy_digest': policy_digest(),
-        'author': args.author, 'job_id': _job_id(args.job_id),
-        'host': host, 'kernel': kernel, 'engine': engine,
-        'workload_image': match.group('digest'),
-        'created_at': dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace('+00:00', 'Z'),
+        host = _safe(fields[1]) if len(fields) == 3 and fields[1] else 'unavailable'
+        if len(fields) == 3 and 'docker desktop' not in fields[1].casefold():
+            errors.append('docker_desktop_identity_mismatch')
+    kernel = _safe(fields[2]) if len(fields) == 3 and fields[2] else 'unavailable'
+    return {
+        'job_id': _safe(job_id), 'host': host, 'kernel': kernel,
+        'engine': _safe(f'DockerEngine_{engine}') if engine else 'unavailable',
+        'workload_image': 'sha256:' + workload_image.rsplit('@sha256:', 1)[1],
     }
-    if predecessor:
-        metadata['docker_desktop_report_sha256'] = predecessor
-    return metadata
+
+
+def _current_job_id() -> str:
+    run_id = os.environ.get('GITHUB_RUN_ID')
+    if run_id:
+        attempt = os.environ.get('GITHUB_RUN_ATTEMPT', '1')
+        job = os.environ.get('GITHUB_JOB', 'job')
+        return _safe(f'{run_id}-attempt-{attempt}-{job}')
+    return _safe(f'local-{dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")}-{uuid.uuid4().hex[:12]}')
+
+
+def _persist_check_job_id(records: list[Any], target_id: str, job_id: str) -> list[dict[str, Any]]:
+    result = []
+    for record in records:
+        path = pathlib.Path(record.evidence_path)
+        observed = json.loads(path.read_text(encoding='utf-8'))
+        observed['job_id'] = job_id
+        observed['target_id'] = target_id
+        path.write_text(json.dumps(observed, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        result.append({'check_id': record.check_id, 'status': record.status, 'evidence_path': path})
+    return result
+
+
+def _build_probe_targets(image: str, target_id: str, docker: str, timeout_seconds: int):
+    q_target = DockerProbeTarget(image, docker=docker, timeout_seconds=timeout_seconds)
+    lifecycle = DockerLifecycleProbeTarget(
+        image, docker=docker, timeout_seconds=timeout_seconds,
+    )
+    grading = DockerGradingProbeTarget(
+        image, docker=docker, timeout_seconds=timeout_seconds, target_id=target_id,
+    )
+    return q_target, lifecycle, grading
 
 
 def _write_json(path: pathlib.Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+    temporary.replace(path)
+
+
+def _measurement_exit_code(checker_exit_code: int) -> int:
+    """A valid non-passing target report is completed evidence, not a runner failure."""
+    if checker_exit_code in {0, 1}:
+        return 0
+    return checker_exit_code if checker_exit_code > 0 else 2
+
+
+def _checker_command(*arguments: str) -> list[str]:
+    if HARNESS_VERSION != PINNED_HARNESS_VERSION:
+        raise RuntimeError(
+            f'qualification requires agent-harness {PINNED_HARNESS_VERSION}; found {HARNESS_VERSION}'
+        )
+    return [sys.executable, '-m', 'agent_harness', *arguments]
 
 
 def run(args: argparse.Namespace) -> int:
-    metadata = _metadata(args)
+    image = args.workload_image
+    if '@sha256:' not in image or not re.fullmatch(r'[0-9a-f]{64}', image.rsplit('@sha256:', 1)[1]):
+        raise ValueError('workload image must be pinned by an exact sha256 digest')
+    target_id = args.target_id or {
+        'docker-desktop': 'showcase-docker-desktop-linux-guest',
+        'github-runner': 'showcase-github-hosted-ubuntu-runner',
+    }[args.target]
+    job_id = _safe(args.job_id or _current_job_id())
     evidence_root = args.evidence_root.resolve()
-    report_path = args.report.resolve()
-    capability_path = args.capability_report.resolve()
-    if report_path.exists() or capability_path.exists() or (evidence_root.exists() and any(evidence_root.iterdir())):
-        raise FileExistsError('refusing to reuse report or evidence from another run; choose fresh paths/job id')
+    if evidence_root.exists():
+        if evidence_root.is_symlink() or not evidence_root.is_dir() or any(evidence_root.iterdir()):
+            raise ValueError('evidence root must be a new, empty directory')
     evidence_root.mkdir(parents=True, exist_ok=True)
+    target_identity_errors: list[str] = []
+    target_tuple = _target_tuple(args.target, args.docker, image, job_id, target_identity_errors)
 
-    q_target = DockerProbeTarget(args.workload_image, docker=args.docker, timeout_seconds=args.timeout)
-    life_target = DockerLifecycleProbeTarget(
-        args.workload_image, ROOT / 'tooling/agent-harness/verification_sandbox.py',
-        docker=args.docker, timeout_seconds=args.timeout,
-    )
-    b_target = DockerGradingProbeTarget(args.workload_image, docker=args.docker, timeout_seconds=args.timeout)
     records = []
-    records.extend(run_q01_q10(q_target.execute_q01_q10, evidence_root))
-    records.extend(run_q11_q16(life_target.execute_q11_q16, evidence_root))
-    records.extend(run_b1_b10(b_target.execute_b1_b10, evidence_root))
+    if target_identity_errors:
+        identity_details = {'target_identity_errors': sorted(set(target_identity_errors))}
 
-    report = assemble_report(records, metadata, evidence_root)
-    capability = capability_report(report)
-    _write_json(report_path, report)
-    _write_json(capability_path, capability)
+        def unavailable(check_id: str, name: str, check_dir: pathlib.Path,
+                        _job_id: str | None = None) -> dict[str, Any]:
+            return {'status': 'not-run', 'reason_code': 'TARGET_IDENTITY_UNAVAILABLE',
+                    'stdout': '', 'stderr': '', 'details': identity_details}
 
-    cli = shutil.which(args.harness_cli)
-    if cli is None:
-        raise FileNotFoundError(f'Harness v0.3.0 CLI not found: {args.harness_cli}')
-    version = subprocess.run([cli, '--version'], capture_output=True, text=True, check=False, timeout=10)
-    if version.returncode != 0 or 'agent-harness 0.3.0' not in version.stdout:
-        raise RuntimeError(f'expected Harness 0.3.0 CLI, got: {version.stdout.strip()} {version.stderr.strip()}')
-    checker = subprocess.run(
-        [cli, 'qualification', '--check', str(report_path), '--evidence-root', str(evidence_root),
-         '--capability-report', str(capability_path), '--job-id', metadata['job_id']],
-        capture_output=True, text=True, check=False,
+        records.extend(run_q01_q10(unavailable, evidence_root))
+        records.extend(run_q11_q16(unavailable, evidence_root, job_id=job_id))
+        records.extend(run_b1_b10(unavailable, evidence_root))
+    else:
+        q_target, lifecycle, grading = _build_probe_targets(
+            image, target_id, args.docker, args.timeout_seconds,
+        )
+        records.extend(run_q01_q10(q_target.execute_q01_q10, evidence_root))
+        records.extend(run_q11_q16(lifecycle.execute_q11_q16, evidence_root, job_id=job_id))
+        records.extend(run_b1_b10(grading.execute_b1_b10, evidence_root))
+    report_checks = _persist_check_job_id(records, target_id, job_id)
+
+    repo_root = args.repository_root.resolve(strict=True)
+    digest = policy_digest(repo_root / POLICY_FILES[0], repo_root / POLICY_FILES[1])
+    report = assemble_report(
+        target=target_id, policy_digest=digest, author=args.author,
+        target_tuple=target_tuple, checks=report_checks, evidence_root=evidence_root,
     )
-    _write_json(report_path.parent / 'checker-result.json', {
-        'job_id': metadata['job_id'], 'checker_version': version.stdout.strip(),
-        'exit_code': checker.returncode,
-        'stdout': checker.stdout, 'stderr': checker.stderr,
+    capability = capability_report(report, evidence_root)
+    _write_json(args.report, report)
+    _write_json(args.capability_report, capability)
+
+    command = _checker_command(
+        'qualification', '--check', str(args.report), '--evidence-root', str(evidence_root),
+        '--capability-report', str(args.capability_report), '--job-id', job_id,
+    )
+    checked = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+    _write_json(evidence_root / 'checker-result.json', {
+        'command': command, 'exit_code': checked.returncode,
+        'stdout': checked.stdout[:4000], 'stderr': checked.stderr[:4000],
     })
-    if checker.returncode not in {0, 1}:
-        print(checker.stdout, file=sys.stdout, end='')
-        print(checker.stderr, file=sys.stderr, end='')
-        raise RuntimeError(f'Harness qualification checker rejected the report (exit {checker.returncode})')
-    print(f"job_id={metadata['job_id']} target={metadata['target']} checker_exit={checker.returncode}")
-    print('qualification status=' + ('PASS' if checker.returncode == 0 else 'NOT QUALIFIED'))
-    return 0
+    print(checked.stdout, end='')
+    if checked.stderr:
+        print(checked.stderr, end='', file=sys.stderr)
+    if checked.returncode == 1:
+        print('qualification run completed; target remains NOT QUALIFIED')
+    return _measurement_exit_code(checked.returncode)
+
+
+def attach_review(args: argparse.Namespace) -> int:
+    report = json.loads(args.report.read_text(encoding='utf-8'))
+    root = args.evidence_root.resolve(strict=True)
+    evidence = args.review_evidence.resolve(strict=True)
+    if not evidence.is_relative_to(root):
+        raise ValueError('review evidence must be under the qualification evidence root')
+    subject = contract.review_subject(report)
+    body = evidence.read_bytes()
+    if subject.encode() not in body:
+        raise ValueError('review evidence must name the exact review_subject')
+    report['independent_review'] = {
+        'reviewer': args.reviewer, 'subject': subject, 'verdict': args.verdict,
+        'evidence': evidence_reference(evidence, root),
+    }
+    contract.validate_qualification_report(report)
+    capability = capability_report(report, root)
+    _write_json(args.report, report)
+    _write_json(args.capability_report, capability)
+    command = _checker_command(
+        'qualification', '--check', str(args.report), '--evidence-root', str(root),
+        '--capability-report', str(args.capability_report), '--job-id', report['tuple']['job_id'],
+    )
+    checked = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+    _write_json(root / 'checker-result.json', {'command': command, 'exit_code': checked.returncode,
+                                               'stdout': checked.stdout[:4000], 'stderr': checked.stderr[:4000]})
+    print(checked.stdout, end='')
+    if checked.stderr:
+        print(checked.stderr, end='', file=sys.stderr)
+    return checked.returncode
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--target', required=True)
-    parser.add_argument('--author', default='showcase-qualification-driver')
-    parser.add_argument('--host')
-    parser.add_argument('--job-id')
-    parser.add_argument('--workload-image', default=DEFAULT_WORKLOAD_IMAGE)
-    parser.add_argument('--docker', default='docker')
-    parser.add_argument('--harness-cli', default='agent-harness')
-    parser.add_argument('--timeout', type=int, default=30)
-    parser.add_argument('--evidence-root', type=pathlib.Path, required=True)
-    parser.add_argument('--report', type=pathlib.Path, required=True)
-    parser.add_argument('--capability-report', type=pathlib.Path, required=True)
+    sub = parser.add_subparsers(dest='command', required=True)
+    run_parser = sub.add_parser('run', help='execute and record all 26 checks on one exact target')
+    run_parser.add_argument('--target', choices=('docker-desktop', 'github-runner'), required=True)
+    run_parser.add_argument('--target-id')
+    run_parser.add_argument('--job-id')
+    run_parser.add_argument('--author', default=os.environ.get('GITHUB_ACTOR', 'showcase-qualifier'))
+    run_parser.add_argument('--workload-image', default=DEFAULT_WORKLOAD_IMAGE)
+    run_parser.add_argument('--docker', default='docker')
+    run_parser.add_argument('--timeout-seconds', type=int, default=30)
+    run_parser.add_argument('--repository-root', type=pathlib.Path,
+                            default=pathlib.Path(__file__).resolve().parents[3])
+    run_parser.add_argument('--sandbox-source', type=pathlib.Path,
+                            default=pathlib.Path(__file__).resolve().parents[1] / 'verification_sandbox.py')
+    run_parser.add_argument('--evidence-root', type=pathlib.Path, required=True)
+    run_parser.add_argument('--report', type=pathlib.Path, required=True)
+    run_parser.add_argument('--capability-report', type=pathlib.Path, required=True)
+    run_parser.set_defaults(handler=run)
+
+    review = sub.add_parser('attach-review', help='bind an independently authored review to the exact report')
+    review.add_argument('--report', type=pathlib.Path, required=True)
+    review.add_argument('--evidence-root', type=pathlib.Path, required=True)
+    review.add_argument('--review-evidence', type=pathlib.Path, required=True)
+    review.add_argument('--reviewer', required=True)
+    review.add_argument('--verdict', choices=('pass', 'fail'), required=True)
+    review.add_argument('--capability-report', type=pathlib.Path, required=True)
+    review.set_defaults(handler=attach_review)
     args = parser.parse_args(argv)
     try:
-        return run(args)
-    except (OSError, ValueError, RuntimeError) as exc:
-        parser.error(str(exc))
+        return args.handler(args)
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+        print(f'qualification report: {type(exc).__name__}: {str(exc)[:200]}', file=sys.stderr)
         return 2
 
 

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "feature": "AH5-04B-QUAL-001",
+  "task": "T-006",
+  "decision": "NOT_REQUIRED_PENDING_REVIEW",
+  "decision_basis": "Owner decision: Docker passes for fallback selection when all 26 Q01-Q16/B1-B10 checks pass on the exact target. Independent review remains a separate T-900 gate.",
+  "docker_report_path": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/local-20261008T205033Z-7939417fefb5/report.json",
+  "selected_report_path": "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json",
+  "report_digest": "sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
+  "target": "showcase-docker-desktop-linux-guest",
+  "checks_total": 26,
+  "checks_passed": 26,
+  "capability_status": {
+    "qualified": false,
+    "launch_ready": false,
+    "refusal": "NOT_QUALIFIED"
+  },
+  "github_fallback": {
+    "status": "NOT_REQUIRED_PENDING_REVIEW",
+    "job_id": null,
+    "qualified": false
+  },
+  "qualification_status": "NOT_QUALIFIED_PENDING_T900",
+  "decided_at": "2026-10-08T21:00:00Z"
+}
