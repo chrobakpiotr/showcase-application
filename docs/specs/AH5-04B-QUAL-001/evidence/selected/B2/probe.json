@@ -4,9 +4,9 @@
     "exit_code": 0,
     "host_expected_value_created": true,
     "host_path_was_mounted": false,
-    "tested_container_path": "/host-hidden/expected-ab783b34717c4fd8beb9fccda7f7f194.txt"
+    "tested_container_path": "/host-hidden/expected-563ea1044b71495b90986779684d231e.txt"
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "HIDDEN_EXPECTED_VALUES_UNREADABLE",
   "reason_code": "HIDDEN_EXPECTED_VALUE_UNREADABLE",
   "status": "pass",

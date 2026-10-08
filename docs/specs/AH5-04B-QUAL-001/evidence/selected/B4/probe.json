@@ -1,20 +1,24 @@
 {
   "check_id": "B4",
   "details": {
+    "daemon_mounts_match": true,
+    "exact_external_allowlist": true,
     "exit_code": 0,
-    "git_mounted": false,
-    "host_paths_mounted": [],
     "input_ro": true,
+    "mountinfo_valid": true,
+    "protected_overlaps": [],
     "root_ro": true,
     "tmpfs": true,
+    "tmpfs_mounts_match": true,
     "uid": 65532,
+    "unexpected_external_mounts": [],
     "workspace_rw": true
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "FILESYSTEM_AND_MOUNT_BOUNDARIES",
   "reason_code": "FILESYSTEM_BOUNDARIES_OBSERVED",
   "status": "pass",
   "stderr": "",
-  "stdout": "{\"uid\": 65532, \"workspace_rw\": true, \"input_ro\": true, \"root_ro\": true, \"tmpfs\": true, \"host_paths_mounted\": [], \"git_mounted\": false}\n",
+  "stdout": "{\"uid\": 65532, \"workspace_rw\": true, \"input_ro\": true, \"root_ro\": true, \"tmpfs\": true, \"mountinfo_valid\": true, \"protected_overlaps\": [], \"unexpected_external_mounts\": [], \"exact_external_allowlist\": true, \"tmpfs_mounts_match\": true, \"daemon_mounts_match\": true}",
   "target_id": "showcase-docker-desktop-linux-guest"
 }

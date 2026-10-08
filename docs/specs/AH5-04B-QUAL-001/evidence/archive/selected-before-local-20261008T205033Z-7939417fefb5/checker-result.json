@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/tmp/showcase-qual-t005-venv/bin/python3",
+    "-m",
+    "agent_harness",
+    "qualification",
+    "--check",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json",
+    "--evidence-root",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected",
+    "--capability-report",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected/capability.json",
+    "--job-id",
+    "local-20261008T081503Z-3aff2f02a9fb"
+  ],
+  "exit_code": 0,
+  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "stderr": "",
+  "stdout": "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json: qualification showcase-docker-desktop-linux-guest job local-20261008T081503Z-3aff2f02a9fb sha256:abeef27d1e0d543313d9d3270bc71078a9572fc003f46cff5d8a97e1fafcba97 passes\n"
+}

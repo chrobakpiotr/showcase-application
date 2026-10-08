@@ -5,7 +5,7 @@
       "evidence": [
         {
           "path": "Q01/probe.json",
-          "sha256": "sha256:5836ebc24248dab0ebc1893c3a8c40626e4a870476abbf627eae68f708cda6bf",
+          "sha256": "sha256:285f7500545621333c2c2b16a87065475f43894b96fcf20222af0c66cda7e87c",
           "size": 346
         }
       ],
@@ -16,7 +16,7 @@
       "evidence": [
         {
           "path": "Q02/probe.json",
-          "sha256": "sha256:3313d0b2daf86a29d7609e01759b48a8b7241ad8d46a819dde7aaab52760b762",
+          "sha256": "sha256:a3099569d9aecb0e96680b80f3ffd4abd71aa3bc7e86f5b4ba027e84fcbbadd1",
           "size": 344
         }
       ],
@@ -27,7 +27,7 @@
       "evidence": [
         {
           "path": "Q03/probe.json",
-          "sha256": "sha256:8f3ddebf564d4851917a12d40c85e839d5cc6d815ea438aa395c93a6fa9a6119",
+          "sha256": "sha256:fb516c68fe9d59de877a80ba6d7a3cfcc4b5ea6d1ac7fc6d2015ed34bdc065e8",
           "size": 1353
         }
       ],
@@ -38,7 +38,7 @@
       "evidence": [
         {
           "path": "Q04/probe.json",
-          "sha256": "sha256:9823fc4055fcaae3d06434f772fefbc93935a5b4410e36aa33e37e74f8cb2017",
+          "sha256": "sha256:38732e3725fe911b760a75459c1660126a4cb1985aa00b18b6a6d6efbe3fc814",
           "size": 1363
         }
       ],
@@ -49,7 +49,7 @@
       "evidence": [
         {
           "path": "Q05/probe.json",
-          "sha256": "sha256:aa7d846b600d66d0860fbe3bcdb6f3338b75e1882ba33c63faf309569eeb063d",
+          "sha256": "sha256:bed977fee30336cae969bd3f74edad3f4a458c3e7baf46ef83ddfc7d2d6e3437",
           "size": 1044
         }
       ],
@@ -60,7 +60,7 @@
       "evidence": [
         {
           "path": "Q06/probe.json",
-          "sha256": "sha256:81f970941eb8ac26567279d5d4b115c40b88b35c0bbf64e5ca90b45789b00294",
+          "sha256": "sha256:f073f10bd25c34551701d82d2a7fa130cef8218e3ce8475967e9eabd7c04b858",
           "size": 1049
         }
       ],
@@ -71,7 +71,7 @@
       "evidence": [
         {
           "path": "Q07/probe.json",
-          "sha256": "sha256:83d3091eba49c7065087b3c205e2cbe2f4373664558c7fae57b62f4a5941e38a",
+          "sha256": "sha256:a8564d32fdba4077d9d3f75ad55250c7d9697f3dc9ad4d80f7fbbc34b9dd2d73",
           "size": 720
         }
       ],
@@ -82,7 +82,7 @@
       "evidence": [
         {
           "path": "Q08/probe.json",
-          "sha256": "sha256:997bfc96acc5fc335e8344c209633c0a90417ced588f28bee1d95fc04c788399",
+          "sha256": "sha256:1b6f832d84c95df8f69ebb08307208970cd628cea0040e8df351cd112ee9e780",
           "size": 1056
         }
       ],
@@ -93,7 +93,7 @@
       "evidence": [
         {
           "path": "Q09/probe.json",
-          "sha256": "sha256:e3b1dc1fd03af2e45d9490a0a047ea6bb50cd27e4de724d9ac69af7aa7f2c3f2",
+          "sha256": "sha256:77e1a871dd3c78047921ada8429278591abcf8bb0fb71b630041154b90cae181",
           "size": 1050
         }
       ],
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "Q10/probe.json",
-          "sha256": "sha256:8bd6e8cd1a0d5368c22dc57b2d75bf33aad739a084ab25e4647a7702f2525555",
-          "size": 1139
+          "sha256": "sha256:f0e13f7f3bd9840d092149ba90fdf0d72bc20e74080f2a3cbde4965f84fce495",
+          "size": 1140
         }
       ],
       "id": "Q10",
@@ -115,8 +115,8 @@
       "evidence": [
         {
           "path": "Q11/probe.json",
-          "sha256": "sha256:87cc49df6386a0df4ab185ccd346a7974bc467161551b5a7f74bdfe9798a2054",
-          "size": 539
+          "sha256": "sha256:c9290db519b85af6090c7c75974351c2e18f5c697f8715df62fb1c71612b41b0",
+          "size": 617
         }
       ],
       "id": "Q11",
@@ -126,8 +126,8 @@
       "evidence": [
         {
           "path": "Q12/probe.json",
-          "sha256": "sha256:c9aa85a4f3adfcf640ef8bee828aba4087ea288e242bb40c14eda9145344cfab",
-          "size": 535
+          "sha256": "sha256:2a89fe3414b3a8f528d190734143ab7f520541aaf4037c28d7d2bec9e38d001e",
+          "size": 418
         }
       ],
       "id": "Q12",
@@ -137,8 +137,8 @@
       "evidence": [
         {
           "path": "Q13/probe.json",
-          "sha256": "sha256:be457c977cc960b0bab82920e2f4e0d4818815e1000fcde9cac4535122e8a765",
-          "size": 576
+          "sha256": "sha256:5eb2b82bc79249795e19af0d558448fa73415319bbd1f8ffd56c71e464bb8298",
+          "size": 491
         }
       ],
       "id": "Q13",
@@ -148,8 +148,8 @@
       "evidence": [
         {
           "path": "Q14/probe.json",
-          "sha256": "sha256:a9014c84e95d51d448b266a8baf38a7ddedd4179892b09fea807f3f9c3358faa",
-          "size": 553
+          "sha256": "sha256:ec4792ef84dd3b0215a934cfac712940fef42eab79f2152e889d298a0d0390ad",
+          "size": 504
         }
       ],
       "id": "Q14",
@@ -159,8 +159,8 @@
       "evidence": [
         {
           "path": "Q15/probe.json",
-          "sha256": "sha256:b543c5656ea53c1fbb5cb7bdd9ac1f54f323d118aa5da7e710cc21ceef60d3c3",
-          "size": 3476
+          "sha256": "sha256:af21d265cc01463b17f0f609cc8f477314a1b6cfc4a4ffeb3b376e4cb1aa439f",
+          "size": 591
         }
       ],
       "id": "Q15",
@@ -170,8 +170,8 @@
       "evidence": [
         {
           "path": "Q16/probe.json",
-          "sha256": "sha256:68ca5c8c0a2ecc1262f22847081bceeeee26e8803d7db4fdcf73a3dbb336781b",
-          "size": 3689
+          "sha256": "sha256:af17f493c7f4875de1f895fe40804e17f0c7b05ac79a09dc7ef36a9e841b4213",
+          "size": 756
         }
       ],
       "id": "Q16",
@@ -181,7 +181,7 @@
       "evidence": [
         {
           "path": "B1/probe.json",
-          "sha256": "sha256:ddf1846ca7e2391d4a892d16842b519fd946e072d39080d27041766dff23832d",
+          "sha256": "sha256:8fd00b1a8ebd7eb0443a7e129da7f1271dd08880f415c3f905fa3a33a6458f3a",
           "size": 404
         }
       ],
@@ -192,7 +192,7 @@
       "evidence": [
         {
           "path": "B2/probe.json",
-          "sha256": "sha256:66c4a8a4780912c02c0059d995cc782bb2986362139fbee7bbd353b1101e9826",
+          "sha256": "sha256:a8b6e6ab17b6ea0cd0567faef817dd9f8f3856921600110cbb58a9009d993a24",
           "size": 508
         }
       ],
@@ -203,7 +203,7 @@
       "evidence": [
         {
           "path": "B3/probe.json",
-          "sha256": "sha256:78bdf1de7630dea872e226e11b2503e412373bcabe01a5fde0927154477ac38c",
+          "sha256": "sha256:a0231981c04c53efe77ad83862d3658c78c0ecf253b7b74beaa27be914e8344f",
           "size": 384
         }
       ],
@@ -214,8 +214,8 @@
       "evidence": [
         {
           "path": "B4/probe.json",
-          "sha256": "sha256:b3c92c57420b38dd97d0c1c019510857c22c772fb6d955de587183ad6b4ea30d",
-          "size": 627
+          "sha256": "sha256:f382ce415279853a740b9adae55f6538eb3476e839bf74386d7bc3fe644646d2",
+          "size": 905
         }
       ],
       "id": "B4",
@@ -225,8 +225,8 @@
       "evidence": [
         {
           "path": "B5/probe.json",
-          "sha256": "sha256:8ed1ba5ece2ee5e8d69345d9d0958c38e6a7c20fceb3f7ffa8a136c8e0ed7c69",
-          "size": 600
+          "sha256": "sha256:2a7bfd1b821c8b6b7b987a33fa638a07c9ca28b0e68b52fa275dfde1a3f1981d",
+          "size": 1288
         }
       ],
       "id": "B5",
@@ -236,8 +236,8 @@
       "evidence": [
         {
           "path": "B6/probe.json",
-          "sha256": "sha256:77d50d63ee57a943217d4b425aa77c7a0579d0338ec4402ee104c99b74df9019",
-          "size": 789
+          "sha256": "sha256:47009bb1812d23c45fb83e858f415fc25578335f6a5f5bf0f5fcbaf3d6766f87",
+          "size": 1105
         }
       ],
       "id": "B6",
@@ -247,7 +247,7 @@
       "evidence": [
         {
           "path": "B7/probe.json",
-          "sha256": "sha256:09824fa5317d38ec8d4671265ee7d3329e0969ef05b02cb6afd5f253ac1d2372",
+          "sha256": "sha256:b980e8fc6310320fb2cb3a8985d683dbad7c2b75d45b5e11c8c2ec2a844a6452",
           "size": 661
         }
       ],
@@ -258,8 +258,8 @@
       "evidence": [
         {
           "path": "B8/probe.json",
-          "sha256": "sha256:618e1843dbb5611532ab19e323126c5f80cd755b90ee181abd3bfca3360f828c",
-          "size": 3216
+          "sha256": "sha256:cd4c3856cf0fd49c78bf35a9b53493c0e8de0756d1d35f44f2b86de12c74d72d",
+          "size": 3286
         }
       ],
       "id": "B8",
@@ -269,7 +269,7 @@
       "evidence": [
         {
           "path": "B9/probe.json",
-          "sha256": "sha256:2d802b5c3599d623872223c0458e8d8a817073c18d54081552fbd2bff56ef723",
+          "sha256": "sha256:490069c6f9bb64d2a3ed13713db6fca22b2dfe9adb21dd7ffdec9fed0c7bc435",
           "size": 689
         }
       ],
@@ -280,7 +280,7 @@
       "evidence": [
         {
           "path": "B10/probe.json",
-          "sha256": "sha256:da8c33ed5d9cf991af16f2d7e7f9c3c788f4478380117ee8f003b154b864843c",
+          "sha256": "sha256:15d64adb63ae2ff278c897c265af60971522e0556b77ef63e46eefce2271f58c",
           "size": 3676
         }
       ],
@@ -289,23 +289,14 @@
     }
   ],
   "contract_version": 1,
-  "created_at": "2026-10-08T08:15:42Z",
-  "independent_review": {
-    "evidence": {
-      "path": "review.json",
-      "sha256": "sha256:0a935fabbce558fcf14cc0aca82cbd18f0deb7bba7282a4e2c2473cccbd9538f",
-      "size": 7072
-    },
-    "reviewer": "codex-independent-evaluator-2026-10-08",
-    "subject": "sha256:a75a4b34e6ffcc1f1d044cc8b65a3f7e842edfe97938f4ae0de754eef7878154",
-    "verdict": "pass"
-  },
+  "created_at": "2026-10-08T20:51:36Z",
+  "independent_review": null,
   "policy_digest": "sha256:460f59a434349ea978751cae7620a5abde1770e50d961dd899300ddfc8aa2856",
   "target": "showcase-docker-desktop-linux-guest",
   "tuple": {
     "engine": "DockerEngine_29.8.2",
     "host": "Docker_Desktop",
-    "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+    "job_id": "local-20261008T205033Z-7939417fefb5",
     "kernel": "7.0.14-linuxkit",
     "workload_image": "sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5"
   }

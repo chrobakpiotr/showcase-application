@@ -6,11 +6,11 @@
     "artifact_read": true,
     "artifact_sha256": "22088ecf0cae358847d59ab20eef014d79fb25a2a0d530d7b6863be48cdea6ab",
     "container_destroyed_before_result_read": true,
-    "container_id": "c12c0eb2b7606a1545334aab26ef8ea28c984fba6920eb30009e9f780a87ad5e",
+    "container_id": "23910abd174299acd7489e1520f11d42ce819095b1b4e74cd54179b6c4a63e14",
     "inventory_exit_code": 0,
     "remove_exit_code": 0
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "BOUNDED_ARTIFACT_AFTER_SANDBOX_DESTROYED",
   "reason_code": "BOUNDED_ARTIFACT_AFTER_DESTROY",
   "status": "pass",

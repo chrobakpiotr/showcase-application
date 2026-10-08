@@ -1,16 +1,16 @@
 {
   "check_id": "Q12",
   "details": {
-    "details": "STALE_EXECUTION_IDENTITY",
-    "exit_code": 0,
-    "reason_code": "STALE_IDENTITY_REJECTED",
-    "status": "PASS"
+    "controller_pid": 22691,
+    "persisted_generation": 2,
+    "stale_identity_rejected": true,
+    "supplied_generation": 1
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "EXECUTION_IDENTITY_STALE_REJECTED",
   "reason_code": "STALE_IDENTITY_REJECTED",
   "status": "pass",
   "stderr": "",
-  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"STALE_IDENTITY_REJECTED\", \"details\": \"STALE_EXECUTION_IDENTITY\"}\n",
+  "stdout": "",
   "target_id": "showcase-docker-desktop-linux-guest"
 }

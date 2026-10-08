@@ -1,18 +1,33 @@
 {
   "check_id": "B5",
   "details": {
-    "dns": "blocked",
-    "egress_tcp": "blocked",
-    "egress_udp": "blocked",
+    "active_non_loopback_interfaces": [],
+    "dns": "temporary-name-resolution-failure",
+    "egress_tcp": "blocked:ENETUNREACH",
+    "egress_udp": "blocked:ENETUNREACH",
     "exit_code": 0,
-    "metadata_tcp": "blocked",
-    "metadata_udp": "blocked"
+    "interfaces": [
+      "erspan0",
+      "gre0",
+      "gretap0",
+      "ip6_vti0",
+      "ip6gre0",
+      "ip6tnl0",
+      "ip_vti0",
+      "lo",
+      "sit0",
+      "tunl0"
+    ],
+    "metadata_tcp": "blocked:ENETUNREACH",
+    "metadata_udp": "blocked:ENETUNREACH",
+    "non_loopback_routes": [],
+    "route_observation_complete": true
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "NO_NETWORK_EGRESS_DNS_OR_METADATA",
   "reason_code": "EGRESS_DNS_METADATA_BLOCKED",
   "status": "pass",
   "stderr": "",
-  "stdout": "{\"egress_tcp\": \"blocked\", \"metadata_tcp\": \"blocked\", \"egress_udp\": \"blocked\", \"metadata_udp\": \"blocked\", \"dns\": \"blocked\"}\n",
+  "stdout": "{\"interfaces\": [\"erspan0\", \"gre0\", \"gretap0\", \"ip6_vti0\", \"ip6gre0\", \"ip6tnl0\", \"ip_vti0\", \"lo\", \"sit0\", \"tunl0\"], \"active_non_loopback_interfaces\": [], \"non_loopback_routes\": [], \"route_observation_complete\": true, \"egress_tcp\": \"blocked:ENETUNREACH\", \"metadata_tcp\": \"blocked:ENETUNREACH\", \"egress_udp\": \"blocked:ENETUNREACH\", \"metadata_udp\": \"blocked:ENETUNREACH\", \"dns\": \"temporary-name-resolution-failure\"}\n",
   "target_id": "showcase-docker-desktop-linux-guest"
 }

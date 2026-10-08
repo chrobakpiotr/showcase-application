@@ -1,13 +1,11 @@
 {
-  "capabilities": [
-    "qualified_isolation"
-  ],
+  "capabilities": [],
   "contract_version": 1,
   "discovered": true,
   "launch_ready": false,
   "policy_digest": "sha256:460f59a434349ea978751cae7620a5abde1770e50d961dd899300ddfc8aa2856",
-  "qualified": true,
-  "refusal": "BACKEND_UNAVAILABLE",
+  "qualified": false,
+  "refusal": "NOT_QUALIFIED",
   "supported": true,
   "target": "showcase-docker-desktop-linux-guest"
 }

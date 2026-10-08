@@ -2,15 +2,15 @@
   "check_id": "Q07",
   "details": {
     "child_started": true,
-    "container_id": "b4ce1fd3d05ef0c12644257f0340c573ccdf5aa290779b293c63e107440973f4",
+    "container_id": "e87d457e4945dc13451f5cd04e10c43e20662f6d368aad98ec78aa1e38fabc8f",
     "removed": true,
     "unit_stopped": true
   },
-  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "job_id": "local-20261008T205033Z-7939417fefb5",
   "name": "CONTAINMENT_PARENT_EXIT",
   "reason_code": "PARENT_EXIT_DRAINED_UNIT",
   "status": "pass",
-  "stderr": "\n\nError response from daemon: container b4ce1fd3d05ef0c12644257f0340c573ccdf5aa290779b293c63e107440973f4 is not running\n\n",
-  "stdout": "b4ce1fd3d05ef0c12644257f0340c573ccdf5aa290779b293c63e107440973f4\n\n8\nexited 0\n\n\nb4ce1fd3d05ef0c12644257f0340c573ccdf5aa290779b293c63e107440973f4\n",
+  "stderr": "\n\nError response from daemon: container e87d457e4945dc13451f5cd04e10c43e20662f6d368aad98ec78aa1e38fabc8f is not running\n\n",
+  "stdout": "e87d457e4945dc13451f5cd04e10c43e20662f6d368aad98ec78aa1e38fabc8f\n\n7\nexited 0\n\n\ne87d457e4945dc13451f5cd04e10c43e20662f6d368aad98ec78aa1e38fabc8f\n",
   "target_id": "showcase-docker-desktop-linux-guest"
 }
