@@ -1,0 +1,52 @@
+{
+  "feature": "REOPEN-EXHAUSTED-DESCENDANTS-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Invalidate descendants when reopening an exhausted task",
+      "objective": "Ensure reopening an exhausted completed task escalates it through human resolution while still invalidating every transitive descendant atomically.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": ["tooling/agent-harness/harness.py", "tooling/agent-harness/tests/test_harness.py"],
+      "risk_tags": ["lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",
+        "python3 -m py_compile tooling/agent-harness/harness.py",
+        "git diff --check"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "A temporary repository with a completed three-task dependency graph and an upstream task at max attempts; use lifecycle operations to reopen, assert history and descendant resets, and test running/dirty descendant refusal before mutation."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate exhausted-task descendant invalidation",
+      "objective": "Falsify atomic invalidation when reopening completed tasks both within and beyond the retry budget, including running and dirty descendant refusal.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/REOPEN-EXHAUSTED-DESCENDANTS-001/evidence/**"],
+      "risk_tags": ["evaluation", "lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",
+        "python3 -m py_compile tooling/agent-harness/harness.py",
+        "git diff --check"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Use a clean temporary clone and adversarial probes for exhausted target attempts, transitive completion history, worktree cleanup, running descendants, and dirty descendants."
+    }
+  ]
+}
