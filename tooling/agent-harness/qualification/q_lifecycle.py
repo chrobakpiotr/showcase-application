@@ -49,6 +49,11 @@ def _bounded_text(value: Any) -> str:
     return text[:MAX_EVIDENCE_TEXT - len(marker)] + marker
 
 
+def _safe_controller_stderr(value: str) -> str:
+    """Redact controller stderr before it can enter committed qualification evidence."""
+    return '[controller stderr redacted]' if value else ''
+
+
 def run_q11_q16(
     execute: Callable[[str, str, pathlib.Path, str], dict[str, Any]],
     evidence_root: pathlib.Path,
@@ -71,7 +76,7 @@ def run_q11_q16(
             else:
                 reason_code = observed.get('reason_code') or 'UNSPECIFIED_PROBE_OUTCOME'
             stdout = _bounded_text(observed.get('stdout', ''))
-            stderr = _bounded_text(observed.get('stderr', ''))
+            stderr = _bounded_text(_safe_controller_stderr(observed.get('stderr', '')))
             details = observed.get('details', {})
             if not isinstance(details, dict):
                 details = {'details_omitted': True}

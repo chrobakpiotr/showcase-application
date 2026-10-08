@@ -96,6 +96,7 @@ class DockerProbeTarget:
             '--network=none', '--read-only', '--user=65532:65532', '--cap-drop=ALL',
             '--security-opt=no-new-privileges', '--pids-limit=64', '--memory=512m',
             '--memory-swap=512m', '--cpus=1', '--tmpfs=/tmp:rw,noexec,nosuid,size=16m',
+            '--tmpfs=/dev/shm:ro,noexec,nosuid,size=1m',
         ]
 
     @staticmethod
