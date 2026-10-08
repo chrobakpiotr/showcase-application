@@ -1,0 +1,28 @@
+{
+  "id": "T-002",
+  "title": "Implement Q11-Q16 identity and lifecycle probes",
+  "objective": "Add probes for durable execution identity, stale identity rejection, cancellation, drainage, active restart and drained restart, preserving per-start generation and terminal-state observations without adding launch authority to the production runner. Exception details committed as evidence must be bounded and must not include secret-bearing values.",
+  "role": "builder",
+  "depends_on": [
+    "T-001"
+  ],
+  "allowed_paths": [
+    "tooling/agent-harness/qualification/**",
+    "tooling/agent-harness/tests/test_qualification_probes.py"
+  ],
+  "risk_tags": [
+    "security",
+    "concurrency",
+    "infra"
+  ],
+  "acceptance_criteria": [
+    "AC-002",
+    "AC-007"
+  ],
+  "verification": [
+    "python3 -m unittest tooling/agent-harness/tests/test_qualification_probes.py -v",
+    "python3 -m py_compile tooling/agent-harness/qualification/*.py"
+  ],
+  "test_mode": "red-green-refactor",
+  "test_seam": "RED cases reuse a stopped identity, omit generation/tombstone state, or acknowledge drain before descendants terminate; GREEN requires distinct start identity and observed full drainage."
+}
