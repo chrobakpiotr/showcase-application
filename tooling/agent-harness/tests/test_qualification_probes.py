@@ -180,16 +180,23 @@ state_file.write_text(json.dumps(state))
             self.assertNotEqual(evidence['Q11']['details']['controller_pids'][0],
                                 evidence['Q11']['details']['controller_pids'][1])
             self.assertTrue(evidence['Q12']['details']['stale_identity_rejected'])
+            self.assertEqual(1, evidence['Q12']['details']['supplied_generation'])
+            self.assertEqual(2, evidence['Q12']['details']['persisted_generation'])
             self.assertTrue(evidence['Q13']['details']['cancelled_and_drained'])
             self.assertTrue(evidence['Q14']['details']['process_table_empty_after_drain'])
             self.assertNotEqual(evidence['Q15']['details']['controller_pids'][0],
                                 evidence['Q15']['details']['controller_pids'][1])
             self.assertTrue(evidence['Q15']['details']['same_active_generation_recovered'])
+            self.assertTrue(evidence['Q15']['details']['controller_killed'])
             self.assertTrue(evidence['Q16']['details']['terminal_restart_rejected'])
+            self.assertTrue(evidence['Q16']['details']['relaunch_attempted'])
+            self.assertFalse(evidence['Q16']['details']['launch_admitted'])
+            self.assertTrue(evidence['Q16']['details']['controller_killed'])
             self.assertTrue(evidence['Q16']['details']['terminal_record_fsynced'])
             self.assertEqual(3, len(set(evidence['Q16']['details']['controller_pids'])))
             final_state = json.loads(state.read_text())
             self.assertEqual(0, final_state['starts'], 'terminal recovery invoked docker start')
+            self.assertNotIn('restart_requests', final_state)
 
 
 if __name__ == '__main__':

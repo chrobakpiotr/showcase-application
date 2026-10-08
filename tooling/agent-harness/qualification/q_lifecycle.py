@@ -215,14 +215,24 @@ def _controller(args: argparse.Namespace) -> dict[str, Any]:
                 'details': {'controller_pid': controller_pid}}
 
     if args.action == 'stale':
-        stale_generation = identity['generation'] - 1
         accepted = identity_matches(identity, job_id=args.job_id,
-                                    execution_id=identity['execution_id'], generation=stale_generation)
+                                    execution_id=identity['execution_id'], generation=args.generation)
         return {'status': 'pass' if not accepted else 'fail',
                 'reason_code': 'STALE_IDENTITY_REJECTED' if not accepted else 'STALE_IDENTITY_ACCEPTED',
                 'details': {'stale_identity_rejected': not accepted,
                             'persisted_generation': identity['generation'],
-                            'supplied_generation': stale_generation,
+                            'supplied_generation': args.generation,
+                            'controller_pid': controller_pid}}
+
+    if args.action == 'advance-generation':
+        if identity['state'] != 'active' or args.generation != identity['generation']:
+            return {'status': 'fail', 'reason_code': 'GENERATION_ADVANCE_CAS_FAILED',
+                    'details': {'controller_pid': controller_pid}}
+        identity['generation'] += 1
+        write_identity(journal, identity)
+        return {'status': 'pass', 'reason_code': 'GENERATION_ADVANCED',
+                'details': {'persisted_generation': identity['generation'],
+                            'previous_generation': args.generation,
                             'controller_pid': controller_pid}}
 
     if args.action == 'recover-active':
@@ -268,14 +278,19 @@ def _controller(args: argparse.Namespace) -> dict[str, Any]:
             reason = 'DRAINED_WITH_PROCESS_TABLE_PROOF' if passed else 'PROCESS_DRAIN_UNPROVEN'
         return {'status': 'pass' if passed else 'fail', 'reason_code': reason, 'details': details}
 
-    if args.action == 'recover-terminal':
+    if args.action == 'relaunch':
         status, pid, inspect_code = _inspect(identity, docker=args.docker, timeout_seconds=args.timeout)
         terminal = identity['state'] == 'drained' and inspect_code == 0 and status == 'exited' and pid == 0
         terminal = terminal and isinstance(identity.get('terminal'), dict)
-        # Deliberately do not invoke `docker start`: the durable terminal tombstone fences reuse.
-        return {'status': 'pass' if terminal else 'fail',
-                'reason_code': 'TERMINAL_RESTART_REJECTED' if terminal else 'TERMINAL_STATE_UNPROVEN',
-                'details': {'terminal_restart_rejected': terminal, 'launch_attempted': False,
+        relaunch_attempted = args.generation == identity['generation']
+        refused = terminal and relaunch_attempted
+        # This is the launch admission path. The durable tombstone refuses before Docker is called;
+        # raw `docker start` can restart a stopped container and is intentionally not the API.
+        return {'status': 'pass' if refused else 'fail',
+                'reason_code': 'TERMINAL_RESTART_REJECTED' if refused else 'TERMINAL_STATE_UNPROVEN',
+                'details': {'terminal_restart_rejected': refused,
+                            'relaunch_attempted': relaunch_attempted,
+                            'launch_admitted': False,
                             'generation': identity['generation'], 'container_id': identity['container_id'],
                             'execution_id': identity['execution_id'],
                             'container_status': status, 'container_pid': pid,
@@ -297,12 +312,14 @@ class DockerLifecycleProbeTarget:
         self.timeout_seconds = timeout_seconds
 
     def _controller(self, action: str, check_dir: pathlib.Path, job_id: str,
-                    container_name: str) -> dict[str, Any]:
+                    container_name: str, *, generation: int | None = None) -> dict[str, Any]:
         journal = check_dir / 'execution-identity.json'
         command = [sys.executable, str(pathlib.Path(__file__).resolve()), '--controller', action,
                    '--journal', str(journal), '--job-id', job_id, '--docker', self.docker,
                    '--image', self.workload_image, '--timeout', str(self.timeout_seconds),
                    '--container-name', container_name, '--evidence-dir', str(check_dir)]
+        if generation is not None:
+            command.extend(['--generation', str(generation)])
         result = subprocess.run(command, capture_output=True, text=True,
                                 timeout=self.timeout_seconds + 10, check=False)
         try:
@@ -318,6 +335,38 @@ class DockerLifecycleProbeTarget:
         observed['stdout'] = ''
         observed['stderr'] = ''
         return observed
+
+    def _kill_after_persisted_state(self, action: str, check_dir: pathlib.Path,
+                                    job_id: str, container_name: str,
+                                    expected_state: str) -> dict[str, Any]:
+        journal = check_dir / 'execution-identity.json'
+        command = [sys.executable, str(pathlib.Path(__file__).resolve()), '--controller', action,
+                   '--journal', str(journal), '--job-id', job_id, '--docker', self.docker,
+                   '--image', self.workload_image, '--timeout', str(self.timeout_seconds),
+                   '--container-name', container_name, '--evidence-dir', str(check_dir),
+                   '--hold']
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        deadline = time.monotonic() + self.timeout_seconds + 10
+        try:
+            while time.monotonic() < deadline:
+                if journal.is_file() and read_identity(journal).get('state') == expected_state:
+                    if expected_state != 'active' or self._wait_for_child(check_dir):
+                        process.kill()
+                        process.communicate(timeout=5)
+                        return {'controller_pid': process.pid,
+                                'controller_killed': process.returncode == -9,
+                                'identity': read_identity(journal)}
+                if process.poll() is not None:
+                    stdout, _ = process.communicate()
+                    raise RuntimeError(f'controller exited before durable state: {stdout[:256]}')
+                time.sleep(0.05)
+            process.kill()
+            process.communicate(timeout=5)
+            raise TimeoutError('controller did not persist expected lifecycle state')
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.communicate(timeout=5)
 
     def _wait_for_child(self, check_dir: pathlib.Path) -> bool:
         marker = check_dir / 'child.pid'
@@ -337,8 +386,19 @@ class DockerLifecycleProbeTarget:
         if check_id not in Q11_Q16:
             return {'status': 'not-run', 'reason_code': 'UNKNOWN_CHECK', 'details': {}}
         container_name = f'showcase-qual-{check_id.lower()}-{uuid.uuid4().hex[:12]}'
+        killed_start = None
         try:
-            started = self._controller('start', check_dir, job_id, container_name)
+            if check_id == 'Q15':
+                killed_start = self._kill_after_persisted_state('start', check_dir, job_id,
+                                                                container_name, 'active')
+                identity = killed_start['identity']
+                started = {'status': 'pass', 'details': {
+                    'controller_pid': killed_start['controller_pid'],
+                    'execution_id': identity['execution_id'],
+                    'generation': identity['generation'],
+                    'container_id': identity['container_id']}}
+            else:
+                started = self._controller('start', check_dir, job_id, container_name)
         except Exception:
             self._cleanup(container_name)
             raise
@@ -361,8 +421,14 @@ class DockerLifecycleProbeTarget:
                         'reason_code': 'EXECUTION_IDENTITY_DURABLE' if passed else 'IDENTITY_RELOAD_FAILED',
                         'details': details}
             if check_id == 'Q12':
-                stale = self._controller('stale', check_dir, job_id, container_name)
-                passed = stale.get('status') == 'pass'
+                previous = started['details']['generation']
+                advanced = self._controller('advance-generation', check_dir, job_id,
+                                            container_name, generation=previous)
+                stale = self._controller('stale', check_dir, job_id, container_name,
+                                         generation=previous)
+                passed = (advanced.get('status') == 'pass' and stale.get('status') == 'pass' and
+                          stale.get('details', {}).get('supplied_generation') == previous and
+                          stale.get('details', {}).get('persisted_generation') == previous + 1)
                 return {'status': 'pass' if passed else 'fail',
                         'reason_code': 'STALE_IDENTITY_REJECTED' if passed else 'STALE_IDENTITY_ACCEPTED',
                         'details': stale.get('details', {})}
@@ -374,11 +440,12 @@ class DockerLifecycleProbeTarget:
                                            check_dir, job_id, container_name)
                 return stopped
             if check_id == 'Q15':
+                killed = killed_start
                 recovered = self._controller('recover-active', check_dir, job_id, container_name)
-                controller_pids = [started['details']['controller_pid'],
+                controller_pids = [killed['controller_pid'],
                                    recovered.get('details', {}).get('controller_pid')]
                 recovered_details = recovered.get('details', {})
-                passed = (ready and recovered.get('status') == 'pass' and
+                passed = (ready and killed['controller_killed'] and recovered.get('status') == 'pass' and
                           controller_pids[0] != controller_pids[1] and
                           recovered_details.get('generation') == started['details']['generation'] and
                           recovered_details.get('container_id') == started['details']['container_id'])
@@ -390,6 +457,7 @@ class DockerLifecycleProbeTarget:
                 return {'status': 'pass' if passed else 'fail',
                         'reason_code': 'RESTART_ACTIVE' if passed else 'ACTIVE_RESTART_RECOVERY_FAILED',
                         'details': {'controller_pids': controller_pids,
+                                    'controller_killed': killed['controller_killed'],
                                     'same_active_generation_recovered': passed,
                                     'generation': started['details']['generation'],
                                     'execution_id': started['details']['execution_id'],
@@ -399,21 +467,22 @@ class DockerLifecycleProbeTarget:
             if not self._wait_for_child(check_dir):
                 return {'status': 'fail', 'reason_code': 'WORKLOAD_NOT_READY',
                         'details': {'container_id': started['details']['container_id']}}
-            drained = self._controller('drain', check_dir, job_id, container_name)
-            if drained.get('status') != 'pass':
-                return drained
-            recovered = self._controller('recover-terminal', check_dir, job_id, container_name)
+            drained = self._kill_after_persisted_state('drain', check_dir, job_id,
+                                                       container_name, 'drained')
+            recovered = self._controller('relaunch', check_dir, job_id, container_name,
+                                         generation=drained['identity']['generation'])
             controller_pids = [started['details']['controller_pid'],
-                               drained.get('details', {}).get('controller_pid'),
+                               drained['controller_pid'],
                                recovered.get('details', {}).get('controller_pid')]
             distinct = len(set(controller_pids)) == 3 and all(isinstance(pid, int) for pid in controller_pids)
-            passed = recovered.get('status') == 'pass' and distinct
+            passed = recovered.get('status') == 'pass' and distinct and drained['controller_killed']
             terminal_details = recovered.get('details', {})
             passed = (passed and terminal_details.get('generation') == started['details']['generation'] and
                       terminal_details.get('execution_id') == started['details']['execution_id'] and
                       terminal_details.get('container_id') == started['details']['container_id'])
             terminal_details.update({'controller_pids': controller_pids,
                                      'terminal_restart_rejected': passed,
+                                     'controller_killed': drained['controller_killed'],
                                      'terminal_record_fsynced': True,
                                      'generation': started['details']['generation'],
                                      'container_id': started['details']['container_id']})
@@ -434,7 +503,7 @@ class DockerLifecycleProbeTarget:
 def _controller_cli(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('--controller', dest='action', required=True,
-                        choices=('start', 'stale', 'recover-active', 'cancel', 'drain', 'recover-terminal'))
+                        choices=('start', 'stale', 'advance-generation', 'recover-active', 'cancel', 'drain', 'relaunch'))
     parser.add_argument('--journal', required=True)
     parser.add_argument('--job-id', required=True)
     parser.add_argument('--docker', required=True)
@@ -442,9 +511,13 @@ def _controller_cli(argv: list[str]) -> int:
     parser.add_argument('--timeout', required=True, type=int)
     parser.add_argument('--container-name', required=True)
     parser.add_argument('--evidence-dir', required=True)
+    parser.add_argument('--generation', type=int)
+    parser.add_argument('--hold', action='store_true')
     args = parser.parse_args(argv)
     try:
         observed = _controller(args)
+        if args.hold:
+            time.sleep(300)
     except Exception as exc:
         observed = {'status': 'not-run', 'reason_code': 'CONTROLLER_EXCEPTION',
                     'details': {'exception_type': type(exc).__name__[:128]}}
