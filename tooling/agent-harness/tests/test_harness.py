@@ -2893,9 +2893,9 @@ class HarnessTest(unittest.TestCase):
             ).stdout.strip()
             competing_commit = None
 
-            def inject_late_edit(feature_name, task_id):
+            def inject_late_edit(feature_name, task_id, **kwargs):
                 nonlocal competing_commit
-                prune(feature_name, task_id)
+                prune(feature_name, task_id, **kwargs)
                 if task_id == 'T-B':
                     subprocess.run(['git', 'commit', '--allow-empty', '-m', 'concurrent branch update'],
                                    cwd=self.root, check=True, capture_output=True, text=True)
@@ -2924,6 +2924,63 @@ class HarnessTest(unittest.TestCase):
                 ['git', 'rev-parse', 'HEAD'], cwd=first, check=True, capture_output=True, text=True
             ).stdout.strip())
             self.assertEqual(competing_commit, subprocess.run(
+                ['git', 'rev-parse', f'refs/heads/{branches[0]}'], cwd=self.root,
+                check=True, capture_output=True, text=True,
+            ).stdout.strip())
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+
+            # Git's global excludes are also dirty data; ignored files must not be deleted silently.
+            (dirty / 'late-edit.txt').unlink()
+            excludes = self.root / 'global-excludes'
+            excludes.write_text('ignored-output.bin\n', encoding='utf-8')
+            subprocess.run(['git', 'config', 'core.excludesFile', str(excludes)], cwd=self.root, check=True)
+            ignored = dirty / 'ignored-output.bin'
+            ignored.write_text('preserve ignored content', encoding='utf-8')
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-A',
+                    reason='refuse ignored descendant data loss',
+                    evidence=None,
+                ))
+            self.assertTrue(first.exists(), 'clean earlier descendant was removed before ignored-file preflight')
+            self.assertTrue(ignored.exists())
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+
+            # Advance a branch after worktree removal but before compare-and-swap deletion.
+            ignored.unlink()
+            subprocess.run(['git', 'commit', '--allow-empty', '-m', 'second concurrent branch update'],
+                           cwd=self.root, check=True, capture_output=True, text=True)
+            latest_competing_commit = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=self.root, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            before_run = subprocess.run
+
+            def advance_before_ref_delete(command, *args, **kwargs):
+                if command[:3] == ['git', 'update-ref', '-d'] and command[3] == f'refs/heads/{branches[0]}':
+                    before_run(['git', 'branch', '-f', branches[0], latest_competing_commit],
+                               cwd=self.root, check=True)
+                return before_run(command, *args, **kwargs)
+
+            with mock.patch.object(harness.subprocess, 'run', side_effect=advance_before_ref_delete):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    harness.cmd_reopen(argparse.Namespace(
+                        feature_dir=feature,
+                        task_id='T-A',
+                        reason='preserve branch advanced during cleanup',
+                        evidence=None,
+                    ))
+            self.assertTrue(first.exists())
+            self.assertEqual(original_commit, subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=first, check=True, capture_output=True, text=True
+            ).stdout.strip())
+            self.assertEqual(latest_competing_commit, subprocess.run(
                 ['git', 'rev-parse', f'refs/heads/{branches[0]}'], cwd=self.root,
                 check=True, capture_output=True, text=True,
             ).stdout.strip())

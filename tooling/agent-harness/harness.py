@@ -4579,20 +4579,37 @@ def descendants(idx: dict[str, dict[str, Any]], target: str) -> set[str]:
     return result
 
 
-def prune_task_workspace(feature: str, task_id: str) -> None:
+def prune_task_workspace(feature: str, task_id: str, *, expected_branch_commit: str | None = None,
+                         guard_branch: bool = False) -> None:
     target = worktree_path(feature, task_id)
     branch = f'agent/{feature}/{task_id}'
     ensure_task_workspace_clean(feature, task_id)
+    branch_ref = f'refs/heads/{branch}'
+    branch_result = subprocess.run(
+        ['git', 'rev-parse', '--verify', branch_ref], capture_output=True, text=True, check=False,
+    )
+    branch_commit = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+    if guard_branch and branch_commit != expected_branch_commit:
+        die(f'cannot invalidate task branch {branch}: expected {expected_branch_commit}, found {branch_commit}')
     if target.exists():
         subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
-    if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
-        subprocess.run(['git', 'branch', '-D', branch], check=True)
+    if branch_commit is not None:
+        subprocess.run(['git', 'update-ref', '-d', branch_ref, branch_commit], check=True)
+    elif guard_branch and subprocess.run(
+            ['git', 'show-ref', '--verify', '--quiet', branch_ref], check=False).returncode == 0:
+        die(f'cannot invalidate task branch {branch}: a branch appeared during cleanup')
 
 
 def ensure_task_workspace_clean(feature: str, task_id: str) -> None:
     target = worktree_path(feature, task_id)
     if target.exists():
         dirty = changed_paths(target)
+        ignored = subprocess.run(
+            ['git', 'status', '--porcelain', '--ignored=traditional', '--untracked-files=normal'],
+            cwd=target, capture_output=True, text=True, check=True,
+        ).stdout.splitlines()
+        dirty.extend(line[3:] for line in ignored if line.startswith('!! '))
+        dirty = sorted(set(dirty))
         if dirty:
             die(f'cannot invalidate dirty descendant worktree {target}: {dirty}')
 
@@ -4809,7 +4826,12 @@ def cmd_reopen(args: argparse.Namespace) -> None:
             for tid in stale:
                 # Include the current item so a partially failed worktree/branch removal is restored.
                 attempted_prunes.append(tid)
-                prune_task_workspace(feature, tid)
+                snapshot = snapshots[tid]
+                if snapshot['branch_commit'] is None and snapshot['worktree_commit'] is None:
+                    prune_task_workspace(feature, tid)
+                else:
+                    prune_task_workspace(feature, tid,
+                                         expected_branch_commit=snapshot['branch_commit'], guard_branch=True)
         except BaseException:
             restoration_errors = []
             for tid in reversed(attempted_prunes):
