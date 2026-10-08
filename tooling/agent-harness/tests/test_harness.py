@@ -1609,6 +1609,105 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(2, harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
                          ['feature_generation'])
 
+    def test_first_worktree_uses_the_exact_snapshot_recorded_as_base(self):
+        self.addCleanup(shutil.rmtree,
+                        self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}',
+                        ignore_errors=True)
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-A'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        harness_copy.parent.mkdir(parents=True, exist_ok=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'initial accepted feature'], cwd=self.root, check=True)
+        initial_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                      capture_output=True, text=True, check=True).stdout.strip()
+        doc = harness.load_json(feature / 'tasks.json')
+        original_snapshot = harness.task_worktree_snapshot
+        advanced_head = False
+
+        def advance_head_after_snapshot(feature_path):
+            nonlocal advanced_head
+            snapshot = original_snapshot(feature_path)
+            if not advanced_head:
+                advanced_head = True
+                (self.root / 'unrelated-root-change.txt').write_text('concurrent commit\n')
+                subprocess.run(['git', 'add', 'unrelated-root-change.txt'], cwd=self.root, check=True)
+                subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                                'commit', '-q', '-m', 'concurrent unrelated root commit'],
+                               cwd=self.root, check=True)
+            return snapshot
+
+        with mock.patch.object(harness, 'task_worktree_snapshot', side_effect=advance_head_after_snapshot):
+            harness.cmd_worktree_create(argparse.Namespace(feature_dir=feature, task_id='T-A'))
+
+        state = harness.load_state(feature, doc)
+        worktree = harness.worktree_path('TST-001', 'T-A')
+        worktree_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=worktree,
+                                       capture_output=True, text=True, check=True).stdout.strip()
+        self.assertEqual(initial_head, state.get('base_commit'))
+        self.assertEqual(initial_head, worktree_head)
+
+    def test_retry_rejects_valid_commit_with_wrong_pending_feature_fingerprint(self):
+        self.addCleanup(shutil.rmtree,
+                        self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}',
+                        ignore_errors=True)
+        wrong_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                    capture_output=True, text=True, check=True).stdout.strip()
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-A'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        harness_copy.parent.mkdir(parents=True, exist_ok=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'initial accepted feature'], cwd=self.root, check=True)
+        doc = harness.load_json(feature / 'tasks.json')
+
+        with mock.patch.object(harness, 'append_attempt_binding',
+                               side_effect=RuntimeError('injected start failure')):
+            with self.assertRaisesRegex(RuntimeError, 'injected start failure'):
+                harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+        failed_start = harness.load_state(feature, doc)
+        self.assertNotEqual(harness.feature_fingerprint(feature),
+                            harness.historical_feature_fingerprint(feature, wrong_base))
+        failed_start['pending_base_commit'] = wrong_base
+        failed_start['pending_base_kind'] = 'head'
+        harness.save_state(feature, failed_start)
+
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors), self.assertRaises(SystemExit):
+            harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+        self.assertIn('BASE_AUTHORITY_MISSING', errors.getvalue())
+
+        state = harness.load_state(feature, doc)
+        self.assertEqual(wrong_base, state.get('pending_base_commit'))
+        self.assertEqual('head', state.get('pending_base_kind'))
+        self.assertIsNone(state.get('base_commit'))
+        self.assertEqual('pending', state['tasks']['T-A']['status'])
+        self.assertEqual(0, state['tasks']['T-A']['attempts'])
+
     def test_start_base_recovery_marker_survives_failure_and_retry(self):
         from unittest.mock import patch
 

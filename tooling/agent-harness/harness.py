@@ -4995,6 +4995,11 @@ def stage_first_task_base(feature_dir: pathlib.Path, state: dict[str, Any],
     if base is None:
         base = durable_state.get('pending_base_commit')
         kind = durable_state.get('pending_base_kind')
+        if base is not None:
+            check = subprocess.run(['git', 'cat-file', '-e', f'{base}^{{commit}}'], capture_output=True)
+            if (check.returncode != 0 or kind != 'head' or
+                    historical_feature_fingerprint(feature_dir, base) != feature_fingerprint(feature_dir)):
+                die(f'BASE_AUTHORITY_MISSING: pending first-task base cannot prove the accepted feature: {base}')
     if base is None:
         if target.exists():
             die(f'BASE_AUTHORITY_MISSING: existing worktree has no recorded first-task base: {target}')
@@ -5063,6 +5068,7 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         if commit not in dep_commits:
             dep_commits.append(commit)
 
+    first_base_missing = not task.get('depends_on') and state.get('base_commit') is None
     stage_first_task_base(feature_dir, state, durable_state, task, target)
     if target.exists():
         dirty = changed_paths(target)
@@ -5078,6 +5084,10 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
 
     if dep_commits:
         base = dep_commits[0]
+    elif first_base_missing:
+        # Use the exact committed snapshot that was durably recorded as the
+        # first historical base; a second HEAD read here could race a commit.
+        base = state['base_commit']
     else:
         base = task_worktree_snapshot(feature_dir)
     subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, base], check=True)
