@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/pau/.local/bin/python3.13",
+    "-m",
+    "agent_harness",
+    "qualification",
+    "--check",
+    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-005/docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/local-20261008T205033Z-7939417fefb5/report.json",
+    "--evidence-root",
+    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-005/docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/local-20261008T205033Z-7939417fefb5",
+    "--capability-report",
+    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-005/docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/local-20261008T205033Z-7939417fefb5/capability.json",
+    "--job-id",
+    "local-20261008T205033Z-7939417fefb5"
+  ],
+  "exit_code": 1,
+  "stderr": "",
+  "stdout": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-005/docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/local-20261008T205033Z-7939417fefb5/report.json: qualification showcase-docker-desktop-linux-guest job local-20261008T205033Z-7939417fefb5 sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e does not pass\n"
+}

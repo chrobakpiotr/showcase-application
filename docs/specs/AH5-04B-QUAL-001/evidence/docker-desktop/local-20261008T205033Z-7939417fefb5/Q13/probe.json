@@ -1,0 +1,17 @@
+{
+  "check_id": "Q13",
+  "details": {
+    "cancel_requested": true,
+    "cancelled_and_drained": true,
+    "container_id": "eccbe6725872e550bd4833f6463e6baf78b110db92c2c7c203d9ef4af336b648",
+    "controller_pid": 22701,
+    "generation": 1
+  },
+  "job_id": "local-20261008T205033Z-7939417fefb5",
+  "name": "CANCEL_EXECUTION_UNIT",
+  "reason_code": "WHOLE_UNIT_CANCELLED_AND_DRAINED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "",
+  "target_id": "showcase-docker-desktop-linux-guest"
+}

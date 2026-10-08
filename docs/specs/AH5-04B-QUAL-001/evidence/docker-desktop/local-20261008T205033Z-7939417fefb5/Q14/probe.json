@@ -1,0 +1,17 @@
+{
+  "check_id": "Q14",
+  "details": {
+    "container_id": "d4719645734c9cab5da763f0fdd4698032515a65b4ea1a9c81b410e1b624f133",
+    "controller_pid": 22710,
+    "generation": 1,
+    "process_table_before": true,
+    "process_table_empty_after_drain": true
+  },
+  "job_id": "local-20261008T205033Z-7939417fefb5",
+  "name": "DRAIN_EXECUTION_UNIT",
+  "reason_code": "DRAINED_WITH_PROCESS_TABLE_PROOF",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "",
+  "target_id": "showcase-docker-desktop-linux-guest"
+}
