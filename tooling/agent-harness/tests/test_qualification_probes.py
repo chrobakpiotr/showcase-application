@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -197,6 +198,73 @@ state_file.write_text(json.dumps(state))
             final_state = json.loads(state.read_text())
             self.assertEqual(0, final_state['starts'], 'terminal recovery invoked docker start')
             self.assertNotIn('restart_requests', final_state)
+
+    def test_terminal_relaunch_admission_requires_a_durable_drain_tombstone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            docker, state = self._fake_docker(root)
+            os.environ['FAKE_DOCKER_STATE'] = str(state)
+            check_dir = root / 'Q16'
+            check_dir.mkdir()
+            target = DockerLifecycleProbeTarget(
+                'example.invalid/workload@sha256:' + 'a' * 64,
+                docker=str(docker), timeout_seconds=10,
+            )
+            name = 'showcase-qual-q16-no-tombstone'
+            try:
+                started = target._controller('start', check_dir, 'job-q', name)
+                self.assertEqual('pass', started['status'])
+                attempted = target._controller('relaunch', check_dir, 'job-q', name,
+                                               generation=started['details']['generation'])
+                self.assertTrue(attempted['details']['relaunch_attempted'])
+                self.assertFalse(attempted['details']['terminal_restart_rejected'])
+                self.assertEqual('fail', attempted['status'])
+            finally:
+                target._cleanup(name)
+                os.environ.pop('FAKE_DOCKER_STATE', None)
+
+    def test_q15_fails_if_controller_exits_before_kill_is_applied(self):
+        class ExitsBeforeKillTarget(DockerLifecycleProbeTarget):
+            def _spawn_held_controller(self, command):
+                command = [item for item in command if item != '--hold']
+                result = subprocess.run(command, capture_output=True, text=True,
+                                        timeout=self.timeout_seconds + 10, check=False)
+                observed = json.loads(result.stdout)
+
+                class ExitedController:
+                    def __init__(self, pid, returncode, stdout, stderr):
+                        self.pid, self.returncode = pid, returncode
+                        self.stdout, self.stderr = stdout, stderr
+
+                    def poll(self):
+                        return self.returncode
+
+                    def kill(self):
+                        # The child already exited; no signal can be delivered.
+                        return None
+
+                    def communicate(self, timeout=None):
+                        return self.stdout, self.stderr
+
+                return ExitedController(observed['details']['controller_pid'], result.returncode,
+                                        result.stdout, result.stderr)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            docker, state = self._fake_docker(root)
+            os.environ['FAKE_DOCKER_STATE'] = str(state)
+            try:
+                (root / 'Q15').mkdir()
+                target = ExitsBeforeKillTarget(
+                    'example.invalid/workload@sha256:' + 'a' * 64,
+                    docker=str(docker), timeout_seconds=10,
+                )
+                result = target.execute_q11_q16('Q15', 'RESTART_ACTIVE', root / 'Q15', 'job-q')
+            finally:
+                os.environ.pop('FAKE_DOCKER_STATE', None)
+
+            self.assertEqual('fail', result['status'])
+            self.assertFalse(result['details']['controller_killed'])
 
 
 if __name__ == '__main__':

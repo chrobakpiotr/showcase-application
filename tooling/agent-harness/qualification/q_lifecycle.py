@@ -345,7 +345,7 @@ class DockerLifecycleProbeTarget:
                    '--image', self.workload_image, '--timeout', str(self.timeout_seconds),
                    '--container-name', container_name, '--evidence-dir', str(check_dir),
                    '--hold']
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = self._spawn_held_controller(command)
         deadline = time.monotonic() + self.timeout_seconds + 10
         try:
             while time.monotonic() < deadline:
@@ -367,6 +367,9 @@ class DockerLifecycleProbeTarget:
             if process.poll() is None:
                 process.kill()
                 process.communicate(timeout=5)
+
+    def _spawn_held_controller(self, command: list[str]) -> subprocess.Popen[str]:
+        return subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     def _wait_for_child(self, check_dir: pathlib.Path) -> bool:
         marker = check_dir / 'child.pid'
