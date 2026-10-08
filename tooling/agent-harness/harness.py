@@ -4981,19 +4981,37 @@ def task_worktree_snapshot(feature_dir: pathlib.Path) -> str:
     return head
 
 
-def persist_first_task_base(feature_dir: pathlib.Path, state: dict[str, Any], task: dict[str, Any]) -> None:
-    """Write the first no-dependency task's base before creating its worktree."""
-    if task.get('depends_on') or state.get('base_commit') is not None:
+def stage_first_task_base(feature_dir: pathlib.Path, state: dict[str, Any],
+                          durable_state: dict[str, Any], task: dict[str, Any],
+                          target: pathlib.Path) -> None:
+    """Stage base authority and persist a recovery breadcrumb before worktree creation."""
+    if task.get('depends_on'):
         return
-    target = worktree_path(str(task.get('feature', feature_dir.name)), task['id'])
-    if target.exists():
-        die(f'BASE_AUTHORITY_MISSING: existing worktree has no recorded first-task base: {target}')
-    state['base_commit'] = task_worktree_snapshot(feature_dir)
-    state['base_kind'] = 'head'
-    # This is durable orchestration metadata, independent of the task's staged
-    # start transition. Commit it before the Git worktree side effect so an
-    # interrupted start can be retried without losing historical authority.
-    save_state(feature_dir, state)
+    if state.get('base_commit') is not None:
+        return
+
+    base = durable_state.get('base_commit')
+    kind = durable_state.get('base_kind')
+    if base is None:
+        base = durable_state.get('pending_base_commit')
+        kind = durable_state.get('pending_base_kind')
+    if base is None:
+        if target.exists():
+            die(f'BASE_AUTHORITY_MISSING: existing worktree has no recorded first-task base: {target}')
+        base = task_worktree_snapshot(feature_dir)
+        kind = 'head'
+        durable_state['pending_base_commit'] = base
+        durable_state['pending_base_kind'] = kind
+        # The pending pair is only a write-ahead recovery breadcrumb. It lets
+        # retries recover the original snapshot after an interrupted Git side
+        # effect without publishing base_commit/base_kind on a failed start.
+        save_state(feature_dir, durable_state)
+
+    check = subprocess.run(['git', 'cat-file', '-e', f'{base}^{{commit}}'], capture_output=True)
+    if check.returncode != 0 or kind != 'head':
+        die(f'BASE_AUTHORITY_MISSING: pending first-task base is invalid: {base}')
+    state['base_commit'] = base
+    state['base_kind'] = kind
 
 
 def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
@@ -5027,9 +5045,13 @@ def assert_worktree_protocol_current(feature_dir: pathlib.Path, target: pathlib.
         die(f'existing task worktree contains incompatible lifecycle protocol: {target}')
 
 
-def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task: dict[str, Any]) -> pathlib.Path:
+def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any],
+                          task: dict[str, Any], *,
+                          durable_state: dict[str, Any] | None = None) -> pathlib.Path:
     feature = str(doc.get('feature', feature_dir.name))
     target = worktree_path(feature, task['id'])
+    if durable_state is None:
+        durable_state = state
     dep_commits: list[str] = []
     for dep in task.get('depends_on', []):
         commit = state['tasks'][dep].get('checkpoint_commit')
@@ -5041,7 +5063,7 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         if commit not in dep_commits:
             dep_commits.append(commit)
 
-    persist_first_task_base(feature_dir, state, task)
+    stage_first_task_base(feature_dir, state, durable_state, task, target)
     if target.exists():
         dirty = changed_paths(target)
         if dirty:
@@ -5158,7 +5180,13 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
-        target = prepare_task_worktree(args.feature_dir, doc, state, task)
+        staged_state = copy.deepcopy(state)
+        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
+        for key in ('base_commit', 'base_kind'):
+            if key in staged_state:
+                state[key] = staged_state[key]
+        state.pop('pending_base_commit', None)
+        state.pop('pending_base_kind', None)
     print(target)
 
 
@@ -5176,13 +5204,12 @@ def cmd_start(args: argparse.Namespace) -> None:
         # Resolve and validate the packet before consuming retry authorization or changing
         # lifecycle state. The immutable publication may safely remain orphaned on failure.
         packet = write_packet(doc, task, args.feature_dir, state=state)
-        persist_first_task_base(args.feature_dir, state, task)
         staged_state = copy.deepcopy(state)
         entry = staged_state['tasks'][args.task_id]
         if is_unrecovered_partial_claim(entry):
             die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
-        target = prepare_task_worktree(args.feature_dir, doc, state, task)
+        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
         now = utc_now()
         entry.update({
             'status': 'running',
@@ -5198,6 +5225,8 @@ def cmd_start(args: argparse.Namespace) -> None:
         for key in ('base_commit', 'base_kind'):
             if key in staged_state:
                 state[key] = staged_state[key]
+        state.pop('pending_base_commit', None)
+        state.pop('pending_base_kind', None)
     print(json.dumps({'task': args.task_id, 'owner': args.owner, 'worktree': str(target), 'packet': str(packet)}, indent=2))
 
 def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:

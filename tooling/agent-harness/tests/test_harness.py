@@ -1609,7 +1609,7 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(2, harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
                          ['feature_generation'])
 
-    def test_start_persists_base_created_in_staged_state(self):
+    def test_start_base_recovery_marker_survives_failure_and_retry(self):
         from unittest.mock import patch
 
         self.addCleanup(shutil.rmtree,
@@ -1641,8 +1641,10 @@ class HarnessTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'injected start failure'):
                 harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
         failed_start = harness.load_state(feature, doc)
-        self.assertEqual(initial_head, failed_start.get('base_commit'))
-        self.assertEqual('head', failed_start.get('base_kind'))
+        self.assertIsNone(failed_start.get('base_commit'))
+        self.assertIsNone(failed_start.get('base_kind'))
+        self.assertEqual(initial_head, failed_start.get('pending_base_commit'))
+        self.assertEqual('head', failed_start.get('pending_base_kind'))
         self.assertEqual('pending', failed_start['tasks']['T-A']['status'])
         self.assertEqual(0, failed_start['tasks']['T-A']['attempts'])
 
@@ -1650,6 +1652,8 @@ class HarnessTest(unittest.TestCase):
         state = harness.load_state(feature, doc)
         self.assertEqual(initial_head, state.get('base_commit'))
         self.assertEqual('head', state.get('base_kind'))
+        self.assertNotIn('pending_base_commit', state)
+        self.assertNotIn('pending_base_kind', state)
 
         (feature / 'plan.md').write_text('# revised plan\n')
         subprocess.run(['git', 'add', str(feature.relative_to(self.root) / 'plan.md')],
