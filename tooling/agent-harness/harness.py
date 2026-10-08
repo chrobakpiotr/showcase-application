@@ -4891,61 +4891,32 @@ def execution_protocol_paths(feature_dir: pathlib.Path) -> list[str]:
         feature_rel = feature_dir.resolve().relative_to(root)
     except ValueError:
         die('feature_dir must be inside the repository')
-    candidates = [
-        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'agent-harness',
-        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml', str(feature_rel),
+    return [
+        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents',
+        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml',
+        f'{feature_rel}/spec.md', f'{feature_rel}/plan.md', f'{feature_rel}/tasks.json',
+        f'{feature_rel}/design.json', f'{feature_rel}/design/gate.json',
+        f'{feature_rel}/verification-contract.json', f'{feature_rel}/wayfinder-handoff.json',
     ]
-    return [candidate for candidate in candidates if (root / candidate).exists()]
 
 
-def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any], *,
-                               reject_unrelated: bool = True) -> tuple[str, bool]:
-    """Return a commit containing the root's current scoped protocol/feature snapshot."""
+def _path_is_selected(path: str, selected: list[str]) -> bool:
+    return any(path == item or path.startswith(item.rstrip('/') + '/')
+               for item in selected if item)
+
+
+def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any]) -> tuple[str, bool]:
+    """Return committed HEAD after refusing uncommitted selected protocol/spec files."""
     root = repo_root()
     head = subprocess.run(
         ['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True
     ).stdout.strip()
-    dirty = changed_paths(root)
-    try:
-        feature_rel = feature_dir.resolve().relative_to(root)
-    except ValueError:
-        die('feature_dir must be inside the repository')
-    unrelated = [path for path in dirty if not bootstrap_path_allowed(path, feature_rel)]
-    if reject_unrelated and unrelated:
-        die(
-            'primary checkout has uncommitted changes outside the SDD protocol/active feature; '
-            f'create a deliberate local checkpoint or stash them before parallel execution: {unrelated}'
-        )
-    if not dirty:
-        return head, False
-
-    # Build an immutable commit object from HEAD plus only the SDD protocol and active feature.
-    # commit-tree does not move HEAD or any user branch. The object becomes reachable only when
-    # task-local branches are created from it.
-    fd, index_name = tempfile.mkstemp(prefix='agent-sdd-index-')
-    os.close(fd)
-    os.unlink(index_name)
-    env = os.environ.copy()
-    env['GIT_INDEX_FILE'] = index_name
-    candidates = execution_protocol_paths(feature_dir)
-    try:
-        subprocess.run(['git', 'read-tree', head], cwd=root, env=env, check=True, capture_output=True)
-        if candidates:
-            subprocess.run(['git', 'add', '-A', '--', *candidates], cwd=root, env=env, check=True, capture_output=True)
-        tree = subprocess.run(
-            ['git', 'write-tree'], cwd=root, env=env, capture_output=True, text=True, check=True
-        ).stdout.strip()
-        commit = subprocess.run(
-            [
-                'git', '-c', 'user.name=Agent Harness', '-c', 'user.email=agent-harness@local.invalid',
-                'commit-tree', tree, '-p', head, '-m', f'agent orchestration base {doc.get("feature", feature_dir.name)}',
-            ],
-            cwd=root, env=env, capture_output=True, text=True, check=True,
-        ).stdout.strip()
-    finally:
-        if os.path.exists(index_name):
-            os.unlink(index_name)
-    return commit, True
+    selected = execution_protocol_paths(feature_dir)
+    dirty = [path for path in changed_paths(root) if _path_is_selected(path, selected)]
+    if dirty:
+        die('primary checkout has uncommitted protocol/feature files; commit them before task worktree creation: '
+            f'{dirty}')
+    return head, False
 
 
 def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
@@ -5041,7 +5012,7 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
                 f'{missing}. Reset/re-plan the feature; the harness can synthesize a local base without moving your branch.'
             )
 
-        snapshot, _ = current_execution_snapshot(feature_dir, doc, reject_unrelated=False)
+        snapshot, _ = current_execution_snapshot(feature_dir, doc)
         protocol_paths = execution_protocol_paths(feature_dir)
         path_diff = subprocess.run(
             ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
@@ -5050,10 +5021,21 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
             die(f'cannot compare task worktree protocol snapshot: {target}')
         stale_paths = path_diff.returncode == 1
         if stale_paths:
-            subprocess.run(
-                ['git', 'restore', '--source', snapshot, '--staged', '--worktree', '--', *protocol_paths],
-                cwd=target, check=True,
-            )
+            root_paths = subprocess.run(['git', 'ls-tree', '-r', '--name-only', snapshot],
+                                        cwd=repo_root(), capture_output=True, text=True, check=True).stdout.splitlines()
+            target_paths = subprocess.run(['git', 'ls-files'], cwd=target,
+                                          capture_output=True, text=True, check=True).stdout.splitlines()
+            source_selected = [path for path in root_paths if _path_is_selected(path, protocol_paths)]
+            target_selected = [path for path in target_paths if _path_is_selected(path, protocol_paths)]
+            removed = sorted(set(target_selected) - set(source_selected))
+            if removed:
+                subprocess.run(['git', 'rm', '-f', '--', *removed], cwd=target, check=True,
+                               capture_output=True)
+            if source_selected:
+                subprocess.run(
+                    ['git', 'restore', '--source', snapshot, '--staged', '--worktree', '--', *source_selected],
+                    cwd=target, check=True,
+                )
             subprocess.run(
                 ['git', '-c', 'user.name=Agent Harness', '-c', 'user.email=agent-harness@local.invalid',
                  'commit', '--no-gpg-sign', '-m', f'agent orchestration refresh {feature}'],
