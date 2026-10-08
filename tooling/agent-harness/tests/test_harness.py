@@ -2786,6 +2786,216 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual('deadbeef', archived['last_attempt_commit'])
         self.assertEqual('evidence/result.json', archived['completion_evidence'])
 
+    def test_reopen_exhausted_task_escalates_and_invalidates_descendants(self):
+        from unittest import mock
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'completed',
+            'attempts': 3,
+            'completion_evidence': 'evidence/parent-result.json',
+        })
+        state['tasks']['T-900'].update({
+            'status': 'completed',
+            'attempts': 2,
+            'last_attempt_commit': 'deadbeef',
+            'checkpoint_commit': 'cafebabe',
+            'completion_evidence': 'evidence/descendant-result.json',
+        })
+        harness.save_state(feature, state)
+
+        with mock.patch.object(harness, 'prune_task_workspace') as prune:
+            harness.cmd_reopen(argparse.Namespace(
+                feature_dir=feature,
+                task_id='T-001',
+                reason='upstream implementation invalidated',
+                evidence='evidence/review.json',
+            ))
+
+        updated = harness.load_state(feature, doc)
+        target = updated['tasks']['T-001']
+        descendant = updated['tasks']['T-900']
+        self.assertEqual('escalated', target['status'])
+        self.assertEqual(3, target['attempts'])
+        self.assertEqual('upstream implementation invalidated', target['last_failure'])
+        self.assertEqual('evidence/review.json', target['rework_evidence'])
+        self.assertEqual('escalated', target['last_transition']['status'])
+        prune.assert_called_once_with('TST-001', 'T-900')
+        self.assertEqual('pending', descendant['status'])
+        self.assertEqual(0, descendant['attempts'])
+        self.assertEqual('T-001', descendant['invalidated_by'])
+        self.assertEqual(1, len(descendant['attempt_history']))
+        archived = descendant['attempt_history'][0]
+        self.assertEqual('completed', archived['prior_status'])
+        self.assertEqual(2, archived['attempts'])
+        self.assertEqual('deadbeef', archived['last_attempt_commit'])
+        self.assertEqual('cafebabe', archived['checkpoint_commit'])
+        self.assertEqual('evidence/descendant-result.json', archived['completion_evidence'])
+
+    def test_reopen_preflights_all_descendant_worktrees_before_pruning(self):
+        feature = self.feature(tasks=[
+            {'id': 'T-A', 'title': 'Root', 'objective': 'root', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['modules/domain/**'], 'risk_tags': ['domain'],
+             'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-B', 'title': 'First descendant', 'objective': 'first', 'role': 'evaluator',
+             'depends_on': ['T-A'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+            {'id': 'T-C', 'title': 'Dirty descendant', 'objective': 'dirty', 'role': 'evaluator',
+             'depends_on': ['T-B'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'Evaluator', 'objective': 'evaluate', 'role': 'evaluator',
+             'depends_on': ['T-C'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'], 'verification': ['true']},
+        ])
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-A'].update({'status': 'completed', 'attempts': 3})
+        for task_id in ('T-B', 'T-C', 'T-900'):
+            state['tasks'][task_id].update({'status': 'completed', 'attempts': 1})
+        harness.save_state(feature, state)
+
+        first = harness.worktree_path('TST-001', 'T-B')
+        dirty = harness.worktree_path('TST-001', 'T-C')
+        branches = ['agent/TST-001/T-B', 'agent/TST-001/T-C']
+        for branch, path in zip(branches, (first, dirty)):
+            subprocess.run(['git', 'branch', branch, 'HEAD'], cwd=self.root, check=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(['git', 'worktree', 'add', str(path), branch], cwd=self.root, check=True,
+                           capture_output=True, text=True)
+        (dirty / 'uncommitted.txt').write_text('keep this workspace', encoding='utf-8')
+
+        try:
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-A',
+                    reason='upstream changed',
+                    evidence=None,
+                ))
+
+            self.assertTrue(first.exists(), 'clean earlier descendant was removed before dirty preflight')
+            self.assertTrue(dirty.exists())
+            self.assertEqual(0, subprocess.run(
+                ['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branches[0]}'], cwd=self.root,
+                check=False).returncode)
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+
+            # Simulate an external edit after global preflight but during the first prune.
+            # The later prune must refuse and the earlier clean worktree/branch must be restored.
+            (dirty / 'uncommitted.txt').unlink()
+            prune = harness.prune_task_workspace
+            original_commit = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=first, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            competing_commit = None
+
+            def inject_late_edit(feature_name, task_id, **kwargs):
+                nonlocal competing_commit
+                prune(feature_name, task_id, **kwargs)
+                if task_id == 'T-B':
+                    subprocess.run(['git', 'commit', '--allow-empty', '-m', 'concurrent branch update'],
+                                   cwd=self.root, check=True, capture_output=True, text=True)
+                    competing_commit = subprocess.run(
+                        ['git', 'rev-parse', 'HEAD'], cwd=self.root, check=True,
+                        capture_output=True, text=True,
+                    ).stdout.strip()
+                    subprocess.run(['git', 'branch', branches[0], competing_commit], cwd=self.root, check=True)
+                    (dirty / 'late-edit.txt').write_text('concurrent edit', encoding='utf-8')
+
+            with mock.patch.object(harness, 'prune_task_workspace', side_effect=inject_late_edit):
+                with self.assertRaises(SystemExit):
+                    harness.cmd_reopen(argparse.Namespace(
+                        feature_dir=feature,
+                        task_id='T-A',
+                        reason='upstream changed during cleanup',
+                        evidence=None,
+                    ))
+
+            self.assertTrue(first.exists(), 'earlier worktree was not restored after late dirty edit')
+            self.assertTrue((dirty / 'late-edit.txt').exists())
+            self.assertEqual(0, subprocess.run(
+                ['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branches[0]}'], cwd=self.root,
+                check=False).returncode)
+            self.assertEqual(original_commit, subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=first, check=True, capture_output=True, text=True
+            ).stdout.strip())
+            self.assertEqual(competing_commit, subprocess.run(
+                ['git', 'rev-parse', f'refs/heads/{branches[0]}'], cwd=self.root,
+                check=True, capture_output=True, text=True,
+            ).stdout.strip())
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+
+            # Git's global excludes are also dirty data; ignored files must not be deleted silently.
+            (dirty / 'late-edit.txt').unlink()
+            excludes = self.root / 'global-excludes'
+            excludes.write_text('ignored-output.bin\n', encoding='utf-8')
+            subprocess.run(['git', 'config', 'core.excludesFile', str(excludes)], cwd=self.root, check=True)
+            ignored = dirty / 'ignored-output.bin'
+            ignored.write_text('preserve ignored content', encoding='utf-8')
+            with self.assertRaises(SystemExit):
+                harness.cmd_reopen(argparse.Namespace(
+                    feature_dir=feature,
+                    task_id='T-A',
+                    reason='refuse ignored descendant data loss',
+                    evidence=None,
+                ))
+            self.assertTrue(first.exists(), 'clean earlier descendant was removed before ignored-file preflight')
+            self.assertTrue(ignored.exists())
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+
+            # Advance a branch after worktree removal but before compare-and-swap deletion.
+            ignored.unlink()
+            subprocess.run(['git', 'commit', '--allow-empty', '-m', 'second concurrent branch update'],
+                           cwd=self.root, check=True, capture_output=True, text=True)
+            latest_competing_commit = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=self.root, check=True, capture_output=True, text=True
+            ).stdout.strip()
+            before_run = subprocess.run
+
+            def advance_before_ref_delete(command, *args, **kwargs):
+                if command[:3] == ['git', 'update-ref', '-d'] and command[3] == f'refs/heads/{branches[0]}':
+                    before_run(['git', 'branch', '-f', branches[0], latest_competing_commit],
+                               cwd=self.root, check=True)
+                return before_run(command, *args, **kwargs)
+
+            with mock.patch.object(harness.subprocess, 'run', side_effect=advance_before_ref_delete):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    harness.cmd_reopen(argparse.Namespace(
+                        feature_dir=feature,
+                        task_id='T-A',
+                        reason='preserve branch advanced during cleanup',
+                        evidence=None,
+                    ))
+            self.assertTrue(first.exists())
+            self.assertEqual(original_commit, subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=first, check=True, capture_output=True, text=True
+            ).stdout.strip())
+            self.assertEqual(latest_competing_commit, subprocess.run(
+                ['git', 'rev-parse', f'refs/heads/{branches[0]}'], cwd=self.root,
+                check=True, capture_output=True, text=True,
+            ).stdout.strip())
+            updated = harness.load_state(feature, doc)
+            self.assertEqual('completed', updated['tasks']['T-A']['status'])
+            self.assertTrue(all(updated['tasks'][task_id]['status'] == 'completed'
+                                for task_id in ('T-B', 'T-C', 'T-900')))
+        finally:
+            for path in (first, dirty):
+                subprocess.run(['git', 'worktree', 'remove', '--force', str(path)], cwd=self.root,
+                               check=False, capture_output=True, text=True)
+            for branch in branches:
+                subprocess.run(['git', 'branch', '-D', branch], cwd=self.root,
+                               check=False, capture_output=True, text=True)
+
     def test_reopen_ignores_unrelated_legacy_packets(self):
         feature = self.feature()
         doc = harness.load_json(feature / 'tasks.json')
