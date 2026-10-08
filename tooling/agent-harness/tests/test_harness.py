@@ -5,6 +5,7 @@ import io
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -1560,6 +1561,95 @@ class HarnessTest(unittest.TestCase):
         state['tasks']['T-A']['checkpoint_commit'] = dependency_checkpoint
         harness.save_state(feature, state)
         return feature, doc, state, dependency_checkpoint
+
+    def test_first_worktree_base_survives_start_and_allows_feature_reconcile(self):
+        self.addCleanup(shutil.rmtree,
+                        self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}',
+                        ignore_errors=True)
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-A'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        harness_copy.parent.mkdir(parents=True, exist_ok=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'initial accepted feature'], cwd=self.root, check=True)
+        initial_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                      capture_output=True, text=True, check=True).stdout.strip()
+        doc = harness.load_json(feature / 'tasks.json')
+
+        harness.cmd_worktree_create(argparse.Namespace(feature_dir=feature, task_id='T-A'))
+        after_create = harness.load_state(feature, doc)
+        self.assertEqual(initial_head, after_create.get('base_commit'))
+        self.assertEqual('head', after_create.get('base_kind'))
+
+        harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+        after_start = harness.load_state(feature, doc)
+        self.assertEqual(initial_head, after_start.get('base_commit'))
+        self.assertEqual('head', after_start.get('base_kind'))
+
+        (feature / 'plan.md').write_text('# revised plan\n')
+        subprocess.run(['git', 'add', str(feature.relative_to(self.root) / 'plan.md')],
+                       cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'reconcile accepted plan change'], cwd=self.root, check=True)
+        harness.cmd_reconcile_feature(argparse.Namespace(
+            feature_dir=feature, expected_generation=1,
+            reason='round-four base checkpoint regression test', by='test-operator'))
+        self.assertEqual(2, harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+                         ['feature_generation'])
+
+    def test_start_persists_base_created_in_staged_state(self):
+        self.addCleanup(shutil.rmtree,
+                        self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}',
+                        ignore_errors=True)
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [],
+             'acceptance_criteria': ['AC-001'], 'verification': ['true']},
+            {'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate', 'role': 'evaluator',
+             'depends_on': ['T-A'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+             'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+             'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        harness_copy.parent.mkdir(parents=True, exist_ok=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'initial accepted feature'], cwd=self.root, check=True)
+        initial_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                      capture_output=True, text=True, check=True).stdout.strip()
+        doc = harness.load_json(feature / 'tasks.json')
+
+        harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a'))
+        state = harness.load_state(feature, doc)
+        self.assertEqual(initial_head, state.get('base_commit'))
+        self.assertEqual('head', state.get('base_kind'))
+
+        (feature / 'plan.md').write_text('# revised plan\n')
+        subprocess.run(['git', 'add', str(feature.relative_to(self.root) / 'plan.md')],
+                       cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'reconcile accepted plan change'], cwd=self.root, check=True)
+        harness.cmd_reconcile_feature(argparse.Namespace(
+            feature_dir=feature, expected_generation=1,
+            reason='round-four start persistence regression test', by='test-operator'))
+        self.assertEqual(2, harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
+                         ['feature_generation'])
 
     def test_new_dependent_worktree_refreshes_stale_protocol_and_preserves_dependency(self):
         feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture()

@@ -5038,7 +5038,13 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         if commit not in dep_commits:
             dep_commits.append(commit)
 
-    base = dep_commits[0] if dep_commits else task_worktree_snapshot(feature_dir)
+    if dep_commits:
+        base = dep_commits[0]
+    else:
+        base = task_worktree_snapshot(feature_dir)
+        if state.get('base_commit') is None:
+            state['base_commit'] = base
+            state['base_kind'] = 'head'
     subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, base], check=True)
     try:
         for commit in dep_commits[1:]:
@@ -5175,6 +5181,9 @@ def cmd_start(args: argparse.Namespace) -> None:
         append_attempt_binding(entry, args.feature_dir, doc, args.task_id, packet)
         refresh_lease(entry, doc, now=now)
         state['tasks'][args.task_id] = entry
+        for key in ('base_commit', 'base_kind'):
+            if key in staged_state:
+                state[key] = staged_state[key]
     print(json.dumps({'task': args.task_id, 'owner': args.owner, 'worktree': str(target), 'packet': str(packet)}, indent=2))
 
 def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:
