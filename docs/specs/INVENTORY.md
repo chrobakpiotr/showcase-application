@@ -36,6 +36,7 @@
 | `RECOVERY-METRICS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-OPS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-TIMELINE-001` | **CLOSED** | yes | no | no | document-only | not selected |
+| `REOPEN-LEGACY-PACKET-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RMA-CONCURRENCY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RUNNER-STRICT-OUTPUT-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `S30-AMQP-POISON-001` | **DRAFT — REF-Q scope decisions accepted; S30-06 parent and architecture design gate remain OPEN** | yes | yes | no | document-only | not selected |
@@ -50,6 +51,7 @@
 | `TIME-CONTROL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `TIME-POLICY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `UNEXECUTED-START-ROLLBACK-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `WORKTREE-PROTOCOL-REFRESH-001` | UNDECLARED | yes | yes | yes | executable | selected |
 
 ## Policy
 

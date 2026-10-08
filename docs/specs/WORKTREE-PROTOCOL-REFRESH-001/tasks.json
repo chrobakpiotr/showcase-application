@@ -1,0 +1,45 @@
+{
+  "feature": "WORKTREE-PROTOCOL-REFRESH-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Refresh newly created task worktrees from current protocol",
+      "objective": "Apply the current protocol and active-feature snapshot to stale dependency checkpoints, enforce freshness for all new worktrees, and roll back newly created resources on failure.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["lifecycle", "concurrency", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Use temporary git repositories with stale and current dependency checkpoints. Prove stale protocol refresh preserves dependency output and ancestry, freshness failure removes the just-created worktree and branch, and post-refresh task changes are still bounded by allowed_paths."
+    },
+    {
+      "id": "T-900",
+      "title": "Adversarially evaluate worktree refresh and cleanup",
+      "objective": "Try to falsify new-worktree freshness, scoped protocol refresh, dependency preservation, cleanup ownership, and completion allowed-path behavior.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/WORKTREE-PROTOCOL-REFRESH-001/evidence/**"],
+      "risk_tags": ["evaluation", "lifecycle", "concurrency", "infra"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Review temporary-repository tests and implementation for failures during dependency merge, snapshot refresh, freshness assertion, and cleanup; verify unrelated branches/worktrees and dependency code are preserved."
+    }
+  ]
+}
