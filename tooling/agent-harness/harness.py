@@ -4582,13 +4582,56 @@ def descendants(idx: dict[str, dict[str, Any]], target: str) -> set[str]:
 def prune_task_workspace(feature: str, task_id: str) -> None:
     target = worktree_path(feature, task_id)
     branch = f'agent/{feature}/{task_id}'
+    ensure_task_workspace_clean(feature, task_id)
+    if target.exists():
+        subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
+    if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
+        subprocess.run(['git', 'branch', '-D', branch], check=True)
+
+
+def ensure_task_workspace_clean(feature: str, task_id: str) -> None:
+    target = worktree_path(feature, task_id)
     if target.exists():
         dirty = changed_paths(target)
         if dirty:
             die(f'cannot invalidate dirty descendant worktree {target}: {dirty}')
-        subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
-    if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
-        subprocess.run(['git', 'branch', '-D', branch], check=True)
+
+
+def task_workspace_snapshot(feature: str, task_id: str) -> dict[str, str | bool | None]:
+    target = worktree_path(feature, task_id)
+    branch = f'agent/{feature}/{task_id}'
+    branch_result = subprocess.run(
+        ['git', 'rev-parse', '--verify', f'refs/heads/{branch}'],
+        capture_output=True, text=True, check=False,
+    )
+    branch_commit = branch_result.stdout.strip() if branch_result.returncode == 0 else None
+    worktree_commit = None
+    if target.exists():
+        worktree_commit = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    return {'branch_commit': branch_commit, 'worktree_commit': worktree_commit}
+
+
+def restore_task_workspace(feature: str, task_id: str, snapshot: dict[str, str | bool | None]) -> None:
+    target = worktree_path(feature, task_id)
+    branch = f'agent/{feature}/{task_id}'
+    branch_commit = snapshot.get('branch_commit')
+    worktree_commit = snapshot.get('worktree_commit')
+    branch_ref = subprocess.run(
+        ['git', 'rev-parse', '--verify', f'refs/heads/{branch}'],
+        capture_output=True, text=True, check=False,
+    )
+    current_branch_commit = branch_ref.stdout.strip() if branch_ref.returncode == 0 else None
+    if branch_commit and current_branch_commit is None:
+        subprocess.run(['git', 'branch', branch, str(branch_commit)], check=True)
+    if worktree_commit and not target.exists():
+        if branch_commit == worktree_commit and current_branch_commit in {None, branch_commit}:
+            subprocess.run(['git', 'worktree', 'add', str(target), branch], check=True)
+        else:
+            # Preserve the exact completed worktree snapshot if another process recreated or
+            # advanced its branch while rollback was in progress.
+            subprocess.run(['git', 'worktree', 'add', '--detach', str(target), str(worktree_commit)], check=True)
 
 
 def human_resolution_identity(explicit: str | None) -> str:
@@ -4753,21 +4796,39 @@ def cmd_reopen(args: argparse.Namespace) -> None:
             )
 
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
-        if int(target.get('attempts', 0)) >= max_attempts:
-            target['status'] = 'escalated'
-            target['last_failure'] = args.reason
-            target['last_transition'] = {'kind': 'reopened', 'attempts': target.get('attempts', 0),
-                                         'status': 'escalated', 'at': utc_now().isoformat()}
-            print(f'ESCALATED {args.task_id}: rework budget exhausted')
-            return
+        exhausted = int(target.get('attempts', 0)) >= max_attempts
 
+        # Preflight every descendant before removing the first workspace. prune_task_workspace
+        # repeats the check immediately before each removal to fail closed on intervening edits.
         for tid in stale:
-            prune_task_workspace(feature, tid)
+            ensure_task_workspace_clean(feature, tid)
+
+        snapshots = {tid: task_workspace_snapshot(feature, tid) for tid in stale}
+        attempted_prunes: list[str] = []
+        try:
+            for tid in stale:
+                # Include the current item so a partially failed worktree/branch removal is restored.
+                attempted_prunes.append(tid)
+                prune_task_workspace(feature, tid)
+        except BaseException:
+            restoration_errors = []
+            for tid in reversed(attempted_prunes):
+                try:
+                    restore_task_workspace(feature, tid, snapshots[tid])
+                except (OSError, subprocess.CalledProcessError) as exc:
+                    restoration_errors.append(f'{tid}: {exc}')
+            if restoration_errors:
+                die('reopen cleanup failed and workspace rollback was incomplete: ' + '; '.join(restoration_errors))
+            raise
 
         reopened_at = utc_now().isoformat()
-        target.update({'status': 'failed', 'last_failure': args.reason, 'reopened_at': reopened_at})
+        target.update({
+            'status': 'escalated' if exhausted else 'failed',
+            'last_failure': args.reason,
+            'reopened_at': reopened_at,
+        })
         target['last_transition'] = {'kind': 'reopened', 'attempts': target.get('attempts', 0),
-                                     'status': 'failed', 'at': reopened_at}
+                                     'status': target['status'], 'at': reopened_at}
         if args.evidence:
             target['rework_evidence'] = str(pathlib.Path(args.evidence))
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
@@ -4796,7 +4857,11 @@ def cmd_reopen(args: argparse.Namespace) -> None:
                 'invalidated_at': reopened_at,
                 'attempt_history': history,
             })
-    print(f'REOPENED {args.task_id}; invalidated descendants: {", ".join(stale) if stale else "none"}')
+    if exhausted:
+        print(f'ESCALATED {args.task_id}: rework budget exhausted; invalidated descendants: '
+              f'{", ".join(stale) if stale else "none"}')
+    else:
+        print(f'REOPENED {args.task_id}; invalidated descendants: {", ".join(stale) if stale else "none"}')
 
 
 def cmd_status(args: argparse.Namespace) -> None:
