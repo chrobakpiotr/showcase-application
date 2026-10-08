@@ -1,19 +1,21 @@
 {
   "command": [
-    "/Users/pau/.local/bin/python3.13",
+    "python3",
     "-m",
     "agent_harness",
     "qualification",
     "--check",
-    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-006/docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json",
     "--evidence-root",
-    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-006/docs/specs/AH5-04B-QUAL-001/evidence/selected",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected",
     "--capability-report",
-    "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/AH5-04B-QUAL-001/T-006/docs/specs/AH5-04B-QUAL-001/evidence/selected/capability.json",
+    "docs/specs/AH5-04B-QUAL-001/evidence/selected/capability.json",
     "--job-id",
     "local-20261008T205033Z-7939417fefb5"
   ],
-  "exit_code": 1,
-  "stderr": "",
-  "stdout": "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json: qualification showcase-docker-desktop-linux-guest job local-20261008T205033Z-7939417fefb5 sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e does not pass\n"
+  "harness_version": "0.5.0",
+  "exit_code": 0,
+  "stdout": "docs/specs/AH5-04B-QUAL-001/evidence/selected/report.json: qualification showcase-docker-desktop-linux-guest job local-20261008T205033Z-7939417fefb5 sha256:f7cdab99c3fb6b18bb25e71c99199235007553ec4c140d62b305cccff29a2600 passes",
+  "stdout_sha256": "sha256:ff93768a88b9e114cc4bfec489af0ca73170f7abcfce71c3802f828c6ac59300",
+  "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }

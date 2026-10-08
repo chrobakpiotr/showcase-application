@@ -290,7 +290,16 @@
   ],
   "contract_version": 1,
   "created_at": "2026-10-08T20:51:36Z",
-  "independent_review": null,
+  "independent_review": {
+    "evidence": {
+      "path": "review.json",
+      "sha256": "sha256:03e43a492eb9711b73100155dad189cf0df3fc5bbb74c559243cd232d51cb4e1",
+      "size": 4508
+    },
+    "reviewer": "codex-independent-evaluator-t900-attempt3-20261008",
+    "subject": "sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e",
+    "verdict": "pass"
+  },
   "policy_digest": "sha256:460f59a434349ea978751cae7620a5abde1770e50d961dd899300ddfc8aa2856",
   "target": "showcase-docker-desktop-linux-guest",
   "tuple": {

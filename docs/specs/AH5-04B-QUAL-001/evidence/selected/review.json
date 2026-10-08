@@ -1,0 +1,74 @@
+{
+  "accepted_sources": [
+    "docs/specs/AH5-04B-QUAL-001/spec.md AC-001..AC-008",
+    "docs/specs/AH5-04B-QUAL-001/verification-contract.json VC-001..VC-007",
+    "docs/specs/AH5-04B-QUAL-001/evidence/fallback-decision.json",
+    "Harness v0.5.0 qualification contract and candidate-target API"
+  ],
+  "checks": {
+    "b10": "PASS: the observed B10 v2 request/result pair validates with Harness v0.5.0 contract.validate_result; the candidate target validates with qualified=False; isolation_level is unqualified, qualification_digest is null, applied limits exactly equal request limits including timeout_seconds, fired is null, and outcome/exit_code are completed/0.",
+    "fallback": "PASS: T-006 evidence records NOT_REQUIRED_PENDING_REVIEW against this exact 26/26 report digest and job ID; the GitHub target is not represented as run or qualified. This review is the separate T-900 gate.",
+    "policy_and_target_binding": "PASS: policy digest recomputed from accepted spec and verification contract; tuple matches the Docker Desktop Linux guest, Docker Engine 29.8.2, kernel 7.0.14-linuxkit and pinned workload image digest. The live local Docker daemon and image were inspected read-only and agree with those values.",
+    "report_and_evidence": "PASS: exactly Q01-Q16 and B1-B10 once each; 26 distinct passing probe records; each record matches check id, target id and exact job id; Harness v0.5.0 verified evidence paths, byte sizes, SHA-256 hashes and whole-token job binding.",
+    "scope": "PASS: conclusions cover this one observed Docker Desktop target and report only; no general Docker, GitHub runner, production or launch-authority claim is made."
+  },
+  "feature": "AH5-04B-QUAL-001",
+  "limitations": [
+    "The job_id is a local correlation identifier, not a provider-issued immutable job identity. The Harness checker proves report structure and evidence integrity/binding, not who created those files or when.",
+    "The local completion capture and raw evidence are mutable repository artifacts; no signed CI/provider attestation or immutable local execution log is present. The review independently inspected the available captured invocation/output, all check records, and the live daemon/image, but cannot make a cryptographic provenance claim about the historical local process.",
+    "Docker Desktop host administration and unlisted restore/launch paths remain outside the tested boundary. Qualification of this exact target does not qualify other jobs or production and grants no payload execution authority; capability launch_ready remains false."
+  ],
+  "report_author": "showcase-qualifier",
+  "report_tuple": {
+    "engine": "DockerEngine_29.8.2",
+    "host": "Docker_Desktop",
+    "job_id": "local-20261008T205033Z-7939417fefb5",
+    "kernel": "7.0.14-linuxkit",
+    "workload_image": "sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5"
+  },
+  "review_subject": "sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e",
+  "reviewed_at": "2026-10-08T21:09:37Z",
+  "reviewer_identity": "codex-independent-evaluator-t900-attempt3-20261008",
+  "run_provenance": {
+    "captured_t005_command_output": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/completion-capture/AH5-04B-QUAL-001-T-005-attempt-1/verify-0-retry.stdout",
+    "captured_t005_exit_code": 0,
+    "live_read_only_observations": {
+      "docker_engine": {
+        "command": [
+          "docker",
+          "version",
+          "--format",
+          "{{.Server.Version}}"
+        ],
+        "exit_code": 0,
+        "stdout": "29.8.2"
+      },
+      "docker_info": {
+        "command": [
+          "docker",
+          "info",
+          "--format",
+          "{{.OSType}}|{{.OperatingSystem}}|{{.KernelVersion}}"
+        ],
+        "exit_code": 0,
+        "stdout": "linux|Docker Desktop|7.0.14-linuxkit"
+      },
+      "workload_image_digest": {
+        "command": [
+          "docker",
+          "image",
+          "inspect",
+          "--format",
+          "{{json .RepoDigests}}",
+          "python@sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5"
+        ],
+        "exit_code": 0,
+        "stdout": "[\"python@sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5\"]"
+      }
+    },
+    "status": "locally corroborated against the captured T-005 invocation/output and current live Docker Desktop daemon; not cryptographically or provider-attested"
+  },
+  "schema_version": 1,
+  "task": "T-900",
+  "verdict": "pass"
+}
