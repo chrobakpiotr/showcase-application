@@ -1930,9 +1930,16 @@ def resolve_active_packet(feature_dir: pathlib.Path, doc: dict[str, Any], task_i
                 request.get('new_revision') != new_relation['revision_id'] or
                 request.get('old_contract_sha256') != old_relation['contract_sha256'] or
                 request.get('new_contract_sha256') != new_relation['contract_sha256'] or
-                request.get('expected_status') != 'running' or
+                request.get('expected_status') not in {'running', 'failed'} or
                 not isinstance(request.get('expected_attempts'), int) or
-                isinstance(request.get('expected_attempts'), bool) or request['expected_attempts'] < 1 or
+                isinstance(request.get('expected_attempts'), bool) or
+                request['expected_attempts'] < (1 if request.get('expected_status') == 'running' else 0) or
+                (request.get('expected_status') == 'failed' and
+                 (type(request.get('expected_feature_generation')) is not int or
+                  request['expected_feature_generation'] < 1)) or
+                ('expected_feature_generation' in request and
+                 (type(request.get('expected_feature_generation')) is not int or
+                  request['expected_feature_generation'] < 1)) or
                 not isinstance(request.get('reason'), str) or not request['reason'].strip() or
                 not isinstance(request.get('provenance'), str) or not request['provenance'] or
                 parse_timestamp(request.get('committed_at')) is None):
@@ -2908,6 +2915,8 @@ def cmd_authorize_retry(args: argparse.Namespace) -> None:
                         'reason': reason, 'provenance': grant['provenance'], 'issued_at': grant['issued_at']}
             entry.setdefault('retry_authorization_supersessions', []).append(relation)
         entry.setdefault('retry_authorizations', []).append(grant)
+        entry['last_transition'] = {'kind': 'retry_authorization', 'attempts': attempts,
+                                    'authorization_id': grant_id, 'at': grant['issued_at']}
     print(f'RETRY_AUTHORIZATION_CREATED {args.task_id} id={grant["id"]}')
 
 
@@ -3033,6 +3042,86 @@ def publish_revision(feature_dir: pathlib.Path, task_id: str,
         if os.path.exists(temporary):
             os.unlink(temporary)
     return revision_id, path
+
+
+def validate_latest_human_resolution(feature_dir: pathlib.Path, doc: dict[str, Any],
+                                     task_id: str, entry: dict[str, Any]) -> dict[str, Any]:
+    """Require the current failed state to be the exact audited human-resolution transition."""
+    attempts = entry.get('attempts')
+    history = entry.get('human_resolution_history')
+    artifact_value = entry.get('human_resolution')
+    transition = entry.get('last_transition')
+    if (not isinstance(attempts, int) or isinstance(attempts, bool) or attempts < 0 or
+            not isinstance(history, list) or not history or not isinstance(history[-1], dict) or
+            not isinstance(artifact_value, str) or
+            (transition is not None and (not isinstance(transition, dict) or
+             transition.get('kind') != 'human_resolution' or
+             type(transition.get('attempts')) is not int or transition.get('attempts') != attempts or
+             transition.get('artifact') != artifact_value))):
+        die('TASK_REPLAN_NOT_ALLOWED: failed task was not most recently changed by a human resolution')
+    if transition is None:
+        # Upgrade-safe proof for human resolutions written before last_transition existed.
+        # Later supported mutations create a retry grant or consume the human grant.
+        if (type(entry.get('human_resume_grants')) is not int or entry['human_resume_grants'] < 1 or
+                entry.get('active_human_resume') is not None or
+                entry.get('active_retry_authorization') is not None):
+            die('TASK_REPLAN_NOT_ALLOWED: legacy human resolution is not the latest provable failed-task transition')
+    root = (feature_dir / 'evidence' / 'human-resolutions' / task_id).resolve()
+    artifact = pathlib.Path(artifact_value)
+    if not artifact.is_absolute():
+        artifact = feature_repo_base(feature_dir) / artifact
+    expected_root = feature_dir / 'evidence' / 'human-resolutions' / task_id
+    if any(path.is_symlink() for path in (
+            feature_dir / 'evidence', feature_dir / 'evidence' / 'human-resolutions', expected_root)):
+        die('TASK_REPLAN_NOT_ALLOWED: human-resolution audit authority path contains a symlink')
+    try:
+        resolved = artifact.resolve(strict=True)
+        resolved.relative_to(root)
+        if artifact.is_symlink() or not resolved.is_file():
+            raise ValueError('audit artifact is not a regular file')
+        raw = resolved.read_bytes()
+        record = json.loads(raw)
+    except (OSError, ValueError, json.JSONDecodeError):
+        die('TASK_REPLAN_NOT_ALLOWED: human-resolution audit artifact is unavailable or outside its authority path')
+    latest = history[-1]
+    digest = sha256_bytes(raw)
+    expected = {
+        'schema_version': 1,
+        'feature': doc.get('feature', feature_dir.name),
+        'task': task_id,
+        'action': 'retry',
+        'attempts_before_resolution': attempts,
+    }
+    if (not isinstance(record, dict) or any(record.get(key) != value for key, value in expected.items()) or
+            not isinstance(record.get('decision'), str) or not record['decision'].strip() or
+            not isinstance(record.get('decided_by'), str) or not record['decided_by'].strip() or
+            parse_timestamp(record.get('resolved_at')) is None or
+            parse_timestamp(entry.get('human_resolved_at')) is None or
+            record.get('decided_by') != entry.get('human_resolved_by') or
+            latest.get('artifact') != artifact_value or type(latest.get('attempts')) is not int or
+            latest.get('attempts') != attempts or
+            latest.get('resolved_at') != entry.get('human_resolved_at') or
+            latest.get('decided_by') != record.get('decided_by') or
+            parse_timestamp(record['resolved_at']) > parse_timestamp(latest['resolved_at']) or
+            (transition is not None and
+             (transition.get('resolved_at') != latest.get('resolved_at') or
+              transition.get('artifact_sha256') != digest))):
+        die('TASK_REPLAN_NOT_ALLOWED: human-resolution audit binding does not match the current failed task state')
+    if transition is None:
+        resolved_at = parse_timestamp(latest['resolved_at'])
+        for grant in entry.get('retry_authorizations', []):
+            issued_at = parse_timestamp(grant.get('issued_at')) if isinstance(grant, dict) else None
+            if issued_at is None or issued_at > resolved_at:
+                die('TASK_REPLAN_NOT_ALLOWED: a retry authorization changed the task after human resolution')
+        for relation in entry.get('retry_authorization_supersessions', []):
+            issued_at = parse_timestamp(relation.get('issued_at')) if isinstance(relation, dict) else None
+            if issued_at is None or issued_at > resolved_at:
+                die('TASK_REPLAN_NOT_ALLOWED: authorization supersession changed the task after human resolution')
+        used_at = parse_timestamp(entry.get('last_human_resume_used_at'))
+        if used_at is not None and used_at > resolved_at:
+            die('TASK_REPLAN_NOT_ALLOWED: human retry authorization was consumed after resolution')
+    return {'artifact': artifact_value, 'artifact_sha256': digest, 'attempts': attempts,
+            'resolved_at': record['resolved_at']}
 
 
 def cmd_materialize_packet_history(args: argparse.Namespace) -> None:
@@ -3336,13 +3425,20 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         state = _load_state_unlocked(feature_dir, doc)
         entry = state['tasks'][args.task_id]
+        current_generation = state.get('feature_generation', 1)
+        expected_generation = getattr(args, 'expected_feature_generation', None)
+        failed_replan = entry.get('status') == 'failed' and args.expected_status == 'failed'
+        if expected_generation is None and not failed_replan:
+            expected_generation = current_generation
         request_identity = {'repository': repo_identity, 'feature': doc.get('feature', feature_dir.name),
                             'task': args.task_id, 'expected_status': args.expected_status,
                             'expected_attempts': args.expected_attempts,
                             'expected_active_packet_revision': args.expected_active_revision,
                             'expected_contract_sha256': args.expected_contract_sha256,
+                            'expected_feature_generation': expected_generation,
                             'proposed_contract_sha256': new_contract, 'proposed_task': proposed,
-                            'provenance': operator, 'reason': reason, 'checkpoint': args.checkpoint}
+                            'provenance': operator, 'reason': reason,
+                            'checkpoint': getattr(args, 'checkpoint', None)}
         request_id = sha256_bytes(json.dumps(request_identity, sort_keys=True, separators=(',', ':')).encode())
         prior_requests = entry.get('replan_requests', [])
         if not isinstance(prior_requests, list):
@@ -3359,10 +3455,18 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
             die('REPLAN_CONCURRENT_CONFLICT: a different replan request is already recorded')
         if entry.get('status') == 'completed':
             die('TASK_REPLAN_NOT_ALLOWED: completed tasks cannot be replanned')
-        if entry.get('status') != args.expected_status or args.expected_status != 'running':
-            die('TASK_REPLAN_NOT_ALLOWED: only the CAS-bound running task transition is supported')
+        if entry.get('status') != args.expected_status or args.expected_status not in {'running', 'failed'}:
+            die('TASK_REPLAN_NOT_ALLOWED: only CAS-bound running tasks or human-resolved failed tasks may be replanned')
+        failed_replan = entry.get('status') == 'failed'
+        if failed_replan:
+            if type(expected_generation) is not int or expected_generation < 1:
+                die('TASK_REPLAN_NOT_ALLOWED: failed-task replan requires --expected-feature-generation')
+            validate_latest_human_resolution(feature_dir, doc, args.task_id, entry)
+        if type(current_generation) is not int or current_generation != expected_generation:
+            die('REPLAN_CONCURRENT_CONFLICT: current feature generation differs from request')
         attempts = entry.get('attempts', 0)
-        if not isinstance(attempts, int) or isinstance(attempts, bool) or attempts != args.expected_attempts:
+        if (not isinstance(attempts, int) or isinstance(attempts, bool) or
+                type(args.expected_attempts) is not int or attempts != args.expected_attempts):
             die('REPLAN_CONCURRENT_CONFLICT: current attempt count differs from request')
         active = resolve_active_packet(feature_dir, doc, args.task_id, state=state)
         if active['revision_id'] != args.expected_active_revision:
@@ -3372,7 +3476,7 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         if new_contract == active['contract_sha256']:
             die('TASK_REPLAN_NOT_ALLOWED: proposed contract has no semantic change')
         if active['revision_id'] == 'unpublished':
-            die('TASK_REPLAN_NOT_ALLOWED: running task has no published historical packet')
+            die('TASK_REPLAN_NOT_ALLOWED: task has no published historical packet')
         replan_failpoint('R1')
         packet = packet_payload(proposed_doc, proposed, feature_dir)
         if packet.get('semantic_contract_sha256') != new_contract:
@@ -3397,71 +3501,77 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
                         'contract_sha256': new_contract, 'legacy': False})
         staged['packet_lineage'] = lineage
         staged['active_packet_revision'] = revision_id
-        attempt_history = staged.setdefault('attempt_bindings', [])
-        validate_attempt_binding_ledger(staged)
-        current_binding = next((record for record in attempt_history
-                                if isinstance(record, dict) and record.get('attempt') == attempts), None)
-        binding_result = classify_historical_packet_binding(feature_dir, doc, args.task_id,
-                                                            staged, active, attempts)
-        historical_binding_classification = binding_result['classification']
-        historical_binding_status = {
-            'AUTOMATICALLY_PROVEN': 'proven', 'HUMAN_ATTESTED': 'human_attested',
-            'AMBIGUOUS': 'ambiguous'}[historical_binding_classification]
-        if current_binding is None and historical_binding_classification == 'AUTOMATICALLY_PROVEN':
-            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
-                'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
-                'bound_at': utc_now().isoformat(),
-                'evidence': 'versioned recovery payload identity matches the active packet and revision'})
-        elif current_binding is None and historical_binding_classification == 'HUMAN_ATTESTED':
-            attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
-                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
-                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
-                'bound_at': utc_now().isoformat(),
-                'evidence': 'explicit immutable human packet identity bridge'})
-        elif (current_binding is not None and current_binding.get('binding_status') == 'ambiguous' and
-              historical_binding_classification == 'HUMAN_ATTESTED'):
-            current_binding.update({'packet_revision': active['revision_id'],
-                'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
-                'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
-                'bound_at': utc_now().isoformat(),
-                'evidence': 'explicit immutable human packet identity bridge'})
-        elif current_binding is None and historical_binding_classification == 'AMBIGUOUS':
-            recovery = staged.get('claim_recovery')
-            evidence = 'packet revision was not recorded for this historical attempt'
-            if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
-                evidence = 'claim-recovery packet identity differs from the current active packet'
-            attempt_history.append({'attempt': attempts, 'binding_status': 'ambiguous',
-                'observed_active_packet_revision': active['revision_id'],
-                'observed_contract_sha256': active['contract_sha256'],
-                'evidence': evidence, 'recorded_at': utc_now().isoformat()})
-        if attempts > 1:
-            staged['unbound_historical_attempts'] = [n for n in range(1, attempts)
-                if not any(isinstance(x, dict) and x.get('attempt') == n for x in attempt_history)]
         timestamp = utc_now().isoformat()
-        staged['attempt_termination'] = {'attempt': attempts, 'classification': 'REPLAN_SUPERSEDED',
-            'reason_code': 'TASK_REPLAN_REQUIRED', 'reason': reason, 'terminated_at': timestamp,
-            'active_revision_at_termination': active['revision_id'],
-            'contract_sha256_at_termination': active['contract_sha256'],
-            'historical_binding_status': historical_binding_status,
-            'historical_binding_classification': historical_binding_classification,
-            'verification': 'NOT_RUN_BY_REPLAN'}
-        if historical_binding_status in {'proven', 'human_attested'}:
-            staged['attempt_termination']['packet_revision'] = active['revision_id']
-            staged['attempt_termination']['contract_sha256'] = active['contract_sha256']
-        if historical_binding_classification == 'HUMAN_ATTESTED':
-            staged['attempt_termination']['identity_bridge_id'] = binding_result['bridge_id']
-        staged['status'] = 'failed'
-        staged['replanned_at'] = timestamp
+        if not failed_replan:
+            attempt_history = staged.setdefault('attempt_bindings', [])
+            validate_attempt_binding_ledger(staged)
+            current_binding = next((record for record in attempt_history
+                                    if isinstance(record, dict) and record.get('attempt') == attempts), None)
+            binding_result = classify_historical_packet_binding(feature_dir, doc, args.task_id,
+                                                                staged, active, attempts)
+            historical_binding_classification = binding_result['classification']
+            historical_binding_status = {
+                'AUTOMATICALLY_PROVEN': 'proven', 'HUMAN_ATTESTED': 'human_attested',
+                'AMBIGUOUS': 'ambiguous'}[historical_binding_classification]
+            if current_binding is None and historical_binding_classification == 'AUTOMATICALLY_PROVEN':
+                attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                    'contract_sha256': active['contract_sha256'], 'binding_status': 'proven',
+                    'bound_at': utc_now().isoformat(),
+                    'evidence': 'versioned recovery payload identity matches the active packet and revision'})
+            elif current_binding is None and historical_binding_classification == 'HUMAN_ATTESTED':
+                attempt_history.append({'attempt': attempts, 'packet_revision': active['revision_id'],
+                    'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                    'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                    'bound_at': utc_now().isoformat(),
+                    'evidence': 'explicit immutable human packet identity bridge'})
+            elif (current_binding is not None and current_binding.get('binding_status') == 'ambiguous' and
+                  historical_binding_classification == 'HUMAN_ATTESTED'):
+                current_binding.update({'packet_revision': active['revision_id'],
+                    'contract_sha256': active['contract_sha256'], 'binding_status': 'human_attested',
+                    'classification': 'HUMAN_ATTESTED', 'identity_bridge_id': binding_result['bridge_id'],
+                    'bound_at': utc_now().isoformat(),
+                    'evidence': 'explicit immutable human packet identity bridge'})
+            elif current_binding is None and historical_binding_classification == 'AMBIGUOUS':
+                recovery = staged.get('claim_recovery')
+                evidence = 'packet revision was not recorded for this historical attempt'
+                if isinstance(recovery, dict) and recovery.get('attempt') == attempts:
+                    evidence = 'claim-recovery packet identity differs from the current active packet'
+                attempt_history.append({'attempt': attempts, 'binding_status': 'ambiguous',
+                    'observed_active_packet_revision': active['revision_id'],
+                    'observed_contract_sha256': active['contract_sha256'],
+                    'evidence': evidence, 'recorded_at': utc_now().isoformat()})
+            if attempts > 1:
+                staged['unbound_historical_attempts'] = [n for n in range(1, attempts)
+                    if not any(isinstance(x, dict) and x.get('attempt') == n for x in attempt_history)]
+            staged['attempt_termination'] = {'attempt': attempts, 'classification': 'REPLAN_SUPERSEDED',
+                'reason_code': 'TASK_REPLAN_REQUIRED', 'reason': reason, 'terminated_at': timestamp,
+                'active_revision_at_termination': active['revision_id'],
+                'contract_sha256_at_termination': active['contract_sha256'],
+                'historical_binding_status': historical_binding_status,
+                'historical_binding_classification': historical_binding_classification,
+                'verification': 'NOT_RUN_BY_REPLAN'}
+            if historical_binding_status in {'proven', 'human_attested'}:
+                staged['attempt_termination']['packet_revision'] = active['revision_id']
+                staged['attempt_termination']['contract_sha256'] = active['contract_sha256']
+            if historical_binding_classification == 'HUMAN_ATTESTED':
+                staged['attempt_termination']['identity_bridge_id'] = binding_result['bridge_id']
+            staged['status'] = 'failed'
+            staged['replanned_at'] = timestamp
+            staged['last_transition'] = {'kind': 'running_task_replan', 'attempts': attempts, 'at': timestamp}
         staged['replan_requests'] = [*prior_requests, {'request_id': request_id,
             'repository': repo_identity, 'feature': doc.get('feature', feature_dir.name), 'task': args.task_id,
             'old_revision': active['revision_id'], 'new_revision': revision_id,
             'old_contract_sha256': active['contract_sha256'], 'new_contract_sha256': new_contract,
-            'expected_status': 'running', 'expected_attempts': attempts, 'reason': reason,
+            'expected_status': args.expected_status, 'expected_attempts': attempts,
+            'expected_feature_generation': expected_generation, 'reason': reason,
             'provenance': operator, 'checkpoint': args.checkpoint,
-            'historical_binding_classification': historical_binding_classification,
-            'identity_bridge_id': binding_result['bridge_id'], 'committed_at': timestamp}]
-        for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
-            staged.pop(key, None)
+            **({} if failed_replan else {
+                'historical_binding_classification': historical_binding_classification,
+                'identity_bridge_id': binding_result.get('bridge_id')}),
+            'committed_at': timestamp}]
+        if not failed_replan:
+            for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
+                staged.pop(key, None)
         replan_failpoint('R5')
         replan_failpoint('R6')
         state['tasks'][args.task_id] = staged
@@ -4391,6 +4501,8 @@ def cmd_fail(args: argparse.Namespace) -> None:
             'failed_at': utc_now().isoformat(),
             'last_attempt_commit': failed_commit,
         })
+        entry['last_transition'] = {'kind': 'attempt_failed', 'attempts': attempts,
+                                    'status': status, 'at': entry['failed_at']}
         control_outcome = getattr(args, 'control_outcome', None)
         if control_outcome in {'needs-human', 'verification-blocked', 'verification-owned'}:
             entry['control_outcome'] = control_outcome
@@ -4441,6 +4553,8 @@ def cmd_release(args: argparse.Namespace) -> None:
             'released_at': utc_now().isoformat(),
             'last_attempt_commit': partial_commit,
         })
+        entry['last_transition'] = {'kind': 'lease_released', 'attempts': entry.get('attempts', 0),
+                                    'status': 'failed', 'at': entry['released_at']}
         if entry.pop('active_human_resume', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
@@ -4575,7 +4689,7 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
         if not isinstance(history, list):
             history = []
             entry['human_resolution_history'] = history
-        resolved_at = utc_now().isoformat()
+        resolved_at = json.loads(artifact.read_text(encoding='utf-8'))['resolved_at']
         history.append({
             'artifact': str(artifact),
             'decided_by': decided_by,
@@ -4591,6 +4705,11 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
             'human_resume_grants': int(entry.get('human_resume_grants', 0)) + 1,
             'rework_evidence': str(artifact),
         })
+        entry['last_transition'] = {
+            'kind': 'human_resolution', 'artifact': str(artifact),
+            'artifact_sha256': sha256_bytes(artifact.read_bytes()),
+            'attempts': int(entry.get('attempts', 0)), 'resolved_at': resolved_at,
+        }
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
             entry.pop(key, None)
     print(f'HUMAN_RESOLVED {args.task_id} -> retry authorized; artifact={artifact}')
@@ -4637,6 +4756,8 @@ def cmd_reopen(args: argparse.Namespace) -> None:
         if int(target.get('attempts', 0)) >= max_attempts:
             target['status'] = 'escalated'
             target['last_failure'] = args.reason
+            target['last_transition'] = {'kind': 'reopened', 'attempts': target.get('attempts', 0),
+                                         'status': 'escalated', 'at': utc_now().isoformat()}
             print(f'ESCALATED {args.task_id}: rework budget exhausted')
             return
 
@@ -4645,6 +4766,8 @@ def cmd_reopen(args: argparse.Namespace) -> None:
 
         reopened_at = utc_now().isoformat()
         target.update({'status': 'failed', 'last_failure': args.reason, 'reopened_at': reopened_at})
+        target['last_transition'] = {'kind': 'reopened', 'attempts': target.get('attempts', 0),
+                                     'status': 'failed', 'at': reopened_at}
         if args.evidence:
             target['rework_evidence'] = str(pathlib.Path(args.evidence))
         for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
@@ -5261,6 +5384,8 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--expected-attempts', type=int, required=True)
     s.add_argument('--expected-active-revision', required=True)
     s.add_argument('--expected-contract-sha256', required=True)
+    s.add_argument('--expected-feature-generation', type=int,
+                   help='Required for failed-task replans; current accepted feature generation')
     s.add_argument('--proposed-task-file', required=True, help='Validated task-model JSON stored inside the feature folder')
     s.add_argument('--reason', required=True)
     s.add_argument('--by', required=True, help='Human/operator provenance label')

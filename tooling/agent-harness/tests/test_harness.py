@@ -2026,6 +2026,303 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(1, entry['human_resume_grants'])
         self.assertNotIn('active_human_resume', entry)
 
+    def test_failed_task_replan_requires_latest_human_resolution_transition(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        old_packet = harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        old_bytes = old_packet.read_bytes()
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 3})
+        harness.save_state(feature, state)
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='revise failed attempt', by='test operator', checkpoint=None)
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(args)
+
+        self.assertEqual(old_bytes, old_packet.read_bytes())
+        self.assertEqual(state, harness.load_state(feature, doc))
+
+    def test_failed_task_replan_rejects_stale_feature_generation_without_state_change(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 3})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification.', decision_file=None, by='human@example.invalid'))
+        before = harness.state_path(feature).read_bytes()
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=2,
+            proposed_task_file=str(proposal), reason='stale generation', by='test operator', checkpoint=None)
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(args)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_failed_task_replan_rejects_stale_attempt_revision_and_fingerprint(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 3})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification.', decision_file=None, by='human@example.invalid'))
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='replan after human resolution', by='test operator', checkpoint=None)
+        stale_variants = [
+            {'expected_attempts': 4},
+            {'expected_active_revision': 'sha256:' + '0' * 64},
+            {'expected_contract_sha256': '0' * 64},
+        ]
+        before = harness.state_path(feature).read_bytes()
+
+        for changes in stale_variants:
+            stale = argparse.Namespace(**vars(args))
+            for field, value in changes.items():
+                setattr(stale, field, value)
+            with self.subTest(changes=changes), self.assertRaises(SystemExit):
+                harness.cmd_replan_task(stale)
+            self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_failed_task_replan_requires_human_resolution_to_remain_last_transition(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 3})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification.', decision_file=None, by='human@example.invalid'))
+        harness.cmd_authorize_retry(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            reason='operator authorized one exceptional retry', by='operator@example.invalid', supersedes=None))
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='must require a fresh human resolution',
+            by='test operator', checkpoint=None)
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(args)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_failed_task_replan_state_replacement_failure_leaves_only_inactive_orphan(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        old_packet = harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        old_bytes = old_packet.read_bytes()
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 3})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification.', decision_file=None, by='human@example.invalid'))
+        before = harness.state_path(feature).read_bytes()
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='inject pre-commit crash', by='test operator', checkpoint=None)
+
+        def fail_before_state_replace(stage):
+            if stage == 'R7':
+                raise OSError('injected process failure before lifecycle replace')
+
+        with mock.patch.object(harness, 'replan_failpoint', side_effect=fail_before_state_replace):
+            with self.assertRaises(OSError):
+                harness.cmd_replan_task(args)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+        current = harness._read_state_unlocked_pure(feature, doc)
+        self.assertEqual(active['revision_id'], harness.resolve_active_packet(
+            feature, doc, 'T-001', state=current)['revision_id'])
+        self.assertEqual(old_bytes, old_packet.read_bytes())
+        revisions = list((harness.runtime_state_dir(feature) / 'packet-revisions' /
+                          feature.name / 'T-001').glob('*.json'))
+        self.assertEqual(2, len(revisions))
+
+    def test_completed_task_cannot_be_replanned(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        task = harness.task_index(doc)['T-001']
+        old_packet = harness.write_packet(doc, task, feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'completed', 'attempts': 1})
+        harness.save_state(feature, state)
+        before = harness.state_path(feature).read_bytes()
+        proposed = dict(task, objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='completed',
+            expected_attempts=1, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='must remain immutable', by='test operator', checkpoint=None)
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(args)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+        self.assertEqual(harness.packet_revision_id(json.loads(old_packet.read_text())), active['revision_id'])
+
+    def test_conflicting_failed_task_replans_serialize_with_one_winner(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        old_packet = harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        old_bytes = old_packet.read_bytes()
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 3})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification.', decision_file=None, by='human@example.invalid'))
+        proposed = dict(harness.task_index(doc)['T-001'], objective='First revised objective')
+        proposal = feature / 'proposed-one.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        conflicting = dict(proposed, objective='Conflicting revised objective')
+        conflicting_path = feature / 'proposed-two.json'
+        conflicting_path.write_text(json.dumps(conflicting), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        common = dict(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            reason='replan after human resolution', by='test operator', checkpoint=None)
+        requests = [argparse.Namespace(**common, proposed_task_file=str(path))
+                    for path in (proposal, conflicting_path)]
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def invoke(request):
+            barrier.wait()
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    harness.cmd_replan_task(request)
+                outcomes.append('committed')
+            except SystemExit:
+                outcomes.append('rejected')
+
+        workers = [threading.Thread(target=invoke, args=(request,)) for request in requests]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=10)
+
+        self.assertTrue(all(not worker.is_alive() for worker in workers))
+        self.assertCountEqual(['committed', 'rejected'], outcomes)
+        state_after = harness.load_state(feature, doc)
+        entry = state_after['tasks']['T-001']
+        self.assertEqual(1, len(entry['replan_requests']))
+        self.assertEqual('failed', entry['status'])
+        self.assertEqual(old_bytes, old_packet.read_bytes())
+
+    def test_failed_task_replan_preserves_state_then_claim_binds_new_revision(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({'test_mode': 'red-green-refactor', 'test_seam': 'failed task replan seam'})
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        old_packet = harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        old_bytes = old_packet.read_bytes()
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'escalated', 'attempts': 3, 'last_failure': 'needs a clarified task contract',
+            'last_failure_evidence': 'evidence/failure.json',
+            'retry_authorizations': [{'id': 'historic-grant', 'issued_at': '2026-01-01T00:00:00Z',
+                                     'consumed_at': '2026-01-01T00:01:00Z'}],
+        })
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(feature_dir=feature, task_id='T-001',
+            decision='Use the accepted specification as the source of task scope.',
+            decision_file=None, by='human@example.invalid'))
+        legacy_state = harness.load_state(feature, doc)
+        legacy_entry = legacy_state['tasks']['T-001']
+        legacy_entry.pop('last_transition')
+        harness.save_state(feature, legacy_state)
+        legacy_artifact = pathlib.Path(legacy_entry['human_resolution'])
+        legacy_record = json.loads(legacy_artifact.read_text(encoding='utf-8'))
+        legacy_record['resolved_at'] = (harness.parse_timestamp(legacy_record['resolved_at']) -
+                                        harness.dt.timedelta(milliseconds=250)).isoformat()
+        legacy_artifact.write_text(json.dumps(legacy_record, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+        before = harness.load_state(feature, doc)['tasks']['T-001']
+        before_authorizations = json.loads(json.dumps(before.get('retry_authorizations', [])))
+        proposed = dict(harness.task_index(doc)['T-001'], objective='Revised objective')
+        proposal = feature / 'proposed.json'
+        proposal.write_text(json.dumps(proposed), encoding='utf-8')
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=3, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='replan after human resolution', by='test operator', checkpoint=None)
+
+        harness.cmd_replan_task(args)
+
+        state_after = harness.load_state(feature, doc)
+        entry = state_after['tasks']['T-001']
+        revised = harness.resolve_active_packet(feature, doc, 'T-001', state=state_after)
+        self.assertEqual(old_bytes, old_packet.read_bytes())
+        self.assertEqual('failed', entry['status'])
+        for field in ('attempts', 'attempt_bindings', 'historical_attempts', 'human_resume_grants',
+                      'human_resolution_history', 'retry_authorizations',
+                      'retry_authorization_supersessions', 'attempt_termination'):
+            self.assertEqual(before.get(field), entry.get(field), field)
+        self.assertEqual(before_authorizations, entry.get('retry_authorizations', []))
+        self.assertEqual(active['revision_id'], entry['packet_lineage'][-2]['revision_id'])
+        self.assertEqual(revised['revision_id'], entry['active_packet_revision'])
+        self.assertEqual(1, entry['replan_requests'][-1]['expected_feature_generation'])
+
+        harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='next-worker'))
+
+        claimed = harness.load_state(feature, doc)['tasks']['T-001']
+        binding = next(item for item in claimed['attempt_bindings'] if item['attempt'] == 4)
+        self.assertEqual('running', claimed['status'])
+        self.assertEqual(revised['revision_id'], binding['packet_revision'])
+        self.assertEqual(revised['contract_sha256'], binding['contract_sha256'])
+
 
     def test_reopen_refuses_running_descendant_before_pruning_workspace(self):
         from unittest import mock
