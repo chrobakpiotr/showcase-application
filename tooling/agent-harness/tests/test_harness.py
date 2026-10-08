@@ -1506,6 +1506,112 @@ class HarnessTest(unittest.TestCase):
             subprocess.run(['git', 'worktree', 'remove', '--force', str(t_a)], cwd=self.root, check=False)
             shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
 
+    def _worktree_refresh_fixture(self, *, stale=True):
+        tasks = [
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['dependency-output.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'],
+             'verification': ['true']},
+            {'id': 'T-B', 'title': 'B', 'objective': 'B', 'role': 'builder', 'depends_on': ['T-A'],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'],
+             'verification': ['true']},
+        ]
+        feature = self.feature(tasks)
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs' / 'agentic-sdd' / 'constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling' / 'agent-harness' / 'harness.py'
+        harness_copy.parent.mkdir(parents=True, exist_ok=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'accepted protocol base'], cwd=self.root, check=True)
+
+        (self.root / 'dependency-output.txt').write_text('dependency checkpoint output\n')
+        subprocess.run(['git', 'add', 'dependency-output.txt'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'dependency checkpoint'], cwd=self.root, check=True)
+        dependency_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                               capture_output=True, text=True, check=True).stdout.strip()
+
+        if stale:
+            (feature / 'spec.md').write_text('# TST-001\n\n- AC-001: refreshed accepted behavior\n')
+            subprocess.run(['git', 'add', str(feature.relative_to(self.root) / 'spec.md')], cwd=self.root, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                            'commit', '-q', '-m', 'update accepted feature spec'], cwd=self.root, check=True)
+
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state['tasks']['T-A']['status'] = 'completed'
+        state['tasks']['T-A']['checkpoint_commit'] = dependency_checkpoint
+        harness.save_state(feature, state)
+        return feature, doc, state, dependency_checkpoint
+
+    def test_new_dependent_worktree_refreshes_stale_protocol_and_preserves_dependency(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture()
+
+        target = harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        self.assertEqual(harness.feature_fingerprint(feature),
+                         harness.feature_fingerprint(target / 'docs' / 'specs' / 'TST-001'))
+        self.assertEqual('dependency checkpoint output\n', (target / 'dependency-output.txt').read_text())
+        self.assertEqual([], harness.changed_paths(target))
+        ancestry = subprocess.run(
+            ['git', 'merge-base', '--is-ancestor', dependency_checkpoint, 'HEAD'], cwd=target
+        )
+        self.assertEqual(0, ancestry.returncode, 'dependency checkpoint was not retained as an ancestor')
+        self.assertEqual(dependency_checkpoint, subprocess.run(
+            ['git', 'rev-parse', 'HEAD^'], cwd=target, capture_output=True, text=True, check=True
+        ).stdout.strip())
+        refresh_subject = subprocess.run(['git', 'log', '-1', '--pretty=%s'], cwd=target,
+                                         capture_output=True, text=True, check=True).stdout.strip()
+        self.assertEqual('agent orchestration refresh TST-001', refresh_subject)
+
+        (target / 'task-output.txt').write_text('task output\n')
+        self.assertEqual(['task-output.txt'], harness.changed_paths(target))
+        checkpoint = harness.checkpoint_worktree(doc, doc['tasks'][1], target)
+        self.assertTrue(checkpoint)
+
+    def test_new_worktree_freshness_failure_removes_only_created_resources(self):
+        feature, doc, state, _ = self._worktree_refresh_fixture()
+        branch = 'agent/TST-001/T-B'
+        target = harness.worktree_path('TST-001', 'T-B')
+        before = json.loads(json.dumps(state))
+
+        with mock.patch.object(harness, 'assert_worktree_protocol_current',
+                               side_effect=SystemExit('freshness rejected')):
+            with self.assertRaisesRegex(SystemExit, 'freshness rejected'):
+                harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        self.assertFalse(target.exists())
+        self.assertNotEqual(0, subprocess.run(
+            ['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}'], cwd=self.root
+        ).returncode)
+        self.assertEqual(before, state)
+
+    def test_current_dependency_checkpoint_does_not_get_refresh_commit(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture(stale=False)
+
+        target = harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        self.assertEqual(dependency_checkpoint, subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True
+        ).stdout.strip())
+        self.assertEqual([], harness.changed_paths(target))
+
+    def test_existing_stale_worktree_remains_rejected(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture()
+        target = harness.worktree_path('TST-001', 'T-B')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', 'agent/TST-001/T-B',
+                        dependency_checkpoint], cwd=self.root, check=True)
+
+        with self.assertRaises(SystemExit):
+            harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=self.root, check=True)
+        subprocess.run(['git', 'branch', '-D', 'agent/TST-001/T-B'], cwd=self.root, check=True,
+                       capture_output=True)
+
     def test_active_design_feature_requires_fresh_gate(self):
         feature = self.feature()
         config = {

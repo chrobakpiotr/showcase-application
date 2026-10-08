@@ -4885,34 +4885,39 @@ def bootstrap_path_allowed(path: str, feature_rel: pathlib.Path) -> bool:
     )
 
 
-def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
-    existing = state.get('base_commit')
-    if isinstance(existing, str) and existing:
-        check = subprocess.run(['git', 'cat-file', '-e', f'{existing}^{{commit}}'], capture_output=True)
-        if check.returncode != 0:
-            die(f'local orchestration base commit no longer exists: {existing}; reset the feature state')
-        return existing
-
+def execution_protocol_paths(feature_dir: pathlib.Path) -> list[str]:
     root = repo_root()
     try:
         feature_rel = feature_dir.resolve().relative_to(root)
     except ValueError:
         die('feature_dir must be inside the repository')
+    candidates = [
+        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'agent-harness',
+        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml', str(feature_rel),
+    ]
+    return [candidate for candidate in candidates if (root / candidate).exists()]
 
+
+def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any], *,
+                               reject_unrelated: bool = True) -> tuple[str, bool]:
+    """Return a commit containing the root's current scoped protocol/feature snapshot."""
+    root = repo_root()
     head = subprocess.run(
         ['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True
     ).stdout.strip()
     dirty = changed_paths(root)
+    try:
+        feature_rel = feature_dir.resolve().relative_to(root)
+    except ValueError:
+        die('feature_dir must be inside the repository')
     unrelated = [path for path in dirty if not bootstrap_path_allowed(path, feature_rel)]
-    if unrelated:
+    if reject_unrelated and unrelated:
         die(
             'primary checkout has uncommitted changes outside the SDD protocol/active feature; '
             f'create a deliberate local checkpoint or stash them before parallel execution: {unrelated}'
         )
     if not dirty:
-        state['base_commit'] = head
-        state['base_kind'] = 'head'
-        return head
+        return head, False
 
     # Build an immutable commit object from HEAD plus only the SDD protocol and active feature.
     # commit-tree does not move HEAD or any user branch. The object becomes reachable only when
@@ -4922,11 +4927,7 @@ def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[s
     os.unlink(index_name)
     env = os.environ.copy()
     env['GIT_INDEX_FILE'] = index_name
-    candidates = [
-        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'agent-harness',
-        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml', str(feature_rel),
-    ]
-    candidates = [candidate for candidate in candidates if (root / candidate).exists()]
+    candidates = execution_protocol_paths(feature_dir)
     try:
         subprocess.run(['git', 'read-tree', head], cwd=root, env=env, check=True, capture_output=True)
         if candidates:
@@ -4944,9 +4945,20 @@ def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[s
     finally:
         if os.path.exists(index_name):
             os.unlink(index_name)
+    return commit, True
 
+
+def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
+    existing = state.get('base_commit')
+    if isinstance(existing, str) and existing:
+        check = subprocess.run(['git', 'cat-file', '-e', f'{existing}^{{commit}}'], capture_output=True)
+        if check.returncode != 0:
+            die(f'local orchestration base commit no longer exists: {existing}; reset the feature state')
+        return existing
+
+    commit, synthetic = current_execution_snapshot(feature_dir, doc)
     state['base_commit'] = commit
-    state['base_kind'] = 'synthetic-local'
+    state['base_kind'] = 'synthetic-local' if synthetic else 'head'
     return commit
 
 
@@ -4995,41 +5007,74 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
 
     base = dep_commits[0] if dep_commits else execution_base(feature_dir, doc, state)
     subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, base], check=True)
-    for commit in dep_commits[1:]:
-        subprocess.run(
-            [
-                'git', '-c', 'user.name=Agent Harness',
-                '-c', 'user.email=agent-harness@local.invalid',
-                'merge', '--quiet', '--no-edit', '--no-gpg-sign', commit,
-            ],
-            cwd=target,
-            check=True,
-        )
-    if changed_paths(target):
-        die(f'new worktree is unexpectedly dirty: {target}')
-
-    # Parallel worktrees are reproducible only from a versioned protocol/spec baseline.
-    root = repo_root()
     try:
-        rel_feature = feature_dir.resolve().relative_to(root)
-    except ValueError:
-        die('feature_dir must be inside the repository')
-    required = [
-        target / rel_feature / 'spec.md',
-        target / rel_feature / 'plan.md',
-        target / rel_feature / 'tasks.json',
-        target / 'AGENTS.md',
-        target / 'docs' / 'agentic-sdd' / 'constitution.md',
-        target / 'tooling' / 'agent-harness' / 'harness.py',
-    ]
-    missing = [str(p.relative_to(target)) for p in required if not p.exists()]
-    if missing:
-        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], check=False)
-        subprocess.run(['git', 'branch', '-D', branch], check=False)
-        die(
-            'worktree base is missing SDD/spec files: '
-            f'{missing}. Reset/re-plan the feature; the harness can synthesize a local base without moving your branch.'
+        for commit in dep_commits[1:]:
+            subprocess.run(
+                [
+                    'git', '-c', 'user.name=Agent Harness',
+                    '-c', 'user.email=agent-harness@local.invalid',
+                    'merge', '--quiet', '--no-edit', '--no-gpg-sign', commit,
+                ],
+                cwd=target,
+                check=True,
+            )
+        if changed_paths(target):
+            die(f'new worktree is unexpectedly dirty: {target}')
+
+        root = repo_root()
+        try:
+            rel_feature = feature_dir.resolve().relative_to(root)
+        except ValueError:
+            die('feature_dir must be inside the repository')
+        required = [
+            target / rel_feature / 'spec.md',
+            target / rel_feature / 'plan.md',
+            target / rel_feature / 'tasks.json',
+            target / 'AGENTS.md',
+            target / 'docs' / 'agentic-sdd' / 'constitution.md',
+            target / 'tooling' / 'agent-harness' / 'harness.py',
+        ]
+        missing = [str(p.relative_to(target)) for p in required if not p.exists()]
+        if missing:
+            die(
+                'worktree base is missing SDD/spec files: '
+                f'{missing}. Reset/re-plan the feature; the harness can synthesize a local base without moving your branch.'
+            )
+
+        snapshot, _ = current_execution_snapshot(feature_dir, doc, reject_unrelated=False)
+        protocol_paths = execution_protocol_paths(feature_dir)
+        path_diff = subprocess.run(
+            ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
         )
+        if path_diff.returncode not in (0, 1):
+            die(f'cannot compare task worktree protocol snapshot: {target}')
+        stale_paths = path_diff.returncode == 1
+        if stale_paths:
+            subprocess.run(
+                ['git', 'restore', '--source', snapshot, '--staged', '--worktree', '--', *protocol_paths],
+                cwd=target, check=True,
+            )
+            subprocess.run(
+                ['git', '-c', 'user.name=Agent Harness', '-c', 'user.email=agent-harness@local.invalid',
+                 'commit', '--no-gpg-sign', '-m', f'agent orchestration refresh {feature}'],
+                cwd=target, check=True,
+            )
+
+        assert_worktree_protocol_current(feature_dir, target)
+    except BaseException as original:
+        cleanup_errors = []
+        removed = subprocess.run(['git', 'worktree', 'remove', '--force', str(target)],
+                                 cwd=repo_root(), capture_output=True, text=True)
+        if removed.returncode != 0 and target.exists():
+            cleanup_errors.append(removed.stderr.strip() or 'worktree removal failed')
+        if not target.exists():
+            deleted = subprocess.run(['git', 'branch', '-D', branch], cwd=repo_root(),
+                                     capture_output=True, text=True)
+            if deleted.returncode != 0:
+                cleanup_errors.append(deleted.stderr.strip() or 'task branch removal failed')
+        if cleanup_errors:
+            raise RuntimeError(f'{original}; cleanup incomplete: {"; ".join(cleanup_errors)}') from original
+        raise
     return target
 
 
