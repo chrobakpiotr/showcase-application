@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 2,
+  "decided_by": "Piotr (owner decision 2026-10-08)",
+  "decision": "Owner decision: resolve the verification-only blocker. Replan only the T-900 verification command to the existing pinned Harness v0.5.0 qualification CLI, bound to evidence/selected/report.json, evidence/selected, evidence/selected/capability.json, and current job local-20261008T205033Z-7939417fefb5. Preserve the accepted objective, reviewer role, acceptance criteria, allowed paths and policy. Do not claim qualification until the independent review and checker pass.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": ".agent-runs/completion-capture/AH5-04B-QUAL-001-T-900-attempt-2/verify-0.stderr",
+  "prior_reason": "Registered verification still invokes the absent check_selected_report.py; repeating failure in the escalation path required by human-resolve lifecycle.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T21:05:23.567196+00:00",
+  "schema_version": 1,
+  "task": "T-900"
+}
