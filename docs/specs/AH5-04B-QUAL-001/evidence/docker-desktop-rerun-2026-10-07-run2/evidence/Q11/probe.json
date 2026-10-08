@@ -1,0 +1,15 @@
+{
+  "check_id": "Q11",
+  "details": {
+    "details": "prepared-identity-fsynced",
+    "exit_code": 0,
+    "reason_code": "EXECUTION_IDENTITY_DURABLE",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "EXECUTION_IDENTITY_DURABLE",
+  "reason_code": "EXECUTION_IDENTITY_DURABLE",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"EXECUTION_IDENTITY_DURABLE\", \"details\": \"prepared-identity-fsynced\"}\n"
+}

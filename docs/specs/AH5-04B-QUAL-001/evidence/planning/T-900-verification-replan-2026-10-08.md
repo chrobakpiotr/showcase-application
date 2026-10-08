@@ -1,0 +1,5 @@
+# Human resolution: T-900 verification command
+
+The T-900 independent review for job `local-20261008T081503Z-3aff2f02a9fb` is preserved in its failed-attempt checkpoint. The exact-target review passes, and the pinned Harness v0.5.0 CLI passes when invoked directly. The task cannot complete because its active packet names `tooling/agent-harness/qualification/check_selected_report.py`, which is absent and exits 2.
+
+Authorize a task-only replan that changes only the T-900 `verification` command to the existing Harness v0.5.0 `qualification --check` CLI, bound to the already selected report, evidence root, capability report, and exact job ID. Keep the accepted feature specification, T-900 objective, reviewer role, acceptance criteria, allowed paths, and qualification policy unchanged. Resume and complete through normal Harness lifecycle commands after the new packet is active. This resolution makes no provider-attestation, GitHub-runner, or production claim and does not qualify an execution backend.

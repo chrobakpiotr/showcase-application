@@ -1,0 +1,11 @@
+{
+  "capabilities": [],
+  "contract_version": 1,
+  "discovered": true,
+  "launch_ready": false,
+  "policy_digest": "sha256:ce736b1809cfce41131f493893d42f84c0f7cc0f9d631f6b02e2d8c1173c16b7",
+  "qualified": false,
+  "refusal": "NOT_QUALIFIED",
+  "supported": true,
+  "target": "showcase-docker-desktop"
+}

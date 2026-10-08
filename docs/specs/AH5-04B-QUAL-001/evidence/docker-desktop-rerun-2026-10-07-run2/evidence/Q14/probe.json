@@ -1,0 +1,15 @@
+{
+  "check_id": "Q14",
+  "details": {
+    "details": "killpg-zero-returned-esrch",
+    "exit_code": 0,
+    "reason_code": "DRAINED_WITH_PROCESS_TABLE_PROOF",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "DRAIN_EXECUTION_UNIT",
+  "reason_code": "DRAINED_WITH_PROCESS_TABLE_PROOF",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"DRAINED_WITH_PROCESS_TABLE_PROOF\", \"details\": \"killpg-zero-returned-esrch\"}\n"
+}

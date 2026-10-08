@@ -1,0 +1,20 @@
+{
+  "check_id": "B6",
+  "details": {
+    "exit_code": 0,
+    "host_env_canary_absent": true,
+    "host_file_canary_absent": true,
+    "inherited_env": {
+      "ANTHROPIC_API_KEY": false,
+      "AWS_ACCESS_KEY_ID": false,
+      "SHOWCASE_HOST_CANARY": false
+    },
+    "mounted_credential_paths": []
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "EXACT_ENVIRONMENT_NO_INHERITED_CREDENTIALS",
+  "reason_code": "HOST_ENV_AND_CREDENTIALS_ABSENT",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"inherited_env\": {\"SHOWCASE_HOST_CANARY\": false, \"AWS_ACCESS_KEY_ID\": false, \"ANTHROPIC_API_KEY\": false}, \"mounted_credential_paths\": [], \"host_file_canary_absent\": true, \"host_env_canary_absent\": true}\n"
+}

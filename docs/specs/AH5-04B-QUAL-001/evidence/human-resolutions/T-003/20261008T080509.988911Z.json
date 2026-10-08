@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 3,
+  "decided_by": "Human owner instruction relayed 2026-10-08",
+  "decision": "Continue one in-scope T-003 retry to close the independent security review finding. Preserve the accepted B9 contract: destroy the immutable container before bounded result access; reject non-regular files and symlinks without reading them. Add O_NONBLOCK and a FIFO regression test. No accepted policy or specification changes.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": "docs/specs/AH5-04B-QUAL-001/evidence/b10-contract-v2-blocker-2026-10-07.json",
+  "prior_reason": "Independent security re-review found FIFO open can block before regular-file validation; complete bounded, fail-closed artifact handling with O_NONBLOCK and adversarial FIFO evidence.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T08:05:09.989464+00:00",
+  "schema_version": 1,
+  "task": "T-003"
+}

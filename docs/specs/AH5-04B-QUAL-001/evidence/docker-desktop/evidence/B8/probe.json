@@ -1,0 +1,40 @@
+{
+  "check_id": "B8",
+  "details": {
+    "configured": {
+      "cgroup": "{\"cpu.max\": \"100000 100000\", \"memory.max\": \"536870912\", \"memory.swap.max\": \"0\", \"pids.max\": \"64\"}",
+      "exit_code": 0
+    },
+    "disk": {
+      "bytes_written": 268435457,
+      "exit_code": 0,
+      "limit_observed": false
+    },
+    "memory": {
+      "exit_code": 137,
+      "limit_observed": true,
+      "stderr_tail": ""
+    },
+    "output": {
+      "captured_bytes": 1100001,
+      "limit_observed": false,
+      "required_max_bytes": 1048576
+    },
+    "pids": {
+      "evidence": "pid-limit-observed 63 BlockingIOError\n",
+      "exit_code": 0,
+      "limit_named": true
+    },
+    "wall": {
+      "container_gone_after_timeout": true,
+      "container_name": "showcase-b8-wall-76ccb0ce32",
+      "status": "client-timeout"
+    }
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "RESOURCE_LIMITS_AND_BOUNDED_OUTPUT",
+  "reason_code": "RESOURCE_LIMIT_COUNTEREXAMPLE",
+  "status": "fail",
+  "stderr": "",
+  "stdout": "{\"configured\": {\"cgroup\": \"{\\\"cpu.max\\\": \\\"100000 100000\\\", \\\"memory.max\\\": \\\"536870912\\\", \\\"memory.swap.max\\\": \\\"0\\\", \\\"pids.max\\\": \\\"64\\\"}\", \"exit_code\": 0}, \"disk\": {\"bytes_written\": 268435457, \"exit_code\": 0, \"limit_observed\": false}, \"memory\": {\"exit_code\": 137, \"limit_observed\": true, \"stderr_tail\": \"\"}, \"pids\": {\"evidence\": \"pid-limit-observed 63 BlockingIOError\\n\", \"exit_code\": 0, \"limit_named\": true}, \"wall\": {\"container_gone_after_timeout\": true, \"container_name\": \"showcase-b8-wall-76ccb0ce32\", \"status\": \"client-timeout\"}}\noutput_captured_bytes=1100001\n"
+}

@@ -1,0 +1,16 @@
+{
+  "check_id": "Q09",
+  "details": {
+    "container_exited": true,
+    "container_id": "8d2764979a1cfb46860110c960d7cab831d600e4450655b6e0fa2fe06c748daf",
+    "descendant_visible": true,
+    "ready": true,
+    "removed": true
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "CONTAINMENT_NEW_SESSION",
+  "reason_code": "CONTAINER_DESCENDANTS_DRAINED",
+  "status": "pass",
+  "stderr": "\n\n\n\n",
+  "stdout": "8d2764979a1cfb46860110c960d7cab831d600e4450655b6e0fa2fe06c748daf\n\n8\nPID                 PPID                PGID                SID                 COMMAND\n3450                3426                3450                3450                docker-init\n3463                3450                3463                3450                python3\n3464                3463                3464                3464                python3\n\nFlag --time has been deprecated, use --timeout instead\n8d2764979a1cfb46860110c960d7cab831d600e4450655b6e0fa2fe06c748daf\n\nexited\n"
+}

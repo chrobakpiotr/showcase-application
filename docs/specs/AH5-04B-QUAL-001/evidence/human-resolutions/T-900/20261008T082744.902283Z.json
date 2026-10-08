@@ -1,0 +1,14 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 1,
+  "decided_by": "Human owner authorized continuation 2026-10-08",
+  "decision": "# Human resolution: T-900 verification command\n\nThe T-900 independent review for job `local-20261008T081503Z-3aff2f02a9fb` is preserved in its failed-attempt checkpoint. The exact-target review passes, and the pinned Harness v0.5.0 CLI passes when invoked directly. The task cannot complete because its active packet names `tooling/agent-harness/qualification/check_selected_report.py`, which is absent and exits 2.\n\nAuthorize a task-only replan that changes only the T-900 `verification` command to the existing Harness v0.5.0 `qualification --check` CLI, bound to the already selected report, evidence root, capability report, and exact job ID. Keep the accepted feature specification, T-900 objective, reviewer role, acceptance criteria, allowed paths, and qualification policy unchanged. Resume and complete through normal Harness lifecycle commands after the new packet is active. This resolution makes no provider-attestation, GitHub-runner, or production claim and does not qualify an execution backend.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": "docs/specs/AH5-04B-QUAL-001/evidence/selected/t900-evaluation.json",
+  "prior_reason": "Independent report review passed, but the active T-900 packet verification invokes a nonexistent check_selected_report.py path; direct pinned Harness CLI passes, but the registered command exits 2. Requires packet verification replan before task completion.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T08:27:44.904046+00:00",
+  "schema_version": 1,
+  "source": "docs/specs/AH5-04B-QUAL-001/evidence/planning/T-900-verification-replan-2026-10-08.md",
+  "task": "T-900"
+}

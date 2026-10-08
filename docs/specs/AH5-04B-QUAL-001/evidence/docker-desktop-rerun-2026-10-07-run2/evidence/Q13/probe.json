@@ -1,0 +1,15 @@
+{
+  "check_id": "Q13",
+  "details": {
+    "details": "cancel=CANCEL_REQUESTED;drain=DRAINED",
+    "exit_code": 0,
+    "reason_code": "WHOLE_UNIT_CANCELLED_AND_DRAINED",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "CANCEL_EXECUTION_UNIT",
+  "reason_code": "WHOLE_UNIT_CANCELLED_AND_DRAINED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"WHOLE_UNIT_CANCELLED_AND_DRAINED\", \"details\": \"cancel=CANCEL_REQUESTED;drain=DRAINED\"}\n"
+}

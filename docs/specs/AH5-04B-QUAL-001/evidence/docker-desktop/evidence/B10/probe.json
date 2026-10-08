@@ -1,0 +1,20 @@
+{
+  "check_id": "B10",
+  "details": {
+    "limitation": "No v2 grade result is accepted or exposed by this Showcase checkout.",
+    "required_fields": [
+      "target_id",
+      "qualification_report_digest",
+      "workload_image_digest",
+      "applied_limits",
+      "limit_fired",
+      "exit_code"
+    ]
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "PER_GRADE_TARGET_AND_LIMIT_PROVENANCE",
+  "reason_code": "CONTRACT_V1_HAS_NO_PER_GRADE_TARGET_DIGEST_FIELDS",
+  "status": "not-run",
+  "stderr": "",
+  "stdout": ""
+}

@@ -1,0 +1,13 @@
+{
+  "check_id": "Q01",
+  "details": {
+    "exit_code": 0,
+    "protected_path_written": false
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "PERMITTED_WRITE",
+  "reason_code": "PERMITTED_WRITE_OBSERVED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "allowed-write\n"
+}

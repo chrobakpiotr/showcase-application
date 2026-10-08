@@ -1,0 +1,77 @@
+{
+  "check_id": "B8",
+  "details": {
+    "configured": {
+      "exact_match": true,
+      "expected": {
+        "cpu.max": "100000 100000",
+        "memory.max": "536870912",
+        "memory.swap.max": "0",
+        "pids.max": "64"
+      },
+      "observed": {
+        "cpu.max": "100000 100000",
+        "memory.max": "536870912",
+        "memory.swap.max": "0",
+        "pids.max": "64"
+      }
+    },
+    "disk": {
+      "exit_code": 0,
+      "filesystem": {
+        "tmp": "tmpfs",
+        "workspace": "tmpfs"
+      },
+      "limit_bytes": 268435456,
+      "limit_observed": true,
+      "overflow_errno": "ENOSPC",
+      "stderr_tail": "",
+      "tmp_bytes": 16777216,
+      "total_bytes": 268435456,
+      "workspace_bytes": 251658240
+    },
+    "memory": {
+      "container_state": {
+        "container_id": "a41dddfbd9757be83390504c5f6341e69819d2be75edc3ff535dd625e94f7c6e",
+        "exit_code": 137,
+        "oom_killed": true,
+        "status": "exited"
+      },
+      "exit_code": 137,
+      "limit_observed": true,
+      "stderr_tail": ""
+    },
+    "output": {
+      "captured_bytes": 1048576,
+      "limit_observed": true,
+      "required_max_bytes": 1048576,
+      "truncated": true
+    },
+    "pids": {
+      "evidence": {
+        "children": 63,
+        "errno": 11,
+        "pid_limit_observed": true
+      },
+      "exit_code": 0,
+      "limit_named": true
+    },
+    "wall": {
+      "container_id": "85af5b90714464dbfb270aa1e3383d578bc01fc160f64e68a1e335e057903282",
+      "container_state": {
+        "exit_code": 137,
+        "status": "exited"
+      },
+      "container_stopped_by_id": true,
+      "kill_exit_code": 0,
+      "status": "container-timeout"
+    }
+  },
+  "job_id": "local-20261008T081503Z-3aff2f02a9fb",
+  "name": "RESOURCE_LIMITS_AND_BOUNDED_OUTPUT",
+  "reason_code": "ALL_RESOURCE_LIMITS_ENFORCED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"configured\": {\"exact_match\": true, \"expected\": {\"cpu.max\": \"100000 100000\", \"memory.max\": \"536870912\", \"memory.swap.max\": \"0\", \"pids.max\": \"64\"}, \"observed\": {\"cpu.max\": \"100000 100000\", \"memory.max\": \"536870912\", \"memory.swap.max\": \"0\", \"pids.max\": \"64\"}}, \"disk\": {\"exit_code\": 0, \"filesystem\": {\"tmp\": \"tmpfs\", \"workspace\": \"tmpfs\"}, \"limit_bytes\": 268435456, \"limit_observed\": true, \"overflow_errno\": \"ENOSPC\", \"stderr_tail\": \"\", \"tmp_bytes\": 16777216, \"total_bytes\": 268435456, \"workspace_bytes\": 251658240}, \"memory\": {\"container_state\": {\"container_id\": \"a41dddfbd9757be83390504c5f6341e69819d2be75edc3ff535dd625e94f7c6e\", \"exit_code\": 137, \"oom_killed\": true, \"status\": \"exited\"}, \"exit_code\": 137, \"limit_observed\": true, \"stderr_tail\": \"\"}, \"pids\": {\"evidence\": {\"children\": 63, \"errno\": 11, \"pid_limit_observed\": true}, \"exit_code\": 0, \"limit_named\": true}, \"wall\": {\"container_id\": \"85af5b90714464dbfb270aa1e3383d578bc01fc160f64e68a1e335e057903282\", \"container_state\": {\"exit_code\": 137, \"status\": \"exited\"}, \"container_stopped_by_id\": true, \"kill_exit_code\": 0, \"status\": \"container-timeout\"}}\noutput_captured_bytes=1048576\n",
+  "target_id": "showcase-docker-desktop-linux-guest"
+}

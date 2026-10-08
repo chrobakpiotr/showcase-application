@@ -1,0 +1,13 @@
+{
+  "check_id": "Q03",
+  "details": {
+    "exit_code": 0,
+    "protected_path_written": false
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "PROTECTED_WRITE_CHILD",
+  "reason_code": "PROTECTED_WRITE_DENIED",
+  "status": "pass",
+  "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/usr/local/lib/python3.12/pathlib.py\", line 1047, in write_text\n    with self.open(mode='w', encoding=encoding, errors=errors, newline=newline) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/pathlib.py\", line 1013, in open\n    return io.open(self, mode, buffering, encoding, errors, newline)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nOSError: [Errno 30] Read-only file system: '/protected/attempted-write'\n",
+  "stdout": "child-denied\n"
+}

@@ -1,0 +1,15 @@
+{
+  "check_id": "Q15",
+  "details": {
+    "details": "live-process-group-member;cleanup=DRAINED",
+    "exit_code": 0,
+    "reason_code": "RESTART_ACTIVE",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "RESTART_ACTIVE",
+  "reason_code": "RESTART_ACTIVE",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"RESTART_ACTIVE\", \"details\": \"live-process-group-member;cleanup=DRAINED\"}\n"
+}

@@ -1,0 +1,17 @@
+{
+  "check_id": "B5",
+  "details": {
+    "dns": "blocked",
+    "egress_tcp": "blocked",
+    "egress_udp": "blocked",
+    "exit_code": 0,
+    "metadata_tcp": "blocked",
+    "metadata_udp": "blocked"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+  "name": "NO_NETWORK_EGRESS_DNS_OR_METADATA",
+  "reason_code": "EGRESS_DNS_METADATA_BLOCKED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"egress_tcp\": \"blocked\", \"metadata_tcp\": \"blocked\", \"egress_udp\": \"blocked\", \"metadata_udp\": \"blocked\", \"dns\": \"blocked\"}\n"
+}

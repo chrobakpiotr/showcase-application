@@ -1,0 +1,303 @@
+{
+  "author": "showcase-qualification-driver",
+  "checks": [
+    {
+      "evidence": [
+        {
+          "path": "Q01/probe.json",
+          "sha256": "sha256:f7924c00153b4ff27f0808f2479fe6c69d72af3e7651bb08038fb56bd6d3f0d9",
+          "size": 302
+        }
+      ],
+      "id": "Q01",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q02/probe.json",
+          "sha256": "sha256:6d4b474e5cc5f6f7b83921dd007c16d9bf9c62b9809904b0ca3f26bca4cbf3fe",
+          "size": 300
+        }
+      ],
+      "id": "Q02",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q03/probe.json",
+          "sha256": "sha256:02f5f6a84bc9237d42d1a966a253985d842d1c31754882c651ea08c9e8479f96",
+          "size": 908
+        }
+      ],
+      "id": "Q03",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q04/probe.json",
+          "sha256": "sha256:5590344e6d082af9a112fed741e119ab9a973963a380967abd4ac0c384d73e38",
+          "size": 918
+        }
+      ],
+      "id": "Q04",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q05/probe.json",
+          "sha256": "sha256:6fb7c34008498fb7dc786a814ea8d474546718d3a671c5f632e39ee809536548",
+          "size": 1000
+        }
+      ],
+      "id": "Q05",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q06/probe.json",
+          "sha256": "sha256:749ab517383558d19e07d6a0500592290994719b772318fdc412a8a65392f235",
+          "size": 1005
+        }
+      ],
+      "id": "Q06",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q07/probe.json",
+          "sha256": "sha256:bb9937631500425ed1aae7379a1f6f15625b694d67c1d728f195a5124b3486bf",
+          "size": 676
+        }
+      ],
+      "id": "Q07",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q08/probe.json",
+          "sha256": "sha256:e7f30919e2cc8c8078631dc955e2ddc7bb495d75e289439bbaddc26dd3befdaf",
+          "size": 1012
+        }
+      ],
+      "id": "Q08",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q09/probe.json",
+          "sha256": "sha256:c788be717c18956dff96e0105e13ec37811f549e82aab179edf9726e06bf6a6b",
+          "size": 1006
+        }
+      ],
+      "id": "Q09",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q10/probe.json",
+          "sha256": "sha256:ead6dc3fe68497c0748abf5bdbe0bfa98aa2f1cf10ba7cb8e752b254ac4facfa",
+          "size": 1095
+        }
+      ],
+      "id": "Q10",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q11/probe.json",
+          "sha256": "sha256:23f1cc726686d32d3f9278ec5113409d7a7faa8cbf997b1e364d17a127a7847d",
+          "size": 495
+        }
+      ],
+      "id": "Q11",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q12/probe.json",
+          "sha256": "sha256:95b7758c2b561a68cf581970f5c094e7ce9cbc6b23829a24ee76e5574f803622",
+          "size": 491
+        }
+      ],
+      "id": "Q12",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q13/probe.json",
+          "sha256": "sha256:d5886060c35dddb17b0095a3ebbc08a7865628620e9b2b322256f546973923db",
+          "size": 532
+        }
+      ],
+      "id": "Q13",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q14/probe.json",
+          "sha256": "sha256:d6593a2205fb2460f9413f76f737775c47dbd42ee3fb78035fd79093a75f463f",
+          "size": 509
+        }
+      ],
+      "id": "Q14",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q15/probe.json",
+          "sha256": "sha256:332411b74e8ab372c701d7e90747adee4b52ae7ad7daab74beaa0e638a8cb923",
+          "size": 3919
+        }
+      ],
+      "id": "Q15",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "Q16/probe.json",
+          "sha256": "sha256:3298a54f308880012582b9aa730eab21b5d49924afa21522c2ee5de506c95850",
+          "size": 4255
+        }
+      ],
+      "id": "Q16",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B1/probe.json",
+          "sha256": "sha256:77149bc67333fc0b2c368d7d0847616ebba30829fbc2acfa2e579be5b7b3e36d",
+          "size": 360
+        }
+      ],
+      "id": "B1",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B2/probe.json",
+          "sha256": "sha256:58ca4782a0645157b6bfafafc04ce91e0d0a876ab6ef9b26d58c70e145eaa2e5",
+          "size": 464
+        }
+      ],
+      "id": "B2",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B3/probe.json",
+          "sha256": "sha256:997a38dc3f1a80fa621c679300b163cad0ef36933b4e8383b0594f363c17dcfc",
+          "size": 340
+        }
+      ],
+      "id": "B3",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B4/probe.json",
+          "sha256": "sha256:829f8604a334ba687a9d9130830dc053324e54a4331d4b8a2fdc3e242c2e7a43",
+          "size": 583
+        }
+      ],
+      "id": "B4",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B5/probe.json",
+          "sha256": "sha256:46d090b02ee4f2542559ef2b1a8565d630e2220c94c1e0d25ea0c2c5f9619fdb",
+          "size": 556
+        }
+      ],
+      "id": "B5",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B6/probe.json",
+          "sha256": "sha256:e31ded1116110d4347126ec2165a7f17a620b2f40604a93431707119176dc076",
+          "size": 745
+        }
+      ],
+      "id": "B6",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B7/probe.json",
+          "sha256": "sha256:4309a5fc1e28de277e140286fe7d6d4bd35b22be5637ae6ca11388151caf7032",
+          "size": 617
+        }
+      ],
+      "id": "B7",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B8/probe.json",
+          "sha256": "sha256:1e81edb3bf9ba2ea766442b9fc3c558d652131218583a75395c79d5ad8126c40",
+          "size": 1700
+        }
+      ],
+      "id": "B8",
+      "result": "fail"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B9/probe.json",
+          "sha256": "sha256:4c2e76d84d0881d2ac97880c2f8f93ac3d7dc11df46f436d105c554784073cf7",
+          "size": 424
+        }
+      ],
+      "id": "B9",
+      "result": "pass"
+    },
+    {
+      "evidence": [
+        {
+          "path": "B10/probe.json",
+          "sha256": "sha256:b955226be39880037fff386b694345c14eedbeb683ce7522e4a62ece582d7f19",
+          "size": 552
+        }
+      ],
+      "id": "B10",
+      "result": "not-run"
+    }
+  ],
+  "contract_version": 1,
+  "created_at": "2026-10-07T10:02:29Z",
+  "independent_review": null,
+  "policy_digest": "sha256:ce736b1809cfce41131f493893d42f84c0f7cc0f9d631f6b02e2d8c1173c16b7",
+  "target": "showcase-docker-desktop",
+  "tuple": {
+    "engine": "29.8.2",
+    "host": "darwin-24.6.0-x86_64-docker-desktop",
+    "job_id": "showcase-docker-desktop-local-2026-10-07-run2",
+    "kernel": "7.0.14-linuxkit",
+    "workload_image": "sha256:4d1caded1f729ae443eb803f26ffde7b61e696aeaef62f099abb6dd6b14257c7"
+  }
+}

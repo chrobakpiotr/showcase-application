@@ -1,0 +1,15 @@
+{
+  "check_id": "Q07",
+  "details": {
+    "child_started": true,
+    "container_id": "0ce32d31f40632c92a5384e47a4c76c94f24ee2e8126ce039aede01ddcc9201f",
+    "removed": true,
+    "unit_stopped": true
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "CONTAINMENT_PARENT_EXIT",
+  "reason_code": "PARENT_EXIT_DRAINED_UNIT",
+  "status": "pass",
+  "stderr": "\n\nError response from daemon: container 0ce32d31f40632c92a5384e47a4c76c94f24ee2e8126ce039aede01ddcc9201f is not running\n\n",
+  "stdout": "0ce32d31f40632c92a5384e47a4c76c94f24ee2e8126ce039aede01ddcc9201f\n\n8\nexited 0\n\n\n0ce32d31f40632c92a5384e47a4c76c94f24ee2e8126ce039aede01ddcc9201f\n"
+}

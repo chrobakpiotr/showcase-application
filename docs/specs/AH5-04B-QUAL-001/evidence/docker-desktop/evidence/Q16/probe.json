@@ -1,0 +1,15 @@
+{
+  "check_id": "Q16",
+  "details": {
+    "details": "previous-positive-drainage-proof",
+    "exit_code": 0,
+    "reason_code": "RESTART_DRAINED",
+    "status": "PASS"
+  },
+  "job_id": "showcase-docker-desktop-local-2026-10-07-run1",
+  "name": "RESTART_DRAINED",
+  "reason_code": "RESTART_DRAINED",
+  "status": "pass",
+  "stderr": "",
+  "stdout": "{\"status\": \"PASS\", \"reason_code\": \"RESTART_DRAINED\", \"details\": \"previous-positive-drainage-proof\"}\n"
+}

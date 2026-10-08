@@ -1,0 +1,14 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 1,
+  "decided_by": "Human owner decision relayed 2026-10-07",
+  "decision": "# Harness v0.5 candidate-target amendment (2026-10-07)\n\nSource: human-forwarded Harness handoff, including the accepted ADR 0005 amendment and explicit B8 rework requirements.\n\nAccepted decisions applied to this feature:\n\n- Pin `agent-harness[grants]` to v0.5.0 at `16bb93821292096b94889306288ee2caec5f4006`.\n- During qualification, B10 validates observed contract-v2 grading results at `isolation_level: unqualified`, with candidate target `{id, image_digest, qualification_digest: null}`. Validate the exact request/result with `contract.validate_result` and the candidate with `contract.validate_target(target, qualified=False)`.\n- An `unknown` terminal has no target; investigate it as a qualification failure, never use it as evidence.\n- Only after qualification passes do qualified results carry the report digest; consumers bind them with `validate_capability_binding`.\n- B8 asserts exactly `cpu.max=100000 100000`, `memory.max=536870912`, `memory.swap.max=0`, and `pids.max=64`. OOM must be observed from container `State.OOMKilled` or a cgroup `oom_kill` counter increase. Tests cover unlimited/wrong settings and unrelated nonzero exits.\n- Preserve prior accepted B8 behavior: total `/workspace` plus `/tmp` writable capacity is 256 MiB; stop timed-out containers by ID and record observed state. The accepted focused run's disk, output-cap and timeout observations remain diagnostic until B8's assertions are corrected.\n\nThis amendment supersedes the v0.4 B10 digest bootstrap description. It does not qualify a target or authorize execution. Full qualification still requires all 26 passing checks, a passing independent review, and the current-job Harness checker.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": "docs/specs/AH5-04B-QUAL-001/evidence/b10-contract-v2-blocker-2026-10-07.json",
+  "prior_reason": "B10 v2 has no non-circular first qualification digest; a human contract decision is required.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-07T15:20:56.055908+00:00",
+  "schema_version": 1,
+  "source": "docs/specs/AH5-04B-QUAL-001/evidence/replans/harness-v0.5-candidate-target-2026-10-07.md",
+  "task": "T-003"
+}
