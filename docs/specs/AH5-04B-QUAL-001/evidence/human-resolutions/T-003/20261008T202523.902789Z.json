@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 5,
+  "decided_by": "Piotr (instruction relayed in this session)",
+  "decision": "Human-directed continuation: recreate T-003 from its completed T-002 dependency checkpoint and rerun the existing accepted B1-B10 scope without changing the specification or qualification contract.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": "docs/specs/AH5-04B-QUAL-001/evidence/b10-contract-v2-blocker-2026-10-07.json",
+  "prior_reason": "Second rerun required: attempt 5 reused the retained T-003 worktree instead of recreating it from completed dependency T-002 checkpoint e37b09c. Recreate T-003 from its dependency checkpoint and rerun T-003/T-004 so downstream qualification includes the accepted T-002 lifecycle code.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T20:25:23.903376+00:00",
+  "schema_version": 1,
+  "task": "T-003"
+}

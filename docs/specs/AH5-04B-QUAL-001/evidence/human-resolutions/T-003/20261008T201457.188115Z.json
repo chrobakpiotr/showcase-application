@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 4,
+  "decided_by": "Piotr (instruction relayed in this session)",
+  "decision": "Human-directed continuation: rerun the existing accepted T-003 task under the unchanged specification because the prior report and downstream completion results are stale after the accepted T-002 probe correction. Do not change the qualification contract or claim target qualification until a fresh report and independent review pass.",
+  "feature": "AH5-04B-QUAL-001",
+  "prior_evidence": "docs/specs/AH5-04B-QUAL-001/evidence/b10-contract-v2-blocker-2026-10-07.json",
+  "prior_reason": "Harness round-4-approved lifecycle fix is integrated. The previous qualification report and completed T-003 through T-900 evidence were produced before the accepted T-002 probe correction and do not qualify the current implementation; rerun T-003 and all dependent qualification tasks.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T20:14:57.188694+00:00",
+  "schema_version": 1,
+  "task": "T-003"
+}
