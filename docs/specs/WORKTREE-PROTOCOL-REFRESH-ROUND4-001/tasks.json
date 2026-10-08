@@ -1,0 +1,55 @@
+{
+  "feature": "WORKTREE-PROTOCOL-REFRESH-ROUND4-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Persist first-task orchestration base authority",
+      "objective": "Record the committed-HEAD base when the first task worktree is created and preserve it through staged start state so feature reconciliation can prove its historical snapshot.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",
+        "python3 -m py_compile tooling/agent-harness/harness.py",
+        "git diff --check"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Temporary git repository with committed initial feature: exercise worktree-create, start, plan commit and reconcile-feature without seeding base_commit; also preserve all round-3 refresh regression tests."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate base authority lifecycle regression",
+      "objective": "Try to falsify first-worktree base recording, start-state persistence, reconciliation against historical content, and preservation of the round-3 refresh behavior.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/WORKTREE-PROTOCOL-REFRESH-ROUND4-001/evidence/**"],
+      "risk_tags": ["evaluation", "lifecycle", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "python3 tooling/agent-harness/tests/test_harness.py",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",
+        "python3 -m py_compile tooling/agent-harness/harness.py",
+        "git diff --check"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Use a clean temporary clone and the registered lifecycle commands. Verify reconcile-feature succeeds after worktree-create then start without any direct state edits, and rerun the round-3 guard and cleanup probes."
+    }
+  ]
+}

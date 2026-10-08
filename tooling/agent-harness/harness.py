@@ -4891,16 +4891,36 @@ def execution_protocol_paths(feature_dir: pathlib.Path) -> list[str]:
         feature_rel = feature_dir.resolve().relative_to(root)
     except ValueError:
         die('feature_dir must be inside the repository')
+    return [
+        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents',
+        'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml',
+        f'{feature_rel}/spec.md', f'{feature_rel}/plan.md', f'{feature_rel}/tasks.json',
+        f'{feature_rel}/design.json', f'{feature_rel}/design/gate.json',
+        f'{feature_rel}/verification-contract.json', f'{feature_rel}/wayfinder-handoff.json',
+    ]
+
+
+def legacy_execution_snapshot_paths(feature_dir: pathlib.Path) -> list[str]:
+    """Keep the pre-task synthetic snapshot scope for design and wayfinder callers."""
+    root = repo_root()
+    try:
+        feature_rel = feature_dir.resolve().relative_to(root)
+    except ValueError:
+        die('feature_dir must be inside the repository')
     candidates = [
-        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'agent-harness',
+        '.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents',
         'docs/agentic-sdd', '.github/workflows/agentic-sdd.yml', str(feature_rel),
     ]
     return [candidate for candidate in candidates if (root / candidate).exists()]
 
 
-def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any], *,
-                               reject_unrelated: bool = True) -> tuple[str, bool]:
-    """Return a commit containing the root's current scoped protocol/feature snapshot."""
+def _path_is_selected(path: str, selected: list[str]) -> bool:
+    return any(path == item or path.startswith(item.rstrip('/') + '/')
+               for item in selected if item)
+
+
+def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any]) -> tuple[str, bool]:
+    """Return an immutable snapshot for non-task orchestration callers."""
     root = repo_root()
     head = subprocess.run(
         ['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True, text=True, check=True
@@ -4911,41 +4931,92 @@ def current_execution_snapshot(feature_dir: pathlib.Path, doc: dict[str, Any], *
     except ValueError:
         die('feature_dir must be inside the repository')
     unrelated = [path for path in dirty if not bootstrap_path_allowed(path, feature_rel)]
-    if reject_unrelated and unrelated:
-        die(
-            'primary checkout has uncommitted changes outside the SDD protocol/active feature; '
-            f'create a deliberate local checkpoint or stash them before parallel execution: {unrelated}'
-        )
+    if unrelated:
+        die('primary checkout has uncommitted changes outside the SDD protocol/active feature; '
+            f'create a deliberate local checkpoint or stash them before orchestration: {unrelated}')
+    selected = legacy_execution_snapshot_paths(feature_dir)
     if not dirty:
         return head, False
 
-    # Build an immutable commit object from HEAD plus only the SDD protocol and active feature.
-    # commit-tree does not move HEAD or any user branch. The object becomes reachable only when
-    # task-local branches are created from it.
+    # Preserve the legacy synthetic snapshot for design/wayfinder/verification-contract
+    # callers. Task worktrees use task_worktree_snapshot below and never consume this.
     fd, index_name = tempfile.mkstemp(prefix='agent-sdd-index-')
     os.close(fd)
     os.unlink(index_name)
     env = os.environ.copy()
     env['GIT_INDEX_FILE'] = index_name
-    candidates = execution_protocol_paths(feature_dir)
     try:
         subprocess.run(['git', 'read-tree', head], cwd=root, env=env, check=True, capture_output=True)
-        if candidates:
-            subprocess.run(['git', 'add', '-A', '--', *candidates], cwd=root, env=env, check=True, capture_output=True)
-        tree = subprocess.run(
-            ['git', 'write-tree'], cwd=root, env=env, capture_output=True, text=True, check=True
-        ).stdout.strip()
+        tracked = subprocess.run(['git', 'ls-files'], cwd=root, capture_output=True,
+                                 text=True, check=True).stdout.splitlines()
+        selected_existing = [path for path in selected
+                             if (root / path).exists()
+                             or any(_path_is_selected(tracked_path, [path]) for tracked_path in tracked)]
+        subprocess.run(['git', 'add', '-A', '--', *selected_existing], cwd=root, env=env, check=True,
+                       capture_output=True)
+        tree = subprocess.run(['git', 'write-tree'], cwd=root, env=env, capture_output=True,
+                              text=True, check=True).stdout.strip()
         commit = subprocess.run(
-            [
-                'git', '-c', 'user.name=Agent Harness', '-c', 'user.email=agent-harness@local.invalid',
-                'commit-tree', tree, '-p', head, '-m', f'agent orchestration base {doc.get("feature", feature_dir.name)}',
-            ],
+            ['git', '-c', 'user.name=Agent Harness', '-c',
+             'user.email=agent-harness@local.invalid', 'commit-tree', tree, '-p', head,
+             '-m', f'agent orchestration base {doc.get("feature", feature_dir.name)}'],
             cwd=root, env=env, capture_output=True, text=True, check=True,
         ).stdout.strip()
     finally:
         if os.path.exists(index_name):
             os.unlink(index_name)
     return commit, True
+
+
+def task_worktree_snapshot(feature_dir: pathlib.Path) -> str:
+    """Return committed HEAD only, rejecting dirty paths that define task freshness."""
+    root = repo_root()
+    head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, capture_output=True,
+                          text=True, check=True).stdout.strip()
+    selected = execution_protocol_paths(feature_dir)
+    dirty = [path for path in changed_paths(root) if _path_is_selected(path, selected)]
+    if dirty:
+        die('primary checkout has uncommitted protocol/feature files; commit them before task worktree creation: '
+            f'{dirty}')
+    return head
+
+
+def stage_first_task_base(feature_dir: pathlib.Path, state: dict[str, Any],
+                          durable_state: dict[str, Any], task: dict[str, Any],
+                          target: pathlib.Path) -> None:
+    """Stage base authority and persist a recovery breadcrumb before worktree creation."""
+    if task.get('depends_on'):
+        return
+    if state.get('base_commit') is not None:
+        return
+
+    base = durable_state.get('base_commit')
+    kind = durable_state.get('base_kind')
+    if base is None:
+        base = durable_state.get('pending_base_commit')
+        kind = durable_state.get('pending_base_kind')
+        if base is not None:
+            check = subprocess.run(['git', 'cat-file', '-e', f'{base}^{{commit}}'], capture_output=True)
+            if (check.returncode != 0 or kind != 'head' or
+                    historical_feature_fingerprint(feature_dir, base) != feature_fingerprint(feature_dir)):
+                die(f'BASE_AUTHORITY_MISSING: pending first-task base cannot prove the accepted feature: {base}')
+    if base is None:
+        if target.exists():
+            die(f'BASE_AUTHORITY_MISSING: existing worktree has no recorded first-task base: {target}')
+        base = task_worktree_snapshot(feature_dir)
+        kind = 'head'
+        durable_state['pending_base_commit'] = base
+        durable_state['pending_base_kind'] = kind
+        # The pending pair is only a write-ahead recovery breadcrumb. It lets
+        # retries recover the original snapshot after an interrupted Git side
+        # effect without publishing base_commit/base_kind on a failed start.
+        save_state(feature_dir, durable_state)
+
+    check = subprocess.run(['git', 'cat-file', '-e', f'{base}^{{commit}}'], capture_output=True)
+    if check.returncode != 0 or kind != 'head':
+        die(f'BASE_AUTHORITY_MISSING: pending first-task base is invalid: {base}')
+    state['base_commit'] = base
+    state['base_kind'] = kind
 
 
 def execution_base(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> str:
@@ -4979,9 +5050,26 @@ def assert_worktree_protocol_current(feature_dir: pathlib.Path, target: pathlib.
         die(f'existing task worktree contains incompatible lifecycle protocol: {target}')
 
 
-def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any], task: dict[str, Any]) -> pathlib.Path:
+def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any],
+                          task: dict[str, Any], *,
+                          durable_state: dict[str, Any] | None = None) -> pathlib.Path:
     feature = str(doc.get('feature', feature_dir.name))
     target = worktree_path(feature, task['id'])
+    if durable_state is None:
+        durable_state = state
+    dep_commits: list[str] = []
+    for dep in task.get('depends_on', []):
+        commit = state['tasks'][dep].get('checkpoint_commit')
+        if not commit:
+            die(
+                f'dependency {dep} has no local checkpoint commit; '
+                'complete it from its task worktree before creating this dependent worktree'
+            )
+        if commit not in dep_commits:
+            dep_commits.append(commit)
+
+    first_base_missing = not task.get('depends_on') and state.get('base_commit') is None
+    stage_first_task_base(feature_dir, state, durable_state, task, target)
     if target.exists():
         dirty = changed_paths(target)
         if dirty:
@@ -4994,18 +5082,14 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
     if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
         die(f'local task branch already exists without a worktree: {branch}; delete it deliberately before recreation')
 
-    dep_commits: list[str] = []
-    for dep in task.get('depends_on', []):
-        commit = state['tasks'][dep].get('checkpoint_commit')
-        if not commit:
-            die(
-                f'dependency {dep} has no local checkpoint commit; '
-                'complete it from its task worktree before creating this dependent worktree'
-            )
-        if commit not in dep_commits:
-            dep_commits.append(commit)
-
-    base = dep_commits[0] if dep_commits else execution_base(feature_dir, doc, state)
+    if dep_commits:
+        base = dep_commits[0]
+    elif first_base_missing:
+        # Use the exact committed snapshot that was durably recorded as the
+        # first historical base; a second HEAD read here could race a commit.
+        base = state['base_commit']
+    else:
+        base = task_worktree_snapshot(feature_dir)
     subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, base], check=True)
     try:
         for commit in dep_commits[1:]:
@@ -5041,19 +5125,37 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
                 f'{missing}. Reset/re-plan the feature; the harness can synthesize a local base without moving your branch.'
             )
 
-        snapshot, _ = current_execution_snapshot(feature_dir, doc, reject_unrelated=False)
+        snapshot = task_worktree_snapshot(feature_dir)
         protocol_paths = execution_protocol_paths(feature_dir)
-        path_diff = subprocess.run(
-            ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
+        needs_refresh = (
+            feature_fingerprint(target / rel_feature) != feature_fingerprint(feature_dir)
+            or protocol_version(target / rel_feature) != protocol_version(feature_dir)
         )
-        if path_diff.returncode not in (0, 1):
-            die(f'cannot compare task worktree protocol snapshot: {target}')
-        stale_paths = path_diff.returncode == 1
-        if stale_paths:
-            subprocess.run(
-                ['git', 'restore', '--source', snapshot, '--staged', '--worktree', '--', *protocol_paths],
-                cwd=target, check=True,
+        if needs_refresh:
+            path_diff = subprocess.run(
+                ['git', 'diff', '--quiet', 'HEAD', snapshot, '--', *protocol_paths], cwd=target
             )
+            if path_diff.returncode not in (0, 1):
+                die(f'cannot compare task worktree protocol snapshot: {target}')
+            stale_paths = path_diff.returncode == 1
+        else:
+            stale_paths = False
+        if stale_paths:
+            root_paths = subprocess.run(['git', 'ls-tree', '-r', '--name-only', snapshot],
+                                        cwd=repo_root(), capture_output=True, text=True, check=True).stdout.splitlines()
+            target_paths = subprocess.run(['git', 'ls-files'], cwd=target,
+                                          capture_output=True, text=True, check=True).stdout.splitlines()
+            source_selected = [path for path in root_paths if _path_is_selected(path, protocol_paths)]
+            target_selected = [path for path in target_paths if _path_is_selected(path, protocol_paths)]
+            removed = sorted(set(target_selected) - set(source_selected))
+            if removed:
+                subprocess.run(['git', 'rm', '-f', '--', *removed], cwd=target, check=True,
+                               capture_output=True)
+            if source_selected:
+                subprocess.run(
+                    ['git', 'restore', '--source', snapshot, '--staged', '--worktree', '--', *source_selected],
+                    cwd=target, check=True,
+                )
             subprocess.run(
                 ['git', '-c', 'user.name=Agent Harness', '-c', 'user.email=agent-harness@local.invalid',
                  'commit', '--no-gpg-sign', '-m', f'agent orchestration refresh {feature}'],
@@ -5088,7 +5190,13 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
-        target = prepare_task_worktree(args.feature_dir, doc, state, task)
+        staged_state = copy.deepcopy(state)
+        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
+        for key in ('base_commit', 'base_kind'):
+            if key in staged_state:
+                state[key] = staged_state[key]
+        state.pop('pending_base_commit', None)
+        state.pop('pending_base_kind', None)
     print(target)
 
 
@@ -5111,7 +5219,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         if is_unrecovered_partial_claim(entry):
             die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
         consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
-        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task)
+        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
         now = utc_now()
         entry.update({
             'status': 'running',
@@ -5124,6 +5232,11 @@ def cmd_start(args: argparse.Namespace) -> None:
         append_attempt_binding(entry, args.feature_dir, doc, args.task_id, packet)
         refresh_lease(entry, doc, now=now)
         state['tasks'][args.task_id] = entry
+        for key in ('base_commit', 'base_kind'):
+            if key in staged_state:
+                state[key] = staged_state[key]
+        state.pop('pending_base_commit', None)
+        state.pop('pending_base_kind', None)
     print(json.dumps({'task': args.task_id, 'owner': args.owner, 'worktree': str(target), 'packet': str(packet)}, indent=2))
 
 def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:
