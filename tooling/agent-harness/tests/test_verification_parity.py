@@ -16,15 +16,34 @@ import runner
 class VerificationParityTest(unittest.TestCase):
     def test_runner_forwards_only_exact_accepted_plan_to_shared_cli(self):
         plan_id = 'verification-plan-v1:sha256:' + 'a' * 64
-        response = {'outcome': 'PASS', 'machine_category': None}
+        response = {'outcome': 'PASS', 'machine_category': None, 'plan_id': plan_id}
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
+            (root / 'docs' / 'specs' / 'SDD-OBS-001').mkdir(parents=True)
             out = root / 'result.json'
+            task_commands = [{'command': 'python3 -m unittest tests.test_example', 'cwd': '.'}]
+            packet = {'feature': 'SDD-OBS-001', 'task': 'T-006',
+                      'verification': [task_commands[0]['command']]}
+            lifecycle = mock.Mock()
+            lifecycle.load_validated.return_value = {}
+            lifecycle.resolve_active_packet.return_value = {
+                'packet': packet, 'revision_id': 'revision-1', 'contract_sha256': 'c' * 64}
+            lifecycle.packet_revision_id.return_value = 'revision-1'
+            lifecycle.packet_bound_semantic_contract_sha256.return_value = 'c' * 64
+            accepted_record = {
+                'feature_id': 'SDD-OBS-001', 'task_id': 'T-006',
+                'task_commands': task_commands, 'origin_binding': 'task-completion',
+                'family': {'origin_policy': 'task-completion'},
+            }
             completed = subprocess.CompletedProcess([], 0, json.dumps(response), '')
-            with mock.patch.object(runner.subprocess, 'run', return_value=completed) as invoke:
-                passed, evidence = runner.run_verification({}, root, out, 5,
+            with mock.patch.dict(sys.modules, {'harness': lifecycle}), \
+                 mock.patch('verification.authority.resolve_execution',
+                            return_value=(accepted_record, None, None, None)), \
+                 mock.patch.object(runner, 'git_snapshot', return_value=('clean',)), \
+                 mock.patch.object(runner.subprocess, 'run', return_value=completed) as invoke:
+                passed, evidence = runner.run_verification(packet, root, out, 5,
                     sandbox_mode='required', accepted_plan_id=plan_id)
-        self.assertTrue(passed)
+            self.assertTrue(passed, evidence)
         self.assertEqual(plan_id, evidence[0]['plan_id'])
         argv = invoke.call_args.args[0]
         self.assertEqual([sys.executable, str(HARNESS / 'verify.py'), 'run',

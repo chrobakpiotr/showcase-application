@@ -34,29 +34,67 @@ class ShowcaseProfileTest(unittest.TestCase):
             'agentic-sdd-doctor': ('docs/specs/SDD-OBS-001/tasks.json',),
             'showcase-gradle-build': (
                 'modules/domain/domain.gradle',
-                'apps/ecommerce/backend/src/main/java/com/example/App.java'),
+                'apps/ecommerce/backend/src/main/java/com/cp/ecommerce/application/EcommerceApplication.java',
+                'apps/ecommerce/backend/ecommerce.gradle',
+                'tooling/quality/jacoco/jacoco.gradle',
+                'tooling/quality/pitest/pitest.gradle',
+                'tooling/quality/checkstyle/checkstyle.xml',
+                'contracts/asyncapi/asyncapi.yml',
+                'apps/ecommerce/frontend/src/app/app.component.ts',
+                '.editorconfig',
+                'lombok.config',
+                'apps/ecommerce/backend/src/main/resources/application.yml'),
             'showcase-frontend-build': (
                 'apps/ecommerce/frontend/package-lock.json',
                 'apps/ecommerce/frontend/src/app/app.component.ts'),
             'domain-mutation-threshold': (
                 'modules/domain/domain.gradle',
                 'tooling/quality/pitest/pitest.gradle',
-                'tooling/scripts/verify-domain-pitest.sh'),
+                'tooling/scripts/verify-domain-pitest.sh',
+                'lombok.config'),
             'critical-postgres-regression': (
                 'tooling/quality/critical-postgres-manifest.json',
-                'apps/ecommerce/backend/src/test/java/com/example/CriticalTest.java'),
+                'apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderReplayPostgresIntegrationTest.java',
+                'modules/adapters/common/src/main/java/com/cp/ecommerce/adapter/common/validation/DefaultDomainObjectValidator.java',
+                'modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/authentication/CurrentOperatorProvider.java',
+                'modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/wishlist/resource/WishlistResource.java',
+                'modules/adapters/mail/src/main/java/com/cp/ecommerce/adapter/mail/message/EmailMessageFactory.java',
+                'modules/adapters/kafka/src/main/java/com/cp/ecommerce/adapter/kafka/configuration/KafkaHealthIndicator.java',
+                'modules/adapters/camel/src/main/java/com/cp/ecommerce/adapter/camel/configuration/CamelPropertiesConfiguration.java',
+                'modules/adapters/ai/src/main/java/com/cp/ecommerce/adapter/ai/analytics/AnalyticsAssistantAdapter.java',
+                'modules/adapters/aws/aws.gradle',
+                'apps/ecommerce/frontend/src/app/app.component.ts',
+                'contracts/asyncapi/asyncapi.yml', 'lombok.config'),
             'critical-rabbitmq-regression': (
                 'tooling/quality/critical-rabbitmq-manifest.json',
-                'apps/ecommerce/backend/src/test/java/com/example/RabbitTest.java'),
+                'apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/RabbitMqFulfillmentDeliveryIntegrationTest.java',
+                'modules/adapters/common/src/main/java/com/cp/ecommerce/adapter/common/validation/DefaultDomainObjectValidator.java',
+                'modules/adapters/security/src/main/java/com/cp/ecommerce/adapter/security/authentication/CurrentOperatorProvider.java',
+                'modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/wishlist/resource/WishlistResource.java',
+                'modules/adapters/mail/src/main/java/com/cp/ecommerce/adapter/mail/message/EmailMessageFactory.java',
+                'modules/adapters/kafka/src/main/java/com/cp/ecommerce/adapter/kafka/configuration/KafkaHealthIndicator.java',
+                'modules/adapters/camel/src/main/java/com/cp/ecommerce/adapter/camel/configuration/CamelPropertiesConfiguration.java',
+                'modules/adapters/ai/src/main/java/com/cp/ecommerce/adapter/ai/analytics/AnalyticsAssistantAdapter.java',
+                'modules/adapters/aws/aws.gradle',
+                'apps/ecommerce/frontend/src/app/app.component.ts',
+                'contracts/asyncapi/asyncapi.yml', 'lombok.config'),
         }
         self.assertEqual(set(expected), set(self.gates))
+        family = Family('showcase-profile-completeness', '0' * 40, 'integration',
+                        self.profile.content_hash, 'd' * 64)
         for gate_id, paths in expected.items():
             gate = self.gates[gate_id]
             with self.subTest(gate=gate_id):
                 self.assertTrue(gate.mandatory)
                 self.assertFalse(gate.cacheable)
                 for path in paths:
+                    self.assertTrue((ROOT / path).is_file(), path)
                     self.assertTrue(any(matches(pattern, path) for pattern in gate.inputs), path)
+                    self.assertTrue(any(matches(pattern, path) for pattern in gate.applicability),
+                                    f'{gate_id} will not be selected when {path} changes')
+                    nodes = required_nodes(self.profile, family, SimpleNamespace(paths=(path,)))
+                    self.assertIn(gate_id, {node.id for node in nodes},
+                                  f'{gate_id} is not a required gate for changed input {path}')
         for gate_id in ('domain-mutation-threshold', 'critical-postgres-regression',
                         'critical-rabbitmq-regression'):
             gate = self.gates[gate_id]
@@ -67,6 +105,33 @@ class ShowcaseProfileTest(unittest.TestCase):
         rabbit = self.gates['critical-rabbitmq-regression']
         self.assertEqual(('critical-postgres-gate-disables-gradle-test-retry-v1',), postgres.retry_controls)
         self.assertEqual(('critical-rabbit-gate-disables-gradle-test-retry-v1',), rabbit.retry_controls)
+
+    def test_quality_gate_commands_and_working_directories_are_explicit(self):
+        expected = {
+            'agent-harness-tests': ('python3 -m unittest discover -s tooling/agent-harness/tests -p test_*.py', '.'),
+            'agentic-sdd-doctor': ('python3 tooling/agent-harness/harness.py doctor', '.'),
+            'showcase-gradle-build': ('./gradlew build --continue', '.'),
+            'showcase-frontend-build': ('npm run build', 'apps/ecommerce/frontend'),
+            'domain-mutation-threshold': ('./tooling/scripts/verify-domain-pitest.sh', '.'),
+            'critical-postgres-regression': ('./tooling/scripts/verify-critical-postgres-tests.sh', '.'),
+            'critical-rabbitmq-regression': ('./tooling/scripts/verify-critical-rabbitmq-tests.sh', '.'),
+        }
+        self.assertEqual(set(expected), set(self.gates))
+        for gate_id, (command, cwd) in expected.items():
+            with self.subTest(gate=gate_id):
+                self.assertEqual(command, self.gates[gate_id].command)
+                self.assertEqual(cwd, self.gates[gate_id].cwd)
+
+    def test_every_tracked_result_input_can_activate_its_gate(self):
+        raw_paths = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z'])
+        paths = [path.decode('utf-8') for path in raw_paths.split(b'\0') if path]
+        for gate in self.profile.gates:
+            uncovered = [path for path in paths
+                if any(matches(pattern, path) for pattern in gate.inputs)
+                and not any(matches(pattern, path) for pattern in gate.applicability)]
+            with self.subTest(gate=gate.id):
+                self.assertEqual([], uncovered,
+                    f'declared result inputs do not select {gate.id}: {uncovered[:10]}')
 
     def test_profile_is_deterministic_and_gate_commands_are_unambiguous(self):
         again = load_profile(PROFILE_PATH)
