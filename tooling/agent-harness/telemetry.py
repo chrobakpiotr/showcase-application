@@ -9,12 +9,66 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
 import stat
 import tempfile
 from typing import Any
+
+
+_TOKEN_FIELDS = {
+    'input_tokens', 'output_tokens', 'total_tokens', 'cached_input_tokens',
+    'cache_creation_input_tokens', 'cache_read_input_tokens',
+}
+_PROVIDERS = {'codex', 'claude', 'manual'}
+_STATUSES = {
+    'pass', 'fail', 'provider-error', 'harness-error', 'running', 'abandoned',
+    'needs-human', 'busy', 'stale-input', 'environment-blocked',
+    'verification-blocked', 'verification-owned', 'invalid-policy',
+    'invalid-cache', 'retry-policy-violation', 'verification-failed',
+}
+_SAFE_PROVIDER_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}\Z')
+_MAX_SAFE_INTEGER = 2**63 - 1
+
+
+def _safe_provider_id(value: Any) -> str | None:
+    if not isinstance(value, str) or not _SAFE_PROVIDER_ID.fullmatch(value):
+        return None
+    from verification.serialization import default_safety
+    return value if default_safety().safe(value) else None
+
+
+def _safe_usage(value: Any) -> dict[str, int] | None:
+    """Return only bounded numeric token counters from provider-controlled data."""
+    if not isinstance(value, dict):
+        return None
+    clean: dict[str, int] = {}
+    for key in _TOKEN_FIELDS:
+        amount = value.get(key)
+        if type(amount) is int and 0 <= amount <= 2**63 - 1:
+            clean[key] = amount
+    return clean or None
+
+
+def _safe_cost(value: Any) -> float | None:
+    if type(value) not in (int, float):
+        return None
+    try:
+        amount = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return amount if math.isfinite(amount) and amount >= 0 else None
+
+
+def _safe_nonnegative_number(value: Any) -> int | float | None:
+    """Keep finite nonnegative durations; bound integers before float conversion."""
+    if type(value) is int:
+        return value if 0 <= value <= _MAX_SAFE_INTEGER else None
+    if type(value) is float and math.isfinite(value) and value >= 0:
+        return value
+    return None
 
 
 def utc_now() -> dt.datetime:
@@ -68,12 +122,12 @@ def parse_codex_jsonl(stdout: str) -> dict[str, Any]:
             continue
         event_count += 1
         typ = event.get('type')
-        if typ == 'thread.started' and isinstance(event.get('thread_id'), str):
-            thread_id = event['thread_id']
+        if typ == 'thread.started':
+            thread_id = _safe_provider_id(event.get('thread_id'))
         if typ in {'turn.completed', 'turn.failed'}:
             terminal_type = str(typ)
             if isinstance(event.get('usage'), dict):
-                usage = dict(event['usage'])
+                usage = _safe_usage(event['usage'])
     return {
         'thread_id': thread_id,
         'terminal_event': terminal_type,
@@ -85,14 +139,15 @@ def parse_codex_jsonl(stdout: str) -> dict[str, Any]:
 
 
 def parse_claude_envelope(envelope: dict[str, Any]) -> dict[str, Any]:
-    usage = envelope.get('usage') if isinstance(envelope.get('usage'), dict) else None
+    usage = _safe_usage(envelope.get('usage'))
+    cost = _safe_cost(envelope.get('total_cost_usd'))
     return {
-        'session_id': envelope.get('session_id') if isinstance(envelope.get('session_id'), str) else None,
-        'duration_ms': envelope.get('duration_ms') if isinstance(envelope.get('duration_ms'), (int, float)) else None,
-        'duration_api_ms': envelope.get('duration_api_ms') if isinstance(envelope.get('duration_api_ms'), (int, float)) else None,
-        'num_turns': envelope.get('num_turns') if isinstance(envelope.get('num_turns'), int) else None,
+        'session_id': _safe_provider_id(envelope.get('session_id')),
+        'duration_ms': _safe_nonnegative_number(envelope.get('duration_ms')),
+        'duration_api_ms': _safe_nonnegative_number(envelope.get('duration_api_ms')),
+        'num_turns': envelope.get('num_turns') if type(envelope.get('num_turns')) is int and 0 <= envelope['num_turns'] <= _MAX_SAFE_INTEGER else None,
         'usage': usage,
-        'cost_usd': envelope.get('total_cost_usd') if isinstance(envelope.get('total_cost_usd'), (int, float)) else None,
+        'cost_usd': cost,
     }
 
 
@@ -137,6 +192,9 @@ def summarize(root: pathlib.Path, feature: str | None = None, orchestration_id: 
     total_cost = 0.0
     matched_runs = 0
     known_cost_runs = 0
+    unknown_cost_runs = 0
+    known_usage_runs = 0
+    unknown_usage_runs = 0
     total_duration_ms = 0
     provider_counts: dict[str, int] = {}
     status_counts: dict[str, int] = {}
@@ -151,31 +209,43 @@ def summarize(root: pathlib.Path, feature: str | None = None, orchestration_id: 
         if orchestration_id is not None and doc.get('orchestration_id') != orchestration_id:
             continue
         matched_runs += 1
-        provider = str(doc.get('provider') or 'unknown')
+        provider_value = doc.get('provider')
+        provider = provider_value if isinstance(provider_value, str) and provider_value in _PROVIDERS else 'unknown'
         provider_counts[provider] = provider_counts.get(provider, 0) + 1
-        status = str(doc.get('status') or 'unknown')
+        status_value = doc.get('status')
+        status = status_value if isinstance(status_value, str) and status_value in _STATUSES else 'unknown'
         status_counts[status] = status_counts.get(status, 0) + 1
         duration = doc.get('duration_ms')
-        if isinstance(duration, int):
+        if type(duration) is int and 0 <= duration <= 2**63 - 1:
             total_duration_ms += duration
         metadata = doc.get('provider_metadata')
         if isinstance(metadata, dict):
-            cost = metadata.get('cost_usd')
-            if isinstance(cost, (int, float)):
-                total_cost += float(cost)
+            cost = _safe_cost(metadata.get('cost_usd'))
+            if cost is not None and math.isfinite(total_cost + cost):
+                total_cost += cost
                 known_cost_runs += 1
-            usage = metadata.get('usage')
-            if isinstance(usage, dict):
+            else:
+                unknown_cost_runs += 1
+            usage = _safe_usage(metadata.get('usage'))
+            if usage:
+                known_usage_runs += 1
                 for key, value in usage.items():
-                    if isinstance(value, int) and ('token' in key or key.endswith('_tokens')):
-                        token_totals[key] = token_totals.get(key, 0) + value
+                    token_totals[key] = token_totals.get(key, 0) + value
+            else:
+                unknown_usage_runs += 1
+        else:
+            unknown_cost_runs += 1
+            unknown_usage_runs += 1
     return {
         'runs': matched_runs,
         'providers': provider_counts,
         'statuses': status_counts,
         'duration_ms': total_duration_ms,
         'known_cost_runs': known_cost_runs,
-        'known_cost_usd': round(total_cost, 6),
+        'known_cost_usd': round(total_cost, 6) if known_cost_runs else None,
+        'unknown_cost_runs': unknown_cost_runs,
+        'known_usage_runs': known_usage_runs,
+        'unknown_usage_runs': unknown_usage_runs,
         'tokens': token_totals,
     }
 
@@ -234,12 +304,14 @@ def _manual_report_fields(payload: bytes) -> dict[str, str]:
         raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
     if fields['Verdict'] not in _MANUAL_VERDICTS:
         raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
-    if not fields['Completed at'].endswith('Z'):
+    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', fields['Completed at']):
         raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
     try:
-        dt.datetime.fromisoformat(fields['Completed at'].replace('Z', '+00:00'))
+        completed = dt.datetime.fromisoformat(fields['Completed at'].replace('Z', '+00:00'))
     except ValueError:
         raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID') from None
+    if completed > utc_now().replace(microsecond=0):
+        raise ValueError('MANUAL_EVIDENCE_CHRONOLOGY_INVALID')
     return fields
 
 
@@ -357,26 +429,22 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
                                                        text=True, stderr=__import__('subprocess').DEVNULL).strip()
     if object_type != 'commit':
         raise ValueError('MANUAL_EVIDENCE_CHECKPOINT_UNAVAILABLE')
-    if not provider or (provider_run_id is not None and len(provider_run_id) > 256):
-        raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
     relative_safe = resolved.relative_to(primary).as_posix()
-    identity_body = {'feature': feature, 'role': role, 'provider': provider,
-                     'checkpoint': checkpoint, 'verdict': verdict, 'report_path': relative_safe,
-                     'report_sha256': hashlib.sha256(payload).hexdigest(), 'task': task,
-                     'task_attempt': task_attempt, 'plan_id': plan_id, 'provider_run_id': provider_run_id}
-    identity = hashlib.sha256(json.dumps(identity_body, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    record = {'schema_version': 1, 'kind': 'manual-observation', 'observation_id': identity,
-              **identity_body, 'recorded_at': iso_now()}
-    target = store.root / 'manual' / f'{identity}.json'
-    target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        existing = json.loads(target.read_text(encoding='utf-8'))
-        if {key: value for key, value in existing.items() if key != 'recorded_at'} != identity_body | {
-                'schema_version': 1, 'kind': 'manual-observation', 'observation_id': identity}:
-            raise ValueError('MANUAL_EVIDENCE_CONFLICT')
-        return target
-    atomic_write_json(target, record)
-    return target
+    # Manual provenance is subordinate to trusted lifecycle authority. This
+    # legacy implementation has no way to submit the signed attestation and
+    # exact coverage/checkpoint references to the lifecycle CAS. Never create
+    # a local record that a later reader could mistake for accepted coverage.
+    harness_path = pathlib.Path(__file__).resolve().parent
+    if str(harness_path) not in __import__('sys').path:
+        __import__('sys').path.insert(0, str(harness_path))
+    import harness as lifecycle
+    submit = getattr(lifecycle, 'register_manual_observation', None)
+    if not callable(submit):
+        raise ValueError('MANUAL_EVIDENCE_AUTHORITY_UNAVAILABLE')
+    return submit(repository=primary, feature=feature, role=role,
+                  checkpoint=checkpoint, verdict=verdict, report_path=relative_safe,
+                  report_sha256=hashlib.sha256(payload).hexdigest(), task=task,
+                  task_attempt=task_attempt, plan_id=plan_id)
 
 
 def main() -> None:
