@@ -1,0 +1,45 @@
+{
+  "feature": "SEQUENTIAL-TASK-REPLAN-001",
+  "max_parallel": 1,
+  "max_rework_attempts": 2,
+  "lease_ttl_seconds": 1800,
+  "heartbeat_interval_seconds": 60,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Allow safe sequential packet replans",
+      "objective": "Extend failed-task replan eligibility after a newer owner resolution while preserving exact revision CAS, replan request idempotency, immutable lineage, and concurrent loser rejection.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "tooling/agent-harness/harness.py",
+        "tooling/agent-harness/tests/test_harness.py"
+      ],
+      "risk_tags": ["concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Add red lifecycle tests for a second replan after a newer human decision, stale active revision, reused decision, concurrent distinct replans, three-entry active lineage resolution, and identical-request replay. Snapshot state bytes on every rejection."
+    },
+    {
+      "id": "T-900",
+      "title": "Independently evaluate sequential replan safety",
+      "objective": "Try to falsify sequential replan eligibility, freshness of human decisions, active revision compare-and-swap, request idempotency, concurrent serialization, and multi-entry lineage resolution.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/SEQUENTIAL-TASK-REPLAN-001/evidence/**"],
+      "risk_tags": ["evaluation", "concurrency"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004", "AC-005", "AC-006"],
+      "verification": [
+        "python3.13 tooling/agent-harness/tests/test_harness.py",
+        "python3.13 -m py_compile tooling/agent-harness/harness.py"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Independently exercise the registered lifecycle cases and verify no rejected request mutates authoritative state, packet lineage, attempt history, or authorization history."
+    }
+  ]
+}
