@@ -4,14 +4,20 @@ from __future__ import annotations
 import enum
 import hashlib
 import json
+import os
 import pathlib
+import re
+import shlex
+import stat
 import time
 import uuid
 from dataclasses import dataclass, replace
 
 from .serialization import canonical
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
-                    _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint)
+                    _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint,
+                    _retry_policy_facts, _RETRY_CONTROL_BINDINGS, _RETRY_CONTROL_WRAPPER_SHA256,
+                    _RETRY_CONTROL_INPUT_SHA256, _retry_control_inputs_digest)
 
 
 class SupervisorError(RuntimeError):
@@ -35,6 +41,182 @@ class RecoveryResult:
     state: SupervisorState
     reason_code: str
     terminal: dict | None = None
+
+
+def _read_regular_worktree_file(root: pathlib.Path, relative: str) -> bytes:
+    """Read a candidate policy input without traversing symlinks."""
+    current = root
+    info = None
+    for component in pathlib.PurePosixPath(relative).parts:
+        current = current / component
+        try:
+            info = current.lstat()
+        except OSError:
+            raise SupervisorError('retry-policy-violation') from None
+        if stat.S_ISLNK(info.st_mode):
+            raise SupervisorError('retry-policy-violation')
+    if info is None or not stat.S_ISREG(info.st_mode):
+        raise SupervisorError('retry-policy-violation')
+    try:
+        fd = os.open(current, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise SupervisorError('retry-policy-violation')
+            with os.fdopen(fd, 'rb', closefd=False) as stream:
+                return stream.read()
+        finally:
+            os.close(fd)
+    except OSError:
+        raise SupervisorError('retry-policy-violation') from None
+
+
+def _gradle_user_home_has_init_scripts(execution_run_dir: pathlib.Path) -> bool:
+    home = execution_run_dir / 'verification-home' / 'gradle'
+    try:
+        for path in (execution_run_dir / 'verification-home', home):
+            if path.is_symlink():
+                return True
+        if any((home / name).exists() or (home / name).is_symlink()
+               for name in ('init.gradle', 'init.gradle.kts')):
+            return True
+        init_dir = home / 'init.d'
+        if init_dir.is_symlink():
+            return True
+        if init_dir.exists():
+            return not init_dir.is_dir() or next(init_dir.iterdir(), None) is not None
+        return False
+    except OSError:
+        return True
+
+
+def _registered_gradle_retry_evidence(worktree: pathlib.Path, gate_id: str, command: str,
+                                      controls: tuple[str, ...]) -> dict | None:
+    if len(controls) != 1 or controls[0] not in _RETRY_CONTROL_BINDINGS:
+        return None
+    expected_gate, expected_command = _RETRY_CONTROL_BINDINGS[controls[0]]
+    if gate_id != expected_gate or command != expected_command:
+        raise SupervisorError('retry-policy-violation')
+    try:
+        root = pathlib.Path(worktree).resolve(strict=True)
+        if not root.is_dir():
+            raise ValueError()
+    except (OSError, ValueError, RuntimeError):
+        raise SupervisorError('retry-policy-violation') from None
+    config_path = 'apps/ecommerce/backend/ecommerce.gradle'
+    wrapper_path = command.removeprefix('./')
+    try:
+        registered_inputs = _RETRY_CONTROL_INPUT_SHA256[controls[0]]
+        input_bytes = {relative: _read_regular_worktree_file(root, relative)
+                       for relative in registered_inputs}
+        if any(hashlib.sha256(input_bytes[path]).hexdigest() != expected
+               for path, expected in registered_inputs.items()):
+            raise SupervisorError('retry-policy-violation')
+        config_bytes = input_bytes[config_path]
+        wrapper_bytes = input_bytes[wrapper_path]
+        if hashlib.sha256(wrapper_bytes).hexdigest() != _RETRY_CONTROL_WRAPPER_SHA256[controls[0]]:
+            raise SupervisorError('retry-policy-violation')
+        config = config_bytes.decode('utf-8')
+        wrapper = wrapper_bytes.decode('utf-8')
+    except (UnicodeDecodeError, SupervisorError):
+        raise SupervisorError('retry-policy-violation') from None
+
+    gate_property = 'criticalPostgresGate' if 'postgres' in controls[0] else 'criticalRabbitGate'
+    enabled_name = 'criticalPostgresGateEnabled' if 'postgres' in controls[0] else 'criticalRabbitGateEnabled'
+    expected_lines = (
+        f'def {enabled_name} =',
+        f"providers.gradleProperty('{gate_property}').getOrElse('false').toBoolean()",
+        'def strictEvidenceGateEnabled = criticalPostgresGateEnabled || criticalRabbitGateEnabled',
+        'maxRetries = strictEvidenceGateEnabled ? 0 : 2',
+        'failOnPassedAfterRetry = strictEvidenceGateEnabled',
+        'outputs.upToDateWhen { false }',
+        'outputs.cacheIf { false }',
+    )
+    if any(config.count(line) != 1 for line in expected_lines):
+        raise SupervisorError('retry-policy-violation')
+    if (len(re.findall(r'\bretry\s*\{', config)) != 1 or
+            len(re.findall(r'\bmaxRetries\b', config)) != 1 or
+            len(re.findall(r'\bfailOnPassedAfterRetry\b', config)) != 1):
+        raise SupervisorError('retry-policy-violation')
+
+    gradle_files = []
+    excluded = {'.git', '.gradle', 'build', 'node_modules', '.agent-runs', '.agent-state'}
+    for parent, dirs, files in os.walk(root, followlinks=False):
+        retained_dirs = []
+        for name in dirs:
+            if name in excluded:
+                continue
+            if (pathlib.Path(parent) / name).is_symlink():
+                raise SupervisorError('retry-policy-violation')
+            retained_dirs.append(name)
+        dirs[:] = retained_dirs
+        for name in files:
+            if name.endswith('.gradle') or name.endswith('.gradle.kts'):
+                path = pathlib.Path(parent) / name
+                if path.is_symlink():
+                    raise SupervisorError('retry-policy-violation')
+                gradle_files.append(path)
+                if len(gradle_files) > 512:
+                    raise SupervisorError('retry-policy-violation')
+    registered_gradle_files = {
+        relative for relative in registered_inputs
+        if relative.endswith(('.gradle', '.gradle.kts'))
+    }
+    discovered_gradle_files = {path.relative_to(root).as_posix() for path in gradle_files}
+    if discovered_gradle_files != registered_gradle_files:
+        raise SupervisorError('retry-policy-violation')
+    config_file = root / config_path
+    for path in gradle_files:
+        if path == config_file:
+            continue
+        try:
+            other = _read_regular_worktree_file(root, path.relative_to(root).as_posix()).decode('utf-8')
+        except (OSError, UnicodeDecodeError, SupervisorError):
+            raise SupervisorError('retry-policy-violation') from None
+        if (re.search(r'\bretry\s*\{|\bmaxRetries\b|\bfailOnPassedAfterRetry\b', other) or
+                'strictEvidenceGateEnabled' in other):
+            raise SupervisorError('retry-policy-violation')
+
+    gradle_property = f'-P{gate_property}'
+    expected_gradle_invocations = 2 if 'postgres' in controls[0] else 1
+    logical_wrapper = wrapper.replace('\\\r\n', ' ').replace('\\\n', ' ')
+    gradle_commands = []
+    forbidden_configuration_options = {
+        '--init-script', '-I', '--settings-file', '-c', '--build-file', '-b',
+        '--project-dir', '-p', '--include-build',
+    }
+    try:
+        for line in logical_wrapper.splitlines():
+            tokens = shlex.split(line, comments=True, posix=True)
+            if './gradlew' not in tokens:
+                continue
+            if (not tokens or tokens[0] != './gradlew' or tokens.count('./gradlew') != 1 or
+                    ':application:ecommerce:test' not in tokens):
+                raise SupervisorError('retry-policy-violation')
+            if any(token in forbidden_configuration_options or
+                   token.startswith(('--init-script=', '--settings-file=', '--build-file=',
+                                     '--project-dir=', '--include-build=', '-I', '-c', '-b', '-p'))
+                   for token in tokens):
+                raise SupervisorError('retry-policy-violation')
+            properties = [token for token in tokens if token.startswith(gradle_property + '=')]
+            if properties != [gradle_property + '=true']:
+                raise SupervisorError('retry-policy-violation')
+            gradle_commands.append(tokens)
+    except ValueError:
+        raise SupervisorError('retry-policy-violation') from None
+    if len(gradle_commands) != expected_gradle_invocations:
+        raise SupervisorError('retry-policy-violation')
+    return {
+        'schema_version': 1,
+        'control_id': controls[0],
+        'gate_id': gate_id,
+        'command': command,
+        'config_path': config_path,
+        'config_sha256': hashlib.sha256(config_bytes).hexdigest(),
+        'wrapper_sha256': hashlib.sha256(wrapper_bytes).hexdigest(),
+        'registered_inputs_sha256': _retry_control_inputs_digest(controls[0]),
+        'strict_max_retries': 0,
+        'fail_on_passed_after_retry': True,
+    }
 
 
 class VerificationSupervisor:
@@ -71,6 +253,25 @@ class VerificationSupervisor:
         except (OSError, ValueError):
             return None
 
+    @classmethod
+    def _launch_marker_state(cls, journal: pathlib.Path, started: dict) -> str:
+        path = journal / 'launching.json'
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            return 'absent'
+        except OSError:
+            return 'invalid'
+        if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+            return 'invalid'
+        marker = cls._read_json(path)
+        if (marker is None or marker.get('schema_version') != 1 or
+                marker.get('execution_id') != started.get('execution_id') or
+                marker.get('execution_identity') != started.get('execution_identity') or
+                marker.get('launch_intent_hash') != started.get('launch_intent_hash')):
+            return 'invalid'
+        return 'present'
+
     def _write_state(self, journal: pathlib.Path, name: str, record: dict) -> None:
         publish_create_once(journal / name, record, fault=self.store._fault)
 
@@ -100,26 +301,14 @@ class VerificationSupervisor:
         retry_controls = tuple(retry_controls)
         if len(set(retry_controls)) != len(retry_controls):
             raise SupervisorError('invalid-retry-controls')
-        # retry_controls is part of the trusted profile snapshot. The explicit
-        # marker means the tool itself has no retry layer. A declared control
-        # uses `internal-retry-disabled:<id>` or
-        # `internal-retry-bounded:<id>:<max>`; opaque legacy names prove none.
-        retry_free = False
-        retry_policy_proof = {'schema_version': 1, 'policy': retry_policy, 'critical': critical,
-                              'retry_controls': list(retry_controls), 'retry_free': False}
-        if critical and retry_policy == 'forbid':
-            if retry_controls == ('no-internal-retries',):
-                retry_free = True
-            elif retry_controls and all(
-                    (item.startswith('internal-retry-disabled:') and item.split(':', 1)[1]) or
-                    (len(item.split(':')) == 3 and item.split(':')[0] == 'internal-retry-bounded' and
-                     item.split(':')[1] and item.split(':')[2].isdigit() and int(item.split(':')[2]) > 0)
-                    for item in retry_controls):
-                retry_free = True
-            retry_policy_proof['retry_free'] = retry_free
-            if not retry_free:
-                raise SupervisorError('retry-policy-violation')
-        retry_policy_proof['retry_free'] = bool(retry_free)
+        control_evidence = _registered_gradle_retry_evidence(
+            worktree, gate_id, command, retry_controls)
+        retry_facts = _retry_policy_facts(retry_policy, critical, list(retry_controls),
+                                          gate_id=gate_id, command=command,
+                                          control_evidence=control_evidence)
+        if retry_facts is None or (critical and retry_policy == 'forbid' and not retry_facts['retry_free']):
+            raise SupervisorError('retry-policy-violation')
+        retry_policy_proof = retry_facts
         intent_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
         derived_failure_fingerprint = candidate_failure_fingerprint({
             'repository_id': self.store.repository_id, 'family_id': family_id,
@@ -180,11 +369,24 @@ class VerificationSupervisor:
                 except TypeError:
                     ready.action = 'RUN'
                     ready.reason = 'failure-grant-retry'
+            backend_run_dir = pathlib.Path(run_dir)
+            if control_evidence is not None:
+                # A preceding gate can write Gradle user-home init scripts under
+                # the shared plan run directory. Give each execution a stable,
+                # isolated namespace so prepare/start crash replay retains its
+                # backend policy identity without reusing another gate's home.
+                backend_run_dir = backend_run_dir / 'registered-gradle' / execution_id
+                if environment and any(key in environment for key in
+                                       ('GRADLE_USER_HOME', 'GRADLE_OPTS', 'JAVA_OPTS')):
+                    raise SupervisorError('retry-policy-violation')
+                if _gradle_user_home_has_init_scripts(backend_run_dir):
+                    raise SupervisorError('retry-policy-violation')
             try:
                 prepared = backend.prepare(worktree=pathlib.Path(worktree), cwd=pathlib.Path(cwd),
-                    run_dir=pathlib.Path(run_dir), repository_id=self.store.repository_id,
+                    run_dir=backend_run_dir, repository_id=self.store.repository_id,
                     command=command, sandbox_mode=sandbox_mode, environment=environment,
                     control_root=self.store.root, execution_id=execution_id)
+                self._crash('after-prepare')
             except Exception as exc:
                 if isinstance(exc, SupervisorError):
                     raise
@@ -304,11 +506,10 @@ class VerificationSupervisor:
             self._crash('after-drain-proof')
             post_observation = post_observer(result, ready) if post_observer else {}
             observation = {
-                'schema_version': 1, 'execution_id': execution_id,
+                'schema_version': 2, 'execution_id': execution_id,
                 'exit_code': getattr(result, 'exit_code', None),
                 'timed_out': bool(getattr(result, 'timed_out', False)), 'cancelled': cancelled,
-                'stdout_hash': hashlib.sha256((getattr(result, 'stdout', '') or '').encode()).hexdigest(),
-                'stderr_hash': hashlib.sha256((getattr(result, 'stderr', '') or '').encode()).hexdigest(),
+                'output_observation': 'CAPTURED', 'output_persistence': 'OMITTED',
                 'started_at': getattr(result, 'started_at', started['started_at']),
                 'ended_at': getattr(result, 'ended_at', time.time()), 'post_observation': post_observation,
                 'result': self._outcome(result),
@@ -320,7 +521,7 @@ class VerificationSupervisor:
             terminal_material = (terminal_record_builder(result, ready, post_observation)
                                  if terminal_record_builder and observation['result'] == 'PASS' else None)
             receipt = {
-                'schema_version': 1, 'execution_id': execution_id,
+                'schema_version': 2, 'execution_id': execution_id,
                 'repository_id': self.store.repository_id, 'started_hash': started_hash,
                 'execution_identity': identity, 'backend_identity': backend_identity,
                 'candidate_identity': candidate_identity,
@@ -330,8 +531,7 @@ class VerificationSupervisor:
                 'harness_invocation_upper_bound': 1,
                 'exit_code': observation['exit_code'], 'timed_out': observation['timed_out'],
                 'cancelled': cancelled, 'drainage': 'DRAINED',
-                'output_observation': 'CAPTURED',
-                'stdout_hash': observation['stdout_hash'], 'stderr_hash': observation['stderr_hash'],
+                'output_observation': 'CAPTURED', 'output_persistence': 'OMITTED',
                 'post_observation': post_observation, 'result': observation['result'],
                 'ended_at': observation['ended_at'],
             }
@@ -367,9 +567,12 @@ class VerificationSupervisor:
             'ended_at': observation.get('ended_at', started.get('started_at', 0)),
             'duration_seconds': max(0.0, observation.get('ended_at', 0) - observation.get('started_at', 0)),
             'exit_code': observation.get('exit_code'), 'stdout': '', 'stderr': '',
+            # CAPTURED records the execution-time observation; raw streams are
+            # intentionally omitted, so a recovered result has no diagnostics.
+            'output_persistence': observation.get('output_persistence', 'OMITTED'),
             'timed_out': observation.get('timed_out', False),
             'error': ('EXECUTION_ABORTED' if observation.get('result') == 'ABORTED' else
-                      'recovered-output-unavailable' if 'stdout_hash' not in observation else None),
+                      'recovered-output-unavailable' if observation.get('output_observation') != 'CAPTURED' else None),
             'sandbox_backend': started.get('backend'), 'strong_isolation': True,
             'protected_paths': True, 'descendant_containment': 'strong',
         })()
@@ -419,8 +622,12 @@ class VerificationSupervisor:
                 continue
             # No launch-request marker proves the trusted supervisor never called
             # the Phase-B launch primitive. Persist an abort, never inferred success.
-            launching = self._read_json(journal / 'launching.json')
-            if launching is None:
+            launch_marker_state = self._launch_marker_state(journal, started)
+            if launch_marker_state == 'invalid':
+                recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                                                 'EXECUTION_LAUNCH_MARKER_INVALID'))
+                continue
+            if launch_marker_state == 'absent':
                 recovered.append(self._abort_prepared(journal, started, 'prepared-never-launched'))
                 continue
             if backend_factory is None:
@@ -465,9 +672,9 @@ class VerificationSupervisor:
                         recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
                             'POST_EXECUTION_OBSERVATION_UNAVAILABLE'))
                         continue
-                    observation = {'exit_code': None, 'timed_out': False, 'cancelled': True,
-                        'stdout_hash': None, 'stderr_hash': None,
-                        'output_observation': 'UNAVAILABLE',
+                    observation = {'schema_version': 2, 'exit_code': None,
+                        'timed_out': False, 'cancelled': True,
+                        'output_observation': 'UNAVAILABLE', 'output_persistence': 'UNAVAILABLE',
                         'post_observation': post_observation,
                         'result': 'ABORTED', 'ended_at': time.time()}
                 else:
@@ -498,9 +705,9 @@ class VerificationSupervisor:
 
     def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str) -> RecoveryResult:
         execution_id = started['execution_id']
-        observation = {'exit_code': None, 'timed_out': False, 'cancelled': False,
-            'stdout_hash': hashlib.sha256(b'').hexdigest(),
-            'stderr_hash': hashlib.sha256(b'').hexdigest(), 'post_observation': {},
+        observation = {'schema_version': 2, 'exit_code': None, 'timed_out': False, 'cancelled': False,
+            'output_observation': 'UNAVAILABLE', 'output_persistence': 'UNAVAILABLE',
+            'post_observation': {},
             'result': 'ABORTED', 'ended_at': time.time()}
         receipt = self._terminal_from_observation(journal, started,
             started.get('execution_identity'), observation)
@@ -512,7 +719,7 @@ class VerificationSupervisor:
                               'PREPARED_NOT_LAUNCHED', terminal)
 
     def _terminal_from_observation(self, journal, started, identity, observation):
-        return {'schema_version': 1, 'execution_id': started['execution_id'],
+        return {'schema_version': 2, 'execution_id': started['execution_id'],
             'repository_id': self.store.repository_id,
             'started_hash': hashlib.sha256((journal / 'started.json').read_bytes()).hexdigest(),
             'execution_identity': identity or {'state': 'NOT_PREPARED'},
@@ -526,7 +733,7 @@ class VerificationSupervisor:
             'exit_code': observation.get('exit_code'), 'timed_out': observation.get('timed_out', False),
             'cancelled': observation.get('cancelled', False), 'drainage': 'DRAINED',
             'output_observation': observation.get('output_observation', 'CAPTURED'),
-            'stdout_hash': observation.get('stdout_hash', hashlib.sha256(b'').hexdigest()),
-            'stderr_hash': observation.get('stderr_hash', hashlib.sha256(b'').hexdigest()),
+            'output_persistence': ('UNAVAILABLE' if observation.get('output_observation') == 'UNAVAILABLE'
+                                   else 'OMITTED'),
             'post_observation': observation.get('post_observation', {}),
             'result': observation.get('result', 'ABORTED'), 'ended_at': observation.get('ended_at', time.time())}

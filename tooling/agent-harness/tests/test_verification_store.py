@@ -9,7 +9,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from verification.store import (StoreError, VerificationStore, publish_create_once, resolve_control_root,
-                                ReconciliationOutcome)
+                                ReconciliationOutcome, repository_lock)
 
 
 class StoreTest(unittest.TestCase):
@@ -20,6 +20,18 @@ class StoreTest(unittest.TestCase):
             self.assertEqual(first, publish_create_once(path, {'x': 1}))
             with self.assertRaisesRegex(StoreError, 'immutable-record-collision'):
                 publish_create_once(path, {'x': 2})
+
+    def test_create_once_rejects_symlink_ancestor_before_creating_descendants(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            outside = root / 'outside'
+            outside.mkdir()
+            link = root / 'redirect'
+            link.symlink_to(outside, target_is_directory=True)
+            escaped_directory = outside / 'would-be-created'
+            with self.assertRaisesRegex(StoreError, 'unsafe-authority-path'):
+                publish_create_once(link / 'would-be-created' / 'record.json', {'authority': True})
+            self.assertFalse(escaped_directory.exists())
 
     def test_unresolved_execution_is_repository_admission_barrier(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -192,6 +204,26 @@ class StoreTest(unittest.TestCase):
             self.assertTrue(hasattr(store, 'admit_and_reserve'))
             self.assertTrue(hasattr(store, 'reconstruct_terminals'))
 
+    def test_admission_rejects_unbound_legacy_retry_proof(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            record = {
+                'schema_version': 2, 'execution_id': 'exec-legacy',
+                'repository_id': store.repository_id, 'backend': 'test',
+                'worktree': str(root), 'family_id': 'family', 'attempt_id': 'attempt',
+                'gate_id': 'critical-gate', 'launch_intent_hash': 'a' * 64,
+                'started_at': 1.0, 'critical': True, 'retry_policy': 'forbid',
+                'retry_controls': ['internal-retry-disabled:invented'],
+                'retry_policy_proof': {
+                    'schema_version': 1, 'policy': 'forbid', 'critical': True,
+                    'retry_controls': ['internal-retry-disabled:invented'], 'retry_free': True,
+                },
+            }
+            with self.assertRaisesRegex(StoreError, 'retry-policy-violation'):
+                store.admit_and_reserve('exec-legacy', record)
+            self.assertFalse((store.executions / 'exec-legacy' / 'started.json').exists())
+
     def test_red_store_rejects_hostile_execution_paths_and_symlink_artifacts(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -210,6 +242,21 @@ class StoreTest(unittest.TestCase):
             processes = [subprocess.Popen([sys.executable, '-c', script, str(package), str(control)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
             results = [process.communicate(timeout=5) for process in processes]
             self.assertEqual([0, 0], [process.returncode for process in processes], results)
+
+    def test_red_repository_lock_is_released_after_holder_process_dies(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            package = pathlib.Path(__file__).resolve().parents[1]
+            script = "import pathlib,os,sys; sys.path.insert(0,sys.argv[1]); from verification.store import repository_lock; p=pathlib.Path(sys.argv[2]);\nwith repository_lock(p,timeout=2):\n print('LOCKED', flush=True); os._exit(23)\n"
+            process = subprocess.Popen([sys.executable, '-c', script, str(package), str(root / 'control')],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual('LOCKED', process.stdout.readline().strip())
+            _, stderr = process.communicate(timeout=5)
+            self.assertEqual(23, process.returncode, stderr)
+            # Kernel-owned locks are released on process death, allowing the
+            # replacement supervisor to reconcile the durable execution journal.
+            with repository_lock(root / 'control', timeout=0.2):
+                self.assertTrue((root / 'control' / 'lock').exists())
 
     def test_terminal_receipt_is_authority_and_projection_is_rebuilt_after_restart(self):
         from verification.model import Evidence
