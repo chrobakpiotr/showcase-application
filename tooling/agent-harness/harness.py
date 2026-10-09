@@ -73,6 +73,10 @@ RECOVERY_PACKET_IDENTITY_SCHEMES = {1: PACKET_PAYLOAD_IDENTITY_SCHEME}
 RECOVERY_RECORD_IDENTITY_SCHEME = 'canonical-recovery-record-sha256-v1'
 BRIDGE_SCHEMA_VERSION = 1
 BRIDGE_CLASSIFICATIONS = {'AUTOMATICALLY_PROVEN', 'HUMAN_ATTESTED', 'AMBIGUOUS'}
+VERIFICATION_BLOCKAGE_OUTCOMES = {
+    'busy', 'stale-input', 'environment-blocked', 'needs-human',
+    'verification-blocked', 'verification-owned', 'abandoned',
+}
 
 
 PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
@@ -1602,6 +1606,10 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
     The checkpoint is never exposed to dependents because the task remains failed until re-executed
     and completed successfully.
     """
+    # Admission reconciliation always precedes the task-state lock.  Never infer
+    # that an expired task lease releases a verification process that may still
+    # own and mutate the same worktree.
+    assert_repository_verification_drained(feature_dir)
     recovered: list[str] = []
     now = utc_now()
     with locked_state(feature_dir, doc) as state:
@@ -1639,6 +1647,32 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
                 entry.pop(key, None)
             recovered.append(task_id)
     return recovered
+
+
+def assert_repository_verification_drained(feature_dir: pathlib.Path) -> None:
+    """Refuse worktree lifecycle mutations while verification ownership is unresolved.
+
+    The repository lock is acquired and released before any caller enters the
+    lifecycle lock. VerificationStore's immutable journal is authoritative;
+    process state and task lease expiry are not drainage evidence.
+    """
+    try:
+        # Keep non-verification lifecycle/status commands importable on older
+        # Python installations. A mutation still fails closed if the canonical
+        # verification authority cannot be loaded.
+        from verification.store import (StoreError as VerificationStoreError,
+                                        VerificationStore, repository_lock)
+        store = VerificationStore(feature_dir)
+        with repository_lock(store.root):
+            store.admit_repository_verification()
+    except Exception as exc:
+        if isinstance(exc, ImportError) or isinstance(exc, TypeError):
+            die(f'VERIFICATION_OWNERSHIP_UNAVAILABLE: {type(exc).__name__}', code=5)
+        if isinstance(exc, VerificationStoreError):
+            message = str(exc)
+            code = {'busy': 3, 'verification-owned': 6}.get(message, 5)
+            die(f'VERIFICATION_OWNERSHIP_BLOCKED: {message}', code=code)
+        die(f'VERIFICATION_OWNERSHIP_BLOCKED: {type(exc).__name__}', code=5)
 
 
 def is_unrecovered_partial_claim(entry: dict[str, Any]) -> bool:
@@ -3973,6 +4007,8 @@ def cmd_complete(args: argparse.Namespace) -> None:
         die('; '.join(evidence_errors))
     evidence_doc = load_json(evidence_path)
 
+    assert_repository_verification_drained(args.feature_dir)
+
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4462,12 +4498,15 @@ def cmd_claim_completion_repair(args: argparse.Namespace) -> None:
         refresh_lease(entry, doc)
     print(f"CLAIMED_REPAIR {args.task_id} owner={args.owner} attempt={entry['attempts']}")
 
-def cmd_fail(args: argparse.Namespace) -> None:
+def cmd_fail(args: argparse.Namespace, *, control_outcome: str | None = None) -> None:
     doc = load_validated(args.feature_dir)
     idx = task_index(doc)
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    if control_outcome is not None and control_outcome not in VERIFICATION_BLOCKAGE_OUTCOMES:
+        die('invalid internal verification control outcome')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4503,8 +4542,7 @@ def cmd_fail(args: argparse.Namespace) -> None:
         })
         entry['last_transition'] = {'kind': 'attempt_failed', 'attempts': attempts,
                                     'status': status, 'at': entry['failed_at']}
-        control_outcome = getattr(args, 'control_outcome', None)
-        if control_outcome in {'needs-human', 'verification-blocked', 'verification-owned'}:
+        if control_outcome in VERIFICATION_BLOCKAGE_OUTCOMES:
             entry['control_outcome'] = control_outcome
         if args.evidence:
             entry['last_failure_evidence'] = str(pathlib.Path(args.evidence))
@@ -4523,6 +4561,7 @@ def cmd_release(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4735,6 +4774,8 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
     prior = preliminary['tasks'].get(args.task_id)
     if not prior or prior.get('status') != 'escalated':
         die(f'{args.task_id} must be escalated before a human can resolve it')
+    if prior.get('control_outcome') in VERIFICATION_BLOCKAGE_OUTCOMES:
+        die('VERIFICATION_AUTHORIZATION_REQUIRED: task-level human resolution cannot authorize or resume a verification blockage')
 
     artifact = write_human_resolution(
         args.feature_dir, doc, args.task_id, decision=decision, decided_by=decided_by,
@@ -4745,6 +4786,9 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
         if entry.get('status') != 'escalated':
             artifact.unlink(missing_ok=True)
             die(f'{args.task_id} changed state while applying human resolution; retry deliberately')
+        if entry.get('control_outcome') in VERIFICATION_BLOCKAGE_OUTCOMES:
+            artifact.unlink(missing_ok=True)
+            die('VERIFICATION_AUTHORIZATION_REQUIRED: task-level human resolution cannot authorize or resume a verification blockage')
         history = entry.setdefault('human_resolution_history', [])
         if not isinstance(history, list):
             history = []
@@ -4795,6 +4839,8 @@ def cmd_reopen(args: argparse.Namespace) -> None:
         die(f'unknown task {args.task_id}')
     feature = str(doc.get('feature', args.feature_dir.name))
     stale: list[str] = []
+
+    assert_repository_verification_drained(args.feature_dir)
 
     # Reopen and descendant invalidation are one state transition. Validate every lease/status under
     # the state lock before deleting any task-local workspace, otherwise a racing worker can lose a
@@ -4941,6 +4987,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 def cmd_reset(args: argparse.Namespace) -> None:
     doc = load_json(args.feature_dir / 'tasks.json') if (args.feature_dir / 'tasks.json').exists() else {'feature': args.feature_dir.name, 'tasks': []}
     if args.full or args.prune_worktrees:
+        assert_repository_verification_drained(args.feature_dir)
         feature = str(doc.get('feature', args.feature_dir.name))
         for task in doc.get('tasks', []):
             if isinstance(task, dict) and isinstance(task.get('id'), str):
@@ -5273,6 +5320,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
@@ -5293,6 +5341,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
@@ -5356,6 +5405,7 @@ def cmd_worktree_remove(args: argparse.Namespace) -> None:
     branch = f'agent/{feature}/{args.task_id}'
     if not target.exists():
         die(f'worktree path does not exist: {target}')
+    assert_repository_verification_drained(args.feature_dir)
     subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
     if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
         subprocess.run(['git', 'branch', '-D', branch], check=True)
@@ -5595,7 +5645,6 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--reason', required=True)
     s.add_argument('--evidence', help='Optional structured runner evidence for the failed attempt')
     s.add_argument('--escalate', action='store_true', help='Stop immediately for a human decision instead of retrying')
-    s.add_argument('--control-outcome', choices=['needs-human', 'verification-blocked', 'verification-owned'])
     s.set_defaults(func=cmd_fail)
 
     s = sub.add_parser('release')

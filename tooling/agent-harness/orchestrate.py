@@ -12,7 +12,9 @@ import concurrent.futures
 import contextlib
 import datetime as dt
 import json
+import math
 import pathlib
+import re
 import subprocess
 import sys
 import threading
@@ -25,7 +27,18 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import harness as h  # noqa: E402
 import telemetry  # noqa: E402
-from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
+from machine_outcomes import exit_code  # noqa: E402
+
+VERIFICATION_BLOCKAGE_OUTCOMES = {
+    'busy', 'stale-input', 'environment-blocked', 'needs-human',
+    'verification-blocked', 'verification-owned', 'abandoned',
+}
+VERIFICATION_OUTCOMES = VERIFICATION_BLOCKAGE_OUTCOMES | {
+    'pass', 'verification-failed', 'invalid-policy', 'invalid-cache',
+    'retry-policy-violation', 'harness-error',
+}
+MAX_SAFE_JSON_INTEGER = (1 << 53) - 1
+MAX_PROCESS_EXIT_CODE = 255
 from verification.authority import prepare_task_plan  # noqa: E402
 
 RUNNER = HERE / 'runner.py'
@@ -197,6 +210,146 @@ def aggregate_success(main_path: pathlib.Path, reviews: list[tuple[str, pathlib.
     return out
 
 
+def verification_evidence_summary(result: dict[str, Any], plan_record: dict[str, Any],
+                                  process_exit_code: int) -> dict[str, Any]:
+    """Persist only allowlisted verification decisions, never raw command output."""
+    summary: dict[str, Any] = {
+        'plan_id': plan_record['plan_id'],
+        'family_id': plan_record['family']['id'],
+        'lifecycle_generation': plan_record['lifecycle_generation'],
+        'profile_id': plan_record['profile_id'],
+        'profile_hash': plan_record['profile_hash'],
+        'policy_checkpoint': plan_record['policy_checkpoint'],
+        'outcome': 'harness-error',
+        'process_exit_code': process_exit_code,
+        'gates': [],
+    }
+    def malformed() -> dict[str, Any]:
+        summary.update({
+            'outcome': 'verification-blocked',
+            'machine_category': 'verification-blocked',
+            'reason_code': 'MALFORMED_VERIFICATION_RESULT',
+            'gates': [],
+        })
+        summary.pop('continuation', None)
+        return summary
+
+    if not isinstance(result, dict):
+        return malformed()
+    raw_outcome = result.get('outcome')
+    raw_category = result.get('machine_category')
+    raw_continuation = result.get('continuation')
+    raw_reason_code = result.get('reason_code')
+    raw_exit_code = result.get('exit_code')
+    gates = result.get('gates')
+    allowed_outcomes = VERIFICATION_OUTCOMES | {'PASS', 'FAIL', 'ERROR', 'TIMEOUT'}
+    if (not isinstance(raw_outcome, str) or
+            raw_outcome not in allowed_outcomes or
+            raw_category is not None and (not isinstance(raw_category, str) or
+                                          raw_category not in allowed_outcomes) or
+            raw_continuation is not None and (not isinstance(raw_continuation, str) or
+                raw_continuation not in {'execute-all-and-aggregate', 'continue-from-first-non-green'}) or
+            raw_reason_code is not None and not isinstance(raw_reason_code, str) or
+            raw_exit_code is not None and (type(raw_exit_code) is not int or
+                                           not 0 <= raw_exit_code <= MAX_PROCESS_EXIT_CODE) or
+            not isinstance(gates, list)):
+        return malformed()
+    if type(process_exit_code) is not int or not 0 <= process_exit_code <= MAX_PROCESS_EXIT_CODE:
+        return malformed()
+    expected_outcome_exit = exit_code(raw_outcome)
+    if expected_outcome_exit is not None:
+        if (raw_category != raw_outcome or raw_exit_code != expected_outcome_exit or
+                process_exit_code != expected_outcome_exit):
+            return malformed()
+    elif raw_category is not None or raw_exit_code is not None:
+        return malformed()
+    if raw_outcome == 'PASS':
+        if process_exit_code != 0 or raw_category is not None or raw_exit_code is not None:
+            return malformed()
+        obligations = plan_record.get('obligations')
+        if not isinstance(obligations, list) or not obligations:
+            return malformed()
+        expected_gate_ids = [item.get('gate_id') if isinstance(item, dict) else None
+                             for item in obligations]
+        actual_gate_ids = [item.get('gate_id') for item in gates if isinstance(item, dict)]
+        if (any(not isinstance(gate_id, str) for gate_id in expected_gate_ids) or
+                actual_gate_ids != expected_gate_ids or
+                any(item.get('outcome') != 'PASS' for item in gates)):
+            return malformed()
+    allowed_gate_outcomes = {'PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'NOT_RUN',
+                             'needs-human', 'verification-blocked', 'verification-owned'}
+    for gate in gates:
+        if not isinstance(gate, dict):
+            return malformed()
+        gate_id, action, gate_outcome = gate.get('gate_id'), gate.get('action'), gate.get('outcome')
+        if (not isinstance(gate_id, str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,128}', gate_id) or
+                not isinstance(action, str) or action not in {'RUN', 'REUSE'}):
+            return malformed()
+        if not isinstance(gate_outcome, str) or gate_outcome not in allowed_gate_outcomes:
+            return malformed()
+        reason = gate.get('reason')
+        if reason is not None and (not isinstance(reason, str) or
+                                   not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', reason)):
+            return malformed()
+        for key in ('fingerprint', 'command_hash'):
+            value = gate.get(key)
+            if value is not None and (not isinstance(value, str) or
+                                      not re.fullmatch(r'[0-9a-f]{64}', value)):
+                return malformed()
+        for key in ('exit_code', 'started_at', 'ended_at', 'duration_seconds'):
+            value = gate.get(key)
+            if value is None:
+                continue
+            if key == 'exit_code':
+                if type(value) is not int or not 0 <= value <= MAX_PROCESS_EXIT_CODE:
+                    return malformed()
+            else:
+                if type(value) is int:
+                    if abs(value) > MAX_SAFE_JSON_INTEGER:
+                        return malformed()
+                elif type(value) is float:
+                    if not math.isfinite(value) or abs(value) > MAX_SAFE_JSON_INTEGER:
+                        return malformed()
+                else:
+                    return malformed()
+                if value < 0:
+                    return malformed()
+    summary['outcome'] = (raw_outcome if raw_outcome in
+        VERIFICATION_OUTCOMES | {'PASS', 'FAIL', 'ERROR', 'TIMEOUT'} else 'harness-error')
+    if result.get('family_id') != plan_record['family']['id'] or result.get('profile_hash') != plan_record['profile_hash']:
+        summary['outcome'] = 'verification-blocked'
+        summary['machine_category'] = 'verification-blocked'
+        summary['reason_code'] = 'PLAN_BINDING_MISMATCH'
+        return summary
+    continuation = result.get('continuation')
+    if continuation in {'execute-all-and-aggregate', 'continue-from-first-non-green'}:
+        summary['continuation'] = continuation
+    category = result.get('machine_category')
+    if category in VERIFICATION_OUTCOMES:
+        summary['machine_category'] = category
+    reason_code = result.get('reason_code')
+    if isinstance(reason_code, str) and re.fullmatch(r'[A-Z0-9_.:-]{1,128}', reason_code):
+        summary['reason_code'] = reason_code
+    for gate in gates:
+        gate_id = gate.get('gate_id')
+        action = gate.get('action')
+        outcome = gate.get('outcome')
+        item = {'gate_id': gate_id, 'action': action, 'outcome': outcome}
+        reason = gate.get('reason')
+        if isinstance(reason, str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', reason):
+            item['reason'] = reason
+        for key in ('fingerprint', 'command_hash'):
+            value = gate.get(key)
+            if isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value):
+                item[key] = value
+        for key in ('exit_code', 'started_at', 'ended_at', 'duration_seconds'):
+            value = gate.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                item[key] = value
+        summary['gates'].append(item)
+    return summary
+
+
 def run_started_task(
     feature_dir: pathlib.Path,
     doc: dict[str, Any],
@@ -246,17 +399,28 @@ def run_started_task(
                     capture_output=True, timeout=args.verification_timeout, check=False)
                 verification_result = json.loads(verify_proc.stdout)
             except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
+                main['verification'] = {
+                    'outcome': 'verification-blocked',
+                    'reason_code': 'ACCEPTED_PLAN_UNAVAILABLE',
+                }
+                main_path.write_text(json.dumps(main, indent=2, sort_keys=True) + '\n', encoding='utf-8')
                 return TaskOutcome(task_id, 'verification-blocked', main_path,
                                    f'accepted verification authority unavailable: {type(exc).__name__}')
-            verification_status = verification_result.get('status')
-            verification_outcome = verification_result.get('outcome')
-            if (verify_proc.returncode != 0 or verification_status != 'PASS' and
-                    verification_outcome != 'PASS'):
-                category = verification_result.get('machine_category', verification_status)
-                if not is_control_outcome(category):
-                    category = 'fail'
+            verification_summary = verification_evidence_summary(
+                verification_result, plan_record, verify_proc.returncode)
+            main['verification'] = verification_summary
+            main_path.write_text(json.dumps(main, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+            if main['verification'].get('reason_code') == 'PLAN_BINDING_MISMATCH':
+                return TaskOutcome(task_id, 'verification-blocked', main_path, 'PLAN_BINDING_MISMATCH')
+            verification_outcome = verification_summary['outcome']
+            if verify_proc.returncode != 0 or verification_outcome != 'PASS':
+                category = verification_summary.get('machine_category', verification_outcome)
+                if category in {'FAIL', 'ERROR', 'TIMEOUT', 'PASS', 'harness-error'}:
+                    category = 'verification-failed'
+                if category not in VERIFICATION_OUTCOMES:
+                    category = 'verification-failed'
                 return TaskOutcome(task_id, category, main_path,
-                    str(verification_result.get('reason_code', verification_outcome or category)))
+                    str(verification_summary.get('reason_code', verification_outcome or category)))
             main['verification_authority'] = {
                 'plan_id': plan_record['plan_id'],
                 'lifecycle_generation': plan_record['lifecycle_generation'],
@@ -357,14 +521,47 @@ def apply_outcome(feature_dir: pathlib.Path, doc: dict[str, Any], outcome: TaskO
             ))
         return
 
-    control = outcome.status if is_control_outcome(outcome.status) else None
-    escalate = outcome.status in {'needs-human', 'runner-error', 'reviewer-error',
-                                  'verification-blocked', 'verification-owned'}
+    control = outcome.status if outcome.status in VERIFICATION_BLOCKAGE_OUTCOMES else None
+    escalate = (outcome.status in VERIFICATION_BLOCKAGE_OUTCOMES or
+                outcome.status in {'runner-error', 'reviewer-error'})
     h.cmd_fail(argparse.Namespace(
         feature_dir=feature_dir, task_id=outcome.task_id, owner=owner,
         reason=outcome.summary or outcome.status, evidence=evidence, escalate=escalate,
-        control_outcome=control,
-    ))
+    ), control_outcome=control)
+
+
+def stop_on_repository_admission_blockage(
+    feature_dir: pathlib.Path,
+    doc: dict[str, Any],
+    args: argparse.Namespace,
+    manifest_path: pathlib.Path,
+    outcomes: list[TaskOutcome],
+    round_no: int,
+    recovered_total: list[str],
+) -> None:
+    """Record repository admission failures before any lifecycle/worktree mutation.
+
+    In particular, applying a worker's ``busy`` result through ``cmd_fail`` would
+    reacquire the same verification lock and exit before recording the outcome.
+    A repository-wide blocker also prevents checkpointing successful siblings.
+    """
+    blocked = [outcome for outcome in outcomes
+               if outcome.status in {'busy', 'verification-owned'}]
+    if not blocked:
+        return
+    category = ('verification-owned' if any(item.status == 'verification-owned' for item in blocked)
+                else 'busy')
+    state = h.load_state(feature_dir, doc)
+    write_orchestration_manifest(
+        manifest_path, doc, args, rounds=round_no,
+        recovered_stale_leases=recovered_total,
+        task_statuses={tid: entry['status'] for tid, entry in state['tasks'].items()},
+        status=category,
+        control_outcomes={item.task_id: item.status for item in blocked},
+        completed_at=telemetry.iso_now(),
+    )
+    code = exit_code(category)
+    raise SystemExit(code if code is not None else 3)
 
 
 def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace) -> None:
@@ -449,7 +646,17 @@ def main() -> None:
     recovered_total: list[str] = []
 
     for round_no in range(1, args.max_rounds + 1):
-        recovered = h.recover_stale_leases(feature_dir, doc, reason=f'expired lease recovered by orchestration {args.run_id}')
+        try:
+            recovered = h.recover_stale_leases(
+                feature_dir, doc, reason=f'expired lease recovered by orchestration {args.run_id}')
+        except SystemExit as exc:
+            code = exc.code if isinstance(exc.code, int) else 2
+            category = {3: 'busy', 5: 'verification-blocked', 6: 'verification-owned'}.get(code)
+            if category is None:
+                raise
+            write_orchestration_manifest(manifest_path, doc, args, status=category,
+                                         completed_at=telemetry.iso_now())
+            raise
         for task_id in recovered:
             if task_id not in recovered_total:
                 recovered_total.append(task_id)
@@ -470,12 +677,18 @@ def main() -> None:
             control = [(tid, state['tasks'][tid].get('control_outcome')) for tid in escalated
                        if state['tasks'][tid].get('control_outcome')]
             if control:
-                precedence = {'needs-human': 0, 'verification-blocked': 1, 'verification-owned': 2}
+                precedence = {
+                    'needs-human': 0, 'verification-blocked': 1, 'verification-owned': 2,
+                    'environment-blocked': 3, 'stale-input': 4, 'busy': 5, 'abandoned': 6,
+                }
                 category = min(control, key=lambda item: (precedence[item[1]], item[0]))[1]
                 write_orchestration_manifest(manifest_path, doc, args, status=category,
                     control_outcomes={tid: value for tid, value in control},
                     completed_at=telemetry.iso_now())
-                raise SystemExit(exit_code(category))
+                code = exit_code(category)
+                if code is None:
+                    code = 3 if category in {'environment-blocked', 'stale-input', 'busy', 'abandoned'} else 2
+                raise SystemExit(code)
             write_orchestration_manifest(manifest_path, doc, args, status='needs-human', completed_at=telemetry.iso_now())
             die(f'human decision required; escalated tasks: {escalated}')
         if all(status == 'completed' for status in statuses.values()):
@@ -516,6 +729,12 @@ def main() -> None:
                     outcome = TaskOutcome(task_id, 'runner-error', summary=f'unhandled worker error: {exc}')
                 outcomes.append(outcome)
                 print(f'  {task_id}: {outcome.status} {outcome.summary}'.rstrip())
+
+        # Any repository admission blocker must be recorded before applying
+        # outcomes: even a busy cmd_fail would reacquire the busy verification
+        # lock, and sibling outcomes could checkpoint worktrees under that lock.
+        stop_on_repository_admission_blockage(
+            feature_dir, doc, args, manifest_path, outcomes, round_no, recovered_total)
 
         for outcome in sorted(outcomes, key=lambda item: item.task_id):
             apply_outcome(feature_dir, doc, outcome, args)

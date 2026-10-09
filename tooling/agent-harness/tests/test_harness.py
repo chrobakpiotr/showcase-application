@@ -37,6 +37,14 @@ class HarnessTest(unittest.TestCase):
         os.chdir(self.old_cwd)
         self.tmp.cleanup()
 
+    def test_fail_cli_does_not_expose_verification_control_outcome(self):
+        with self.assertRaises(SystemExit) as rejected:
+            harness.parser().parse_args([
+                'fail', 'docs/specs/TST-001', 'T-001', '--owner', 'task-owner',
+                '--reason', 'attempt failed', '--control-outcome', 'verification-owned',
+            ])
+        self.assertEqual(2, rejected.exception.code)
+
     def feature(self, tasks=None, spec_text=None, *, root=None):
         repo = root or self.root
         feature = repo / 'docs' / 'specs' / 'TST-001'
@@ -76,6 +84,126 @@ class HarnessTest(unittest.TestCase):
         }
         (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
         return feature
+
+    def test_failed_lifecycle_mutation_is_blocked_by_unresolved_verification_before_checkpoint(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker'})
+        harness.save_state(feature, state)
+        state_path = harness.state_path(feature)
+        before_state = state_path.read_bytes()
+        target = harness.worktree_path('TST-001', 'T-001')
+        target.mkdir(parents=True)
+        sentinel = target / 'sentinel'
+        sentinel.write_bytes(b'owned by active verification')
+        before_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                     capture_output=True, text=True, check=True).stdout
+
+        with mock.patch('verification.store.VerificationStore._scan_executions',
+                        return_value=[(self.root / 'execution', {'backend': 'fixture'}, None)]):
+            with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as blocked:
+                harness.cmd_fail(argparse.Namespace(
+                    feature_dir=feature, task_id='T-001', owner='worker', reason='blocked',
+                    evidence=None, escalate=False, control_outcome=None,
+                ))
+
+        self.assertEqual(6, blocked.exception.code)
+        self.assertEqual(b'owned by active verification', sentinel.read_bytes())
+        self.assertEqual(before_state, state_path.read_bytes())
+        self.assertEqual(before_head, subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+            capture_output=True, text=True, check=True).stdout)
+        self.assertTrue(target.exists())
+
+    def test_busy_verification_lock_blocks_stale_worktree_recovery(self):
+        from contextlib import contextmanager, redirect_stderr
+        from io import StringIO
+        import datetime as dt
+        import verification.store as store
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        entry.update({
+            'status': 'running', 'attempts': 1, 'owner': 'worker',
+            'lease_expires_at': (harness.utc_now() - dt.timedelta(hours=1)).isoformat(),
+        })
+        harness.save_state(feature, state)
+        state_path = harness.state_path(feature)
+        before_state = state_path.read_bytes()
+
+        @contextmanager
+        def busy_lock(_root, *_args, **_kwargs):
+            raise store.StoreError('busy')
+            yield
+
+        with mock.patch.object(store, 'repository_lock', busy_lock), \
+                redirect_stderr(StringIO()), self.assertRaises(SystemExit) as blocked:
+            harness.recover_stale_leases(feature, doc)
+
+        self.assertEqual(3, blocked.exception.code)
+        self.assertEqual(before_state, state_path.read_bytes())
+        self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-001']['status'])
+
+    def test_worktree_lifecycle_guard_releases_repository_lock_before_state_lock(self):
+        from contextlib import contextmanager, redirect_stderr
+        from io import StringIO
+        import verification.store as store
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker'})
+        harness.save_state(feature, state)
+        events = []
+        original_repository_lock = store.repository_lock
+        original_locked_state = harness.locked_state
+
+        @contextmanager
+        def tracked_repository_lock(root, *args, **kwargs):
+            events.append('repository-enter')
+            with original_repository_lock(root, *args, **kwargs):
+                yield
+            events.append('repository-exit')
+
+        @contextmanager
+        def tracked_state_lock(*args, **kwargs):
+            events.append('state-enter')
+            with original_locked_state(*args, **kwargs) as state:
+                yield state
+
+        with mock.patch.object(store, 'repository_lock', tracked_repository_lock), \
+                mock.patch.object(harness, 'locked_state', tracked_state_lock), \
+                redirect_stderr(StringIO()):
+            harness.cmd_fail(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', owner='worker', reason='ordinary failure',
+                evidence=None, escalate=False, control_outcome=None,
+            ))
+
+        self.assertEqual(['repository-enter', 'repository-exit', 'state-enter'], events)
+
+    def test_task_human_resolution_cannot_authorize_verification_blockage(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'escalated', 'attempts': 1, 'control_outcome': 'needs-human',
+            'last_failure': 'CRITICAL_GATE_RETRY_GRANT_REQUIRED',
+        })
+        harness.save_state(feature, state)
+
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_human_resolve(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', decision='retry', decision_file=None,
+                by='operator@example.invalid',
+            ))
+
+        entry = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual('escalated', entry['status'])
+        self.assertEqual(0, entry.get('human_resume_grants', 0))
 
     def passing_completion_evidence(self, feature, doc, task_id, attempt, checkpoint, *, changed_paths=None):
         state = harness.load_state(feature, doc)
@@ -1447,6 +1575,7 @@ class HarnessTest(unittest.TestCase):
     def test_lifecycle_cli_cross_worktree_manual_exercise(self):
         import subprocess
         import shutil
+        import sys
 
         feature = self.feature([
             {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
@@ -1473,7 +1602,7 @@ class HarnessTest(unittest.TestCase):
         t_b = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-B'
 
         def cli(worktree, *args):
-            return subprocess.run(['python3', str(harness_path), *map(str, args)], cwd=worktree,
+            return subprocess.run([sys.executable, str(harness_path), *map(str, args)], cwd=worktree,
                                   capture_output=True, text=True, check=True).stdout.strip()
 
         try:
