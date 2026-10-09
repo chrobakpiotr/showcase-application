@@ -146,12 +146,28 @@ class PlannerTest(unittest.TestCase):
         control.parent.mkdir(parents=True)
         control.write_text('{"private":true}')
         surface = changed_surface(self.root, self.base)
-        for relative in ('.git/config', '.GIT/config',
-                         '.agent-state/private.json', '.Agent-State/private.json'):
+        control_paths = (
+            ('.git/config', '.git/config'),
+            ('.GIT/config', '.git/config'),
+            ('.agent-state/private.json', '.agent-state/private.json'),
+            ('.Agent-State/private.json', '.agent-state/private.json'),
+        )
+        for relative, canonical in control_paths:
             with self.subTest(path=relative), \
                     mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
                 observation = observe_inputs(self.root, (relative,), surface)
-                self.assertIn('non-cacheable-external-state', observation.reasons)
+                # Case variants identify the exact control path only when this
+                # filesystem aliases them (for example, the default macOS
+                # filesystem). On case-sensitive filesystems they are distinct
+                # paths; a missing/sensitive input remains non-cacheable-policy.
+                try:
+                    aliases_control_path = os.path.samefile(
+                        self.root / relative, self.root / canonical)
+                except OSError:
+                    aliases_control_path = False
+                expected_reason = ('non-cacheable-external-state' if aliases_control_path
+                                   else 'non-cacheable-policy')
+                self.assertIn(expected_reason, observation.reasons)
                 self.assertFalse(any(str(call.args[0]) == str(self.root / relative)
                                      for call in opened.call_args_list))
                 with self.assertRaises(ValueError):
