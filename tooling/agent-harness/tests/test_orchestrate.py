@@ -274,6 +274,8 @@ class OrchestrateTest(unittest.TestCase):
             {**valid, 'gates': {}},
             {**valid, 'gates': 'not-a-list'},
             {**valid, 'gates': [[]]},
+            {**valid, 'gates': [
+                {'gate_id': 'required-gate', 'action': 'RUN', 'outcome': 'PASS'}, []]},
             {**valid, 'gates': [{'gate_id': 'g', 'action': [], 'outcome': 'PASS'}]},
             {**valid, 'gates': [{'gate_id': 'g', 'action': 'RUN', 'outcome': []}]},
             {**valid, 'gates': [{'gate_id': 'g', 'action': 'RUN', 'outcome': 'PASS', 'reason': []}]},

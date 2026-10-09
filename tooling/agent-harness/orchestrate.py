@@ -267,7 +267,8 @@ def verification_evidence_summary(result: dict[str, Any], plan_record: dict[str,
         if process_exit_code != 0 or raw_category is not None or raw_exit_code is not None:
             return malformed()
         obligations = plan_record.get('obligations')
-        if not isinstance(obligations, list) or not obligations:
+        if (not isinstance(obligations, list) or not obligations or
+                any(not isinstance(item, dict) for item in gates)):
             return malformed()
         expected_gate_ids = [item.get('gate_id') if isinstance(item, dict) else None
                              for item in obligations]
