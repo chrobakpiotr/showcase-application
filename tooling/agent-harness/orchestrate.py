@@ -11,6 +11,7 @@ import argparse
 import concurrent.futures
 import contextlib
 import datetime as dt
+import hashlib
 import json
 import math
 import pathlib
@@ -365,6 +366,12 @@ def run_started_task(
     choice = choice_for_role(task['role'], args)
     try:
         with lease_heartbeat(feature_dir, doc, task_id, owner):
+            lifecycle = h.load_state(feature_dir, doc)
+            task_state = lifecycle.get('tasks', {}).get(task_id, {})
+            resume = task_state.get('verification_resume_active')
+            if isinstance(resume, dict):
+                return run_resumed_verification(feature_dir, doc, task, worktree, packet,
+                                                args, resume, task_state)
             try:
                 main_path = invoke_runner(runner_command(packet, worktree, choice, args,
                     feedback_file=feedback, defer_verification=True))
@@ -457,6 +464,103 @@ def run_started_task(
             return TaskOutcome(task_id, 'pass', evidence=evidence, summary=str(main.get('summary', '')))
     except RuntimeError as exc:
         return TaskOutcome(task_id, 'runner-error', summary=str(exc))
+
+
+def run_resumed_verification(
+    feature_dir: pathlib.Path, doc: dict[str, Any], task: dict[str, Any],
+    worktree: pathlib.Path, packet: pathlib.Path, args: argparse.Namespace,
+    resume: dict[str, Any], task_state: dict[str, Any],
+) -> TaskOutcome:
+    """Resume only the exact accepted verification plan; never relaunch the builder."""
+    task_id = task['id']
+    evidence_value = resume.get('prior_result_path')
+    if not isinstance(evidence_value, str):
+        return TaskOutcome(task_id, 'verification-blocked',
+                           summary='VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE')
+    main_path = pathlib.Path(evidence_value)
+    try:
+        main_path = main_path.resolve(strict=True)
+        allowed_root = (REPO / '.agent-runs' / str(doc.get('feature', feature_dir.name))).resolve(strict=True)
+        main_path.relative_to(allowed_root)
+        prior_bytes = main_path.read_bytes()
+        prior_digest = hashlib.sha256(prior_bytes).hexdigest()
+        if prior_digest != resume.get('prior_result_sha256'):
+            raise ValueError('prior builder result digest changed')
+        main = json.loads(prior_bytes)
+        if not isinstance(main, dict):
+            raise ValueError('prior builder result is not an object')
+        if main.get('task') != task_id or main.get('status') != 'pass':
+            raise ValueError('prior builder result is not a passing result for this task')
+        prior_result_path = main_path
+        plan_id = resume.get('plan_id')
+        attempt = task_state.get('attempts')
+        if (not isinstance(plan_id, str) or resume.get('task_attempt') != attempt or
+                type(attempt) is not int or not isinstance(resume.get('prior_result_sha256'), str)):
+            raise ValueError('resume tuple does not match current attempt')
+        accepted = h.resolve_accepted_verification_plan(worktree, plan_id)
+        if accepted.get('task_id') != task_id or accepted.get('task_attempt') != attempt:
+            raise ValueError('accepted plan does not match current task attempt')
+        verify_proc = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
+            '--mode', 'integration', '--repo', str(worktree), '--plan-id', plan_id],
+            cwd=worktree, text=True, capture_output=True,
+            timeout=args.verification_timeout, check=False)
+        verification_result = json.loads(verify_proc.stdout)
+        verification_summary = verification_evidence_summary(
+            verification_result, accepted, verify_proc.returncode)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
+        main = None
+        verification_summary = {
+            'outcome': 'verification-blocked', 'machine_category': 'verification-blocked',
+            'reason_code': 'VERIFICATION_RESUME_AUTHORITY_UNAVAILABLE',
+        }
+        failure_summary = f'verification resume unavailable: {type(exc).__name__}'
+    else:
+        failure_summary = str(verification_summary.get('reason_code',
+            verification_summary.get('outcome', 'verification-blocked')))
+    if main is not None:
+        main['verification'] = verification_summary
+        main['verification_resume'] = {
+            'plan_id': resume['plan_id'], 'task_attempt': attempt,
+            'lifecycle_generation': resume.get('lifecycle_generation'),
+            'operator': resume.get('operator'),
+            'prior_result_sha256': resume['prior_result_sha256'],
+            'prior_result_path': str(prior_result_path),
+            'resumed_at': telemetry.iso_now(),
+        }
+        if verification_summary.get('outcome') == 'PASS':
+            main['verification_authority'] = {
+                'plan_id': accepted['plan_id'], 'lifecycle_generation': accepted['lifecycle_generation'],
+                'task_id': task_id, 'task_attempt': attempt, 'status': 'PASS',
+            }
+        main_path = prior_result_path.parent / f'verification-resume-{uuid.uuid4().hex}.json'
+        telemetry.atomic_write_json(main_path, main)
+    if main is None or verification_summary.get('outcome') != 'PASS':
+        category = verification_summary.get('machine_category', 'verification-blocked')
+        if category in {'FAIL', 'ERROR', 'TIMEOUT', 'harness-error'}:
+            category = 'verification-failed'
+        if category not in VERIFICATION_OUTCOMES:
+            category = 'verification-blocked'
+        return TaskOutcome(task_id, category, main_path if main is not None else None,
+                           failure_summary)
+
+    reviews: list[tuple[str, pathlib.Path]] = []
+    packet_doc = load_result(packet)
+    if task['role'] == 'builder':
+        for profile in [str(item) for item in packet_doc.get('required_reviewers', [])]:
+            try:
+                review_path = invoke_runner(runner_command(
+                    packet, worktree, review_choice(args), args,
+                    profile=profile, review_existing=True))
+            except RuntimeError as exc:
+                return TaskOutcome(task_id, 'reviewer-error', main_path, f'{profile}: {exc}')
+            review = load_result(review_path)
+            reviews.append((profile, review_path))
+            if review.get('status') != 'pass':
+                return TaskOutcome(task_id, str(review.get('status')), review_path,
+                                   f'{profile}: {review.get("summary", "review failed")}')
+    evidence = aggregate_success(main_path, reviews) if reviews else main_path
+    return TaskOutcome(task_id, 'pass', evidence=evidence,
+                       summary=str(main.get('summary', 'verification resumed and passed')))
 
 
 def start_ready_batch(

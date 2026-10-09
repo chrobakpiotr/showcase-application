@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -375,6 +376,88 @@ class OrchestrateTest(unittest.TestCase):
                 self.assertEqual('verification-blocked', evidence['verification']['outcome'])
                 self.assertNotIn('verification_authority', evidence)
                 invoke.assert_called_once()
+
+    def test_verification_resume_reuses_prior_builder_result_without_provider_launch(self):
+        feature, doc = self.feature()
+        allowed = self.root / '.agent-runs' / 'TST-002'
+        allowed.mkdir(parents=True)
+        main_path = allowed / 'prior-result.json'
+        main_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass', 'summary': 'builder passed'}))
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'required_reviewers': []}))
+        accepted = {'plan_id': 'plan-1', 'task_id': 'T-001', 'task_attempt': 2,
+                    'lifecycle_generation': 1, 'family': {'id': 'family-1'},
+                    'profile_hash': 'a' * 64}
+        task_state = {'attempts': 2, 'last_failure_evidence': str(main_path)}
+        original_bytes = main_path.read_bytes()
+        resume = {'plan_id': 'plan-1', 'task_attempt': 2,
+                  'prior_result_sha256': hashlib.sha256(original_bytes).hexdigest(),
+                  'prior_result_path': str(main_path),
+                  'operator': 'operator@example.invalid'}
+        process = mock.Mock(returncode=0, stdout='{}', stderr='')
+        with mock.patch.object(orchestrate, 'REPO', self.root), \
+             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan', return_value=accepted), \
+             mock.patch.object(orchestrate.subprocess, 'run', return_value=process) as verify, \
+             mock.patch.object(orchestrate, 'verification_evidence_summary', return_value={
+                 'outcome': 'PASS', 'machine_category': 'pass'}), \
+             mock.patch.object(orchestrate, 'invoke_runner') as provider:
+            outcome = orchestrate.run_resumed_verification(
+                feature, doc, doc['tasks'][0], worktree, packet, self.args(),
+                resume, task_state)
+        self.assertEqual('pass', outcome.status)
+        self.assertNotEqual(main_path.resolve(), outcome.evidence)
+        self.assertEqual(original_bytes, main_path.read_bytes())
+        verify.assert_called_once()
+        self.assertIn('--plan-id', verify.call_args.args[0])
+        resumed = json.loads(outcome.evidence.read_text())
+        self.assertEqual('plan-1', resumed['verification_authority']['plan_id'])
+        self.assertEqual(str(main_path.resolve()), resumed['verification_resume']['prior_result_path'])
+        self.assertEqual(resume['prior_result_sha256'], resumed['verification_resume']['prior_result_sha256'])
+        self.assertEqual('operator@example.invalid', resumed['verification_resume']['operator'])
+        provider.assert_not_called()
+
+    def test_verification_resume_rejects_changed_prior_builder_result_before_running_verifier(self):
+        feature, doc = self.feature()
+        allowed = self.root / '.agent-runs' / 'TST-002'
+        allowed.mkdir(parents=True)
+        main_path = allowed / 'prior-result.json'
+        main_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass'}))
+        resume = {'plan_id': 'plan-1', 'task_attempt': 2,
+                  'prior_result_sha256': '0' * 64, 'prior_result_path': str(main_path),
+                  'operator': 'operator'}
+        task_state = {'attempts': 2, 'last_failure_evidence': str(main_path)}
+        with mock.patch.object(orchestrate, 'REPO', self.root), \
+             mock.patch.object(orchestrate, 'invoke_runner') as provider, \
+             mock.patch.object(orchestrate.subprocess, 'run') as verify:
+            outcome = orchestrate.run_resumed_verification(
+                feature, doc, doc['tasks'][0], self.root / 'worktree', self.root / 'packet',
+                self.args(), resume, task_state)
+        self.assertEqual('verification-blocked', outcome.status)
+        self.assertIsNone(outcome.evidence)
+        verify.assert_not_called()
+        provider.assert_not_called()
+
+    def test_started_verification_resume_routes_around_provider_runner(self):
+        feature, doc = self.feature()
+        task = doc['tasks'][0]
+        worktree = self.root / 'task-worktree'
+        packet = self.root / 'packet.json'
+        resume = {'plan_id': 'plan-1', 'task_attempt': 2}
+        state = {'tasks': {'T-001': {'verification_resume_active': resume, 'attempts': 2}}}
+        expected = orchestrate.TaskOutcome('T-001', 'verification-blocked', summary='precondition pending')
+        with mock.patch.object(orchestrate, 'lease_heartbeat',
+                               return_value=orchestrate.contextlib.nullcontext()), \
+             mock.patch.object(orchestrate.h, 'load_state', return_value=state), \
+             mock.patch.object(orchestrate, 'run_resumed_verification', return_value=expected) as resume_run, \
+             mock.patch.object(orchestrate, 'invoke_runner') as provider:
+            outcome = orchestrate.run_started_task(
+                feature, doc, task, worktree, packet, self.args(), feedback=None)
+        self.assertIs(expected, outcome)
+        resume_run.assert_called_once_with(feature, doc, task, worktree, packet,
+                                           self.args(), resume, state['tasks']['T-001'])
+        provider.assert_not_called()
 
 
     def test_human_resolution_makes_escalated_task_resumable_with_feedback(self):

@@ -465,6 +465,7 @@ class VerificationStore:
                  issuer_registry: pathlib.Path | None = None):
         # An explicit control root is only a test seam; identity always follows
         # the canonical Git common-dir model used by the repository harness.
+        isolated_control_root = control_root is not None
         if control_root is None:
             control_root, repository_id = resolve_control_root(repository)
         else:
@@ -472,6 +473,8 @@ class VerificationStore:
             # Production entry points omit this argument and require Git identity.
             repository_id = hashlib.sha256(str(pathlib.Path(repository).resolve()).encode()).hexdigest()
         self.root = pathlib.Path(control_root).resolve()
+        self.lifecycle_root = (self.root / 'lifecycle-authority' if isolated_control_root
+                               else self.root.parents[2] / '.agent-state')
         self.issuer_registry = (pathlib.Path(issuer_registry) if issuer_registry is not None else
             pathlib.Path(__file__).resolve().parents[1] / 'human-issuer-registry.json')
         self.repository_id = repository_id

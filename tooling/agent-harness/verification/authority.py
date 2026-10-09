@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import pathlib
 import re
 
@@ -68,6 +69,144 @@ def publish_and_accept(repository: pathlib.Path, feature_dir: pathlib.Path, reco
 def resolve_accepted(repository: pathlib.Path, plan_id: str) -> dict:
     import harness
     return harness.resolve_accepted_verification_plan(pathlib.Path(repository), plan_id)
+
+
+def trusted_task_history(repository: pathlib.Path, feature_id: str, *,
+                         _lifecycle_state: dict | None = None) -> dict:
+    """Return a validated detached projection of canonical task/attempt history.
+
+    Callers provide only repository and feature selectors. Metrics and relationships are
+    derived from the validated task DAG, lifecycle state, immutable attempt bindings and
+    completion authority records; caller-supplied history or metric values are never accepted.
+    """
+    import harness
+    from .store import StoreError, _validate_component
+
+    _validate_component(feature_id, 'invalid-feature')
+    repository = pathlib.Path(repository).resolve(strict=True)
+    feature_dir = repository / 'docs' / 'specs' / feature_id
+    try:
+        doc = harness.load_validated(feature_dir)
+        if doc.get('feature') != feature_id:
+            raise StoreError('LIFECYCLE_HISTORY_UNAVAILABLE')
+        if _lifecycle_state is None:
+            state = harness.load_state(feature_dir, doc)
+        else:
+            harness.validate_state_identity(feature_dir, doc, _lifecycle_state)
+            state = _lifecycle_state
+    except (OSError, SystemExit, ValueError, TypeError):
+        raise StoreError('LIFECYCLE_HISTORY_UNAVAILABLE') from None
+
+    tasks = []
+    for task in doc['tasks']:
+        task_id = task['id']
+        entry = state.get('tasks', {}).get(task_id)
+        if not isinstance(entry, dict):
+            raise StoreError('LIFECYCLE_HISTORY_UNAVAILABLE')
+        try:
+            harness.validate_attempt_binding_ledger(entry)
+            bindings = entry.get('attempt_bindings', [])
+            completions = harness.completion_records(feature_dir, task_id)
+            corrections = harness.correction_records(feature_dir, task_id)
+        except (SystemExit, OSError, ValueError, TypeError):
+            raise StoreError('LIFECYCLE_HISTORY_UNAVAILABLE') from None
+
+        attempts = []
+        for binding in sorted(bindings, key=lambda item: item['attempt']):
+            attempt = binding['attempt']
+            matching = [record for record in completions if record.get('attempt') == attempt]
+            # Preserve incomplete legacy ordering as unknown; never infer a checkpoint or
+            # completion from current HEAD, timestamps, or a neighboring attempt.
+            bound = matching[0] if len(matching) == 1 else None
+            binding_matches = bool(bound and
+                bound.get('packet_revision') == binding.get('packet_revision') and
+                bound.get('contract_fingerprint') == binding.get('contract_sha256'))
+            attempts.append({
+                'attempt': attempt,
+                'binding_status': binding['binding_status'],
+                'packet_revision': binding.get('packet_revision'),
+                'contract_sha256': binding.get('contract_sha256'),
+                'completion_count': len(matching),
+                'completion': ({
+                    'record_id': matching[0].get('record_id'),
+                    'checkpoint': matching[0].get('checkpoint'),
+                    'created_at': bound.get('created_at'),
+                } if bound else None),
+                'ordering': ('KNOWN' if binding_matches else 'UNKNOWN'),
+            })
+        tasks.append({
+            'task_id': task_id,
+            'role': task['role'],
+            'compatible_manual_roles': tuple(sorted({task.get('role'), task.get('agent_profile'),
+                                                       *task.get('required_reviewers', [])} - {None})),
+            'status': entry.get('status'),
+            'attempts': tuple(attempts),
+            'completion_count': len(completions),
+            'correction_count': len(corrections),
+        })
+    return {
+        'repository_id': hashlib.sha256(os.fsencode(harness.git_common_dir(feature_dir))).hexdigest(),
+        'feature_id': feature_id,
+        'feature_generation': state.get('feature_generation', 1),
+        'feature_fingerprint': harness.feature_fingerprint(feature_dir),
+        'tasks': tuple(tasks),
+    }
+
+
+def resolve_manual_review_scope(repository: pathlib.Path, feature_id: str, *, role: str,
+                                task_id: str | None = None, task_attempt: int | None = None,
+                                checkpoint: str | None = None,
+                                _lifecycle_state: dict | None = None) -> dict:
+    """Resolve manual-observation scope from trusted lifecycle history only.
+
+    This resolves scope, not reviewer identity or accepted coverage. The caller must still
+    validate the closed signed attestation and report snapshot before recording provenance.
+    """
+    from .store import StoreError, _validate_component
+
+    if role not in {'reviewer', 'evaluator', 'architecture-reviewer', 'verification-author'}:
+        raise StoreError('MANUAL_EVIDENCE_SCOPE_INVALID')
+    history = trusted_task_history(repository, feature_id, _lifecycle_state=_lifecycle_state)
+    if task_attempt is None:
+        if task_id is not None:
+            _validate_component(task_id, 'invalid-task')
+            task = next((item for item in history['tasks'] if item['task_id'] == task_id), None)
+            if task is None:
+                raise StoreError('MANUAL_EVIDENCE_TASK_UNRESOLVED')
+            if role not in task['compatible_manual_roles']:
+                raise StoreError('MANUAL_EVIDENCE_TASK_ROLE_MISMATCH')
+            return {'repository_id': history['repository_id'], 'feature_id': feature_id,
+                    'role': role, 'task_id': task_id, 'task_attempt': None,
+                    'checkpoint': None, 'ordering': 'UNKNOWN'}
+        return {'repository_id': history['repository_id'], 'feature_id': feature_id,
+                'role': role, 'task_id': None, 'task_attempt': None,
+                'checkpoint': None, 'ordering': 'UNKNOWN'}
+
+    if type(task_attempt) is not int or task_attempt < 1:
+        raise StoreError('MANUAL_EVIDENCE_ATTEMPT_UNRESOLVED')
+    candidates = []
+    for task in history['tasks']:
+        if task_id is not None and task['task_id'] != task_id:
+            continue
+        for attempt in task['attempts']:
+            completion = attempt.get('completion')
+            if (attempt['attempt'] == task_attempt and attempt['ordering'] == 'KNOWN' and
+                    isinstance(completion, dict) and completion.get('checkpoint') == checkpoint):
+                candidates.append((task, attempt, completion))
+    if len(candidates) != 1:
+        raise StoreError('MANUAL_EVIDENCE_ATTEMPT_UNRESOLVED')
+    task, attempt, completion = candidates[0]
+    if role not in task['compatible_manual_roles']:
+        raise StoreError('MANUAL_EVIDENCE_TASK_ROLE_MISMATCH')
+    return {
+        'repository_id': history['repository_id'], 'feature_id': feature_id,
+        'feature_generation': history['feature_generation'],
+        'role': role, 'task_id': task['task_id'], 'task_attempt': task_attempt,
+        'packet_revision': attempt['packet_revision'],
+        'contract_sha256': attempt['contract_sha256'],
+        'checkpoint': completion['checkpoint'], 'completion_record_id': completion['record_id'],
+        'ordering': 'KNOWN',
+    }
 
 
 def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | None = None):
