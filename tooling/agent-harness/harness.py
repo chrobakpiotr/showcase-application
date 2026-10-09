@@ -73,6 +73,10 @@ RECOVERY_PACKET_IDENTITY_SCHEMES = {1: PACKET_PAYLOAD_IDENTITY_SCHEME}
 RECOVERY_RECORD_IDENTITY_SCHEME = 'canonical-recovery-record-sha256-v1'
 BRIDGE_SCHEMA_VERSION = 1
 BRIDGE_CLASSIFICATIONS = {'AUTOMATICALLY_PROVEN', 'HUMAN_ATTESTED', 'AMBIGUOUS'}
+VERIFICATION_BLOCKAGE_OUTCOMES = {
+    'busy', 'stale-input', 'environment-blocked', 'needs-human',
+    'verification-blocked', 'verification-owned', 'abandoned',
+}
 
 
 PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
@@ -686,6 +690,22 @@ def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
     return runtime_state_dir(feature_dir) / f'{feature_dir.name}-{state_key(feature_dir)}.lock'
 
 
+@contextlib.contextmanager
+def lifecycle_state_lock(feature_dir: pathlib.Path) -> Iterator[Any]:
+    """Acquire repository admission before the feature's canonical state lock."""
+    from verification.admission import RepositoryAdmission
+    admission = RepositoryAdmission.for_repository(feature_repo_base(feature_dir))
+    with admission.mutation():
+        with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+            if fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                yield lock
+            finally:
+                if fcntl is not None:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
 def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
     state = {
         'state_version': 2,
@@ -820,9 +840,7 @@ def cmd_migrate_state(args: argparse.Namespace) -> None:
     """Validate and explicitly adopt a legacy state under the current semantic version."""
     doc = load_validated(args.feature_dir)
     runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(args.feature_dir) as lock:
         state, legacy_path = _resolve_state_unlocked(args.feature_dir, doc)
         if not state_path(args.feature_dir).exists() and not legacy_path:
             die(f'no authoritative lifecycle state exists for {args.feature_dir}; migration will not create state')
@@ -886,8 +904,7 @@ def cmd_reconcile_feature(args: argparse.Namespace) -> None:
     if not reason or not operator:
         die('FEATURE_REPLAN_REJECTED: explicit reason and operator attribution are required')
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(feature_dir) as lock:
         path = state_path(feature_dir)
         if not path.is_file() or path.is_symlink():
             die('FEATURE_REPLAN_REJECTED: existing lifecycle state is required')
@@ -948,8 +965,7 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
             type(plan_record.get('lifecycle_generation')) is not int or
             plan_record.get('lifecycle_generation') != expected_generation):
         die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: plan feature/generation binding differs')
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(feature_dir) as lock:
         state = _load_state_unlocked(feature_dir, doc)
         generation = state.get('feature_generation', 1)
         if generation != expected_generation:
@@ -984,7 +1000,8 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
     return state['verification_authority']
 
 
-def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str) -> dict:
+def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str, *,
+                                       allowed_task_statuses: set[str] | None = None) -> dict:
     """Resolve subordinate plan bytes and prove current .agent-state acceptance."""
     from verification.store import VerificationStore, StoreError
     store = VerificationStore(repository)
@@ -1003,10 +1020,11 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str) -
     expected = {key: record.get(key) for key in ('schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint',
         'lifecycle_generation', 'family', 'profile_hash', 'policy_checkpoint',
         'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
+    statuses = allowed_task_statuses or {'running'}
     if (not isinstance(current, dict) or current.get('accepted_plan_id') != plan_id or
             current.get('generation') != generation or generation != record.get('lifecycle_generation') or
             record.get('feature_fingerprint') != feature_fingerprint(feature_dir) or
-            not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+            not isinstance(task_state, dict) or task_state.get('status') not in statuses or
             task_state.get('attempts') != record.get('task_attempt') or
             current.get('binding') != expected):
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
@@ -1517,27 +1535,34 @@ def effective_task_status(feature_dir: pathlib.Path, task_id: str,
 
 def remove_state_locked(feature_dir: pathlib.Path) -> None:
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(feature_dir):
         state_path(feature_dir).unlink(missing_ok=True)
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 @contextlib.contextmanager
-def locked_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> Iterator[dict[str, Any]]:
+def locked_state(feature_dir: pathlib.Path, doc: dict[str, Any], *,
+                 admission_guard: bool = True) -> Iterator[dict[str, Any]]:
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        state = _load_state_unlocked(feature_dir, doc)
-        try:
-            yield state
-        finally:
-            save_state(feature_dir, state)
-            if fcntl is not None:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    try:
+        from verification.admission import AdmissionConflict, RepositoryAdmission
+        if admission_guard:
+            guard = lifecycle_state_lock(feature_dir)
+        else:
+            guard = lock_path(feature_dir).open('a+', encoding='utf-8')
+        with guard as lock:
+            if not admission_guard and fcntl is not None:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                state = _load_state_unlocked(feature_dir, doc)
+                try:
+                    yield state
+                finally:
+                    save_state(feature_dir, state)
+            finally:
+                if not admission_guard and fcntl is not None:
+                    fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    except AdmissionConflict as exc:
+        die(f'VERIFICATION_OWNERSHIP_BLOCKED: {exc}', code=6)
 
 
 
@@ -1554,6 +1579,19 @@ def parse_timestamp(value: Any) -> dt.datetime | None:
         return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=dt.timezone.utc)
+    return parsed.astimezone(dt.timezone.utc)
+
+
+def parse_aware_timestamp(value: Any) -> dt.datetime | None:
+    """Parse only timestamps that carry an explicit timezone offset."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
     return parsed.astimezone(dt.timezone.utc)
 
 
@@ -1582,7 +1620,9 @@ def lease_expired(entry: dict[str, Any], *, now: dt.datetime | None = None) -> b
 
 
 def heartbeat(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str) -> str:
-    with locked_state(feature_dir, doc) as state:
+    # Lease renewal does not claim/change a worktree and must remain available
+    # while the verifier's durable repository reservation is active.
+    with locked_state(feature_dir, doc, admission_guard=False) as state:
         entry = state['tasks'].get(task_id)
         if not entry:
             die(f'unknown task {task_id}')
@@ -1602,6 +1642,10 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
     The checkpoint is never exposed to dependents because the task remains failed until re-executed
     and completed successfully.
     """
+    # Admission reconciliation always precedes the task-state lock.  Never infer
+    # that an expired task lease releases a verification process that may still
+    # own and mutate the same worktree.
+    assert_repository_verification_drained(feature_dir)
     recovered: list[str] = []
     now = utc_now()
     with locked_state(feature_dir, doc) as state:
@@ -1618,6 +1662,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
                     entry.pop(key, None)
                 recovered.append(task_id)
                 continue
+            active_verification_resume = entry.pop('verification_resume_active', None)
             if is_unrecovered_partial_claim(entry):
                 die(f'CLAIM_RECOVERY_REQUIRED: {task_id} is a stranded exceptional claim; attest with recover-claim before lease recovery')
             task = active_task_contract(feature_dir, doc, task_id, state=state)
@@ -1634,11 +1679,39 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
                 'lease_recovered_at': now.isoformat(),
                 'last_attempt_commit': stale_commit,
             })
+            if isinstance(active_verification_resume, dict):
+                entry['verification_resume_pending'] = active_verification_resume
             entry.pop('start_origin_status', None)
             for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
                 entry.pop(key, None)
             recovered.append(task_id)
     return recovered
+
+
+def assert_repository_verification_drained(feature_dir: pathlib.Path) -> None:
+    """Refuse worktree lifecycle mutations while verification ownership is unresolved.
+
+    The repository lock is acquired and released before any caller enters the
+    lifecycle lock. VerificationStore's immutable journal is authoritative;
+    process state and task lease expiry are not drainage evidence.
+    """
+    try:
+        # Keep non-verification lifecycle/status commands importable on older
+        # Python installations. A mutation still fails closed if the canonical
+        # verification authority cannot be loaded.
+        from verification.store import (StoreError as VerificationStoreError,
+                                        VerificationStore, repository_lock)
+        store = VerificationStore(feature_dir)
+        with repository_lock(store.root):
+            store.admit_repository_verification()
+    except Exception as exc:
+        if isinstance(exc, ImportError) or isinstance(exc, TypeError):
+            die(f'VERIFICATION_OWNERSHIP_UNAVAILABLE: {type(exc).__name__}', code=5)
+        if isinstance(exc, VerificationStoreError):
+            message = str(exc)
+            code = {'busy': 3, 'verification-owned': 6}.get(message, 5)
+            die(f'VERIFICATION_OWNERSHIP_BLOCKED: {message}', code=code)
+        die(f'VERIFICATION_OWNERSHIP_BLOCKED: {type(exc).__name__}', code=5)
 
 
 def is_unrecovered_partial_claim(entry: dict[str, Any]) -> bool:
@@ -1662,7 +1735,10 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
         if entry['status'] not in {'pending', 'failed'}:
             continue
         contract_task = active_task_contract(feature_dir, doc, tid, state=state) if feature_dir is not None else task
-        if entry.get('status') == 'failed' and int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and int(entry.get('human_resume_grants', 0)) <= 0:
+        if (entry.get('status') == 'failed' and
+                not isinstance(entry.get('verification_resume_pending'), dict) and
+                int(entry.get('attempts', 0)) >= 1 + int(doc.get('max_rework_attempts', 2)) and
+                int(entry.get('human_resume_grants', 0)) <= 0):
             if feature_dir is None or classify_retry_authorizations(feature_dir, doc, state, tid, int(entry.get('attempts', 0)))[0] != 'valid':
                 continue
         if all(task_has_effective_completion(feature_dir, dep, state['tasks'][dep])
@@ -1670,6 +1746,266 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
                for dep in contract_task.get('depends_on', [])):
             ready.append(tid)
     return ready[:capacity]
+
+
+def cmd_resume_verification(args: argparse.Namespace) -> None:
+    """Durably schedule exact-plan verification again without a new builder attempt."""
+    doc = load_validated(args.feature_dir)
+    reason = args.reason if isinstance(args.reason, str) else ''
+    operator = str(getattr(args, 'by', '') or '').strip()
+    if (args.task_id not in task_index(doc) or not reason.strip() or len(reason.encode('utf-8')) > 1024 or
+            any(ord(char) < 32 and char not in '\t\n' for char in reason) or
+            not operator or len(operator.encode('utf-8')) > 256 or
+            any(ord(char) < 32 for char in operator)):
+        die('VERIFICATION_RESUME_INVALID: task, reason, and operator are required')
+    assert_repository_verification_drained(args.feature_dir)
+    target = worktree_path(str(doc.get('feature', args.feature_dir.name)), args.task_id)
+    if not target.is_dir() or target.is_symlink():
+        die('VERIFICATION_RESUME_INVALID: the exact task worktree is unavailable')
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state.get('tasks', {}).get(args.task_id)
+        if (not isinstance(entry, dict) or entry.get('status') != 'escalated' or
+                entry.get('control_outcome') != 'verification-blocked'):
+            die('VERIFICATION_RESUME_INVALID: task is not stopped on verification-blocked')
+        authority = state.get('verification_authority')
+        plan_id = authority.get('accepted_plan_id') if isinstance(authority, dict) else None
+        generation = state.get('feature_generation', 1)
+        if not isinstance(plan_id, str) or authority.get('generation') != generation:
+            die('VERIFICATION_RESUME_INVALID: current accepted plan is unavailable')
+        try:
+            plan = resolve_accepted_verification_plan(
+                target, plan_id, allowed_task_statuses={'escalated'})
+        except Exception as exc:
+            die(f'VERIFICATION_RESUME_INVALID: accepted plan could not be reconstructed ({type(exc).__name__})')
+        if (plan.get('feature_id') != doc.get('feature') or plan.get('task_id') != args.task_id or
+                plan.get('task_attempt') != entry.get('attempts') or
+                plan.get('lifecycle_generation') != generation):
+            die('VERIFICATION_RESUME_INVALID: accepted plan does not bind this exact attempt')
+        resume_history = entry.get('verification_resume_history', [])
+        if not isinstance(resume_history, list):
+            die('VERIFICATION_RESUME_INVALID: resume history is malformed')
+        prior_resume = resume_history[-1] if resume_history else None
+        if prior_resume is not None and not isinstance(prior_resume, dict):
+            die('VERIFICATION_RESUME_INVALID: latest resume history entry is malformed')
+        prior_result_path = (prior_resume.get('prior_result_path') if prior_resume else
+                             entry.get('last_failure_evidence'))
+        prior_result_sha256 = prior_builder_result_digest(
+            args.feature_dir, entry, args.task_id, prior_result_path)
+        if prior_resume is not None and prior_result_sha256 != prior_resume.get('prior_result_sha256'):
+            die('VERIFICATION_RESUME_INVALID: prior builder result changed since the previous resume')
+        history = entry.setdefault('verification_resume_history', [])
+        if not isinstance(history, list):
+            die('VERIFICATION_RESUME_INVALID: resume history is malformed')
+        resume = {'plan_id': plan_id, 'task_attempt': entry['attempts'],
+                  'lifecycle_generation': generation,
+                  'reason_sha256': hashlib.sha256(reason.encode('utf-8')).hexdigest(),
+                  'prior_result_sha256': prior_result_sha256,
+                  'prior_result_path': prior_result_path,
+                  'operator': operator,
+                  'requested_at': utc_now().isoformat()}
+        history.append(dict(resume))
+        entry['verification_resume_pending'] = resume
+        entry['status'] = 'failed'
+        entry.pop('control_outcome', None)
+    print(f'VERIFICATION_RESUME_READY {args.task_id} attempt={plan["task_attempt"]} plan={plan_id}')
+
+
+def cmd_recover_verification(args: argparse.Namespace) -> None:
+    """Recover verifier journals and clear only proven-dead unstarted admissions."""
+    from verification.store import StoreError, VerificationStore
+    from verification.supervisor import VerificationSupervisor
+    from verification.admission import RepositoryAdmission
+    try:
+        store = VerificationStore(pathlib.Path(args.repo))
+        results = VerificationSupervisor(store).recover()
+        active = RepositoryAdmission(store.lifecycle_root, store.repository_id).active()
+    except (OSError, StoreError, RuntimeError, ValueError) as exc:
+        die(f'VERIFICATION_RECOVERY_UNAVAILABLE: {type(exc).__name__}', code=5)
+    if active is not None:
+        die('VERIFICATION_RECOVERY_UNRESOLVED: owner is alive, identity is uncertain, or execution needs backend recovery',
+            code=6)
+    print(json.dumps([{'execution_id': item.execution_id, 'state': item.state.value,
+                       'reason_code': item.reason_code} for item in results], indent=2))
+
+
+def validate_verification_resume(entry: dict[str, Any], field: str) -> dict[str, Any] | None:
+    """Validate a pending/active resume against its latest immutable history item."""
+    active = entry.get(field)
+    if active is None:
+        return None
+    history = entry.get('verification_resume_history')
+    required = ('plan_id', 'task_attempt', 'lifecycle_generation', 'reason_sha256',
+                'requested_at', 'operator', 'prior_result_sha256', 'prior_result_path')
+    if not isinstance(active, dict) or not isinstance(history, list) or not history:
+        die('VERIFICATION_RESUME_STATE_INVALID: active resume does not match durable history')
+    latest = history[-1]
+    if not isinstance(latest, dict) or not all(active.get(key) == latest.get(key) for key in required):
+        die('VERIFICATION_RESUME_STATE_INVALID: active resume does not match durable history')
+    if (not isinstance(active.get('plan_id'), str) or not active['plan_id'] or
+            type(active.get('task_attempt')) is not int or active['task_attempt'] != entry.get('attempts') or
+            type(active.get('lifecycle_generation')) is not int or
+            not isinstance(active.get('reason_sha256'), str) or
+            not re.fullmatch(r'[0-9a-f]{64}', active['reason_sha256']) or
+            not isinstance(active.get('requested_at'), str) or
+            not isinstance(active.get('operator'), str) or not active['operator'].strip() or
+            not isinstance(active.get('prior_result_sha256'), str) or
+            not re.fullmatch(r'[0-9a-f]{64}', active['prior_result_sha256']) or
+            not isinstance(active.get('prior_result_path'), str) or not active['prior_result_path']):
+        die('VERIFICATION_RESUME_STATE_INVALID: active resume tuple is malformed')
+    if active.get('requested_at') != latest.get('requested_at') or parse_aware_timestamp(active['requested_at']) is None:
+        die('VERIFICATION_RESUME_STATE_INVALID: resume request timestamp is invalid')
+    return active
+
+
+def validate_active_verification_resume(entry: dict[str, Any]) -> dict[str, Any] | None:
+    return validate_verification_resume(entry, 'verification_resume_active')
+
+
+def validate_pending_verification_resume(entry: dict[str, Any]) -> dict[str, Any] | None:
+    return validate_verification_resume(entry, 'verification_resume_pending')
+
+
+def prior_builder_result_digest(feature_dir: pathlib.Path, entry: dict[str, Any], task_id: str,
+                                evidence_path: str | None = None) -> str:
+    """Resolve and hash the exact passing builder result for a verification resume."""
+    value = evidence_path if evidence_path is not None else entry.get('last_failure_evidence')
+    if not isinstance(value, str) or not value:
+        die('VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE: prior builder result path is missing')
+    feature = str(load_validated(feature_dir).get('feature', feature_dir.name))
+    repository = feature_repo_base(feature_dir)
+    run_root = repository / '.agent-runs' / feature
+    if run_root.is_symlink():
+        die('VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE: run evidence root is unsafe')
+    try:
+        allowed_root = run_root.resolve(strict=True)
+        candidate = pathlib.Path(value)
+        if candidate.is_symlink():
+            die('VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE: builder result is a symlink')
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(allowed_root)
+        if not resolved.is_file():
+            raise OSError('not a regular result file')
+        payload = resolved.read_bytes()
+        document = json.loads(payload)
+        if not isinstance(document, dict) or document.get('task') != task_id or document.get('status') != 'pass':
+            raise ValueError('result is not a passing builder result for this task')
+        return sha256_bytes(payload)
+    except (OSError, ValueError, json.JSONDecodeError):
+        die('VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE: exact passing builder result cannot be verified')
+
+
+def register_manual_observation(repository: pathlib.Path, feature_id: str, *, observation_id: str,
+                                role: str, task_id: str | None = None,
+                                task_attempt: int | None = None, checkpoint: str | None = None,
+                                attestation_sha256: str, report_sha256: str,
+                                expected_feature_generation: int) -> dict[str, Any]:
+    """Record immutable manual provenance under the lifecycle lock.
+
+    T-005's telemetry `record-manual` boundary must validate the signed
+    attestation against the accepted issuer registry before calling this API.
+    This lifecycle API stores only its digest and re-resolves trusted scope; it
+    does not authenticate the signer, accept metrics, or grant obligation coverage.
+    """
+    from verification.store import StoreError
+    from verification.authority import resolve_manual_review_scope
+    from verification.admission import AdmissionConflict
+
+    if (not isinstance(feature_id, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', feature_id) or
+            not isinstance(observation_id, str) or not re.fullmatch(r'[0-9a-f]{64}', observation_id) or
+            not isinstance(attestation_sha256, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', attestation_sha256) or
+            not isinstance(report_sha256, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', report_sha256) or
+            type(expected_feature_generation) is not int or expected_feature_generation < 1 or
+            (task_attempt is not None and (type(task_attempt) is not int or task_attempt < 1))):
+        raise StoreError('MANUAL_EVIDENCE_REGISTRATION_INVALID')
+    repository = pathlib.Path(repository).resolve(strict=True)
+    feature_dir = repository / 'docs' / 'specs' / feature_id
+    if not feature_dir.is_dir() or feature_dir.is_symlink():
+        raise StoreError('MANUAL_EVIDENCE_FEATURE_UNRESOLVED')
+    try:
+        with lifecycle_state_lock(feature_dir):
+            doc = load_validated(feature_dir)
+            if doc.get('feature') != feature_id:
+                raise StoreError('MANUAL_EVIDENCE_FEATURE_UNRESOLVED')
+            state = _load_state_unlocked(feature_dir, doc)
+            generation = state.get('feature_generation', 1)
+            if type(generation) is not int or generation != expected_feature_generation:
+                raise StoreError('MANUAL_EVIDENCE_STALE_FEATURE_GENERATION')
+            scope = resolve_manual_review_scope(
+                repository, feature_id, role=role, task_id=task_id,
+                task_attempt=task_attempt, checkpoint=checkpoint,
+                _lifecycle_state=state)
+            repository_id = hashlib.sha256(os.fsencode(git_common_dir(feature_dir))).hexdigest()
+            if scope.get('repository_id') != repository_id:
+                raise StoreError('MANUAL_EVIDENCE_SCOPE_CONFLICT')
+            record = {
+                'schema_version': 1, 'record_type': 'manual-observation',
+                'observation_id': observation_id, 'repository_id': repository_id,
+                'feature_id': feature_id, 'feature_generation': generation,
+                'role': role, 'scope': scope,
+                'attestation_sha256': attestation_sha256,
+                'report_sha256': report_sha256,
+                'attestation_validation_owner': 'tooling/agent-harness/telemetry.py',
+                'registered_at': utc_now().isoformat(),
+            }
+            authority_root = runtime_state_dir(feature_dir) / 'manual-observations' / feature_id
+            manual_root = runtime_state_dir(feature_dir) / 'manual-observations'
+            state_root = runtime_state_dir(feature_dir)
+            if (state_root.is_symlink() or manual_root.is_symlink() or authority_root.is_symlink()):
+                raise StoreError('MANUAL_EVIDENCE_AUTHORITY_UNAVAILABLE')
+            authority_root.mkdir(parents=True, exist_ok=True)
+            if authority_root.resolve().parent != manual_root.resolve():
+                raise StoreError('MANUAL_EVIDENCE_AUTHORITY_UNAVAILABLE')
+            record_path = authority_root / f'{observation_id}.json'
+            payload = (json.dumps(record, indent=2, sort_keys=True) + '\n').encode('utf-8')
+            try:
+                fd = os.open(record_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                             getattr(os, 'O_NOFOLLOW', 0), 0o600)
+            except FileExistsError:
+                if record_path.is_symlink() or not record_path.is_file():
+                    raise StoreError('MANUAL_EVIDENCE_OBSERVATION_CONFLICT') from None
+                existing_bytes = record_path.read_bytes()
+                try:
+                    existing = json.loads(existing_bytes)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    raise StoreError('MANUAL_EVIDENCE_OBSERVATION_CONFLICT') from None
+                candidate = {key: value for key, value in record.items() if key != 'registered_at'}
+                prior = ({key: value for key, value in existing.items() if key != 'registered_at'}
+                         if isinstance(existing, dict) else None)
+                if prior != candidate:
+                    raise StoreError('MANUAL_EVIDENCE_OBSERVATION_CONFLICT') from None
+                record = existing
+                payload = existing_bytes
+            else:
+                with os.fdopen(fd, 'wb') as handle:
+                    handle.write(payload)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                directory_fd = os.open(authority_root, os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+
+            ledger = state.get('manual_observation_ledger', [])
+            if not isinstance(ledger, list):
+                raise StoreError('MANUAL_EVIDENCE_AUTHORITY_INVALID')
+            ledger_matches = [item for item in ledger if isinstance(item, dict) and
+                              item.get('observation_id') == observation_id]
+            ledger_entry = {
+                'observation_id': observation_id,
+                'record_path': str(record_path),
+                'record_sha256': sha256_bytes(payload),
+            }
+            if ledger_matches and (len(ledger_matches) != 1 or ledger_matches[0] != ledger_entry):
+                raise StoreError('MANUAL_EVIDENCE_OBSERVATION_CONFLICT')
+            if not ledger_matches:
+                ledger.append(ledger_entry)
+                state['manual_observation_ledger'] = ledger
+                save_state(feature_dir, state)
+            return {**record, 'record_path': str(record_path),
+                    'record_sha256': sha256_bytes(payload)}
+    except AdmissionConflict as exc:
+        raise StoreError('MANUAL_EVIDENCE_AUTHORITY_BUSY') from exc
 
 
 def reviewers(task: dict[str, Any]) -> list[str]:
@@ -3313,9 +3649,7 @@ def attest_packet_identity(args: argparse.Namespace) -> tuple[str, dict[str, Any
         die('PACKET_IDENTITY_ATTESTATION_REJECTED: protocol version changed')
     bridge_failpoint('B1')
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(feature_dir) as lock:
         state = _read_state_unlocked_pure(feature_dir, doc)
         entry = state['tasks'].get(args.task_id)
         if not isinstance(entry, dict):
@@ -3420,9 +3754,7 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
     new_contract = semantic_task_contract_sha256(feature_dir, proposed_doc, proposed)
     repo_identity = str(git_common_dir(feature_dir))
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(feature_dir) as lock:
         state = _load_state_unlocked(feature_dir, doc)
         entry = state['tasks'][args.task_id]
         current_generation = state.get('feature_generation', 1)
@@ -3450,9 +3782,13 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
             return
         if prior_requests:
-            if entry.get('active_packet_revision') != args.expected_active_revision:
+            active_revision = entry.get('active_packet_revision')
+            last_request = prior_requests[-1]
+            if (not isinstance(last_request, dict) or
+                    last_request.get('new_revision') != active_revision):
+                die('ACTIVE_PACKET_AMBIGUOUS: latest replan does not produce the active revision')
+            if active_revision != args.expected_active_revision:
                 die('STALE_ACTIVE_PACKET: a prior replan changed the active packet revision')
-            die('REPLAN_CONCURRENT_CONFLICT: a different replan request is already recorded')
         if entry.get('status') == 'completed':
             die('TASK_REPLAN_NOT_ALLOWED: completed tasks cannot be replanned')
         if entry.get('status') != args.expected_status or args.expected_status not in {'running', 'failed'}:
@@ -3461,7 +3797,12 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         if failed_replan:
             if type(expected_generation) is not int or expected_generation < 1:
                 die('TASK_REPLAN_NOT_ALLOWED: failed-task replan requires --expected-feature-generation')
-            validate_latest_human_resolution(feature_dir, doc, args.task_id, entry)
+            human_resolution = validate_latest_human_resolution(feature_dir, doc, args.task_id, entry)
+            if prior_requests:
+                previous_replan_at = parse_aware_timestamp(prior_requests[-1].get('committed_at'))
+                resolved_at = parse_aware_timestamp(human_resolution.get('resolved_at'))
+                if previous_replan_at is None or resolved_at is None or resolved_at <= previous_replan_at:
+                    die('TASK_REPLAN_NOT_ALLOWED: failed task requires a human resolution newer than its latest replan')
         if type(current_generation) is not int or current_generation != expected_generation:
             die('REPLAN_CONCURRENT_CONFLICT: current feature generation differs from request')
         attempts = entry.get('attempts', 0)
@@ -3800,9 +4141,7 @@ def cmd_classify_legacy_completion(args: argparse.Namespace) -> None:
 def cmd_bind_legacy_completion_auto(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
     runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(args.feature_dir) as lock:
         existing = legacy_completion_bindings(args.feature_dir, args.task_id)
         if existing:
             if existing[0].get('mode') != 'AUTO_VERIFIED':
@@ -3847,9 +4186,7 @@ def cmd_attest_legacy_completion(args: argparse.Namespace) -> None:
                 for item in source_refs)):
         die('LEGACY_COMPLETION_ATTESTATION_INVALID: attested fields must be an object and sources a nonempty array')
     runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
-    with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
-        if fcntl is not None:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    with lifecycle_state_lock(args.feature_dir) as lock:
         state = _read_state_unlocked_pure(args.feature_dir, doc)
         entry = state['tasks'][args.task_id]
         active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
@@ -3973,6 +4310,8 @@ def cmd_complete(args: argparse.Namespace) -> None:
         die('; '.join(evidence_errors))
     evidence_doc = load_json(evidence_path)
 
+    assert_repository_verification_drained(args.feature_dir)
+
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4001,6 +4340,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
             die('COMPLETION_REPAIR_REQUIRES_CANONICAL_OPERATION: use complete-repair')
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        validate_active_verification_resume(entry)
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
         binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
@@ -4056,6 +4396,12 @@ def cmd_complete(args: argparse.Namespace) -> None:
             'evidence': str(evidence_path), 'checkpoint_commit': checkpoint,
             'completion_record_id': record['record_id'],
         })
+        resume = entry.pop('verification_resume_active', None)
+        if isinstance(resume, dict):
+            resume_history = entry.setdefault('verification_resume_history', [])
+            resume_history[-1].update({'result': 'completed', 'ended_at': entry['completed_at']})
+            entry.pop('verification_resume_pending', None)
+            entry.pop('control_outcome', None)
         if entry.pop('active_human_resume', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
@@ -4462,12 +4808,15 @@ def cmd_claim_completion_repair(args: argparse.Namespace) -> None:
         refresh_lease(entry, doc)
     print(f"CLAIMED_REPAIR {args.task_id} owner={args.owner} attempt={entry['attempts']}")
 
-def cmd_fail(args: argparse.Namespace) -> None:
+def cmd_fail(args: argparse.Namespace, *, control_outcome: str | None = None) -> None:
     doc = load_validated(args.feature_dir)
     idx = task_index(doc)
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    if control_outcome is not None and control_outcome not in VERIFICATION_BLOCKAGE_OUTCOMES:
+        die('invalid internal verification control outcome')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4475,6 +4824,7 @@ def cmd_fail(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        validate_active_verification_resume(entry)
         if isinstance(entry.get('completion_repair_claim'), dict):
             entry['status'] = 'correction_required'
             entry['completion_repair_last_failure'] = args.reason
@@ -4503,9 +4853,14 @@ def cmd_fail(args: argparse.Namespace) -> None:
         })
         entry['last_transition'] = {'kind': 'attempt_failed', 'attempts': attempts,
                                     'status': status, 'at': entry['failed_at']}
-        control_outcome = getattr(args, 'control_outcome', None)
-        if control_outcome in {'needs-human', 'verification-blocked', 'verification-owned'}:
+        if control_outcome in VERIFICATION_BLOCKAGE_OUTCOMES:
             entry['control_outcome'] = control_outcome
+        resume = entry.pop('verification_resume_active', None)
+        if isinstance(resume, dict):
+            resume_history = entry.setdefault('verification_resume_history', [])
+            resume_history[-1].update({'result': control_outcome or status,
+                                       'ended_at': entry['failed_at']})
+            entry.pop('verification_resume_pending', None)
         if args.evidence:
             entry['last_failure_evidence'] = str(pathlib.Path(args.evidence))
         if entry.pop('active_human_resume', None) is not None:
@@ -4523,6 +4878,7 @@ def cmd_release(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'].get(args.task_id)
         if not entry:
@@ -4530,6 +4886,7 @@ def cmd_release(args: argparse.Namespace) -> None:
         owner_guard(entry, args.owner)
         if entry.get('status') != 'running':
             die(f'{args.task_id} is not running')
+        validate_active_verification_resume(entry)
         if isinstance(entry.get('completion_repair_claim'), dict):
             entry['status'] = 'correction_required'
             entry['completion_repair_last_release'] = args.reason
@@ -4541,6 +4898,7 @@ def cmd_release(args: argparse.Namespace) -> None:
                 entry.pop(key, None)
             print(f'REPAIR_RELEASED {args.task_id} attempt={entry["attempts"]}')
             return
+        active_verification_resume = entry.pop('verification_resume_active', None)
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
@@ -4555,6 +4913,8 @@ def cmd_release(args: argparse.Namespace) -> None:
         })
         entry['last_transition'] = {'kind': 'lease_released', 'attempts': entry.get('attempts', 0),
                                     'status': 'failed', 'at': entry['released_at']}
+        if isinstance(active_verification_resume, dict):
+            entry['verification_resume_pending'] = active_verification_resume
         if entry.pop('active_human_resume', None) is not None:
             entry['last_human_resume_used_at'] = utc_now().isoformat()
         if entry.pop('active_retry_authorization', None) is not None:
@@ -4735,6 +5095,8 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
     prior = preliminary['tasks'].get(args.task_id)
     if not prior or prior.get('status') != 'escalated':
         die(f'{args.task_id} must be escalated before a human can resolve it')
+    if prior.get('control_outcome') in VERIFICATION_BLOCKAGE_OUTCOMES:
+        die('VERIFICATION_AUTHORIZATION_REQUIRED: task-level human resolution cannot authorize or resume a verification blockage')
 
     artifact = write_human_resolution(
         args.feature_dir, doc, args.task_id, decision=decision, decided_by=decided_by,
@@ -4745,6 +5107,9 @@ def cmd_human_resolve(args: argparse.Namespace) -> None:
         if entry.get('status') != 'escalated':
             artifact.unlink(missing_ok=True)
             die(f'{args.task_id} changed state while applying human resolution; retry deliberately')
+        if entry.get('control_outcome') in VERIFICATION_BLOCKAGE_OUTCOMES:
+            artifact.unlink(missing_ok=True)
+            die('VERIFICATION_AUTHORIZATION_REQUIRED: task-level human resolution cannot authorize or resume a verification blockage')
         history = entry.setdefault('human_resolution_history', [])
         if not isinstance(history, list):
             history = []
@@ -4795,6 +5160,8 @@ def cmd_reopen(args: argparse.Namespace) -> None:
         die(f'unknown task {args.task_id}')
     feature = str(doc.get('feature', args.feature_dir.name))
     stale: list[str] = []
+
+    assert_repository_verification_drained(args.feature_dir)
 
     # Reopen and descendant invalidation are one state transition. Validate every lease/status under
     # the state lock before deleting any task-local workspace, otherwise a racing worker can lose a
@@ -4941,6 +5308,7 @@ def cmd_status(args: argparse.Namespace) -> None:
 def cmd_reset(args: argparse.Namespace) -> None:
     doc = load_json(args.feature_dir / 'tasks.json') if (args.feature_dir / 'tasks.json').exists() else {'feature': args.feature_dir.name, 'tasks': []}
     if args.full or args.prune_worktrees:
+        assert_repository_verification_drained(args.feature_dir)
         feature = str(doc.get('feature', args.feature_dir.name))
         for task in doc.get('tasks', []):
             if isinstance(task, dict) and isinstance(task.get('id'), str):
@@ -5273,6 +5641,7 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
@@ -5293,37 +5662,73 @@ def cmd_start(args: argparse.Namespace) -> None:
     task = idx.get(args.task_id)
     if not task:
         die(f'unknown task {args.task_id}')
+    assert_repository_verification_drained(args.feature_dir)
     with locked_state(args.feature_dir, doc) as state:
         if args.task_id not in ready_ids(doc, state, args.feature_dir):
             die(f'{args.task_id} is not ready')
         original = state['tasks'][args.task_id]
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
+        resume = original.get('verification_resume_pending')
+        if isinstance(resume, dict):
+            validate_pending_verification_resume(original)
+            if is_unrecovered_partial_claim(original):
+                die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
+            target = worktree_path(str(doc.get('feature', args.feature_dir.name)), args.task_id)
+            if not target.is_dir() or target.is_symlink():
+                die('VERIFICATION_RESUME_INVALID: the exact task worktree is unavailable')
+            try:
+                plan = resolve_accepted_verification_plan(
+                    target, resume.get('plan_id'), allowed_task_statuses={'failed'})
+            except Exception as exc:
+                die(f'VERIFICATION_RESUME_INVALID: accepted plan changed before start ({type(exc).__name__})')
+            if (resume.get('task_attempt') != original.get('attempts') or
+                    resume.get('lifecycle_generation') != state.get('feature_generation', 1) or
+                    plan.get('plan_id') != resume.get('plan_id') or
+                    plan.get('task_id') != args.task_id or
+                    plan.get('task_attempt') != original.get('attempts')):
+                die('VERIFICATION_RESUME_INVALID: resume tuple changed before start')
+            if resume.get('prior_result_sha256') != prior_builder_result_digest(
+                    args.feature_dir, original, args.task_id, resume.get('prior_result_path')):
+                die('VERIFICATION_RESUME_INVALID: prior builder result changed before start')
+            now = utc_now()
+            entry = state['tasks'][args.task_id]
+            entry['status'] = 'running'
+            entry['owner'] = args.owner
+            entry['claimed_at'] = now.isoformat()
+            entry['worktree'] = str(target)
+            entry['verification_resume_active'] = dict(resume)
+            entry.pop('verification_resume_pending', None)
+            entry.pop('control_outcome', None)
+            refresh_lease(entry, doc, now=now)
+            packet = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)['path']
+            packet = pathlib.Path(packet)
+        else:
         # Resolve and validate the packet before consuming retry authorization or changing
         # lifecycle state. The immutable publication may safely remain orphaned on failure.
-        packet = write_packet(doc, task, args.feature_dir, state=state)
-        staged_state = copy.deepcopy(state)
-        entry = staged_state['tasks'][args.task_id]
-        if is_unrecovered_partial_claim(entry):
-            die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
-        consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
-        target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
-        now = utc_now()
-        entry.update({
-            'status': 'running',
-            'owner': args.owner,
-            'attempts': int(entry.get('attempts', 0)) + 1,
-            'claimed_at': now.isoformat(),
-            'worktree': str(target),
-            'start_origin_status': original.get('status'),
-        })
-        append_attempt_binding(entry, args.feature_dir, doc, args.task_id, packet)
-        refresh_lease(entry, doc, now=now)
-        state['tasks'][args.task_id] = entry
-        for key in ('base_commit', 'base_kind'):
-            if key in staged_state:
-                state[key] = staged_state[key]
-        state.pop('pending_base_commit', None)
-        state.pop('pending_base_kind', None)
+            packet = write_packet(doc, task, args.feature_dir, state=state)
+            staged_state = copy.deepcopy(state)
+            entry = staged_state['tasks'][args.task_id]
+            if is_unrecovered_partial_claim(entry):
+                die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
+            consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)
+            target = prepare_task_worktree(args.feature_dir, doc, staged_state, task, durable_state=state)
+            now = utc_now()
+            entry.update({
+                'status': 'running',
+                'owner': args.owner,
+                'attempts': int(entry.get('attempts', 0)) + 1,
+                'claimed_at': now.isoformat(),
+                'worktree': str(target),
+                'start_origin_status': original.get('status'),
+            })
+            append_attempt_binding(entry, args.feature_dir, doc, args.task_id, packet)
+            refresh_lease(entry, doc, now=now)
+            state['tasks'][args.task_id] = entry
+            for key in ('base_commit', 'base_kind'):
+                if key in staged_state:
+                    state[key] = staged_state[key]
+            state.pop('pending_base_commit', None)
+            state.pop('pending_base_kind', None)
     print(json.dumps({'task': args.task_id, 'owner': args.owner, 'worktree': str(target), 'packet': str(packet)}, indent=2))
 
 def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:
@@ -5340,6 +5745,14 @@ def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], ta
         owner_guard(entry, owner)
         if entry.get('status') != 'running':
             die(f'{task_id} is not running')
+        resume = entry.pop('verification_resume_active', None)
+        if isinstance(resume, dict):
+            entry['status'] = 'failed'
+            entry['verification_resume_pending'] = resume
+            entry['start_rollback_reason'] = reason
+            for key in ('owner', 'claimed_at', 'heartbeat_at', 'lease_expires_at'):
+                entry.pop(key, None)
+            return
         prior_status = entry.pop('start_origin_status', None)
         entry['status'] = prior_status if prior_status in {'pending', 'failed'} else 'pending'
         entry['attempts'] = max(0, int(entry.get('attempts', 0)) - 1)
@@ -5356,9 +5769,18 @@ def cmd_worktree_remove(args: argparse.Namespace) -> None:
     branch = f'agent/{feature}/{args.task_id}'
     if not target.exists():
         die(f'worktree path does not exist: {target}')
-    subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
-    if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
-        subprocess.run(['git', 'branch', '-D', branch], check=True)
+    assert_repository_verification_drained(args.feature_dir)
+    from verification.admission import AdmissionConflict, RepositoryAdmission
+    admission = RepositoryAdmission.for_repository(feature_repo_base(args.feature_dir))
+    try:
+        with admission.mutation():
+            if not target.exists():
+                die(f'worktree path does not exist: {target}')
+            subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
+            if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
+                subprocess.run(['git', 'branch', '-D', branch], check=True)
+    except AdmissionConflict as exc:
+        die(f'VERIFICATION_OWNERSHIP_BLOCKED: {exc}', code=6)
     print(f'REMOVED {target} and local branch {branch}')
 
 
@@ -5441,6 +5863,12 @@ def parser() -> argparse.ArgumentParser:
         s.add_argument('feature_dir', type=pathlib.Path)
         s.add_argument('--json', action='store_true')
         s.set_defaults(func=globals()[f'cmd_{name}'])
+
+    s = sub.add_parser('recover-verification',
+                       help='Reconcile verification ownership and release proven-dead prestart reservations')
+    s.add_argument('--repo', type=pathlib.Path, default=pathlib.Path.cwd(),
+                   help='Repository checkout; recovery runs independently of feature lifecycle locks')
+    s.set_defaults(func=cmd_recover_verification)
 
     s = sub.add_parser('packet')
     s.add_argument('feature_dir', type=pathlib.Path)
@@ -5595,7 +6023,6 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--reason', required=True)
     s.add_argument('--evidence', help='Optional structured runner evidence for the failed attempt')
     s.add_argument('--escalate', action='store_true', help='Stop immediately for a human decision instead of retrying')
-    s.add_argument('--control-outcome', choices=['needs-human', 'verification-blocked', 'verification-owned'])
     s.set_defaults(func=cmd_fail)
 
     s = sub.add_parser('release')
@@ -5604,6 +6031,14 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--owner', required=True)
     s.add_argument('--reason', required=True)
     s.set_defaults(func=cmd_release)
+
+    s = sub.add_parser('resume-verification')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--reason', required=True,
+                   help='Recovery evidence or operator note that the blocked precondition is repaired')
+    s.add_argument('--by', required=True, help='Operator attribution for the auditable verification resume')
+    s.set_defaults(func=cmd_resume_verification)
 
     s = sub.add_parser('human-resolve')
     s.add_argument('feature_dir', type=pathlib.Path)

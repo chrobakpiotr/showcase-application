@@ -16,6 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from verification.store import StoreError, VerificationStore, _RETRY_CONTROL_INPUT_SHA256
 from verification.supervisor import VerificationSupervisor
 from verification.supervisor import SupervisorState
+from verification.admission import AdmissionConflict, RepositoryAdmission
 from verification.model import Evidence
 from verification.serialization import digest, evidence_record
 import verification_command
@@ -23,6 +24,46 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_supervisor_reservation_blocks_lifecycle_mutation_until_terminal_drain(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            entered_launch = threading.Event()
+            allow_drain = threading.Event()
+
+            class PausedBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    entered_launch.set()
+                    if not allow_drain.wait(2):
+                        raise RuntimeError('test launch gate timed out')
+                    return super().launch(prepared, **kwargs)
+
+            backend = PausedBackend(store, root)
+            supervisor = VerificationSupervisor(store)
+            admission = RepositoryAdmission(store.lifecycle_root, store.repository_id)
+            failures = []
+
+            def execute():
+                try:
+                    supervisor.execute(backend, worktree=root, family_id='family', attempt_id='attempt',
+                        gate_id='gate', command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                        timeout_seconds=2, sandbox_mode='required')
+                except BaseException as exc:
+                    failures.append(exc)
+
+            worker = threading.Thread(target=execute)
+            worker.start()
+            self.assertTrue(entered_launch.wait(2))
+            with self.assertRaisesRegex(AdmissionConflict, 'verification-owned'):
+                with admission.mutation():
+                    pass
+            allow_drain.set()
+            worker.join(2)
+            self.assertFalse(worker.is_alive())
+            self.assertFalse(failures)
+            with admission.mutation():
+                pass
+
     def test_vc009_08_unknown_tool_retry_behavior_fails_closed_before_launch(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)

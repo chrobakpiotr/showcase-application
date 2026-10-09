@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import enum
+import functools
 import hashlib
 import json
 import os
@@ -14,6 +15,7 @@ import uuid
 from dataclasses import dataclass, replace
 
 from .serialization import canonical
+from .admission import AdmissionConflict, RepositoryAdmission
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
                     _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint,
                     _retry_policy_facts, _RETRY_CONTROL_BINDINGS, _RETRY_CONTROL_WRAPPER_SHA256,
@@ -41,6 +43,73 @@ class RecoveryResult:
     state: SupervisorState
     reason_code: str
     terminal: dict | None = None
+
+
+def lifecycle_admitted(method):
+    """Reserve canonical repository admission before runtime ownership is acquired."""
+    @functools.wraps(method)
+    def run(self, backend, **kwargs):
+        command = kwargs.get('command')
+        family_id = kwargs.get('family_id')
+        attempt_id = kwargs.get('attempt_id')
+        gate_id = kwargs.get('gate_id')
+        if not all(isinstance(value, str) and value for value in
+                   (command, family_id, attempt_id, gate_id)):
+            raise SupervisorError('admission-identity-invalid')
+        execution_id = hashlib.sha256(canonical({
+            'repository_id': self.store.repository_id, 'family_id': family_id,
+            'attempt_id': attempt_id, 'gate_id': gate_id,
+            'command_hash': hashlib.sha256(command.encode('utf-8')).hexdigest(),
+        })).hexdigest()[:32]
+        admission = RepositoryAdmission(self.store.lifecycle_root, self.store.repository_id)
+        plan_id = kwargs.get('plan_id')
+        validator = None
+        if plan_id is not None:
+            def validate_accepted_plan():
+                from .authority import resolve_accepted
+                from .store import StoreError
+                accepted = resolve_accepted(self.store.lifecycle_root.parent, plan_id)
+                obligations = accepted.get('obligations')
+                expected_command_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
+                matching = [item for item in obligations if isinstance(item, dict) and
+                            item.get('gate_id') == gate_id] if isinstance(obligations, list) else []
+                if (accepted.get('plan_id') != plan_id or
+                        accepted.get('family', {}).get('id') != family_id or
+                        accepted.get('profile_hash') != kwargs.get('profile_hash') or
+                        accepted.get('policy_checkpoint') != kwargs.get('policy_checkpoint') or
+                        accepted.get('candidate_identity') != kwargs.get('candidate_identity') or
+                        accepted.get('final_changed_surface_id') != kwargs.get('final_changed_surface_id') or
+                        len(matching) != 1 or matching[0].get('command_hash') != expected_command_hash):
+                    raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
+            validator = validate_accepted_plan
+        try:
+            admission.reserve_verification(execution_id, {
+                'family_id': family_id, 'attempt_id': attempt_id, 'gate_id': gate_id,
+                'command_hash': hashlib.sha256(command.encode('utf-8')).hexdigest(),
+                'owner_pid': os.getpid(),
+            }, validate=validator)
+        except AdmissionConflict:
+            active = admission.active()
+            owner_pid = active.get('context', {}).get('owner_pid') if isinstance(active, dict) else None
+            owner_alive = False
+            if type(owner_pid) is int and owner_pid > 0:
+                try:
+                    os.kill(owner_pid, 0)
+                    owner_alive = True
+                except OSError:
+                    pass
+            raise StoreError('busy' if owner_alive else 'verification-owned') from None
+        try:
+            result = method(self, backend, **kwargs)
+        except BaseException:
+            # Before a durable launch marker, no external process can own the
+            # repository. Once launched, the reservation survives for recovery.
+            if not (self.store.executions / execution_id / 'launching.json').exists():
+                admission.release(execution_id)
+            raise
+        admission.release(execution_id)
+        return result
+    return run
 
 
 def _read_regular_worktree_file(root: pathlib.Path, relative: str) -> bytes:
@@ -283,6 +352,7 @@ class VerificationSupervisor:
                   'ended_at': time.time()}
         publish_create_once(journal / 'drained.json', record, fault=self.store._fault)
 
+    @lifecycle_admitted
     def execute(self, backend, *, worktree: pathlib.Path, family_id: str,
                 attempt_id: str, gate_id: str, command: str, cwd: pathlib.Path,
                 run_dir: pathlib.Path, timeout_seconds: float, sandbox_mode: str,
@@ -593,7 +663,28 @@ class VerificationSupervisor:
     def recover(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
         """Reconcile every unresolved STARTED record using fresh durable identities."""
         with repository_lock(self.store.root):
-            return self._recover_locked(backend_factory, recovery_observer)
+            recovered = list(self._recover_locked(backend_factory, recovery_observer))
+        admission = RepositoryAdmission(self.store.lifecycle_root, self.store.repository_id)
+        active = admission.active()
+        if isinstance(active, dict) and active.get('kind') == 'verification':
+            execution_id = active.get('id')
+            journal = self.store.executions / execution_id if isinstance(execution_id, str) else None
+            started = journal / 'started.json' if journal is not None else None
+            if started is not None and not started.exists() and not started.is_symlink():
+                try:
+                    released = admission.release_unstarted_if_owner_dead(execution_id)
+                except AdmissionConflict as exc:
+                    raise StoreError(str(exc)) from None
+                if released:
+                    recovered.append(RecoveryResult(execution_id, SupervisorState.ABORTED_PREPARED,
+                                                    'UNSTARTED_RESERVATION_RELEASED'))
+                    return tuple(recovered)
+            closed = journal is not None and (journal / 'drained.json').is_file()
+            outcome = next((item for item in recovered if item.execution_id == execution_id), None)
+            if closed and outcome and outcome.state in {SupervisorState.TERMINAL,
+                                                         SupervisorState.ABORTED_PREPARED}:
+                admission.release(execution_id)
+        return tuple(recovered)
 
     def _recover_locked(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
         recovered = []

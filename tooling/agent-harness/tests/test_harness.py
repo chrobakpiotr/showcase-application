@@ -7,6 +7,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -14,6 +15,7 @@ import unittest
 from unittest import mock
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / 'harness.py'
+sys.path.insert(0, str(MODULE_PATH.parent))
 spec = importlib.util.spec_from_file_location('sdd_harness', MODULE_PATH)
 harness = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
@@ -36,6 +38,399 @@ class HarnessTest(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.old_cwd)
         self.tmp.cleanup()
+
+    def test_fail_cli_does_not_expose_verification_control_outcome(self):
+        with self.assertRaises(SystemExit) as rejected:
+            harness.parser().parse_args([
+                'fail', 'docs/specs/TST-001', 'T-001', '--owner', 'task-owner',
+                '--reason', 'attempt failed', '--control-outcome', 'verification-owned',
+            ])
+        self.assertEqual(2, rejected.exception.code)
+
+    def test_trusted_task_history_derives_attempts_from_lifecycle_state_only(self):
+        from verification.authority import trusted_task_history, resolve_manual_review_scope
+        from verification.store import StoreError
+
+        feature = self.feature()
+        task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
+        task_doc['tasks'][0]['required_reviewers'] = ['reviewer']
+        (feature / 'tasks.json').write_text(json.dumps(task_doc), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'failed',
+            'attempts': 1,
+            'attempt_bindings': [{
+                'attempt': 1, 'binding_status': 'proven',
+                'packet_revision': 'sha256:' + 'a' * 64,
+                'contract_sha256': 'b' * 64,
+            }],
+        })
+        harness.save_state(feature, state)
+
+        history = trusted_task_history(self.root, 'TST-001')
+        self.assertEqual('TST-001', history['feature_id'])
+        from verification.admission import RepositoryAdmission
+        self.assertEqual(RepositoryAdmission.for_repository(self.root).repository_id,
+                         history['repository_id'])
+        self.assertEqual(1, history['feature_generation'])
+        self.assertEqual('T-001', history['tasks'][0]['task_id'])
+        self.assertEqual(1, history['tasks'][0]['attempts'][0]['attempt'])
+        self.assertEqual('UNKNOWN', history['tasks'][0]['attempts'][0]['ordering'])
+        self.assertEqual(0, history['tasks'][0]['completion_count'])
+        with self.assertRaises(TypeError):
+            trusted_task_history(self.root, 'TST-001', metrics={'first_pass_rate': 1.0})
+        with self.assertRaises(StoreError):
+            resolve_manual_review_scope(self.root, 'TST-001', role='reviewer',
+                task_id='T-001', task_attempt=1, checkpoint='c' * 40)
+
+        binding = state['tasks']['T-001']['attempt_bindings'][0]
+        state['tasks']['T-001']['status'] = 'completed'
+        harness.save_state(feature, state)
+        record = {
+            'schema_version': 1, 'record_type': 'completion',
+            'repository_id': str(harness.git_common_dir(feature)), 'feature': 'TST-001',
+            'task': 'T-001', 'attempt': 1, 'checkpoint': 'c' * 40,
+            'packet_revision': binding['packet_revision'],
+            'contract_fingerprint': binding['contract_sha256'],
+            'evidence_reference_sha256': 'd' * 64,
+            'correction_id': None, 'repair_authorization_id': None,
+            'created_at': '2026-10-09T12:00:00Z',
+        }
+        record['record_id'] = harness.completion_record_id('completion', record)
+        record_path = (harness.completion_authority_dir(feature, 'completion-records', 'T-001') /
+                       f"{record['record_id'].rsplit(':', 1)[-1]}.json")
+        harness.publish_completion_authority(record_path, record)
+        history = trusted_task_history(self.root, 'TST-001')
+        attempt_history = history['tasks'][0]['attempts'][0]
+        self.assertEqual('KNOWN', attempt_history['ordering'])
+        self.assertNotIn('result', attempt_history['completion'])
+        scope = resolve_manual_review_scope(self.root, 'TST-001', role='reviewer',
+            task_id='T-001', task_attempt=1, checkpoint='c' * 40)
+        self.assertEqual('T-001', scope['task_id'])
+        self.assertEqual(1, scope['feature_generation'])
+        self.assertEqual(record['record_id'], scope['completion_record_id'])
+        with self.assertRaises(StoreError):
+            resolve_manual_review_scope(self.root, 'TST-001', role='evaluator',
+                task_id='T-001', task_attempt=1, checkpoint='c' * 40)
+
+    def test_trusted_task_history_fails_closed_on_malformed_attempt_ledger(self):
+        from verification.authority import trusted_task_history
+        from verification.store import StoreError
+
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'failed', 'attempts': 1,
+            'attempt_bindings': [{'attempt': True, 'binding_status': 'proven'}],
+        })
+        harness.save_state(feature, state)
+        with self.assertRaises(StoreError):
+            trusted_task_history(self.root, 'TST-001')
+
+    def test_verification_resume_reuses_exact_attempt_and_accepted_plan(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        entry.update({'status': 'escalated', 'attempts': 2,
+                      'control_outcome': 'verification-blocked'})
+        result_path = self.passing_builder_result('T-001')
+        entry['last_failure_evidence'] = str(result_path)
+        state['verification_authority'] = {'accepted_plan_id': 'plan-1', 'generation': 1}
+        harness.save_state(feature, state)
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        accepted = {'plan_id': 'plan-1', 'feature_id': 'TST-001', 'task_id': 'T-001',
+                    'task_attempt': 2, 'lifecycle_generation': 1}
+        with mock.patch.object(harness, 'worktree_path', return_value=worktree), \
+             mock.patch.object(harness, 'resolve_accepted_verification_plan', return_value=accepted):
+            harness.cmd_resume_verification(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', reason='precondition repaired',
+                by='operator@example.invalid'))
+
+        resumed = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual('failed', resumed['status'])
+        self.assertEqual(2, resumed['attempts'])
+        self.assertEqual('plan-1', resumed['verification_resume_pending']['plan_id'])
+        self.assertEqual(harness.sha256_bytes(result_path.read_bytes()),
+                         resumed['verification_resume_pending']['prior_result_sha256'])
+        self.assertEqual('operator@example.invalid', resumed['verification_resume_pending']['operator'])
+        self.assertIn('T-001', harness.ready_ids(doc, harness.load_state(feature, doc), feature))
+        with mock.patch.object(harness, 'worktree_path', return_value=worktree), \
+             mock.patch.object(harness, 'resolve_accepted_verification_plan', return_value=accepted):
+            harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='resume-owner'))
+        started = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual('running', started['status'])
+        self.assertEqual(2, started['attempts'])
+        self.assertEqual('plan-1', started['verification_resume_active']['plan_id'])
+
+    def test_verification_resume_rejects_wrong_accepted_attempt_without_mutation(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 2,
+            'control_outcome': 'verification-blocked'})
+        result_path = self.passing_builder_result('T-001')
+        state['tasks']['T-001']['last_failure_evidence'] = str(result_path)
+        state['verification_authority'] = {'accepted_plan_id': 'plan-1', 'generation': 1}
+        harness.save_state(feature, state)
+        before = harness.state_path(feature).read_bytes()
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        with mock.patch.object(harness, 'worktree_path', return_value=worktree), \
+             mock.patch.object(harness, 'resolve_accepted_verification_plan', return_value={
+                 'plan_id': 'plan-1', 'feature_id': 'TST-001', 'task_id': 'T-001',
+                 'task_attempt': 1, 'lifecycle_generation': 1}):
+            with self.assertRaises(SystemExit):
+                harness.cmd_resume_verification(argparse.Namespace(
+                    feature_dir=feature, task_id='T-001', reason='precondition repaired',
+                    by='operator@example.invalid'))
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_verification_resume_start_rejects_changed_prior_builder_result(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        result_path = self.passing_builder_result('T-001')
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 2,
+            'last_failure_evidence': str(result_path)})
+        resume = {'plan_id': 'plan-1', 'task_attempt': 2, 'lifecycle_generation': 1,
+                  'reason_sha256': 'a' * 64, 'requested_at': '2026-10-09T12:00:00Z',
+                  'operator': 'operator@example.invalid',
+                  'prior_result_sha256': harness.sha256_bytes(result_path.read_bytes()),
+                  'prior_result_path': str(result_path)}
+        state['tasks']['T-001']['verification_resume_pending'] = resume
+        state['tasks']['T-001']['verification_resume_history'] = [dict(resume)]
+        harness.save_state(feature, state)
+        result_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass', 'summary': 'changed'}))
+        before = harness.state_path(feature).read_bytes()
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        accepted = {'plan_id': 'plan-1', 'feature_id': 'TST-001', 'task_id': 'T-001',
+                    'task_attempt': 2, 'lifecycle_generation': 1}
+        with mock.patch.object(harness, 'worktree_path', return_value=worktree), \
+             mock.patch.object(harness, 'resolve_accepted_verification_plan', return_value=accepted), \
+             self.assertRaises(SystemExit):
+            harness.cmd_start(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', owner='resume-owner'))
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_active_verification_resume_requires_matching_history_before_finalization(self):
+        active = {'plan_id': 'plan-1', 'task_attempt': 2, 'lifecycle_generation': 3,
+                  'reason_sha256': 'a' * 64, 'requested_at': '2026-10-09T12:00:00Z',
+                  'operator': 'operator@example.invalid', 'prior_result_sha256': 'b' * 64,
+                  'prior_result_path': '/tmp/builder-result.json'}
+        entry = {'attempts': 2, 'verification_resume_active': dict(active),
+                 'verification_resume_history': [dict(active)]}
+        self.assertEqual(active, harness.validate_active_verification_resume(entry))
+        entry['verification_resume_history'] = []
+        with self.assertRaises(SystemExit):
+            harness.validate_active_verification_resume(entry)
+        entry['verification_resume_history'] = [dict(active, plan_id='other-plan')]
+        with self.assertRaises(SystemExit):
+            harness.validate_active_verification_resume(entry)
+
+    def test_verification_resume_start_still_checks_stranded_partial_claim(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        result_path = self.passing_builder_result('T-001')
+        state['tasks']['T-001'].update({'status': 'failed', 'attempts': 2,
+            'last_failure_evidence': str(result_path),
+            'verification_resume_pending': {
+                'plan_id': 'plan-1', 'task_attempt': 2, 'lifecycle_generation': 1,
+                'reason_sha256': 'a' * 64, 'requested_at': '2026-10-09T12:00:00Z',
+                'operator': 'operator@example.invalid',
+                'prior_result_sha256': harness.sha256_bytes(result_path.read_bytes()),
+                'prior_result_path': str(result_path),
+            }})
+        state['tasks']['T-001']['verification_resume_history'] = [dict(
+            state['tasks']['T-001']['verification_resume_pending'])]
+        harness.save_state(feature, state)
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        before = harness.state_path(feature).read_bytes()
+        accepted = {'plan_id': 'plan-1', 'feature_id': 'TST-001', 'task_id': 'T-001',
+                    'task_attempt': 2, 'lifecycle_generation': 1}
+        with mock.patch.object(harness, 'worktree_path', return_value=worktree), \
+             mock.patch.object(harness, 'resolve_accepted_verification_plan', return_value=accepted), \
+             mock.patch.object(harness, 'is_unrecovered_partial_claim', return_value=True), \
+             self.assertRaises(SystemExit):
+            harness.cmd_start(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', owner='resume-owner'))
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_recover_verification_cli_releases_sigkilled_prestart_reservation_then_start_succeeds(self):
+        import signal
+        from verification.admission import RepositoryAdmission
+        feature = self.feature()
+        script = (
+            'import pathlib,sys,time; '
+            f'sys.path.insert(0, {str(MODULE_PATH.parent)!r}); '
+            'from verification.admission import RepositoryAdmission; '
+            f'root=pathlib.Path({str(self.root)!r}); '
+            'RepositoryAdmission.for_repository(root).reserve_verification("stranded", {"phase":"reserved"}); '
+            'print("RESERVED",flush=True); time.sleep(60)'
+        )
+        environment = dict(os.environ)
+        environment['PYTHONPATH'] = str(MODULE_PATH.parent) + os.pathsep + environment.get('PYTHONPATH', '')
+        child = subprocess.Popen([sys.executable, '-c', script], cwd=self.root,
+                                 env=environment, stdout=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual('RESERVED', child.stdout.readline().strip())
+            child.send_signal(signal.SIGKILL)
+            child.wait(timeout=5)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=5)
+            child.stdout.close()
+
+        recovered = subprocess.run([sys.executable, str(MODULE_PATH), 'recover-verification',
+            '--repo', str(self.root)], cwd=self.root, env=environment,
+            capture_output=True, text=True, timeout=15)
+        self.assertEqual(0, recovered.returncode, recovered.stderr)
+        self.assertIsNone(RepositoryAdmission.for_repository(self.root).active())
+        target = self.root / 'resumed-task-worktree'
+        with mock.patch.object(harness, 'worktree_path', return_value=target), \
+             mock.patch.object(harness, 'prepare_task_worktree', return_value=target):
+            harness.cmd_start(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', owner='recovered-worker'))
+        self.assertEqual('running', harness.load_state(feature, harness.load_validated(feature))[
+            'tasks']['T-001']['status'])
+
+    def test_register_manual_observation_is_trusted_scoped_and_idempotent(self):
+        from verification.store import StoreError
+        feature = self.feature()
+        task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
+        task_doc['tasks'][0]['required_reviewers'] = ['reviewer']
+        (feature / 'tasks.json').write_text(json.dumps(task_doc), encoding='utf-8')
+        observation = dict(
+            repository=self.root, feature_id='TST-001', observation_id='a' * 64,
+            role='reviewer', task_id='T-001', task_attempt=None, checkpoint=None,
+            attestation_sha256='sha256:' + 'b' * 64, report_sha256='sha256:' + 'c' * 64,
+            expected_feature_generation=1,
+        )
+
+        first = harness.register_manual_observation(**observation)
+        replay = harness.register_manual_observation(**observation)
+
+        self.assertEqual(first, replay)
+        self.assertEqual('reviewer', first['role'])
+        self.assertEqual('T-001', first['scope']['task_id'])
+        self.assertNotIn('metrics', first)
+        state = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual(1, len(state['manual_observation_ledger']))
+        record_path = pathlib.Path(first['record_path'])
+        record_bytes = record_path.read_bytes()
+        self.assertEqual(record_bytes, record_path.read_bytes())
+
+        with self.assertRaises(StoreError):
+            harness.register_manual_observation(**{
+                **observation, 'report_sha256': 'sha256:' + 'd' * 64})
+        with self.assertRaises(TypeError):
+            harness.register_manual_observation(**observation, metrics={'first_pass_rate': 1.0})
+        self.assertEqual(record_bytes, record_path.read_bytes())
+
+    def test_register_manual_observation_rejects_stale_generation_wrong_role_and_unknown_attempt(self):
+        from verification.store import StoreError
+        feature = self.feature()
+        task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
+        task_doc['tasks'][0]['required_reviewers'] = ['reviewer']
+        (feature / 'tasks.json').write_text(json.dumps(task_doc), encoding='utf-8')
+        base = dict(repository=self.root, feature_id='TST-001', observation_id='e' * 64,
+            role='reviewer', task_id='T-001', task_attempt=None, checkpoint=None,
+            attestation_sha256='sha256:' + 'f' * 64, report_sha256='sha256:' + '1' * 64,
+            expected_feature_generation=1)
+        for changed in (
+            {'expected_feature_generation': 2},
+            {'role': 'evaluator'},
+            {'task_attempt': 1, 'checkpoint': 'c' * 40},
+        ):
+            with self.subTest(changed=changed), self.assertRaises(StoreError):
+                harness.register_manual_observation(**{**base, **changed})
+        self.assertNotIn('manual_observation_ledger',
+            harness.load_state(feature, harness.load_validated(feature)))
+
+    def test_register_manual_observation_serializes_scope_resolution_with_lifecycle_mutation(self):
+        feature = self.feature()
+        task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
+        task_doc['tasks'][0]['required_reviewers'] = ['reviewer']
+        (feature / 'tasks.json').write_text(json.dumps(task_doc), encoding='utf-8')
+        entered_scope = threading.Event()
+        allow_registration = threading.Event()
+        mutation_entered = threading.Event()
+        errors = []
+        from verification import authority
+        original_resolver = authority.resolve_manual_review_scope
+
+        def paused_resolver(*args, **kwargs):
+            entered_scope.set()
+            if not allow_registration.wait(3):
+                raise RuntimeError('test registration gate timed out')
+            return original_resolver(*args, **kwargs)
+
+        def register():
+            try:
+                harness.register_manual_observation(repository=self.root, feature_id='TST-001',
+                    observation_id='2' * 64, role='reviewer', task_id='T-001',
+                    attestation_sha256='sha256:' + '3' * 64,
+                    report_sha256='sha256:' + '4' * 64, expected_feature_generation=1)
+            except BaseException as exc:
+                errors.append(exc)
+
+        def mutate():
+            try:
+                doc = harness.load_validated(feature)
+                with harness.locked_state(feature, doc) as state:
+                    mutation_entered.set()
+                    state['feature_generation'] = 2
+            except BaseException as exc:
+                errors.append(exc)
+
+        with mock.patch.object(authority, 'resolve_manual_review_scope', side_effect=paused_resolver):
+            registration = threading.Thread(target=register)
+            registration.start()
+            self.assertTrue(entered_scope.wait(2))
+            mutation = threading.Thread(target=mutate)
+            mutation.start()
+            self.assertFalse(mutation_entered.wait(0.05))
+            allow_registration.set()
+            registration.join(3)
+            mutation.join(3)
+        self.assertFalse(registration.is_alive())
+        self.assertFalse(mutation.is_alive())
+        self.assertFalse(errors, errors)
+        self.assertTrue(mutation_entered.is_set())
+        final_state = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual(2, final_state['feature_generation'])
+        observation_ids = {entry.get('observation_id') for entry in
+                           final_state.get('manual_observation_ledger', [])
+                           if isinstance(entry, dict)}
+        self.assertIn('2' * 64, observation_ids)
+
+    def test_stale_lease_recovery_preserves_pending_verification_resume_without_new_attempt(self):
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        resume = {'plan_id': 'plan-1', 'task_attempt': 2, 'lifecycle_generation': 1,
+                  'reason_sha256': 'a' * 64, 'requested_at': '2026-10-09T12:00:00Z'}
+        state['tasks']['T-001'].update({
+            'status': 'running', 'attempts': 2, 'owner': 'lost-owner',
+            'lease_expires_at': '2000-01-01T00:00:00+00:00',
+            'verification_resume_active': resume,
+        })
+        harness.save_state(feature, state)
+        with mock.patch.object(harness, 'assert_repository_verification_drained'):
+            recovered = harness.recover_stale_leases(feature, doc, reason='test recovery')
+        self.assertEqual(['T-001'], recovered)
+        entry = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual('failed', entry['status'])
+        self.assertEqual(2, entry['attempts'])
+        self.assertEqual(resume, entry['verification_resume_pending'])
+        self.assertNotIn('verification_resume_active', entry)
 
     def feature(self, tasks=None, spec_text=None, *, root=None):
         repo = root or self.root
@@ -76,6 +471,181 @@ class HarnessTest(unittest.TestCase):
         }
         (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
         return feature
+
+    def passing_builder_result(self, task_id):
+        path = self.root / '.agent-runs' / 'TST-001' / f'{task_id}-result.json'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({'task': task_id, 'status': 'pass', 'summary': 'builder passed'}),
+                        encoding='utf-8')
+        return path
+
+    def test_lifecycle_mutation_and_verifier_reservation_share_atomic_guard(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        from verification.admission import AdmissionConflict, RepositoryAdmission
+
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        admission = RepositoryAdmission.for_repository(self.root)
+        reserved = threading.Event()
+        failures = []
+
+        def reserve_verification():
+            try:
+                admission.reserve_verification('execution-1', {'plan_id': 'plan-1'})
+                reserved.set()
+            except BaseException as exc:
+                failures.append(exc)
+
+        with harness.locked_state(feature, doc):
+            thread = threading.Thread(target=reserve_verification)
+            thread.start()
+            self.assertFalse(reserved.wait(0.05))
+        thread.join(2)
+        self.assertFalse(failures)
+        self.assertTrue(reserved.is_set())
+
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as blocked:
+            with harness.locked_state(feature, doc):
+                pass
+        self.assertEqual(6, blocked.exception.code)
+        admission.release('execution-1')
+
+    def test_running_task_heartbeat_remains_available_during_verification_reservation(self):
+        from verification.admission import RepositoryAdmission
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker'})
+        harness.save_state(feature, state)
+        admission = RepositoryAdmission.for_repository(self.root)
+        admission.reserve_verification('execution-1', {'plan_id': 'plan-1'})
+        try:
+            expiration = harness.heartbeat(feature, doc, 'T-001', 'worker')
+            self.assertTrue(expiration)
+            self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-001']['status'])
+        finally:
+            admission.release('execution-1')
+
+    def test_failed_lifecycle_mutation_is_blocked_by_unresolved_verification_before_checkpoint(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker'})
+        harness.save_state(feature, state)
+        state_path = harness.state_path(feature)
+        before_state = state_path.read_bytes()
+        target = harness.worktree_path('TST-001', 'T-001')
+        target.mkdir(parents=True)
+        sentinel = target / 'sentinel'
+        sentinel.write_bytes(b'owned by active verification')
+        before_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                     capture_output=True, text=True, check=True).stdout
+
+        with mock.patch('verification.store.VerificationStore._scan_executions',
+                        return_value=[(self.root / 'execution', {'backend': 'fixture'}, None)]):
+            with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as blocked:
+                harness.cmd_fail(argparse.Namespace(
+                    feature_dir=feature, task_id='T-001', owner='worker', reason='blocked',
+                    evidence=None, escalate=False, control_outcome=None,
+                ))
+
+        self.assertEqual(6, blocked.exception.code)
+        self.assertEqual(b'owned by active verification', sentinel.read_bytes())
+        self.assertEqual(before_state, state_path.read_bytes())
+        self.assertEqual(before_head, subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+            capture_output=True, text=True, check=True).stdout)
+        self.assertTrue(target.exists())
+
+    def test_busy_verification_lock_blocks_stale_worktree_recovery(self):
+        from contextlib import contextmanager, redirect_stderr
+        from io import StringIO
+        import datetime as dt
+        import verification.store as store
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        entry.update({
+            'status': 'running', 'attempts': 1, 'owner': 'worker',
+            'lease_expires_at': (harness.utc_now() - dt.timedelta(hours=1)).isoformat(),
+        })
+        harness.save_state(feature, state)
+        state_path = harness.state_path(feature)
+        before_state = state_path.read_bytes()
+
+        @contextmanager
+        def busy_lock(_root, *_args, **_kwargs):
+            raise store.StoreError('busy')
+            yield
+
+        with mock.patch.object(store, 'repository_lock', busy_lock), \
+                redirect_stderr(StringIO()), self.assertRaises(SystemExit) as blocked:
+            harness.recover_stale_leases(feature, doc)
+
+        self.assertEqual(3, blocked.exception.code)
+        self.assertEqual(before_state, state_path.read_bytes())
+        self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-001']['status'])
+
+    def test_worktree_lifecycle_guard_releases_repository_lock_before_state_lock(self):
+        from contextlib import contextmanager, redirect_stderr
+        from io import StringIO
+        import verification.store as store
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1, 'owner': 'worker'})
+        harness.save_state(feature, state)
+        events = []
+        original_repository_lock = store.repository_lock
+        original_locked_state = harness.locked_state
+
+        @contextmanager
+        def tracked_repository_lock(root, *args, **kwargs):
+            events.append('repository-enter')
+            with original_repository_lock(root, *args, **kwargs):
+                yield
+            events.append('repository-exit')
+
+        @contextmanager
+        def tracked_state_lock(*args, **kwargs):
+            events.append('state-enter')
+            with original_locked_state(*args, **kwargs) as state:
+                yield state
+
+        with mock.patch.object(store, 'repository_lock', tracked_repository_lock), \
+                mock.patch.object(harness, 'locked_state', tracked_state_lock), \
+                redirect_stderr(StringIO()):
+            harness.cmd_fail(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', owner='worker', reason='ordinary failure',
+                evidence=None, escalate=False, control_outcome=None,
+            ))
+
+        self.assertEqual(['repository-enter', 'repository-exit', 'state-enter'], events)
+
+    def test_task_human_resolution_cannot_authorize_verification_blockage(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'escalated', 'attempts': 1, 'control_outcome': 'needs-human',
+            'last_failure': 'CRITICAL_GATE_RETRY_GRANT_REQUIRED',
+        })
+        harness.save_state(feature, state)
+
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_human_resolve(argparse.Namespace(
+                feature_dir=feature, task_id='T-001', decision='retry', decision_file=None,
+                by='operator@example.invalid',
+            ))
+
+        entry = harness.load_state(feature, doc)['tasks']['T-001']
+        self.assertEqual('escalated', entry['status'])
+        self.assertEqual(0, entry.get('human_resume_grants', 0))
 
     def passing_completion_evidence(self, feature, doc, task_id, attempt, checkpoint, *, changed_paths=None):
         state = harness.load_state(feature, doc)
@@ -1447,6 +2017,7 @@ class HarnessTest(unittest.TestCase):
     def test_lifecycle_cli_cross_worktree_manual_exercise(self):
         import subprocess
         import shutil
+        import sys
 
         feature = self.feature([
             {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
@@ -1473,7 +2044,7 @@ class HarnessTest(unittest.TestCase):
         t_b = self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}' / 'TST-001' / 'T-B'
 
         def cli(worktree, *args):
-            return subprocess.run(['python3', str(harness_path), *map(str, args)], cwd=worktree,
+            return subprocess.run([sys.executable, str(harness_path), *map(str, args)], cwd=worktree,
                                   capture_output=True, text=True, check=True).stdout.strip()
 
         try:
@@ -2366,6 +2937,197 @@ class HarnessTest(unittest.TestCase):
         subprocess.run(['git', 'worktree', 'remove', '--force', str(t2)], cwd=self.root, check=True)
         subprocess.run(['git', 'worktree', 'remove', '--force', str(t1)], cwd=self.root, check=True)
         shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
+
+    def sequential_replan_case(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({
+            'test_mode': 'red-green-refactor',
+            'test_seam': 'sequential task replan lifecycle',
+        })
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 0})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', decision='First approved clarification.',
+            decision_file=None, by='owner@example.invalid'))
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        proposal = feature / 'proposal-1.json'
+        proposal.write_text(json.dumps(dict(
+            harness.task_index(doc)['T-001'], objective='First clarified objective')),
+            encoding='utf-8')
+        args = argparse.Namespace(
+            feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=0, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='first owner-approved replan',
+            by='owner@example.invalid', checkpoint=None,
+        )
+        harness.cmd_replan_task(args)
+        return feature, doc, args
+
+    def next_failed_replan_args(self, feature, doc, objective, *, expected_revision=None,
+                                proposal_name='next-proposal.json', reason='next owner-approved replan'):
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        proposal = feature / proposal_name
+        proposal.write_text(json.dumps(dict(
+            harness.active_task_contract(feature, doc, 'T-001'), objective=objective)),
+            encoding='utf-8')
+        state = harness.load_state(feature, doc)
+        return argparse.Namespace(
+            feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=state['tasks']['T-001']['attempts'],
+            expected_active_revision=expected_revision or active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'],
+            expected_feature_generation=state.get('feature_generation', 1),
+            proposed_task_file=str(proposal), reason=reason,
+            by='owner@example.invalid', checkpoint=None,
+        )
+
+    def fail_and_resolve_replanned_attempt(self, feature, doc):
+        harness.cmd_claim(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', owner='sequential-replan-worker'))
+        harness.cmd_fail(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', owner='sequential-replan-worker',
+            reason='attempt needs another accepted clarification', evidence=None,
+            escalate=True))
+        time.sleep(0.003)
+        harness.cmd_human_resolve(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', decision='Second approved clarification.',
+            decision_file=None, by='owner@example.invalid'))
+
+    def test_second_failed_task_replan_requires_and_accepts_newer_human_resolution(self):
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Second clarified objective', proposal_name='proposal-2.json')
+
+        harness.cmd_replan_task(second)
+
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        self.assertEqual(2, len(entry['replan_requests']))
+        self.assertEqual(entry['active_packet_revision'], entry['replan_requests'][-1]['new_revision'])
+        self.assertEqual(entry['packet_lineage'][-2]['revision_id'],
+                         entry['replan_requests'][-1]['old_revision'])
+
+    def test_failed_task_replan_rejects_reused_decision_after_prior_replan(self):
+        feature, doc, _first = self.sequential_replan_case()
+        second = self.next_failed_replan_args(
+            feature, doc, 'Must reject reused decision', proposal_name='reused-decision.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(second)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_sequential_replan_rejects_naive_human_resolution_timestamp(self):
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        state = harness.load_state(feature, doc)
+        resolution_path = pathlib.Path(state['tasks']['T-001']['human_resolution'])
+        payload = json.loads(resolution_path.read_text(encoding='utf-8'))
+        payload['resolved_at'] = payload['resolved_at'].replace('+00:00', '').replace('Z', '')
+        raw = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()
+        resolution_path.write_bytes(raw)
+        entry = state['tasks']['T-001']
+        entry['human_resolved_at'] = payload['resolved_at']
+        entry['human_resolution_history'][-1]['resolved_at'] = payload['resolved_at']
+        entry['last_transition']['resolved_at'] = payload['resolved_at']
+        entry['last_transition']['artifact_sha256'] = harness.sha256_bytes(raw)
+        harness.save_state(feature, state)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Naive timestamps must fail closed', proposal_name='naive-timestamp.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(second)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_sequential_replan_rejects_stale_active_revision_without_state_change(self):
+        feature, doc, first = self.sequential_replan_case()
+        stale = self.next_failed_replan_args(
+            feature, doc, 'Must reject stale revision', expected_revision=first.expected_active_revision,
+            proposal_name='stale-revision.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(stale)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_concurrent_sequential_replans_have_one_winner(self):
+        import copy
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        before_entry = harness.load_state(feature, doc)['tasks']['T-001']
+        attempts_before = before_entry['attempts']
+        authorization_before = {
+            key: copy.deepcopy(before_entry.get(key))
+            for key in ('human_resume_grants', 'retry_authorizations',
+                        'retry_authorization_supersessions', 'human_resolution_history')
+        }
+        requests = [
+            self.next_failed_replan_args(feature, doc, 'Second proposal A',
+                proposal_name='proposal-a.json', reason='competing A'),
+            self.next_failed_replan_args(feature, doc, 'Second proposal B',
+                proposal_name='proposal-b.json', reason='competing B'),
+        ]
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def invoke(request):
+            barrier.wait()
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    harness.cmd_replan_task(request)
+                outcomes.append('committed')
+            except SystemExit:
+                outcomes.append('rejected')
+
+        workers = [threading.Thread(target=invoke, args=(request,)) for request in requests]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=10)
+
+        self.assertTrue(all(not worker.is_alive() for worker in workers))
+        self.assertCountEqual(['committed', 'rejected'], outcomes)
+        state = harness.load_state(feature, doc)
+        final_entry = state['tasks']['T-001']
+        self.assertEqual(2, len(final_entry['replan_requests']))
+        self.assertEqual(final_entry['active_packet_revision'], final_entry['packet_lineage'][-1]['revision_id'])
+        self.assertEqual(attempts_before, final_entry['attempts'])
+        self.assertEqual(authorization_before, {
+            key: final_entry.get(key)
+            for key in authorization_before
+        })
+
+    def test_three_revision_lineage_resolves_and_identical_replay_is_idempotent(self):
+        feature, doc, first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Third packet revision', proposal_name='proposal-3.json')
+        harness.cmd_replan_task(second)
+
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        active = harness.resolve_active_packet(feature, doc, 'T-001', state=state)
+        self.assertEqual(3, len(entry['packet_lineage']))
+        self.assertEqual(entry['packet_lineage'][-1]['revision_id'], active['revision_id'])
+        self.assertEqual(entry['replan_requests'][-1]['new_revision'], active['revision_id'])
+
+        replay_state = harness.state_path(feature).read_bytes()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            harness.cmd_replan_task(first)
+        self.assertIn('ALREADY_REPLANNED', output.getvalue())
+        self.assertEqual(replay_state, harness.state_path(feature).read_bytes())
 
     def test_human_resolution_reopens_escalated_task_with_auditable_retry_grant(self):
         feature = self.feature()
@@ -3811,6 +4573,11 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
     def test_m42_38_cli_help_discovery(self):
         help_text = harness.parser().format_help()
         self.assertIn('complete-repair', help_text)
+        self.assertIn('resume-verification', help_text)
+        resume_help = subprocess.run([os.sys.executable, str(MODULE_PATH), 'resume-verification', '--help'],
+                                     capture_output=True, text=True)
+        self.assertEqual(0, resume_help.returncode)
+        self.assertIn('--reason', resume_help.stdout)
         result = subprocess.run([os.sys.executable, str(MODULE_PATH), 'complete-repair', '--help'],
                                 capture_output=True, text=True)
         self.assertEqual(0, result.returncode)
