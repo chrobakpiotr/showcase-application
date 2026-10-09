@@ -123,8 +123,14 @@ class _Evaluation:
     def __init__(self, root, profile, family, evidence, probes, safety, surface=None):
         self.root, self.profile, self.family = root, profile, family
         self.evidence, self.probes, self.safety = dict(evidence or {}), probes or {}, safety
-        self.surface = surface or changed_surface(root, family.base_sha)
-        self.session = ObservationSession(root, self.surface, safety)
+        applicability_patterns = tuple(p for gate in profile.gates for p in gate.applicability)
+        input_patterns = tuple(p for gate in profile.gates for p in gate.inputs)
+        self.surface = surface or changed_surface(root, family.base_sha,
+            patterns=tuple(dict.fromkeys((*applicability_patterns, *input_patterns))),
+            applicability_patterns=applicability_patterns)
+        self.session = ObservationSession(root, self.surface, safety,
+            enumerate_paths=any(g.inputs for g in profile.gates),
+            input_patterns=input_patterns)
         self.by_id = {g.id: g for g in profile.gates}
         self.memo = {}
         # Hold the supplied receipts for this evaluation only. Object identity avoids
@@ -233,7 +239,11 @@ class _Evaluation:
 def build_plan(root, profile, family, *, task_commands=(), continuation=False, evidence=None, probes=None, safety=None):
     safety = safety or default_safety()
     _family(profile, family, safety)
-    surface = changed_surface(root, family.base_sha)
+    applicability_patterns = tuple(p for gate in profile.gates for p in gate.applicability)
+    input_patterns = tuple(p for gate in profile.gates for p in gate.inputs)
+    surface = changed_surface(root, family.base_sha,
+                              patterns=tuple(dict.fromkeys((*applicability_patterns, *input_patterns))),
+                              applicability_patterns=applicability_patterns)
     nodes = required_nodes(profile, family, surface, task_commands, safety=safety)
     evaluation = _Evaluation(root, profile, family, evidence, probes, safety, surface)
     return Plan(family, tuple(evaluation.evaluate(n, continuation=continuation) for n in nodes))

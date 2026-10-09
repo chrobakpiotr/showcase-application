@@ -67,9 +67,13 @@ class Family:
 class Surface:
     paths: tuple[str, ...]
     deleted: tuple[str, ...]
+    # Compatibility slot for explicit synthetic surfaces; runtime planning no
+    # longer materializes a repository-wide tracked-path inventory.
     tracked: tuple[str, ...]
     repository_id: str
     base_sha: str
+    base_candidates: tuple[str, ...] = ()
+    base_patterns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

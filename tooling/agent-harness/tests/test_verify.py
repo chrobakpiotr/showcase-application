@@ -41,6 +41,56 @@ class PlannerTest(unittest.TestCase):
     def plan(self, p=None, **kwargs):
         return build_plan(self.root, p or self.p, self.family(p), **kwargs)
 
+    def test_empty_profile_does_not_enumerate_repository_paths(self):
+        from verification import fingerprint
+        empty = profile()
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir:
+            plan = self.plan(empty)
+        self.assertEqual((), plan.decisions)
+        scandir.assert_not_called()
+
+    def test_literal_input_does_not_enumerate_unrelated_repository_paths(self):
+        from verification import fingerprint
+        target = self.root / 'target.txt'
+        target.write_text('target bytes')
+        for index in range(20):
+            (self.root / f'unrelated-{index}.txt').write_text('unrelated')
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['target.txt']))
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir:
+            plan = self.plan(p, task_commands=['python3 -m unittest'])
+        self.assertEqual(1, len(plan.decisions))
+        self.assertIsNotNone(plan.decisions[0].fingerprint)
+        scandir.assert_not_called()
+
+    def test_glob_input_scans_only_its_literal_prefix_subtree(self):
+        from verification import fingerprint
+        (self.root / 'src/nested').mkdir()
+        (self.root / 'src/nested/unit.py').write_text('unit')
+        for index in range(20):
+            (self.root / f'unrelated-{index}.txt').write_text('unrelated')
+        p = profile(gate('unit', command='python3 -m unittest unit', inputs=['src/**/*.py']),
+                    gate('other', command='python3 -m unittest other', inputs=['src/**/*.py']))
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir, \
+                mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
+            plan = self.plan(p, task_commands=['python3 -m unittest unit', 'python3 -m unittest other'])
+        self.assertEqual(2, len(plan.decisions))
+        self.assertTrue(any(str(call.args[0]) == str(self.root / 'src/nested/unit.py')
+                            for call in opened.call_args_list))
+        scanned = {str(call.args[0]) for call in scandir.call_args_list}
+        self.assertIn(str(self.root / 'src'), scanned)
+        self.assertNotIn(str(self.root), scanned)
+        self.assertEqual(2, scandir.call_count)
+
+    def test_planning_shares_one_scoped_base_tree_query_for_inputs_and_applicability(self):
+        from verification import fingerprint
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py'],
+                         applicability=['docs/**/*.md']))
+        with mock.patch.object(fingerprint, '_git', wraps=fingerprint._git) as git:
+            self.plan(p, task_commands=['python3 -m unittest'])
+        tree_queries = [call for call in git.call_args_list
+                        if call.args[1] == 'ls-tree']
+        self.assertEqual(1, len(tree_queries))
+
     def receipt(self, decision, p=None, evidence_id='receipt-1'):
         return seal_pass(decision, decision, family=self.family(p), evidence_id=evidence_id,
                          ownership_token='owner-1', started_at=1, ended_at=2,
@@ -59,6 +109,98 @@ class PlannerTest(unittest.TestCase):
         self.assertIn('src/a.py', surface.deleted)
         for bad in ['missing', self.git('rev-parse', 'HEAD:src/renamed.py').strip()]:
             with self.assertRaises(InvalidPolicy): changed_surface(self.root, bad)
+
+    def test_changed_surface_finds_deletions_without_full_tree_inventory(self):
+        from verification import fingerprint
+        (self.root / 'src/a.py').unlink()
+        with mock.patch.object(fingerprint, '_git', wraps=fingerprint._git) as git:
+            surface = changed_surface(self.root, self.base)
+        self.assertIn('src/a.py', surface.paths)
+        self.assertIn('src/a.py', surface.deleted)
+        commands = [call.args[1:] for call in git.call_args_list]
+        self.assertNotIn(('ls-files', '-z'), commands)
+        self.assertFalse(any(command[:3] == ('ls-tree', '-r', '--name-only') for command in commands))
+
+    def test_skip_worktree_deletion_invalidates_matching_input(self):
+        (self.root / 'src/skip.py').write_text('before')
+        self.git('add', 'src/skip.py')
+        self.git('commit', '-qm', 'add skip-worktree fixture')
+        self.base = self.git('rev-parse', 'HEAD').strip()
+        (self.root / 'src/a.py').write_text('changed')
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py'],
+                         applicability=['src/**/*.py']))
+        initial = self.plan(p).decisions[0]
+        receipt = self.receipt(initial, p)
+        self.git('update-index', '--skip-worktree', 'src/skip.py')
+        (self.root / 'src/skip.py').unlink()
+        after_plan = self.plan(p, evidence={'unit': receipt})
+        self.assertEqual(1, len(after_plan.decisions))
+        self.assertIn('src/skip.py', changed_surface(self.root, self.base, patterns=('src/**/*.py',)).paths)
+        after = after_plan.decisions[0]
+        self.assertEqual('INVALIDATED_BY_THIS_PATCH', after.decision)
+        self.assertNotEqual(initial.fingerprint, after.fingerprint)
+
+    def test_literal_control_paths_are_never_observed_or_opened(self):
+        from verification import fingerprint
+        control = self.root / '.agent-state/private.json'
+        control.parent.mkdir(parents=True)
+        control.write_text('{"private":true}')
+        surface = changed_surface(self.root, self.base)
+        for relative in ('.git/config', '.GIT/config',
+                         '.agent-state/private.json', '.Agent-State/private.json'):
+            with self.subTest(path=relative), \
+                    mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
+                observation = observe_inputs(self.root, (relative,), surface)
+                self.assertIn('non-cacheable-external-state', observation.reasons)
+                self.assertFalse(any(str(call.args[0]) == str(self.root / relative)
+                                     for call in opened.call_args_list))
+                with self.assertRaises(ValueError):
+                    observe_artifacts(self.root, (relative,))
+
+    def test_control_runtime_cache_distinguishes_relative_roots_after_chdir(self):
+        from verification import fingerprint
+        first = self.root / 'first-root'
+        second = self.root / 'second-root'
+        first.mkdir()
+        second.mkdir()
+        original = os.getcwd()
+        fingerprint._control_runtime_relative.cache_clear()
+        try:
+            with mock.patch.object(fingerprint, '_trusted_runtime_relative',
+                                   side_effect=lambda root: f'runtime-{pathlib.Path(root).name}'):
+                os.chdir(first)
+                self.assertTrue(fingerprint._is_control_path('.', 'runtime-first-root/probe'))
+                os.chdir(second)
+                self.assertTrue(fingerprint._is_control_path('.', 'runtime-second-root/probe'))
+        finally:
+            os.chdir(original)
+            fingerprint._control_runtime_relative.cache_clear()
+
+    def test_case_variant_control_name_is_candidate_on_case_sensitive_filesystem(self):
+        from verification import fingerprint
+        payload = self.root / '.Agent-State/payload.txt'
+        payload.parent.mkdir()
+        payload.write_text('before')
+        self.git('add', '.Agent-State/payload.txt')
+        self.git('commit', '-qm', 'add case-variant candidate')
+        base = self.git('rev-parse', 'HEAD').strip()
+        payload.write_text('after')
+        # Simulate a case-sensitive filesystem even when this test runs on a
+        # case-insensitive developer volume.
+        with mock.patch.object(fingerprint.os.path, 'samefile', return_value=False):
+            surface = changed_surface(
+                self.root, base,
+                patterns=('.Agent-State/**',),
+                applicability_patterns=('.Agent-State/**',),
+            )
+        self.assertIn('.Agent-State/payload.txt', surface.paths)
+
+    def test_zero_match_input_pattern_is_noncacheable(self):
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/not-present.py']))
+        decision = self.plan(p).decisions[0]
+        self.assertEqual('non-cacheable-policy', decision.reason)
+        self.assertFalse(decision.cacheable)
+        self.assertIsNone(decision.fingerprint)
 
     def test_ignored_candidate_files_are_visible_but_only_exact_runtime_is_excluded(self):
         (self.root / '.gitignore').write_text('ignored-output/\n', encoding='utf-8')
