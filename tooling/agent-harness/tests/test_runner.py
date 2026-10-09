@@ -13,6 +13,37 @@ spec = importlib.util.spec_from_file_location('sdd_runner', MODULE_PATH)
 runner = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
 spec.loader.exec_module(runner)
+import harness
+
+
+def packet_lifecycle_binding(root, caller_packet, active_packet=None):
+    feature_dir = root / 'docs' / 'specs' / caller_packet['feature']
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    active_packet = active_packet or caller_packet
+    active = {
+        'packet': active_packet,
+        'revision_id': harness.packet_revision_id(active_packet),
+        'contract_sha256': harness.packet_bound_semantic_contract_sha256(feature_dir, active_packet),
+    }
+    return feature_dir, active
+
+
+def patch_packet_lifecycle(root, caller_packet, active_packet=None):
+    feature_dir, active = packet_lifecycle_binding(root, caller_packet, active_packet)
+    return (
+        mock.patch('harness.load_validated', return_value={'feature': caller_packet['feature']}),
+        mock.patch('harness.resolve_active_packet', return_value=active),
+    )
+
+
+def accepted_task_plan(feature_id, task_id, task_commands):
+    return {
+        'feature_id': feature_id,
+        'task_id': task_id,
+        'task_commands': task_commands,
+        'origin_binding': 'task-completion',
+        'family': {'origin_policy': 'task-completion'},
+    }
 
 
 class RunnerTest(unittest.TestCase):
@@ -280,6 +311,43 @@ class RunnerTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 runner.enforce_postconditions({'allowed_paths': ['**']}, root, before, result, review_existing=True)
 
+    def test_builder_postcondition_rejects_ignored_write_outside_allowed_paths(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / '.gitignore').write_text('ignored-output/\n', encoding='utf-8')
+            (root / 'source.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', '.gitignore', 'source.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            before = runner.git_snapshot(root)
+
+            (root / 'ignored-output' / 'nested').mkdir(parents=True)
+            (root / 'ignored-output' / 'nested' / 'result.txt').write_text('unauthorized\n', encoding='utf-8')
+            result = {'changed_paths': ['ignored-output/nested/result.txt']}
+
+            self.assertIn('ignored-output/nested/result.txt', runner.git_changed_paths(root))
+            with self.assertRaises(SystemExit):
+                runner.enforce_postconditions(
+                    {'allowed_paths': ['source.txt']}, root, before, result)
+
+    def test_changed_path_inventory_preserves_newline_filenames(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'base.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            unusual = 'odd\nname.txt'
+            (root / unusual).write_text('candidate\n', encoding='utf-8')
+
+            self.assertEqual([unusual], runner.git_changed_paths(root))
+
 
     def test_render_prompt_marks_human_resolution_feedback_as_trusted(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -332,16 +400,400 @@ class RunnerTest(unittest.TestCase):
         import subprocess
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'base.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
             completed = subprocess.CompletedProcess([], 0,
                 json.dumps({'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:test'}), '')
-            with mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
-                ok, results = runner.run_verification({}, root, root, 30,
-                    accepted_plan_id='verification-plan-v1:sha256:test')
+            packet = {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+                'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'], 'verification': [
+                'python3 -m unittest tests.test_profile',
+                'python3 -m unittest tests.test_profile',
+                'custom-legacy-check --strict',
+            ]}
+            accepted = accepted_task_plan('TEST', 'T-1', [
+                {'command': command, 'cwd': '.'} for command in packet['verification']
+            ])
+            real_run = runner.subprocess.run
+            def execute(command, *args, **kwargs):
+                if command[:3] == [runner.sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                    return completed
+                return real_run(command, *args, **kwargs)
+            packet_patches = patch_packet_lifecycle(root, packet)
+            with mock.patch.object(runner.subprocess, 'run', side_effect=execute) as run:
+                with packet_patches[0], packet_patches[1], \
+                        mock.patch('verification.authority.resolve_execution',
+                            return_value=(accepted, None, None, [])) as resolve:
+                    ok, results = runner.run_verification(packet, root, root, 30,
+                        accepted_plan_id='verification-plan-v1:sha256:test')
             self.assertTrue(ok)
             self.assertEqual('PASS', results[0]['outcome'])
-            command = run.call_args.args[0]
+            resolve.assert_called_once_with(root, 'verification-plan-v1:sha256:test')
+            command = next(call.args[0] for call in run.call_args_list
+                           if call.args[0][:3] == [runner.sys.executable, str(runner.HERE / 'verify.py'), 'run'])
             self.assertIn('--plan-id', command)
             self.assertNotIn('--base', command)
+            self.assertNotIn('custom-legacy-check', command)
+            self.assertNotIn('tests.test_profile', command)
+
+    def test_runner_rejects_accepted_plan_for_another_task_before_launch(self):
+        import subprocess
+        accepted = accepted_task_plan('TEST', 'T-1', [
+            {'command': 'python3 -m unittest tests.test_x', 'cwd': '.'}
+        ])
+        for packet in (
+            {'feature': 'TEST', 'task': 'T-2', 'role': 'builder', 'agent_profile': 'builder',
+             'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'],
+             'verification': ['python3 -m unittest tests.test_x']},
+            {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+             'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'],
+             'verification': ['python3 -m unittest tests.other']},
+        ):
+            with self.subTest(packet=packet), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp)
+                packet_patches = patch_packet_lifecycle(root, packet)
+                with mock.patch.object(runner.subprocess, 'run') as launch, \
+                        packet_patches[0], packet_patches[1], \
+                        mock.patch('verification.authority.resolve_execution',
+                            return_value=(accepted, None, None, [])):
+                    passed, result = runner.run_verification(packet, root, root, 5,
+                        accepted_plan_id='verification-plan-v1:sha256:' + 'a' * 64)
+            self.assertFalse(passed)
+            self.assertEqual('verification-blocked', result[0]['machine_category'])
+            self.assertEqual('ACCEPTED_PLAN_TASK_MISMATCH', result[0]['reason_code'])
+            launch.assert_not_called()
+
+    def test_runner_rejects_integration_origin_plan_for_task_completion(self):
+        import json
+        import subprocess
+
+        task_command = 'python3 -m unittest tests.test_x'
+        packet = {
+            'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+            'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'],
+            'verification': [task_command],
+        }
+        integration_plan = {
+            'feature_id': 'TEST', 'task_id': 'T-1',
+            'task_commands': [{'command': task_command, 'cwd': '.'}],
+            'origin_binding': 'integration',
+            'family': {'origin_policy': 'integration'},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'base.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            plan_id = 'verification-plan-v2:sha256:' + 'a' * 64
+            real_run = runner.subprocess.run
+
+            def launch(command, *args, **kwargs):
+                if command[:3] == [runner.sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                    return subprocess.CompletedProcess(command, 0,
+                        json.dumps({'outcome': 'PASS', 'plan_id': plan_id}), '')
+                return real_run(command, *args, **kwargs)
+
+            packet_patches = patch_packet_lifecycle(root, packet)
+            with mock.patch.object(runner.subprocess, 'run', side_effect=launch) as run, \
+                    packet_patches[0], packet_patches[1], \
+                    mock.patch('verification.authority.resolve_execution',
+                        return_value=(integration_plan, None, None, [])):
+                passed, result = runner.run_verification(packet, root, root, 5,
+                    sandbox_mode='required', accepted_plan_id=plan_id)
+
+        self.assertFalse(passed)
+        self.assertEqual('verification-blocked', result[0]['machine_category'])
+        self.assertEqual('ACCEPTED_PLAN_ORIGIN_MISMATCH', result[0]['reason_code'])
+        self.assertFalse(any(call.args[0][:3] == [
+            runner.sys.executable, str(runner.HERE / 'verify.py'), 'run'
+        ] for call in run.call_args_list))
+
+    def test_worktree_snapshot_rejects_nested_git_authority(self):
+        import subprocess
+
+        for nested_kind in ('untracked-repository', 'submodule'):
+            with self.subTest(nested_kind=nested_kind), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp) / 'superproject'
+                root.mkdir()
+                subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+                (root / 'base.txt').write_text('base\n', encoding='utf-8')
+                subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+                subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+
+                nested = root / 'vendor' / 'nested'
+                if nested_kind == 'untracked-repository':
+                    nested.mkdir(parents=True)
+                    subprocess.run(['git', 'init', '-q'], cwd=nested, check=True)
+                    subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=nested, check=True)
+                    subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=nested, check=True)
+                    (nested / 'inside.txt').write_text('nested content\n', encoding='utf-8')
+                    subprocess.run(['git', 'add', 'inside.txt'], cwd=nested, check=True)
+                    subprocess.run(['git', 'commit', '-qm', 'nested'], cwd=nested, check=True)
+                else:
+                    module = pathlib.Path(tmp) / 'module'
+                    module.mkdir()
+                    subprocess.run(['git', 'init', '-q'], cwd=module, check=True)
+                    subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=module, check=True)
+                    subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=module, check=True)
+                    (module / 'inside.txt').write_text('module content\n', encoding='utf-8')
+                    subprocess.run(['git', 'add', 'inside.txt'], cwd=module, check=True)
+                    subprocess.run(['git', 'commit', '-qm', 'module'], cwd=module, check=True)
+                    subprocess.run(['git', '-c', 'protocol.file.allow=always', 'submodule', 'add',
+                        str(module), str(nested.relative_to(root))], cwd=root, check=True,
+                        capture_output=True)
+                    subprocess.run(['git', 'commit', '-qam', 'add submodule'], cwd=root, check=True)
+
+                with self.assertRaisesRegex(RuntimeError, 'nested Git repository or submodule'):
+                    runner.git_snapshot(root)
+
+    def test_runner_rejects_packet_scope_change_with_same_commands(self):
+        import subprocess
+        packet = {
+            'feature': 'TEST', 'task': 'T-1', 'feature_fingerprint': 'a' * 64,
+            'role': 'builder', 'agent_profile': 'builder',
+            'allowed_paths': ['src/safe/**'], 'verification': ['python3 -m unittest tests.test_x'],
+        }
+        caller_packet = dict(packet, allowed_paths=['**'])
+        accepted = accepted_task_plan('TEST', 'T-1', [
+            {'command': 'python3 -m unittest tests.test_x', 'cwd': '.'}
+        ])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'base.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            feature_dir, lifecycle_binding = packet_lifecycle_binding(root, caller_packet, packet)
+            plan_id = 'verification-plan-v1:sha256:' + 'a' * 64
+            real_run = runner.subprocess.run
+            def run_or_verify(command, *args, **kwargs):
+                if command[:3] == [runner.sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                    return subprocess.CompletedProcess(command, 0,
+                        json.dumps({'outcome': 'PASS', 'plan_id': plan_id}), '')
+                return real_run(command, *args, **kwargs)
+            with mock.patch.object(runner.subprocess, 'run', side_effect=run_or_verify) as launch, \
+                    mock.patch('verification.authority.resolve_execution',
+                        return_value=(accepted, None, None, [])), \
+                    mock.patch('harness.load_validated', return_value={'feature': 'TEST'}), \
+                    mock.patch('harness.resolve_active_packet', return_value=lifecycle_binding):
+                passed, result = runner.run_verification(caller_packet, root, root, 5,
+                    accepted_plan_id=plan_id)
+        self.assertFalse(passed)
+        self.assertEqual('verification-blocked', result[0]['machine_category'])
+        self.assertEqual('ACCEPTED_PACKET_MISMATCH', result[0]['reason_code'])
+        self.assertFalse(any(call.args[0][:3] == [
+            runner.sys.executable, str(runner.HERE / 'verify.py'), 'run'
+        ] for call in launch.call_args_list))
+
+    def test_runner_rejects_symlinked_specs_root_before_external_resolution(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside_tmp:
+            root = pathlib.Path(tmp)
+            outside = pathlib.Path(outside_tmp)
+            (root / 'docs').mkdir()
+            (outside / 'TEST').mkdir()
+            marker = outside / 'TEST' / 'marker.txt'
+            marker.write_text('external state\n', encoding='utf-8')
+            (root / 'docs' / 'specs').symlink_to(outside, target_is_directory=True)
+            packet = {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+                'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'], 'verification': []}
+
+            with mock.patch('harness.load_validated') as load_feature, \
+                    mock.patch('harness.resolve_active_packet') as resolve_packet, \
+                    mock.patch('verification.authority.resolve_execution') as resolve_plan, \
+                    mock.patch.object(runner.subprocess, 'run') as launch:
+                passed, result = runner.run_verification(packet, root, root, 5,
+                    accepted_plan_id='verification-plan-v1:sha256:' + 'a' * 64)
+            self.assertFalse(passed)
+            self.assertEqual('verification-blocked', result[0]['machine_category'])
+            self.assertEqual('ACCEPTED_PACKET_UNAVAILABLE', result[0]['reason_code'])
+            load_feature.assert_not_called()
+            resolve_packet.assert_not_called()
+            resolve_plan.assert_not_called()
+            launch.assert_not_called()
+            self.assertEqual('external state\n', marker.read_text(encoding='utf-8'))
+
+    def test_runner_rejects_pass_result_bound_to_another_plan(self):
+        import json
+        import subprocess
+        accepted = 'verification-plan-v1:sha256:' + 'a' * 64
+        for response in (
+            {'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:' + 'b' * 64},
+            {'outcome': 'PASS'},
+        ):
+            with self.subTest(response=response), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp)
+                subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+                (root / 'base.txt').write_text('base\n', encoding='utf-8')
+                subprocess.run(['git', 'add', 'base.txt'], cwd=root, check=True)
+                subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+                completed = subprocess.CompletedProcess([], 0, json.dumps(response), '')
+                packet = {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+                    'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'], 'verification': []}
+                accepted_record = accepted_task_plan('TEST', 'T-1', [])
+                real_run = runner.subprocess.run
+                def execute(command, *args, **kwargs):
+                    if command[:3] == [runner.sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                        return completed
+                    return real_run(command, *args, **kwargs)
+                packet_patches = patch_packet_lifecycle(root, packet)
+                with mock.patch.object(runner.subprocess, 'run', side_effect=execute), \
+                        packet_patches[0], packet_patches[1], \
+                        mock.patch('verification.authority.resolve_execution',
+                            return_value=(accepted_record, None, None, [])):
+                    ok, results = runner.run_verification(packet, root, root, 30,
+                        accepted_plan_id=accepted)
+            self.assertFalse(ok)
+            self.assertEqual('verification-blocked', results[0]['machine_category'])
+            self.assertEqual('ACCEPTED_PLAN_RESULT_MISMATCH', results[0]['reason_code'])
+
+    def test_verifier_mutations_cannot_return_pass(self):
+        import json
+        import subprocess
+        import sys
+
+        for mutation_kind in ('tracked', 'ignored', 'symlink'):
+            with self.subTest(mutation_kind=mutation_kind), tempfile.TemporaryDirectory() as tmp:
+                root = pathlib.Path(tmp)
+                subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+                subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+                (root / '.gitignore').write_text('ignored-output/\n', encoding='utf-8')
+                (root / 'tracked.txt').write_text('before\n', encoding='utf-8')
+                subprocess.run(['git', 'add', '.gitignore', 'tracked.txt'], cwd=root, check=True)
+                subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+                plan_id = 'verification-plan-v1:sha256:' + 'a' * 64
+                real_run = runner.subprocess.run
+
+                def run_or_mutate(command, *args, **kwargs):
+                    if command[:3] == [sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                        if mutation_kind == 'tracked':
+                            (root / 'tracked.txt').write_text('after\n', encoding='utf-8')
+                        elif mutation_kind == 'ignored':
+                            ignored = root / 'ignored-output' / 'nested' / 'result.txt'
+                            ignored.parent.mkdir(parents=True)
+                            ignored.write_text('generated\n', encoding='utf-8')
+                        else:
+                            outside = root.parent / f'{root.name}-absent-target'
+                            (root / 'candidate-link').symlink_to(outside)
+                        return subprocess.CompletedProcess(command, 0,
+                            json.dumps({'outcome': 'PASS', 'plan_id': plan_id}), '')
+                    return real_run(command, *args, **kwargs)
+
+                packet = {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+                    'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'], 'verification': []}
+                accepted = accepted_task_plan('TEST', 'T-1', [])
+                packet_patches = patch_packet_lifecycle(root, packet)
+                with mock.patch.object(runner.subprocess, 'run', side_effect=run_or_mutate), \
+                        packet_patches[0], packet_patches[1], \
+                        mock.patch('verification.authority.resolve_execution',
+                            return_value=(accepted, None, None, [])):
+                    passed, result = runner.run_verification(packet, root, root, 5,
+                        sandbox_mode='required', accepted_plan_id=plan_id)
+
+                self.assertFalse(passed)
+                self.assertEqual('verification-blocked', result[0]['machine_category'])
+                self.assertEqual('VERIFICATION_WORKTREE_MUTATED', result[0]['reason_code'])
+
+    def test_verifier_timeout_checks_worktree_before_returning_timeout(self):
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'tracked.txt').write_text('before\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'tracked.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            plan_id = 'verification-plan-v1:sha256:' + 'a' * 64
+            real_run = runner.subprocess.run
+
+            def run_or_mutate(command, *args, **kwargs):
+                if command[:3] == [sys.executable, str(runner.HERE / 'verify.py'), 'run']:
+                    (root / 'tracked.txt').write_text('changed before timeout\n', encoding='utf-8')
+                    raise subprocess.TimeoutExpired(command, kwargs.get('timeout', 5))
+                return real_run(command, *args, **kwargs)
+
+            packet = {'feature': 'TEST', 'task': 'T-1', 'role': 'builder', 'agent_profile': 'builder',
+                'feature_fingerprint': 'a' * 64, 'allowed_paths': ['src/**'], 'verification': []}
+            accepted = accepted_task_plan('TEST', 'T-1', [])
+            packet_patches = patch_packet_lifecycle(root, packet)
+            with mock.patch.object(runner.subprocess, 'run', side_effect=run_or_mutate), \
+                    packet_patches[0], packet_patches[1], \
+                    mock.patch('verification.authority.resolve_execution',
+                        return_value=(accepted, None, None, [])):
+                passed, result = runner.run_verification(packet, root, root, 5,
+                    sandbox_mode='required', accepted_plan_id=plan_id)
+
+        self.assertFalse(passed)
+        self.assertEqual('verification-blocked', result[0]['machine_category'])
+        self.assertEqual('VERIFICATION_WORKTREE_MUTATED', result[0]['reason_code'])
+
+    def test_task_completion_keeps_duplicate_and_legacy_commands_fresh_with_cached_pass(self):
+        import dataclasses
+        import subprocess
+        from verification.model import Evidence, Family, Gate, Profile
+        from verification.planner import build_plan
+        from verification.profile import command_identity
+        from verification.serialization import digest, evidence_record
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=root, check=True)
+            subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=root, check=True)
+            (root / 'source.txt').write_text('base\n', encoding='utf-8')
+            subprocess.run(['git', 'add', 'source.txt'], cwd=root, check=True)
+            subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+            base_sha = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=root, check=True,
+                capture_output=True, text=True).stdout.strip()
+
+            mapped_command = 'python3 -c "print(1)"'
+            gate = Gate('mapped_check', mapped_command, command_identity(mapped_command),
+                cacheable=True, sandbox='required', retry_policy='allow')
+            profile = Profile(1, 'd' * 64, (gate,))
+            integration_family = Family('integration_run', base_sha, 'integration', profile.content_hash,
+                'e' * 64)
+            integration_plan = build_plan(root, profile, integration_family,
+                task_commands=[{'command': mapped_command, 'cwd': '.'}])
+            integration_decision = integration_plan.decisions[0]
+            cached = Evidence(2, 'cached_pass', integration_family.id, 'owner', gate.id,
+                integration_decision.repository_id, profile.content_hash, integration_family.policy_checkpoint,
+                gate.command_hash, 'integration', integration_decision.fingerprint,
+                integration_decision.fingerprint, gate.sandbox, gate.retry_policy, 1, 0, 1.0, 2.0,
+                'pass', (), integration_decision.dependencies, '')
+            receipt = evidence_record(cached, include_receipt=False)
+            cached = dataclasses.replace(cached, receipt_hash=digest(receipt))
+
+            task_family = Family('task_run', base_sha, 'task-completion', profile.content_hash, 'f' * 64)
+            plan = build_plan(root, profile, task_family, task_commands=[
+                {'command': mapped_command, 'cwd': '.'},
+                {'command': mapped_command, 'cwd': '.'},
+                {'command': 'python3 -c "print(2)"', 'cwd': '.'},
+            ], evidence={gate.id: cached})
+
+        mapped_occurrences = [d for d in plan.decisions if d.node.occurrence and
+            d.node.profile_gate_id == gate.id]
+        legacy_occurrences = [d for d in plan.decisions if d.node.occurrence and
+            d.node.profile_gate_id is None]
+        self.assertEqual(2, len(mapped_occurrences))
+        self.assertEqual(2, len({d.node.id for d in mapped_occurrences}))
+        self.assertEqual(1, len(legacy_occurrences))
+        self.assertTrue(all(d.action == 'RUN' and d.decision == 'RUN_NOW'
+                            for d in plan.decisions))
 
 
 

@@ -541,13 +541,14 @@ def validate_result(
                 die(f'tdd_evidence.{phase} must be a non-empty string')
 
 
+def _git_paths(worktree: pathlib.Path, command: list[str]) -> list[str]:
+    output = subprocess.run(command, cwd=worktree, capture_output=True, check=True).stdout
+    return [os.fsdecode(path) for path in output.split(b'\0') if path]
+
+
 def git_changed_paths(worktree: pathlib.Path) -> list[str]:
-    tracked = subprocess.run(
-        ['git', 'diff', '--name-only', 'HEAD'], cwd=worktree, capture_output=True, text=True, check=True
-    ).stdout.splitlines()
-    untracked = subprocess.run(
-        ['git', 'ls-files', '--others', '--exclude-standard'], cwd=worktree, capture_output=True, text=True, check=True
-    ).stdout.splitlines()
+    tracked = _git_paths(worktree, ['git', 'diff', '--name-only', '-z', 'HEAD'])
+    untracked = _git_paths(worktree, ['git', 'ls-files', '--others', '-z'])
     return sorted(set(p for p in tracked + untracked if p))
 
 
@@ -578,6 +579,19 @@ def _hash_untracked_entry(digest: Any, worktree: pathlib.Path, raw: bytes) -> No
         digest.update(os.fsencode(target))
         digest.update(b'\0')
         return
+
+    if stat.S_ISDIR(metadata.st_mode):
+        # Git reports an untracked nested repository as one directory instead of
+        # listing its contents. Hashing only the directory type misses mutations
+        # below it, so fail closed when that inventory boundary contains Git's
+        # authority marker. lstat avoids following a malicious marker symlink.
+        marker = path / '.git'
+        try:
+            marker.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            raise RuntimeError(f'cannot fingerprint nested Git repository or submodule: {path}')
 
     if not stat.S_ISREG(metadata.st_mode):
         # Do not open FIFOs/devices/sockets. Their type is sufficient for mutation
@@ -620,12 +634,18 @@ def _hash_untracked_entry(digest: Any, worktree: pathlib.Path, raw: bytes) -> No
 
 def worktree_content_fingerprint(worktree: pathlib.Path) -> str:
     digest = hashlib.sha256()
+    index_entries = subprocess.run(
+        ['git', 'ls-files', '--stage', '-z'], cwd=worktree, capture_output=True, check=True,
+    ).stdout.split(b'\0')
+    if any(entry.split(b' ', 1)[0] == b'160000' for entry in index_entries if entry):
+        raise RuntimeError('cannot fingerprint nested Git repository or submodule: tracked Git link')
     diff = subprocess.run(
         ['git', 'diff', '--binary', '--no-ext-diff', 'HEAD'], cwd=worktree, capture_output=True, check=True,
     ).stdout
     digest.update(diff)
     untracked = subprocess.run(
-        ['git', 'ls-files', '--others', '--exclude-standard', '-z'], cwd=worktree, capture_output=True, check=True,
+        ['git', 'ls-files', '--others', '-z'],
+        cwd=worktree, capture_output=True, check=True,
     ).stdout.split(b'\0')
     for raw in sorted(p for p in untracked if p):
         digest.update(raw + b'\0')
@@ -660,54 +680,161 @@ def enforce_postconditions(
         die(f'agent changed_paths evidence differs from git diff; reported={reported}, actual={actual}')
 
 
-SHELL_META = {'|', '||', '&&', ';', '>', '>>', '<', '<<', '&'}
-
-
-def verification_argv(command: str) -> list[str]:
-    try:
-        argv = shlex.split(command, posix=True)
-    except ValueError as exc:
-        die(f'invalid verification command {command!r}: {exc}')
-    if not argv:
-        die('verification command must not be empty')
-    if any(token in SHELL_META or '$(' in token or '`' in token or '${' in token for token in argv):
-        die(f'verification command uses unsupported shell composition: {command!r}')
-
-    executable = argv[0]
-    allowed = executable in {'./gradlew', 'python3', 'python', 'npm', 'npx', 'true'}
-    if executable == 'docker':
-        allowed = len(argv) >= 2 and (argv[1] == 'build' or argv[1:3] == ['compose', 'config'])
-    elif executable == 'helm':
-        allowed = len(argv) >= 2 and argv[1] in {'lint', 'template'}
-    elif executable == 'terraform':
-        allowed = len(argv) >= 2 and argv[1] in {'fmt', 'validate'}
-    elif executable == 'git':
-        allowed = len(argv) >= 2 and argv[1] in {'diff', 'status'}
-    if not allowed:
-        die(f'verification command is outside the deterministic allowlist: {command!r}')
-    return argv
-
-
 def run_verification(
     packet: dict[str, Any], worktree: pathlib.Path, out: pathlib.Path, timeout_seconds: int,
     sandbox_mode: str = 'auto', accepted_plan_id: str | None = None,
 ) -> tuple[bool, list[dict[str, Any]]]:
-    """Consume an exact orchestration-accepted plan; never plan or authorize here."""
+    """Consume one accepted plan bound to this packet and unchanged worktree."""
     if not accepted_plan_id:
         return False, [{'command': '<accepted-plan>', 'exit_code': 5,
                         'machine_category': 'verification-blocked',
                         'reason_code': 'VERIFICATION_EXECUTION_PLAN_REQUIRED'}]
+
+    raw_commands = packet.get('verification')
+    if not isinstance(raw_commands, list):
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'ACCEPTED_PLAN_TASK_MISMATCH', 'plan_id': accepted_plan_id}]
+    task_commands = []
+    for item in raw_commands:
+        if isinstance(item, str):
+            task_commands.append({'command': item, 'cwd': '.'})
+        elif isinstance(item, dict) and isinstance(item.get('command'), str):
+            task_commands.append({'command': item['command'], 'cwd': item.get('cwd', '.')})
+        else:
+            return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                            'machine_category': 'verification-blocked',
+                            'reason_code': 'ACCEPTED_PLAN_TASK_MISMATCH', 'plan_id': accepted_plan_id}]
+    try:
+        import harness
+        feature_id = packet.get('feature')
+        task_id = packet.get('task')
+        if (not isinstance(feature_id, str) or
+                re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', feature_id) is None or
+                not isinstance(task_id, str) or re.fullmatch(r'T-[A-Z0-9][A-Z0-9._-]*', task_id) is None):
+            raise ValueError('invalid-task-packet-identity')
+        worktree_root = worktree.resolve(strict=True)
+        if not worktree_root.is_dir():
+            raise ValueError('worktree-is-not-directory')
+
+        # Do not resolve repository-controlled ancestors until lstat has proved
+        # each component is a real directory. Resolving first would follow a
+        # symlink such as docs/specs -> /outside and let lifecycle authority
+        # escape the candidate worktree.
+        docs_path = worktree_root / 'docs'
+        specs_path = docs_path / 'specs'
+        for directory in (docs_path, specs_path):
+            try:
+                directory_stat = directory.lstat()
+            except OSError as exc:
+                raise ValueError('spec-directory-unavailable') from exc
+            if stat.S_ISLNK(directory_stat.st_mode) or not stat.S_ISDIR(directory_stat.st_mode):
+                raise ValueError('spec-directory-is-not-real-directory')
+
+        docs_root = docs_path.resolve(strict=True)
+        specs_root = specs_path.resolve(strict=True)
+        if docs_root != docs_path or specs_root != specs_path or specs_root.parent != docs_root:
+            raise ValueError('spec-directory-outside-worktree')
+        specs_root.relative_to(worktree_root)
+
+        feature_path = specs_root / feature_id
+        try:
+            feature_stat = feature_path.lstat()
+        except OSError as exc:
+            raise ValueError('feature-directory-unavailable') from exc
+        if stat.S_ISLNK(feature_stat.st_mode) or not stat.S_ISDIR(feature_stat.st_mode):
+            raise ValueError('feature-directory-is-not-real-directory')
+        feature_dir = feature_path.resolve(strict=True)
+        if feature_dir != feature_path or feature_dir.parent != specs_root:
+            raise ValueError('feature-directory-outside-spec-root')
+        feature_dir.relative_to(worktree_root)
+        feature_doc = harness.load_validated(feature_dir)
+        active_packet = harness.resolve_active_packet(feature_dir, feature_doc, task_id)
+        authoritative_packet = active_packet.get('packet')
+        if not isinstance(authoritative_packet, dict):
+            raise ValueError('active-task-packet-unavailable')
+        active_revision = active_packet.get('revision_id')
+        active_contract = active_packet.get('contract_sha256')
+        if (harness.packet_revision_id(authoritative_packet) != active_revision or
+                harness.packet_bound_semantic_contract_sha256(feature_dir, authoritative_packet) != active_contract):
+            raise ValueError('active-task-packet-binding-invalid')
+        if (harness.packet_revision_id(packet) != active_revision or
+                harness.packet_bound_semantic_contract_sha256(feature_dir, packet) != active_contract):
+            return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                            'machine_category': 'verification-blocked',
+                            'reason_code': 'ACCEPTED_PACKET_MISMATCH', 'plan_id': accepted_plan_id}]
+    except (Exception, SystemExit):
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'ACCEPTED_PACKET_UNAVAILABLE', 'plan_id': accepted_plan_id}]
+    try:
+        # This trusted resolver proves the plan is still lifecycle-accepted, its
+        # sealed candidate matches this worktree, and its immutable identity can
+        # be compared with the packet before the CLI receives the plan id.
+        from verification.authority import resolve_execution
+        record, _, _, _ = resolve_execution(worktree, accepted_plan_id)
+    except Exception:
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'ACCEPTED_PLAN_UNAVAILABLE', 'plan_id': accepted_plan_id}]
+    if (record.get('feature_id') != packet.get('feature') or
+            record.get('task_id') != packet.get('task') or
+            record.get('task_commands') != task_commands):
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'ACCEPTED_PLAN_TASK_MISMATCH', 'plan_id': accepted_plan_id}]
+    family = record.get('family')
+    if (record.get('origin_binding') != 'task-completion' or
+            not isinstance(family, dict) or family.get('origin_policy') != 'task-completion'):
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'ACCEPTED_PLAN_ORIGIN_MISMATCH', 'plan_id': accepted_plan_id}]
+
+    try:
+        before = git_snapshot(worktree)
+    except Exception:
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked',
+                        'reason_code': 'VERIFICATION_WORKTREE_STATE_UNAVAILABLE',
+                        'plan_id': accepted_plan_id}]
+
+    def check_worktree(exit_code: int | None):
+        try:
+            after = git_snapshot(worktree)
+        except Exception:
+            return False, [{'command': '<accepted-plan>', 'exit_code': exit_code,
+                'machine_category': 'verification-blocked',
+                'reason_code': 'VERIFICATION_WORKTREE_STATE_UNAVAILABLE', 'plan_id': accepted_plan_id}]
+        if after != before:
+            return False, [{'command': '<accepted-plan>', 'exit_code': exit_code,
+                'machine_category': 'verification-blocked',
+                'reason_code': 'VERIFICATION_WORKTREE_MUTATED', 'plan_id': accepted_plan_id}]
+        return None
+
     try:
         result = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
             '--mode', 'integration', '--repo', str(worktree), '--plan-id', accepted_plan_id],
             cwd=worktree, text=True, capture_output=True, timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired:
+        postcondition = check_worktree(None)
+        if postcondition is not None:
+            return postcondition
         return False, [{'command': '<accepted-plan>', 'exit_code': None,
                         'outcome': 'TIMEOUT', 'plan_id': accepted_plan_id}]
+    postcondition = check_worktree(result.returncode)
+    if postcondition is not None:
+        return postcondition
     try:
         authority_result = json.loads(result.stdout)
     except (TypeError, json.JSONDecodeError):
         authority_result = {}
+    reported_plan_id = authority_result.get('plan_id')
+    if (reported_plan_id is not None and reported_plan_id != accepted_plan_id) or (
+            result.returncode == 0 and authority_result.get('outcome') == 'PASS' and
+            reported_plan_id != accepted_plan_id):
+        return False, [{'command': '<accepted-plan>', 'exit_code': result.returncode,
+            'machine_category': 'verification-blocked',
+            'reason_code': 'ACCEPTED_PLAN_RESULT_MISMATCH', 'plan_id': accepted_plan_id}]
     category = authority_result.get('machine_category', authority_result.get('status'))
     if is_control_outcome(category):
         return False, [{'command': '<accepted-plan>', 'exit_code': result.returncode,
