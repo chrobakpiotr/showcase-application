@@ -7,6 +7,7 @@ raw provider stdout/stderr remain separate local artifacts.
 from __future__ import annotations
 
 import datetime as dt
+import base64
 import hashlib
 import json
 import math
@@ -15,6 +16,7 @@ import pathlib
 import re
 import stat
 import tempfile
+import uuid
 from typing import Any
 
 
@@ -254,8 +256,227 @@ _MANUAL_ROLES = {'reviewer', 'evaluator', 'architecture-reviewer', 'verification
 _MANUAL_VERDICTS = {'PASS', 'FAIL', 'NEEDS-HUMAN'}
 _MANUAL_ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z')
 _MANUAL_HASH = re.compile(r'(?:[0-9a-f]{40}|[0-9a-f]{64})\Z')
+_MANUAL_ATTESTATION_FIELDS = {
+    'schema_version', 'attestation_type', 'attestation_id', 'issuer_registry_id',
+    'issuer_registry_checkpoint', 'issuer_registry_sha256', 'issuer_id',
+    'reviewer_principal', 'key_fingerprint', 'signature_algorithm', 'role', 'verdict',
+    'report_sha256', 'completed_at', 'repository_id', 'feature_id', 'checkpoint_id',
+    'candidate_identity', 'final_surface_identity', 'task_id', 'attempt', 'plan_id',
+    'family_id', 'plan_acceptance_transition_id', 'lifecycle_generation', 'obligation_ids',
+}
 
 
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+        result[key] = value
+    return result
+
+
+def _manual_registry_context(repository: pathlib.Path) -> tuple[dict[str, Any], str, str]:
+    """Load only the committed local trusted issuer registry and bind its provenance."""
+    registry_path = repository / 'tooling' / 'agent-harness' / 'human-issuer-registry.json'
+    if registry_path.is_symlink() or not registry_path.is_file():
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    raw = registry_path.read_bytes()
+    try:
+        committed = __import__('subprocess').check_output(
+            ['git', '-C', str(repository), 'show', f'HEAD:{registry_path.relative_to(repository).as_posix()}'],
+            stderr=__import__('subprocess').DEVNULL)
+        checkpoint = __import__('subprocess').check_output(
+            ['git', '-C', str(repository), 'log', '-1', '--format=%H', 'HEAD', '--',
+             registry_path.relative_to(repository).as_posix()], text=True,
+            stderr=__import__('subprocess').DEVNULL).strip()
+    except (OSError, __import__('subprocess').CalledProcessError):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+    if not checkpoint or raw != committed:
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    try:
+        registry = json.loads(raw.decode('utf-8'), object_pairs_hook=_unique_json_object)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+    if (not isinstance(registry, dict) or type(registry.get('schema_version')) is not int or
+            registry['schema_version'] != 1 or not isinstance(registry.get('issuers'), list)):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    return registry, checkpoint, 'sha256:' + hashlib.sha256(raw).hexdigest()
+
+
+def _verify_manual_attestation(payload: bytes, *, repository: pathlib.Path,
+                               expected: dict[str, Any]) -> tuple[dict[str, Any], str]:
+    """Verify canonical detached Ed25519 proof against trusted registry and scope."""
+    if len(payload) > 65536 or payload.startswith(b'\xef\xbb\xbf') or payload.endswith(b'\n'):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    try:
+        outer = json.loads(payload.decode('utf-8', errors='strict'), object_pairs_hook=_unique_json_object)
+        from verification.serialization import canonical_jcs
+        if (not isinstance(outer, dict) or set(outer) != {'envelope', 'signature'} or
+                canonical_jcs(outer) != payload):
+            raise ValueError()
+        envelope = outer['envelope']
+        signature_text = outer['signature']
+        if (not isinstance(envelope, dict) or set(envelope) != _MANUAL_ATTESTATION_FIELDS or
+                not isinstance(signature_text, str) or not re.fullmatch(r'[A-Za-z0-9_-]{86}', signature_text)):
+            raise ValueError()
+        signature = base64.urlsafe_b64decode(signature_text + '==')
+        if len(signature) != 64 or base64.urlsafe_b64encode(signature).decode('ascii').rstrip('=') != signature_text:
+            raise ValueError()
+        registry, registry_checkpoint, registry_sha = _manual_registry_context(repository)
+        issuer_id = envelope.get('issuer_id')
+        matches = [entry for entry in registry['issuers'] if isinstance(entry, dict) and entry.get('issuer_id') == issuer_id]
+        if len(matches) != 1:
+            raise ValueError()
+        issuer = matches[0]
+        actions = issuer.get('actions')
+        if (issuer.get('enabled') is not True or issuer.get('revoked') is not False or
+                not isinstance(actions, list) or any(not isinstance(action, str) for action in actions) or
+                'manual-review' not in actions):
+            raise ValueError()
+        public_key = base64.b64decode(issuer['public_key_ed25519'], validate=True)
+        key_fingerprint = 'sha256:' + hashlib.sha256(public_key).hexdigest()
+        principal = issuer.get('reviewer_principal', issuer.get('principal'))
+        if (len(public_key) != 32 or issuer.get('key_fingerprint') != key_fingerprint or
+                not isinstance(principal, str) or not principal):
+            raise ValueError()
+        if (type(envelope.get('schema_version')) is not int or envelope.get('schema_version') != 1 or envelope.get('attestation_type') != 'manual-review-attestation-v1' or
+                envelope.get('issuer_registry_id') != 'trusted-human-issuer-registry-v1' or
+                envelope.get('issuer_registry_checkpoint') != registry_checkpoint or
+                envelope.get('issuer_registry_sha256') != registry_sha or envelope.get('issuer_id') != issuer_id or
+                envelope.get('reviewer_principal') != principal or envelope.get('key_fingerprint') != key_fingerprint or
+                envelope.get('signature_algorithm') != 'Ed25519' or envelope.get('role') not in _MANUAL_ROLES or
+                envelope.get('verdict') not in _MANUAL_VERDICTS):
+            raise ValueError()
+        if envelope != {**expected, 'issuer_registry_checkpoint': registry_checkpoint,
+                        'issuer_registry_sha256': registry_sha, 'issuer_id': issuer_id,
+                        'reviewer_principal': principal, 'key_fingerprint': key_fingerprint,
+                        'signature_algorithm': 'Ed25519', 'attestation_type': 'manual-review-attestation-v1',
+                        'issuer_registry_id': 'trusted-human-issuer-registry-v1', 'schema_version': 1,
+                        'attestation_id': envelope.get('attestation_id')}:
+            raise ValueError()
+        parsed_uuid = uuid.UUID(envelope['attestation_id'])
+        if str(parsed_uuid) != envelope['attestation_id'] or parsed_uuid.version != 4:
+            raise ValueError()
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        Ed25519PublicKey.from_public_bytes(public_key).verify(signature, canonical_jcs(envelope))
+        return envelope, hashlib.sha256(payload).hexdigest()
+    except ValueError as exc:
+        if str(exc).startswith('MANUAL_EVIDENCE_'):
+            raise
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+    except Exception:
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+
+
+def _read_manual_input(repository: pathlib.Path, relative_name: str, *, limit: int,
+                       reason: str) -> tuple[bytes, pathlib.Path]:
+    relative = pathlib.PurePosixPath(relative_name)
+    if relative.is_absolute() or '..' in relative.parts or not relative.parts:
+        raise ValueError(reason)
+    candidate = repository.joinpath(*relative.parts)
+    if candidate.is_symlink():
+        raise ValueError(reason)
+    try:
+        resolved = candidate.resolve(strict=True)
+        store_root = (repository / '.agent-runs').resolve(strict=True)
+        resolved.relative_to(store_root)
+        fd = os.open(resolved, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+    except (OSError, ValueError):
+        raise ValueError(reason) from None
+    try:
+        before = os.fstat(fd)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or before.st_size > limit:
+            raise ValueError(reason)
+        chunks = []
+        remaining = limit + 1
+        while remaining:
+            chunk = os.read(fd, min(65536, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        payload = b''.join(chunks)
+        after = os.fstat(fd)
+        current = resolved.stat(follow_symlinks=False)
+        identity = lambda item: (item.st_dev, item.st_ino, item.st_nlink, item.st_mode,
+                                 item.st_size, item.st_mtime_ns, item.st_ctime_ns)
+        if (len(payload) != before.st_size or identity(before) != identity(after) or
+                identity(after) != identity(current)):
+            raise ValueError(reason + '_RACE')
+        return payload, resolved
+    finally:
+        os.close(fd)
+
+
+def _store_manual_snapshot(path: pathlib.Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    except FileExistsError:
+        if path.is_symlink() or not path.is_file() or path.read_bytes() != payload:
+            raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+        return
+    with os.fdopen(fd, 'wb') as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+    directory_fd = os.open(path.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+
+def verify_manual_observation_for_coverage(repository: pathlib.Path,
+                                          observation: dict[str, Any]) -> dict[str, Any]:
+    """Re-verify immutable report and signature bytes before any coverage CAS.
+
+    This is deliberately separate from registration: the lifecycle owner must call
+    it immediately before its own coverage transaction and still perform that CAS.
+    """
+    repository = pathlib.Path(repository).resolve(strict=True)
+    if (not isinstance(observation, dict) or observation.get('record_type') != 'manual-observation' or
+            type(observation.get('schema_version')) is not int or observation.get('schema_version') != 1 or
+            not re.fullmatch(r'sha256:[0-9a-f]{64}', str(observation.get('attestation_sha256', ''))) or
+            not re.fullmatch(r'sha256:[0-9a-f]{64}', str(observation.get('report_sha256', '')))):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    attestation_digest = observation['attestation_sha256'].removeprefix('sha256:')
+    report_digest = observation['report_sha256'].removeprefix('sha256:')
+    attestation_bytes, _ = _read_manual_input(
+        repository, f'.agent-runs/manual-attestations/{attestation_digest}.json', limit=65536,
+        reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    report_bytes, _ = _read_manual_input(
+        repository, f'.agent-runs/manual-report-snapshots/{report_digest}.md', limit=1024 * 1024,
+        reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    if (hashlib.sha256(attestation_bytes).hexdigest() != attestation_digest or
+            hashlib.sha256(report_bytes).hexdigest() != report_digest):
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    fields = _manual_report_fields(report_bytes)
+    try:
+        outer = json.loads(attestation_bytes.decode('utf-8'), object_pairs_hook=_unique_json_object)
+        envelope = outer['envelope']
+        scope = observation.get('scope')
+        if not isinstance(scope, dict):
+            raise ValueError()
+        expected = {
+            'attestation_id': envelope.get('attestation_id'), 'role': observation['role'],
+            'verdict': fields['Verdict'], 'report_sha256': observation['report_sha256'],
+            'completed_at': fields['Completed at'], 'repository_id': observation['repository_id'],
+            'feature_id': observation['feature_id'], 'checkpoint_id': fields['Reviewed checkpoint'],
+            'candidate_identity': None, 'final_surface_identity': None,
+            'task_id': scope.get('task_id'), 'attempt': scope.get('task_attempt'),
+            'plan_id': None, 'family_id': None, 'plan_acceptance_transition_id': None,
+            'lifecycle_generation': None, 'obligation_ids': [],
+        }
+        if fields['Feature'] != observation['feature_id']:
+            raise ValueError()
+        _verify_manual_attestation(attestation_bytes, repository=repository, expected=expected)
+    except Exception:
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+    return {'attestation_sha256': observation['attestation_sha256'],
+            'report_sha256': observation['report_sha256'],
+            'reviewer_principal': envelope['reviewer_principal'],
+            'completed_at': envelope['completed_at'], 'checkpoint_id': envelope['checkpoint_id']}
 def _manual_report_fields(payload: bytes) -> dict[str, str]:
     try:
         text = payload.decode('utf-8', errors='strict')
@@ -318,7 +539,7 @@ def _manual_report_fields(payload: bytes) -> dict[str, str]:
 def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
                   checkpoint: str, verdict: str, report: str, task: str | None = None,
                   task_attempt: str | None = None, plan_id: str | None = None,
-                  provider_run_id: str | None = None) -> pathlib.Path:
+                  provider_run_id: str | None = None, attestation: str | None = None) -> pathlib.Path:
     """Record safe manual provenance only; never changes task lifecycle state."""
     if (not _MANUAL_ID.fullmatch(feature or '') or role not in _MANUAL_ROLES or
             not provider or not _MANUAL_HASH.fullmatch(checkpoint or '') or verdict not in _MANUAL_VERDICTS):
@@ -327,6 +548,10 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
     root = pathlib.Path(repo).resolve(strict=True)
     store = VerificationStore(root)
     primary = store.root.parents[2]
+    # Check registry commit binding before other checkpoint checks can mask a
+    # locally modified trust source as an ordinary dirty-worktree rejection.
+    if attestation:
+        _manual_registry_context(primary)
     task_index_path = primary / 'docs' / 'specs' / feature / 'tasks.json'
     if not task_index_path.is_file():
         raise ValueError('MANUAL_EVIDENCE_FEATURE_UNRESOLVED')
@@ -429,22 +654,81 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
                                                        text=True, stderr=__import__('subprocess').DEVNULL).strip()
     if object_type != 'commit':
         raise ValueError('MANUAL_EVIDENCE_CHECKPOINT_UNAVAILABLE')
-    relative_safe = resolved.relative_to(primary).as_posix()
-    # Manual provenance is subordinate to trusted lifecycle authority. This
-    # legacy implementation has no way to submit the signed attestation and
-    # exact coverage/checkpoint references to the lifecycle CAS. Never create
-    # a local record that a later reader could mistake for accepted coverage.
+    if not attestation:
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
     harness_path = pathlib.Path(__file__).resolve().parent
     if str(harness_path) not in __import__('sys').path:
         __import__('sys').path.insert(0, str(harness_path))
     import harness as lifecycle
+    from verification.serialization import canonical_jcs
+    try:
+        attempt_number = int(task_attempt) if task_attempt is not None else None
+    except (TypeError, ValueError):
+        raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED') from None
+    try:
+        from verification.authority import resolve_manual_review_scope
+        with lifecycle.lifecycle_state_lock(primary / 'docs' / 'specs' / feature):
+            feature_doc = lifecycle.load_validated(primary / 'docs' / 'specs' / feature)
+            lifecycle_state = lifecycle._load_state_unlocked(primary / 'docs' / 'specs' / feature, feature_doc)
+            expected_generation = lifecycle_state.get('feature_generation', 1)
+            trusted_scope = resolve_manual_review_scope(
+                primary, feature, role=role, task_id=task, task_attempt=attempt_number,
+                checkpoint=checkpoint, _lifecycle_state=lifecycle_state)
+    except Exception as exc:
+        code = str(exc)
+        raise ValueError(code if code.startswith('MANUAL_EVIDENCE_') else
+                         'MANUAL_EVIDENCE_SCOPE_UNAVAILABLE') from None
+    repository_id = hashlib.sha256(os.fsencode(lifecycle.git_common_dir(primary / 'docs' / 'specs' / feature))).hexdigest()
+    expected_envelope = {
+        'attestation_id': None,
+        'role': role,
+        'verdict': verdict,
+        'report_sha256': 'sha256:' + hashlib.sha256(payload).hexdigest(),
+        'completed_at': fields['Completed at'],
+        'repository_id': repository_id,
+        'feature_id': feature,
+        'checkpoint_id': checkpoint,
+        'candidate_identity': None,
+        'final_surface_identity': None,
+        'task_id': trusted_scope.get('task_id'),
+        'attempt': trusted_scope.get('task_attempt'),
+        'plan_id': None,
+        'family_id': None,
+        'plan_acceptance_transition_id': None,
+        'lifecycle_generation': None,
+        'obligation_ids': [],
+    }
+    attestation_payload, _ = _read_manual_input(primary, attestation, limit=65536,
+                                                reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    signed, attestation_sha = _verify_manual_attestation(
+        attestation_payload, repository=primary, expected=expected_envelope)
+    # Keep the exact bytes addressable for any later coverage decision. A later
+    # coverage consumer must re-run signature and scope validation from these bytes.
+    runs_root = primary / '.agent-runs'
+    attestation_store = runs_root / 'manual-attestations' / (attestation_sha + '.json')
+    report_store = runs_root / 'manual-report-snapshots' / (hashlib.sha256(payload).hexdigest() + '.md')
+    _store_manual_snapshot(attestation_store, attestation_payload)
+    _store_manual_snapshot(report_store, payload)
+    semantic_projection = {
+        'repository_id': repository_id, 'feature_id': feature, 'role': role,
+        'reviewer_principal': signed['reviewer_principal'], 'verdict': verdict,
+        'report_sha256': expected_envelope['report_sha256'], 'completed_at': fields['Completed at'],
+        'task_id': trusted_scope.get('task_id'), 'attempt': trusted_scope.get('task_attempt'),
+        'plan_id': None, 'family_id': None, 'lifecycle_generation': None,
+        'plan_acceptance_transition_id': None, 'checkpoint_id': checkpoint,
+        'candidate_identity': None, 'final_surface_identity': None, 'obligation_ids': [],
+    }
+    observation_id = hashlib.sha256(canonical_jcs(semantic_projection)).hexdigest()
     submit = getattr(lifecycle, 'register_manual_observation', None)
     if not callable(submit):
         raise ValueError('MANUAL_EVIDENCE_AUTHORITY_UNAVAILABLE')
-    return submit(repository=primary, feature=feature, role=role,
-                  checkpoint=checkpoint, verdict=verdict, report_path=relative_safe,
-                  report_sha256=hashlib.sha256(payload).hexdigest(), task=task,
-                  task_attempt=task_attempt, plan_id=plan_id)
+    result = submit(repository=primary, feature_id=feature, observation_id=observation_id,
+                    role=role, task_id=trusted_scope.get('task_id'),
+                    task_attempt=trusted_scope.get('task_attempt'), checkpoint=checkpoint,
+                    attestation_sha256='sha256:' + attestation_sha,
+                    report_sha256=expected_envelope['report_sha256'],
+                    expected_feature_generation=expected_generation)
+    return pathlib.Path(result['record_path'])
 
 
 def main() -> None:
@@ -466,6 +750,7 @@ def main() -> None:
     manual.add_argument('--checkpoint', required=True)
     manual.add_argument('--verdict', required=True, choices=sorted(_MANUAL_VERDICTS))
     manual.add_argument('--report', required=True)
+    manual.add_argument('--attestation', required=True)
     manual.add_argument('--task')
     manual.add_argument('--task-attempt')
     manual.add_argument('--plan-id')
@@ -476,7 +761,8 @@ def main() -> None:
             record = record_manual(repo=args.repo, feature=args.feature, role=args.role,
                 provider=args.provider, checkpoint=args.checkpoint, verdict=args.verdict,
                 report=args.report, task=args.task, task_attempt=args.task_attempt,
-                plan_id=args.plan_id, provider_run_id=args.provider_run_id)
+                plan_id=args.plan_id, provider_run_id=args.provider_run_id,
+                attestation=args.attestation)
         except (OSError, ValueError, RuntimeError) as exc:
             import sys
             print(json.dumps({'status': 'verification-blocked' if 'UNAVAILABLE' in str(exc) or 'RACE' in str(exc) else 'invalid-policy',
