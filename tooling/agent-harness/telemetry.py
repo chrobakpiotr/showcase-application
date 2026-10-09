@@ -428,12 +428,47 @@ def _store_manual_snapshot(path: pathlib.Path, payload: bytes) -> None:
 
 
 def verify_manual_observation_for_coverage(repository: pathlib.Path,
-                                          observation: dict[str, Any]) -> dict[str, Any]:
+                                          observation: dict[str, Any], *,
+                                          plan_binding: dict[str, Any] | None = None) -> dict[str, Any]:
     """Re-verify immutable report and signature bytes before any coverage CAS.
 
     This is deliberately separate from registration: the lifecycle owner must call
     it immediately before its own coverage transaction and still perform that CAS.
     """
+    if plan_binding is not None:
+        required = {'plan_id', 'family_id', 'plan_acceptance_transition_id',
+                    'lifecycle_generation', 'task_id', 'task_attempt',
+                    'candidate_identity', 'final_surface_identity', 'obligation_ids',
+                    'reviewer_principal'}
+        valid = (isinstance(plan_binding, dict) and set(plan_binding) == required and
+                 isinstance(plan_binding.get('plan_id'), str) and
+                 re.fullmatch(r'verification-plan-v2:sha256:[0-9a-f]{64}', plan_binding['plan_id']) and
+                 isinstance(plan_binding.get('family_id'), str) and bool(plan_binding['family_id']) and
+                 isinstance(plan_binding.get('plan_acceptance_transition_id'), str) and
+                 bool(plan_binding['plan_acceptance_transition_id']) and
+                 type(plan_binding.get('lifecycle_generation')) is int and
+                 plan_binding['lifecycle_generation'] >= 1 and
+                 isinstance(plan_binding.get('task_id'), str) and
+                 bool(plan_binding['task_id']) and
+                 type(plan_binding.get('task_attempt')) is int and plan_binding['task_attempt'] >= 1 and
+                 all(isinstance(plan_binding.get(key), str) and
+                     re.fullmatch(r'[0-9a-f]{64}', plan_binding[key])
+                     for key in ('candidate_identity', 'final_surface_identity')) and
+                 isinstance(plan_binding.get('reviewer_principal'), str) and
+                 bool(plan_binding['reviewer_principal']) and
+                 isinstance(plan_binding.get('obligation_ids'), list) and
+                 bool(plan_binding['obligation_ids']) and
+                 all(isinstance(item, str) and
+                     re.fullmatch(r'verification-obligation-v2:sha256:[0-9a-f]{64}', item)
+                     for item in plan_binding['obligation_ids']) and
+                 plan_binding['obligation_ids'] == sorted(set(plan_binding['obligation_ids'])))
+        if not valid:
+            raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+        if (not isinstance(observation, dict) or observation.get('plan_binding') != plan_binding or
+                not isinstance(observation.get('scope'), dict) or
+                observation['scope'].get('task_id') != plan_binding['task_id'] or
+                observation['scope'].get('task_attempt') != plan_binding['task_attempt']):
+            raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
     repository = pathlib.Path(repository).resolve(strict=True)
     if (not isinstance(observation, dict) or observation.get('record_type') != 'manual-observation' or
             type(observation.get('schema_version')) is not int or observation.get('schema_version') != 1 or
@@ -468,15 +503,29 @@ def verify_manual_observation_for_coverage(repository: pathlib.Path,
             'plan_id': None, 'family_id': None, 'plan_acceptance_transition_id': None,
             'lifecycle_generation': None, 'obligation_ids': [],
         }
-        if fields['Feature'] != observation['feature_id']:
+        if plan_binding is not None:
+            expected.update({
+                'candidate_identity': plan_binding['candidate_identity'],
+                'final_surface_identity': plan_binding['final_surface_identity'],
+                'plan_id': plan_binding['plan_id'],
+                'family_id': plan_binding['family_id'],
+                'plan_acceptance_transition_id': plan_binding['plan_acceptance_transition_id'],
+                'lifecycle_generation': plan_binding['lifecycle_generation'],
+                'obligation_ids': plan_binding['obligation_ids'],
+            })
+        if (fields['Feature'] != observation['feature_id'] or
+                (plan_binding is not None and fields.get('Task') != plan_binding['task_id'])):
             raise ValueError()
         _verify_manual_attestation(attestation_bytes, repository=repository, expected=expected)
     except Exception:
         raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+    if plan_binding is not None and envelope.get('reviewer_principal') != plan_binding['reviewer_principal']:
+        raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
     return {'attestation_sha256': observation['attestation_sha256'],
             'report_sha256': observation['report_sha256'],
             'reviewer_principal': envelope['reviewer_principal'],
-            'completed_at': envelope['completed_at'], 'checkpoint_id': envelope['checkpoint_id']}
+            'completed_at': envelope['completed_at'], 'checkpoint_id': envelope['checkpoint_id'],
+            'plan_binding': plan_binding}
 def _manual_report_fields(payload: bytes) -> dict[str, str]:
     try:
         text = payload.decode('utf-8', errors='strict')

@@ -33,7 +33,11 @@ class OriginCompletionBoundaryTest(unittest.TestCase):
         state = harness.load_state(self.feature, self.doc)
         state['tasks']['T-001']['checkpoint_commit'] = self.checkpoint
         harness.save_state(self.feature, state)
-        self.evidence = self.fixture.root / 'evidence.json'
+        # Completion evidence is harness runtime data, not a product candidate
+        # input; keeping it under the trusted runtime root avoids sealing a
+        # deliberately high-entropy evidence digest as candidate content.
+        self.evidence = self.fixture.root / '.agent-runs' / 'evidence.json'
+        self.evidence.parent.mkdir(parents=True, exist_ok=True)
         self.evidence.write_text(json.dumps(self.fixture.passing_completion_evidence(
             self.feature, self.doc, 'T-001', 1, self.checkpoint)))
         self.args = argparse.Namespace(feature_dir=self.feature, task_id='T-001',
@@ -95,17 +99,30 @@ class OriginCompletionBoundaryTest(unittest.TestCase):
             harness.cmd_complete(self.args)
         self.assertEqual('completed', harness.load_state(self.feature, self.doc)['tasks']['T-001']['status'])
 
-    def test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs(self):
+    def test_real_plan_resolution_is_read_only_and_legacy_proofs_cannot_complete(self):
         from verification import authority
-        from verification.store import StoreError, VerificationStore
-        record = authority.prepare_task_plan(self.fixture.root, self.feature,
-            'T-001', 1, self.checkpoint, self.doc['tasks'][0]['verification'])
-        self.assertEqual(record, VerificationStore(self.fixture.root).load_plan_record(record['plan_id']))
-        self.assertEqual(record, authority.resolve_accepted(self.fixture.root, record['plan_id']))
-        origins = {item['required_origin'] for item in record['obligations']}
-        self.assertEqual({'task', 'independent'}, origins)
-        with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-            authority.resolve_execution(self.fixture.root, record['plan_id'])
+        from verification.store import VerificationStore
+        evidence_bytes = self.evidence.read_bytes()
+        self.evidence.unlink()
+        try:
+            record = authority.prepare_task_plan(self.fixture.root, self.feature,
+                'T-001', 1, self.checkpoint, self.doc['tasks'][0]['verification'])
+            self.assertEqual(record, VerificationStore(self.fixture.root).load_plan_record(record['plan_id']))
+            self.assertEqual(record, authority.resolve_accepted(self.fixture.root, record['plan_id']))
+            origins = {item['required_origin'] for item in record['obligations']}
+            self.assertEqual({'task', 'independent'}, origins)
+            resolved, profile, executable_plan, units = authority.resolve_execution(
+                self.fixture.root, record['plan_id'])
+            self.assertEqual(record, resolved)
+            self.assertEqual(record['profile_hash'], profile.content_hash)
+            self.assertEqual(record['family']['id'], executable_plan.family.id)
+            self.assertEqual(record['execution_units'], list(units.values()))
+            lifecycle = harness.load_state(self.feature, self.doc)['verification_authority']
+            self.assertEqual(record['plan_id'], lifecycle['accepted_plan_id'])
+            self.assertNotIn('launch_reservations', lifecycle)
+            self.assertEqual([], list(VerificationStore(self.fixture.root).executions.glob('*/started.json')))
+        finally:
+            self.evidence.write_bytes(evidence_bytes)
         self.assert_blocked(harness.cmd_complete)
 
 

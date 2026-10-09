@@ -47,13 +47,16 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             self.profile_id, self.profile, self.plan, task_id='T-001', task_attempt=1,
             origin_binding='integration')
 
-    def test_origin_authority_is_v2_and_execution_fails_closed(self):
+    def test_origin_authority_is_v2_and_resolution_is_not_a_launch(self):
         self.assertEqual(2, self.record['schema_version'])
         for obligation in self.record['obligations']:
             self.assertEqual('independent', obligation['required_origin'])
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-                authority.resolve_execution(self.root, self.record['plan_id'])
+            record, profile, plan, units = authority.resolve_execution(self.root, self.record['plan_id'])
+        self.assertEqual(self.record, record)
+        self.assertEqual(self.profile.content_hash, profile.content_hash)
+        self.assertEqual(self.plan, plan)
+        self.assertEqual(self.record['execution_units'], list(units.values()))
 
     def test_rehashed_origin_or_membership_cannot_publish(self):
         import copy
@@ -169,6 +172,8 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
     def test_authority_context_cannot_launch_or_create_receipts(self):
         from verification.executor import execute_plan
         with mock.patch('verification.executor.VerificationStore') as store, \
+             mock.patch('verification.authority.resolve_execution',
+                        side_effect=StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')) as resolve, \
              mock.patch('verification.candidate.seal_candidate') as seal:
             for context in (self.record, {'schema_version': 1}):
                 with self.subTest(context=context), self.assertRaisesRegex(
@@ -176,6 +181,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
                     execute_plan(self.root, self.profile, self.plan, authority_context=context)
             store.assert_not_called()
             seal.assert_not_called()
+            self.assertEqual(2, resolve.call_count)
 
     def test_unmapped_integration_command_is_task_origin(self):
         plan = build_plan(self.root, self.profile, self.family, task_commands=['python3 -V'])
@@ -190,8 +196,9 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
 
     def test_exact_accepted_plan_reconstructs_current_units_without_running_them(self):
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-                authority.resolve_execution(self.root, self.record['plan_id'])
+            record, _, _, units = authority.resolve_execution(self.root, self.record['plan_id'])
+        self.assertEqual(self.record, record)
+        self.assertEqual(self.record['execution_units'], list(units.values()))
 
     def test_post_seal_candidate_mutation_rejects_before_execution(self):
         (self.root / 'tooling/agent-harness/seed.py').write_text('mutated after seal\n')

@@ -15,7 +15,8 @@ import uuid
 from dataclasses import dataclass, replace
 
 from .serialization import canonical
-from .admission import AdmissionConflict, RepositoryAdmission
+from .admission import (AdmissionConflict, RepositoryAdmission,
+                        validate_launch_capability)
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
                     _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint,
                     _retry_policy_facts, _RETRY_CONTROL_BINDINGS, _RETRY_CONTROL_WRAPPER_SHA256,
@@ -67,10 +68,19 @@ def lifecycle_admitted(method):
         if plan_id is not None:
             def validate_accepted_plan():
                 from .authority import resolve_accepted
+                from .profile import command_identity
                 from .store import StoreError
                 accepted = resolve_accepted(self.store.lifecycle_root.parent, plan_id)
                 obligations = accepted.get('obligations')
-                expected_command_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
+                try:
+                    # Preserve the same lexical checkout spelling for both
+                    # paths (e.g. macOS /tmp -> /private/tmp resolution).
+                    worktree = pathlib.Path(os.path.abspath(kwargs['worktree']))
+                    cwd = pathlib.Path(os.path.abspath(kwargs['cwd']))
+                    relative_cwd = cwd.relative_to(worktree).as_posix()
+                    expected_command_hash = command_identity(command, relative_cwd)
+                except (KeyError, OSError, ValueError):
+                    raise StoreError('ACCEPTED_PLAN_UNAVAILABLE') from None
                 matching = [item for item in obligations if isinstance(item, dict) and
                             item.get('gate_id') == gate_id] if isinstance(obligations, list) else []
                 if (accepted.get('plan_id') != plan_id or
@@ -100,6 +110,9 @@ def lifecycle_admitted(method):
                     pass
             raise StoreError('busy' if owner_alive else 'verification-owned') from None
         try:
+            # The lifecycle CAS is authorized only by this durable repository
+            # admission. Callers cannot choose a different owner identifier.
+            kwargs['repository_admission_id'] = execution_id
             result = method(self, backend, **kwargs)
         except BaseException:
             # Before a durable launch marker, no external process can own the
@@ -334,10 +347,35 @@ class VerificationSupervisor:
         if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
             return 'invalid'
         marker = cls._read_json(path)
-        if (marker is None or marker.get('schema_version') != 1 or
+        if (marker is None or marker.get('schema_version') not in {1, 2} or
                 marker.get('execution_id') != started.get('execution_id') or
                 marker.get('execution_identity') != started.get('execution_identity') or
                 marker.get('launch_intent_hash') != started.get('launch_intent_hash')):
+            return 'invalid'
+        if marker['schema_version'] == 2 and (
+                not isinstance(marker.get('reservation_id'), str) or
+                re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}', marker['reservation_id']) is None or
+                not isinstance(marker.get('consumption_id'), str) or
+                re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}', marker['consumption_id']) is None):
+            return 'invalid'
+        if started.get('plan_id') is not None:
+            required_binding = ('plan_id', 'unit_id', 'admission_id', 'admission_sha256',
+                'reservation_transition_id', 'consumption_transition_id',
+                'plan_acceptance_transition_id', 'lifecycle_generation', 'obligation_ids')
+            if (any(key not in marker for key in required_binding) or
+                    marker.get('plan_id') != started.get('plan_id') or
+                    type(marker.get('lifecycle_generation')) is not int or
+                    marker.get('lifecycle_generation') < 1 or
+                    not isinstance(marker.get('obligation_ids'), list) or
+                    not marker['obligation_ids'] or
+                    marker['obligation_ids'] != sorted(set(marker['obligation_ids'])) or
+                    any(not isinstance(item, str) or
+                        re.fullmatch(r'verification-obligation-v2:sha256:[0-9a-f]{64}', item) is None
+                        for item in marker['obligation_ids']) or
+                    any(not isinstance(marker.get(key), str) or not marker[key]
+                        for key in required_binding if key != 'lifecycle_generation')):
+                return 'invalid'
+        if marker['schema_version'] == 1 and started.get('plan_id') is not None:
             return 'invalid'
         return 'present'
 
@@ -363,7 +401,8 @@ class VerificationSupervisor:
                 retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None,
                 candidate_identity: str | None = None, final_changed_surface_id: str | None = None,
                 plan_id: str | None = None, retry_scope: dict | None = None,
-                policy_checkpoint: str | None = None):
+                policy_checkpoint: str | None = None, launch_authorizer=None,
+                repository_admission_id: str | None = None):
         if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
             raise SupervisorError('invalid-retry-policy')
         if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
@@ -396,8 +435,8 @@ class VerificationSupervisor:
         # A competing request must observe the in-flight admission and fail
         # before waiting long enough to become a new, sequential execution.
         # Recovery remains an explicit operation and may take the normal lock.
-        with repository_lock(self.store.root, timeout=0):
-            self._recover_locked(lambda _record: backend, recovery_observer)
+        with repository_lock(self.store.root, timeout=0) as runtime_lock:
+            self._recover_locked(lambda _record: backend, recovery_observer, runtime_lock=runtime_lock)
             self.store.admit_repository_verification()
             self._crash('after-admission')
             ready = preflight() if preflight else None
@@ -508,6 +547,7 @@ class VerificationSupervisor:
                     raise StoreError('verification-owned')
                 observation = self._read_json(journal / 'observation.json') or {}
                 result = self._result_from_observation(observation, existing)
+                self._terminalize_lifecycle_authority(terminal, runtime_lock)
                 if terminal_publisher:
                     terminal_publisher(result, ready, terminal)
                 self.store.reconstruct_execution_terminals()
@@ -544,9 +584,63 @@ class VerificationSupervisor:
             _fsync_directory(self.store.executions)
             self._crash('after-started')
 
-            launch_marker = {'schema_version': 1, 'execution_id': execution_id,
+            launch_authority = None
+            if launch_authorizer is not None:
+                if not isinstance(repository_admission_id, str) or not repository_admission_id:
+                    raise SupervisorError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+                # Lifecycle CAS must never nest the runtime ownership lock. Keep
+                # the repository-wide lifecycle admission active while yielding
+                # only this kernel lock, then revalidate the winner-only token.
+                runtime_lock.release()
+                try:
+                    launch_authority = launch_authorizer(repository_admission_id, execution_id)
+                finally:
+                    runtime_lock.reacquire(timeout=0)
+                if (not isinstance(launch_authority, dict) or
+                        not isinstance(launch_authority.get('reservation_id'), str) or
+                        re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}',
+                                     launch_authority['reservation_id']) is None or
+                        not isinstance(launch_authority.get('consumption_id'), str) or
+                        re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}',
+                                     launch_authority['consumption_id']) is None or
+                        not validate_launch_capability(
+                            launch_authority.get('capability'),
+                            reservation_id=launch_authority['reservation_id'],
+                            consumption_id=launch_authority['consumption_id'])):
+                    raise SupervisorError('VERIFICATION_LAUNCH_CAPABILITY_INVALID')
+                if plan_id is not None:
+                    required_binding = ('plan_id', 'unit_id', 'admission_id', 'admission_sha256',
+                        'reservation_transition_id', 'consumption_transition_id',
+                        'plan_acceptance_transition_id', 'lifecycle_generation', 'obligation_ids')
+                    if (any(key not in launch_authority for key in required_binding) or
+                            launch_authority.get('plan_id') != plan_id or
+                            type(launch_authority.get('lifecycle_generation')) is not int or
+                            launch_authority.get('lifecycle_generation') < 1 or
+                            not isinstance(launch_authority.get('obligation_ids'), list) or
+                            not launch_authority['obligation_ids'] or
+                            launch_authority['obligation_ids'] != sorted(set(launch_authority['obligation_ids'])) or
+                            any(not isinstance(item, str) or re.fullmatch(
+                                r'verification-obligation-v2:sha256:[0-9a-f]{64}', item) is None
+                                for item in launch_authority['obligation_ids']) or
+                            any(not isinstance(launch_authority.get(key), str) or
+                                not launch_authority[key]
+                                for key in required_binding if key not in {
+                                    'lifecycle_generation', 'obligation_ids'})):
+                        raise SupervisorError('VERIFICATION_LAUNCH_AUTHORITY_INVALID')
+            elif plan_id is not None:
+                raise SupervisorError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+
+            launch_marker = {'schema_version': 2 if launch_authority else 1,
+                             'execution_id': execution_id,
                              'execution_identity': identity, 'launch_intent_hash': intent_hash,
                              'launch_requested_at': time.time()}
+            if launch_authority:
+                launch_marker.update({'reservation_id': launch_authority['reservation_id'],
+                                      'consumption_id': launch_authority['consumption_id']})
+                launch_marker.update({key: launch_authority[key] for key in (
+                    'plan_id', 'unit_id', 'obligation_ids', 'admission_id', 'admission_sha256',
+                    'reservation_transition_id', 'consumption_transition_id',
+                    'plan_acceptance_transition_id', 'lifecycle_generation') if key in launch_authority})
             publish_create_once(journal / 'launching.json', launch_marker, fault=self.store._fault)
             self._crash('during-launch')
             try:
@@ -605,6 +699,13 @@ class VerificationSupervisor:
                 'post_observation': post_observation, 'result': observation['result'],
                 'ended_at': observation['ended_at'],
             }
+            if launch_authority:
+                receipt['launch_reservation_id'] = launch_authority['reservation_id']
+                receipt['launch_consumption_id'] = launch_authority['consumption_id']
+                receipt.update({key: launch_authority[key] for key in (
+                    'plan_id', 'unit_id', 'obligation_ids', 'admission_id', 'admission_sha256',
+                    'reservation_transition_id', 'consumption_transition_id',
+                    'plan_acceptance_transition_id', 'lifecycle_generation') if key in launch_authority})
             if terminal_material is not None:
                 receipt['verification_evidence'] = terminal_material
             self.store.publish_execution_terminal(receipt)
@@ -615,6 +716,7 @@ class VerificationSupervisor:
             self._crash('after-evidence-projection')
             terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=False)
                             if item['execution_id'] == execution_id)
+            self._terminalize_lifecycle_authority(terminal, runtime_lock)
             self.store.rebuild_terminal_evidence(terminal)
             self.store.publish_execution_projection(terminal)
             self._crash('after-index-projection')
@@ -662,8 +764,9 @@ class VerificationSupervisor:
 
     def recover(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
         """Reconcile every unresolved STARTED record using fresh durable identities."""
-        with repository_lock(self.store.root):
-            recovered = list(self._recover_locked(backend_factory, recovery_observer))
+        with repository_lock(self.store.root) as runtime_lock:
+            recovered = list(self._recover_locked(backend_factory, recovery_observer,
+                                                  runtime_lock=runtime_lock))
         admission = RepositoryAdmission(self.store.lifecycle_root, self.store.repository_id)
         active = admission.active()
         if isinstance(active, dict) and active.get('kind') == 'verification':
@@ -686,7 +789,7 @@ class VerificationSupervisor:
                 admission.release(execution_id)
         return tuple(recovered)
 
-    def _recover_locked(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
+    def _recover_locked(self, backend_factory=None, recovery_observer=None, *, runtime_lock=None) -> tuple[RecoveryResult, ...]:
         recovered = []
         for journal, started, closure in self.store._scan_executions():
             if closure is not None:
@@ -705,6 +808,8 @@ class VerificationSupervisor:
                 terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                                 if item['execution_id'] == execution_id)
                 self._reconcile_phase_d(terminal, started)
+                if runtime_lock is not None:
+                    self._terminalize_lifecycle_authority(terminal, runtime_lock)
                 self.store.rebuild_terminal_evidence(terminal)
                 self._publish_drained(journal, started, terminal['receipt_hash'],
                                       reason='recovered-terminal-closure')
@@ -782,6 +887,18 @@ class VerificationSupervisor:
             recovered.append(RecoveryResult(execution_id, SupervisorState.TERMINAL,
                                              'TERMINAL_RECONSTRUCTED', terminal))
         return tuple(recovered)
+
+    def _terminalize_lifecycle_authority(self, terminal: dict, runtime_lock) -> None:
+        if not terminal.get('plan_id') or not terminal.get('launch_consumption_id'):
+            return
+        runtime_lock.release()
+        try:
+            import harness
+            harness.terminalize_verification_execution(
+                self.store.lifecycle_root.parent, terminal,
+                repository_admission_id=terminal.get('execution_id'))
+        finally:
+            runtime_lock.reacquire(timeout=0)
 
     def _reconcile_phase_d(self, terminal: dict, started: dict) -> None:
         """Rebuild critical-failure authority from immutable execution truth."""

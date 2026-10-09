@@ -24,6 +24,51 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_launch_authorizer_runs_without_runtime_lock_and_marker_binds_consumption(self):
+        from verification.admission import issue_launch_capability
+        from verification.store import repository_lock
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            observed = {}
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+
+            def authorize(repository_admission_id, execution_id):
+                active = RepositoryAdmission(store.lifecycle_root, store.repository_id).active()
+                self.assertEqual(repository_admission_id, active['id'])
+                with repository_lock(store.root, timeout=0):
+                    observed['execution_id'] = execution_id
+                return {'reservation_id': reservation_id, 'consumption_id': consumption_id,
+                        'capability': issue_launch_capability(consumption_id, reservation_id)}
+
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                launch_authorizer=authorize)
+            self.assertTrue(observed['execution_id'])
+            marker = json.loads(next(store.executions.glob('*/launching.json')).read_text())
+            self.assertEqual(reservation_id, marker['reservation_id'])
+            self.assertEqual(consumption_id, marker['consumption_id'])
+            self.assertIn('launch', backend.events)
+
+    def test_launch_authorizer_rejects_stale_capability_before_launch_marker(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+            with self.assertRaisesRegex(RuntimeError, 'VERIFICATION_LAUNCH_CAPABILITY_INVALID'):
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                    launch_authorizer=lambda *_: {'reservation_id': reservation_id,
+                        'consumption_id': consumption_id, 'capability': object()})
+            self.assertNotIn('launch', backend.events)
+            self.assertFalse(list(store.executions.glob('*/launching.json')))
+
     def test_supervisor_reservation_blocks_lifecycle_mutation_until_terminal_drain(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)

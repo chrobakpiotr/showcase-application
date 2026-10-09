@@ -35,7 +35,7 @@ class StoreTest(unittest.TestCase):
 
     def test_unresolved_execution_is_repository_admission_barrier(self):
         with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
+            root = pathlib.Path(temp).resolve()
             store = VerificationStore(root, control_root=root / 'store')
             started = store.executions / 'exec-1' / 'started.json'
             started.parent.mkdir(parents=True)
@@ -242,6 +242,28 @@ class StoreTest(unittest.TestCase):
             processes = [subprocess.Popen([sys.executable, '-c', script, str(package), str(control)], stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
             results = [process.communicate(timeout=5) for process in processes]
             self.assertEqual([0, 0], [process.returncode for process in processes], results)
+
+    def test_repository_lock_can_be_released_for_lifecycle_cas_then_reacquired(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            (root / 'control').mkdir()
+            entered = threading.Event()
+            with repository_lock(root / 'control', timeout=1) as ownership:
+                ownership.release()
+
+                def acquire_during_lifecycle_cas():
+                    with repository_lock(root / 'control', timeout=1):
+                        entered.set()
+
+                worker = threading.Thread(target=acquire_during_lifecycle_cas)
+                worker.start()
+                worker.join(2)
+                self.assertFalse(worker.is_alive())
+                self.assertTrue(entered.is_set())
+                ownership.reacquire(timeout=1)
+                with self.assertRaisesRegex(StoreError, 'busy'):
+                    with repository_lock(root / 'control', timeout=0):
+                        pass
 
     def test_red_repository_lock_is_released_after_holder_process_dies(self):
         with tempfile.TemporaryDirectory() as temp:

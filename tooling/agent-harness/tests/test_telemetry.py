@@ -16,6 +16,156 @@ spec.loader.exec_module(telemetry)
 
 
 class TelemetryTest(unittest.TestCase):
+    def test_manual_coverage_rejects_malformed_trusted_plan_binding(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
+                telemetry.verify_manual_observation_for_coverage(
+                    pathlib.Path(tmp), {}, plan_binding={'plan_id': 'caller-selected-plan'})
+
+    def test_manual_coverage_plan_binding_must_match_signed_envelope(self):
+        import datetime as dt
+        import hashlib
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            checkpoint = 'a' * 40
+            completed = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1)).replace(
+                microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
+            report = (f'Feature: `TST-MANUAL`\nReviewed checkpoint: `{checkpoint}`\n'
+                      'Task: `T-900`\nVerdict: **PASS**\n'
+                      f'Completed at: `{completed}`\n').encode()
+            binding = {
+                'plan_id': 'verification-plan-v2:sha256:' + '1' * 64,
+                'family_id': 'family-test', 'plan_acceptance_transition_id': 'transition-test',
+                'lifecycle_generation': 2, 'task_id': 'T-900', 'task_attempt': 1,
+                'candidate_identity': '2' * 64, 'final_surface_identity': '3' * 64,
+                'obligation_ids': ['verification-obligation-v2:sha256:' + '4' * 64],
+                'reviewer_principal': 'human:test-reviewer',
+            }
+            envelope = {
+                'attestation_id': 'signed-id', 'role': 'evaluator', 'verdict': 'PASS',
+                'report_sha256': 'sha256:' + hashlib.sha256(report).hexdigest(),
+                'completed_at': completed, 'repository_id': 'repo-id', 'feature_id': 'TST-MANUAL',
+                'checkpoint_id': checkpoint, 'candidate_identity': binding['candidate_identity'],
+                'final_surface_identity': binding['final_surface_identity'], 'task_id': 'T-900',
+                'attempt': 1, 'plan_id': binding['plan_id'], 'family_id': binding['family_id'],
+                'plan_acceptance_transition_id': binding['plan_acceptance_transition_id'],
+                'lifecycle_generation': 2, 'obligation_ids': binding['obligation_ids'],
+                'reviewer_principal': binding['reviewer_principal'],
+            }
+            attestation = json.dumps({'envelope': envelope, 'signature': 'fixture'},
+                                     sort_keys=True, separators=(',', ':')).encode()
+            attestation_digest = hashlib.sha256(attestation).hexdigest()
+            report_digest = hashlib.sha256(report).hexdigest()
+            attestation_path = root / '.agent-runs/manual-attestations' / f'{attestation_digest}.json'
+            report_path = root / '.agent-runs/manual-report-snapshots' / f'{report_digest}.md'
+            attestation_path.parent.mkdir(parents=True)
+            report_path.parent.mkdir(parents=True)
+            attestation_path.write_bytes(attestation)
+            report_path.write_bytes(report)
+            observation = {
+                'record_type': 'manual-observation', 'schema_version': 1,
+                'attestation_sha256': 'sha256:' + attestation_digest,
+                'report_sha256': 'sha256:' + report_digest, 'role': 'evaluator',
+                'repository_id': 'repo-id', 'feature_id': 'TST-MANUAL',
+                'scope': {'task_id': 'T-900', 'task_attempt': 1}, 'plan_binding': binding,
+            }
+
+            verified_expected = {}
+            def verify(_payload, *, repository, expected):
+                verified_expected.update(expected)
+                if any(envelope.get(key) != value for key, value in expected.items()):
+                    raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID')
+                return envelope, attestation_digest
+
+            with mock.patch.object(telemetry, '_verify_manual_attestation', side_effect=verify):
+                proof = telemetry.verify_manual_observation_for_coverage(
+                    root, observation, plan_binding=binding)
+                self.assertEqual(binding, proof['plan_binding'])
+                self.assertEqual(verified_expected,
+                    {key: envelope[key] for key in verified_expected})
+                for field, changed_value in (
+                        ('plan_id', 'verification-plan-v2:sha256:' + '5' * 64),
+                        ('obligation_ids', ['verification-obligation-v2:sha256:' + '6' * 64]),
+                        ('candidate_identity', '7' * 64), ('final_surface_identity', '8' * 64)):
+                    changed = {**binding, field: changed_value}
+                    with self.subTest(field=field), self.assertRaisesRegex(
+                            ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
+                        telemetry.verify_manual_observation_for_coverage(
+                            root, {**observation, 'plan_binding': changed}, plan_binding=changed)
+
+    def test_manual_coverage_reverifies_exact_signed_plan_scope(self):
+        import hashlib
+        fixture = self._signed_manual_fixture()
+        self.addCleanup(fixture['temporary'].cleanup)
+        obligation = 'verification-obligation-v2:sha256:' + '1' * 64
+        binding = {
+            'plan_id': 'verification-plan-v2:sha256:' + '2' * 64,
+            'family_id': 'family-test',
+            'plan_acceptance_transition_id': 'transition-test',
+            'lifecycle_generation': 2,
+            'task_id': 'T-900', 'task_attempt': 1,
+            'candidate_identity': '3' * 64,
+            'final_surface_identity': '4' * 64,
+            'obligation_ids': [obligation],
+            'reviewer_principal': 'human:test-reviewer',
+        }
+        fixture['report_path'].write_bytes(
+            fixture['report_path'].read_bytes().replace(b'Verdict:', b'Task: `T-900`\nVerdict:'))
+        from verification.serialization import canonical_jcs
+        fixture['envelope']['report_sha256'] = 'sha256:' + hashlib.sha256(
+            fixture['report_path'].read_bytes()).hexdigest()
+        fixture['envelope'].update({
+            'candidate_identity': binding['candidate_identity'],
+            'final_surface_identity': binding['final_surface_identity'],
+            'task_id': binding['task_id'], 'attempt': binding['task_attempt'],
+            'plan_id': binding['plan_id'], 'family_id': binding['family_id'],
+            'plan_acceptance_transition_id': binding['plan_acceptance_transition_id'],
+            'lifecycle_generation': binding['lifecycle_generation'],
+            'obligation_ids': binding['obligation_ids'],
+        })
+        from verification.serialization import canonical_jcs
+        signature = fixture['key'].sign(canonical_jcs(fixture['envelope']))
+        import base64
+        attestation = canonical_jcs({'envelope': fixture['envelope'],
+            'signature': base64.urlsafe_b64encode(signature).decode().rstrip('=')})
+        attestation_digest = hashlib.sha256(attestation).hexdigest()
+        report = fixture['report_path'].read_bytes()
+        report_digest = hashlib.sha256(report).hexdigest()
+        attestation_snapshot = fixture['root'] / '.agent-runs' / 'manual-attestations' / f'{attestation_digest}.json'
+        report_snapshot = fixture['root'] / '.agent-runs' / 'manual-report-snapshots' / f'{report_digest}.md'
+        attestation_snapshot.parent.mkdir(parents=True, exist_ok=True)
+        report_snapshot.parent.mkdir(parents=True, exist_ok=True)
+        attestation_snapshot.write_bytes(attestation)
+        report_snapshot.write_bytes(report)
+        observation = {
+            'record_type': 'manual-observation', 'schema_version': 1,
+            'attestation_sha256': 'sha256:' + attestation_digest,
+            'report_sha256': 'sha256:' + report_digest,
+            'role': 'evaluator', 'repository_id': fixture['envelope']['repository_id'],
+            'feature_id': 'TST-MANUAL', 'scope': {'task_id': 'T-900', 'task_attempt': 1},
+            'plan_binding': binding,
+        }
+        proof = telemetry.verify_manual_observation_for_coverage(
+            fixture['root'], observation, plan_binding=binding)
+        self.assertEqual(binding, proof['plan_binding'])
+        report_snapshot = (fixture['root'] / '.agent-runs' / 'manual-report-snapshots' /
+                           f"{observation['report_sha256'].removeprefix('sha256:')}.md")
+        original_report = report_snapshot.read_bytes()
+        report_snapshot.write_bytes(original_report + b'\nchanged after registration')
+        with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
+            telemetry.verify_manual_observation_for_coverage(
+                fixture['root'], observation, plan_binding=binding)
+        report_snapshot.write_bytes(original_report)
+        for field, value in (('plan_id', 'verification-plan-v2:sha256:' + '5' * 64),
+                             ('obligation_ids', ['verification-obligation-v2:sha256:' + '6' * 64]),
+                             ('candidate_identity', '7' * 64), ('final_surface_identity', '8' * 64)):
+            changed = {**binding, field: value}
+            changed_observation = {**observation, 'plan_binding': changed}
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
+                telemetry.verify_manual_observation_for_coverage(
+                    fixture['root'], changed_observation, plan_binding=changed)
+
     def _signed_manual_fixture(self):
         import base64
         import datetime as dt
@@ -329,6 +479,9 @@ class TelemetryTest(unittest.TestCase):
             self.assertEqual(1, len(state.get('manual_observation_ledger', [])))
             coverage_proof = telemetry.verify_manual_observation_for_coverage(root, saved)
             self.assertEqual(saved['attestation_sha256'], coverage_proof['attestation_sha256'])
+            with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
+                telemetry.verify_manual_observation_for_coverage(
+                    root, saved, plan_binding={'plan_id': 'caller-selected-plan'})
             attestation_snapshot = (root / '.agent-runs' / 'manual-attestations' /
                                     (saved['attestation_sha256'].removeprefix('sha256:') + '.json'))
             original = attestation_snapshot.read_bytes()

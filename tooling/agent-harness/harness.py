@@ -691,11 +691,12 @@ def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
 
 
 @contextlib.contextmanager
-def lifecycle_state_lock(feature_dir: pathlib.Path) -> Iterator[Any]:
+def lifecycle_state_lock(feature_dir: pathlib.Path, *,
+                         repository_admission_id: str | None = None) -> Iterator[Any]:
     """Acquire repository admission before the feature's canonical state lock."""
     from verification.admission import RepositoryAdmission
     admission = RepositoryAdmission.for_repository(feature_repo_base(feature_dir))
-    with admission.mutation():
+    with admission.mutation(allow_verification_id=repository_admission_id):
         with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
             if fcntl is not None:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
@@ -713,6 +714,8 @@ def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, A
         'feature': doc.get('feature', feature_dir.name),
         'fingerprint': feature_fingerprint(feature_dir),
         'protocol_fingerprint': protocol_fingerprint(feature_dir),
+        'state_revision': 0,
+        'lifecycle_transitions': [],
         'created_at': dt.datetime.now(dt.timezone.utc).isoformat(),
         'tasks': {
             t['id']: {'status': 'pending', 'attempts': 0}
@@ -956,6 +959,7 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
                              expected_generation: int) -> dict:
     """Bind a published immutable plan through the sole .agent-state CAS."""
     from verification.authority import validate_plan_record
+    from verification.serialization import canonical
     validate_plan_record(plan_record, repository=feature_dir.resolve().parents[2], reconstruct=True)
     feature_dir = feature_dir.resolve()
     doc = load_validated(feature_dir)
@@ -975,6 +979,10 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
                 task_state.get('attempts') != plan_record.get('task_attempt')):
             die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: task attempt is not current and running')
         current = state.get('verification_authority')
+        if isinstance(current, dict) and current.get('accepted_plan_id') == plan_record['plan_id']:
+            if current.get('generation') != generation:
+                die('VERIFICATION_PLAN_ACCEPTANCE_REJECTED: existing plan binding is malformed')
+            return current
         if isinstance(current, dict) and current.get('accepted_plan_id') not in (None, plan_record['plan_id']):
             old_binding = current.get('binding')
             old_task = (state.get('tasks', {}).get(old_binding.get('task_id'))
@@ -992,8 +1000,13 @@ def accept_verification_plan(feature_dir: pathlib.Path, plan_record: dict, *,
             'schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt', 'feature_fingerprint', 'lifecycle_generation', 'family',
             'profile_hash', 'policy_checkpoint', 'candidate_identity',
             'final_changed_surface_id', 'origin_binding')}
+        transition_id = _append_lifecycle_transition(state, feature_dir, operation='plan-accepted',
+            task_id=plan_record['task_id'], attempt=plan_record['task_attempt'], generation=generation,
+            predecessor_ids=[], record_refs=[{'record_id': plan_record['plan_id'],
+                                               'sha256': hashlib.sha256(canonical(plan_record)).hexdigest()}])
         state['verification_authority'] = {'accepted_plan_id': plan_record['plan_id'],
             'generation': generation, 'binding': binding,
+            'plan_acceptance_transition_id': transition_id,
             'accepted_at': dt.datetime.now(dt.timezone.utc).isoformat()}
         save_state(feature_dir, state)
         if fcntl is not None: fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
@@ -1029,6 +1042,290 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str, *
             current.get('binding') != expected):
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
     return record
+
+
+def _append_lifecycle_transition(state: dict[str, Any], feature_dir: pathlib.Path, *,
+                                 operation: str, task_id: str, attempt: int, generation: int,
+                                 predecessor_ids: list[str], record_refs: list[dict[str, str]],
+                                 transition_id: str | None = None) -> str:
+    """Append one auditable transition while the canonical state lock is held."""
+    import uuid
+    revision = state.get('state_revision', 0)
+    transitions = state.get('lifecycle_transitions', [])
+    if (type(revision) is not int or revision < 0 or not isinstance(transitions, list) or
+            any(not isinstance(value, dict) for value in transitions)):
+        die('LIFECYCLE_TRANSITION_INVALID: state revision/history is malformed')
+    if any(item.get('after_state_revision') != index + 1
+           for index, item in enumerate(transitions)):
+        die('LIFECYCLE_TRANSITION_INVALID: transition history is discontinuous')
+    transition_id = transition_id or str(uuid.uuid4())
+    before = revision
+    after = before + 1
+    scope = f"{feature_dir.name}/{task_id}/{attempt}"
+    entry = {'transition_id': transition_id, 'operation': operation, 'scope': scope,
+             'lifecycle_generation': generation, 'before_state_revision': before,
+             'after_state_revision': after, 'predecessor_transition_ids': list(predecessor_ids),
+             'record_refs': list(record_refs), 'recorded_at': utc_now().isoformat()}
+    state['lifecycle_transitions'] = [*transitions, entry]
+    state['state_revision'] = after
+    return transition_id
+
+
+def admit_verification_execution(repository: pathlib.Path, plan_id: str, unit_id: str, *,
+                                 expected_generation: int, expected_state_revision: int,
+                                 repository_admission_id: str | None = None) -> dict:
+    """CAS-bind exact immutable admission and launch reservation in one .agent-state write."""
+    from verification.admission import build_plan_admission_record, build_plan_launch_reservation
+    from verification.store import StoreError, VerificationStore
+    repository = pathlib.Path(repository).resolve(strict=True)
+    plan = resolve_accepted_verification_plan(repository, plan_id)
+    feature_dir = repository / 'docs' / 'specs' / plan['feature_id']
+    doc = load_validated(feature_dir)
+    if type(expected_state_revision) is not int or expected_state_revision < 0:
+        raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
+    store = VerificationStore(repository)
+    from verification.authority import validate_plan_record
+    validate_plan_record(plan, repository=repository, reconstruct=True)
+    with lifecycle_state_lock(feature_dir, repository_admission_id=repository_admission_id):
+        state = _load_state_unlocked(feature_dir, doc)
+        authority = state.get('verification_authority')
+        generation = state.get('feature_generation', 1)
+        if (state.get('state_revision', 0) != expected_state_revision or
+                generation != expected_generation or plan.get('lifecycle_generation') != generation or
+                not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id or
+                authority.get('generation') != generation or
+                not isinstance(authority.get('plan_acceptance_transition_id'), str)):
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
+        task_state = state.get('tasks', {}).get(plan['task_id'])
+        if (not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+                task_state.get('attempts') != plan['task_attempt']):
+            raise StoreError('VERIFICATION_ATTEMPT_BINDING_MISMATCH')
+        # Reconstruct candidate and plan while holding lifecycle authority so a
+        # stale surface cannot be committed between validation and CAS.
+        validate_plan_record(plan, repository=repository, reconstruct=True)
+        from verification.admission import _plan_admission_id
+        units = [item for item in plan['execution_units'] if item.get('unit_id') == unit_id]
+        if len(units) != 1:
+            raise StoreError('PLAN_BINDING_MISMATCH')
+        current = authority.get('launch_reservations', {})
+        if not isinstance(current, dict):
+            raise StoreError('LIFECYCLE_TRANSITION_INVALID')
+        existing = current.get(unit_id)
+        if isinstance(existing, dict):
+            if existing.get('status') in {'launch_reserved', 'launch_consumed', 'execution_started'}:
+                admission = authority.get('admissions', {}).get(unit_id)
+                if (not isinstance(admission, dict) or admission.get('admission_id') != existing.get('admission_id') or
+                        existing.get('plan_id') != plan_id):
+                    raise StoreError('VERIFICATION_EXECUTION_IN_FLIGHT')
+                bound = store.load_admission_record(admission['admission_id'],
+                    expected_hash=authority.get('admission_hashes', {}).get(unit_id))
+                return {'admission': bound, 'admission_sha256': authority['admission_hashes'][unit_id],
+                        'reservation': existing, 'state_revision': state.get('state_revision', 0),
+                        'plan_acceptance_transition_id': authority['plan_acceptance_transition_id']}
+        import uuid
+        transition_id = str(uuid.uuid4())
+        admission = build_plan_admission_record(plan, unit_id,
+            repository_id=store.repository_id,
+            plan_acceptance_transition_id=authority['plan_acceptance_transition_id'],
+            admission_transition_id=transition_id)
+        admission, admission_hash = store.publish_admission_record(admission)
+        reservation = build_plan_launch_reservation(admission, transition_id=transition_id)
+        admissions = dict(authority.get('admissions', {}))
+        reservations = dict(authority.get('launch_reservations', {}))
+        hashes = dict(authority.get('admission_hashes', {}))
+        admissions[unit_id] = admission
+        reservations[unit_id] = reservation
+        hashes[unit_id] = admission_hash
+        before_revision = state.get('state_revision', 0)
+        transition_id = _append_lifecycle_transition(state, feature_dir, operation='admission-reserved',
+            task_id=plan['task_id'], attempt=plan['task_attempt'], generation=generation,
+            predecessor_ids=[authority['plan_acceptance_transition_id']],
+            record_refs=[{'record_id': admission['admission_id'], 'sha256': admission_hash},
+                         {'record_id': reservation['reservation_id'], 'sha256':
+                          canonical_json_sha256(reservation)}], transition_id=transition_id)
+        if transition_id != reservation['transition_id'] or transition_id != admission['admission_transition_id']:
+            raise StoreError('LIFECYCLE_TRANSITION_INVALID')
+        authority = dict(authority)
+        authority.update({'admissions': admissions, 'launch_reservations': reservations,
+                          'admission_hashes': hashes})
+        state['verification_authority'] = authority
+        if state.get('state_revision', 0) != before_revision + 1:
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
+        save_state(feature_dir, state)
+        return {'admission': admissions[unit_id], 'admission_sha256': hashes[unit_id],
+                'reservation': reservations[unit_id], 'state_revision': state['state_revision'],
+                'plan_acceptance_transition_id': authority['plan_acceptance_transition_id']}
+
+
+def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id: str, *,
+                                reservation_id: str, expected_generation: int,
+                                expected_state_revision: int,
+                                repository_admission_id: str) -> dict:
+    """Spend one exact launch right by lifecycle CAS and return a process-local capability."""
+    from verification.admission import (build_launch_consumption_record,
+        issue_launch_capability, validate_plan_admission_record,
+        validate_plan_launch_reservation)
+    from verification.store import StoreError, VerificationStore
+    repository = pathlib.Path(repository).resolve(strict=True)
+    plan = resolve_accepted_verification_plan(repository, plan_id)
+    feature_dir = repository / 'docs' / 'specs' / plan['feature_id']
+    doc = load_validated(feature_dir)
+    store = VerificationStore(repository)
+    units = [item for item in plan['execution_units'] if item.get('unit_id') == unit_id]
+    if len(units) != 1 or type(expected_state_revision) is not int:
+        raise StoreError('PLAN_BINDING_MISMATCH')
+    with lifecycle_state_lock(feature_dir, repository_admission_id=repository_admission_id):
+        state = _load_state_unlocked(feature_dir, doc)
+        authority = state.get('verification_authority')
+        generation = state.get('feature_generation', 1)
+        if (state.get('state_revision', 0) != expected_state_revision or
+                generation != expected_generation or plan.get('lifecycle_generation') != generation or
+                not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id or
+                authority.get('generation') != generation):
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
+        reservations = authority.get('launch_reservations')
+        admissions = authority.get('admissions')
+        hashes = authority.get('admission_hashes')
+        consumptions = authority.get('launch_consumptions', {})
+        if not all(isinstance(value, dict) for value in (reservations, admissions, hashes, consumptions)):
+            raise StoreError('LIFECYCLE_TRANSITION_INVALID')
+        reservation = reservations.get(unit_id)
+        admission = admissions.get(unit_id)
+        if (not isinstance(reservation, dict) or reservation.get('reservation_id') != reservation_id or
+                reservation.get('status') != 'launch_reserved' or
+                not isinstance(admission, dict) or not isinstance(hashes.get(unit_id), str)):
+            raise StoreError('VERIFICATION_LAUNCH_RESERVATION_STALE')
+        bound_admission = store.load_admission_record(admission.get('admission_id'),
+            expected_hash=hashes[unit_id])
+        validate_plan_admission_record(bound_admission, plan, units[0])
+        validate_plan_launch_reservation(reservation, bound_admission)
+        if unit_id in consumptions:
+            raise StoreError('VERIFICATION_LAUNCH_ALREADY_CONSUMED')
+        task_state = state.get('tasks', {}).get(plan['task_id'])
+        if (not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+                task_state.get('attempts') != plan['task_attempt']):
+            raise StoreError('VERIFICATION_ATTEMPT_BINDING_MISMATCH')
+        import uuid
+        transition_id = str(uuid.uuid4())
+        consumption = build_launch_consumption_record(bound_admission, reservation,
+                                                       transition_id=transition_id)
+        consumption, consumption_hash = store.publish_launch_consumption_record(consumption)
+        before_revision = state.get('state_revision', 0)
+        transition_id = _append_lifecycle_transition(state, feature_dir, operation='launch-consumed',
+            task_id=plan['task_id'], attempt=plan['task_attempt'], generation=generation,
+            predecessor_ids=[reservation['transition_id']],
+            record_refs=[{'record_id': consumption['consumption_id'], 'sha256': consumption_hash}],
+            transition_id=transition_id)
+        if transition_id != consumption['transition_id']:
+            raise StoreError('LIFECYCLE_TRANSITION_INVALID')
+        authority = dict(authority)
+        authority['launch_consumptions'] = {**consumptions, unit_id: {
+            'consumption_id': consumption['consumption_id'], 'sha256': consumption_hash,
+            'reservation_id': reservation_id, 'transition_id': transition_id,
+            'status': 'launch_consumed'}}
+        state['verification_authority'] = authority
+        save_state(feature_dir, state)
+        return {'consumption': consumption, 'consumption_sha256': consumption_hash,
+                'state_revision': state['state_revision'],
+                'capability': issue_launch_capability(consumption['consumption_id'], reservation_id)}
+
+
+def terminalize_verification_execution(repository: pathlib.Path, terminal: dict, *,
+                                        repository_admission_id: str) -> dict:
+    """CAS-bind a drained receipt to the exact consumed plan reservation."""
+    from verification.store import StoreError, VerificationStore
+    required = ('plan_id', 'unit_id', 'launch_reservation_id', 'launch_consumption_id',
+                'admission_id', 'admission_sha256', 'reservation_transition_id',
+                'consumption_transition_id', 'plan_acceptance_transition_id',
+                'lifecycle_generation', 'obligation_ids', 'receipt_hash', 'execution_id')
+    if (not isinstance(terminal, dict) or any(key not in terminal for key in required) or
+            terminal.get('drainage') != 'DRAINED' or
+            not isinstance(repository_admission_id, str) or
+            repository_admission_id != terminal.get('execution_id')):
+        raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+    repository = pathlib.Path(repository).resolve(strict=True)
+    store = VerificationStore(repository)
+    records = store.reconstruct_execution_terminals(rebuild=False)
+    matched = [record for record in records if record.get('execution_id') == terminal['execution_id']]
+    if len(matched) != 1 or matched[0] != terminal:
+        raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+    plan = resolve_accepted_verification_plan(repository, terminal['plan_id'])
+    feature_dir = repository / 'docs' / 'specs' / plan['feature_id']
+    doc = load_validated(feature_dir)
+    units = [unit for unit in plan.get('execution_units', [])
+             if isinstance(unit, dict) and unit.get('unit_id') == terminal['unit_id']]
+    if len(units) != 1 or terminal.get('obligation_ids') != units[0].get('obligation_ids'):
+        raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+    with lifecycle_state_lock(feature_dir, repository_admission_id=repository_admission_id):
+        state = _load_state_unlocked(feature_dir, doc)
+        authority = state.get('verification_authority')
+        generation = state.get('feature_generation', 1)
+        if (not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan['plan_id'] or
+                authority.get('generation') != generation or generation != terminal['lifecycle_generation'] or
+                authority.get('plan_acceptance_transition_id') != terminal['plan_acceptance_transition_id']):
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        reservations = authority.get('launch_reservations')
+        consumptions = authority.get('launch_consumptions')
+        admissions = authority.get('admissions')
+        hashes = authority.get('admission_hashes')
+        if not all(isinstance(value, dict) for value in (reservations, consumptions, admissions, hashes)):
+            raise StoreError('LIFECYCLE_TRANSITION_INVALID')
+        reservation = reservations.get(terminal['unit_id'])
+        consumption = consumptions.get(terminal['unit_id'])
+        admission = admissions.get(terminal['unit_id'])
+        if (not isinstance(reservation, dict) or not isinstance(consumption, dict) or
+                not isinstance(admission, dict) or
+                reservation.get('reservation_id') != terminal['launch_reservation_id'] or
+                admission.get('admission_id') != terminal['admission_id'] or
+                hashes.get(terminal['unit_id']) != terminal['admission_sha256'] or
+                reservation.get('transition_id') != terminal['reservation_transition_id'] or
+                consumption.get('consumption_id') != terminal['launch_consumption_id'] or
+                consumption.get('reservation_id') != terminal['launch_reservation_id'] or
+                consumption.get('status') not in {'launch_consumed', 'execution_terminal'}):
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        if reservation.get('status') == 'execution_terminal':
+            if reservation.get('terminal_receipt_hash') == terminal['receipt_hash']:
+                return reservation
+            raise StoreError('VERIFICATION_TERMINAL_CONFLICT')
+        if reservation.get('status') != 'launch_reserved' or consumption.get('status') != 'launch_consumed':
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        from verification.admission import validate_plan_admission_record, validate_plan_launch_reservation
+        bound_admission = store.load_admission_record(admission['admission_id'], expected_hash=hashes[terminal['unit_id']])
+        validate_plan_admission_record(bound_admission, plan, units[0])
+        validate_plan_launch_reservation(reservation, bound_admission)
+        consumption_hash = consumption.get('sha256')
+        if (not isinstance(consumption_hash, str) or
+                terminal.get('consumption_transition_id') != consumption.get('transition_id')):
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        bound_consumption = store.load_launch_consumption_record(
+            consumption['consumption_id'], admission=bound_admission,
+            reservation=reservation, expected_hash=consumption_hash)
+        if (bound_consumption.get('consumption_id') != terminal['launch_consumption_id'] or
+                bound_consumption.get('transition_id') != terminal['consumption_transition_id']):
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        before = state.get('state_revision', 0)
+        import uuid
+        transition_id = str(uuid.uuid4())
+        _append_lifecycle_transition(state, feature_dir, operation='execution-terminalized',
+            task_id=plan['task_id'], attempt=plan['task_attempt'], generation=generation,
+            predecessor_ids=[terminal['consumption_transition_id']],
+            record_refs=[{'record_id': terminal['execution_id'], 'sha256': terminal['receipt_hash']}],
+            transition_id=transition_id)
+        if state.get('state_revision') != before + 1:
+            raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+        reservation = {**reservation, 'status': 'execution_terminal',
+                       'terminal_receipt_hash': terminal['receipt_hash'],
+                       'terminal_result': terminal.get('result'),
+                       'terminal_transition_id': transition_id}
+        consumption = {**consumption, 'status': 'execution_terminal',
+                       'terminal_receipt_hash': terminal['receipt_hash'],
+                       'terminal_transition_id': transition_id}
+        authority = dict(authority)
+        authority['launch_reservations'] = {**reservations, terminal['unit_id']: reservation}
+        authority['launch_consumptions'] = {**consumptions, terminal['unit_id']: consumption}
+        state['verification_authority'] = authority
+        save_state(feature_dir, state)
+        return reservation
 
 
 def legacy_state_name(feature_dir: pathlib.Path) -> str:
@@ -1717,6 +2014,7 @@ def assert_repository_verification_drained(feature_dir: pathlib.Path) -> None:
 def is_unrecovered_partial_claim(entry: dict[str, Any]) -> bool:
     return (entry.get('status') == 'running' and int(entry.get('attempts', 0)) == 4 and
             isinstance(entry.get('active_retry_authorization'), str) and
+            'start_origin_status' not in entry and
             not entry.get('claim_recovery'))
 
 
@@ -2001,6 +2299,14 @@ def register_manual_observation(repository: pathlib.Path, feature_id: str, *, ob
             if not ledger_matches:
                 ledger.append(ledger_entry)
                 state['manual_observation_ledger'] = ledger
+                _append_lifecycle_transition(
+                    state, feature_dir, operation='manual-observation-registered',
+                    task_id=scope.get('task_id') or 'feature',
+                    attempt=scope.get('task_attempt') or 0, generation=generation,
+                    predecessor_ids=[], record_refs=[{
+                        'record_id': observation_id,
+                        'sha256': ledger_entry['record_sha256'],
+                    }])
                 save_state(feature_dir, state)
             return {**record, 'record_path': str(record_path),
                     'record_sha256': sha256_bytes(payload)}
@@ -3756,6 +4062,16 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
     runtime_state_dir(feature_dir).mkdir(parents=True, exist_ok=True)
     with lifecycle_state_lock(feature_dir) as lock:
         state = _load_state_unlocked(feature_dir, doc)
+        verification_authority = state.get('verification_authority')
+        if verification_authority is not None:
+            reservations = (verification_authority.get('launch_reservations')
+                            if isinstance(verification_authority, dict) else None)
+            if not isinstance(reservations, dict):
+                die('VERIFICATION_RESERVATION_STATE_INVALID: cannot prove reservations are terminal')
+            for reservation in reservations.values():
+                if (not isinstance(reservation, dict) or
+                        reservation.get('status') not in {'execution_terminal', 'safe_prelaunch_abort'}):
+                    die('VERIFICATION_RESERVATION_ACTIVE: replan waits for reservation terminalization')
         entry = state['tasks'][args.task_id]
         current_generation = state.get('feature_generation', 1)
         expected_generation = getattr(args, 'expected_feature_generation', None)

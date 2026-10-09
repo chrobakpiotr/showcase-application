@@ -271,7 +271,10 @@ def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | 
     decisions = tuple(item for index, item in enumerate(plan.decisions) if index in selected_indexes)
     if len(decisions) != len(selected_indexes):
         raise StoreError('PLAN_BINDING_MISMATCH')
-    raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+    # Resolution is read-only. The supervisor's launch-authorizer performs the
+    # reservation and consumption CAS while its repository admission is active,
+    # then validates the winner-only capability before writing launch intent.
+    return record, profile, plan, units
 
 
 def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_id: str,

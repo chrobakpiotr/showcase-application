@@ -35,6 +35,13 @@ class HarnessTest(unittest.TestCase):
         subprocess.run(['git', 'config', 'user.email', 'test@example.invalid'], cwd=self.root, check=True)
         subprocess.run(['git', 'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
 
+    def test_only_attempt_four_without_start_origin_is_partial_claim(self):
+        active_retry = {'status': 'running', 'attempts': 4,
+                        'active_retry_authorization': 'retry-grant'}
+        self.assertTrue(harness.is_unrecovered_partial_claim(active_retry))
+        completed_start_transition = {**active_retry, 'start_origin_status': 'failed'}
+        self.assertFalse(harness.is_unrecovered_partial_claim(completed_start_transition))
+
     def tearDown(self):
         os.chdir(self.old_cwd)
         self.tmp.cleanup()
@@ -323,6 +330,10 @@ class HarnessTest(unittest.TestCase):
         self.assertNotIn('metrics', first)
         state = harness.load_state(feature, harness.load_validated(feature))
         self.assertEqual(1, len(state['manual_observation_ledger']))
+        self.assertEqual(1, state['state_revision'])
+        self.assertEqual('manual-observation-registered',
+                         state['lifecycle_transitions'][-1]['operation'])
+        self.assertEqual(1, state['lifecycle_transitions'][-1]['after_state_revision'])
         record_path = pathlib.Path(first['record_path'])
         record_bytes = record_path.read_bytes()
         self.assertEqual(record_bytes, record_path.read_bytes())
@@ -3022,6 +3033,23 @@ class HarnessTest(unittest.TestCase):
 
         with self.assertRaises(SystemExit):
             harness.cmd_replan_task(second)
+
+    def test_active_verification_reservation_blocks_replan_without_state_change(self):
+        feature, doc, _first = self.sequential_replan_case()
+        state = harness.load_state(feature, doc)
+        state['verification_authority'] = {
+            'accepted_plan_id': 'verification-plan-v2:sha256:' + 'a' * 64,
+            'generation': state.get('feature_generation', 1),
+            'launch_reservations': {'unit-1': {'status': 'launch_reserved'}},
+        }
+        harness.save_state(feature, state)
+        request = self.next_failed_replan_args(feature, doc, 'Blocked by reservation')
+        before = harness.state_path(feature).read_bytes()
+        output = io.StringIO()
+        with contextlib.redirect_stderr(output), self.assertRaises(SystemExit):
+            harness.cmd_replan_task(request)
+        self.assertIn('VERIFICATION_RESERVATION_ACTIVE', output.getvalue())
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
 
         self.assertEqual(before, harness.state_path(feature).read_bytes())
 

@@ -32,6 +32,52 @@ class StoreError(RuntimeError):
     """Stable control-store failure category."""
 
 
+def _plan_launch_binding(directory: pathlib.Path, started: dict,
+                         terminal: dict | None = None) -> dict | None:
+    """Read and verify the durable plan-bound launch marker and optional receipt link."""
+    if started.get('plan_id') is None:
+        return None
+    marker_path = directory / 'launching.json'
+    try:
+        metadata = marker_path.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+            raise ValueError()
+        marker = json.loads(marker_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        raise StoreError('invalid-execution-terminal') from None
+    required = ('plan_id', 'unit_id', 'admission_id', 'admission_sha256',
+                'reservation_transition_id', 'consumption_transition_id',
+                'plan_acceptance_transition_id', 'lifecycle_generation', 'obligation_ids')
+    if (not isinstance(marker, dict) or marker.get('schema_version') != 2 or
+            marker.get('execution_id') != started.get('execution_id') or
+            marker.get('plan_id') != started.get('plan_id') or
+            not isinstance(marker.get('reservation_id'), str) or
+            re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}', marker['reservation_id']) is None or
+            not isinstance(marker.get('consumption_id'), str) or
+            re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}', marker['consumption_id']) is None or
+            not isinstance(marker.get('admission_id'), str) or
+            re.fullmatch(r'verification-admission-v1:sha256:[0-9a-f]{64}', marker['admission_id']) is None or
+            type(marker.get('lifecycle_generation')) is not int or marker['lifecycle_generation'] < 1 or
+            not isinstance(marker.get('obligation_ids'), list) or not marker['obligation_ids'] or
+            marker['obligation_ids'] != sorted(set(marker['obligation_ids'])) or
+            any(not isinstance(value, str) or re.fullmatch(
+                r'verification-obligation-v2:sha256:[0-9a-f]{64}', value) is None
+                for value in marker['obligation_ids']) or
+            any(not isinstance(marker.get(key), str) or not marker[key]
+                for key in required if key not in {'lifecycle_generation', 'obligation_ids'}) or
+            re.fullmatch(r'[0-9a-f]{64}', marker.get('admission_sha256', '')) is None):
+        raise StoreError('invalid-execution-terminal')
+    if terminal is not None:
+        linked = {
+            'launch_reservation_id': marker['reservation_id'],
+            'launch_consumption_id': marker['consumption_id'],
+            **{key: marker[key] for key in required},
+        }
+        if any(terminal.get(key) != value for key, value in linked.items()):
+            raise StoreError('invalid-execution-terminal')
+    return marker
+
+
 def _validate_component(value: str | None, error: str) -> None:
     if not isinstance(value, str) or not _SAFE_COMPONENT.fullmatch(value) or value in {'.', '..'}:
         raise StoreError(error)
@@ -294,7 +340,7 @@ def resolve_control_root(repository: str | pathlib.Path) -> tuple[pathlib.Path, 
 
 @contextlib.contextmanager
 def repository_lock(control_root: pathlib.Path, timeout: float = 30.0):
-    """Kernel-owned exclusive lock released automatically when a process dies."""
+    """Kernel-owned lock whose lease may be yielded for lifecycle CAS work."""
     lock = control_root / 'lock'
     _assert_contained(lock, control_root, allow_equal=False)
     lock.parent.mkdir(parents=True, exist_ok=True)
@@ -303,7 +349,6 @@ def repository_lock(control_root: pathlib.Path, timeout: float = 30.0):
         fd = os.open(lock, flags, 0o600)
     except OSError:
         raise StoreError('unsafe-authority-path') from None
-    acquired = False
     if not stat.S_ISREG(os.fstat(fd).st_mode):
         os.close(fd)
         raise StoreError('unsafe-authority-path')
@@ -312,34 +357,57 @@ def repository_lock(control_root: pathlib.Path, timeout: float = 30.0):
         raise StoreError('repository-lock-unsupported')
     if msvcrt is not None and os.fstat(fd).st_size == 0:
         os.write(fd, b'\0')
-    deadline = time.monotonic() + timeout
+    lease = _RepositoryLockLease(fd)
     try:
+        lease.reacquire(timeout=timeout)
+        yield lease
+    finally:
+        try:
+            lease.release()
+        finally:
+            os.close(fd)
+
+
+class _RepositoryLockLease:
+    """One open lock descriptor with explicit suspend/resume operations."""
+
+    def __init__(self, fd: int):
+        self.fd = fd
+        self.acquired = False
+
+    def release(self) -> None:
+        if not self.acquired:
+            return
+        try:
+            if fcntl is not None:
+                fcntl.flock(self.fd, fcntl.LOCK_UN)
+            else:
+                os.lseek(self.fd, 0, os.SEEK_SET)
+                msvcrt.locking(self.fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            raise StoreError('repository-lock-failed') from None
+        finally:
+            self.acquired = False
+
+    def reacquire(self, *, timeout: float = 30.0) -> None:
+        if self.acquired:
+            raise StoreError('repository-lock-already-held')
+        deadline = time.monotonic() + timeout
         while True:
             try:
                 if fcntl is not None:
-                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 else:
-                    os.lseek(fd, 0, os.SEEK_SET)
-                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
-                acquired = True
-                break
+                    os.lseek(self.fd, 0, os.SEEK_SET)
+                    msvcrt.locking(self.fd, msvcrt.LK_NBLCK, 1)
+                self.acquired = True
+                return
             except OSError as exc:
                 if exc.errno not in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
                     raise StoreError('repository-lock-failed') from None
                 if time.monotonic() >= deadline:
-                    raise StoreError('busy')
+                    raise StoreError('busy') from None
                 time.sleep(0.05)
-        yield
-    finally:
-        try:
-            if acquired:
-                if fcntl is not None:
-                    fcntl.flock(fd, fcntl.LOCK_UN)
-                else:
-                    os.lseek(fd, 0, os.SEEK_SET)
-                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
-        finally:
-            os.close(fd)
 
 
 def _fsync_directory(path: pathlib.Path) -> None:
@@ -485,6 +553,8 @@ class VerificationStore:
         self.grants = self.root / 'grants'
         self.consumptions = self.root / 'consumptions'
         self.plans = self.root / 'plans'
+        self.admissions = self.root / 'admissions'
+        self.launch_consumptions = self.root / 'launch-consumptions'
         self._fault_injector = None
 
     def _fault(self, boundary: str) -> None:
@@ -513,6 +583,75 @@ class VerificationStore:
         validate_plan_record(record)
         if record.get('plan_id') != plan_id:
             raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
+        return record
+
+    def publish_admission_record(self, record: dict) -> tuple[dict, str]:
+        """Create an immutable subordinate admission; only .agent-state binds authority."""
+        from .admission import validate_plan_admission_record_shape
+        validate_plan_admission_record_shape(record)
+        path = self.admissions / (hashlib.sha256(record['admission_id'].encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        with repository_lock(self.root):
+            content_hash = publish_create_once(path, record, fault=self._fault)
+        return record, content_hash
+
+    def load_admission_record(self, admission_id: str, *, expected_hash: str | None = None) -> dict:
+        if (not isinstance(admission_id, str) or
+                not admission_id.startswith('verification-admission-v1:sha256:')):
+            raise StoreError('ADMISSION_UNAVAILABLE')
+        path = self.admissions / (hashlib.sha256(admission_id.encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        try:
+            payload = path.read_bytes()
+            record = json.loads(payload.decode('utf-8'))
+        except (OSError, UnicodeError, ValueError):
+            raise StoreError('ADMISSION_UNAVAILABLE') from None
+        from .admission import validate_plan_admission_record_shape
+        validate_plan_admission_record_shape(record)
+        if record.get('admission_id') != admission_id or (
+                expected_hash is not None and hashlib.sha256(payload).hexdigest() != expected_hash):
+            raise StoreError('ADMISSION_UNAVAILABLE')
+        return record
+
+    def publish_launch_consumption_record(self, record: dict) -> tuple[dict, str]:
+        # The lifecycle CAS provides authoritative admission/reservation checks;
+        # this immutable record is inert until referenced from that state.
+        if not isinstance(record, dict):
+            raise StoreError('invalid-launch-consumption')
+        record_id = record.get('consumption_id')
+        if not isinstance(record_id, str) or not record_id.startswith('launch-consumption-v1:sha256:'):
+            raise StoreError('invalid-launch-consumption')
+        body = {key: value for key, value in record.items() if key != 'consumption_id'}
+        expected = 'launch-consumption-v1:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
+        # Consumption identity intentionally hashes the immutable semantic body;
+        # the builder is checked when the authoritative CAS loads its source R/A.
+        if record_id != expected:
+            raise StoreError('invalid-launch-consumption')
+        path = self.launch_consumptions / (hashlib.sha256(record_id.encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        content_hash = publish_create_once(path, record, fault=self._fault)
+        return record, content_hash
+
+    def load_launch_consumption_record(self, consumption_id: str, *, admission: dict,
+                                       reservation: dict,
+                                       expected_hash: str | None = None) -> dict:
+        if (not isinstance(consumption_id, str) or
+                not consumption_id.startswith('launch-consumption-v1:sha256:')):
+            raise StoreError('invalid-launch-consumption')
+        path = self.launch_consumptions / (hashlib.sha256(consumption_id.encode()).hexdigest() + '.json')
+        _assert_contained(path, self.root)
+        try:
+            payload = path.read_bytes()
+            record = json.loads(payload.decode('utf-8'))
+        except (OSError, UnicodeError, ValueError):
+            raise StoreError('invalid-launch-consumption') from None
+        body = {key: value for key, value in record.items() if key != 'consumption_id'}
+        expected = 'launch-consumption-v1:sha256:' + hashlib.sha256(canonical(body)).hexdigest()
+        if (record.get('consumption_id') != consumption_id or consumption_id != expected or
+                (expected_hash is not None and hashlib.sha256(payload).hexdigest() != expected_hash)):
+            raise StoreError('invalid-launch-consumption')
+        from .admission import validate_launch_consumption_record
+        validate_launch_consumption_record(record, admission, reservation)
         return record
 
     def _validated_started(self, directory: pathlib.Path, *, allow_legacy_retry: bool = False) -> dict:
@@ -793,7 +932,11 @@ class VerificationStore:
                     'post_observation', 'result', 'ended_at'}
         if (not isinstance(record, dict) or set(record) - (required | {'receipt_hash', 'verification_evidence',
                 'retry_policy_proof', 'harness_invocation_upper_bound', 'candidate_identity',
-                'final_changed_surface_id', 'stdout_hash', 'stderr_hash', 'output_persistence'}) or
+                'final_changed_surface_id', 'stdout_hash', 'stderr_hash', 'output_persistence',
+                'launch_reservation_id', 'launch_consumption_id', 'plan_id', 'unit_id',
+                'obligation_ids', 'admission_id', 'admission_sha256',
+                'reservation_transition_id', 'consumption_transition_id',
+                'plan_acceptance_transition_id', 'lifecycle_generation'}) or
                 not required <= set(record) or type(record.get('schema_version')) is not int or
                 record.get('schema_version') != 2 or
                 record.get('repository_id') != self.repository_id or
@@ -818,6 +961,8 @@ class VerificationStore:
             if (record.get('candidate_identity') != started.get('candidate_identity') or
                     record.get('final_changed_surface_id') != started.get('final_changed_surface_id')):
                 raise StoreError('invalid-execution-terminal')
+        started = self._validated_started(self.executions / record['execution_id'])
+        _plan_launch_binding(self.executions / record['execution_id'], started, record)
         evidence = record.get('verification_evidence')
         if evidence is not None:
             _validate_component(record.get('execution_id'), 'invalid-execution-terminal')
@@ -926,6 +1071,7 @@ class VerificationStore:
             actual = hashlib.sha256(canonical(record)).hexdigest()
             record['receipt_hash'] = supplied
             started = self._validated_started(directory, allow_legacy_retry=True)
+            _plan_launch_binding(directory, started, record)
             if (started.get('predecessor_failure_id') is not None or
                     started.get('consumption_id') is not None or started.get('retry_proof') is not None):
                 self.validate_started_retry_proof(started)
