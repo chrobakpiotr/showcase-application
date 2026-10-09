@@ -1561,6 +1561,19 @@ def parse_timestamp(value: Any) -> dt.datetime | None:
     return parsed.astimezone(dt.timezone.utc)
 
 
+def parse_aware_timestamp(value: Any) -> dt.datetime | None:
+    """Parse only timestamps that carry an explicit timezone offset."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(dt.timezone.utc)
+
+
 def lease_ttl_seconds(doc: dict[str, Any]) -> int:
     return int(doc.get('lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS))
 
@@ -3484,9 +3497,13 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
                 fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
             return
         if prior_requests:
-            if entry.get('active_packet_revision') != args.expected_active_revision:
+            active_revision = entry.get('active_packet_revision')
+            last_request = prior_requests[-1]
+            if (not isinstance(last_request, dict) or
+                    last_request.get('new_revision') != active_revision):
+                die('ACTIVE_PACKET_AMBIGUOUS: latest replan does not produce the active revision')
+            if active_revision != args.expected_active_revision:
                 die('STALE_ACTIVE_PACKET: a prior replan changed the active packet revision')
-            die('REPLAN_CONCURRENT_CONFLICT: a different replan request is already recorded')
         if entry.get('status') == 'completed':
             die('TASK_REPLAN_NOT_ALLOWED: completed tasks cannot be replanned')
         if entry.get('status') != args.expected_status or args.expected_status not in {'running', 'failed'}:
@@ -3495,7 +3512,12 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         if failed_replan:
             if type(expected_generation) is not int or expected_generation < 1:
                 die('TASK_REPLAN_NOT_ALLOWED: failed-task replan requires --expected-feature-generation')
-            validate_latest_human_resolution(feature_dir, doc, args.task_id, entry)
+            human_resolution = validate_latest_human_resolution(feature_dir, doc, args.task_id, entry)
+            if prior_requests:
+                previous_replan_at = parse_aware_timestamp(prior_requests[-1].get('committed_at'))
+                resolved_at = parse_aware_timestamp(human_resolution.get('resolved_at'))
+                if previous_replan_at is None or resolved_at is None or resolved_at <= previous_replan_at:
+                    die('TASK_REPLAN_NOT_ALLOWED: failed task requires a human resolution newer than its latest replan')
         if type(current_generation) is not int or current_generation != expected_generation:
             die('REPLAN_CONCURRENT_CONFLICT: current feature generation differs from request')
         attempts = entry.get('attempts', 0)

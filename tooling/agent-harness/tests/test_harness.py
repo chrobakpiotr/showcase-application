@@ -2496,6 +2496,197 @@ class HarnessTest(unittest.TestCase):
         subprocess.run(['git', 'worktree', 'remove', '--force', str(t1)], cwd=self.root, check=True)
         shutil.rmtree(self.root.parent / f'{self.root.name}{harness.WORKTREE_ROOT_SUFFIX}', ignore_errors=True)
 
+    def sequential_replan_case(self):
+        feature = self.feature()
+        planning = json.loads((feature / 'tasks.json').read_text())
+        planning['tasks'][0].update({
+            'test_mode': 'red-green-refactor',
+            'test_seam': 'sequential task replan lifecycle',
+        })
+        (feature / 'tasks.json').write_text(json.dumps(planning), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        harness.write_packet(doc, harness.task_index(doc)['T-001'], feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'escalated', 'attempts': 0})
+        harness.save_state(feature, state)
+        harness.cmd_human_resolve(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', decision='First approved clarification.',
+            decision_file=None, by='owner@example.invalid'))
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        proposal = feature / 'proposal-1.json'
+        proposal.write_text(json.dumps(dict(
+            harness.task_index(doc)['T-001'], objective='First clarified objective')),
+            encoding='utf-8')
+        args = argparse.Namespace(
+            feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=0, expected_active_revision=active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'], expected_feature_generation=1,
+            proposed_task_file=str(proposal), reason='first owner-approved replan',
+            by='owner@example.invalid', checkpoint=None,
+        )
+        harness.cmd_replan_task(args)
+        return feature, doc, args
+
+    def next_failed_replan_args(self, feature, doc, objective, *, expected_revision=None,
+                                proposal_name='next-proposal.json', reason='next owner-approved replan'):
+        active = harness.resolve_active_packet(feature, doc, 'T-001')
+        proposal = feature / proposal_name
+        proposal.write_text(json.dumps(dict(
+            harness.active_task_contract(feature, doc, 'T-001'), objective=objective)),
+            encoding='utf-8')
+        state = harness.load_state(feature, doc)
+        return argparse.Namespace(
+            feature_dir=feature, task_id='T-001', expected_status='failed',
+            expected_attempts=state['tasks']['T-001']['attempts'],
+            expected_active_revision=expected_revision or active['revision_id'],
+            expected_contract_sha256=active['contract_sha256'],
+            expected_feature_generation=state.get('feature_generation', 1),
+            proposed_task_file=str(proposal), reason=reason,
+            by='owner@example.invalid', checkpoint=None,
+        )
+
+    def fail_and_resolve_replanned_attempt(self, feature, doc):
+        harness.cmd_claim(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', owner='sequential-replan-worker'))
+        harness.cmd_fail(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', owner='sequential-replan-worker',
+            reason='attempt needs another accepted clarification', evidence=None,
+            escalate=True))
+        time.sleep(0.003)
+        harness.cmd_human_resolve(argparse.Namespace(
+            feature_dir=feature, task_id='T-001', decision='Second approved clarification.',
+            decision_file=None, by='owner@example.invalid'))
+
+    def test_second_failed_task_replan_requires_and_accepts_newer_human_resolution(self):
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Second clarified objective', proposal_name='proposal-2.json')
+
+        harness.cmd_replan_task(second)
+
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        self.assertEqual(2, len(entry['replan_requests']))
+        self.assertEqual(entry['active_packet_revision'], entry['replan_requests'][-1]['new_revision'])
+        self.assertEqual(entry['packet_lineage'][-2]['revision_id'],
+                         entry['replan_requests'][-1]['old_revision'])
+
+    def test_failed_task_replan_rejects_reused_decision_after_prior_replan(self):
+        feature, doc, _first = self.sequential_replan_case()
+        second = self.next_failed_replan_args(
+            feature, doc, 'Must reject reused decision', proposal_name='reused-decision.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(second)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_sequential_replan_rejects_naive_human_resolution_timestamp(self):
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        state = harness.load_state(feature, doc)
+        resolution_path = pathlib.Path(state['tasks']['T-001']['human_resolution'])
+        payload = json.loads(resolution_path.read_text(encoding='utf-8'))
+        payload['resolved_at'] = payload['resolved_at'].replace('+00:00', '').replace('Z', '')
+        raw = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode()
+        resolution_path.write_bytes(raw)
+        entry = state['tasks']['T-001']
+        entry['human_resolved_at'] = payload['resolved_at']
+        entry['human_resolution_history'][-1]['resolved_at'] = payload['resolved_at']
+        entry['last_transition']['resolved_at'] = payload['resolved_at']
+        entry['last_transition']['artifact_sha256'] = harness.sha256_bytes(raw)
+        harness.save_state(feature, state)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Naive timestamps must fail closed', proposal_name='naive-timestamp.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(second)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_sequential_replan_rejects_stale_active_revision_without_state_change(self):
+        feature, doc, first = self.sequential_replan_case()
+        stale = self.next_failed_replan_args(
+            feature, doc, 'Must reject stale revision', expected_revision=first.expected_active_revision,
+            proposal_name='stale-revision.json')
+        before = harness.state_path(feature).read_bytes()
+
+        with self.assertRaises(SystemExit):
+            harness.cmd_replan_task(stale)
+
+        self.assertEqual(before, harness.state_path(feature).read_bytes())
+
+    def test_concurrent_sequential_replans_have_one_winner(self):
+        import copy
+        feature, doc, _first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        before_entry = harness.load_state(feature, doc)['tasks']['T-001']
+        attempts_before = before_entry['attempts']
+        authorization_before = {
+            key: copy.deepcopy(before_entry.get(key))
+            for key in ('human_resume_grants', 'retry_authorizations',
+                        'retry_authorization_supersessions', 'human_resolution_history')
+        }
+        requests = [
+            self.next_failed_replan_args(feature, doc, 'Second proposal A',
+                proposal_name='proposal-a.json', reason='competing A'),
+            self.next_failed_replan_args(feature, doc, 'Second proposal B',
+                proposal_name='proposal-b.json', reason='competing B'),
+        ]
+        barrier = threading.Barrier(2)
+        outcomes = []
+
+        def invoke(request):
+            barrier.wait()
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    harness.cmd_replan_task(request)
+                outcomes.append('committed')
+            except SystemExit:
+                outcomes.append('rejected')
+
+        workers = [threading.Thread(target=invoke, args=(request,)) for request in requests]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=10)
+
+        self.assertTrue(all(not worker.is_alive() for worker in workers))
+        self.assertCountEqual(['committed', 'rejected'], outcomes)
+        state = harness.load_state(feature, doc)
+        final_entry = state['tasks']['T-001']
+        self.assertEqual(2, len(final_entry['replan_requests']))
+        self.assertEqual(final_entry['active_packet_revision'], final_entry['packet_lineage'][-1]['revision_id'])
+        self.assertEqual(attempts_before, final_entry['attempts'])
+        self.assertEqual(authorization_before, {
+            key: final_entry.get(key)
+            for key in authorization_before
+        })
+
+    def test_three_revision_lineage_resolves_and_identical_replay_is_idempotent(self):
+        feature, doc, first = self.sequential_replan_case()
+        self.fail_and_resolve_replanned_attempt(feature, doc)
+        second = self.next_failed_replan_args(
+            feature, doc, 'Third packet revision', proposal_name='proposal-3.json')
+        harness.cmd_replan_task(second)
+
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-001']
+        active = harness.resolve_active_packet(feature, doc, 'T-001', state=state)
+        self.assertEqual(3, len(entry['packet_lineage']))
+        self.assertEqual(entry['packet_lineage'][-1]['revision_id'], active['revision_id'])
+        self.assertEqual(entry['replan_requests'][-1]['new_revision'], active['revision_id'])
+
+        replay_state = harness.state_path(feature).read_bytes()
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            harness.cmd_replan_task(first)
+        self.assertIn('ALREADY_REPLANNED', output.getvalue())
+        self.assertEqual(replay_state, harness.state_path(feature).read_bytes())
+
     def test_human_resolution_reopens_escalated_task_with_auditable_retry_grant(self):
         feature = self.feature()
         doc = json.loads((feature / 'tasks.json').read_text())
