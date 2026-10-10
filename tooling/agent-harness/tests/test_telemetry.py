@@ -480,7 +480,7 @@ class TelemetryTest(unittest.TestCase):
         import harness as lifecycle
         from verification import authority
         from verification.candidate import CandidateSealError
-        from verification.store import VerificationStore
+        from verification.store import StoreError, VerificationStore
 
         fixture = self._signed_manual_fixture()
         self.addCleanup(fixture['temporary'].cleanup)
@@ -532,6 +532,26 @@ class TelemetryTest(unittest.TestCase):
                                required_manual_reviewer_principal='human:test-reviewer')
         seal = SimpleNamespace(head_sha=checkpoint, candidate_identity=plan['candidate_identity'],
                                changed_surface_id=plan['final_changed_surface_id'])
+        failures = (
+            ('unknown-plan', StoreError('ACCEPTED_PLAN_UNAVAILABLE'), None),
+            ('dirty-candidate', None, CandidateSealError('CANDIDATE_SEALING_SNAPSHOT_UNAVAILABLE')),
+        )
+        for name, load_error, validation_error in failures:
+            with self.subTest(failure=name), \
+                 mock.patch.object(VerificationStore, 'load_plan_record',
+                                   side_effect=load_error) if load_error else \
+                    mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+                 mock.patch.object(authority, 'validate_plan_record', side_effect=validation_error), \
+                 mock.patch.object(authority, '_load_trusted_profile', return_value=SimpleNamespace(gates=(gate,))), \
+                 mock.patch.object(lifecycle, 'register_manual_observation') as register:
+                with self.assertRaisesRegex(ValueError, '^MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED$'):
+                    telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                        provider='manual', checkpoint=checkpoint, verdict='PASS',
+                        report=fixture['report_path'].relative_to(root.resolve()).as_posix(),
+                        task=task_id, task_attempt='1', plan_id=plan_id,
+                        attestation=fixture['attestation_path'].relative_to(root.resolve()).as_posix())
+                register.assert_not_called()
+
         with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
              mock.patch.object(authority, 'validate_plan_record'), \
              mock.patch.object(authority, '_load_trusted_profile', return_value=SimpleNamespace(gates=(gate,))), \

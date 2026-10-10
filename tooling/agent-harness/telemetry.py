@@ -753,8 +753,11 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
             if plan_id is not None:
                 from verification.authority import _load_trusted_profile, validate_plan_record
                 from verification.store import VerificationStore
-                plan = VerificationStore(primary).load_plan_record(plan_id)
-                validate_plan_record(plan, repository=primary, reconstruct=True)
+                try:
+                    plan = VerificationStore(primary).load_plan_record(plan_id)
+                    validate_plan_record(plan, repository=primary, reconstruct=True)
+                except Exception:
+                    raise ValueError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
                 authority = lifecycle_state.get('verification_authority')
                 if (plan.get('plan_id') != plan_id or plan.get('feature_id') != feature or
                         plan.get('task_id') != trusted_scope.get('task_id') or
