@@ -165,6 +165,9 @@ def configureDependencyManagement(subproject) {
 				mavenBom 'org.jetbrains.kotlin:kotlin-bom:2.4.20'
 			}
 			dependencies {
+				// Kafka 4.3.1 brings lz4-java 1.10.2, which is affected by
+				// CVE-2026-106451. Pin the fixed compatible release.
+				dependency 'at.yawk.lz4:lz4-java:1.11.4'
 				dependency 'com.fasterxml.jackson.core:jackson-core:2.21.7'
 				dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.7'
 				dependency 'io.opentelemetry.proto:opentelemetry-proto:1.11.0-alpha'

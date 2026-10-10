@@ -131,6 +131,7 @@ describe("ParkedDispatchesComponent", () => {
     expect(component.formatAge(60)).toBe("1 minute");
     expect(component.formatAge(3600)).toBe("1 hour");
     expect(component.formatAge(7200)).toBe("2 hours");
+    expect(component.formatAge(86400)).toBe("1 day");
     expect(component.formatAge(172800)).toBe("2 days");
     expect(component.ageOf("not-a-date")).toBe("Unknown");
     expect(component.ageOf("2999-01-01T00:00:00Z")).toBe("0 seconds");
