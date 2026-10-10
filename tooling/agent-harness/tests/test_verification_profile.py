@@ -138,6 +138,27 @@ class ProfileTest(unittest.TestCase):
                 load_profile({'schema_version': 1, 'gates': [value]},
                              manual_issuer_registry=registry)
 
+    def test_manual_reviewer_principal_is_rejected_on_task_origin_gate(self):
+        registry = {'schema_version': 1, 'issuers': [
+            {'issuer_id': 'issuer-a', 'reviewer_principal': 'human:alice',
+             'enabled': True, 'revoked': False, 'actions': ['manual-review']}]}
+        value = gate(required_origin='task', independent_execution_classes=[],
+                     required_manual_reviewer_principal='human:alice')
+        with self.assertRaisesRegex(InvalidPolicy, '^invalid-manual-reviewer$'):
+            load_profile({'schema_version': 1, 'gates': [value]},
+                         manual_issuer_registry=registry)
+
+    def test_persisted_profile_rejects_absent_origin_policy_fields(self):
+        value = gate(required_origin='task')
+        for field in ('required_origin', 'independent_execution_classes',
+                      'independent_registration_classes'):
+            value.pop(field)
+        with tempfile.TemporaryDirectory() as temporary:
+            source = pathlib.Path(temporary) / 'profile.json'
+            source.write_text(json.dumps({'schema_version': 1, 'gates': [value]}))
+            with self.assertRaisesRegex(InvalidPolicy, '^invalid-gate$'):
+                load_profile(source)
+
     def test_persisted_manual_profile_requires_explicit_origin_and_principal(self):
         manual = gate(required_origin='manual', independent_execution_classes=[],
                       required_manual_reviewer_principal='human:alice')

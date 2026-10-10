@@ -6,7 +6,8 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from verification.executor import ExecutionResult, GateExecution, execute_plan
+from verification.executor import (ExecutionResult, GateExecution,
+                                   _classify_execution_reason, execute_plan)
 from verification.model import Family
 from verification.planner import build_plan
 from verification.profile import load_profile
@@ -30,6 +31,10 @@ class ExecutorTest(unittest.TestCase):
             'cacheable': False, 'sandbox': 'off',
         }]})
         self.family = Family('family-1', self.base, 'integration', self.profile.content_hash, 'b' * 40)
+
+    def test_candidate_binding_failure_is_blocked_in_verification_execution(self):
+        self.assertEqual('verification-blocked', _classify_execution_reason(
+            'MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED'))
 
     def test_environment_requirement_is_blocked_and_identity_is_preserved(self):
         plan = build_plan(self.root, self.profile, self.family)

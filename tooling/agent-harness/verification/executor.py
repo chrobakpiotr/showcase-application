@@ -21,6 +21,13 @@ from verification_command import CommandExecutionBackend
 from machine_outcomes import classify_reason, exit_code
 
 
+def _classify_execution_reason(reason: str) -> str | None:
+    """Keep lifecycle-specific admission failures local to verification."""
+    if reason == 'MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED':
+        return 'verification-blocked'
+    return classify_reason(reason)
+
+
 @dataclass(frozen=True)
 class GateExecution:
     gate_id: str
@@ -329,7 +336,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             if result is None:
                 raise RuntimeError('execution-result-missing')
         except StoreError as exc:
-            category = classify_reason(str(exc))
+            category = _classify_execution_reason(str(exc))
             outcome = category or 'ERROR'
             gate_results.append(GateExecution(decision.node.id, 'RUN', outcome,
                                               'control-outcome' if category else 'admission-error',
@@ -342,7 +349,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             break
         except RuntimeError as exc:
             code = str(exc)
-            category = classify_reason(code)
+            category = _classify_execution_reason(code)
             outcome = category or 'ERROR'
             reason = 'control-outcome' if category else ('retry-policy-violation' if code == 'retry-policy-violation' else 'supervisor-error')
             gate_results.append(GateExecution(decision.node.id, 'RUN', outcome, reason,
