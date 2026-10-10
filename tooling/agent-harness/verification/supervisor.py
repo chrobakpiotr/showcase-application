@@ -1116,7 +1116,12 @@ class VerificationSupervisor:
         terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                         if item['execution_id'] == execution_id)
         if runtime_lock is not None:
-            proof = _safe_prelaunch_abort_proof(self, journal, execution_id, terminal, reason=reason)
+            proof = None
+            if (terminal.get('plan_id') is not None and
+                    terminal.get('harness_invocation_upper_bound') == 0 and
+                    not (journal / 'launching.json').exists()):
+                proof = _safe_prelaunch_abort_proof(self, journal, execution_id, terminal,
+                                                    reason=reason)
             self._terminalize_lifecycle_authority(terminal, runtime_lock, safe_abort_proof=proof)
         self._publish_drained(journal, started, terminal['receipt_hash'], reason=reason)
         return RecoveryResult(execution_id, SupervisorState.ABORTED_PREPARED,
