@@ -1,0 +1,552 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 3 /Kids [7 0 R 9 0 R 11 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 5798 >>
+stream
+BT
+/F3 16 Tf
+1 0 0 1 48 744 Tm
+(Agentic SDD Verification Handbook) Tj
+/F1 9 Tf
+1 0 0 1 48 729 Tm
+(This handbook describes the repository-native verification workflow. The accepted feature specification,) Tj
+/F1 9 Tf
+1 0 0 1 48 717 Tm
+(  plan, schemas, profile and python3 tooling/agent-harness/verify.py --help remain authoritative when) Tj
+/F1 9 Tf
+1 0 0 1 48 705 Tm
+(  details differ. This guide does not grant lifecycle, launch, retry, commit or remote-write authority.) Tj
+/F3 12 Tf
+1 0 0 1 48 693 Tm
+(Status and safety boundary) Tj
+/F1 9 Tf
+1 0 0 1 48 680 Tm
+(Verification v2 is integrated into the repository's planning and task workflow, but the canonical M5.3) Tj
+/F1 9 Tf
+1 0 0 1 48 668 Tm
+(  Design Gate is NOT PASS. Do not describe the overall design gate or an unqualified backend as accepted) Tj
+/F1 9 Tf
+1 0 0 1 48 656 Tm
+(  or production-ready. An advisory plan is not an accepted plan. Execution requires an exact) Tj
+/F1 9 Tf
+1 0 0 1 48 644 Tm
+(  lifecycle-accepted plan and a backend qualified for its required protections; if either is missing,) Tj
+/F1 9 Tf
+1 0 0 1 48 632 Tm
+(  execution fails closed.) Tj
+/F1 9 Tf
+1 0 0 1 48 620 Tm
+(The harness may inspect local Git state and create task-local checkpoints required by the accepted) Tj
+/F1 9 Tf
+1 0 0 1 48 608 Tm
+(  lifecycle. It does not push, open pull requests, merge into a user branch, deploy, or mutate remote) Tj
+/F1 9 Tf
+1 0 0 1 48 596 Tm
+(  trackers. Task/product changes remain under human-controlled Git workflow.) Tj
+/F3 12 Tf
+1 0 0 1 48 584 Tm
+(Choose the workflow) Tj
+/F1 9 Tf
+1 0 0 1 48 571 Tm
+(Use the lightest flow that fits the uncertainty:) Tj
+/F3 9 Tf
+1 0 0 1 48 559 Tm
+(Workflow choices \(work | flow | verification\)) Tj
+/F1 9 Tf
+1 0 0 1 48 547 Tm
+(Work: Small and well understood; Flow: spec to tasks to orchestrate; Verification: Existing) Tj
+/F1 9 Tf
+1 0 0 1 48 535 Tm
+(deterministic gates and independent evaluator.) Tj
+/F1 9 Tf
+1 0 0 1 48 523 Tm
+(Work: Medium with a few uncertainties; Flow: spec to design to [prototype] to verification contract to) Tj
+/F1 9 Tf
+1 0 0 1 48 511 Tm
+(tasks; Verification: Resolve material design questions and add independent criteria for meaningful risk.) Tj
+/F1 9 Tf
+1 0 0 1 48 499 Tm
+(Work: Large, foggy, or architectural; Flow: wayfinder to reconcile to spec to design/grill to) Tj
+/F1 9 Tf
+1 0 0 1 48 487 Tm
+([prototype] to verification contract to tasks; Verification: Close blocking assumptions, preserve) Tj
+/F1 9 Tf
+1 0 0 1 48 475 Tm
+(decision history, then derive and independently evaluate implementation.) Tj
+/F1 9 Tf
+1 0 0 1 48 463 Tm
+(Prototype code is disposable evidence. Translate accepted findings into the plan and normal task DAG; do) Tj
+/F1 9 Tf
+1 0 0 1 48 451 Tm
+(  not promote a scratch prototype directly.) Tj
+/F3 12 Tf
+1 0 0 1 48 439 Tm
+(Verification modes and task completion) Tj
+/F1 9 Tf
+1 0 0 1 48 426 Tm
+(The verifier has two immutable origin policies:) Tj
+/F1 9 Tf
+1 0 0 1 48 414 Tm
+(- task-completion is the outer completion boundary. After builder success, the runner freshly executes) Tj
+/F1 9 Tf
+1 0 0 1 48 402 Tm
+(  every declared verification command occurrence and its required dependency closure against the sealed) Tj
+/F1 9 Tf
+1 0 0 1 48 390 Tm
+(  candidate. A repeated command is still a distinct occurrence. Cached integration evidence cannot replace) Tj
+/F1 9 Tf
+1 0 0 1 48 378 Tm
+(  this execution.) Tj
+/F1 9 Tf
+1 0 0 1 48 366 Tm
+(- integration is an explicit verification workflow that may reuse eligible evidence, but only within the) Tj
+/F1 9 Tf
+1 0 0 1 48 354 Tm
+(  exact authoritative plan and execution identity. A continuation inherits that identity; it is not a new) Tj
+/F1 9 Tf
+1 0 0 1 48 342 Tm
+(  plan or a shortcut around task completion.) Tj
+/F1 9 Tf
+1 0 0 1 48 330 Tm
+(Use verify.py plan to inspect an advisory plan. Its three decisions are:) Tj
+/F1 9 Tf
+1 0 0 1 48 318 Tm
+(- ALREADY_GREEN: complete terminal PASS evidence exists for the current fingerprint and required) Tj
+/F1 9 Tf
+1 0 0 1 48 306 Tm
+(  artifacts; action is REUSE only where the accepted origin policy allows it.) Tj
+/F1 9 Tf
+1 0 0 1 48 294 Tm
+(- INVALIDATED_BY_THIS_PATCH: prior PASS exists but an input, policy, dependency or artifact changed;) Tj
+/F1 9 Tf
+1 0 0 1 48 282 Tm
+(  action is always RUN.) Tj
+/F1 9 Tf
+1 0 0 1 48 270 Tm
+(- RUN_NOW: no eligible PASS exists, or policy requires a fresh execution; action is RUN.) Tj
+/F1 9 Tf
+1 0 0 1 48 258 Tm
+(INVALIDATED_BY_THIS_PATCH is explanatory, never a skip. Required gates run in deterministic dependency) Tj
+/F1 9 Tf
+1 0 0 1 48 246 Tm
+(  order. A failure blocks dependent and not-yet-run required gates; it does not turn them green.) Tj
+/F1 9 Tf
+1 0 0 1 48 234 Tm
+(Create an advisory plan with trusted values from the active workflow:) Tj
+/F2 8 Tf
+1 0 0 1 48 222 Tm
+(python3 tooling/agent-harness/verify.py plan \\) Tj
+/F2 8 Tf
+1 0 0 1 48 210 Tm
+(  --repo . \\) Tj
+/F2 8 Tf
+1 0 0 1 48 198 Tm
+(  --profile showcase \\) Tj
+/F2 8 Tf
+1 0 0 1 48 186 Tm
+(  --base-sha <full-base-commit-sha> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 174 Tm
+(  --family-id <stable-family-id> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 162 Tm
+(  --policy-checkpoint <accepted-policy-checkpoint>) Tj
+/F1 9 Tf
+1 0 0 1 48 150 Tm
+(The logical profile ID resolves under the trusted tooling/agent-harness/verification-profiles/) Tj
+/F1 9 Tf
+1 0 0 1 48 138 Tm
+(  directory. Do not pass a provider-worktree profile path or invent identity values. Planning grants no) Tj
+/F1 9 Tf
+1 0 0 1 48 126 Tm
+(  launch authority.) Tj
+/F1 9 Tf
+1 0 0 1 48 114 Tm
+(Execute only the plan already accepted by the lifecycle authority:) Tj
+/F2 8 Tf
+1 0 0 1 48 102 Tm
+(python3 tooling/agent-harness/verify.py run \\) Tj
+/F2 8 Tf
+1 0 0 1 48 90 Tm
+(  --mode integration \\) Tj
+ET
+BT
+/F1 8 Tf
+1 0 0 1 48 30 Tm
+(Agentic SDD Verification Handbook) Tj
+1 0 0 1 540 30 Tm
+(1) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 6434 >>
+stream
+BT
+/F2 8 Tf
+1 0 0 1 48 744 Tm
+(  --repo . \\) Tj
+/F2 8 Tf
+1 0 0 1 48 732 Tm
+(  --plan-id <exact-accepted-verification-plan-id>) Tj
+/F1 9 Tf
+1 0 0 1 48 720 Tm
+(An exact --unit-id may further select a unit in that plan. --failure-grant GATE=GRANT references an) Tj
+/F1 9 Tf
+1 0 0 1 48 708 Tm
+(  already-issued grant; it does not issue one. Missing --repo or --plan-id is blocked. Consult command) Tj
+/F1 9 Tf
+1 0 0 1 48 696 Tm
+(  help for the checked-out version. grant-import changes local control state and is not a smoke-test) Tj
+/F1 9 Tf
+1 0 0 1 48 684 Tm
+(  command.) Tj
+/F3 12 Tf
+1 0 0 1 48 672 Tm
+(Fingerprints, reuse, and artifacts) Tj
+/F1 9 Tf
+1 0 0 1 48 659 Tm
+(A reusable result is bound to the exact trusted profile and policy, gate and command bytes, working) Tj
+/F1 9 Tf
+1 0 0 1 48 647 Tm
+(  directory, origin policy, required obligation identity, sandbox and retry controls, matched input set) Tj
+/F1 9 Tf
+1 0 0 1 48 635 Tm
+(  and content identities, tool probes, dependencies, artifacts and execution context. File additions,) Tj
+/F1 9 Tf
+1 0 0 1 48 623 Tm
+(  deletions, staged/unstaged/untracked changes and relevant symlink identity are accounted for.) Tj
+/F1 9 Tf
+1 0 0 1 48 611 Tm
+(  Symlink-affected or opaque external inputs are non-cacheable or invalid policy under the accepted rules.) Tj
+/F1 9 Tf
+1 0 0 1 48 599 Tm
+(The result is reusable only when the immutable terminal evidence is complete, its bindings match the) Tj
+/F1 9 Tf
+1 0 0 1 48 587 Tm
+(  active plan, and pre-run and post-run observations agree. A changed input invalidates prior PASS. A) Tj
+/F1 9 Tf
+1 0 0 1 48 575 Tm
+(  consumer cannot reuse an artifact if its required producer evidence is missing or its content identity) Tj
+/F1 9 Tf
+1 0 0 1 48 563 Tm
+(  changed. Cache indexes and summaries are derived data: corruption is ignored/rebuilt and safe work runs) Tj
+/F1 9 Tf
+1 0 0 1 48 551 Tm
+(  fresh. Attempt, failure, grant and manual-evidence records are audit history and are not erased as cache) Tj
+/F1 9 Tf
+1 0 0 1 48 539 Tm
+(  cleanup.) Tj
+/F1 9 Tf
+1 0 0 1 48 527 Tm
+(Version-1 provenance remains readable for reporting, but never authorizes v2 reuse. Unknown evidence) Tj
+/F1 9 Tf
+1 0 0 1 48 515 Tm
+(  versions cannot authorize reuse. Unknown lifecycle protocol fields or versions fail closed; an older) Tj
+/F1 9 Tf
+1 0 0 1 48 503 Tm
+(  harness must not reinterpret, rewrite, clean or migrate newer .agent-state authority.) Tj
+/F3 12 Tf
+1 0 0 1 48 491 Tm
+(Failure, retry, and resume) Tj
+/F1 9 Tf
+1 0 0 1 48 478 Tm
+(The first required failure stops dependent execution and is preserved. Critical failures create a) Tj
+/F1 9 Tf
+1 0 0 1 48 466 Tm
+(  durable fingerprint-scoped fence. A new run ID, task attempt or plan does not itself clear a matching) Tj
+/F1 9 Tf
+1 0 0 1 48 454 Tm
+(  fence. Same-fingerprint retry requires an exact, authenticated, one-shot critical-gate retry grant from) Tj
+/F1 9 Tf
+1 0 0 1 48 442 Tm
+(  the trusted human issuer registry; automation cannot mint or sign it. Manual review evidence is never) Tj
+/F1 9 Tf
+1 0 0 1 48 430 Tm
+(  retry authorization.) Tj
+/F1 9 Tf
+1 0 0 1 48 418 Tm
+(An interrupted command is not presumed safe to relaunch. The supervisor and backend must prove drainage) Tj
+/F1 9 Tf
+1 0 0 1 48 406 Tm
+(  of the command and descendants. Uncertain ownership quarantines the worktree and blocks repository-wide) Tj
+/F1 9 Tf
+1 0 0 1 48 394 Tm
+(  admission until the trusted recovery path resolves it. Lease expiry or PID absence alone is not drainage) Tj
+/F1 9 Tf
+1 0 0 1 48 382 Tm
+(  proof. Resume may continue only the exact accepted authority and recovery slot; a changed plan,) Tj
+/F1 9 Tf
+1 0 0 1 48 370 Tm
+(  candidate, surface, policy or other bound identity requires fresh authority and evidence. Prior FAIL) Tj
+/F1 9 Tf
+1 0 0 1 48 358 Tm
+(  records remain visible after a later authorized PASS.) Tj
+/F1 9 Tf
+1 0 0 1 48 346 Tm
+(Use the supported admission recovery entry point:) Tj
+/F2 8 Tf
+1 0 0 1 48 334 Tm
+(python3 tooling/agent-harness/harness.py recover-verification --repo .) Tj
+/F1 9 Tf
+1 0 0 1 48 322 Tm
+(It releases only proven-dead prestart reservations and authoritative recoverable journals. It does not) Tj
+/F1 9 Tf
+1 0 0 1 48 310 Tm
+(  clear every quarantine. Active or uncertain ownership, or a journal still requiring backend drainage,) Tj
+/F1 9 Tf
+1 0 0 1 48 298 Tm
+(  remains blocked \(exit 6\). Never manually delete unresolved started.json, drainage, ownership or) Tj
+/F1 9 Tf
+1 0 0 1 48 286 Tm
+(  quarantine records; lease expiry and PID absence do not prove safe release.) Tj
+/F1 9 Tf
+1 0 0 1 48 274 Tm
+(Typical outcomes include needs-human \(exit 4\) for a required human decision and verification-blocked) Tj
+/F1 9 Tf
+1 0 0 1 48 262 Tm
+(  \(exit 5\) for missing or unsupported authority/capability. Read-only diagnostics and advisory plans) Tj
+/F1 9 Tf
+1 0 0 1 48 250 Tm
+(  cannot clear either condition. Follow the exact machine outcome and remediation in the current CLI and) Tj
+/F1 9 Tf
+1 0 0 1 48 238 Tm
+(  accepted spec; do not retry blindly.) Tj
+/F3 12 Tf
+1 0 0 1 48 226 Tm
+(Telemetry and privacy) Tj
+/F1 9 Tf
+1 0 0 1 48 213 Tm
+(Telemetry distinguishes provider runs, task attempts, verification families/units and gate outcomes,) Tj
+/F1 9 Tf
+1 0 0 1 48 201 Tm
+(  including planned, executed, reused, invalidated, blocked and failed. Running and abandoned records do) Tj
+/F1 9 Tf
+1 0 0 1 48 189 Tm
+(  not count as successes. Missing chronology, incomplete legacy lineage or unknown usage remains UNKNOWN;) Tj
+/F1 9 Tf
+1 0 0 1 48 177 Tm
+(  cost is never inferred from token counts. "Saved time" and "saved cost" are omitted unless a future) Tj
+/F1 9 Tf
+1 0 0 1 48 165 Tm
+(  report explicitly labels and documents an estimate.) Tj
+/F1 9 Tf
+1 0 0 1 48 153 Tm
+(Structured reports use an allowlist and exclude raw prompts, environment contents, command output,) Tj
+/F1 9 Tf
+1 0 0 1 48 141 Tm
+(  report bodies and seeded secrets. Raw execution logs are diagnostic data, not reusable evidence;) Tj
+/F1 9 Tf
+1 0 0 1 48 129 Tm
+(  deleting them does not invalidate complete terminal evidence. Local telemetry is not lifecycle) Tj
+/F1 9 Tf
+1 0 0 1 48 117 Tm
+(  authority.) Tj
+/F3 12 Tf
+1 0 0 1 48 105 Tm
+(Manual reviewer/evaluator evidence) Tj
+/F1 9 Tf
+1 0 0 1 48 92 Tm
+(Manual registration records provenance; it does not launch a provider, change task/design state,) Tj
+ET
+BT
+/F1 8 Tf
+1 0 0 1 48 30 Tm
+(Agentic SDD Verification Handbook) Tj
+1 0 0 1 540 30 Tm
+(2) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4950 >>
+stream
+BT
+/F1 9 Tf
+1 0 0 1 48 744 Tm
+(  authorize retry, or satisfy an obligation by itself. Registration requires the exact report snapshot and) Tj
+/F1 9 Tf
+1 0 0 1 48 732 Tm
+(  a canonical signed Ed25519 manual-review-attestation-v1 from a trusted, enabled, non-revoked issuer) Tj
+/F1 9 Tf
+1 0 0 1 48 720 Tm
+(  explicitly allowed for manual-review. The reviewer, report hash, verdict, checkpoint and any) Tj
+/F1 9 Tf
+1 0 0 1 48 708 Tm
+(  task/attempt/plan/obligation/candidate/surface bindings must match trusted records. .agent-state alone) Tj
+/F1 9 Tf
+1 0 0 1 48 696 Tm
+(  accepts plan-obligation coverage through its coverage transaction, after re-verifying the signed bytes.) Tj
+/F1 9 Tf
+1 0 0 1 48 684 Tm
+(  Caller labels such as --by or --operator are not identity proof. The signing key stays outside) Tj
+/F1 9 Tf
+1 0 0 1 48 672 Tm
+(  automation.) Tj
+/F1 9 Tf
+1 0 0 1 48 660 Tm
+(After a manual reviewer or evaluator result is used as accepted evidence, show this instruction:) Tj
+/F2 8 Tf
+1 0 0 1 48 648 Tm
+(MANUAL TELEMETRY REQUIRED) Tj
+/F1 9 Tf
+1 0 0 1 48 636 Tm
+(Register it with the exact verified values and files; do not paste report contents into telemetry:) Tj
+/F2 8 Tf
+1 0 0 1 48 624 Tm
+(python3 tooling/agent-harness/telemetry.py --repo . record-manual \\) Tj
+/F2 8 Tf
+1 0 0 1 48 612 Tm
+(  --feature <feature-id> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 600 Tm
+(  --role <reviewer|evaluator|architecture-reviewer|verification-author> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 588 Tm
+(  --provider <provider-name> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 576 Tm
+(  --checkpoint <full-commit-id> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 564 Tm
+(  --verdict <PASS|FAIL|NEEDS-HUMAN> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 552 Tm
+(  --report <path-to-final-report> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 540 Tm
+(  --attestation <path-to-signed-attestation> \\) Tj
+/F2 8 Tf
+1 0 0 1 48 528 Tm
+(  [--task <task-id> --task-attempt <attempt>] \\) Tj
+/F2 8 Tf
+1 0 0 1 48 516 Tm
+(  [--plan-id <accepted-plan-id>]) Tj
+/F1 9 Tf
+1 0 0 1 48 504 Tm
+(Use task, attempt and plan flags only when that exact scope is present in the trusted attestation and) Tj
+/F1 9 Tf
+1 0 0 1 48 492 Tm
+(  lifecycle. An empty/revoked registry, invalid signature, stale checkpoint, mismatched identity or) Tj
+/F1 9 Tf
+1 0 0 1 48 480 Tm
+(  unavailable coverage authority means registration/coverage is not accepted. Do not substitute a file,) Tj
+/F1 9 Tf
+1 0 0 1 48 468 Tm
+(  persona name, provider statement or physical review for a signature. For SDD-OBS-001, all qualifying) Tj
+/F1 9 Tf
+1 0 0 1 48 456 Tm
+(  manual reviews/evaluations after this command became available must be registered for complete) Tj
+/F1 9 Tf
+1 0 0 1 48 444 Tm
+(  observability; omissions leave telemetry partial and block that observability DoD, without rewriting the) Tj
+/F1 9 Tf
+1 0 0 1 48 432 Tm
+(  review or authorizing a workflow transition.) Tj
+/F3 12 Tf
+1 0 0 1 48 420 Tm
+(Rollback and backend limits) Tj
+/F1 9 Tf
+1 0 0 1 48 407 Tm
+(Runtime reporting compatibility is not permission to downgrade lifecycle state. V1 records can be read) Tj
+/F1 9 Tf
+1 0 0 1 48 395 Tm
+(  for their limited reporting fields but cannot authorize v2 reuse. Runtime caches can be discarded;) Tj
+/F1 9 Tf
+1 0 0 1 48 383 Tm
+(  immutable attempt, failure, grant and manual-evidence history cannot be rewritten as cleanup. Unknown) Tj
+/F1 9 Tf
+1 0 0 1 48 371 Tm
+(  lifecycle schema/protocol, active reservation/consumption, or unsupported authority causes) Tj
+/F1 9 Tf
+1 0 0 1 48 359 Tm
+(  lifecycle-dependent commands to fail closed without mutation. Only a compatible harness may perform an) Tj
+/F1 9 Tf
+1 0 0 1 48 347 Tm
+(  explicit lossless forward migration under the lifecycle lock and expected-generation CAS.) Tj
+/F1 9 Tf
+1 0 0 1 48 335 Tm
+(The current M5.3 Design Gate is not PASS. The native macOS backend has not qualified strong descendant) Tj
+/F1 9 Tf
+1 0 0 1 48 323 Tm
+(  containment; the Docker Desktop investigation does not by itself qualify the current adapter for M5.3) Tj
+/F1 9 Tf
+1 0 0 1 48 311 Tm
+(  launches. A backend must prove protected-path enforcement and descendant drainage for its exact target) Tj
+/F1 9 Tf
+1 0 0 1 48 299 Tm
+(  and policy. Until the accepted qualification report binds those checks, execution remains blocked. No) Tj
+/F1 9 Tf
+1 0 0 1 48 287 Tm
+(  degraded auto/off mode, Docker capability label, or test image substitutes for qualification.) Tj
+/F3 12 Tf
+1 0 0 1 48 275 Tm
+(Helpful references) Tj
+/F1 9 Tf
+1 0 0 1 48 262 Tm
+(- Agentic SDD overview \(README.md\)) Tj
+/F1 9 Tf
+1 0 0 1 48 250 Tm
+(- Current verification operator reference \(verification-operator-reference.md\)) Tj
+/F1 9 Tf
+1 0 0 1 48 238 Tm
+(- Accepted SDD-OBS-001 specification \(../specs/SDD-OBS-001/spec.md\)) Tj
+/F1 9 Tf
+1 0 0 1 48 226 Tm
+(- Accepted SDD-OBS-001 plan \(../specs/SDD-OBS-001/plan.md\)) Tj
+/F1 9 Tf
+1 0 0 1 48 214 Tm
+(- Agentic SDD constitution \(constitution.md\)) Tj
+ET
+BT
+/F1 8 Tf
+1 0 0 1 48 30 Tm
+(Agentic SDD Verification Handbook) Tj
+1 0 0 1 540 30 Tm
+(3) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000134 00000 n 
+0000000231 00000 n 
+0000000326 00000 n 
+0000000428 00000 n 
+0000006277 00000 n 
+0000006423 00000 n 
+0000012908 00000 n 
+0000013054 00000 n 
+0000018056 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+18204
+%%EOF

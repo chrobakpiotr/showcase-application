@@ -4,6 +4,26 @@
 
 For the current verifier CLI syntax and implementation limits, see [Current verification operator reference](verification-operator-reference.md). It supplements this overview and accepted specs; it does not replace or revise the SDD-OBS-001 plan, its history, or the historical M5.3 gate result.
 
+The [canonical verification handbook](handbook.md) and its generated [PDF](AI_Harness_Agentic_SDD.pdf) give the end-to-end operator flow. Task-completion checks always execute fresh; integration reuse is restricted to the exact accepted plan and evidence identity. The canonical M5.3 Design Gate is **NOT PASS**. Manual reviewer/evaluator evidence requires the trusted signed-registration path; after using a manual result, show `MANUAL TELEMETRY REQUIRED` and provide the exact `record-manual` command. Neither manual telemetry nor an advisory plan authorizes execution, retry, lifecycle transitions or remote writes.
+
+### Verification v2 quick reference
+
+The planner's three decisions are `ALREADY_GREEN` (reuse complete exact-bound evidence only where policy permits), `INVALIDATED_BY_THIS_PATCH` (always run), and `RUN_NOW` (always run). Reuse binds the accepted profile/policy, command, matched inputs, dependencies, tools, artifacts and execution identity. Corrupt cache projections are rebuilt; immutable attempt/failure history remains. Task completion always reruns each declared command; integration reuse stays within the exact accepted plan.
+
+Failures remain auditable. A critical retry requires a one-shot signed human grant. Interrupted execution cannot resume until trusted ownership and descendant drainage are resolved. `python3 tooling/agent-harness/harness.py recover-verification --repo .` releases only proven-dead prestart reservations and authoritative recoverable journals. Active/uncertain ownership or pending backend drainage remains blocked (exit 6); this command does not clear all quarantine. Never manually delete unresolved ownership or drainage records: lease expiry and PID absence are not proof. Telemetry separates provider runs, task attempts, verification units, and planned/executed/reused/invalidated/blocked/failed outcomes; incomplete history and unknown cost remain `UNKNOWN`.
+
+After a manual reviewer/evaluator result is used, display **`MANUAL TELEMETRY REQUIRED`** and register the exact report plus trusted signed attestation:
+
+```bash
+python3 tooling/agent-harness/telemetry.py --repo . record-manual \
+  --feature <feature-id> --role <reviewer|evaluator|architecture-reviewer|verification-author> \
+  --provider <provider-name> --checkpoint <full-commit-id> \
+  --verdict <PASS|FAIL|NEEDS-HUMAN> --report <final-report-path> \
+  --attestation <signed-attestation-path> [--task <task-id> --task-attempt <attempt>] [--plan-id <accepted-plan-id>]
+```
+
+Registration records provenance; only trusted lifecycle state accepts plan coverage. The harness has no push, pull-request, user-branch merge, deploy or remote-tracker mutation authority. See the [canonical handbook](handbook.md) for recovery and rollback details.
+
 This repository layer adapts spec-driven, multi-agent development to the application's **existing** Java/Spring/hexagonal architecture and CI rather than replacing them. Accepted repository artifacts and deterministic gates remain authoritative; models are bounded workers.
 
 **This is the consolidated Agentic SDD baseline.** It combines Wayfinder-style discovery, adversarial design review, independent verification and bounded multi-agent execution into one repository-native workflow:
