@@ -36,6 +36,7 @@
 | `RECOVERY-METRICS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-OPS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RECOVERY-TIMELINE-001` | **CLOSED** | yes | no | no | document-only | not selected |
+| `REOPEN-EXHAUSTED-DESCENDANTS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `REOPEN-LEGACY-PACKET-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RMA-CONCURRENCY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `RUNNER-STRICT-OUTPUT-001` | UNDECLARED | yes | yes | yes | executable | selected |
@@ -43,6 +44,7 @@
 | `SDD-001` | ACCEPTED | yes | yes | yes | executable | selected |
 | `SDD-OBS-001` | DRAFT | yes | yes | yes | executable | selected |
 | `SECURITY-GATES-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `SEQUENTIAL-TASK-REPLAN-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHIP-FULFILL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHOWCASE-DOCS-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `STABILIZATION-N01-N13` | UNDECLARED | yes | yes | no | document-only | not selected |
@@ -52,6 +54,7 @@
 | `TIME-POLICY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `UNEXECUTED-START-ROLLBACK-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `WORKTREE-PROTOCOL-REFRESH-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `WORKTREE-PROTOCOL-REFRESH-ROUND4-001` | UNDECLARED | yes | yes | yes | executable | selected |
 
 ## Policy
 

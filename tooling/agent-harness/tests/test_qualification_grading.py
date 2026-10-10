@@ -84,10 +84,12 @@ class QualificationGradingProbeTest(unittest.TestCase):
         calls = []
 
         class TimedOutProcess:
-            stdout = tempfile.TemporaryFile(mode='w+b')
-            stderr = tempfile.TemporaryFile(mode='w+b')
-
             def __init__(self):
+                self._pipe_writers = []
+                for stream_name in ('stdout', 'stderr'):
+                    read_fd, write_fd = os.pipe()
+                    setattr(self, stream_name, os.fdopen(read_fd, 'rb', buffering=0))
+                    self._pipe_writers.append(write_fd)
                 self.waits = 0
                 self.killed = False
                 self.returncode = None
@@ -98,6 +100,9 @@ class QualificationGradingProbeTest(unittest.TestCase):
             def wait(self, timeout=None):
                 self.waits += 1
                 self.returncode = -9
+                for descriptor in self._pipe_writers:
+                    os.close(descriptor)
+                self._pipe_writers.clear()
                 return self.returncode
 
             def kill(self):
