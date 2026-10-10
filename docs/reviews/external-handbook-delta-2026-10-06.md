@@ -1,4 +1,4 @@
-# External handbook delta — Showcase master review — updated 2026-10-07
+# External handbook delta — Showcase master review — updated 2026-10-10
 
 Prepared for the designated owner of the separate handbook. This is a
 source-bound handoff from the Showcase repository; it does not update that
@@ -23,23 +23,17 @@ and fresh evidence against the intended handbook revision.
   focused inventory and capture evidence is in
   [`S05-03b-log-privacy-inventory-2026-10-05.md`](S05-03b-log-privacy-inventory-2026-10-05.md).
   Do not imply that ordinary logs replace the separate audit trail.
-- **S30-06 reference scope:** `c9a5fec` records accepted D1–D5: separate REF-Q
-  from PROD-Q; exact correctness/performance profiles; conditional retention A
-  bounds; minimum 06b business contract; and the reference capacity sweep.
-  S30-06 remains OPEN. P-004 and the design gate remain OPEN; no production
-  qualification, consumer enablement, or implementation completion is
-  claimed. On 2026-10-06 the user selected process-quiescence Candidate C as
-  the recommended working design for REF-Q. This does not amend `spec.md`, pass
-  the design gate, authorize implementation, or qualify REF-Q. The accepted
-  spec amendment, independent review of that future amendment, hash-bound gate
-  and exact-target prototype/failure evidence remain outstanding. Fresh
-  architecture and scope-grill follow-ups reviewed the recommendation and
-  checklist; see
-  [`p004-candidate-c-followup-review-2026-10-06.md`](../specs/S30-AMQP-POISON-001/evidence/p004-candidate-c-followup-review-2026-10-06.md).
-  See the
+- **S30-06 reference scope:** accepted D1–D5 and the narrow Candidate C
+  contract delta are recorded in the current `spec.md` and `plan.md`.
+  REF-Q and PROD-Q remain separate; S30-06 remains OPEN. The design gate is
+  still OPEN because its hash-bound verification contract, independent grills,
+  exact-target prototype/failure evidence and qualification have not passed.
+  Candidate C is the accepted REF-Q design direction, not implementation or
+  qualification evidence. No AMQP consumer is enabled and no production
+  readiness is claimed. See the
   [specification](../specs/S30-AMQP-POISON-001/spec.md),
-  [plan](../specs/S30-AMQP-POISON-001/plan.md), and [independent P-004
-  findings](../specs/S30-AMQP-POISON-001/evidence/p004-architecture-review-2026-10-06.md).
+  [plan](../specs/S30-AMQP-POISON-001/plan.md), and
+  [`candidate-c-spec-amendment-accepted-2026-10-07.md`](../specs/S30-AMQP-POISON-001/evidence/candidate-c-spec-amendment-accepted-2026-10-07.md).
 - **PostgreSQL measurement fixture:** `0c1f4e2` preserves deterministic
   synthetic fixtures and all 60 JSON plans. The evidence is described in
   [`S05-05a-postgres-query-measurement-2026-10-05.md`](S05-05a-postgres-query-measurement-2026-10-05.md).
@@ -60,20 +54,22 @@ and fresh evidence against the intended handbook revision.
   a focused regression test proves a pin change changes the digest. This
   Showcase-side consumer change does not alter ownership of the shared
   execution contract, which remains with Harness.
-- **04b reference-target qualification:** local Showcase commit `ed313f9`
-  corrects Q15/Q16 so controller A is killed and a distinct controller process
-  recovers persisted state; local report SHA-256
-  `e07c4e947ddc5f3e4e5328d86ccb98a58be14ca77e97293d69f68d9c28e84659`
-  records 24 PASS, B8 FAIL, and B10 NOT-RUN on the exact Docker Desktop target.
-  Harness 0.3.0 returns 1 and the capability remains
-  `qualified=false`/`launch_ready=false`; the target is NOT QUALIFIED. An
-  independent provisional review confirmed the report bindings and Q15/Q16
-  process-restart observations. A fresh GitHub-hosted fallback is still
-  required. GitHub currently returns 404 for the workflow on the remote
-  default branch, so T-006 is `needs-human` and T-900 remains pending. Do not
-  present the local report as a qualified backend or as production evidence.
+- **04b reference-target qualification:** the selected report under
+  [`evidence/selected/`](../specs/AH5-04B-QUAL-001/evidence/selected/) passes
+  all 26 Q01–Q16/B1–B10 checks and the pinned Harness v0.5.0 checker for the
+  exact Docker Desktop Linux guest tuple: Docker Engine 29.8.2, kernel
+  7.0.14-linuxkit, workload image digest
+  `sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5`,
+  job `local-20261008T205033Z-7939417fefb5`, qualification digest
+  `sha256:f7cdab99c3fb6b18bb25e71c99199235007553ec4c140d62b305cccff29a2600`.
+  The independent T-900 review is bound to report subject
+  `sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e`.
+  The capability is qualified for this target only; `launch_ready=false` and
+  refusal `BACKEND_UNAVAILABLE` remain. The GitHub runner is not qualified,
+  and this evidence does not claim production readiness or authorize payload
+  execution.
 
-## Current workflow status and limits
+## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
 succeeded; dependency review was skipped for this push event. CodeQL and
@@ -108,3 +104,22 @@ Showcase checkout was at local head `becfc64` when this delta was refreshed,
 15 commits ahead of the fetched `origin/main`; the green run does not cover
 those local commits. GitHub also reports the qualification fallback workflow
 missing from the remote default branch. No push was performed.
+
+### 2026-10-10 refresh
+
+On pushed `main` SHA `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`, the main CI
+[run 38047027408](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027408),
+Agentic SDD CI
+[run 38047027482](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027482),
+CodeQL
+[run 38047027494](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027494),
+and Scorecard
+[run 38047027409](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027409)
+all succeeded. The main CI covered backend, PostgreSQL and RabbitMQ evidence,
+frontend and Playwright, OWASP DependencyCheck, SBOM, Trivy, PIT, infrastructure
+validation, repository guards and documentation links. Dependency Review was
+skipped for the push event. A separate manual Agentic SDD dispatch on the older
+T-008 branch failed with stale inventory and harness-test errors; the branch
+was seven commits behind current `main`, and those failures do not change the
+successful main results. See the detailed
+[`CI evidence record`](../ci/showcase-master-review-ci-evidence-2026-10-05.md).
