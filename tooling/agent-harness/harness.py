@@ -2677,6 +2677,22 @@ def accept_manual_observation_coverage(repository: pathlib.Path, feature_id: str
         return accepted_coverage
 
 
+def cmd_accept_manual_coverage(args: argparse.Namespace) -> None:
+    try:
+        result = accept_manual_observation_coverage(
+            args.repo, args.feature, plan_id=args.plan_id,
+            observation_id=args.observation_id, obligation_id=args.obligation_id,
+            expected_feature_generation=args.expected_generation)
+    except (OSError, ValueError, RuntimeError, TypeError) as exc:
+        reason = str(exc)
+        if not reason.startswith('MANUAL_EVIDENCE_'):
+            reason = 'MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED'
+        print(json.dumps({'status': 'verification-blocked', 'reason_code': reason},
+                         sort_keys=True), file=sys.stderr)
+        raise SystemExit(5) from None
+    print(json.dumps({'status': 'accepted', 'coverage': result}, sort_keys=True))
+
+
 def reviewers(task: dict[str, Any]) -> list[str]:
     selected: list[str] = []
     for risk in task.get('risk_tags', []):
@@ -6548,6 +6564,16 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument('--repo', type=pathlib.Path, default=pathlib.Path.cwd(),
                    help='Repository checkout; recovery runs independently of feature lifecycle locks')
     s.set_defaults(func=cmd_recover_verification)
+
+    s = sub.add_parser('accept-manual-coverage',
+                       help='Accept exact plan-bound manual evidence for one obligation')
+    s.add_argument('--repo', type=pathlib.Path, default=pathlib.Path.cwd())
+    s.add_argument('--feature', required=True)
+    s.add_argument('--plan-id', required=True)
+    s.add_argument('--observation-id', required=True)
+    s.add_argument('--obligation-id', required=True)
+    s.add_argument('--expected-generation', type=int, required=True)
+    s.set_defaults(func=cmd_accept_manual_coverage)
 
     s = sub.add_parser('packet')
     s.add_argument('feature_dir', type=pathlib.Path)

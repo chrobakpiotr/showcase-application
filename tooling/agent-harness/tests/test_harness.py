@@ -35,6 +35,24 @@ class HarnessTest(unittest.TestCase):
         subprocess.run(['git', 'config', 'user.email', 'test@example.invalid'], cwd=self.root, check=True)
         subprocess.run(['git', 'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
 
+    def test_accept_manual_coverage_cli_returns_blocked_exit_five(self):
+        from verification.store import StoreError
+        stderr = io.StringIO()
+        args = harness.parser().parse_args([
+            'accept-manual-coverage', '--feature', 'TST-001',
+            '--plan-id', 'verification-plan-v2:sha256:' + 'a' * 64,
+            '--observation-id', 'b' * 64,
+            '--obligation-id', 'verification-obligation-v2:sha256:' + 'c' * 64,
+            '--expected-generation', '1',
+        ])
+        with mock.patch.object(harness, 'accept_manual_observation_coverage',
+                               side_effect=StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')), \
+             mock.patch('sys.stderr', stderr):
+            with self.assertRaises(SystemExit) as exited:
+                args.func(args)
+        self.assertEqual(5, exited.exception.code)
+        self.assertIn('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED', stderr.getvalue())
+
     def test_only_attempt_four_without_start_origin_is_partial_claim(self):
         active_retry = {'status': 'running', 'attempts': 4,
                         'active_retry_authorization': 'retry-grant'}
