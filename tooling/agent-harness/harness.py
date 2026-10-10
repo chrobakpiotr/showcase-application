@@ -1232,13 +1232,15 @@ def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id:
 
 def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id: str, *,
                                 execution_id: str) -> dict[str, Any]:
-    """Rebuild the journal projection from consumed .agent-state authority after owner death.
+    """Recover an exact reserved launch as consumed authority for safe abort.
 
-    The caller must independently prove the exact repository-admission owner is dead
-    and that no physical-launch marker exists. This function only reads immutable
-    admission/consumption facts; terminalization performs the state CAS.
+    The caller must have fenced the prior owner or caught a launch-authorizer
+    exception before the supervisor invokes the backend. A reservation without
+    consumption is consumed here, then terminalized as a safe prelaunch abort;
+    it is never released back into a launchable state.
     """
-    from verification.admission import validate_plan_admission_record, validate_plan_launch_reservation
+    from verification.admission import (build_launch_consumption_record,
+        validate_plan_admission_record, validate_plan_launch_reservation)
     from verification.store import StoreError, VerificationStore
     repository = pathlib.Path(repository).resolve(strict=True)
     plan = resolve_accepted_verification_plan(repository, plan_id)
@@ -1254,11 +1256,11 @@ def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id:
         consumption = authority.get('launch_consumptions', {}).get(unit_id)
         admission = authority.get('admissions', {}).get(unit_id)
         admission_hash = authority.get('admission_hashes', {}).get(unit_id)
-        if (not all(isinstance(item, dict) for item in (reservation, consumption, admission)) or
-                reservation.get('status') != 'launch_reserved' or
-                consumption.get('status') != 'launch_consumed' or
-                consumption.get('reservation_id') != reservation.get('reservation_id') or
-                type(admission_hash) is not str):
+        if (not isinstance(reservation, dict) or reservation.get('status') != 'launch_reserved' or
+                not isinstance(admission, dict) or type(admission_hash) is not str or
+                (consumption is not None and (not isinstance(consumption, dict) or
+                    consumption.get('status') != 'launch_consumed' or
+                    consumption.get('reservation_id') != reservation.get('reservation_id')))):
             raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
         bound_admission = store.load_admission_record(admission['admission_id'],
                                                       expected_hash=admission_hash)
@@ -1268,6 +1270,32 @@ def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id:
             raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
         validate_plan_admission_record(bound_admission, plan, units[0])
         validate_plan_launch_reservation(reservation, bound_admission)
+        if consumption is None:
+            # A crash after admission/reservation but before the consumption CAS
+            # still burns this exact launch right. The supervisor will record an
+            # ABORTED receipt and no backend launch marker can follow.
+            import uuid
+            transition_id = str(uuid.uuid4())
+            recovered_consumption = build_launch_consumption_record(
+                bound_admission, reservation, transition_id=transition_id)
+            recovered_consumption, consumption_hash = store.publish_launch_consumption_record(
+                recovered_consumption)
+            transition_id = _append_lifecycle_transition(state, feature_dir,
+                operation='launch-consumed-for-safe-abort', task_id=plan['task_id'],
+                attempt=plan['task_attempt'], generation=plan['lifecycle_generation'],
+                predecessor_ids=[reservation['transition_id']],
+                record_refs=[{'record_id': recovered_consumption['consumption_id'],
+                              'sha256': consumption_hash}], transition_id=transition_id)
+            if recovered_consumption['transition_id'] != transition_id:
+                raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+            authority = dict(authority)
+            consumption = {'consumption_id': recovered_consumption['consumption_id'],
+                'sha256': consumption_hash, 'reservation_id': reservation['reservation_id'],
+                'transition_id': transition_id, 'status': 'launch_consumed'}
+            authority['launch_consumptions'] = {**authority.get('launch_consumptions', {}),
+                                                unit_id: consumption}
+            state['verification_authority'] = authority
+            save_state(feature_dir, state)
         bound_consumption = store.load_launch_consumption_record(
             consumption.get('consumption_id'), admission=bound_admission,
             reservation=reservation, expected_hash=consumption.get('sha256'))

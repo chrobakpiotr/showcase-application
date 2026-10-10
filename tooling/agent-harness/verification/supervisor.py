@@ -165,9 +165,12 @@ def lifecycle_admitted(method):
             result = method(self, backend, **kwargs)
         except BaseException:
             # Before a durable launch marker, no external process can own the
-            # repository. Once launched, the reservation survives for recovery.
+            # repository. Preserve a started plan execution's owner fence until
+            # recovery publishes its safe-abort terminal and drain closure.
             if not (self.store.executions / execution_id / 'launching.json').exists():
-                admission.release(execution_id)
+                journal = self.store.executions / execution_id
+                if not ((journal / 'started.json').exists() and not (journal / 'drained.json').exists()):
+                    admission.release(execution_id)
             raise
         admission.release(execution_id)
         return result
@@ -660,10 +663,47 @@ class VerificationSupervisor:
                 # the repository-wide lifecycle admission active while yielding
                 # only this kernel lock, then revalidate the winner-only token.
                 runtime_lock.release()
+                authorization_error = None
                 try:
                     launch_authority = launch_authorizer(repository_admission_id, execution_id)
+                except BaseException as exc:
+                    authorization_error = exc
                 finally:
                     runtime_lock.reacquire(timeout=0)
+                if authorization_error is not None:
+                    if plan_id is not None:
+                        try:
+                            import harness as lifecycle
+                            accepted = lifecycle.resolve_accepted_verification_plan(
+                                self.store.lifecycle_root.parent, plan_id)
+                            obligations = [item for item in accepted.get('obligations', [])
+                                if isinstance(item, dict) and item.get('gate_id') == gate_id]
+                            units = [unit for unit in accepted.get('execution_units', [])
+                                if isinstance(unit, dict) and len(obligations) == 1 and
+                                obligations[0]['obligation_id'] in unit.get('obligation_ids', [])]
+                            if len(units) != 1:
+                                raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+                            recovered_authority = lifecycle.recover_prelaunch_authority(
+                                self.store.lifecycle_root.parent, plan_id, units[0]['unit_id'],
+                                execution_id=execution_id)
+                            authority_record = {'schema_version': 1, 'execution_id': execution_id,
+                                **{key: recovered_authority[key] for key in (
+                                    'reservation_id', 'consumption_id', 'plan_id', 'unit_id',
+                                    'obligation_ids', 'admission_id', 'admission_sha256',
+                                    'reservation_transition_id', 'consumption_transition_id',
+                                    'plan_acceptance_transition_id', 'lifecycle_generation')}}
+                            publish_create_once(journal / 'launch-authority.json', authority_record,
+                                                fault=self.store._fault)
+                            _fsync_directory(journal)
+                            self._recovery_active = True
+                            try:
+                                self._abort_prepared(journal, started, 'prepared-never-launched',
+                                                     runtime_lock=runtime_lock)
+                            finally:
+                                self._recovery_active = False
+                        except BaseException:
+                            raise SupervisorError('EXECUTION_LAUNCH_AUTHORITY_RECOVERY_REQUIRED') from None
+                    raise authorization_error
                 if (not isinstance(launch_authority, dict) or
                         not isinstance(launch_authority.get('reservation_id'), str) or
                         re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}',
