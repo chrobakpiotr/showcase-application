@@ -42,6 +42,12 @@ class TelemetryTest(unittest.TestCase):
         import hashlib
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.name', 'Telemetry Test'], check=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.email', 'telemetry@example.invalid'], check=True)
+            (root / 'seed.txt').write_text('seed\n', encoding='utf-8')
+            subprocess.run(['git', '-C', str(root), 'add', 'seed.txt'], check=True)
+            subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'seed'], check=True)
             checkpoint = 'a' * 40
             completed = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1)).replace(
                 microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -71,8 +77,10 @@ class TelemetryTest(unittest.TestCase):
                                      sort_keys=True, separators=(',', ':')).encode()
             attestation_digest = hashlib.sha256(attestation).hexdigest()
             report_digest = hashlib.sha256(report).hexdigest()
-            attestation_path = root / '.agent-runs/manual-attestations' / f'{attestation_digest}.json'
-            report_path = root / '.agent-runs/manual-report-snapshots' / f'{report_digest}.md'
+            from verification.store import VerificationStore
+            control_root = VerificationStore(root).root
+            attestation_path = control_root / 'manual-attestations' / f'{attestation_digest}.json'
+            report_path = control_root / 'manual-report-snapshots' / f'{report_digest}.md'
             attestation_path.parent.mkdir(parents=True)
             report_path.parent.mkdir(parents=True)
             attestation_path.write_bytes(attestation)
@@ -146,8 +154,8 @@ class TelemetryTest(unittest.TestCase):
         attestation_digest = hashlib.sha256(attestation).hexdigest()
         report = fixture['report_path'].read_bytes()
         report_digest = hashlib.sha256(report).hexdigest()
-        attestation_snapshot = fixture['root'] / '.agent-runs' / 'manual-attestations' / f'{attestation_digest}.json'
-        report_snapshot = fixture['root'] / '.agent-runs' / 'manual-report-snapshots' / f'{report_digest}.md'
+        attestation_snapshot = fixture['store'].root / 'manual-attestations' / f'{attestation_digest}.json'
+        report_snapshot = fixture['store'].root / 'manual-report-snapshots' / f'{report_digest}.md'
         attestation_snapshot.parent.mkdir(parents=True, exist_ok=True)
         report_snapshot.parent.mkdir(parents=True, exist_ok=True)
         attestation_snapshot.write_bytes(attestation)
@@ -163,7 +171,7 @@ class TelemetryTest(unittest.TestCase):
         proof = telemetry.verify_manual_observation_for_coverage(
             fixture['root'], observation, plan_binding=binding)
         self.assertEqual(binding, proof['plan_binding'])
-        report_snapshot = (fixture['root'] / '.agent-runs' / 'manual-report-snapshots' /
+        report_snapshot = (fixture['store'].root / 'manual-report-snapshots' /
                            f"{observation['report_sha256'].removeprefix('sha256:')}.md")
         original_report = report_snapshot.read_bytes()
         report_snapshot.write_bytes(original_report + b'\nchanged after registration')
@@ -603,6 +611,13 @@ class TelemetryTest(unittest.TestCase):
             saved = json.loads(record.read_text(encoding='utf-8'))
             self.assertEqual('sha256:' + __import__('hashlib').sha256(attestation_path.read_bytes()).hexdigest(),
                              saved['attestation_sha256'])
+            attestation_snapshot_path = (store.root / 'manual-attestations' /
+                (saved['attestation_sha256'].removeprefix('sha256:') + '.json'))
+            self.assertTrue(attestation_snapshot_path.is_file())
+            from verification.candidate import seal_candidate
+            seal_candidate(root, checkpoint, {'family_id': 'manual-storage-test',
+                'profile_hash': 'a' * 64, 'policy_checkpoint': 'b' * 40,
+                'origin_policy': 'task-completion'})
             import harness as lifecycle
             state_doc = lifecycle.load_validated(feature_dir)
             state = lifecycle.load_state(feature_dir, state_doc)
@@ -612,13 +627,11 @@ class TelemetryTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
                 telemetry.verify_manual_observation_for_coverage(
                     root, saved, plan_binding={'plan_id': 'caller-selected-plan'})
-            attestation_snapshot = (root / '.agent-runs' / 'manual-attestations' /
-                                    (saved['attestation_sha256'].removeprefix('sha256:') + '.json'))
-            original = attestation_snapshot.read_bytes()
-            attestation_snapshot.write_bytes(original + b' ')
+            original = attestation_snapshot_path.read_bytes()
+            attestation_snapshot_path.write_bytes(original + b' ')
             with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
                 telemetry.verify_manual_observation_for_coverage(root, saved)
-            attestation_snapshot.write_bytes(original)
+            attestation_snapshot_path.write_bytes(original)
 
             malformed_outer = json.loads(original)
             malformed_outer['signature'] = ('A' if malformed_outer['signature'][0] != 'A' else 'B') + malformed_outer['signature'][1:]
@@ -661,6 +674,22 @@ class TelemetryTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_REPORT_INVALID'):
                 telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
                     provider='manual', checkpoint=checkpoint, verdict='PASS', report='README.md')
+
+    def test_builder_task_rejects_reviewer_role_before_registration(self):
+        import harness as lifecycle
+        fixture = self._signed_manual_fixture()
+        self.addCleanup(fixture['temporary'].cleanup)
+        self._refresh_signed_fixture(fixture, envelope_changes={'task_id': 'T-001'})
+        fixture['envelope']['role'] = 'reviewer'
+        self._resign_envelope_only(fixture)
+        with mock.patch.object(lifecycle, 'register_manual_observation') as register:
+            with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_REPORT_INVALID'):
+                telemetry.record_manual(repo=fixture['root'], feature='TST-MANUAL', role='reviewer',
+                    provider='manual', checkpoint=fixture['requested_checkpoint'], verdict='PASS',
+                    report=fixture['report_path'].relative_to(fixture['root'].resolve()).as_posix(),
+                    task='T-001', attestation=fixture['attestation_path'].relative_to(
+                        fixture['root'].resolve()).as_posix())
+            register.assert_not_called()
 
     def test_manual_report_rejects_future_or_non_whole_second_completion_time(self):
         template = ('Feature: `TST-MANUAL`\nReviewed checkpoint: `{}`\n'

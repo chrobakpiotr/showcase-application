@@ -427,6 +427,18 @@ def _store_manual_snapshot(path: pathlib.Path, payload: bytes) -> None:
         os.close(directory_fd)
 
 
+def _manual_snapshot_relative(repository: pathlib.Path, category: str, digest: str) -> str:
+    """Address immutable proof bytes only beneath the excluded verification control root."""
+    from verification.store import VerificationStore
+    repository = pathlib.Path(repository).resolve(strict=True)
+    control_root = VerificationStore(repository).root
+    try:
+        prefix = control_root.relative_to(repository).as_posix()
+    except ValueError:
+        raise ValueError('MANUAL_EVIDENCE_AUTHORITY_UNAVAILABLE') from None
+    return f'{prefix}/manual-{category}/{digest}.{"json" if category == "attestations" else "md"}'
+
+
 def verify_manual_observation_for_coverage(repository: pathlib.Path,
                                           observation: dict[str, Any], *,
                                           plan_binding: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -478,10 +490,10 @@ def verify_manual_observation_for_coverage(repository: pathlib.Path,
     attestation_digest = observation['attestation_sha256'].removeprefix('sha256:')
     report_digest = observation['report_sha256'].removeprefix('sha256:')
     attestation_bytes, _ = _read_manual_input(
-        repository, f'.agent-runs/manual-attestations/{attestation_digest}.json', limit=65536,
+        repository, _manual_snapshot_relative(repository, 'attestations', attestation_digest), limit=65536,
         reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
     report_bytes, _ = _read_manual_input(
-        repository, f'.agent-runs/manual-report-snapshots/{report_digest}.md', limit=1024 * 1024,
+        repository, _manual_snapshot_relative(repository, 'report-snapshots', report_digest), limit=1024 * 1024,
         reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
     if (hashlib.sha256(attestation_bytes).hexdigest() != attestation_digest or
             hashlib.sha256(report_bytes).hexdigest() != report_digest):
@@ -698,8 +710,6 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         tasks = json.loads(task_index_path.read_text(encoding='utf-8'))
         task_doc = next((item for item in tasks.get('tasks', []) if item.get('id') == task), None)
         compatible_roles = {task_doc.get('role'), task_doc.get('agent_profile'), *task_doc.get('required_reviewers', [])} if task_doc else set()
-        if role == 'reviewer' and task_doc and task_doc.get('role') == 'builder':
-            compatible_roles.add('reviewer')
         if task_doc is None or role not in compatible_roles:
             raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
     elif 'Task' in fields:
@@ -815,7 +825,8 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         attestation_payload, repository=primary, expected=expected_envelope)
     # Keep the exact bytes addressable for any later coverage decision. A later
     # coverage consumer must re-run signature and scope validation from these bytes.
-    runs_root = primary / '.agent-runs'
+    from verification.store import VerificationStore
+    runs_root = VerificationStore(primary).root
     attestation_store = runs_root / 'manual-attestations' / (attestation_sha + '.json')
     report_store = runs_root / 'manual-report-snapshots' / (hashlib.sha256(payload).hexdigest() + '.md')
     _store_manual_snapshot(attestation_store, attestation_payload)
