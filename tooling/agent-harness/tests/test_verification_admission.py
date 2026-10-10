@@ -249,6 +249,14 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
         self.assertEqual(terminal['receipt_hash'], replayed['terminal_receipt_hash'])
         self.assertEqual(revision_after_terminal,
                          control_harness.load_state(self.feature, self.doc)['state_revision'])
+        replay_state = control_harness.load_state(self.feature, self.doc)
+        replay_authority = replay_state['verification_authority']
+        replay_authority['launch_reservations'][unit['unit_id']]['terminal_receipt_hash'] = 'f' * 64
+        replay_authority['launch_consumptions'][unit['unit_id']]['terminal_receipt_hash'] = 'f' * 64
+        control_harness.save_state(self.feature, replay_state)
+        with self.assertRaisesRegex(StoreError, 'VERIFICATION_TERMINAL_CONFLICT'):
+            control_harness.terminalize_verification_execution(
+                self.fixture.root, terminal, repository_admission_id=terminal['execution_id'])
         self.assertEqual(marker['consumption_id'], terminal['launch_consumption_id'])
         self.assertEqual(unit['obligation_ids'], marker['obligation_ids'])
         forged = {key: value for key, value in terminal.items() if key != 'receipt_hash'}
@@ -310,6 +318,15 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
                 plan_id=accepted['plan_id'], launch_authorizer=authorize)
         state = control_harness.load_state(self.feature, self.doc)
         self.assertEqual('launch_consumed', state['verification_authority']['launch_consumptions'][unit['unit_id']]['status'])
+        journal = next(store.executions.iterdir())
+        authority_path = journal / 'launch-authority.json'
+        valid_authority = authority_path.read_bytes()
+        authority_path.write_text('{ invalid', encoding='utf-8')
+        uncertain = VerificationSupervisor(VerificationStore(self.fixture.root)).recover()
+        self.assertEqual('UNCERTAIN', uncertain[0].state.value)
+        self.assertEqual('EXECUTION_LAUNCH_AUTHORITY_INVALID', uncertain[0].reason_code)
+        self.assertFalse((journal / 'terminal.json').exists())
+        authority_path.write_bytes(valid_authority)
         recovery = VerificationSupervisor(VerificationStore(self.fixture.root))
         with mock.patch.object(recovery, '_terminalize_lifecycle_authority'):
             recovered = recovery.recover()

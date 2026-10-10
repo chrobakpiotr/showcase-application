@@ -14,6 +14,40 @@ from verification.store import (StoreError, VerificationStore, publish_create_on
 
 
 class StoreTest(unittest.TestCase):
+    def test_plan_abort_without_launch_marker_requires_zero_invocation_receipt(self):
+        from verification.store import _plan_launch_binding
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = pathlib.Path(temporary)
+            authority = {
+                'schema_version': 1, 'execution_id': 'exec-1', 'plan_id': 'plan-1',
+                'reservation_id': 'launch-reservation-v1:sha256:' + '1' * 64,
+                'consumption_id': 'launch-consumption-v1:sha256:' + '2' * 64,
+                'unit_id': 'unit-1',
+                'admission_id': 'verification-admission-v1:sha256:' + '3' * 64,
+                'admission_sha256': '4' * 64,
+                'reservation_transition_id': 'reservation-transition',
+                'consumption_transition_id': 'consumption-transition',
+                'plan_acceptance_transition_id': 'acceptance-transition',
+                'lifecycle_generation': 1,
+                'obligation_ids': ['verification-obligation-v2:sha256:' + '5' * 64],
+            }
+            (directory / 'launch-authority.json').write_text(json.dumps(authority), encoding='utf-8')
+            started = {'execution_id': 'exec-1', 'plan_id': 'plan-1'}
+            linked = {
+                'launch_reservation_id': authority['reservation_id'],
+                'launch_consumption_id': authority['consumption_id'],
+                **{key: authority[key] for key in ('plan_id', 'unit_id', 'obligation_ids',
+                    'admission_id', 'admission_sha256', 'reservation_transition_id',
+                    'consumption_transition_id', 'plan_acceptance_transition_id',
+                    'lifecycle_generation')},
+                'result': 'ABORTED', 'harness_invocation_upper_bound': 0,
+                'timed_out': False, 'cancelled': False, 'output_observation': 'UNAVAILABLE',
+            }
+            self.assertEqual(authority, _plan_launch_binding(directory, started, linked))
+            with self.assertRaisesRegex(StoreError, 'invalid-execution-terminal'):
+                _plan_launch_binding(directory, started,
+                                     {**linked, 'harness_invocation_upper_bound': 1})
+
     def test_plan_record_publish_and_load_validate_against_repository(self):
         from verification.authority import validate_plan_record
         with tempfile.TemporaryDirectory() as temp:
