@@ -18,6 +18,22 @@ from verification.admission import process_start_token
 
 
 class RepositoryAdmissionTest(unittest.TestCase):
+    def test_safe_abort_proof_rejects_fabricated_terminal_without_durable_journal(self):
+        from verification.store import VerificationStore
+        from verification.supervisor import (SupervisorError, VerificationSupervisor,
+                                              _safe_prelaunch_abort_proof)
+        with tempfile.TemporaryDirectory() as temp:
+            subprocess.run(['git', 'init', '-q', temp], check=True)
+            supervisor = VerificationSupervisor(VerificationStore(pathlib.Path(temp)))
+            supervisor._recovery_active = True
+            terminal = {'execution_id': 'forged-execution', 'receipt_hash': 'f' * 64,
+                'started_hash': 'a' * 64, 'result': 'ABORTED',
+                'harness_invocation_upper_bound': 0, 'timed_out': False,
+                'cancelled': False, 'output_observation': 'UNAVAILABLE'}
+            with self.assertRaisesRegex(SupervisorError, 'SAFE_PRELAUNCH_ABORT_PROOF_UNAVAILABLE'):
+                _safe_prelaunch_abort_proof(supervisor, pathlib.Path(temp) / 'missing',
+                    'forged-execution', terminal, reason='prepared-never-launched')
+
     def test_launch_capability_is_single_use(self):
         from verification.admission import issue_launch_capability, validate_launch_capability
         capability = issue_launch_capability('consumption-1', 'reservation-1')
