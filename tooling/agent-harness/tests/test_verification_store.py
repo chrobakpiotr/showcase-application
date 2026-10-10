@@ -6,6 +6,7 @@ import subprocess
 import threading
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from verification.store import (StoreError, VerificationStore, publish_create_once, resolve_control_root,
@@ -13,6 +14,22 @@ from verification.store import (StoreError, VerificationStore, publish_create_on
 
 
 class StoreTest(unittest.TestCase):
+    def test_plan_record_publish_and_load_validate_against_repository(self):
+        from verification.authority import validate_plan_record
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'store')
+            record = {'plan_id': 'verification-plan-v2:sha256:' + 'a' * 64}
+            with mock.patch('verification.authority.validate_plan_record') as validate:
+                store.publish_plan_record(record)
+                validate.assert_called_once_with(record, repository=root)
+            path = store.plans / ( __import__('hashlib').sha256(record['plan_id'].encode()).hexdigest() + '.json')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(record), encoding='utf-8')
+            with mock.patch('verification.authority.validate_plan_record') as validate:
+                store.load_plan_record(record['plan_id'])
+                validate.assert_called_once_with(record, repository=root)
+
     def test_create_once_is_idempotent_and_collision_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             path = pathlib.Path(temp).resolve() / 'immutable.json'

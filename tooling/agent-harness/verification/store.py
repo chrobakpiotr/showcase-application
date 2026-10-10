@@ -586,6 +586,7 @@ class VerificationStore:
             # Production entry points omit this argument and require Git identity.
             repository_id = hashlib.sha256(str(pathlib.Path(repository).resolve()).encode()).hexdigest()
         self.root = pathlib.Path(control_root).resolve()
+        self.repository = pathlib.Path(repository).resolve(strict=True)
         self.lifecycle_root = (self.root / 'lifecycle-authority' if isolated_control_root
                                else self.root.parents[2] / '.agent-state')
         self.issuer_registry = (pathlib.Path(issuer_registry) if issuer_registry is not None else
@@ -609,7 +610,7 @@ class VerificationStore:
     def publish_plan_record(self, record: dict) -> dict:
         """Publish a content-addressed immutable plan; this is subordinate only."""
         from .authority import validate_plan_record
-        validate_plan_record(record)
+        validate_plan_record(record, repository=self.repository)
         path = self.plans / (hashlib.sha256(record['plan_id'].encode()).hexdigest() + '.json')
         _assert_contained(path, self.root)
         publish_create_once(path, record, fault=self._fault)
@@ -625,7 +626,7 @@ class VerificationStore:
         except (OSError, ValueError):
             raise StoreError('ACCEPTED_PLAN_UNAVAILABLE') from None
         from .authority import validate_plan_record
-        validate_plan_record(record)
+        validate_plan_record(record, repository=self.repository)
         if record.get('plan_id') != plan_id:
             raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
         return record
