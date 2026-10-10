@@ -1,4 +1,4 @@
-# Showcase master review progress — updated 2026-10-07
+# Showcase master review progress — updated 2026-10-10
 
 This is a source-bound implementation handoff for the Showcase slice of the
 master review plan. It is not a whole-repository audit, evaluator approval,
@@ -10,7 +10,7 @@ estimated at 70–80%). This is not the percentage for the combined
 Showcase+Harness+Benchmark master plan; those task states are not aggregated
 here.
 
-## Task status at this snapshot
+## Task status at this snapshot — 2026-10-10
 
 | Task | Status | Evidence and remaining work |
 |---|---|---|
@@ -25,13 +25,13 @@ here.
 | S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. Latest main evidence is now available for pushed SHA `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`: CI run [`38047027408`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027408), Agentic SDD CI [`38047027482`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027482), CodeQL [`38047027494`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027494), and Scorecard [`38047027409`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027409) all completed successfully on 2026-10-10. The main CI jobs passed, including Java 25 backend build/quality/tests, critical PostgreSQL and RabbitMQ evidence, Playwright, frontend, OWASP DependencyCheck, SBOM, Trivy, PIT, infrastructure validation, repository guards, and documentation links. Dependency Review was skipped because the event was a push. The Agentic SDD protocol, harness, examples, and behavioral-evaluation jobs also passed. A manually dispatched Agentic SDD workflow on the older T-008 branch (`3d9c4bf`) later failed; that branch was seven commits behind current main and reported stale spec inventory plus harness-test failures. It does not change the green main result or qualify the T-008 branch against current main. Earlier #154/#155/#157/#158 remain historical. See [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). The source-linked delta in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md) is refreshed, including the latest 04b qualification; the designated owner still must apply it to the separate handbook. This repo-only task does not edit another repository. |
 | S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. Local follow-up `a675836` adds an exact PURL+advisory suppression for `GHSA-6688-9rhm-gjv2` through the existing 2026-11-03 review deadline, with the CVSS threshold unchanged. Seven validator tests passed, forced DependencyCheck scans for `:adapter:web` and `:application:ecommerce` reported zero unsuppressed vulnerabilities, and OWASP succeeded on pushed `a6fac3c33376` in run `37512052634`. The advisory remains accepted risk pending its removal condition, not a remediated dependency. |
 
-The source handover reviewed `50c18f9`; app source and browser evidence are
-current through `1cc2d15`, the proposal refinements are `048a945`, `33f7e4a`,
-and `8e8ed37`; formatting follow-up is `61aa560`. CI follow-up commits
-`85bb440`, `2db5e48`, `0eab56f`, `a675836`, and `c9a5fec` are local only. Run
-#154 qualifies pushed SHA `50c18f9`;
-run #155 records failures on pushed SHA `91d4671`. Local fixes do not qualify a
-remote workflow or deployment. No external handbook state is inferred.
+The master handover's original review baseline was `50c18f9`; the current
+Showcase `main` snapshot for this update is `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`.
+Earlier source-level and CI results above remain historical; current remote
+workflow evidence is recorded in the linked CI evidence document. S05-04 is
+still IN REVIEW because the S30-06 design gate is open. S05-07 remains PARTIAL
+until the designated owner applies this source-linked delta to the separate
+handbook; no external handbook state is inferred.
 
 ## External handbook delta for its owner
 
