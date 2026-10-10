@@ -905,6 +905,10 @@ class VerificationSupervisor:
                         admission = RepositoryAdmission(self.store.lifecycle_root,
                                                         self.store.repository_id)
                         active = admission.active()
+                        # _recover_locked holds the repository runtime lock.
+                        # With no admission, or with this exact admission's
+                        # owner proven dead, no compliant supervisor can still
+                        # be between the durable marker and launch primitive.
                         if (active is None or
                                 (isinstance(active, dict) and active.get('id') == execution_id and
                                  admission.owner_is_proven_dead(execution_id))):
