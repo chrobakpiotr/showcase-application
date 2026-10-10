@@ -284,6 +284,20 @@ class TelemetryTest(unittest.TestCase):
         fixture['envelope'] = envelope
         fixture['attestation_path'].write_bytes(canonical_jcs({'envelope': envelope, 'signature': signature}))
 
+    def _resign_envelope_only(self, fixture, **changes):
+        """Keep report evidence valid while mutating only signed attestation scope."""
+        import base64
+        import hashlib
+        from verification.serialization import canonical_jcs
+
+        envelope = dict(fixture['envelope'])
+        envelope.update(changes)
+        report = fixture['report_path'].read_bytes()
+        envelope['report_sha256'] = 'sha256:' + hashlib.sha256(report).hexdigest()
+        signature = base64.urlsafe_b64encode(fixture['key'].sign(canonical_jcs(envelope))).decode().rstrip('=')
+        fixture['envelope'] = envelope
+        fixture['attestation_path'].write_bytes(canonical_jcs({'envelope': envelope, 'signature': signature}))
+
     def test_plan_bound_manual_registration_flows_into_coverage_cas(self):
         from types import SimpleNamespace
         import harness as lifecycle
@@ -357,6 +371,32 @@ class TelemetryTest(unittest.TestCase):
         self.assertEqual(plan_id, accepted['plan_id'])
         self.assertEqual(checkpoint, accepted['reviewed_checkpoint'])
 
+        # The accepted transition is part of the observation's semantic identity:
+        # identical review facts under a later acceptance must not replay the old ID.
+        second_transition_id = '22222222-2222-4222-8222-222222222222'
+        state = lifecycle.load_state(feature_dir, doc)
+        state['verification_authority']['plan_acceptance_transition_id'] = second_transition_id
+        lifecycle.save_state(feature_dir, state)
+        fixture['envelope']['plan_acceptance_transition_id'] = second_transition_id
+        self._refresh_signed_fixture(fixture, envelope_changes={
+            'task_id': task_id, 'candidate_identity': plan['candidate_identity'],
+            'final_surface_identity': plan['final_changed_surface_id'], 'attempt': attempt,
+            'plan_id': plan_id, 'family_id': family['id'],
+            'plan_acceptance_transition_id': second_transition_id,
+            'lifecycle_generation': 1, 'obligation_ids': [obligation_id],
+        })
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile', return_value=SimpleNamespace(gates=(gate,))), \
+             mock.patch('verification.candidate.seal_candidate', return_value=seal):
+            second_record = telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                provider='manual', checkpoint=checkpoint, verdict='PASS',
+                report=fixture['report_path'].relative_to(root.resolve()).as_posix(),
+                task=task_id, task_attempt='1', plan_id=plan_id,
+                attestation=fixture['attestation_path'].relative_to(root.resolve()).as_posix())
+        second_observation = json.loads(second_record.read_text(encoding='utf-8'))
+        self.assertNotEqual(observation['observation_id'], second_observation['observation_id'])
+
     def _assert_rejected_before_lifecycle_register(self, fixture, expected='MANUAL_EVIDENCE_ATTESTATION_INVALID'):
         import harness as lifecycle
         with mock.patch.object(lifecycle, 'register_manual_observation') as register:
@@ -411,13 +451,13 @@ class TelemetryTest(unittest.TestCase):
     def test_manual_attestation_rejects_valid_signature_for_different_task_before_register(self):
         fixture = self._signed_manual_fixture()
         self.addCleanup(fixture['temporary'].cleanup)
-        self._refresh_signed_fixture(fixture, envelope_changes={'task_id': 'T-900'})
+        self._resign_envelope_only(fixture, task_id='T-900')
         self._assert_rejected_before_lifecycle_register(fixture)
 
     def test_manual_attestation_rejects_valid_signature_for_different_attempt_before_register(self):
         fixture = self._signed_manual_fixture()
         self.addCleanup(fixture['temporary'].cleanup)
-        self._refresh_signed_fixture(fixture, envelope_changes={'task_id': 'T-001', 'attempt': 3})
+        self._resign_envelope_only(fixture, task_id='T-001', attempt=3)
         self._assert_rejected_before_lifecycle_register(fixture)
 
     def test_manual_attestation_rejects_valid_signature_for_different_report_digest_before_register(self):

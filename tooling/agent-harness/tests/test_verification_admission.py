@@ -244,7 +244,7 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
     def test_consumed_authority_without_launch_marker_recovers_as_safe_abort(self):
         import harness as control_harness
         from verification.authority import resolve_accepted
-        from verification.store import VerificationStore
+        from verification.store import StoreError, VerificationStore
         from verification.supervisor import VerificationSupervisor
         from test_verification_supervisor import LifecycleBackend
 
@@ -294,7 +294,9 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
                 plan_id=accepted['plan_id'], launch_authorizer=authorize)
         state = control_harness.load_state(self.feature, self.doc)
         self.assertEqual('launch_consumed', state['verification_authority']['launch_consumptions'][unit['unit_id']]['status'])
-        recovered = VerificationSupervisor(VerificationStore(self.fixture.root)).recover()
+        recovery = VerificationSupervisor(VerificationStore(self.fixture.root))
+        with mock.patch.object(recovery, '_terminalize_lifecycle_authority'):
+            recovered = recovery.recover()
         self.assertEqual('ABORTED_PREPARED', recovered[0].state.value, recovered[0].reason_code)
         terminal = recovered[0].terminal
         self.assertEqual('ABORTED', terminal['result'])
@@ -303,6 +305,17 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
         self.assertTrue((journal / 'launch-authority.json').is_file())
         self.assertFalse((journal / 'launching.json').exists())
         self.assertNotIn('launch', backend.events)
+        # The immutable receipt and absent launch marker are necessary but not
+        # sufficient: only the supervisor's independently checked recovery
+        # path may authorize the lifecycle safe-abort CAS.
+        with self.assertRaisesRegex(StoreError, 'SAFE_PRELAUNCH_ABORT_PROOF_REQUIRED'):
+            control_harness.terminalize_verification_execution(
+                self.fixture.root, terminal, repository_admission_id=terminal['execution_id'])
+        # Simulate a crash before durable drainage after terminal publication;
+        # recovery must recreate the trusted proof from the journal state.
+        (journal / 'drained.json').unlink()
+        recovered = VerificationSupervisor(VerificationStore(self.fixture.root)).recover()
+        self.assertEqual('TERMINAL_RECONSTRUCTED', recovered[0].reason_code)
         state = control_harness.load_state(self.feature, self.doc)
         authority_state = state['verification_authority']
         self.assertEqual('safe_prelaunch_abort', authority_state['launch_reservations'][unit['unit_id']]['status'])

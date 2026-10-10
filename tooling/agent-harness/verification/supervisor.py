@@ -46,6 +46,41 @@ class RecoveryResult:
     terminal: dict | None = None
 
 
+_SAFE_ABORT_PROOF_SEAL = object()
+
+
+@dataclass(frozen=True)
+class SafePrelaunchAbortProof:
+    """Process-local authority minted only by the supervisor's abort path."""
+    execution_id: str
+    receipt_hash: str
+    started_hash: str
+    _seal: object
+
+
+def _safe_prelaunch_abort_proof(journal: pathlib.Path, started: dict,
+                                terminal: dict, *, reason: str) -> SafePrelaunchAbortProof:
+    # The two callers are the recovery paths that independently establish
+    # non-launch: absent durable launch marker after the dead owner was
+    # recovered, or a backend's explicit NOT_LAUNCHED result.
+    if (reason not in {'prepared-never-launched', 'backend-proved-not-launched'} or
+            (journal / 'launching.json').exists() or terminal.get('result') != 'ABORTED' or
+            terminal.get('harness_invocation_upper_bound') != 0 or
+            terminal.get('timed_out') is not False or terminal.get('cancelled') is not False or
+            terminal.get('output_observation') != 'UNAVAILABLE' or
+            terminal.get('execution_id') != started.get('execution_id')):
+        raise SupervisorError('SAFE_PRELAUNCH_ABORT_PROOF_UNAVAILABLE')
+    return SafePrelaunchAbortProof(terminal['execution_id'], terminal['receipt_hash'],
+                                   terminal['started_hash'], _SAFE_ABORT_PROOF_SEAL)
+
+
+def validate_safe_prelaunch_abort_proof(proof, terminal: dict) -> bool:
+    return (isinstance(proof, SafePrelaunchAbortProof) and proof._seal is _SAFE_ABORT_PROOF_SEAL and
+            proof.execution_id == terminal.get('execution_id') and
+            proof.receipt_hash == terminal.get('receipt_hash') and
+            proof.started_hash == terminal.get('started_hash'))
+
+
 def lifecycle_admitted(method):
     """Reserve canonical repository admission before runtime ownership is acquired."""
     @functools.wraps(method)
@@ -839,7 +874,28 @@ class VerificationSupervisor:
                                 if item['execution_id'] == execution_id)
                 self._reconcile_phase_d(terminal, started)
                 if runtime_lock is not None:
-                    self._terminalize_lifecycle_authority(terminal, runtime_lock)
+                    proof = None
+                    if (terminal.get('result') == 'ABORTED' and
+                            terminal.get('harness_invocation_upper_bound') == 0 and
+                            terminal.get('output_observation') == 'UNAVAILABLE' and
+                            not (journal / 'launching.json').exists()):
+                        admission = RepositoryAdmission(self.store.lifecycle_root,
+                                                        self.store.repository_id)
+                        active = admission.active()
+                        if (active is None or
+                                (isinstance(active, dict) and active.get('id') == execution_id and
+                                 admission.owner_is_proven_dead(execution_id))):
+                            proof = _safe_prelaunch_abort_proof(
+                                journal, started, terminal, reason='prepared-never-launched')
+                    try:
+                        self._terminalize_lifecycle_authority(terminal, runtime_lock,
+                                                             safe_abort_proof=proof)
+                    except StoreError as exc:
+                        if str(exc) == 'SAFE_PRELAUNCH_ABORT_PROOF_REQUIRED':
+                            recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                                                            'SAFE_PRELAUNCH_ABORT_OWNER_NOT_FENCED'))
+                            continue
+                        raise
                 self.store.rebuild_terminal_evidence(terminal)
                 self._publish_drained(journal, started, terminal['receipt_hash'],
                                       reason='recovered-terminal-closure')
@@ -955,7 +1011,8 @@ class VerificationSupervisor:
                                              'TERMINAL_RECONSTRUCTED', terminal))
         return tuple(recovered)
 
-    def _terminalize_lifecycle_authority(self, terminal: dict, runtime_lock) -> None:
+    def _terminalize_lifecycle_authority(self, terminal: dict, runtime_lock, *,
+                                        safe_abort_proof: SafePrelaunchAbortProof | None = None) -> None:
         if not terminal.get('plan_id') or not terminal.get('launch_consumption_id'):
             return
         runtime_lock.release()
@@ -963,7 +1020,8 @@ class VerificationSupervisor:
             import harness
             harness.terminalize_verification_execution(
                 self.store.lifecycle_root.parent, terminal,
-                repository_admission_id=terminal.get('execution_id'))
+                repository_admission_id=terminal.get('execution_id'),
+                safe_abort_proof=safe_abort_proof)
         finally:
             runtime_lock.reacquire(timeout=0)
 
@@ -991,7 +1049,8 @@ class VerificationSupervisor:
         terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                         if item['execution_id'] == execution_id)
         if runtime_lock is not None:
-            self._terminalize_lifecycle_authority(terminal, runtime_lock)
+            proof = _safe_prelaunch_abort_proof(journal, started, terminal, reason=reason)
+            self._terminalize_lifecycle_authority(terminal, runtime_lock, safe_abort_proof=proof)
         self._publish_drained(journal, started, terminal['receipt_hash'], reason=reason)
         return RecoveryResult(execution_id, SupervisorState.ABORTED_PREPARED,
                               'PREPARED_NOT_LAUNCHED', terminal)

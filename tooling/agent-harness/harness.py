@@ -1286,7 +1286,8 @@ def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id:
 
 
 def terminalize_verification_execution(repository: pathlib.Path, terminal: dict, *,
-                                        repository_admission_id: str) -> dict:
+                                        repository_admission_id: str,
+                                        safe_abort_proof=None) -> dict:
     """CAS-bind a drained receipt to the exact consumed plan reservation."""
     from verification.store import StoreError, VerificationStore
     required = ('plan_id', 'unit_id', 'launch_reservation_id', 'launch_consumption_id',
@@ -1351,6 +1352,9 @@ def terminalize_verification_execution(repository: pathlib.Path, terminal: dict,
             if (reservation.get('status') != 'launch_reserved' or
                     consumption.get('status') != 'launch_consumed'):
                 raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+            from verification.supervisor import validate_safe_prelaunch_abort_proof
+            if not validate_safe_prelaunch_abort_proof(safe_abort_proof, terminal):
+                raise StoreError('SAFE_PRELAUNCH_ABORT_PROOF_REQUIRED')
             before = state.get('state_revision', 0)
             import uuid
             transition_id = str(uuid.uuid4())
