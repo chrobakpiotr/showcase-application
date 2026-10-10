@@ -27,6 +27,10 @@ def run_fixture_test(test_case):
 
 
 class VerificationLifecycleTest(unittest.TestCase):
+    def test_real_plan_registration_and_coverage_proof(self):
+        run_fixture_test(test_telemetry.TelemetryTest(
+            'test_real_plan_registration_and_coverage_use_committed_profile_and_signature'))
+
     def test_signed_plan_bound_registration_reaches_coverage_cas(self):
         run_fixture_test(test_telemetry.TelemetryTest(
             'test_plan_bound_manual_registration_flows_into_coverage_cas'))
@@ -39,6 +43,23 @@ class VerificationLifecycleTest(unittest.TestCase):
     def test_sigkill_between_consumption_and_launch_marker(self):
         run_fixture_test(test_verification_admission.PlanExecutionAdmissionTest(
             'test_sigkill_after_consumption_before_authority_journal_is_recoverable'))
+
+    @unittest.skipUnless(hasattr(__import__('os'), 'fork'), 'requires POSIX process termination semantics')
+    def test_sigkill_between_reservation_and_consumption(self):
+        run_fixture_test(test_verification_admission.PlanExecutionAdmissionTest(
+            'test_sigkill_after_reservation_before_consumption_is_terminalized'))
+
+    def test_consume_then_exception_terminalizes_without_stranding(self):
+        run_fixture_test(test_verification_admission.PlanExecutionAdmissionTest(
+            'test_exception_after_consumption_is_terminalized_without_stranding_admission'))
+
+    def test_reserve_then_exception_terminalizes_without_stranding(self):
+        run_fixture_test(test_verification_admission.PlanExecutionAdmissionTest(
+            'test_exception_after_reservation_is_terminalized_without_stranding_admission'))
+
+    def test_executor_uses_lifecycle_launch_authorizer(self):
+        run_fixture_test(test_verification_admission.PlanExecutionAdmissionTest(
+            'test_execute_plan_wires_exact_lifecycle_launch_authority'))
 
 
 if __name__ == '__main__':

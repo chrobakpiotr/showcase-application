@@ -185,6 +185,29 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
         self.plan = authority.prepare_task_plan(self.fixture.root, self.feature, 'T-001', 1,
             checkpoint, self.doc['tasks'][0]['verification'])
 
+    def test_execute_plan_wires_exact_lifecycle_launch_authority(self):
+        import harness as control_harness
+        from verification.authority import resolve_execution
+        from verification.executor import execute_plan
+        from verification.store import VerificationStore
+        from test_verification_supervisor import LifecycleBackend
+
+        accepted, profile, plan, _units = resolve_execution(self.fixture.root, self.plan['plan_id'])
+        store = VerificationStore(self.fixture.root)
+        backend = LifecycleBackend(store, self.fixture.root.parent / 'executor-controlled-backend')
+        with mock.patch('verification.executor.CommandExecutionBackend', return_value=backend):
+            result = execute_plan(self.fixture.root, profile, plan, store=store,
+                attempt_id='executor-lifecycle-test', sandbox_mode='required',
+                authority_context=accepted)
+
+        self.assertTrue(backend.events.count('launch') > 0, result.to_record())
+        state = control_harness.load_state(self.feature, self.doc)
+        authority = state['verification_authority']
+        reservations = list(authority['launch_reservations'].values())
+        self.assertTrue(reservations)
+        self.assertTrue(all(item['status'] == 'execution_terminal' for item in reservations))
+        self.assertEqual(len(reservations), backend.events.count('launch'))
+
     def test_supervisor_consumes_exact_lifecycle_reservation_before_launch(self):
         import harness as control_harness
         from verification.store import StoreError, VerificationStore
