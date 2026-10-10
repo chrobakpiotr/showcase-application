@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 4,
+  "decided_by": "Piotr (owner decision 2026-10-10)",
+  "decision": "Owner decision 2026-10-10: sequentially replan T-009 to add the T-001 profile/model/schema/planner/test files and Showcase profile/test only as needed, establishing required_manual_reviewer_principal solely from the accepted profile and adding the per-gate origin policy required by AC-OBS-043. Include the specified red-first test_seam cases for missing/ambiguous principal, identity binding and plan-id changes, cross-principal signature rejection, and prevention of untrusted origin upgrades. T-001 and T-006 remain historical; T-900 evaluates the combined result. Preserve and reconcile the current T-009 implementation, then send it for implementation review with coverage cases and safe prelaunch-abort terminalization.",
+  "feature": "SDD-OBS-001",
+  "prior_evidence": null,
+  "prior_reason": "Owner-approved sequential scope replan: accepted-profile reviewer principal and per-gate origin policy are absent from current packet; preserve attempt 4 and its implementation checkpoint before replan.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-09T22:22:44.149882+00:00",
+  "schema_version": 1,
+  "task": "T-009"
+}

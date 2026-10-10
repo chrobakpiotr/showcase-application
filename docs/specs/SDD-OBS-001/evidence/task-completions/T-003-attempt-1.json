@@ -1,0 +1,141 @@
+{
+  "assumptions": [
+    "The declared suite ran under Python 3.13 in a disposable clone containing the exact T-002 dependency checkpoint and T-003 working diff.",
+    "The accepted contract stops at the first required gate failure; later unexecuted required gates are recorded blocked-by-failure."
+  ],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "15083108dd82a8c89c4b116b8791c1afc10bab8d",
+  "checkpoint_prebinding": {
+    "author_committer_epoch_utc": 1791540914,
+    "commit_message": "agent checkpoint SDD-OBS-001 T-003",
+    "method": "Harness complete created the local checkpoint. The checkpoint was verified by git show and the task worktree is now clean.",
+    "parent": "046241235e91fb3750d789c3986433d605ac0fb4",
+    "tree": "e4b9d8bc2008111efde5f9317cfcf83fa76cbe92"
+  },
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v"
+  ],
+  "contract_fingerprint": "99d13baf73f5f5dadbd5b9db671da670c74f1065ec0fa5abce5e364aa8101c89",
+  "criterion_results": {
+    "AC-OBS-001": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-006": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-015": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-017": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-024": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-035": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-010": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-015": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-016": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-017": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "findings": [],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Engine 29.8.2; disposable Python 3.13-slim repository clone with the T-002 dependency checkpoint and current T-003 diff applied; git and cryptography installed",
+      "stderr": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/task-verification/SDD-OBS-001/T-003/attempt-1/stderr.txt",
+      "stdout": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/task-verification/SDD-OBS-001/T-003/attempt-1/stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:f44884e9250c539803180df84eb7bb02eed1630cfe0c55ca2503c307754505e1",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "568d13b7f789ce4053b4b65498287b6b649d0ec34f35d25ac731daff7da66780",
+      "criteria": [
+        "AC-OBS-001",
+        "AC-OBS-006",
+        "AC-OBS-015",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-029",
+        "AC-OBS-035",
+        "VC-010",
+        "VC-015",
+        "VC-016",
+        "VC-017"
+      ],
+      "exit_code": 0,
+      "proof_id": "verification-1",
+      "result_sha256": "3fd1d2fd2ab408dddc5d1353eba917a637801647006d188cb652c9a4add31805",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "The runner intentionally fails closed when it detects a tracked Git submodule or an untracked nested Git repository because Git superproject inventory cannot reliably fingerprint mutable nested-repository contents.",
+    "The host Python 3.9 cannot run this shared-verifier suite; validation used the packet-compatible Python 3.13 container.",
+    "The local Docker test container is verification evidence, not a CI or production qualification target."
+  ],
+  "reviewer_results": {
+    "architecture-reviewer": "PASS: both execution-plan origin and family origin policy must bind to task-completion before runner launch; no additional architecture blocker.",
+    "concurrency-reviewer": "PASS after withdrawing the initial concern: the accepted spec requires stop-on-first-required-failure and records remaining gates blocked-by-failure.",
+    "independent-evaluator": "PASS: no concrete T-003 counterexample. The evaluator noted the duplicate/legacy test proves distinct RUN_NOW plan decisions while execution ordering is exercised by the shared executor; the accepted spec defines fail-fast behavior. Evaluator host Python 3.9 was incompatible, while the exact declared suite passed in the recorded Python 3.13 container.",
+    "security-reviewer": "PASS: task-origin binding and VC-015 nested repository/submodule mutation gaps are closed with fail-closed guards and regressions."
+  },
+  "rework_tasks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-003 integrates task-completion verification with the accepted shared execution plan. The runner rejects non-task-completion origin, checks whole-worktree mutations including ignored and untracked files, and fails closed on nested Git repositories and submodules. The declared runner suite passed 36 tests; py_compile and diff checks passed. Required independent reviews passed or withdrew a finding after reconciliation with the explicit accepted fail-fast rule.",
+  "task": "T-003"
+}

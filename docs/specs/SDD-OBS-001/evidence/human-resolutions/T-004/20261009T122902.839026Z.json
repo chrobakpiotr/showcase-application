@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 4,
+  "decided_by": "Piotr (owner decision 2026-10-09)",
+  "decision": "Owner decision 2026-10-09: T-004 keeps the malformed-gate and durable same-feature resume fixes, adds the verifier-side admission/reservation implementation needed for atomic admission and claim at the canonical lifecycle boundary, and exposes trusted history metrics and manual-review registration for T-005. Preserve the non-nested runtime ownership lock order. Use accepted SDD-OBS-001 spec/verification-contract criteria only; expand task paths only for required verifier admission/reservation code. Preserve checkpoint 2cb6162. T-005 remains blocked pending Harness review of T-004's API shape, lock scope, and malformed-gate tests.",
+  "feature": "SDD-OBS-001",
+  "prior_evidence": null,
+  "prior_reason": "Blocked by the accepted task packet boundary: the verifier-side lifecycle admission/reservation files required by VC-037/038/039 are not in this packet, and the harness rejects a second distinct replan because one active replan request already exists. No lock-order bypass or state edit attempted; preserve the malformed-result fix in checkpoint 2cb6162.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-09T12:29:02.839530+00:00",
+  "schema_version": 1,
+  "task": "T-004"
+}

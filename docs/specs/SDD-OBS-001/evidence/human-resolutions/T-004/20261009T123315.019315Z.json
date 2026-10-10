@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 5,
+  "decided_by": "Piotr (owner decision 2026-10-09)",
+  "decision": "Owner decision 2026-10-09: Continue T-004 under the accepted SDD-OBS-001 criteria. The verifier admission/reservation path must include the actual VerificationSupervisor.execute integration and its tests; keep the shared lifecycle admission API in verification/admission.py and preserve the non-nested runtime ownership lock order. Do not add criteria or broaden beyond files required for verifier admission/reservation, malformed-gate handling, durable same-feature resume, and T-005 lifecycle APIs. T-005 remains blocked until Harness reviews T-004's API shape, lock scope, and malformed-gate tests.",
+  "feature": "SDD-OBS-001",
+  "prior_evidence": null,
+  "prior_reason": "Packet scope review found the live admission boundary in VerificationSupervisor.execute is not yet included in allowed_paths; no implementation changes were made in attempt 5. Return to planning to add the required verifier supervisor integration and tests.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-09T12:33:15.019796+00:00",
+  "schema_version": 1,
+  "task": "T-004"
+}

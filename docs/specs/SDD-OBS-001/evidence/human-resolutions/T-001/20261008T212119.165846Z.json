@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 3,
+  "decided_by": "Piotr (owner decision 2026-10-08)",
+  "decision": "Resume T-001 using the owner-accepted provider schema projection conditions: derive strict provider/CLI schemas mechanically from the unchanged canonical schema; close objects, require declared fields, and drop only provider-rejected constraints; validate every provider response against the canonical schema so dropped-constraint violations fail; test valid canonical outputs and every dropped constraint; record provider, CLI version, and projection digest, with no fallback if projection cannot preserve required constraints. The separate RUNNER-STRICT-OUTPUT-001 T-001/T-900 is completed and independently evaluated, its runner.py fix is integrated at 78ea4dd, and the focused runner suite and py_compile pass. Continue through normal task start/evaluate/review; do not change the accepted SDD-OBS specification or weaken lifecycle guards.",
+  "feature": "SDD-OBS-001",
+  "prior_evidence": null,
+  "prior_reason": "ERROR: claude exited with 1; logs: /Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001/T-001/e3b83882349f/20261006T215114.570922Z",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-08T21:21:19.166469+00:00",
+  "schema_version": 1,
+  "task": "T-001"
+}

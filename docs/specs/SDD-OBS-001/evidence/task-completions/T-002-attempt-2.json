@@ -1,0 +1,205 @@
+{
+  "assumptions": [
+    "The exact task verification command ran in a disposable clone with T-002 checkpoint 046241235e91fb3750d789c3986433d605ac0fb4 applied, under Python 3.13 with git and cryptography installed.",
+    "The evaluator independently inspected the checkpoint but could not independently reproduce the full suite on this Mac; the task suite result is the recorded disposable-clone run."
+  ],
+  "attempt": 2,
+  "changed_paths": [],
+  "checkpoint": "046241235e91fb3750d789c3986433d605ac0fb4",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v"
+  ],
+  "contract_fingerprint": "ba67c8e308d1b99a269c6b74d717f58650dc8e7ffdda19cb7bcd0a9a01e18689",
+  "criterion_results": {
+    "AC-OBS-009": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-010": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-011": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-012": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-013": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-014": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-018": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-024": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-032": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-033": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-001": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-002": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-003": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-004": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-006": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-007": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-008": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-009": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-017": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-020": {
+      "proof_ids": [
+        "verification-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "findings": [],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Engine 29.8.2; disposable python:3.13-slim clone with git and cryptography; local test execution, not a qualification target",
+      "stderr": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/task-verification/SDD-OBS-001/T-002/attempt-2/stderr.txt",
+      "stdout": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/task-verification/SDD-OBS-001/T-002/attempt-2/stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:de49e8f738aecb08310154df2c7a77c482d0f3dde33f30625f2f5e29a84d658a",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "01cc877912ed9821591d5f207d994c5b9113b4884605b84baa97d04fb2957676",
+      "criteria": [
+        "AC-OBS-009",
+        "AC-OBS-010",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-014",
+        "AC-OBS-018",
+        "AC-OBS-024",
+        "AC-OBS-029",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-006",
+        "VC-007",
+        "VC-008",
+        "VC-009",
+        "VC-017",
+        "VC-020"
+      ],
+      "exit_code": 0,
+      "proof_id": "verification-1",
+      "result_sha256": "fd065c08eb87822f6aad5376d537197671f6aecc80a3a647a04b318f720938f1",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "The local Docker test container is verification evidence, not a qualification claim for a CI or production target.",
+    "Windows lock behavior is implemented but not runtime-qualified here.",
+    "The VC-009 proof trusts the pinned Gradle distribution and delivered plugin artifacts; individual checksums for every resolved plugin artifact are not pinned."
+  ],
+  "reviewer_results": {
+    "architecture-reviewer": "PASS: reviewed retry-free Gradle execution inputs, stable private user-home isolation and historical v1 evidence restriction.",
+    "concurrency-reviewer": "PASS: repository lock and stable execution namespace preserve crash replay identity; store tests passed.",
+    "independent-evaluator": "PASS for attempt 2, checkpoint 046241235e91fb3750d789c3986433d605ac0fb4; no blocking finding. Evaluator could not independently run all 120 tests because local Python/cryptography dependencies were unavailable; independent deterministic suite evidence is attached above.",
+    "platform-reviewer": "PASS for the declared local POSIX target; Windows behavior is not runtime-qualified and remains an explicit limitation.",
+    "security-reviewer": "PASS for repository-controlled VC-009 bypasses; residual trust in pinned Gradle distribution and delivered plugin artifacts is recorded."
+  },
+  "rework_tasks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-002 attempt 2 passes its declared verification suite (120 tests), py_compile, and diff check. Independent architecture, security, concurrency, platform, and evaluator reviews report PASS. The task implementation checkpoint is the immutable local release checkpoint from attempt 1, reused unchanged by attempt 2 to avoid collision with an invalidated historical completion that also used attempt number 1.",
+  "task": "T-002"
+}
