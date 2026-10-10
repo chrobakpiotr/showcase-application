@@ -27,7 +27,14 @@ and fresh evidence against the intended handbook revision.
   contract delta are recorded in the current `spec.md` and `plan.md`.
   REF-Q and PROD-Q remain separate; S30-06 remains OPEN. The design gate is
   still OPEN because its hash-bound verification contract, independent grills,
-  exact-target prototype/failure evidence and qualification have not passed.
+  and exact-target evidence have not passed. Fresh read-only architecture and
+  scope reviews on 2026-10-10 confirm Candidate C is a direction, not a closed
+  design: restore freshness/anti-rollback, per-instance identity and exact
+  Rabbit connection fencing, PG/Redis cross-store recovery, and permit/start
+  linearization still need decisions and falsification evidence. Remaining
+  06b retry, parking, invalid-identity, retention and ordering rules also stay
+  open. The review synthesis is in
+  [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md).
   Candidate C is the accepted REF-Q design direction, not implementation or
   qualification evidence. No AMQP consumer is enabled and no production
   readiness is claimed. See the
