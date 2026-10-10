@@ -43,6 +43,9 @@ class Gate:
     expensive: bool = False
     aggregate: bool = False
     independent_execution_classes: tuple[str, ...] = ()
+    required_origin: str = 'task'
+    independent_registration_classes: tuple[str, ...] = ()
+    required_manual_reviewer_principal: str | None = None
 
 
 @dataclass(frozen=True)

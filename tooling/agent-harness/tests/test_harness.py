@@ -365,6 +365,30 @@ class HarnessTest(unittest.TestCase):
         self.assertNotIn('manual_observation_ledger',
             harness.load_state(feature, harness.load_validated(feature)))
 
+    def test_plan_bound_manual_scope_accepts_only_current_running_attempt(self):
+        from verification.authority import resolve_manual_review_scope
+        from verification.store import StoreError
+        feature = self.feature()
+        task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
+        task_doc['tasks'][0]['required_reviewers'] = ['reviewer']
+        (feature / 'tasks.json').write_text(json.dumps(task_doc), encoding='utf-8')
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({
+            'status': 'running', 'attempts': 1,
+            'attempt_bindings': [{'attempt': 1, 'binding_status': 'proven',
+                'packet_revision': 'sha256:' + 'a' * 64, 'contract_sha256': 'b' * 64}],
+        })
+        harness.save_state(feature, state)
+        active = resolve_manual_review_scope(self.root, 'TST-001', role='reviewer',
+            task_id='T-001', task_attempt=1, checkpoint='c' * 40,
+            allow_active_attempt=True)
+        self.assertEqual('ACTIVE', active['ordering'])
+        self.assertEqual(1, active['task_attempt'])
+        with self.assertRaises(StoreError):
+            resolve_manual_review_scope(self.root, 'TST-001', role='reviewer',
+                task_id='T-001', task_attempt=1, checkpoint='c' * 40)
+
     def test_register_manual_observation_serializes_scope_resolution_with_lifecycle_mutation(self):
         feature = self.feature()
         task_doc = json.loads((feature / 'tasks.json').read_text(encoding='utf-8'))
@@ -421,6 +445,310 @@ class HarnessTest(unittest.TestCase):
                            final_state.get('manual_observation_ledger', [])
                            if isinstance(entry, dict)}
         self.assertIn('2' * 64, observation_ids)
+
+    def _manual_coverage_fixture(self):
+        from types import SimpleNamespace
+        feature = self.feature()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1})
+        feature_fingerprint = harness.feature_fingerprint(feature)
+        plan_id = 'verification-plan-v2:sha256:' + 'a' * 64
+        obligation_id = 'verification-obligation-v2:sha256:' + 'b' * 64
+        acceptance_transition = '11111111-1111-4111-8111-111111111111'
+        candidate_identity, surface_identity = 'c' * 64, 'd' * 64
+        plan = {'schema_version': 2, 'plan_id': plan_id, 'feature_id': 'TST-001',
+            'task_id': 'T-001', 'task_attempt': 1, 'lifecycle_generation': 1,
+            'feature_fingerprint': feature_fingerprint, 'profile_id': 'showcase',
+            'profile_hash': 'e' * 64, 'policy_checkpoint': 'f' * 40,
+            'origin_binding': 'task-completion',
+            'family': {'id': 'test-family', 'base_sha': 'a' * 40,
+                       'origin_policy': 'task-completion'}, 'candidate_identity': candidate_identity,
+            'final_changed_surface_id': surface_identity,
+            'obligations': [{'obligation_id': obligation_id, 'profile_gate_id': 'manual-gate',
+                             'required_origin': 'manual', 'requirement_source': 'profile'}]}
+        binding = {key: plan[key] for key in ('schema_version', 'profile_id', 'plan_id', 'task_id',
+            'task_attempt', 'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_hash',
+            'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
+        state['verification_authority'] = {'accepted_plan_id': plan_id, 'generation': 1,
+            'binding': binding, 'plan_acceptance_transition_id': acceptance_transition}
+        observation_id = '9' * 64
+        record = {'schema_version': 1, 'record_type': 'manual-observation',
+            'observation_id': observation_id,
+            'repository_id': __import__('hashlib').sha256(
+                os.fsencode(harness.git_common_dir(feature))).hexdigest(),
+            'feature_id': 'TST-001', 'feature_generation': 1, 'role': 'reviewer',
+            'scope': {'task_id': 'T-001', 'task_attempt': 1},
+            'attestation_sha256': 'sha256:' + '2' * 64,
+            'report_sha256': 'sha256:' + '3' * 64}
+        record_path = self.root / '.agent-state' / 'manual-observations' / 'TST-001' / f'{observation_id}.json'
+        record_path.parent.mkdir(parents=True, exist_ok=True)
+        record_bytes = json.dumps(record, sort_keys=True).encode()
+        record_path.write_bytes(record_bytes)
+        state['manual_observation_ledger'] = [{'observation_id': observation_id,
+            'record_path': str(record_path), 'record_sha256': __import__('hashlib').sha256(record_bytes).hexdigest()}]
+        harness.save_state(feature, state)
+        gate = SimpleNamespace(id='manual-gate', required_origin='manual',
+                               required_manual_reviewer_principal='human:alice')
+        return feature, plan, obligation_id, observation_id, record_path, gate
+
+    def _candidate_seal_stub(self, plan):
+        from types import SimpleNamespace
+        checkpoint = subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'], text=True).strip()
+        return mock.patch('verification.candidate.seal_candidate', return_value=SimpleNamespace(
+            head_sha=checkpoint, candidate_identity=plan['candidate_identity'],
+            changed_surface_id=plan['final_changed_surface_id']))
+
+    def test_manual_coverage_is_exact_plan_bound_verified_and_idempotent(self):
+        import hashlib
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore, StoreError
+        feature, plan, obligation_id, observation_id, record_path, gate = self._manual_coverage_fixture()
+        checkpoint = subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'], text=True).strip()
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile',
+                               return_value=SimpleNamespace(gates=(gate,))), \
+             self._candidate_seal_stub(plan), \
+             mock.patch('telemetry.verify_manual_observation_for_coverage',
+                        return_value={'reviewer_principal': 'human:alice', 'checkpoint_id':
+                            checkpoint}) as verify:
+            accepted = harness.accept_manual_observation_coverage(
+                self.root, 'TST-001', plan_id=plan['plan_id'], observation_id=observation_id,
+                obligation_id=obligation_id, expected_feature_generation=1)
+            replay = harness.accept_manual_observation_coverage(
+                self.root, 'TST-001', plan_id=plan['plan_id'], observation_id=observation_id,
+                obligation_id=obligation_id, expected_feature_generation=1)
+        self.assertEqual(accepted, replay)
+        self.assertEqual('human:alice', verify.call_args.kwargs['plan_binding']['reviewer_principal'])
+        self.assertEqual([obligation_id], verify.call_args.kwargs['plan_binding']['obligation_ids'])
+        binding_record = pathlib.Path(accepted['record_path'])
+        self.assertTrue(binding_record.is_file())
+        self.assertEqual(accepted['record_sha256'], hashlib.sha256(binding_record.read_bytes()).hexdigest())
+        self.assertEqual(checkpoint, json.loads(binding_record.read_text())['reviewed_checkpoint'])
+        state = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual(1, len(state['manual_coverage_ledger']))
+        self.assertEqual('manual-coverage-accepted', state['lifecycle_transitions'][-1]['operation'])
+        self.assertEqual('running', state['tasks']['T-001']['status'])
+        self.assertEqual(1, state['tasks']['T-001']['attempts'])
+        self.assertEqual([], state.get('critical_gate_retry_grants', []))
+        self.assertNotEqual('critical-gate-retry-authorized',
+                            state['lifecycle_transitions'][-1]['operation'])
+
+    def test_manual_coverage_rejects_stale_or_wrong_obligation_without_mutation(self):
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore, StoreError
+        feature, plan, oid, observation_id, record_path, gate = self._manual_coverage_fixture()
+        for change in ('plan', 'obligation', 'candidate', 'surface', 'historical', 'completed', 'malformed-scope'):
+            with self.subTest(change=change):
+                current_plan = json.loads(json.dumps(plan))
+                if change == 'candidate':
+                    current_plan['candidate_identity'] = '5' * 64
+                if change == 'surface':
+                    current_plan['final_changed_surface_id'] = '6' * 64
+                if change == 'historical':
+                    current_plan['task_attempt'] = 2
+                if change == 'completed':
+                    doc = harness.load_validated(feature); state = harness.load_state(feature, doc)
+                    state['tasks']['T-001']['status'] = 'completed'; harness.save_state(feature, state)
+                if change == 'malformed-scope':
+                    record = json.loads(record_path.read_text())
+                    record['scope'] = None
+                    record_bytes = json.dumps(record, sort_keys=True).encode()
+                    record_path.write_bytes(record_bytes)
+                    doc = harness.load_validated(feature); state = harness.load_state(feature, doc)
+                    state['manual_observation_ledger'][0]['record_sha256'] = __import__('hashlib').sha256(record_bytes).hexdigest()
+                    harness.save_state(feature, state)
+                before = harness.load_state(feature, harness.load_validated(feature))
+                with mock.patch.object(VerificationStore, 'load_plan_record', return_value=current_plan), \
+                     mock.patch.object(authority, 'validate_plan_record'), \
+                     mock.patch.object(authority, '_load_trusted_profile',
+                                       return_value=SimpleNamespace(gates=(gate,))), \
+                     mock.patch('telemetry.verify_manual_observation_for_coverage',
+                                return_value={'reviewer_principal': 'human:alice', 'checkpoint_id':
+                                    subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'],
+                                                            text=True).strip()}):
+                    with self.assertRaises(StoreError):
+                        harness.accept_manual_observation_coverage(
+                            self.root, 'TST-001', plan_id=('verification-plan-v2:sha256:' + '0' * 64
+                                if change == 'plan' else plan['plan_id']),
+                            observation_id=observation_id,
+                            obligation_id=('verification-obligation-v2:sha256:' + '1' * 64
+                                if change == 'obligation' else oid),
+                            expected_feature_generation=1)
+                after = harness.load_state(feature, harness.load_validated(feature))
+                self.assertEqual(before.get('manual_coverage_ledger'), after.get('manual_coverage_ledger'))
+
+    def test_manual_coverage_refuses_conflicting_replay_without_mutation(self):
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore, StoreError
+        feature, plan, obligation_id, observation_id, record_path, gate = self._manual_coverage_fixture()
+        accepted = {
+            'plan_id': plan['plan_id'], 'obligation_id': obligation_id,
+            'observation_id': observation_id, 'coverage_id': 'manual-coverage-v1:sha256:' + '1' * 64,
+        }
+        doc = harness.load_validated(feature); state = harness.load_state(feature, doc)
+        state['manual_coverage_ledger'] = [accepted]
+        harness.save_state(feature, state)
+        before = harness.load_state(feature, doc)
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile',
+                               return_value=SimpleNamespace(gates=(gate,))), \
+             self._candidate_seal_stub(plan), \
+             mock.patch('telemetry.verify_manual_observation_for_coverage',
+                        return_value={'reviewer_principal': 'human:alice', 'checkpoint_id':
+                            subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'],
+                                                    text=True).strip()}):
+            with self.assertRaises(StoreError):
+                harness.accept_manual_observation_coverage(
+                    self.root, 'TST-001', plan_id=plan['plan_id'], observation_id=observation_id,
+                    obligation_id=obligation_id, expected_feature_generation=1)
+        after = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual(before, after)
+
+    def test_manual_coverage_rejects_principal_fingerprint_scope_and_ledger_mutations(self):
+        import hashlib
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore, StoreError
+        for mutation in ('principal', 'fingerprint', 'scope-attempt', 'record-hash', 'duplicate-ledger',
+                         'generation', 'checkpoint'):
+            with self.subTest(mutation=mutation):
+                fixture = HarnessTest('test_manual_coverage_is_exact_plan_bound_verified_and_idempotent')
+                fixture.setUp()
+                try:
+                    feature, plan, obligation_id, observation_id, record_path, gate = fixture._manual_coverage_fixture()
+                    doc = harness.load_validated(feature)
+                    state = harness.load_state(feature, doc)
+                    if mutation == 'scope-attempt':
+                        record = json.loads(record_path.read_text())
+                        record['scope']['task_attempt'] = 2
+                        payload = json.dumps(record, sort_keys=True).encode()
+                        record_path.write_bytes(payload)
+                        state['manual_observation_ledger'][0]['record_sha256'] = hashlib.sha256(payload).hexdigest()
+                        harness.save_state(feature, state)
+                    elif mutation == 'record-hash':
+                        state['manual_observation_ledger'][0]['record_sha256'] = '0' * 64
+                        harness.save_state(feature, state)
+                    elif mutation == 'duplicate-ledger':
+                        state['manual_observation_ledger'].append(dict(state['manual_observation_ledger'][0]))
+                        harness.save_state(feature, state)
+                    wrong_plan = dict(plan)
+                    if mutation == 'fingerprint':
+                        wrong_plan['feature_fingerprint'] = '0' * 64
+                    before = harness.load_state(feature, harness.load_validated(feature))
+                    principal = 'human:bob' if mutation == 'principal' else 'human:alice'
+                    with mock.patch.object(VerificationStore, 'load_plan_record', return_value=wrong_plan), \
+                         mock.patch.object(authority, 'validate_plan_record'), \
+                         mock.patch.object(authority, '_load_trusted_profile',
+                                           return_value=SimpleNamespace(gates=(gate,))), \
+                         fixture._candidate_seal_stub(wrong_plan), \
+                         mock.patch('telemetry.verify_manual_observation_for_coverage',
+                                    return_value={'reviewer_principal': principal, 'checkpoint_id':
+                                        ('not-a-commit' if mutation == 'checkpoint' else subprocess.check_output(
+                                            ['git', '-C', str(fixture.root), 'rev-parse', 'HEAD'],
+                                            text=True).strip())}):
+                        with self.assertRaises(StoreError):
+                            harness.accept_manual_observation_coverage(
+                                fixture.root, 'TST-001', plan_id=plan['plan_id'],
+                                observation_id=observation_id, obligation_id=obligation_id,
+                                expected_feature_generation=(2 if mutation == 'generation' else 1))
+                    after = harness.load_state(feature, harness.load_validated(feature))
+                    self.assertEqual(before, after)
+                finally:
+                    fixture.tearDown()
+
+    def test_retry_grant_without_manual_observation_cannot_satisfy_coverage(self):
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore, StoreError
+        feature, plan, obligation_id, observation_id, _record_path, gate = self._manual_coverage_fixture()
+        doc = harness.load_validated(feature)
+        state = harness.load_state(feature, doc)
+        state.pop('manual_observation_ledger')
+        state['critical_gate_retry_grants'] = [{'grant_id': observation_id, 'task_id': 'T-001'}]
+        harness.save_state(feature, state)
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile',
+                               return_value=SimpleNamespace(gates=(gate,))), \
+             mock.patch('telemetry.verify_manual_observation_for_coverage') as verify:
+            with self.assertRaises(StoreError):
+                harness.accept_manual_observation_coverage(
+                    self.root, 'TST-001', plan_id=plan['plan_id'],
+                    observation_id=observation_id, obligation_id=obligation_id,
+                    expected_feature_generation=1)
+        verify.assert_not_called()
+        final = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual([], final.get('manual_coverage_ledger', []))
+        self.assertEqual(1, final['tasks']['T-001']['attempts'])
+
+    def test_manual_coverage_serializes_with_completion_on_lifecycle_lock(self):
+        from types import SimpleNamespace
+        from verification import authority
+        from verification.store import VerificationStore
+        feature, plan, obligation_id, observation_id, record_path, gate = self._manual_coverage_fixture()
+        verifier_entered = threading.Event()
+        allow_verifier = threading.Event()
+        completion_entered = threading.Event()
+        errors = []
+        results = []
+        checkpoint = subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'], text=True).strip()
+
+        def paused_verify(*_args, **_kwargs):
+            verifier_entered.set()
+            if not allow_verifier.wait(3):
+                raise RuntimeError('test coverage gate timed out')
+            return {'reviewer_principal': 'human:alice', 'checkpoint_id': checkpoint}
+
+        def accept_coverage():
+            try:
+                results.append(harness.accept_manual_observation_coverage(
+                    self.root, 'TST-001', plan_id=plan['plan_id'],
+                    observation_id=observation_id, obligation_id=obligation_id,
+                    expected_feature_generation=1))
+            except BaseException as exc:
+                errors.append(exc)
+
+        def complete_task():
+            try:
+                doc = harness.load_validated(feature)
+                with harness.locked_state(feature, doc) as state:
+                    completion_entered.set()
+                    ledger = state.get('manual_coverage_ledger', [])
+                    self.assertEqual(1, len(ledger))
+                    self.assertEqual(observation_id, ledger[0]['observation_id'])
+                    state['tasks']['T-001']['status'] = 'completed'
+            except BaseException as exc:
+                errors.append(exc)
+
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile',
+                               return_value=SimpleNamespace(gates=(gate,))), \
+             self._candidate_seal_stub(plan), \
+             mock.patch('telemetry.verify_manual_observation_for_coverage', side_effect=paused_verify):
+            coverage_thread = threading.Thread(target=accept_coverage)
+            coverage_thread.start()
+            self.assertTrue(verifier_entered.wait(2))
+            completion_thread = threading.Thread(target=complete_task)
+            completion_thread.start()
+            self.assertFalse(completion_entered.wait(0.05))
+            allow_verifier.set()
+            coverage_thread.join(3)
+            completion_thread.join(3)
+
+        self.assertFalse(coverage_thread.is_alive())
+        self.assertFalse(completion_thread.is_alive())
+        self.assertFalse(errors, errors)
+        self.assertEqual(1, len(results))
+        final = harness.load_state(feature, harness.load_validated(feature))
+        self.assertEqual('completed', final['tasks']['T-001']['status'])
+        self.assertEqual(1, len(final['manual_coverage_ledger']))
 
     def test_stale_lease_recovery_preserves_pending_verification_resume_without_new_attempt(self):
         feature = self.feature()

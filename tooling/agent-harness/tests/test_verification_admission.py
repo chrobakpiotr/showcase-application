@@ -241,6 +241,133 @@ class PlanExecutionAdmissionTest(unittest.TestCase):
             store.publish_execution_terminal(forged)
         self.assertIn('launch', backend.events)
 
+    def test_consumed_authority_without_launch_marker_recovers_as_safe_abort(self):
+        import harness as control_harness
+        from verification.authority import resolve_accepted
+        from verification.store import VerificationStore
+        from verification.supervisor import VerificationSupervisor
+        from test_verification_supervisor import LifecycleBackend
+
+        accepted = resolve_accepted(self.fixture.root, self.plan['plan_id'])
+        obligation = accepted['obligations'][0]
+        unit = next(item for item in accepted['execution_units']
+                    if obligation['obligation_id'] in item['obligation_ids'])
+        store = VerificationStore(self.fixture.root)
+        backend = LifecycleBackend(store, self.fixture.root.parent / 'safe-abort-unit')
+
+        def authorize(repository_admission_id, _execution_id):
+            current = control_harness.load_state(self.feature, self.doc)
+            reserved = control_harness.admit_verification_execution(
+                self.fixture.root, accepted['plan_id'], unit['unit_id'],
+                expected_generation=accepted['lifecycle_generation'],
+                expected_state_revision=current['state_revision'],
+                repository_admission_id=repository_admission_id)
+            consumed = control_harness.consume_verification_launch(
+                self.fixture.root, accepted['plan_id'], unit['unit_id'],
+                reservation_id=reserved['reservation']['reservation_id'],
+                expected_generation=accepted['lifecycle_generation'],
+                expected_state_revision=reserved['state_revision'],
+                repository_admission_id=repository_admission_id)
+            return {'reservation_id': reserved['reservation']['reservation_id'],
+                'consumption_id': consumed['consumption']['consumption_id'],
+                'admission_id': reserved['admission']['admission_id'],
+                'admission_sha256': reserved['admission_sha256'],
+                'reservation_transition_id': reserved['reservation']['transition_id'],
+                'consumption_transition_id': consumed['consumption']['transition_id'],
+                'plan_acceptance_transition_id': reserved['plan_acceptance_transition_id'],
+                'plan_id': accepted['plan_id'], 'unit_id': unit['unit_id'],
+                'obligation_ids': list(unit['obligation_ids']),
+                'lifecycle_generation': accepted['lifecycle_generation'],
+                'capability': consumed['capability']}
+
+        supervisor = VerificationSupervisor(store)
+        supervisor.inject_crash_at = 'after-launch-authority'
+        with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+            supervisor.execute(backend, worktree=self.fixture.root,
+                family_id=accepted['family']['id'], attempt_id='safe-abort-attempt',
+                gate_id=obligation['gate_id'], command=obligation['command'],
+                cwd=self.fixture.root / obligation['cwd'], run_dir=store.root / 'safe-abort-run',
+                timeout_seconds=2, sandbox_mode='required',
+                profile_hash=accepted['profile_hash'], policy_checkpoint=accepted['policy_checkpoint'],
+                candidate_identity=accepted['candidate_identity'],
+                final_changed_surface_id=accepted['final_changed_surface_id'],
+                plan_id=accepted['plan_id'], launch_authorizer=authorize)
+        state = control_harness.load_state(self.feature, self.doc)
+        self.assertEqual('launch_consumed', state['verification_authority']['launch_consumptions'][unit['unit_id']]['status'])
+        recovered = VerificationSupervisor(VerificationStore(self.fixture.root)).recover()
+        self.assertEqual('ABORTED_PREPARED', recovered[0].state.value, recovered[0].reason_code)
+        terminal = recovered[0].terminal
+        self.assertEqual('ABORTED', terminal['result'])
+        self.assertEqual(0, terminal['harness_invocation_upper_bound'])
+        journal = store.executions / terminal['execution_id']
+        self.assertTrue((journal / 'launch-authority.json').is_file())
+        self.assertFalse((journal / 'launching.json').exists())
+        self.assertNotIn('launch', backend.events)
+        state = control_harness.load_state(self.feature, self.doc)
+        authority_state = state['verification_authority']
+        self.assertEqual('safe_prelaunch_abort', authority_state['launch_reservations'][unit['unit_id']]['status'])
+        self.assertEqual('safe_prelaunch_abort', authority_state['launch_consumptions'][unit['unit_id']]['status'])
+        revision = state['state_revision']
+        control_harness.terminalize_verification_execution(
+            self.fixture.root, terminal, repository_admission_id=terminal['execution_id'])
+        self.assertEqual(revision, control_harness.load_state(self.feature, self.doc)['state_revision'])
+
+    @unittest.skipUnless(hasattr(os, 'fork'), 'requires POSIX process termination semantics')
+    def test_sigkill_after_consumption_before_authority_journal_is_recoverable(self):
+        import signal
+        import harness as control_harness
+        from verification.authority import resolve_accepted
+        from verification.store import VerificationStore
+        from verification.supervisor import VerificationSupervisor
+        from test_verification_supervisor import LifecycleBackend
+
+        accepted = resolve_accepted(self.fixture.root, self.plan['plan_id'])
+        obligation = accepted['obligations'][0]
+        unit = next(item for item in accepted['execution_units']
+                    if obligation['obligation_id'] in item['obligation_ids'])
+        store = VerificationStore(self.fixture.root)
+        child = os.fork()
+        if child == 0:
+            try:
+                backend = LifecycleBackend(store, self.fixture.root.parent / 'sigkill-before-authority')
+                def authorize(repository_admission_id, _execution_id):
+                    current = control_harness.load_state(self.feature, self.doc)
+                    reserved = control_harness.admit_verification_execution(
+                        self.fixture.root, accepted['plan_id'], unit['unit_id'],
+                        expected_generation=accepted['lifecycle_generation'],
+                        expected_state_revision=current['state_revision'],
+                        repository_admission_id=repository_admission_id)
+                    control_harness.consume_verification_launch(
+                        self.fixture.root, accepted['plan_id'], unit['unit_id'],
+                        reservation_id=reserved['reservation']['reservation_id'],
+                        expected_generation=accepted['lifecycle_generation'],
+                        expected_state_revision=reserved['state_revision'],
+                        repository_admission_id=repository_admission_id)
+                    os.kill(os.getpid(), signal.SIGKILL)
+                VerificationSupervisor(store).execute(backend,
+                    worktree=self.fixture.root, family_id=accepted['family']['id'],
+                    attempt_id='sigkill-before-authority', gate_id=obligation['gate_id'],
+                    command=obligation['command'], cwd=self.fixture.root / obligation['cwd'],
+                    run_dir=store.root / 'sigkill-run', timeout_seconds=2, sandbox_mode='required',
+                    profile_hash=accepted['profile_hash'], policy_checkpoint=accepted['policy_checkpoint'],
+                    candidate_identity=accepted['candidate_identity'],
+                    final_changed_surface_id=accepted['final_changed_surface_id'],
+                    plan_id=accepted['plan_id'], launch_authorizer=authorize)
+            finally:
+                os._exit(91)
+        _pid, status = os.waitpid(child, 0)
+        self.assertTrue(os.WIFSIGNALED(status))
+        self.assertEqual(signal.SIGKILL, os.WTERMSIG(status))
+        recovered = VerificationSupervisor(VerificationStore(self.fixture.root)).recover()
+        self.assertEqual(1, len(recovered))
+        self.assertEqual('ABORTED_PREPARED', recovered[0].state.value, recovered[0].reason_code)
+        self.assertEqual(0, recovered[0].terminal['harness_invocation_upper_bound'])
+        state = control_harness.load_state(self.feature, self.doc)
+        reservation = state['verification_authority']['launch_reservations'][unit['unit_id']]
+        self.assertEqual('safe_prelaunch_abort', reservation['status'])
+        self.assertEqual('safe_prelaunch_abort',
+                         state['verification_authority']['launch_consumptions'][unit['unit_id']]['status'])
+
     def test_admission_record_binds_exact_unit_members_and_origin(self):
         from verification.admission import build_plan_admission_record, validate_plan_admission_record
         from verification.store import VerificationStore

@@ -9,6 +9,30 @@ import re
 from .serialization import canonical
 
 
+def _load_trusted_profile(repository: pathlib.Path | None, profile_path: pathlib.Path):
+    from .profile import load_profile
+    if repository is None:
+        return load_profile(profile_path)
+    # Manual principals are authority only when checked against the repository's
+    # committed issuer registry, never caller-provided or worktree-only bytes.
+    import telemetry
+    return load_profile(profile_path, manual_issuer_registry_loader=lambda:
+        telemetry._manual_registry_context(repository)[0])
+
+
+def task_family_id(feature_id: str, task_id: str, task_attempt: int, profile) -> str:
+    """Bind a task family identity to the exact profile and its per-gate origins."""
+    gates = [{
+        'gate_id': gate.id,
+        'required_origin': gate.required_origin,
+        'independent_execution_classes': list(gate.independent_execution_classes),
+        'independent_registration_classes': list(gate.independent_registration_classes),
+        'required_manual_reviewer_principal': gate.required_manual_reviewer_principal,
+    } for gate in profile.gates]
+    digest = hashlib.sha256(canonical({'profile_hash': profile.content_hash, 'gates': gates})).hexdigest()
+    return f'{feature_id.lower()}-{task_id.lower()}-attempt-{task_attempt}-{digest[:16]}'
+
+
 def execution_plan_record(feature_id: str, feature_fingerprint: str, generation: int,
                           profile_id: str, profile, plan, *, task_id: str, task_attempt: int,
                           task_commands=(), origin_binding: str):
@@ -22,14 +46,22 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
     obligations = []
     for decision in plan.decisions:
         node, gate = decision.node, decision.node.gate
+        task_origin = node.occurrence or node.profile_gate_id is None
+        required_origin = 'task' if task_origin else gate.required_origin
+        execution_class = (None if task_origin or required_origin != 'independent'
+                           else gate.independent_execution_classes[0])
+        manual_principal = (None if task_origin else gate.required_manual_reviewer_principal)
         identity = {'family_id': family['id'], 'gate_id': node.id,
                     'profile_gate_id': node.profile_gate_id,
                     'occurrence': node.occurrence, 'ordinal': node.ordinal,
                     'requirement_source': 'task-command' if (node.occurrence or node.profile_gate_id is None) else 'profile',
-                    'required_origin': 'task' if (node.occurrence or node.profile_gate_id is None) else 'independent',
-                    'independent_execution_class': None if (node.occurrence or node.profile_gate_id is None) else INDEPENDENT_CLASS}
+                    'required_origin': required_origin,
+                    'independent_execution_class': execution_class,
+                    'required_manual_reviewer_principal': manual_principal}
         obligation_id = 'verification-obligation-v2:sha256:' + hashlib.sha256(canonical(identity)).hexdigest()
-        obligations.append({'obligation_id': obligation_id, **identity,
+        obligation_projection = {key: value for key, value in identity.items()
+                                 if key != 'required_manual_reviewer_principal'}
+        obligations.append({'obligation_id': obligation_id, **obligation_projection,
             'command': gate.command, 'command_hash': gate.command_hash, 'cwd': gate.cwd,
             'dependencies': list(node.dependencies), 'critical': gate.critical,
             'retry_policy': gate.retry_policy, 'retry_controls': list(gate.retry_controls),
@@ -156,6 +188,7 @@ def trusted_task_history(repository: pathlib.Path, feature_id: str, *,
 def resolve_manual_review_scope(repository: pathlib.Path, feature_id: str, *, role: str,
                                 task_id: str | None = None, task_attempt: int | None = None,
                                 checkpoint: str | None = None,
+                                allow_active_attempt: bool = False,
                                 _lifecycle_state: dict | None = None) -> dict:
     """Resolve manual-observation scope from trusted lifecycle history only.
 
@@ -190,6 +223,11 @@ def resolve_manual_review_scope(repository: pathlib.Path, feature_id: str, *, ro
             continue
         for attempt in task['attempts']:
             completion = attempt.get('completion')
+            if (allow_active_attempt and task.get('status') == 'running' and
+                    attempt['attempt'] == task_attempt and attempt.get('binding_status') == 'proven' and
+                    attempt.get('completion_count') == 0 and attempt.get('ordering') == 'UNKNOWN'):
+                candidates.append((task, attempt, None))
+                continue
             if (attempt['attempt'] == task_attempt and attempt['ordering'] == 'KNOWN' and
                     isinstance(completion, dict) and completion.get('checkpoint') == checkpoint):
                 candidates.append((task, attempt, completion))
@@ -204,8 +242,9 @@ def resolve_manual_review_scope(repository: pathlib.Path, feature_id: str, *, ro
         'role': role, 'task_id': task['task_id'], 'task_attempt': task_attempt,
         'packet_revision': attempt['packet_revision'],
         'contract_sha256': attempt['contract_sha256'],
-        'checkpoint': completion['checkpoint'], 'completion_record_id': completion['record_id'],
-        'ordering': 'KNOWN',
+        'checkpoint': completion['checkpoint'] if completion else checkpoint,
+        'completion_record_id': completion['record_id'] if completion else None,
+        'ordering': 'KNOWN' if completion else 'ACTIVE',
     }
 
 
@@ -227,7 +266,7 @@ def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | 
     profile_path = (profile_root / (record['profile_id'] + '.json')).resolve(strict=True)
     if profile_path.parent != profile_root.resolve(strict=True):
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
-    profile = load_profile(profile_path)
+    profile = _load_trusted_profile(repository, profile_path)
     if (profile.content_hash != record['profile_hash'] or
             family_record.get('profile_hash') != record['profile_hash'] or
             record.get('origin_binding') != family_record.get('origin_policy') or
@@ -297,8 +336,8 @@ def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
     profile_id = 'showcase'
     profile_path = pathlib.Path(__file__).resolve().parent.parent / 'verification-profiles/showcase.json'
-    profile = load_profile(profile_path)
-    family_id = f'{feature_dir.name.lower()}-{task_id.lower()}-attempt-{task_attempt}'
+    profile = _load_trusted_profile(repository, profile_path)
+    family_id = task_family_id(feature_dir.name, task_id, task_attempt, profile)
     policy_checkpoint = profile.content_hash
     origin_binding = 'task-completion'
     try:
@@ -348,7 +387,7 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         profile_root = pathlib.Path(__file__).resolve().parent.parent / 'verification-profiles'
         profile_path = (profile_root / (record['profile_id'] + '.json')).resolve(strict=True)
         if profile_path.parent != profile_root.resolve(strict=True): raise ValueError()
-        profile = load_profile(profile_path)
+        profile = _load_trusted_profile(repository, profile_path)
         if profile.content_hash != record['profile_hash']: raise ValueError()
         family = record['family']
         if set(family) != {'id', 'base_sha', 'origin_policy', 'profile_hash', 'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id'}: raise ValueError()
@@ -364,7 +403,8 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         for item in record['task_commands']:
             if not isinstance(item, dict) or set(item) != {'command', 'cwd'}: raise ValueError()
             command_identity(item['command'], item['cwd'])
-        identity_keys = {'family_id', 'gate_id', 'profile_gate_id', 'occurrence', 'ordinal', 'requirement_source', 'required_origin', 'independent_execution_class'}
+        identity_keys = {'family_id', 'gate_id', 'profile_gate_id', 'occurrence', 'ordinal',
+                         'requirement_source', 'required_origin', 'independent_execution_class'}
         obligation_keys = identity_keys | {'obligation_id', 'command', 'command_hash', 'cwd', 'dependencies', 'critical', 'retry_policy', 'retry_controls', 'sandbox'}
         obligations = record['obligations']; units = record['execution_units']
         if not isinstance(obligations, list) or not obligations or not isinstance(units, list) or len(units) != len(obligations): raise ValueError()
@@ -374,14 +414,21 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
             if not isinstance(item, dict) or set(item) != obligation_keys: raise ValueError()
             task = item['occurrence'] or item['profile_gate_id'] is None
             if type(item['occurrence']) is not bool or type(item['ordinal']) is not int or item['ordinal'] < 0 or item['family_id'] != family['id']: raise ValueError()
-            origin = 'task' if task else 'independent'; cls = None if task else INDEPENDENT_CLASS
-            if (item['required_origin'], item['independent_execution_class'], item['requirement_source']) != (origin, cls, 'task-command' if task else 'profile'): raise ValueError()
+            gate = by_gate.get(item['profile_gate_id'])
+            origin = 'task' if task else (gate.required_origin if gate is not None else None)
+            cls = (None if task or origin != 'independent' else
+                   gate.independent_execution_classes[0] if gate and gate.independent_execution_classes else None)
+            principal = None if task or gate is None else gate.required_manual_reviewer_principal
+            if (origin is None or
+                    (item['required_origin'], item['independent_execution_class'], item['requirement_source']) !=
+                    (origin, cls, 'task-command' if task else 'profile')): raise ValueError()
             if task and not item['gate_id'].startswith(('task-command:', 'legacy-task-command:')): raise ValueError()
             if type(item['critical']) is not bool or item['retry_policy'] not in ('allow', 'forbid') or item['sandbox'] not in ('required', 'best-effort', 'off'): raise ValueError()
             if not isinstance(item['retry_controls'], list) or any(not isinstance(c, str) or not c for c in item['retry_controls']) or len(set(item['retry_controls'])) != len(item['retry_controls']): raise ValueError()
             if item['critical'] and item['retry_policy'] != 'forbid': raise ValueError()
-            gate = by_gate.get(item['profile_gate_id'])
-            if not task and (gate is None or cls not in gate.independent_execution_classes or item['sandbox'] != 'required' or item['gate_id'] != gate.id): raise ValueError()
+            if not task and (gate is None or
+                    (origin == 'independent' and (cls not in gate.independent_execution_classes or item['sandbox'] != 'required')) or
+                    item['gate_id'] != gate.id): raise ValueError()
             if item['command_hash'] != command_identity(item['command'], item['cwd']): raise ValueError()
             if gate is not None:
                 for key in ('command', 'command_hash', 'cwd', 'critical', 'retry_policy', 'sandbox'):
@@ -391,6 +438,7 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
             expected_dependencies = list(dict.fromkeys((*gate.depends_on, *(a.producer for a in gate.consumes)))) if gate is not None else []
             if item['dependencies'] != expected_dependencies: raise ValueError()
             identity = {k: item[k] for k in identity_keys}
+            identity['required_manual_reviewer_principal'] = principal
             oid = 'verification-obligation-v2:sha256:' + hashlib.sha256(canonical(identity)).hexdigest()
             if item['obligation_id'] != oid or oid in seen: raise ValueError()
             seen.add(oid)

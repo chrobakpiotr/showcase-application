@@ -665,18 +665,33 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         if task is not None and task != resolved_attempts[0]:
             raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED')
         task = resolved_attempts[0]
-        # Packet-binding history proves that the attempt existed; only its
-        # immutable completion record can additionally bind the reviewed
-        # checkpoint to that exact attempt.
         feature_dir = primary / 'docs' / 'specs' / feature
         harness_path = pathlib.Path(__file__).resolve().parent
         if str(harness_path) not in __import__('sys').path:
             __import__('sys').path.insert(0, str(harness_path))
         import harness as lifecycle
-        checkpoint_records = [item for item in lifecycle.completion_records(feature_dir, task)
-                              if item.get('attempt') == int(task_attempt) and item.get('checkpoint') == checkpoint]
-        if len(checkpoint_records) != 1:
-            raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED')
+        if plan_id is not None:
+            state_candidates = list((primary / '.agent-state').glob(f'{feature}-*.json'))
+            active_matches = []
+            for state_path in state_candidates:
+                try:
+                    state = json.loads(state_path.read_text(encoding='utf-8'))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                entry = state.get('tasks', {}).get(task)
+                bindings = entry.get('attempt_bindings', []) if isinstance(entry, dict) else []
+                if (isinstance(entry, dict) and entry.get('status') == 'running' and
+                        entry.get('attempts') == int(task_attempt) and
+                        any(isinstance(item, dict) and item.get('attempt') == int(task_attempt) and
+                            item.get('binding_status') == 'proven' for item in bindings)):
+                    active_matches.append(entry)
+            if len(active_matches) != 1:
+                raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED')
+        else:
+            checkpoint_records = [item for item in lifecycle.completion_records(feature_dir, task)
+                                  if item.get('attempt') == int(task_attempt) and item.get('checkpoint') == checkpoint]
+            if len(checkpoint_records) != 1:
+                raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED')
     if task is not None:
         if not _MANUAL_ID.fullmatch(task) or fields.get('Task') != task:
             raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
@@ -689,8 +704,6 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
             raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
     elif 'Task' in fields:
         raise ValueError('MANUAL_EVIDENCE_REPORT_INVALID')
-    if plan_id is not None:
-        raise ValueError('MANUAL_EVIDENCE_PLAN_BINDING_UNAVAILABLE')
     head = __import__('subprocess').check_output(['git', '-C', str(primary), 'rev-parse', 'HEAD'],
                                                 text=True, stderr=__import__('subprocess').DEVNULL).strip()
     if head != checkpoint:
@@ -714,6 +727,9 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         attempt_number = int(task_attempt) if task_attempt is not None else None
     except (TypeError, ValueError):
         raise ValueError('MANUAL_EVIDENCE_REPORT_ATTEMPT_UNRESOLVED') from None
+    attestation_payload, _ = _read_manual_input(primary, attestation, limit=65536,
+                                                reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
+    plan_binding = None
     try:
         from verification.authority import resolve_manual_review_scope
         with lifecycle.lifecycle_state_lock(primary / 'docs' / 'specs' / feature):
@@ -722,7 +738,55 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
             expected_generation = lifecycle_state.get('feature_generation', 1)
             trusted_scope = resolve_manual_review_scope(
                 primary, feature, role=role, task_id=task, task_attempt=attempt_number,
-                checkpoint=checkpoint, _lifecycle_state=lifecycle_state)
+                checkpoint=checkpoint, allow_active_attempt=plan_id is not None,
+                _lifecycle_state=lifecycle_state)
+            if plan_id is not None:
+                from verification.authority import _load_trusted_profile, validate_plan_record
+                from verification.store import VerificationStore
+                plan = VerificationStore(primary).load_plan_record(plan_id)
+                validate_plan_record(plan, repository=primary, reconstruct=True)
+                authority = lifecycle_state.get('verification_authority')
+                if (plan.get('plan_id') != plan_id or plan.get('feature_id') != feature or
+                        plan.get('task_id') != trusted_scope.get('task_id') or
+                        plan.get('task_attempt') != trusted_scope.get('task_attempt') or
+                        plan.get('lifecycle_generation') != expected_generation or
+                        not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id or
+                        authority.get('generation') != expected_generation or
+                        not isinstance(authority.get('plan_acceptance_transition_id'), str) or
+                        not authority.get('plan_acceptance_transition_id')):
+                    raise ValueError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+                profile_root = pathlib.Path(__file__).resolve().parent / 'verification-profiles'
+                profile_path = (profile_root / (plan['profile_id'] + '.json')).resolve(strict=True)
+                if profile_path.parent != profile_root.resolve(strict=True):
+                    raise ValueError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+                profile = _load_trusted_profile(primary, profile_path)
+                try:
+                    submitted = json.loads(attestation_payload.decode('utf-8'))['envelope']
+                except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
+                    raise ValueError('MANUAL_EVIDENCE_ATTESTATION_INVALID') from None
+                principal = submitted.get('reviewer_principal') if isinstance(submitted, dict) else None
+                submitted_ids = submitted.get('obligation_ids') if isinstance(submitted, dict) else None
+                gates = {gate.id: gate for gate in profile.gates}
+                eligible = {item['obligation_id'] for item in plan.get('obligations', [])
+                    if isinstance(item, dict) and item.get('requirement_source') == 'profile' and
+                    item.get('required_origin') == 'manual' and item.get('required_manual_reviewer_principal') is None and
+                    item.get('profile_gate_id') in gates and
+                    gates[item['profile_gate_id']].required_manual_reviewer_principal == principal}
+                # Obligation identity intentionally omits the secret-free profile
+                # principal projection; derive the accepted relation from the
+                # trusted profile, never from the signed caller's assertion.
+                if not isinstance(submitted_ids, list) or len(submitted_ids) != 1 or \
+                        submitted_ids != sorted(set(submitted_ids)) or not set(submitted_ids) <= eligible:
+                    raise ValueError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+                plan_binding = {
+                    'plan_id': plan_id, 'family_id': plan['family']['id'],
+                    'plan_acceptance_transition_id': authority['plan_acceptance_transition_id'],
+                    'lifecycle_generation': expected_generation,
+                    'task_id': plan['task_id'], 'task_attempt': plan['task_attempt'],
+                    'candidate_identity': plan['candidate_identity'],
+                    'final_surface_identity': plan['final_changed_surface_id'],
+                    'obligation_ids': submitted_ids, 'reviewer_principal': principal,
+                }
     except Exception as exc:
         code = str(exc)
         raise ValueError(code if code.startswith('MANUAL_EVIDENCE_') else
@@ -737,18 +801,16 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         'repository_id': repository_id,
         'feature_id': feature,
         'checkpoint_id': checkpoint,
-        'candidate_identity': None,
-        'final_surface_identity': None,
+        'candidate_identity': plan_binding['candidate_identity'] if plan_binding else None,
+        'final_surface_identity': plan_binding['final_surface_identity'] if plan_binding else None,
         'task_id': trusted_scope.get('task_id'),
         'attempt': trusted_scope.get('task_attempt'),
-        'plan_id': None,
-        'family_id': None,
-        'plan_acceptance_transition_id': None,
-        'lifecycle_generation': None,
-        'obligation_ids': [],
+        'plan_id': plan_binding['plan_id'] if plan_binding else None,
+        'family_id': plan_binding['family_id'] if plan_binding else None,
+        'plan_acceptance_transition_id': plan_binding['plan_acceptance_transition_id'] if plan_binding else None,
+        'lifecycle_generation': plan_binding['lifecycle_generation'] if plan_binding else None,
+        'obligation_ids': plan_binding['obligation_ids'] if plan_binding else [],
     }
-    attestation_payload, _ = _read_manual_input(primary, attestation, limit=65536,
-                                                reason='MANUAL_EVIDENCE_ATTESTATION_INVALID')
     signed, attestation_sha = _verify_manual_attestation(
         attestation_payload, repository=primary, expected=expected_envelope)
     # Keep the exact bytes addressable for any later coverage decision. A later
@@ -763,9 +825,12 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
         'reviewer_principal': signed['reviewer_principal'], 'verdict': verdict,
         'report_sha256': expected_envelope['report_sha256'], 'completed_at': fields['Completed at'],
         'task_id': trusted_scope.get('task_id'), 'attempt': trusted_scope.get('task_attempt'),
-        'plan_id': None, 'family_id': None, 'lifecycle_generation': None,
+        'plan_id': expected_envelope['plan_id'], 'family_id': expected_envelope['family_id'],
+        'lifecycle_generation': expected_envelope['lifecycle_generation'],
         'plan_acceptance_transition_id': None, 'checkpoint_id': checkpoint,
-        'candidate_identity': None, 'final_surface_identity': None, 'obligation_ids': [],
+        'candidate_identity': expected_envelope['candidate_identity'],
+        'final_surface_identity': expected_envelope['final_surface_identity'],
+        'obligation_ids': expected_envelope['obligation_ids'],
     }
     observation_id = hashlib.sha256(canonical_jcs(semantic_projection)).hexdigest()
     submit = getattr(lifecycle, 'register_manual_observation', None)
@@ -776,7 +841,8 @@ def record_manual(*, repo: pathlib.Path, feature: str, role: str, provider: str,
                     task_attempt=trusted_scope.get('task_attempt'), checkpoint=checkpoint,
                     attestation_sha256='sha256:' + attestation_sha,
                     report_sha256=expected_envelope['report_sha256'],
-                    expected_feature_generation=expected_generation)
+                    expected_feature_generation=expected_generation,
+                    plan_binding=plan_binding)
     return pathlib.Path(result['record_path'])
 
 
@@ -814,9 +880,11 @@ def main() -> None:
                 attestation=args.attestation)
         except (OSError, ValueError, RuntimeError) as exc:
             import sys
-            print(json.dumps({'status': 'verification-blocked' if 'UNAVAILABLE' in str(exc) or 'RACE' in str(exc) else 'invalid-policy',
+            blocked = ('UNAVAILABLE' in str(exc) or 'RACE' in str(exc) or
+                       str(exc) == 'MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+            print(json.dumps({'status': 'verification-blocked' if blocked else 'invalid-policy',
                               'reason_code': str(exc)}, sort_keys=True), file=sys.stderr)
-            raise SystemExit(5 if 'UNAVAILABLE' in str(exc) or 'RACE' in str(exc) else 2)
+            raise SystemExit(5 if blocked else 2)
         print(json.dumps({'status': 'recorded', 'record': str(record)}, sort_keys=True))
         return
     repo = getattr(args, 'repo', pathlib.Path.cwd())

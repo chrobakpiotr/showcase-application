@@ -167,12 +167,34 @@
             "items": {
               "const": "harness-managed-independent-execution-v1"
             }
+          },
+          "required_origin": {
+            "enum": [
+              "task",
+              "independent",
+              "manual"
+            ]
+          },
+          "independent_registration_classes": {
+            "type": "array",
+            "maxItems": 0,
+            "items": {
+              "type": "string"
+            }
+          },
+          "required_manual_reviewer_principal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
           }
         },
         "required": [
           "id",
           "command",
-          "inputs"
+          "inputs",
+          "required_origin",
+          "independent_execution_classes",
+          "independent_registration_classes"
         ],
         "allOf": [
           {

@@ -36,8 +36,12 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "harness-tests"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "harness-tests",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "agentic-sdd-doctor",
@@ -80,8 +84,12 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "harness-validation"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "harness-validation",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "showcase-gradle-build",
@@ -136,8 +144,12 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "application-build"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "application-build",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "showcase-frontend-build",
@@ -176,8 +188,12 @@
       "mandatory": true,
       "cacheable": false,
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "frontend-build"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "frontend-build",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "domain-mutation-threshold",
@@ -225,8 +241,12 @@
       "retry_policy": "forbid",
       "retry_controls": [],
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "mutation-testing"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "mutation-testing",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "critical-postgres-regression",
@@ -285,10 +305,16 @@
       "cacheable": false,
       "critical": true,
       "retry_policy": "forbid",
-      "retry_controls": ["critical-postgres-gate-disables-gradle-test-retry-v1"],
+      "retry_controls": [
+        "critical-postgres-gate-disables-gradle-test-retry-v1"
+      ],
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "critical-integration"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "critical-integration",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     },
     {
       "id": "critical-rabbitmq-regression",
@@ -347,10 +373,16 @@
       "cacheable": false,
       "critical": true,
       "retry_policy": "forbid",
-      "retry_controls": ["critical-rabbit-gate-disables-gradle-test-retry-v1"],
+      "retry_controls": [
+        "critical-rabbit-gate-disables-gradle-test-retry-v1"
+      ],
       "sandbox": "required",
-      "independent_execution_classes": ["harness-managed-independent-execution-v1"],
-      "category": "critical-integration"
+      "independent_execution_classes": [
+        "harness-managed-independent-execution-v1"
+      ],
+      "category": "critical-integration",
+      "required_origin": "independent",
+      "independent_registration_classes": []
     }
   ]
 }

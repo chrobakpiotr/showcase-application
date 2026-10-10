@@ -228,6 +228,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                             'obligation_ids': list(unit['obligation_ids']),
                             'lifecycle_generation': authority_context['lifecycle_generation'],
                             'capability': consumed['capability']}
+                launch_authorizer = authorize_launch
             supervisor = VerificationSupervisor(store)
             terminal_evidence = []
             execution_terminals = []

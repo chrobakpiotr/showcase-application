@@ -85,6 +85,11 @@ class ShowcaseProfileTest(unittest.TestCase):
         for gate_id, paths in expected.items():
             gate = self.gates[gate_id]
             with self.subTest(gate=gate_id):
+                self.assertEqual('independent', gate.required_origin)
+                self.assertEqual(('harness-managed-independent-execution-v1',),
+                                 gate.independent_execution_classes)
+                self.assertEqual((), gate.independent_registration_classes)
+                self.assertIsNone(gate.required_manual_reviewer_principal)
                 self.assertTrue(gate.mandatory)
                 self.assertFalse(gate.cacheable)
                 for path in paths:

@@ -34,48 +34,93 @@ class StoreError(RuntimeError):
 
 def _plan_launch_binding(directory: pathlib.Path, started: dict,
                          terminal: dict | None = None) -> dict | None:
-    """Read and verify the durable plan-bound launch marker and optional receipt link."""
+    """Verify consumed launch authority and the optional physical-launch marker."""
     if started.get('plan_id') is None:
         return None
-    marker_path = directory / 'launching.json'
+    authority_path = directory / 'launch-authority.json'
     try:
-        metadata = marker_path.lstat()
+        metadata = authority_path.lstat()
         if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
             raise ValueError()
-        marker = json.loads(marker_path.read_text(encoding='utf-8'))
+        authority = json.loads(authority_path.read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        # Existing completed executions predate the separate consumed-authority
+        # record. Their durable launch marker remains the source for this tuple.
+        marker_path = directory / 'launching.json'
+        try:
+            metadata = marker_path.lstat()
+            if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+                raise ValueError()
+            legacy_marker = json.loads(marker_path.read_text(encoding='utf-8'))
+            authority = {'schema_version': 1, 'execution_id': legacy_marker['execution_id'],
+                'reservation_id': legacy_marker['reservation_id'],
+                'consumption_id': legacy_marker['consumption_id'],
+                **{key: legacy_marker[key] for key in ('plan_id', 'unit_id', 'obligation_ids',
+                    'admission_id', 'admission_sha256', 'reservation_transition_id',
+                    'consumption_transition_id', 'plan_acceptance_transition_id',
+                    'lifecycle_generation')}}
+        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
+            raise StoreError('invalid-execution-terminal') from None
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         raise StoreError('invalid-execution-terminal') from None
     required = ('plan_id', 'unit_id', 'admission_id', 'admission_sha256',
                 'reservation_transition_id', 'consumption_transition_id',
                 'plan_acceptance_transition_id', 'lifecycle_generation', 'obligation_ids')
-    if (not isinstance(marker, dict) or marker.get('schema_version') != 2 or
-            marker.get('execution_id') != started.get('execution_id') or
-            marker.get('plan_id') != started.get('plan_id') or
-            not isinstance(marker.get('reservation_id'), str) or
-            re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}', marker['reservation_id']) is None or
-            not isinstance(marker.get('consumption_id'), str) or
-            re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}', marker['consumption_id']) is None or
-            not isinstance(marker.get('admission_id'), str) or
-            re.fullmatch(r'verification-admission-v1:sha256:[0-9a-f]{64}', marker['admission_id']) is None or
-            type(marker.get('lifecycle_generation')) is not int or marker['lifecycle_generation'] < 1 or
-            not isinstance(marker.get('obligation_ids'), list) or not marker['obligation_ids'] or
-            marker['obligation_ids'] != sorted(set(marker['obligation_ids'])) or
+    if (not isinstance(authority, dict) or set(authority) != {'schema_version', 'execution_id',
+            'reservation_id', 'consumption_id', *required} or authority.get('schema_version') != 1 or
+            authority.get('execution_id') != started.get('execution_id') or
+            authority.get('plan_id') != started.get('plan_id') or
+            not isinstance(authority.get('reservation_id'), str) or
+            re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}', authority['reservation_id']) is None or
+            not isinstance(authority.get('consumption_id'), str) or
+            re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}', authority['consumption_id']) is None or
+            not isinstance(authority.get('admission_id'), str) or
+            re.fullmatch(r'verification-admission-v1:sha256:[0-9a-f]{64}', authority['admission_id']) is None or
+            type(authority.get('lifecycle_generation')) is not int or authority['lifecycle_generation'] < 1 or
+            not isinstance(authority.get('obligation_ids'), list) or not authority['obligation_ids'] or
+            authority['obligation_ids'] != sorted(set(authority['obligation_ids'])) or
             any(not isinstance(value, str) or re.fullmatch(
                 r'verification-obligation-v2:sha256:[0-9a-f]{64}', value) is None
-                for value in marker['obligation_ids']) or
-            any(not isinstance(marker.get(key), str) or not marker[key]
+                for value in authority['obligation_ids']) or
+            any(not isinstance(authority.get(key), str) or not authority[key]
                 for key in required if key not in {'lifecycle_generation', 'obligation_ids'}) or
-            re.fullmatch(r'[0-9a-f]{64}', marker.get('admission_sha256', '')) is None):
+            re.fullmatch(r'[0-9a-f]{64}', authority.get('admission_sha256', '')) is None):
         raise StoreError('invalid-execution-terminal')
+
+    marker_path = directory / 'launching.json'
+    marker = None
+    try:
+        metadata = marker_path.lstat()
+    except FileNotFoundError:
+        pass
+    else:
+        try:
+            if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+                raise ValueError()
+            marker = json.loads(marker_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            raise StoreError('invalid-execution-terminal') from None
+        marker_binding = {'execution_id': authority['execution_id'],
+            'reservation_id': authority['reservation_id'], 'consumption_id': authority['consumption_id'],
+            **{key: authority[key] for key in (*required, 'obligation_ids')}}
+        if (not isinstance(marker, dict) or marker.get('schema_version') != 2 or
+                any(marker.get(key) != value for key, value in marker_binding.items())):
+            raise StoreError('invalid-execution-terminal')
     if terminal is not None:
         linked = {
-            'launch_reservation_id': marker['reservation_id'],
-            'launch_consumption_id': marker['consumption_id'],
-            **{key: marker[key] for key in required},
+            'launch_reservation_id': authority['reservation_id'],
+            'launch_consumption_id': authority['consumption_id'],
+            **{key: authority[key] for key in required},
         }
-        if any(terminal.get(key) != value for key, value in linked.items()):
+        safe_prelaunch_abort = (marker is None and terminal.get('result') == 'ABORTED' and
+                                terminal.get('harness_invocation_upper_bound') == 0 and
+                                terminal.get('timed_out') is False and
+                                terminal.get('cancelled') is False and
+                                terminal.get('output_observation') == 'UNAVAILABLE')
+        if ((marker is None and not safe_prelaunch_abort) or
+                any(terminal.get(key) != value for key, value in linked.items())):
             raise StoreError('invalid-execution-terminal')
-    return marker
+    return marker if marker is not None else authority
 
 
 def _validate_component(value: str | None, error: str) -> None:

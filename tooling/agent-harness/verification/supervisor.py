@@ -379,6 +379,20 @@ class VerificationSupervisor:
             return 'invalid'
         return 'present'
 
+    @staticmethod
+    def _launch_authority_state(journal: pathlib.Path, started: dict) -> str:
+        path = journal / 'launch-authority.json'
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            return 'absent'
+        try:
+            from .store import _plan_launch_binding
+            _plan_launch_binding(journal, started)
+        except (OSError, StoreError, ValueError, TypeError):
+            return 'invalid'
+        return 'valid'
+
     def _write_state(self, journal: pathlib.Path, name: str, record: dict) -> None:
         publish_create_once(journal / name, record, fault=self.store._fault)
 
@@ -627,6 +641,22 @@ class VerificationSupervisor:
                                 for key in required_binding if key not in {
                                     'lifecycle_generation', 'obligation_ids'})):
                         raise SupervisorError('VERIFICATION_LAUNCH_AUTHORITY_INVALID')
+                if plan_id is not None:
+                    # Persist consumed authority before the physical-launch marker.
+                    # Recovery can then prove the exact authorization was consumed
+                    # while still proving that the backend launch was never invoked.
+                    authority_record = {'schema_version': 1, 'execution_id': execution_id,
+                        **{key: launch_authority[key] for key in (
+                            'reservation_id', 'consumption_id', 'plan_id', 'unit_id',
+                            'obligation_ids', 'admission_id', 'admission_sha256',
+                            'reservation_transition_id', 'consumption_transition_id',
+                            'plan_acceptance_transition_id', 'lifecycle_generation')}}
+                    publish_create_once(journal / 'launch-authority.json', authority_record,
+                                        fault=self.store._fault)
+                    _fsync_directory(journal)
+                # Persisted lifecycle consumption without a durable launch marker
+                # must recover as an exact safe prelaunch abort, never as a retry.
+                self._crash('after-launch-authority')
             elif plan_id is not None:
                 raise SupervisorError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
 
@@ -824,7 +854,43 @@ class VerificationSupervisor:
                                                  'EXECUTION_LAUNCH_MARKER_INVALID'))
                 continue
             if launch_marker_state == 'absent':
-                recovered.append(self._abort_prepared(journal, started, 'prepared-never-launched'))
+                if started.get('plan_id') is not None:
+                    authority_state = self._launch_authority_state(journal, started)
+                    if authority_state == 'absent':
+                        # A hard kill can land after the launch-consumption CAS
+                        # but before its journal projection is fsynced. Only a
+                        # proven-dead exact admission owner plus absent physical
+                        # launch marker permits rebuilding that projection.
+                        admission = RepositoryAdmission(self.store.lifecycle_root,
+                                                        self.store.repository_id)
+                        active = admission.active()
+                        if (isinstance(active, dict) and active.get('id') == execution_id and
+                                admission.owner_is_proven_dead(execution_id)):
+                            try:
+                                import harness as lifecycle
+                                accepted = lifecycle.resolve_accepted_verification_plan(
+                                    self.store.root.parents[2], started['plan_id'])
+                                obligations = [item for item in accepted.get('obligations', [])
+                                    if isinstance(item, dict) and item.get('gate_id') == started.get('gate_id')]
+                                units = [unit for unit in accepted.get('execution_units', [])
+                                    if isinstance(unit, dict) and len(obligations) == 1 and
+                                    obligations[0]['obligation_id'] in unit.get('obligation_ids', [])]
+                                if len(units) == 1:
+                                    recovered_authority = lifecycle.recover_prelaunch_authority(
+                                        self.store.root.parents[2], started['plan_id'], units[0]['unit_id'],
+                                        execution_id=execution_id)
+                                    publish_create_once(journal / 'launch-authority.json',
+                                                        recovered_authority, fault=self.store._fault)
+                                    _fsync_directory(journal)
+                                    authority_state = self._launch_authority_state(journal, started)
+                            except (OSError, StoreError, RuntimeError, ValueError, KeyError, TypeError):
+                                authority_state = 'absent'
+                    if authority_state != 'valid':
+                        recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                            'EXECUTION_LAUNCH_AUTHORITY_' + authority_state.upper()))
+                        continue
+                recovered.append(self._abort_prepared(journal, started, 'prepared-never-launched',
+                                                      runtime_lock=runtime_lock))
                 continue
             if backend_factory is None:
                 recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
@@ -838,7 +904,8 @@ class VerificationSupervisor:
                     getattr(inspection, 'reason_code', None) in
                     {'NOT_LAUNCHED', 'LAUNCH_FAILED_BEFORE_PAYLOAD'} and
                     self._read_json(journal / 'observation.json') is None):
-                recovered.append(self._abort_prepared(journal, started, 'backend-proved-not-launched'))
+                recovered.append(self._abort_prepared(journal, started, 'backend-proved-not-launched',
+                                                      runtime_lock=runtime_lock))
                 continue
             if (journal / 'cancelling.json').exists() and status in {'ACTIVE', 'NOT_DRAINED'}:
                 status = backend.cancel_and_drain(identity, 5).status
@@ -911,7 +978,8 @@ class VerificationSupervisor:
         if terminal.get('result') == 'PASS' and isinstance(retry, dict):
             self.store.publish_failure_resolution(retry['failure_id'], terminal['execution_id'], result='PASS')
 
-    def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str) -> RecoveryResult:
+    def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str, *,
+                        runtime_lock=None) -> RecoveryResult:
         execution_id = started['execution_id']
         observation = {'schema_version': 2, 'exit_code': None, 'timed_out': False, 'cancelled': False,
             'output_observation': 'UNAVAILABLE', 'output_persistence': 'UNAVAILABLE',
@@ -922,12 +990,14 @@ class VerificationSupervisor:
         self.store.publish_execution_terminal(receipt)
         terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                         if item['execution_id'] == execution_id)
+        if runtime_lock is not None:
+            self._terminalize_lifecycle_authority(terminal, runtime_lock)
         self._publish_drained(journal, started, terminal['receipt_hash'], reason=reason)
         return RecoveryResult(execution_id, SupervisorState.ABORTED_PREPARED,
                               'PREPARED_NOT_LAUNCHED', terminal)
 
     def _terminal_from_observation(self, journal, started, identity, observation):
-        return {'schema_version': 2, 'execution_id': started['execution_id'],
+        terminal = {'schema_version': 2, 'execution_id': started['execution_id'],
             'repository_id': self.store.repository_id,
             'started_hash': hashlib.sha256((journal / 'started.json').read_bytes()).hexdigest(),
             'execution_identity': identity or {'state': 'NOT_PREPARED'},
@@ -945,3 +1015,14 @@ class VerificationSupervisor:
                                    else 'OMITTED'),
             'post_observation': observation.get('post_observation', {}),
             'result': observation.get('result', 'ABORTED'), 'ended_at': observation.get('ended_at', time.time())}
+        authority = self._read_json(journal / 'launch-authority.json')
+        if isinstance(authority, dict):
+            terminal.update({
+                'launch_reservation_id': authority.get('reservation_id'),
+                'launch_consumption_id': authority.get('consumption_id'),
+                **{key: authority[key] for key in ('plan_id', 'unit_id', 'obligation_ids',
+                    'admission_id', 'admission_sha256', 'reservation_transition_id',
+                    'consumption_transition_id', 'plan_acceptance_transition_id',
+                    'lifecycle_generation') if key in authority},
+            })
+        return terminal

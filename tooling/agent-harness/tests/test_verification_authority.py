@@ -1,4 +1,5 @@
 import pathlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,8 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         subprocess.run(['git', 'config', 'user.name', 'test'], cwd=self.root, check=True)
         (self.root / 'tooling/agent-harness').mkdir(parents=True)
         (self.root / 'tooling/agent-harness/seed.py').write_text('seed = 1\n')
+        (self.root / 'tooling/agent-harness/human-issuer-registry.json').write_text(
+            json.dumps({'schema_version': 1, 'issuers': []}) + '\n')
         subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
         subprocess.run(['git', 'commit', '-qm', 'base'], cwd=self.root, check=True)
         self.base = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
@@ -57,6 +60,24 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         self.assertEqual(self.profile.content_hash, profile.content_hash)
         self.assertEqual(self.plan, plan)
         self.assertEqual(self.record['execution_units'], list(units.values()))
+
+    def test_execute_plan_wires_trusted_launch_authorizer_to_supervisor(self):
+        from verification import executor
+        from verification.supervisor import VerificationSupervisor
+        captured = {}
+
+        def stop_after_capture(_supervisor, _backend, **kwargs):
+            captured.update(kwargs)
+            raise RuntimeError('test-stop-before-launch')
+
+        with mock.patch.object(authority, 'resolve_execution',
+                               return_value=(self.record, self.profile, self.plan,
+                                   {item['unit_id']: item for item in self.record['execution_units']})), \
+             mock.patch.object(VerificationSupervisor, 'execute', stop_after_capture):
+            result = executor.execute_plan(self.root, self.profile, self.plan,
+                                           authority_context=self.record, sandbox_mode='off')
+        self.assertEqual('ERROR', result.gates[0].outcome)
+        self.assertTrue(callable(captured.get('launch_authorizer')))
 
     def test_rehashed_origin_or_membership_cannot_publish(self):
         import copy
@@ -193,6 +214,57 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         self.assertEqual(1, len(legacy))
         self.assertEqual('task', legacy[0]['required_origin'])
         self.assertEqual('task-command', legacy[0]['requirement_source'])
+
+    def test_profile_origin_and_principal_bind_obligation_family_and_plan(self):
+        registry = {'schema_version': 1, 'issuers': [
+            {'issuer_id': 'issuer-a', 'reviewer_principal': 'human:alice',
+             'enabled': True, 'revoked': False, 'actions': ['manual-review']},
+            {'issuer_id': 'issuer-b', 'reviewer_principal': 'human:bob',
+             'enabled': True, 'revoked': False, 'actions': ['manual-review']}]}
+
+        def make_record(origin, principal=None, task_commands=()):
+            gate = {'id': 'manual-gate', 'command': 'python3 -m unittest',
+                    'inputs': ['tooling/agent-harness/**'], 'mandatory': True,
+                    'applicability': ['**'], 'required_origin': origin,
+                    'independent_execution_classes':
+                        ['harness-managed-independent-execution-v1'] if origin == 'independent' else [],
+                    'independent_registration_classes': [], 'cacheable': False}
+            if principal is not None:
+                gate['required_manual_reviewer_principal'] = principal
+            profile = load_profile({'schema_version': 1, 'gates': [gate]},
+                                   manual_issuer_registry=registry)
+            family_id = authority.task_family_id('SDD-OBS-001', 'T-001', 1, profile)
+            family = Family(family_id, self.base, 'task-completion', profile.content_hash, 'd' * 64)
+            plan = build_plan(self.root, profile, family, task_commands=task_commands)
+            return authority.execution_plan_record(
+                'SDD-OBS-001', 'f' * 64, 2, self.profile_id, profile, plan,
+                task_id='T-001', task_attempt=1, task_commands=task_commands,
+                origin_binding='task-completion')
+
+        alice = make_record('manual', 'human:alice')
+        bob = make_record('manual', 'human:bob')
+        independent = make_record('independent')
+        self.assertNotEqual(alice['family']['id'], bob['family']['id'])
+        self.assertNotEqual(alice['family']['id'], independent['family']['id'])
+        self.assertNotEqual(alice['obligations'][0]['obligation_id'], bob['obligations'][0]['obligation_id'])
+        self.assertNotEqual(alice['plan_id'], bob['plan_id'])
+        self.assertNotEqual(alice['plan_id'], independent['plan_id'])
+        self.assertEqual('manual', alice['obligations'][0]['required_origin'])
+        self.assertEqual('independent', independent['obligations'][0]['required_origin'])
+
+    def test_untrusted_task_origin_does_not_upgrade_profile_gate(self):
+        profile = self.profile
+        family = Family('untrusted-origin-attempt', self.base, 'task-completion',
+                        profile.content_hash, 'd' * 64)
+        commands = [{'command': profile.gates[0].command, 'cwd': profile.gates[0].cwd}]
+        plan = build_plan(self.root, profile, family, task_commands=commands)
+        record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
+            self.profile_id, profile, plan, task_id='T-001', task_attempt=1,
+            task_commands=commands, origin_binding='task-completion')
+        matching = [item for item in record['obligations']
+                    if item['command_hash'] == profile.gates[0].command_hash]
+        self.assertEqual({'task', 'independent'}, {item['required_origin'] for item in matching})
+        self.assertEqual(2, len(matching))
 
     def test_exact_accepted_plan_reconstructs_current_units_without_running_them(self):
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):

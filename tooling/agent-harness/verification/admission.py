@@ -260,6 +260,20 @@ class RepositoryAdmission:
             self._write(state)
             return True
 
+    def owner_is_proven_dead(self, reservation_id: str) -> bool:
+        """Check exact active owner PID+start token without changing admission state."""
+        with self._locked():
+            active = self._read()['active']
+            if not isinstance(active, dict) or active.get('id') != reservation_id:
+                return False
+            context = active.get('context')
+            if not isinstance(context, dict):
+                return False
+            pid, start = context.get('owner_pid'), context.get('owner_start_time')
+            if type(pid) is not int or pid <= 0 or not isinstance(start, str) or not start:
+                return False
+            return process_instance_is_alive(pid, start) is False
+
     def active(self) -> dict[str, Any] | None:
         with self._locked():
             return self._read()['active']

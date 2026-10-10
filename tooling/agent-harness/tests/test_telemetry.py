@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 import pathlib
 import tempfile
@@ -16,6 +17,20 @@ spec.loader.exec_module(telemetry)
 
 
 class TelemetryTest(unittest.TestCase):
+    def test_candidate_binding_refusal_uses_blocked_exit_five(self):
+        stderr = io.StringIO()
+        with mock.patch('sys.argv', ['telemetry.py', '--repo', '.', 'record-manual',
+                '--feature', 'TST-MANUAL', '--role', 'evaluator', '--provider', 'manual',
+                '--checkpoint', 'a' * 40, '--verdict', 'PASS', '--report', 'report.md',
+                '--attestation', 'attestation.json']), \
+             mock.patch.object(telemetry, 'record_manual',
+                side_effect=ValueError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')), \
+             mock.patch('sys.stderr', stderr):
+            with self.assertRaises(SystemExit) as exited:
+                telemetry.main()
+        self.assertEqual(5, exited.exception.code)
+        self.assertIn('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED', stderr.getvalue())
+
     def test_manual_coverage_rejects_malformed_trusted_plan_binding(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaisesRegex(ValueError, 'MANUAL_EVIDENCE_ATTESTATION_INVALID'):
@@ -158,7 +173,8 @@ class TelemetryTest(unittest.TestCase):
         report_snapshot.write_bytes(original_report)
         for field, value in (('plan_id', 'verification-plan-v2:sha256:' + '5' * 64),
                              ('obligation_ids', ['verification-obligation-v2:sha256:' + '6' * 64]),
-                             ('candidate_identity', '7' * 64), ('final_surface_identity', '8' * 64)):
+                             ('candidate_identity', '7' * 64), ('final_surface_identity', '8' * 64),
+                             ('reviewer_principal', 'human:other-reviewer')):
             changed = {**binding, field: value}
             changed_observation = {**observation, 'plan_binding': changed}
             with self.subTest(field=field), self.assertRaisesRegex(
@@ -240,7 +256,8 @@ class TelemetryTest(unittest.TestCase):
         common_path = pathlib.Path(common)
         if not common_path.is_absolute():
             common_path = (root / common_path).resolve()
-        report = (f"Feature: `TST-MANUAL`\nReviewed checkpoint: `{checkpoint}`\n"
+        task_line = f"Task: `{(envelope_changes or {}).get('task_id')}`\n" if (envelope_changes or {}).get('task_id') else ''
+        report = (f"Feature: `TST-MANUAL`\nReviewed checkpoint: `{checkpoint}`\n{task_line}"
                   f"Verdict: **PASS**\nCompleted at: `{fixture['completed_text']}`\n").encode()
         fixture['report_path'].write_bytes(report)
         fixture['requested_checkpoint'] = checkpoint
@@ -266,6 +283,79 @@ class TelemetryTest(unittest.TestCase):
         signature = base64.urlsafe_b64encode(fixture['key'].sign(canonical_jcs(envelope))).decode().rstrip('=')
         fixture['envelope'] = envelope
         fixture['attestation_path'].write_bytes(canonical_jcs({'envelope': envelope, 'signature': signature}))
+
+    def test_plan_bound_manual_registration_flows_into_coverage_cas(self):
+        from types import SimpleNamespace
+        import harness as lifecycle
+        from verification import authority
+        from verification.candidate import CandidateSealError
+        from verification.store import VerificationStore
+
+        fixture = self._signed_manual_fixture()
+        self.addCleanup(fixture['temporary'].cleanup)
+        root = fixture['root']
+        feature_dir = fixture['feature_dir']
+        doc = lifecycle.load_validated(feature_dir)
+        state = lifecycle.load_state(feature_dir, doc)
+        task_id, attempt = 'T-900', 1
+        checkpoint = fixture['requested_checkpoint']
+        state['tasks'][task_id].update({'status': 'running', 'attempts': attempt,
+            'attempt_bindings': [{'attempt': attempt, 'binding_status': 'proven',
+                'packet_revision': 'sha256:' + 'a' * 64, 'contract_sha256': 'b' * 64}]})
+        plan_id = 'verification-plan-v2:sha256:' + '1' * 64
+        obligation_id = 'verification-obligation-v2:sha256:' + '2' * 64
+        family = {'id': 'family-test', 'base_sha': checkpoint,
+                  'origin_policy': 'task-completion'}
+        plan = {'schema_version': 2, 'plan_id': plan_id, 'feature_id': 'TST-MANUAL',
+            'task_id': task_id, 'task_attempt': attempt, 'lifecycle_generation': 1,
+            'feature_fingerprint': lifecycle.feature_fingerprint(feature_dir),
+            'profile_id': 'showcase', 'profile_hash': '3' * 64,
+            'policy_checkpoint': 'd' * 40, 'origin_binding': 'task-completion',
+            'family': family, 'candidate_identity': '4' * 64,
+            'final_changed_surface_id': '5' * 64,
+            'obligations': [{'obligation_id': obligation_id, 'profile_gate_id': 'manual-gate',
+                'requirement_source': 'profile', 'required_origin': 'manual',
+                'required_manual_reviewer_principal': None}]}
+        transition_id = '11111111-1111-4111-8111-111111111111'
+        authority_binding = {key: plan[key] for key in (
+            'schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt',
+            'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_hash',
+            'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
+        state['verification_authority'] = {'accepted_plan_id': plan_id, 'generation': 1,
+            'binding': authority_binding, 'plan_acceptance_transition_id': transition_id}
+        lifecycle.save_state(feature_dir, state)
+        self.assertTrue(list((root / '.agent-state').glob('TST-MANUAL-*.json')))
+        fixture['report_path'].write_bytes(
+            fixture['report_path'].read_bytes().replace(b'Verdict:', b'Task: `T-900`\nVerdict:'))
+        fixture['envelope'].update({
+            'candidate_identity': plan['candidate_identity'],
+            'final_surface_identity': plan['final_changed_surface_id'],
+            'task_id': task_id, 'attempt': attempt, 'plan_id': plan_id,
+            'family_id': family['id'], 'plan_acceptance_transition_id': transition_id,
+            'lifecycle_generation': 1, 'obligation_ids': [obligation_id]})
+        self._refresh_signed_fixture(fixture, envelope_changes={key: fixture['envelope'][key]
+            for key in ('task_id', 'candidate_identity', 'final_surface_identity', 'attempt',
+                        'plan_id', 'family_id', 'plan_acceptance_transition_id',
+                        'lifecycle_generation', 'obligation_ids')})
+        gate = SimpleNamespace(id='manual-gate', required_origin='manual',
+                               required_manual_reviewer_principal='human:test-reviewer')
+        seal = SimpleNamespace(head_sha=checkpoint, candidate_identity=plan['candidate_identity'],
+                               changed_surface_id=plan['final_changed_surface_id'])
+        with mock.patch.object(VerificationStore, 'load_plan_record', return_value=plan), \
+             mock.patch.object(authority, 'validate_plan_record'), \
+             mock.patch.object(authority, '_load_trusted_profile', return_value=SimpleNamespace(gates=(gate,))), \
+             mock.patch('verification.candidate.seal_candidate', return_value=seal):
+            record = telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                provider='manual', checkpoint=checkpoint, verdict='PASS',
+                report=fixture['report_path'].relative_to(root.resolve()).as_posix(),
+                task=task_id, task_attempt='1', plan_id=plan_id,
+                attestation=fixture['attestation_path'].relative_to(root.resolve()).as_posix())
+            observation = json.loads(record.read_text(encoding='utf-8'))
+            accepted = lifecycle.accept_manual_observation_coverage(root, 'TST-MANUAL',
+                plan_id=plan_id, observation_id=observation['observation_id'],
+                obligation_id=obligation_id, expected_feature_generation=1)
+        self.assertEqual(plan_id, accepted['plan_id'])
+        self.assertEqual(checkpoint, accepted['reviewed_checkpoint'])
 
     def _assert_rejected_before_lifecycle_register(self, fixture, expected='MANUAL_EVIDENCE_ATTESTATION_INVALID'):
         import harness as lifecycle

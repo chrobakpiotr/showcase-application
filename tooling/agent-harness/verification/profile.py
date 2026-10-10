@@ -96,13 +96,56 @@ def _no_duplicates(pairs):
     return out
 
 
-def load_profile(source, *, safety=None):
+def registered_manual_principal(registry, principal):
+    """Resolve one enabled manual-review principal from trusted registry data."""
+    if (not isinstance(registry, dict) or type(registry.get('schema_version')) is not int or
+            registry.get('schema_version') != 1 or not isinstance(registry.get('issuers'), list) or
+            not isinstance(principal, str) or not principal or principal.strip() != principal):
+        raise InvalidPolicy('invalid-manual-reviewer-registry')
+    principals = []
+    issuer_ids = set()
+    for entry in registry['issuers']:
+        if not isinstance(entry, dict):
+            raise InvalidPolicy('invalid-manual-reviewer-registry')
+        issuer_id = entry.get('issuer_id')
+        current = entry.get('reviewer_principal', entry.get('principal'))
+        if (not isinstance(issuer_id, str) or not issuer_id or issuer_id in issuer_ids or
+                not isinstance(current, str) or not current or current.strip() != current):
+            raise InvalidPolicy('invalid-manual-reviewer-registry')
+        issuer_ids.add(issuer_id)
+        if current == principal:
+            principals.append((issuer_id, entry))
+    if len(principals) != 1:
+        raise InvalidPolicy('untrusted-manual-reviewer')
+    _issuer_id, issuer = principals[0]
+    actions = issuer.get('actions')
+    if (issuer.get('enabled') is not True or issuer.get('revoked') is not False or
+            not isinstance(actions, list) or any(not isinstance(item, str) for item in actions) or
+            'manual-review' not in actions):
+        raise InvalidPolicy('untrusted-manual-reviewer')
+    return principal
+
+
+def load_profile(source, *, safety=None, manual_issuer_registry=None,
+                 manual_issuer_registry_loader=None):
     """Load only the trusted control-plane snapshot; never discover worktree policy."""
     safety = safety or default_safety()
     try:
-        if isinstance(source, dict):
+        mapping_input = isinstance(source, dict)
+        if mapping_input:
             raw = canonical(source)
             document = json.loads(raw, object_pairs_hook=_no_duplicates)
+            if isinstance(document, dict) and isinstance(document.get('gates'), list):
+                normalized_gates = []
+                for gate_data in document['gates']:
+                    if isinstance(gate_data, dict):
+                        gate_data = dict(gate_data)
+                        gate_data.setdefault('required_origin', 'task')
+                        gate_data.setdefault('independent_execution_classes', [])
+                        gate_data.setdefault('independent_registration_classes', [])
+                    normalized_gates.append(gate_data)
+                document['gates'] = normalized_gates
+                raw = canonical(document)
         else:
             raw = pathlib.Path(source).read_bytes()
             document = json.loads(raw, object_pairs_hook=_no_duplicates)
@@ -113,8 +156,20 @@ def load_profile(source, *, safety=None):
         if not isinstance(document['gates'], list): raise InvalidPolicy('invalid-gates')
         gates = []
         allowed = set(Gate.__dataclass_fields__) - {'command_hash'}
+        required = {'id', 'command', 'inputs', 'required_origin',
+                    'independent_execution_classes', 'independent_registration_classes'}
         for data in document['gates']:
-            if not isinstance(data, dict) or set(data) - allowed or not {'id', 'command', 'inputs'} <= set(data):
+            if not isinstance(data, dict) or set(data) - allowed:
+                raise InvalidPolicy('invalid-gate')
+            if mapping_input:
+                # Mapping input is used by advisory and isolated unit callers.
+                # Persisted trusted profiles are file bytes and must declare all
+                # authority semantics explicitly below.
+                data = dict(data)
+                data.setdefault('required_origin', 'task')
+                data.setdefault('independent_execution_classes', [])
+                data.setdefault('independent_registration_classes', [])
+            if not required <= set(data):
                 raise InvalidPolicy('invalid-gate')
             values = dict(data)
             if not isinstance(values['id'], str) or not IDENTIFIER.fullmatch(values['id']) or values['id'].startswith(('task-command:', 'legacy-task-command:')):
@@ -123,7 +178,8 @@ def load_profile(source, *, safety=None):
                 if key in values and type(values[key]) is not bool: raise InvalidPolicy('invalid-boolean')
             for key in ('inputs', 'applicability'):
                 if key in values: values[key] = _strings(values[key], patterns=True)
-            for key in ('depends_on', 'retry_controls', 'independent_execution_classes'):
+            for key in ('depends_on', 'retry_controls', 'independent_execution_classes',
+                        'independent_registration_classes'):
                 if key in values: values[key] = _strings(values[key])
             if 'produces' in values: values['produces'] = _strings(values['produces'], paths=True)
             if any(key in values and not isinstance(values[key], list) for key in ('probes', 'consumes')):
@@ -144,10 +200,25 @@ def load_profile(source, *, safety=None):
             values['consumes'] = tuple(consumes)
             values['command_hash'] = command_identity(values['command'], values.get('cwd', '.'), safety=safety)
             g = Gate(**values)
+            if g.required_origin not in {'task', 'independent', 'manual'}:
+                raise InvalidPolicy('invalid-required-origin')
+            if g.independent_registration_classes:
+                raise InvalidPolicy('invalid-independent-registration-class')
             if g.sandbox not in ('required', 'best-effort', 'off') or g.retry_policy not in ('forbid', 'allow'):
                 raise InvalidPolicy('invalid-execution-policy')
             if any(c != 'harness-managed-independent-execution-v1' for c in g.independent_execution_classes):
                 raise InvalidPolicy('invalid-independent-execution-class')
+            if g.required_origin == 'independent':
+                if not g.independent_execution_classes or g.sandbox != 'required' or g.required_manual_reviewer_principal is not None:
+                    raise InvalidPolicy('invalid-independent-origin-policy')
+            elif g.independent_execution_classes:
+                raise InvalidPolicy('invalid-independent-origin-policy')
+            if g.required_origin == 'manual':
+                if manual_issuer_registry is None and manual_issuer_registry_loader is not None:
+                    manual_issuer_registry = manual_issuer_registry_loader()
+                registered_manual_principal(manual_issuer_registry, g.required_manual_reviewer_principal)
+            elif g.required_manual_reviewer_principal is not None:
+                raise InvalidPolicy('invalid-manual-reviewer')
             if g.independent_execution_classes and g.sandbox != 'required':
                 raise InvalidPolicy('invalid-independent-sandbox')
             if g.cacheable and any(diagnostic_provider_artifact_path(p) for p in (*g.inputs, *g.produces, *(a.path for a in g.consumes))):

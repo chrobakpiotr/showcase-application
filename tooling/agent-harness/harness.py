@@ -1230,6 +1230,61 @@ def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id:
                 'capability': issue_launch_capability(consumption['consumption_id'], reservation_id)}
 
 
+def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id: str, *,
+                                execution_id: str) -> dict[str, Any]:
+    """Rebuild the journal projection from consumed .agent-state authority after owner death.
+
+    The caller must independently prove the exact repository-admission owner is dead
+    and that no physical-launch marker exists. This function only reads immutable
+    admission/consumption facts; terminalization performs the state CAS.
+    """
+    from verification.admission import validate_plan_admission_record, validate_plan_launch_reservation
+    from verification.store import StoreError, VerificationStore
+    repository = pathlib.Path(repository).resolve(strict=True)
+    plan = resolve_accepted_verification_plan(repository, plan_id)
+    feature_dir = repository / 'docs' / 'specs' / plan['feature_id']
+    doc = load_validated(feature_dir)
+    store = VerificationStore(repository)
+    with lifecycle_state_lock(feature_dir, repository_admission_id=execution_id):
+        state = _read_state_unlocked_pure(feature_dir, doc)
+        authority = state.get('verification_authority')
+        if not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id:
+            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+        reservation = authority.get('launch_reservations', {}).get(unit_id)
+        consumption = authority.get('launch_consumptions', {}).get(unit_id)
+        admission = authority.get('admissions', {}).get(unit_id)
+        admission_hash = authority.get('admission_hashes', {}).get(unit_id)
+        if (not all(isinstance(item, dict) for item in (reservation, consumption, admission)) or
+                reservation.get('status') != 'launch_reserved' or
+                consumption.get('status') != 'launch_consumed' or
+                consumption.get('reservation_id') != reservation.get('reservation_id') or
+                type(admission_hash) is not str):
+            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+        bound_admission = store.load_admission_record(admission['admission_id'],
+                                                      expected_hash=admission_hash)
+        units = [item for item in plan.get('execution_units', [])
+                 if isinstance(item, dict) and item.get('unit_id') == unit_id]
+        if len(units) != 1:
+            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+        validate_plan_admission_record(bound_admission, plan, units[0])
+        validate_plan_launch_reservation(reservation, bound_admission)
+        bound_consumption = store.load_launch_consumption_record(
+            consumption.get('consumption_id'), admission=bound_admission,
+            reservation=reservation, expected_hash=consumption.get('sha256'))
+        if (bound_consumption.get('transition_id') != consumption.get('transition_id') or
+                bound_consumption.get('consumption_id') != consumption.get('consumption_id')):
+            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
+        return {'schema_version': 1, 'execution_id': execution_id,
+            'reservation_id': reservation['reservation_id'],
+            'consumption_id': consumption['consumption_id'], 'plan_id': plan_id,
+            'unit_id': unit_id, 'obligation_ids': list(units[0]['obligation_ids']),
+            'admission_id': admission['admission_id'], 'admission_sha256': admission_hash,
+            'reservation_transition_id': reservation['transition_id'],
+            'consumption_transition_id': consumption['transition_id'],
+            'plan_acceptance_transition_id': authority['plan_acceptance_transition_id'],
+            'lifecycle_generation': plan['lifecycle_generation']}
+
+
 def terminalize_verification_execution(repository: pathlib.Path, terminal: dict, *,
                                         repository_admission_id: str) -> dict:
     """CAS-bind a drained receipt to the exact consumed plan reservation."""
@@ -1281,12 +1336,45 @@ def terminalize_verification_execution(repository: pathlib.Path, terminal: dict,
                 reservation.get('transition_id') != terminal['reservation_transition_id'] or
                 consumption.get('consumption_id') != terminal['launch_consumption_id'] or
                 consumption.get('reservation_id') != terminal['launch_reservation_id'] or
-                consumption.get('status') not in {'launch_consumed', 'execution_terminal'}):
+                consumption.get('status') not in {'launch_consumed', 'execution_terminal', 'safe_prelaunch_abort'}):
             raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
-        if reservation.get('status') == 'execution_terminal':
+        if reservation.get('status') in {'execution_terminal', 'safe_prelaunch_abort'}:
             if reservation.get('terminal_receipt_hash') == terminal['receipt_hash']:
                 return reservation
             raise StoreError('VERIFICATION_TERMINAL_CONFLICT')
+        safe_prelaunch_abort = (
+            terminal.get('result') == 'ABORTED' and
+            terminal.get('harness_invocation_upper_bound') == 0 and
+            terminal.get('timed_out') is False and terminal.get('cancelled') is False and
+            terminal.get('output_observation') == 'UNAVAILABLE')
+        if safe_prelaunch_abort:
+            if (reservation.get('status') != 'launch_reserved' or
+                    consumption.get('status') != 'launch_consumed'):
+                raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+            before = state.get('state_revision', 0)
+            import uuid
+            transition_id = str(uuid.uuid4())
+            _append_lifecycle_transition(state, feature_dir, operation='safe-prelaunch-abort',
+                task_id=plan['task_id'], attempt=plan['task_attempt'], generation=generation,
+                predecessor_ids=[terminal['consumption_transition_id']],
+                record_refs=[{'record_id': terminal['execution_id'], 'sha256': terminal['receipt_hash']}],
+                transition_id=transition_id)
+            reservations = dict(reservations)
+            reservations[terminal['unit_id']] = {**reservation,
+                'status': 'safe_prelaunch_abort', 'terminal_receipt_hash': terminal['receipt_hash'],
+                'terminal_transition_id': transition_id}
+            consumptions = dict(consumptions)
+            consumptions[terminal['unit_id']] = {**consumption,
+                'status': 'safe_prelaunch_abort', 'terminal_receipt_hash': terminal['receipt_hash'],
+                'terminal_transition_id': transition_id}
+            authority = dict(authority)
+            authority['launch_reservations'] = reservations
+            authority['launch_consumptions'] = consumptions
+            state['verification_authority'] = authority
+            if state.get('state_revision') != before + 1:
+                raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
+            save_state(feature_dir, state)
+            return reservations[terminal['unit_id']]
         if reservation.get('status') != 'launch_reserved' or consumption.get('status') != 'launch_consumed':
             raise StoreError('VERIFICATION_TERMINAL_BINDING_MISMATCH')
         from verification.admission import validate_plan_admission_record, validate_plan_launch_reservation
@@ -2196,7 +2284,8 @@ def register_manual_observation(repository: pathlib.Path, feature_id: str, *, ob
                                 role: str, task_id: str | None = None,
                                 task_attempt: int | None = None, checkpoint: str | None = None,
                                 attestation_sha256: str, report_sha256: str,
-                                expected_feature_generation: int) -> dict[str, Any]:
+                                expected_feature_generation: int,
+                                plan_binding: dict[str, Any] | None = None) -> dict[str, Any]:
     """Record immutable manual provenance under the lifecycle lock.
 
     T-005's telemetry `record-manual` boundary must validate the signed
@@ -2231,7 +2320,38 @@ def register_manual_observation(repository: pathlib.Path, feature_id: str, *, ob
             scope = resolve_manual_review_scope(
                 repository, feature_id, role=role, task_id=task_id,
                 task_attempt=task_attempt, checkpoint=checkpoint,
+                allow_active_attempt=plan_binding is not None,
                 _lifecycle_state=state)
+            if plan_binding is not None:
+                from verification.authority import validate_plan_record
+                from verification.store import VerificationStore
+                plan_id = plan_binding.get('plan_id') if isinstance(plan_binding, dict) else None
+                try:
+                    plan = VerificationStore(repository).load_plan_record(plan_id)
+                    validate_plan_record(plan, repository=repository, reconstruct=True)
+                except Exception:
+                    raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+                authority = state.get('verification_authority')
+                expected_binding = {
+                    'plan_id': plan.get('plan_id'), 'family_id': plan.get('family', {}).get('id'),
+                    'plan_acceptance_transition_id': (authority.get('plan_acceptance_transition_id')
+                        if isinstance(authority, dict) else None),
+                    'lifecycle_generation': generation, 'task_id': plan.get('task_id'),
+                    'task_attempt': plan.get('task_attempt'),
+                    'candidate_identity': plan.get('candidate_identity'),
+                    'final_surface_identity': plan.get('final_changed_surface_id'),
+                    'obligation_ids': plan_binding.get('obligation_ids'),
+                    'reviewer_principal': plan_binding.get('reviewer_principal'),
+                }
+                if (plan.get('feature_id') != feature_id or plan.get('task_id') != scope.get('task_id') or
+                        plan.get('task_attempt') != scope.get('task_attempt') or
+                        plan.get('lifecycle_generation') != generation or
+                        not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id or
+                        authority.get('generation') != generation or plan_binding != expected_binding or
+                        not isinstance(plan_binding.get('obligation_ids'), list) or
+                        len(plan_binding['obligation_ids']) != 1 or
+                        plan_binding['obligation_ids'] != sorted(set(plan_binding['obligation_ids']))):
+                    raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
             repository_id = hashlib.sha256(os.fsencode(git_common_dir(feature_dir))).hexdigest()
             if scope.get('repository_id') != repository_id:
                 raise StoreError('MANUAL_EVIDENCE_SCOPE_CONFLICT')
@@ -2243,6 +2363,7 @@ def register_manual_observation(repository: pathlib.Path, feature_id: str, *, ob
                 'attestation_sha256': attestation_sha256,
                 'report_sha256': report_sha256,
                 'attestation_validation_owner': 'tooling/agent-harness/telemetry.py',
+                'plan_binding': plan_binding,
                 'registered_at': utc_now().isoformat(),
             }
             authority_root = runtime_state_dir(feature_dir) / 'manual-observations' / feature_id
@@ -2312,6 +2433,216 @@ def register_manual_observation(repository: pathlib.Path, feature_id: str, *, ob
                     'record_sha256': sha256_bytes(payload)}
     except AdmissionConflict as exc:
         raise StoreError('MANUAL_EVIDENCE_AUTHORITY_BUSY') from exc
+
+
+def accept_manual_observation_coverage(repository: pathlib.Path, feature_id: str, *,
+                                      plan_id: str, observation_id: str,
+                                      obligation_id: str,
+                                      expected_feature_generation: int) -> dict[str, Any]:
+    """Bind verified manual evidence to one current accepted obligation via state CAS.
+
+    The plan, trusted profile principal, observation ledger, signed attestation and
+    report snapshots are all revalidated while the lifecycle lock is held. This
+    operation never grants retries or changes task lifecycle status.
+    """
+    from verification.authority import validate_plan_record, _load_trusted_profile
+    from verification.store import StoreError, VerificationStore
+    import stat
+
+    if (not isinstance(feature_id, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}', feature_id) or
+            not isinstance(plan_id, str) or not re.fullmatch(r'verification-plan-v2:sha256:[0-9a-f]{64}', plan_id) or
+            not isinstance(observation_id, str) or not re.fullmatch(r'[0-9a-f]{64}', observation_id) or
+            not isinstance(obligation_id, str) or not re.fullmatch(r'verification-obligation-v2:sha256:[0-9a-f]{64}', obligation_id) or
+            type(expected_feature_generation) is not int or expected_feature_generation < 1):
+        raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+    repository = pathlib.Path(repository).resolve(strict=True)
+    feature_dir = repository / 'docs' / 'specs' / feature_id
+    if not feature_dir.is_dir() or feature_dir.is_symlink():
+        raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+    with lifecycle_state_lock(feature_dir):
+        doc = load_validated(feature_dir)
+        state = _load_state_unlocked(feature_dir, doc)
+        # Plan integrity and candidate reconstruction are intentionally inside
+        # the same lifecycle lock as the coverage CAS. Otherwise the candidate
+        # could become dirty after resealing but before this state transition.
+        store = VerificationStore(repository)
+        try:
+            plan = store.load_plan_record(plan_id)
+            validate_plan_record(plan, repository=repository, reconstruct=True)
+        except (StoreError, OSError, ValueError, TypeError):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        if plan.get('plan_id') != plan_id or plan.get('feature_id') != feature_id:
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        generation = state.get('feature_generation', 1)
+        current = state.get('verification_authority')
+        task_state = state.get('tasks', {}).get(plan.get('task_id'))
+        expected_authority_binding = {key: plan.get(key) for key in (
+            'schema_version', 'profile_id', 'plan_id', 'task_id', 'task_attempt',
+            'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_hash',
+            'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id', 'origin_binding')}
+        if (type(generation) is not int or generation != expected_feature_generation or
+                generation != plan.get('lifecycle_generation') or
+                plan.get('feature_fingerprint') != feature_fingerprint(feature_dir) or
+                not isinstance(task_state, dict) or task_state.get('status') != 'running' or
+                task_state.get('attempts') != plan.get('task_attempt') or
+                not isinstance(current, dict) or current.get('accepted_plan_id') != plan_id or
+                current.get('generation') != generation or current.get('binding') != expected_authority_binding or
+                not isinstance(current.get('plan_acceptance_transition_id'), str) or
+                not current['plan_acceptance_transition_id']):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+
+        obligations = [item for item in plan.get('obligations', [])
+                       if isinstance(item, dict) and item.get('obligation_id') == obligation_id]
+        if len(obligations) != 1:
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        obligation = obligations[0]
+        profile_root = pathlib.Path(__file__).resolve().parent / 'verification-profiles'
+        profile_path = (profile_root / (plan['profile_id'] + '.json')).resolve(strict=True)
+        if profile_path.parent != profile_root.resolve(strict=True):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        profile = _load_trusted_profile(repository, profile_path)
+        gates = [gate for gate in profile.gates if gate.id == obligation.get('profile_gate_id')]
+        if (obligation.get('requirement_source') != 'profile' or len(gates) != 1 or
+                obligation.get('required_origin') != 'manual' or
+                gates[0].required_origin != 'manual' or
+                not isinstance(gates[0].required_manual_reviewer_principal, str)):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        reviewer_principal = gates[0].required_manual_reviewer_principal
+
+        ledger = state.get('manual_observation_ledger', [])
+        matches = [entry for entry in ledger if isinstance(entry, dict) and
+                   entry.get('observation_id') == observation_id] if isinstance(ledger, list) else []
+        if len(matches) != 1:
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        observation_root = runtime_state_dir(feature_dir) / 'manual-observations' / feature_id
+        if (observation_root.is_symlink() or not observation_root.is_dir()):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        record_path = observation_root / f'{observation_id}.json'
+        if matches[0].get('record_path') != str(record_path) or record_path.is_symlink():
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        try:
+            metadata = record_path.lstat()
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 65536:
+                raise ValueError()
+            record_bytes = record_path.read_bytes()
+            observation = json.loads(record_bytes.decode('utf-8'))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        observation_scope = observation.get('scope') if isinstance(observation, dict) else None
+        if (sha256_bytes(record_bytes) != matches[0].get('record_sha256') or
+                not isinstance(observation, dict) or observation.get('observation_id') != observation_id or
+                observation.get('record_type') != 'manual-observation' or
+                observation.get('feature_id') != feature_id or
+                observation.get('feature_generation') != generation or
+                not isinstance(observation_scope, dict) or
+                observation_scope.get('task_id') != plan['task_id'] or
+                observation_scope.get('task_attempt') != plan['task_attempt']):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+
+        plan_binding = {
+            'plan_id': plan_id,
+            'family_id': plan['family']['id'],
+            'plan_acceptance_transition_id': current['plan_acceptance_transition_id'],
+            'lifecycle_generation': generation,
+            'task_id': plan['task_id'], 'task_attempt': plan['task_attempt'],
+            'candidate_identity': plan['candidate_identity'],
+            'final_surface_identity': plan['final_changed_surface_id'],
+            'obligation_ids': [obligation_id],
+            'reviewer_principal': reviewer_principal,
+        }
+        observation = {**observation, 'plan_binding': plan_binding}
+        try:
+            import telemetry
+            proof = telemetry.verify_manual_observation_for_coverage(
+                repository, observation, plan_binding=plan_binding)
+        except (ValueError, OSError, TypeError):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        if proof.get('reviewer_principal') != reviewer_principal:
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        reviewed_checkpoint = proof.get('checkpoint_id')
+        if (not isinstance(reviewed_checkpoint, str) or
+                not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', reviewed_checkpoint)):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        try:
+            checkpoint_type = subprocess.check_output(
+                ['git', '-C', str(repository), 'cat-file', '-t', reviewed_checkpoint],
+                stderr=subprocess.DEVNULL, text=True).strip()
+        except (OSError, subprocess.CalledProcessError):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        if checkpoint_type != 'commit':
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        try:
+            from verification.candidate import CandidateSealError, seal_candidate
+            family = plan['family']
+            seal = seal_candidate(repository, family['base_sha'], {
+                'family_id': family['id'], 'profile_hash': plan['profile_hash'],
+                'policy_checkpoint': plan['policy_checkpoint'],
+                'origin_policy': family['origin_policy']}, trusted_runtime_root=None)
+        except (CandidateSealError, KeyError, TypeError, ValueError, OSError):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        if (seal.head_sha != reviewed_checkpoint or
+                seal.candidate_identity != plan.get('candidate_identity') or
+                seal.changed_surface_id != plan.get('final_changed_surface_id')):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+
+        coverage = {
+            'schema_version': 1, 'plan_id': plan_id, 'obligation_id': obligation_id,
+            'observation_id': observation_id, 'family_id': plan_binding['family_id'],
+            'plan_acceptance_transition_id': plan_binding['plan_acceptance_transition_id'],
+            'lifecycle_generation': generation, 'task_id': plan['task_id'],
+            'task_attempt': plan['task_attempt'], 'candidate_identity': plan['candidate_identity'],
+            'final_surface_identity': plan['final_changed_surface_id'],
+            'reviewer_principal': reviewer_principal,
+            'reviewed_checkpoint': reviewed_checkpoint,
+            'attestation_sha256': observation['attestation_sha256'],
+            'report_sha256': observation['report_sha256'],
+        }
+        coverage['coverage_id'] = 'manual-coverage-v1:sha256:' + sha256_bytes(
+            json.dumps(coverage, sort_keys=True, separators=(',', ':')).encode('utf-8'))
+        binding_root = runtime_state_dir(feature_dir) / 'manual-coverage' / feature_id
+        if (runtime_state_dir(feature_dir).is_symlink() or binding_root.is_symlink()):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        binding_root.mkdir(parents=True, exist_ok=True)
+        if binding_root.resolve().parent != (runtime_state_dir(feature_dir) / 'manual-coverage').resolve():
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        binding_path = binding_root / (coverage['coverage_id'].rsplit(':', 1)[-1] + '.json')
+        binding_bytes = (json.dumps(coverage, indent=2, sort_keys=True) + '\n').encode('utf-8')
+        try:
+            binding_fd = os.open(binding_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL |
+                                 getattr(os, 'O_NOFOLLOW', 0), 0o600)
+        except FileExistsError:
+            if binding_path.is_symlink() or not binding_path.is_file() or binding_path.read_bytes() != binding_bytes:
+                raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED') from None
+        else:
+            with os.fdopen(binding_fd, 'wb') as handle:
+                handle.write(binding_bytes)
+                handle.flush()
+                os.fsync(handle.fileno())
+            directory_fd = os.open(binding_root, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        accepted_coverage = {**coverage, 'record_path': str(binding_path),
+                             'record_sha256': sha256_bytes(binding_bytes)}
+        prior = state.get('manual_coverage_ledger', [])
+        if not isinstance(prior, list):
+            raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+        key_matches = [item for item in prior if isinstance(item, dict) and
+                       (item.get('plan_id'), item.get('obligation_id'), item.get('observation_id')) ==
+                       (plan_id, obligation_id, observation_id)]
+        if key_matches:
+            if len(key_matches) != 1 or key_matches[0] != accepted_coverage:
+                raise StoreError('MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED')
+            return key_matches[0]
+        state['manual_coverage_ledger'] = [*prior, accepted_coverage]
+        _append_lifecycle_transition(state, feature_dir, operation='manual-coverage-accepted',
+            task_id=plan['task_id'], attempt=plan['task_attempt'], generation=generation,
+            predecessor_ids=[plan_binding['plan_acceptance_transition_id']],
+            record_refs=[{'record_id': coverage['coverage_id'],
+                          'sha256': accepted_coverage['record_sha256']}])
+        save_state(feature_dir, state)
+        return accepted_coverage
 
 
 def reviewers(task: dict[str, Any]) -> list[str]:
