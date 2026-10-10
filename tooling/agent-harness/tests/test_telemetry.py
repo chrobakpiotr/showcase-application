@@ -79,7 +79,7 @@ class TelemetryTest(unittest.TestCase):
             import harness, telemetry
             from verification.authority import prepare_task_plan
             from verification.serialization import canonical_jcs
-            from verification.store import VerificationStore
+            from verification.store import StoreError, VerificationStore
             p = 2**255 - 19
             order = 2**252 + 27742317777372353535851937790883648493
             d = (-121665 * pow(121666, p - 2, p)) % p
@@ -166,6 +166,21 @@ class TelemetryTest(unittest.TestCase):
                 report=report_path.relative_to(root).as_posix(), task='T-900', task_attempt='1',
                 plan_id=plan['plan_id'], attestation=attestation_path.relative_to(root).as_posix())
             observation = json.loads(record_path.read_text(encoding='utf-8'))
+            (root / 'tracked.txt').write_text('post-review candidate mutation\\n', encoding='utf-8')
+            subprocess.run(['git', '-C', str(root), 'add', 'tracked.txt'], check=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.name', 'Telemetry Test'], check=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.email', 'telemetry@example.invalid'], check=True)
+            subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'mutate candidate after review'], check=True)
+            try:
+                harness.accept_manual_observation_coverage(root, 'TST-MANUAL',
+                    plan_id=plan['plan_id'], observation_id=observation['observation_id'],
+                    obligation_id=obligations[0]['obligation_id'], expected_feature_generation=1)
+            except StoreError as exc:
+                assert str(exc) == 'MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED'
+            else:
+                raise AssertionError('coverage accepted after the reviewed checkpoint changed')
+            subprocess.run(['git', '-C', str(root), 'reset', '--hard', checkpoint],
+                           check=True, stdout=subprocess.DEVNULL)
             accepted = harness.accept_manual_observation_coverage(root, 'TST-MANUAL',
                 plan_id=plan['plan_id'], observation_id=observation['observation_id'],
                 obligation_id=obligations[0]['obligation_id'], expected_feature_generation=1)
