@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "name": "verification-v2",
+  "description": "Deterministic verification v2 compatibility, authority, backend isolation, qualification and planning benchmark sentinels.",
+  "cases": [
+    {
+      "id": "V2-compatibility-and-contract",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_telemetry.py",
+        "tooling/agent-harness/tests/test_verification_contract.py",
+        "-v"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "V2-authority-and-isolation",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_eval.py",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_admission.py",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_backend_qualification.py",
+        "-v"
+      ],
+      "timeout_seconds": 300
+    },
+    {
+      "id": "V2-planning-benchmark",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "-v"
+      ],
+      "timeout_seconds": 180
+    }
+  ]
+}
