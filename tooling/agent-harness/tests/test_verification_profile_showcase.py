@@ -133,6 +133,34 @@ class ShowcaseProfileTest(unittest.TestCase):
                 self.assertEqual([], uncovered,
                     f'declared result inputs do not select {gate.id}: {uncovered[:10]}')
 
+    def test_critical_gate_applicability_matches_adapter_and_frontend_boundaries(self):
+        expected = {
+            'modules/adapters/persistence/src/main/java/example/Repository.java':
+                {'showcase-gradle-build', 'critical-postgres-regression'},
+            'modules/adapters/persistence/persistence.gradle':
+                {'showcase-gradle-build', 'critical-postgres-regression'},
+            'modules/adapters/persistence/src/main/resources/db/migration/V002__orders.sql':
+                {'showcase-gradle-build', 'critical-postgres-regression'},
+            'modules/adapters/amqp/src/main/java/example/Publisher.java':
+                {'showcase-gradle-build', 'critical-rabbitmq-regression'},
+            'modules/adapters/amqp/amqp.gradle':
+                {'showcase-gradle-build', 'critical-rabbitmq-regression'},
+            'apps/ecommerce/frontend/ecommerce-frontend.gradle':
+                {'showcase-gradle-build', 'showcase-frontend-build'},
+            'apps/ecommerce/frontend/karma.conf.js': {'showcase-frontend-build'},
+            'apps/ecommerce/frontend/eslint.config.js': {'showcase-frontend-build'},
+            'tooling/quality/critical-postgres-manifest.json':
+                {'critical-postgres-regression'},
+            'tooling/quality/critical-rabbitmq-manifest.json':
+                {'critical-rabbitmq-regression'},
+        }
+        family = Family('showcase-critical-applicability', '0' * 40, 'integration',
+                        self.profile.content_hash, 'e' * 64)
+        for path, wanted in expected.items():
+            with self.subTest(path=path):
+                nodes = required_nodes(self.profile, family, SimpleNamespace(paths=(path,)))
+                self.assertEqual(wanted, {node.id for node in nodes})
+
     def test_profile_is_deterministic_and_gate_commands_are_unambiguous(self):
         again = load_profile(PROFILE_PATH)
         self.assertEqual(self.profile.content_hash, again.content_hash)
