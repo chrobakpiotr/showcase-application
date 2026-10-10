@@ -1,0 +1,13 @@
+{
+  "action": "retry",
+  "attempts_before_resolution": 5,
+  "decided_by": "Piotr (direct task instruction 2026-10-10)",
+  "decision": "Owner-directed review remediation: keep T-009's accepted AC/VC unchanged, and add only tooling/agent-harness/telemetry.py plus tooling/agent-harness/tests/test_telemetry.py to allowed_paths because plan-bound manual evidence storage and end-to-end registration-to-coverage verification are necessary to meet the already accepted manual coverage CAS contract. Preserve every existing fail-closed guard; do not broaden behavior beyond those accepted criteria.",
+  "feature": "SDD-OBS-001",
+  "prior_evidence": null,
+  "prior_reason": "Harness round-2 review requires telemetry.py control-root persistence and a real registration-to-coverage test, which are necessary to meet T-009's accepted coverage authority criteria but are absent from the current allowed_paths. The running attempt must be explicitly replanned to add only telemetry.py and tests/test_telemetry.py before these review fixes can be completed.",
+  "prior_status": "escalated",
+  "resolved_at": "2026-10-10T10:35:45.987878+00:00",
+  "schema_version": 1,
+  "task": "T-009"
+}
