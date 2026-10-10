@@ -17,6 +17,175 @@ spec.loader.exec_module(telemetry)
 
 
 class TelemetryTest(unittest.TestCase):
+    def test_real_plan_registration_and_coverage_use_committed_profile_and_signature(self):
+        import os
+        import shutil
+        import textwrap
+        fixture = self._signed_manual_fixture()
+        self.addCleanup(fixture['temporary'].cleanup)
+        root = fixture['root']
+        package_source = pathlib.Path(__file__).resolve().parents[1]
+        package_copy = root / 'tooling' / 'agent-harness'
+        package_copy.mkdir(parents=True, exist_ok=True)
+        for name in ('harness.py', 'telemetry.py', 'human-issuer-registry.json',
+                     'trust.py', 'verification_contract.py', 'runner.py',
+                     'machine_outcomes.py', 'verification_sandbox.py'):
+            shutil.copy2(package_source / name, package_copy / name)
+        shutil.copytree(package_source / 'verification', package_copy / 'verification', dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        (package_copy / 'verification-profiles').mkdir(exist_ok=True)
+        profile_path = package_copy / 'verification-profiles' / 'showcase.json'
+        shutil.copy2(package_source / 'verification-profiles' / 'showcase.json', profile_path)
+        public_key = bytes.fromhex('5866666666666666666666666666666666666666666666666666666666666666')
+        fixture['registry']['issuers'][0].update({
+            'public_key_ed25519': __import__('base64').b64encode(public_key).decode('ascii'),
+            'key_fingerprint': 'sha256:' + __import__('hashlib').sha256(public_key).hexdigest(),
+        })
+        fixture['registry_path'].write_text(
+            json.dumps(fixture['registry'], sort_keys=True, separators=(',', ':')), encoding='utf-8')
+
+        # Commit the test-only execution package and public issuer first. The
+        # candidate surface below contains only the profile/task policy edits,
+        # rather than hundreds of lines of source or a public-key token.
+        subprocess.run(['git', '-C', str(root), 'add', '.'], check=True, env=fixture['env'])
+        subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'commit trusted fixture runtime'],
+                       check=True, env=fixture['env'])
+        base_checkpoint = subprocess.check_output(
+            ['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+
+        profile = json.loads(profile_path.read_text(encoding='utf-8'))
+        profile['gates'][0].update({
+            'required_origin': 'manual',
+            'independent_execution_classes': [],
+            'required_manual_reviewer_principal': 'human:test-reviewer',
+            'sandbox': 'off',
+        })
+        profile_path.write_text(json.dumps(profile, sort_keys=True, separators=(',', ':')), encoding='utf-8')
+        tasks_path = fixture['feature_dir'] / 'tasks.json'
+        tasks_path.write_text(json.dumps({'feature': 'TST-MANUAL', 'max_parallel': 1,
+            'tasks': [{'id': 'T-900', 'title': 'Evaluate', 'objective': 'Evaluate the committed candidate',
+                'role': 'evaluator', 'depends_on': [],
+                'allowed_paths': ['docs/specs/TST-MANUAL/evidence/**'],
+                'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+                'verification': ['true']}]}, sort_keys=True), encoding='utf-8')
+        subprocess.run(['git', '-C', str(root), 'add', '.'], check=True, env=fixture['env'])
+        subprocess.run(['git', '-C', str(root), 'commit', '-qm', 'commit manual candidate policy'],
+                       check=True, env=fixture['env'])
+        script = textwrap.dedent('''
+            import base64, datetime as dt, hashlib, json, os, pathlib, subprocess, sys, uuid
+            root = pathlib.Path(sys.argv[1]).resolve()
+            base_checkpoint = sys.argv[2]
+            sys.path.insert(0, str(root / 'tooling' / 'agent-harness'))
+            import harness, telemetry
+            from verification.authority import prepare_task_plan
+            from verification.serialization import canonical_jcs
+            from verification.store import VerificationStore
+            p = 2**255 - 19
+            order = 2**252 + 27742317777372353535851937790883648493
+            d = (-121665 * pow(121666, p - 2, p)) % p
+            by = (4 * pow(5, p - 2, p)) % p
+            xx = ((by * by - 1) * pow((d * by * by + 1) % p, p - 2, p)) % p
+            bx = pow(xx, (p + 3) // 8, p)
+            if bx * bx % p != xx: bx = bx * pow(2, (p - 1) // 4, p) % p
+            if bx & 1: bx = p - bx
+            base = (bx, by)
+            def point_add(a, b):
+                x1, y1 = a; x2, y2 = b
+                product = d * x1 * x2 * y1 * y2 % p
+                return (((x1 * y2 + y1 * x2) * pow((1 + product) % p, p - 2, p)) % p,
+                        ((y1 * y2 + x1 * x2) * pow((1 - product) % p, p - 2, p)) % p)
+            def point_mul(scalar):
+                result = (0, 1); addend = base
+                while scalar:
+                    if scalar & 1: result = point_add(result, addend)
+                    addend = point_add(addend, addend); scalar >>= 1
+                return result
+            def encode_point(point):
+                x, y = point
+                return int(y | ((x & 1) << 255)).to_bytes(32, 'little')
+            def test_sign(message, public):
+                nonce = int.from_bytes(hashlib.sha512(bytes(32) + message).digest(), 'little') % order
+                encoded_r = encode_point(point_mul(nonce))
+                challenge = int.from_bytes(hashlib.sha512(encoded_r + public + message).digest(), 'little') % order
+                return encoded_r + ((nonce + challenge) % order).to_bytes(32, 'little')
+            feature = root / 'docs' / 'specs' / 'TST-MANUAL'
+            doc = harness.load_validated(feature)
+            state = harness.load_state(feature, doc)
+            state['tasks']['T-900'].update({'status': 'running', 'attempts': 1,
+                'attempt_bindings': [{'attempt': 1, 'binding_status': 'proven',
+                    'packet_revision': 'sha256:' + 'a' * 64, 'contract_sha256': 'b' * 64}]})
+            harness.save_state(feature, state)
+            plan = prepare_task_plan(root, feature, 'T-900', 1, base_checkpoint, [])
+            checkpoint = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
+            obligations = [item for item in plan['obligations'] if item['required_origin'] == 'manual']
+            assert len(obligations) == 1
+            accepted_state = harness.load_state(feature, doc)
+            authority = accepted_state['verification_authority']
+            store = VerificationStore(root)
+            report = (f"Feature: `TST-MANUAL`\\nReviewed checkpoint: `{checkpoint}`\\n"
+                      f"Task: `T-900`\\nVerdict: **PASS**\\n"
+                      f"Completed at: `{dt.datetime.now(dt.timezone.utc).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')}`\\n").encode()
+            report_path = store.root / 'manual-reports' / 'integration-review.md'
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_bytes(report)
+            registry_path = root / 'tooling' / 'agent-harness' / 'human-issuer-registry.json'
+            registry_bytes = registry_path.read_bytes()
+            registry = json.loads(registry_bytes)
+            issuer = registry['issuers'][0]
+            common = pathlib.Path(subprocess.check_output(
+                ['git', '-C', str(root), 'rev-parse', '--git-common-dir'], text=True).strip())
+            if not common.is_absolute(): common = (root / common).resolve()
+            envelope = {
+                'schema_version': 1, 'attestation_type': 'manual-review-attestation-v1',
+                'attestation_id': str(uuid.uuid4()), 'issuer_registry_id': 'trusted-human-issuer-registry-v1',
+                'issuer_registry_checkpoint': subprocess.check_output(
+                    ['git', '-C', str(root), 'log', '-1', '--format=%H', 'HEAD', '--',
+                     'tooling/agent-harness/human-issuer-registry.json'], text=True).strip(),
+                'issuer_registry_sha256': 'sha256:' + hashlib.sha256(registry_bytes).hexdigest(),
+                'issuer_id': issuer['issuer_id'], 'reviewer_principal': issuer['reviewer_principal'],
+                'key_fingerprint': issuer['key_fingerprint'], 'signature_algorithm': 'Ed25519',
+                'role': 'evaluator', 'verdict': 'PASS', 'report_sha256': 'sha256:' + hashlib.sha256(report).hexdigest(),
+                'completed_at': report.decode().split('Completed at: `')[1].split('`')[0],
+                'repository_id': hashlib.sha256(os.fsencode(common)).hexdigest(),
+                'feature_id': 'TST-MANUAL', 'checkpoint_id': checkpoint,
+                'candidate_identity': plan['candidate_identity'],
+                'final_surface_identity': plan['final_changed_surface_id'],
+                'task_id': 'T-900', 'attempt': 1, 'plan_id': plan['plan_id'],
+                'family_id': plan['family']['id'],
+                'plan_acceptance_transition_id': authority['plan_acceptance_transition_id'],
+                'lifecycle_generation': 1, 'obligation_ids': [obligations[0]['obligation_id']],
+            }
+            public_key = base64.b64decode(issuer['public_key_ed25519'])
+            payload = canonical_jcs({'envelope': envelope,
+                'signature': base64.urlsafe_b64encode(test_sign(canonical_jcs(envelope), public_key)).decode().rstrip('=')})
+            attestation_path = store.root / 'manual-attestations' / 'input.json'
+            attestation_path.parent.mkdir(parents=True, exist_ok=True)
+            attestation_path.write_bytes(payload)
+            record_path = telemetry.record_manual(repo=root, feature='TST-MANUAL', role='evaluator',
+                provider='manual', checkpoint=checkpoint, verdict='PASS',
+                report=report_path.relative_to(root).as_posix(), task='T-900', task_attempt='1',
+                plan_id=plan['plan_id'], attestation=attestation_path.relative_to(root).as_posix())
+            observation = json.loads(record_path.read_text(encoding='utf-8'))
+            accepted = harness.accept_manual_observation_coverage(root, 'TST-MANUAL',
+                plan_id=plan['plan_id'], observation_id=observation['observation_id'],
+                obligation_id=obligations[0]['obligation_id'], expected_feature_generation=1)
+            assert accepted['plan_id'] == plan['plan_id']
+            assert accepted['candidate_identity'] == plan['candidate_identity']
+            assert accepted['final_surface_identity'] == plan['final_changed_surface_id']
+            print(json.dumps({'plan_id': plan['plan_id'], 'observation_id': observation['observation_id'],
+                'coverage_id': accepted['coverage_id'], 'control_root': str(store.root)}))
+        ''')
+        env = dict(os.environ)
+        env['PYTHONPATH'] = str(package_copy)
+        env['PYTHONDONTWRITEBYTECODE'] = '1'
+        completed = subprocess.run([sys.executable, '-c', script, str(root), base_checkpoint],
+            cwd=root, env=env, capture_output=True, text=True)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        result = json.loads(completed.stdout.strip().splitlines()[-1])
+        self.assertEqual(64, len(result['observation_id']))
+        self.assertTrue(result['coverage_id'].startswith('manual-coverage-v1:sha256:'))
+        self.assertTrue(result['control_root'].endswith('.agent-runs/control/verification-v2'))
+
     def test_candidate_binding_refusal_uses_blocked_exit_five(self):
         stderr = io.StringIO()
         with mock.patch('sys.argv', ['telemetry.py', '--repo', '.', 'record-manual',
