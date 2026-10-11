@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "task": "T-900",
+  "attempt": 1,
+  "verdict": "fail",
+  "evaluated_candidate": "f407d05",
+  "environment": {
+    "host": "macOS Intel; Docker Desktop Linux container codex-agent-harness-py313:current",
+    "python": "3.13.16",
+    "harness_contract": "v0.5.0"
+  },
+  "summary": "The focused regressions introduced by test fixture leakage are fixed and pass in the candidate branch. The full 880-test run still fails the accepted planning benchmark limit (median 16.90495 seconds in Docker); the same benchmark independently fails on the host (median 11.195419 seconds, maximum 11.773348 seconds, limit 10 seconds). Two additional errors in the full run were artifacts of mounting a linked worktree whose .git pointer is inaccessible inside Docker; both affected tests pass in a clean full Git clone. T-900 cannot pass until the benchmark contract is met on the declared reference environment and the outstanding T-009 round-4 review conditions are resolved and re-evaluated.",
+  "checks": [
+    {
+      "name": "full unittest discovery on linked worktree",
+      "command": "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests python -m unittest discover -s tooling/agent-harness/tests -p 'test_*.py' -v",
+      "result": "FAIL",
+      "exit_code": 1,
+      "summary": "880 tests; 1 failure and 2 environment errors. Benchmark median was 16.90495 seconds (>10 seconds). Raw output: full-unittest-final.log and full-unittest-final.exit."
+    },
+    {
+      "name": "linked-worktree Git-metadata error isolation",
+      "command": "python -m unittest -v test_verification_profile_showcase.ShowcaseProfileTest.test_every_tracked_result_input_can_activate_its_gate test_verification_store.StoreTest.test_primary_repository_authority_resolution",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "Both tests pass when run from a clean full Git clone; their linked-worktree container errors are environmental. Raw output: focused-clean-clone.log."
+    },
+    {
+      "name": "representative planning benchmark on host",
+      "command": "PYTHONPATH=tooling/agent-harness python3 tooling/agent-harness/benchmarks/verification_planning.py --record benchmark-native.json",
+      "result": "FAIL",
+      "exit_code": 1,
+      "summary": "Median 11.195419 seconds, maximum 11.773348 seconds, 8.75 git subprocesses/run; median limit is 10 seconds. Raw result: benchmark-native.json."
+    },
+    {
+      "name": "representative planning benchmark in Docker",
+      "command": "test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract",
+      "result": "FAIL",
+      "exit_code": 1,
+      "summary": "Median 16.90495 seconds exceeded the 10-second limit. Raw output: full-unittest-final.log."
+    },
+    {
+      "name": "targeted global-state leakage regression sequence",
+      "command": "python -m unittest test_orchestrate.py test_telemetry.py test_verification_lifecycle.py",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "50 tests passed after restoring module-global STATE_DIR values in both test fixtures."
+    },
+    {
+      "name": "other verification suites",
+      "result": "PASS",
+      "exit_code": 0,
+      "summary": "Current baseline 6/6, adversarial 4/4 and shipping-preflight 4/4 reports pass; current spec validation, verification contract, markdown links and handbook PDF checks also pass in their recorded logs."
+    }
+  ],
+  "findings": [
+    {
+      "id": "T900-CURRENT-01",
+      "severity": "high",
+      "location": "tooling/agent-harness/benchmarks/verification_planning.py and tooling/agent-harness/tests/test_verification_benchmark.py",
+      "summary": "The accepted 100-gate/5,000-file planning benchmark requires median <=10 seconds. It reproducibly exceeds that limit on both the local macOS host (11.195419 seconds) and Docker Desktop Linux (16.90495 seconds). No performance claim is supported for this candidate."
+    },
+    {
+      "id": "T900-CURRENT-02",
+      "severity": "medium",
+      "location": "tooling/agent-harness/tests/test_harness.py and tooling/agent-harness/tests/test_orchestrate.py",
+      "summary": "Global STATE_DIR leakage between unittest classes caused false failures in telemetry and profile tests. The fixtures now save and restore the previous module-global value; the focused affected sequence passes (50 tests)."
+    },
+    {
+      "id": "T900-CURRENT-03",
+      "severity": "medium",
+      "location": "T-009 review follow-up from Harness v0.7.0",
+      "summary": "The narrowed cache inputs in verification-profiles/showcase.json and mutation-sensitive tests for the coverage lock and harness_invocation_upper_bound == 0 remain outstanding per Harness review. T-900 must be rerun after those changes."
+    }
+  ],
+  "next_actions": [
+    "Resolve the benchmark limit against the accepted reference environment without weakening the 10-second contract.",
+    "Complete the accepted T-009 round-4 review conditions through the task protocol.",
+    "Rerun full unittest discovery and the independent T-900 evaluation against the resulting candidate."
+  ]
+}

@@ -1,0 +1,31 @@
+test_adversarial_globs_use_bounded_segment_matching (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_adversarial_globs_use_bounded_segment_matching) ... ok
+test_command_and_cwd_are_exact (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_command_and_cwd_are_exact) ... ok
+test_glob_table (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_glob_table) ... ok
+test_invalid_artifact_overlap_and_producer (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_invalid_artifact_overlap_and_producer) ... ok
+test_manual_reviewer_principal_is_rejected_on_task_origin_gate (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_manual_reviewer_principal_is_rejected_on_task_origin_gate) ... ok
+test_mapping_profile_hash_binds_effective_default_origin_policy (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_mapping_profile_hash_binds_effective_default_origin_policy) ... ok
+test_nonmanual_principal_and_incomplete_independent_policy_are_rejected (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_nonmanual_principal_and_incomplete_independent_policy_are_rejected) ... ok
+test_origin_policy_is_explicit_and_manual_principal_is_registry_bound (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_origin_policy_is_explicit_and_manual_principal_is_registry_bound) ... ok
+test_origin_policy_rejects_unqualified_or_ambiguous_manual_authority (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_origin_policy_rejects_unqualified_or_ambiguous_manual_authority) ... ok
+test_persisted_manual_profile_requires_explicit_origin_and_principal (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_persisted_manual_profile_requires_explicit_origin_and_principal) ... ok
+test_persisted_profile_rejects_absent_origin_policy_fields (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_persisted_profile_rejects_absent_origin_policy_fields) ... ok
+test_profile_hash_binds_manual_principal_and_per_gate_origin (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_profile_hash_binds_manual_principal_and_per_gate_origin) ... ok
+test_profile_schema_fields_match_runtime_gate_loader (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_profile_schema_fields_match_runtime_gate_loader) ... ok
+test_reject_ambiguous_and_cyclic_profiles (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_reject_ambiguous_and_cyclic_profiles) ... ok
+test_safe_boundary (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_safe_boundary) ... ok
+test_segment_match_semantics_exhaustively (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_segment_match_semantics_exhaustively) ... ok
+test_untrusted_task_command_cannot_upgrade_profile_gate_origin (tooling.agent-harness.tests.test_verification_profile.ProfileTest.test_untrusted_task_command_cannot_upgrade_profile_gate_origin) ... ok
+test_direct_cli_and_shared_planner_emit_identical_advisory_plan (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_direct_cli_and_shared_planner_emit_identical_advisory_plan) ... ok
+test_every_tracked_result_input_can_activate_its_gate (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_every_tracked_result_input_can_activate_its_gate) ... ok
+test_integration_mapping_retains_one_profile_node (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_integration_mapping_retains_one_profile_node) ... ok
+test_mapped_applicable_gate_keeps_separate_profile_requirement (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapped_applicable_gate_keeps_separate_profile_requirement) ... ok
+test_mapping_does_not_make_non_applicable_profile_gate_required (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapping_does_not_make_non_applicable_profile_gate_required) ... ok
+test_profile_covers_repository_quality_gate_inputs (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_covers_repository_quality_gate_inputs) ... ok
+test_profile_is_deterministic_and_gate_commands_are_unambiguous (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_is_deterministic_and_gate_commands_are_unambiguous) ... ok
+test_quality_gate_commands_and_working_directories_are_explicit (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_quality_gate_commands_and_working_directories_are_explicit) ... ok
+test_repeated_task_occurrences_remain_distinct (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_repeated_task_occurrences_remain_distinct) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 23.416s
+
+OK

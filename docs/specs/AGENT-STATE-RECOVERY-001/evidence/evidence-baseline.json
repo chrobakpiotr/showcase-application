@@ -1,0 +1,713 @@
+{
+  "entries": [
+    {
+      "bytes": 5134,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-1/evaluation-result-current.json",
+      "sha256": "a60198816e41289a47dc9d8b1e70a29800b96d75f8d7057631fabfd3bb3ebca6"
+    },
+    {
+      "bytes": 28092,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-2/candidate-regressions.txt",
+      "sha256": "a7bf23ca08c537bac99701601866034452a8010b4ff54a2ba31e16192b1e0622"
+    },
+    {
+      "bytes": 3783,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-2/evaluation-result.json",
+      "sha256": "9b3992e5e2de001289e3fddde148205a12239bf66fac21f2683a989d3a2e0cb8"
+    },
+    {
+      "bytes": 839,
+      "git_blob_at_observation": "7f29027514854cedf346e1fd469e655ab018b4f8",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-001/20261006T215057.001699Z.json",
+      "sha256": "f90a1d4b18b6c6b78e9d4889f83016c48769e808e25a02e207b6ef3651f8697f"
+    },
+    {
+      "bytes": 1321,
+      "git_blob_at_observation": "80939b53e7a15bb48dab18a758df900eaf22dc01",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-001/20261008T212119.165846Z.json",
+      "sha256": "c38430aed728d0fb528dcdedccf285e659550486112ba63d793637508de3ef6f"
+    },
+    {
+      "bytes": 1129,
+      "git_blob_at_observation": "2e2c3280b2298922a78e13d5e9ef3632fb1b17b5",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-001/20261009T092612.323921Z.json",
+      "sha256": "2889dec6bb855a40b83b453bb9cb99cf0d6c8752337418a8402bd46398623ff9"
+    },
+    {
+      "bytes": 1315,
+      "git_blob_at_observation": "7c32dd0593f0d7dfe4ac3f81435f93e58302f779",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-004/20261009T112825.077648Z.json",
+      "sha256": "2bc5c5eeccb138eeec667eb019456d61b5e8301dc0e9dc7d5bf51e0b9058a00a"
+    },
+    {
+      "bytes": 1041,
+      "git_blob_at_observation": "f1542677c40b1ef971e252c845b22a0d51d7e8b6",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-004/20261009T113838.192739Z.json",
+      "sha256": "46284d8f30c7b0ff04ecd2d4d1c0af5a187dc3bbda54173a645fcb20687d3cf2"
+    },
+    {
+      "bytes": 1323,
+      "git_blob_at_observation": "c1307959546125181748053085f5eb991bc51269",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-004/20261009T122902.839026Z.json",
+      "sha256": "368ae6c37e6f098c84dcd40ed80c276e9815207254a748d4a4ab08b2744fef25"
+    },
+    {
+      "bytes": 1190,
+      "git_blob_at_observation": "26e93a8cf8e2091002751d0f83de6984aa532c14",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-004/20261009T123315.019315Z.json",
+      "sha256": "33f1c3e86ddfec6d16c18ed976dbc93d790a52279312a8ba4c4365290daadf86"
+    },
+    {
+      "bytes": 1011,
+      "git_blob_at_observation": "784785261e788fe6db22ecbb5080ab7f0051abb0",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-005/20261009T113053.645270Z.json",
+      "sha256": "83c13ecb0e0a88d1c0115222b4f3d6026df152e1eccbafd238fa3878395f7517"
+    },
+    {
+      "bytes": 998,
+      "git_blob_at_observation": "00fc6c303834db4f879c15a29bcb65ec2c5f5904",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-009/20261009T203539.410022Z.json",
+      "sha256": "d5c4a15122968518b39ee087498a7615bd998d848297e4847c8bb6b2fd934a98"
+    },
+    {
+      "bytes": 1259,
+      "git_blob_at_observation": "c5dd4a0c47aebea922a692acde232d009eef4a9e",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-009/20261009T222244.149332Z.json",
+      "sha256": "b73771151a4f5d9283eb248e8d0491afab75d1f4fa34be3269cb21b2f28001ba"
+    },
+    {
+      "bytes": 1175,
+      "git_blob_at_observation": "dd9e599d6035019d00e6740977c98f80dad457cb",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-009/20261010T103545.986332Z.json",
+      "sha256": "f2a7f13669a731a38db05de7d93738f1940d70dcface04b3508bc42b7201a1c1"
+    },
+    {
+      "bytes": 1260,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/human-resolutions/T-900/20261010T145947.741706Z.json",
+      "sha256": "01d2c37380073d5d9dc2e1f8f667c27df1883fa01bff30412c8a50b6b6d9d850"
+    },
+    {
+      "bytes": 5183,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/adversarial/b5aa06827ba3/result.json",
+      "sha256": "db2b7d549c22fd37edf46e6d53bc702d5c57a0fcced0c7931e92e42a971972a4"
+    },
+    {
+      "bytes": 7906,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/baseline/cdbf04273a62/result.json",
+      "sha256": "6124c2c9e8a53bda4ad5aefa58d5b9a99383feadcfe7c376aa7c8875c85914c3"
+    },
+    {
+      "bytes": 3712,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/shipping-post-handoff/a7acf51dab0d/result.json",
+      "sha256": "3cba64a3ea0bcc7ea8ba735ed2e2c464f7fd6a9efc4c72efa2008f19a52c740b"
+    },
+    {
+      "bytes": 7680,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/shipping-preflight/ab45b6804e21/result.json",
+      "sha256": "4072a0af138823b4e67d118d49d1b2c7e8dbb2c91a87c461363cd5537eb79f4c"
+    },
+    {
+      "bytes": 9544,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/verification-v2/748cee21d675/result.json",
+      "sha256": "08ca4ba50252664141463ec093e975af468380a077009282c57f09bab686ada3"
+    },
+    {
+      "bytes": 7492,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/verification-v2/a6312e3cb370/result.json",
+      "sha256": "ea986dfeadda0b9095505f0d368c3a2d2d2dabc4c0c499d1287d295087291e00"
+    },
+    {
+      "bytes": 7574,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/verification-v2/b0835f619582/result.json",
+      "sha256": "8450160cd9e10476988996dcfc409b72e3dc6761e4286c4f535ed9ef7734a62a"
+    },
+    {
+      "bytes": 7614,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/verification-v2/b829abad2ded/result.json",
+      "sha256": "8731783d295046263ab68c119c2256e9094ae8a5c25602795b87b15025477147"
+    },
+    {
+      "bytes": 7535,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-007/agent-runs/evals/verification-v2/platform-review-t007/result.json",
+      "sha256": "127f155bc44827acf82607b94b9ffde9daffdf297f7784928e59ada79b696a28"
+    },
+    {
+      "bytes": 3601,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/contended.stderr.txt",
+      "sha256": "1b4b9d428aee269e195dbb1745ff6afbfd53d1b1a00f40ba0fa0ef25b14bdc2e"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/contended.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 504,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/result.json",
+      "sha256": "66ef1f25c15d0fda884d2f0a848156253e39f1486d00e7c503566e18555938ed"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/standalone.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 504,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/standalone.stdout.txt",
+      "sha256": "66ef1f25c15d0fda884d2f0a848156253e39f1486d00e7c503566e18555938ed"
+    },
+    {
+      "bytes": 3601,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/stderr.txt",
+      "sha256": "91b6aebf6c7c84379e0f779919d71ef73a59853b8bd7482ce6056f4351996a20"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/benchmark/stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 3952,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/01-authority.stderr",
+      "sha256": "628c306aa0b0210808a1261ca1f1a05a4b6b1ba24c4d559e1e119e42499d42b2"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/01-authority.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1490,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/02-completion-boundary.stderr",
+      "sha256": "2ce03336db32e666d26166c1cd7342a055b89489c1382be6e97ad087dcab2f73"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/02-completion-boundary.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 25278,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/03-execution-lifecycle.stderr",
+      "sha256": "51a80e8d190d6bf77c4f18448132b1e00e46137febc88e1d000f60485f4790a1"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/03-execution-lifecycle.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 80507,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/04-harness-runner-orchestrate.stderr",
+      "sha256": "dbc0dbe51b4d83e06b7da57d0d9f5c09cf534831dba4ef61d32ad15ce4e3ed4e"
+    },
+    {
+      "bytes": 1071,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/04-harness-runner-orchestrate.stdout",
+      "sha256": "de7eed0e24fc04785a4e14516f50877951a1f2ac716b88a4dc7c857d671e297e"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/05-contract.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 26,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/05-contract.stdout",
+      "sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789"
+    },
+    {
+      "bytes": 5934,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/06-telemetry.stderr",
+      "sha256": "05de35bcf26d99b42c0ca2a31f6dc41f6132719a3ef264d7239804a23138659c"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/06-telemetry.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5021,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/07-profile.stderr",
+      "sha256": "60e4059681e4756f1ce02206afb802973f1beeed3c7a2abee5fa1d176ce0e54e"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/07-profile.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/08-pycompile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-009/agent-runs/SDD-OBS-001/T-009/verification/08-pycompile.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 5183,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-900/agent-runs/evals/adversarial/2e0c1a3f104a/result.json",
+      "sha256": "54b984b025b01f6246698fb283e2cb2414037be12fbb00f8e11cefddfd9cb448"
+    },
+    {
+      "bytes": 7908,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-900/agent-runs/evals/baseline/50298862d6e5/result.json",
+      "sha256": "05991cd5f3c7b6ff9f4f643bb4b80830244445f913190abe4e81a19ae8bd29ef"
+    },
+    {
+      "bytes": 7680,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/invalidated-worktree-artifacts/T-900/agent-runs/evals/shipping-preflight/8430a790c944/result.json",
+      "sha256": "850ca06ee11133665f7f0c33fc8d852a7ad6f8e641b7543d4e128cf350edf192"
+    },
+    {
+      "bytes": 6804,
+      "git_blob_at_observation": "5351fb2118058c382a305f9b3d20212a96d9f0b2",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-002-attempt-2.json",
+      "sha256": "1e76670571cdc7e87922298c6bfe292dcdaa286cce40c37172409684ec277e66"
+    },
+    {
+      "bytes": 5565,
+      "git_blob_at_observation": "345c95403fcd7b726bb0e05c39a5a5fa51eb4dde",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-1.json",
+      "sha256": "350dac8e2fd4b1d0ca922de188b965c647a2da01b4be761723466093d53320b7"
+    },
+    {
+      "bytes": 2815,
+      "git_blob_at_observation": "242c740e014794544fe1f1aad35157778898155b",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-2.json",
+      "sha256": "142c6808c726d1ac066023392558cef13396bc13ef3246fbdd5f4c94cffeca7d"
+    },
+    {
+      "bytes": 2785,
+      "git_blob_at_observation": "cc0f1dc2f320a9537441bc1706a227208185a1d5",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-004-attempt-1.json",
+      "sha256": "e2a7aaf3ca56fae3bc2a6326bcf0135aa5cb4d4f9dbc81078540f704bb1fc6d3"
+    },
+    {
+      "bytes": 3517,
+      "git_blob_at_observation": "e6ef37c37f3a32ed965f34f8c2bd5a245c2a3389",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-005-attempt-1.json",
+      "sha256": "4b13300dba7d39e5ef16ef27a34e335d9634babc7ab7bad7851dab1a81fdac24"
+    },
+    {
+      "bytes": 3727,
+      "git_blob_at_observation": "7f60f4836d288fcef277f6a86d7e7f9e6d6e647f",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-006-attempt-1.json",
+      "sha256": "cc7c0d537148e9c8439f71bb5494b4fd34c8f490307e0eaef65a4a14f8964a46"
+    },
+    {
+      "bytes": 4346,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-006-attempt-2.json",
+      "sha256": "8c60268d9f21e3c057463433253be1323edda647adf4a692ed0381e99623bc91"
+    },
+    {
+      "bytes": 3816,
+      "git_blob_at_observation": "a0533e04806c94fd27b880add730eea667c57fa9",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-007-attempt-1.json",
+      "sha256": "ca2e30524403531b6ef5faade0f09dc02dbfc4db49a84be9c67b6ade6227416c"
+    },
+    {
+      "bytes": 3123,
+      "git_blob_at_observation": "c7fe9f03f6b733143245f12bc7248d3002c721fd",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-008-attempt-1.json",
+      "sha256": "066e3230d233e99ac95dfad32eb182f14be8815b5b217887793db0a55778394d"
+    },
+    {
+      "bytes": 25921,
+      "git_blob_at_observation": "918e47bbece6afabb350a59e703b55836de170a4",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2.json",
+      "sha256": "95295f9d0725eb451b1ce8721bab5b6dcbaba39fca182f96ba635259075e4052"
+    },
+    {
+      "bytes": 504,
+      "git_blob_at_observation": "23708a8a7fa7713c93d3694302da75893eead134",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/benchmark-result.json",
+      "sha256": "cafabdb45dcf37e2d2ac5d8bae3e35ed0f5d0788f08c5bce7b843c617ee7ecbb"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/01.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 3952,
+      "git_blob_at_observation": "0c8104d98c100453bad607e481ffae8c33f491c7",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/01.stderr",
+      "sha256": "89eb064b61553482c83e2d43eb4e1338f009fac35b5722d6a97c0466197744e5"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/01.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/02.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 1491,
+      "git_blob_at_observation": "d49b0428df905a6a2b2b9554bed33f542845a30a",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/02.stderr",
+      "sha256": "db4568bc42d5c2ca3944cac15aaebae1fd6b435335a20379fe6d550f2c42ae0f"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/02.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/03.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 25052,
+      "git_blob_at_observation": "14dede5537e43554f05b97d6cdd97a2a020fd749",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/03.stderr",
+      "sha256": "d3d1d75bb456b06e6489cc6c7e0ca4c46b25ef551b482248cba19ba3e4e29346"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/03.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/04.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 71486,
+      "git_blob_at_observation": "ebd49480b0ecb746a813ee178a370c73f565e9f4",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/04.stderr",
+      "sha256": "0a3a12078a33d457e0854cd07d4af88aaa7d4be1e9e27c6cc6c08044d043a58a"
+    },
+    {
+      "bytes": 1071,
+      "git_blob_at_observation": "69c9aa0d502064f5f0c19739748e061fb453e479",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/04.stdout",
+      "sha256": "6c82b65a6a6c48ce7151ba39c7c09bf15c3fedb2df8e47304bd06a3ef2ebc825"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/05.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/05.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 26,
+      "git_blob_at_observation": "9a0affcb866c712d589c4ed2519e4e8c6b48f9be",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/05.stdout",
+      "sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/06.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 5935,
+      "git_blob_at_observation": "32efe271b81335a927a20475b025d7e647bd0ddc",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/06.stderr",
+      "sha256": "a21366f4809f9a9329a0777474ecb1c78f692969b42fe10843eba62eac669751"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/06.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/07.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 5260,
+      "git_blob_at_observation": "4ee31a31fbc03cfa3eaf981df9d007453eeff468",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/07.stderr",
+      "sha256": "44cea451a436b50ec49d2a23a52f4ca893e74400f8b6ac4d333d7d8c2905fa26"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/07.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "git_blob_at_observation": "573541ac9702dd3969c9bc859d2b91ec1f7e6e56",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/08.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/08.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 0,
+      "git_blob_at_observation": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-2/verification/08.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 26002,
+      "git_blob_at_observation": null,
+      "git_status": "untracked",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-009-attempt-6.json",
+      "sha256": "64d3df858dd9e055734c26a4d8aa67d7a05618f4f34d18f4c08cf4d51cd7d8c4"
+    },
+    {
+      "bytes": 71940,
+      "git_blob_at_observation": "176303ee6f3009e8cdc63e87538dd8229d0ea0cd",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-900-attempt-1.json",
+      "sha256": "34188596da5174f77313b77503b29c3214ec0aaa38a25f2c656c4118d85ac4f4"
+    },
+    {
+      "bytes": 38423,
+      "git_blob_at_observation": "9eeae70e5e2a74256d0b42f43acf545d213bd586",
+      "git_status": "tracked-clean",
+      "kind": "file",
+      "path": "docs/specs/SDD-OBS-001/evidence/task-completions/T-990-attempt-1.json",
+      "sha256": "f8a83a7df4834b19078a6e136446a25c7f96c8accce9d29f2cf616ef4fe786ba"
+    }
+  ],
+  "feature": "SDD-OBS-001",
+  "observation_head": "830f012107c0ba953fe8394e0a70ab391c8ebe5f",
+  "observed_at_utc": "2026-10-11T13:22:31Z",
+  "schema_version": 1,
+  "scope": "docs/specs/SDD-OBS-001/evidence/**"
+}

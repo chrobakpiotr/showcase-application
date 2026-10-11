@@ -1,0 +1,230 @@
+test_noop_is_empty_advisory_and_cannot_publish_executable_plan (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_noop_is_empty_advisory_and_cannot_publish_executable_plan) ... ok
+test_real_git_deletion_and_rename_retain_source_requirements (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_git_deletion_and_rename_retain_source_requirements) ... ok
+test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) ... 
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/src/main/java/example/Repository.java') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/persistence.gradle') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/src/main/resources/db/migration/V002__orders.sql') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/amqp/src/main/java/example/Publisher.java') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/amqp/amqp.gradle') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/ecommerce-frontend.gradle') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/karma.conf.js') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/eslint.config.js') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='tooling/quality/critical-postgres-manifest.json') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='tooling/quality/critical-rabbitmq-manifest.json') ... FAIL
+test_b10_contract_rejects_non_candidate_target_and_mismatched_limits (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b10_contract_rejects_non_candidate_target_and_mismatched_limits) ... ok
+test_b10_emits_and_validates_a_candidate_result_from_observed_launch (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b10_emits_and_validates_a_candidate_result_from_observed_launch) ... ok
+test_b10_unknown_terminal_has_no_candidate_target_and_fails_check (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b10_unknown_terminal_has_no_candidate_target_and_fails_check) ... ok
+test_b10_unknown_without_observed_container_state_has_no_candidate_target (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b10_unknown_without_observed_container_state_has_no_candidate_target) ... ok
+test_b1_b10_ids_and_names_are_exact (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b1_b10_ids_and_names_are_exact) ... ok
+test_b4_workspace_is_writable_for_configured_uid_under_restrictive_umask (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b4_workspace_is_writable_for_configured_uid_under_restrictive_umask) ... ok
+test_b5_accepts_only_network_unreachable_with_isolated_namespace (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b5_accepts_only_network_unreachable_with_isolated_namespace) ... ok
+test_b6_rejects_ancestor_mount_exposing_credential_paths (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b6_rejects_ancestor_mount_exposing_credential_paths) ... ok
+test_b6_rejects_daemon_reported_unexpected_mount (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b6_rejects_daemon_reported_unexpected_mount) ... ok
+test_b8_disk_probe_shares_exactly_256_mib_between_workspace_and_tmp (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b8_disk_probe_shares_exactly_256_mib_between_workspace_and_tmp) ... ok
+test_b8_does_not_call_an_unrelated_nonzero_memory_exit_an_oom (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b8_does_not_call_an_unrelated_nonzero_memory_exit_an_oom) ... ok
+test_b8_makes_dev_shm_read_only_and_requires_write_to_fail (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b8_makes_dev_shm_read_only_and_requires_write_to_fail) ... ok
+test_b8_requires_the_exact_cgroup_limits (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b8_requires_the_exact_cgroup_limits) ... ok
+test_b9_does_not_read_artifact_when_inventory_still_contains_container (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_does_not_read_artifact_when_inventory_still_contains_container) ... ok
+test_b9_does_not_read_artifact_when_removal_fails (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_does_not_read_artifact_when_removal_fails) ... ok
+test_b9_reads_artifact_only_after_container_removal_is_verified (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_reads_artifact_only_after_container_removal_is_verified) ... ok
+test_b9_rejects_empty_or_altered_artifact_bytes (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_rejects_empty_or_altered_artifact_bytes) ... ok
+test_b9_rejects_fifo_without_blocking_or_reading (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_rejects_fifo_without_blocking_or_reading) ... ok
+test_b9_rejects_symlinked_artifact_without_reading_host_target (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_b9_rejects_symlinked_artifact_without_reading_host_target) ... ok
+test_docker_command_output_capture_is_capped_across_stdout_and_stderr (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_docker_command_output_capture_is_capped_across_stdout_and_stderr) ... ok
+test_docker_timeout_kills_container_by_id_and_records_state (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_docker_timeout_kills_container_by_id_and_records_state) ... ERROR
+test_docker_timeout_kills_descendants_holding_output_pipes (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_docker_timeout_kills_descendants_holding_output_pipes) ... ok
+test_failure_and_exception_do_not_skip_checks_and_evidence_is_per_check (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_failure_and_exception_do_not_skip_checks_and_evidence_is_per_check) ... ok
+test_invalid_outcome_is_not_a_pass (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_invalid_outcome_is_not_a_pass) ... ok
+test_lifecycle_subprocess_tracebacks_are_redacted_before_evidence (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_lifecycle_subprocess_tracebacks_are_redacted_before_evidence) ... ok
+test_mount_policy_accepts_only_expected_external_mounts (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_mount_policy_accepts_only_expected_external_mounts) ... ok
+test_mount_policy_rejects_ancestor_credentials_and_unexpected_host_mounts (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_mount_policy_rejects_ancestor_credentials_and_unexpected_host_mounts) ... ok
+test_udp_send_without_response_is_not_misreported_as_blocked (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_udp_send_without_response_is_not_misreported_as_blocked) ... ok
+test_artifact_missing_symlink_and_noncacheable_producer (tooling.agent-harness.tests.test_verify.PlannerTest.test_artifact_missing_symlink_and_noncacheable_producer) ... ok
+test_artifact_reads_are_shared_only_within_evaluation (tooling.agent-harness.tests.test_verify.PlannerTest.test_artifact_reads_are_shared_only_within_evaluation) ... /workspace/tooling/agent-harness/verification/serialization.py:97: ResourceWarning: unclosed file <_io.FileIO name=3 mode='rb+' closefd=True>
+  if path.startswith('/') or '\\' in path or any(ord(c) < 32 or ord(c) == 127 for c in path):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/workspace/tooling/agent-harness/verification/serialization.py:97: ResourceWarning: unclosed file <_io.FileIO name=4 mode='rb+' closefd=True>
+  if path.startswith('/') or '\\' in path or any(ord(c) < 32 or ord(c) == 127 for c in path):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_case_variant_control_name_is_candidate_on_case_sensitive_filesystem (tooling.agent-harness.tests.test_verify.PlannerTest.test_case_variant_control_name_is_candidate_on_case_sensitive_filesystem) ... ok
+test_changed_surface_finds_deletions_without_full_tree_inventory (tooling.agent-harness.tests.test_verify.PlannerTest.test_changed_surface_finds_deletions_without_full_tree_inventory) ... ok
+test_changed_surface_overlays_and_rename (tooling.agent-harness.tests.test_verify.PlannerTest.test_changed_surface_overlays_and_rename) ... ok
+test_continuation_and_cross_repository (tooling.agent-harness.tests.test_verify.PlannerTest.test_continuation_and_cross_repository) ... ok
+test_control_runtime_cache_distinguishes_relative_roots_after_chdir (tooling.agent-harness.tests.test_verify.PlannerTest.test_control_runtime_cache_distinguishes_relative_roots_after_chdir) ... ok
+test_direct_plan_rejects_caller_selected_profile_path (tooling.agent-harness.tests.test_verify.PlannerTest.test_direct_plan_rejects_caller_selected_profile_path) ... ok
+test_drift_same_size_mtime_and_corrupt_receipt (tooling.agent-harness.tests.test_verify.PlannerTest.test_drift_same_size_mtime_and_corrupt_receipt) ... ok
+test_empty_profile_does_not_enumerate_repository_paths (tooling.agent-harness.tests.test_verify.PlannerTest.test_empty_profile_does_not_enumerate_repository_paths) ... ok
+test_fingerprint_policy_and_probe_dimensions (tooling.agent-harness.tests.test_verify.PlannerTest.test_fingerprint_policy_and_probe_dimensions) ... 
+  test_fingerprint_policy_and_probe_dimensions (tooling.agent-harness.tests.test_verify.PlannerTest.test_fingerprint_policy_and_probe_dimensions) (changes={'sandbox': 'off'}) ... ERROR
+test_generated_log_artifact_remains_reusable (tooling.agent-harness.tests.test_verify.PlannerTest.test_generated_log_artifact_remains_reusable) ... ok
+test_glob_input_scans_only_its_literal_prefix_subtree (tooling.agent-harness.tests.test_verify.PlannerTest.test_glob_input_scans_only_its_literal_prefix_subtree) ... ok
+test_ignored_candidate_files_are_visible_but_only_exact_runtime_is_excluded (tooling.agent-harness.tests.test_verify.PlannerTest.test_ignored_candidate_files_are_visible_but_only_exact_runtime_is_excluded) ... ok
+test_initial_freshness_cannot_hide_unresolved_dependency (tooling.agent-harness.tests.test_verify.PlannerTest.test_initial_freshness_cannot_hide_unresolved_dependency) ... ok
+test_invalid_receipts_never_reuse (tooling.agent-harness.tests.test_verify.PlannerTest.test_invalid_receipts_never_reuse) ... ok
+test_literal_control_paths_are_never_observed_or_opened (tooling.agent-harness.tests.test_verify.PlannerTest.test_literal_control_paths_are_never_observed_or_opened) ... ok
+test_literal_input_does_not_enumerate_unrelated_repository_paths (tooling.agent-harness.tests.test_verify.PlannerTest.test_literal_input_does_not_enumerate_unrelated_repository_paths) ... ok
+test_malformed_receipt_identities_never_reuse (tooling.agent-harness.tests.test_verify.PlannerTest.test_malformed_receipt_identities_never_reuse) ... ok
+test_non_ancestor_base_rejected (tooling.agent-harness.tests.test_verify.PlannerTest.test_non_ancestor_base_rejected) ... ok
+test_observations_share_content_reads_but_postcheck_is_fresh (tooling.agent-harness.tests.test_verify.PlannerTest.test_observations_share_content_reads_but_postcheck_is_fresh) ... ok
+test_occurrences_preserve_duplicates_and_order (tooling.agent-harness.tests.test_verify.PlannerTest.test_occurrences_preserve_duplicates_and_order) ... ok
+test_planning_shares_one_scoped_base_tree_query_for_inputs_and_applicability (tooling.agent-harness.tests.test_verify.PlannerTest.test_planning_shares_one_scoped_base_tree_query_for_inputs_and_applicability) ... ok
+test_provider_envelope_excluded_at_all_authority_boundaries (tooling.agent-harness.tests.test_verify.PlannerTest.test_provider_envelope_excluded_at_all_authority_boundaries) ... ok
+test_provider_envelope_profile_boundary_and_controls (tooling.agent-harness.tests.test_verify.PlannerTest.test_provider_envelope_profile_boundary_and_controls) ... ok
+test_raw_log_profile_boundary (tooling.agent-harness.tests.test_verify.PlannerTest.test_raw_log_profile_boundary) ... ok
+test_raw_logs_bypass_observation_and_sealing (tooling.agent-harness.tests.test_verify.PlannerTest.test_raw_logs_bypass_observation_and_sealing) ... ok
+test_ready_rebinds_dependency_receipt_and_artifacts (tooling.agent-harness.tests.test_verify.PlannerTest.test_ready_rebinds_dependency_receipt_and_artifacts) ... ok
+test_receipt_structured_boundary_rejects_missing_fields (tooling.agent-harness.tests.test_verify.PlannerTest.test_receipt_structured_boundary_rejects_missing_fields) ... ok
+test_receipt_validation_and_artifact_index_are_evaluation_local (tooling.agent-harness.tests.test_verify.PlannerTest.test_receipt_validation_and_artifact_index_are_evaluation_local) ... ok
+test_rejected_artifact_observation_is_shared_and_fresh (tooling.agent-harness.tests.test_verify.PlannerTest.test_rejected_artifact_observation_is_shared_and_fresh) ... ok
+test_repository_identity_prevents_cross_repository_reuse (tooling.agent-harness.tests.test_verify.PlannerTest.test_repository_identity_prevents_cross_repository_reuse) ... ok
+test_reuse_input_change_and_unrelated_edit (tooling.agent-harness.tests.test_verify.PlannerTest.test_reuse_input_change_and_unrelated_edit) ... ok
+test_root_and_nested_secret_paths_are_never_read (tooling.agent-harness.tests.test_verify.PlannerTest.test_root_and_nested_secret_paths_are_never_read) ... ok
+test_secret_content_and_cli_error_are_not_structured (tooling.agent-harness.tests.test_verify.PlannerTest.test_secret_content_and_cli_error_are_not_structured) ... ok
+test_selection_union_and_order (tooling.agent-harness.tests.test_verify.PlannerTest.test_selection_union_and_order) ... ok
+test_sensitive_environment_and_secret_files (tooling.agent-harness.tests.test_verify.PlannerTest.test_sensitive_environment_and_secret_files) ... ok
+test_sensitive_identity_disables_fingerprint (tooling.agent-harness.tests.test_verify.PlannerTest.test_sensitive_identity_disables_fingerprint) ... ok
+test_skip_worktree_deletion_invalidates_matching_input (tooling.agent-harness.tests.test_verify.PlannerTest.test_skip_worktree_deletion_invalidates_matching_input) ... ok
+test_symlink_ancestors_never_followed (tooling.agent-harness.tests.test_verify.PlannerTest.test_symlink_ancestors_never_followed) ... ok
+test_unmapped_integration_command_stays_required (tooling.agent-harness.tests.test_verify.PlannerTest.test_unmapped_integration_command_stays_required) ... ok
+test_zero_match_input_pattern_is_noncacheable (tooling.agent-harness.tests.test_verify.PlannerTest.test_zero_match_input_pattern_is_noncacheable) ... ok
+test_integration_cli_resolves_exact_plan_before_executor (tooling.agent-harness.tests.test_verify.VerificationGrantCliTest.test_integration_cli_resolves_exact_plan_before_executor) ... ok
+test_signed_retry_grant_import_uses_verifier_only_store_api (tooling.agent-harness.tests.test_verify.VerificationGrantCliTest.test_signed_retry_grant_import_uses_verifier_only_store_api) ... ok
+
+======================================================================
+ERROR: test_docker_timeout_kills_container_by_id_and_records_state (tooling.agent-harness.tests.test_qualification_grading.QualificationGradingProbeTest.test_docker_timeout_kills_container_by_id_and_records_state)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_qualification_grading.py", line 122, in test_docker_timeout_kills_container_by_id_and_records_state
+    target._run(['run', '--name', 'wall-probe', '--rm', 'image', 'python3', '-c', 'pass'], timeout=0.05)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/tooling/agent-harness/qualification/b_probes.py", line 212, in _run
+    selector.register(stream, selectors.EVENT_READ, name)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/selectors.py", line 345, in register
+    self._selector.register(key.fd, poller_events)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+PermissionError: [Errno 1] Operation not permitted
+
+======================================================================
+ERROR: test_fingerprint_policy_and_probe_dimensions (tooling.agent-harness.tests.test_verify.PlannerTest.test_fingerprint_policy_and_probe_dimensions) (changes={'sandbox': 'off'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verify.py", line 341, in test_fingerprint_policy_and_probe_dimensions
+    self.assertNotEqual(baseline, self.plan(profile(gate(**changes))).decisions[0].fingerprint)
+                                            ~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile.py", line 16, in profile
+    return load_profile({'schema_version': 1, 'gates': list(gates)}, safety=safety)
+  File "/workspace/tooling/agent-harness/verification/profile.py", line 213, in load_profile
+    raise InvalidPolicy('invalid-independent-origin-policy')
+verification.model.InvalidPolicy: invalid-independent-origin-policy
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/src/main/java/example/Repository.java')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/persistence.gradle')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/persistence/src/main/resources/db/migration/V002__orders.sql')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/amqp/src/main/java/example/Publisher.java')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-postgres-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='modules/adapters/amqp/amqp.gradle')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-postgres-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/ecommerce-frontend.gradle')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+'critical-postgres-regression'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/karma.conf.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+'critical-postgres-regression'
+'showcase-gradle-build'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/eslint.config.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'critical-rabbitmq-regression'
+'critical-postgres-regression'
+'showcase-gradle-build'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='tooling/quality/critical-postgres-manifest.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'showcase-gradle-build'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='tooling/quality/critical-rabbitmq-manifest.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'showcase-gradle-build'
+
+----------------------------------------------------------------------
+Ran 75 tests in 13.180s
+
+FAILED (failures=10, errors=2)

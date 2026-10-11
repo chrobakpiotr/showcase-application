@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "task": "T-900",
+  "attempt": 2,
+  "verdict": "fail",
+  "evaluated_candidate": "15d6d3b",
+  "accepted_t009_checkpoint": "b0ed0e64971042c51db27320d0865e6bec20ab17",
+  "evaluation_checkpoint": "f475623ee8bdc0e054233e631f6cac1d2c7a42ad plus evaluator-only evidence",
+  "summary": "The previous three blocking findings reproduce unchanged on the exact accepted implementation candidate. The focused pinned Linux run ran 75 tests in 13.180s and ended with 10 applicability failures and 2 errors. Following the owner instruction, full discovery was not rerun after deterministic focused failures reproduced.",
+  "environment": "Disposable Linux Python 3.13.16 container using exact tooling/agent-harness/requirements.txt: cryptography==49.0.0 and agent-harness v0.5.0 from commit 16bb93821292096b94889306288ee2caec5f4006.",
+  "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_applicability.py tooling/agent-harness/tests/test_qualification_grading.py tooling/agent-harness/tests/test_verify.py -v",
+  "result": "FAIL",
+  "exit_code": 1,
+  "test_summary": "Ran 75 tests in 13.180s; FAILED (failures=10, errors=2). Raw output: candidate-regressions.txt.",
+  "findings": [
+    {
+      "id": "T900-2-F01",
+      "severity": "medium",
+      "location": "tooling/agent-harness/verification-profiles/showcase.json; tooling/agent-harness/tests/test_verification_profile_applicability.py:38-74",
+      "finding": "All 10 prior applicability truth-table failures reproduced: the PG/RabbitMQ gates are selected for unrelated changes in the persistence, AMQP, frontend and tooling-quality surfaces. The expected set and actual extra gate IDs are in candidate-regressions.txt. This overbroad profile remains a candidate blocker.",
+      "reproduction": "The test_verification_profile_applicability module reported 10 failures under the exact pinned Linux environment."
+    },
+    {
+      "id": "T900-2-F02",
+      "severity": "medium",
+      "location": "tooling/agent-harness/qualification/b_probes.py:212; tooling/agent-harness/tests/test_qualification_grading.py:86-88,122",
+      "finding": "The timeout test's mocked tempfile.TemporaryFile streams cannot be registered by Linux EpollSelector and raise PermissionError [Errno 1]. This is a deterministic Linux test-fixture error, not a real subprocess-pipe behavior result.",
+      "reproduction": "test_docker_timeout_kills_container_by_id_and_records_state fails at selector.register."
+    },
+    {
+      "id": "T900-2-F03",
+      "severity": "medium",
+      "location": "tooling/agent-harness/tests/test_verify.py:334-342; tooling/agent-harness/tests/test_verification_profile.py:16; docs/specs/SDD-OBS-001/spec.md:1891-1896",
+      "finding": "The fingerprint test's sandbox='off' mutation is rejected as invalid-independent-origin-policy because its gate requires independent execution. This fixture conflicts with the accepted M5.3 rule that off cannot downgrade authoritative execution.",
+      "reproduction": "test_fingerprint_policy_and_probe_dimensions errors in its sandbox='off' subtest."
+    }
+  ],
+  "comparison_to_attempt_1": "All three findings reproduce with the same exception/failure signatures and the same 10 applicability cases as attempt 1. The prior attempt's pinned 234-test run also reported these same two errors and 10 applicability failures.",
+  "full_suite": "Not run in attempt 2 by instruction: focused deterministic failures reproduced; full discovery should follow corrective task checkpoints.",
+  "next_action": "Keep T-900 failed/escalated. Assign a builder follow-up for the profile applicability matrix and the two Linux/test-fixture failures, then rerun full discovery with exact pinned requirements and request a new independent evaluation."
+}

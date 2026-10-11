@@ -1,0 +1,100 @@
+{
+  "environment": {
+    "captured_at": "2026-10-09T20:01:15.019494+00:00",
+    "cpu_count": 8,
+    "git_head": "e059d05e65ab9884d718a99bfee44806dbf16392",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "SHIP-P001-verification-contract",
+      "command": [
+        "python3",
+        "tooling/agent-harness/verification_contract.py",
+        "validate",
+        "docs/specs/SDD-001"
+      ],
+      "duration_ms": 223,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "832cf4e3a0d8c13210de928d00a11c8d215689f2d749f8e6f0f211e026e65bb5",
+      "stdout_tail": "OK docs/specs/SDD-001\n"
+    },
+    {
+      "case": "SHIP-P002-feature-valid",
+      "command": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate",
+        "docs/specs/SDD-001"
+      ],
+      "duration_ms": 323,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870",
+      "stdout_tail": "PASS: feature specification and task DAG are structurally valid\n"
+    },
+    {
+      "case": "SHIP-P003-orchestration-plan",
+      "command": [
+        "python3",
+        "tooling/agent-harness/orchestrate.py",
+        "docs/specs/SDD-001",
+        "--plan"
+      ],
+      "duration_ms": 7792,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "f2a3eb27d25775ab3c288a2d11856ea1c8ecd787092b4e10d1eeb5a36d6c2b04",
+      "stdout_tail": "feature=SDD-001 max_parallel=3 lease_ttl=1800s heartbeat=60s\nT-001   role=builder     provider=codex  deps=-                        reviewers=architecture-reviewer\nT-002   role=builder     provider=codex  deps=-                        reviewers=concurrency-reviewer\nT-003   role=builder     provider=codex  deps=-                        reviewers=security-reviewer,ai-reviewer\nT-005   role=builder     provider=codex  deps=-                        reviewers=security-reviewer\nT-004   role=builder     provider=codex  deps=T-001,T-002,T-003,T-005  reviewers=platform-reviewer\nT-900   role=evaluator   provider=codex  deps=T-001,T-002,T-003,T-005,T-004 reviewers=-\nT-990   role=integration provider=codex  deps=T-900                    reviewers=-\n"
+    }
+  ],
+  "repeat": 1,
+  "run_id": "a7acf51dab0d",
+  "schema_version": 1,
+  "suite": "shipping-post-handoff",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/evals/shipping-post-handoff.json",
+  "summary": {
+    "by_case": {
+      "SHIP-P001-verification-contract": {
+        "median_duration_ms": 223,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "SHIP-P002-feature-valid": {
+        "median_duration_ms": 323,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "SHIP-P003-orchestration-plan": {
+        "median_duration_ms": 7792,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 323,
+    "pass_rate": 1.0,
+    "passes": 3,
+    "runs": 3
+  },
+  "target": "docs/specs/SDD-001"
+}

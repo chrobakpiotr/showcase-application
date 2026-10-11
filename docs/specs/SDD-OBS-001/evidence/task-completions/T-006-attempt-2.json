@@ -1,0 +1,168 @@
+{
+  "assumptions": [],
+  "attempt": 2,
+  "changed_paths": [],
+  "checkpoint": "d72ab99be129a280c6236cc476af5a4ca9c35f66",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_benchmark.py tooling/agent-harness/tests/test_verification_parity.py -v"
+  ],
+  "contract_fingerprint": "d08ca745317ba9abaeb10bb851e303bbe7e06bb47c1ead4da5257aa4953cc016",
+  "criterion_results": {
+    "AC-OBS-005": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-012": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-013": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-017": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-027": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-031": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-034": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-035": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-009": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-011": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-012": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-013": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-014": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "findings": [
+    "Independent read-only T-006 review passed with no correctness or allowed-path blocker.",
+    "Checkpoint d72ab99 contains tooling/agent-harness/tests/test_verification_profile_showcase.py and tooling/agent-harness/verification-profiles/showcase.json."
+  ],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_benchmark.py tooling/agent-harness/tests/test_verification_parity.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": ".agent-runs/final-closure/checks/T006-attempt2.stderr.txt",
+      "stdout": ".agent-runs/final-closure/checks/T006-attempt2.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:0ac11cc6b3f9193e9a6ccdf94ee4153204ab4b9a3bee66b25a91dbfae61a4aee",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "37ce8567c07c5998376af9657dfd05172d792c2444c66d46662efef2736a51a7",
+      "criteria": [
+        "AC-OBS-005",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-017",
+        "AC-OBS-024",
+        "AC-OBS-027",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "VC-009",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-026",
+        "VC-030"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "1405f9b8f8977c4aa07c654d0ce2917deacec57f99c82a913ae5879ff08ce895",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "A separate Docker-hosted observation reported a 13.0-second benchmark median above the 10-second bound; the current declared suite and direct local benchmark both passed (7.890841-second median). The threshold was not changed."
+  ],
+  "rework_tasks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-006 attempt 2 passed the declared profile, benchmark, and parity verification; the Harness checkpoint d72ab99 contains the two listed implementation files.",
+  "task": "T-006"
+}

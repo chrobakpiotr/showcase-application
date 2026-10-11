@@ -1,0 +1,121 @@
+{
+  "environment": {
+    "captured_at": "2026-10-09T20:01:21.574543+00:00",
+    "cpu_count": 8,
+    "git_head": "e059d05e65ab9884d718a99bfee44806dbf16392",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "A001-content-sensitive-verification",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "duration_ms": 10586,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "c326e1ea050e224ae33e2a98979fba4abbc76665e361ba086fe9afd7b2793bb9",
+      "stderr_tail": "ERROR: agent modified paths outside task packet: ['ignored-output/nested/result.txt']\n.ERROR: agent result violates canonical task-result schema: ['/rework_tasks: uniqueItems constraint violated']\n......ERROR: Claude response did not contain structured_output matching the task result schema\n.......ERROR: task packet lease_policy is missing or invalid\n....ERROR: task packet context_trust mismatch; expected={'spec': 'trusted'}, actual={'spec': 'untrusted'}\n.ERROR: reviewer modified the implementation; review-existing runs are read-only\n.ERROR: passing red-green-refactor builder result requires tdd_evidence\n............ERROR: agent result violates canonical task-result schema: ['/summary: required property is missing', '/changed_paths: required property is missing', '/commands: required property is missing', '/assumptions: required property is missing', '/residual_risks: required property is missing']\n....\n----------------------------------------------------------------------\nRan 36 tests in 10.329s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A002-secret-minimized-verification-env",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_verification_sandbox.py"
+      ],
+      "duration_ms": 202,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "389e01ee0077dce7ff8ae1df1438b65e14d6292ee9b9d485b644cb488f507f64",
+      "stderr_tail": "........\n----------------------------------------------------------------------\nRan 8 tests in 0.022s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A003-reopen-lease-and-history-safety",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_harness.py",
+        "HarnessTest.test_expired_lease_is_recovered_for_resume",
+        "HarnessTest.test_reopen_archives_invalidated_descendant_attempt_history",
+        "HarnessTest.test_reopen_refuses_running_descendant_before_pruning_workspace"
+      ],
+      "duration_ms": 3860,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "c76a46e528f289a5d9cd49001dbfb623cadc0d0dbc556dcd3f21e59e7efecd28",
+      "stderr_tail": "..ERROR: cannot reopen T-001 while descendants are running: ['T-900']; release or recover them first\n.\n----------------------------------------------------------------------\nRan 3 tests in 3.535s\n\nOK\n",
+      "stdout_sha256": "dab8b439dfcedb9c65ed96cba72a1891adeede05e2c83d487adc7e5cdb9b873d",
+      "stdout_tail": "REOPENED T-001; invalidated descendants: T-900\n"
+    },
+    {
+      "case": "A004-real-showcase-feature-validates",
+      "command": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate",
+        "docs/specs/DEMO-003"
+      ],
+      "duration_ms": 243,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870",
+      "stdout_tail": "PASS: feature specification and task DAG are structurally valid\n"
+    }
+  ],
+  "repeat": 1,
+  "run_id": "b5aa06827ba3",
+  "schema_version": 1,
+  "suite": "adversarial",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/evals/adversarial.json",
+  "summary": {
+    "by_case": {
+      "A001-content-sensitive-verification": {
+        "median_duration_ms": 10586,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A002-secret-minimized-verification-env": {
+        "median_duration_ms": 202,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A003-reopen-lease-and-history-safety": {
+        "median_duration_ms": 3860,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A004-real-showcase-feature-validates": {
+        "median_duration_ms": 243,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 2052,
+    "pass_rate": 1.0,
+    "passes": 4,
+    "runs": 4
+  },
+  "target": null
+}

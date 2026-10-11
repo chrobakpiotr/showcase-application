@@ -1,0 +1,29 @@
+{
+  "backup_search": {
+    "reported_findings": "No APFS local snapshots, configured Time Machine destination, or other on-disk copy was available to the owner.",
+    "source": "owner report, not independently verified"
+  },
+  "cause": "unknown",
+  "evidence_baseline_path": "docs/specs/AGENT-STATE-RECOVERY-001/evidence/evidence-baseline.json",
+  "evidence_baseline_sha256": "d9bdde1d37f69e3a294879a57d8fb5d08d6a81eac1de284ebd20750c58019abf",
+  "feature": "SDD-OBS-001",
+  "incident_id": "showcase-sdd-obs-001-state-loss-2026-10-11",
+  "lost_authority": [
+    "active immutable packet revisions",
+    "attempt and replan lineage",
+    "lifecycle status and grants"
+  ],
+  "observation_head": "830f012107c0ba953fe8394e0a70ab391c8ebe5f",
+  "read_only_probe": {
+    "command": "python3 tooling/agent-harness/harness.py status docs/specs/SDD-OBS-001 --json",
+    "result": "in-memory projection showed every task pending; .agent-state remained absent"
+  },
+  "recorded_at_utc": "2026-10-11T13:22:31Z",
+  "repository": "chrobakpiotr/showcase-application",
+  "schema_version": 1,
+  "state_mutations_during_investigation": false,
+  "state_path": ".agent-state",
+  "state_present": false,
+  "status": "observed",
+  "t009_disposition": "not imported; Harness round-4 implementation review failed; attempt-6 completion evidence is untracked and requires fresh independent evaluation"
+}

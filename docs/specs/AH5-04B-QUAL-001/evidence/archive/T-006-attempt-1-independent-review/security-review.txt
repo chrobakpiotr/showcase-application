@@ -1,0 +1,3 @@
+Reviewer: security-reviewer
+Result: PASS
+The owner decision is NOT_REQUIRED_PENDING_REVIEW and binds the exact Harness qualification digest sha256:64e41e360c322bd8fbd216d22b77857edd5870bfd3c6734150c408536814170e, target showcase-docker-desktop-linux-guest and job local-20261008T205033Z-7939417fefb5. All 26 check IDs pass; selected evidence hashes, sizes and identities validate. The old selected run is preserved under evidence/archive and is not cited. Capability remains qualified=false, launch_ready=false, NOT_QUALIFIED; GitHub fallback is not qualified and has no job ID. Checker exit 1 is expected until T-900 supplies independent review.

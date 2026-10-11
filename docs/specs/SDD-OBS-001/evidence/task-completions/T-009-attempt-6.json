@@ -1,0 +1,1015 @@
+{
+  "assumptions": [],
+  "attempt": 6,
+  "benchmark": {
+    "command": "PYTHONPATH=tooling/agent-harness/benchmarks:tooling/agent-harness python3 -m verification_planning --record .agent-runs/SDD-OBS-001/T-009/benchmark/result.json",
+    "exit_code": 0,
+    "metrics": {
+      "durations_seconds": [
+        8.540151,
+        8.465845,
+        8.623064
+      ],
+      "fixture": {
+        "bytes_per_file": 256,
+        "bytes_total": 1280000,
+        "disjoint_matches_per_gate": 50,
+        "files": 5000,
+        "gates": 100
+      },
+      "git_subprocess_calls_per_run": 8.75,
+      "limits_seconds": {
+        "maximum": 20,
+        "median": 10
+      },
+      "maximum_seconds": 8.623064,
+      "median_seconds": 8.540151,
+      "operation_contract": "G+M+B; no subprocess-per-file planning",
+      "runs": 3,
+      "schema_version": 1,
+      "warmups": 1
+    },
+    "python_version": "3.13.16",
+    "result_path": ".agent-runs/SDD-OBS-001/T-009/benchmark/result.json",
+    "result_sha256": "66ef1f25c15d0fda884d2f0a848156253e39f1486d00e7c503566e18555938ed",
+    "stderr_path": ".agent-runs/SDD-OBS-001/T-009/benchmark/standalone.stderr.txt",
+    "stdout_path": ".agent-runs/SDD-OBS-001/T-009/benchmark/standalone.stdout.txt"
+  },
+  "changed_paths": [],
+  "checkpoint": "b0ed0e64971042c51db27320d0865e6bec20ab17",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_lifecycle.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_runner.py tooling/agent-harness/tests/test_orchestrate.py -v",
+    "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+    "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_profile.py tooling/agent-harness/tests/test_verification_profile_showcase.py -v",
+    "python3 -m py_compile tooling/agent-harness/verification/model.py tooling/agent-harness/verification/profile.py tooling/agent-harness/verification/planner.py"
+  ],
+  "contract_fingerprint": "d1aa2248bd0865bef43091af99694d400b682b101ce6bfdc930d372ef7970bb5",
+  "criterion_results": {
+    "AC-HANDOFF-01": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-03": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-05": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-07": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-09": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-10": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-12": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-13": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-14": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-16": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-01": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-02": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-03": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-04": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-05": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-06": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-07": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-08": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-09": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-10": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-11": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-12": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-13": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-14": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-15": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-040": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-041": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-042": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-043": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-048": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-050": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-051": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-052": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-058": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-060": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "VC-037": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "VC-038": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    },
+    "VC-041": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2",
+        "proof-3",
+        "proof-4",
+        "proof-5",
+        "proof-6",
+        "proof-7",
+        "proof-8"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/01-authority.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/01-authority.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/02-completion-boundary.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/02-completion-boundary.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_lifecycle.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/03-execution-lifecycle.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/03-execution-lifecycle.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_runner.py tooling/agent-harness/tests/test_orchestrate.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/04-harness-runner-orchestrate.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/04-harness-runner-orchestrate.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/05-contract.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/05-contract.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/06-telemetry.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/06-telemetry.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_profile.py tooling/agent-harness/tests/test_verification_profile_showcase.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/07-profile.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/07-profile.stdout",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m py_compile tooling/agent-harness/verification/model.py tooling/agent-harness/verification/profile.py tooling/agent-harness/verification/planner.py",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Linux Python 3.13 test image; mounted Showcase repository",
+      "stderr": ".agent-runs/SDD-OBS-001/T-009/verification/08-pycompile.stderr",
+      "stdout": ".agent-runs/SDD-OBS-001/T-009/verification/08-pycompile.stdout",
+      "strong_isolation": false
+    }
+  ],
+  "mutation_checks": {
+    "abort_upper_bound_guard_removed": "regression test failed as expected",
+    "checkpoint_commit_type_guard_removed": "regression test failed as expected",
+    "coverage_lock_removed": "regression test failed as expected",
+    "seal_head_comparison_removed": "regression test failed as expected"
+  },
+  "packet_revision": "sha256:4bf89ee9d51820e4d5e06ed1b144a6b1a3ecce736e66bcfb6a79dcb787ab4fe0",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "4b0875183f079b28661e17a213fa38bee6b05114126a131586606f1c13970f15",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "c948b6cf504f1cd65a60ba9f037242d6921b53856c2794f232d8462b40c1e9af",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "f3a06173398fb7a29b7758d627d5caa6d8706f02381fd56a5073a07fc5d4f8af",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "12ca7d9acd03493770ddb1c2ec5935bff1705149fedb3ea9e76f9c813262ee3c",
+      "status": "PASS"
+    },
+    {
+      "command_index": 2,
+      "command_sha256": "ae18ed34f95487d8d48cc2bf7d515e3328792c48e6b262e31a252a7e22a70d5e",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-3",
+      "result_sha256": "87c7d07d84ec69f63406ffbc073a14b4f4ad0e2f77b5c1148e4e166b53b7afed",
+      "status": "PASS"
+    },
+    {
+      "command_index": 3,
+      "command_sha256": "0c98ac36ae2db8a693ffd3d8aeb03842e3b99ca3207e9eef1b1696dc251b63ba",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-4",
+      "result_sha256": "6551d0a52cd4aa29caeb0363d3cb5726aa8e5c0b01b2ea2965683d739641b698",
+      "status": "PASS"
+    },
+    {
+      "command_index": 4,
+      "command_sha256": "b28e70c5893ea4be30b9db75a50ff74941f6e95a76febaa73979588cecab9d79",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-5",
+      "result_sha256": "0050a15ef9a802c7af88b186cf77b31a314b98dc1113475a9cab2c75c0207b64",
+      "status": "PASS"
+    },
+    {
+      "command_index": 5,
+      "command_sha256": "b126f86f3cd0558e9892fd2d39eba6d909eed342acbc0a30ccae6e06809f21e2",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-6",
+      "result_sha256": "31b283322a4ee4ac9373633ef269770827fc6d1233fb89398531af03f15ce61c",
+      "status": "PASS"
+    },
+    {
+      "command_index": 6,
+      "command_sha256": "a91efa8d6390137742f552b24ba25fe7860f06b0c0aff2faaa7b5c1a43189160",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-7",
+      "result_sha256": "671883430462bd963907133299d763e3cc2880d90d342291da6e5fe1b7c99f27",
+      "status": "PASS"
+    },
+    {
+      "command_index": 7,
+      "command_sha256": "02c8555ba054e121412e170a799862758e06b0ffdbd567e6ffe0cd660813082d",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-048",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-058",
+        "AC-OBS-060",
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-8",
+      "result_sha256": "fca1c222908b8d307f82bd35c7c3152cdc1de4c6830a9457776f7a6d16891786",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "The benchmark exceeded its 10-second median bound in the local one-CPU Docker test container (13.1s); the standalone host Python 3.13 run passed (median 8.54s, max 8.62s)."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-009 regression tests pass. Coverage serialization, real-plan seal and commit checks, and safe-prelaunch abort upper-bound guard were mutation-tested; the accepted planning benchmark passes as a standalone Python 3.13 run.",
+  "task": "T-009"
+}

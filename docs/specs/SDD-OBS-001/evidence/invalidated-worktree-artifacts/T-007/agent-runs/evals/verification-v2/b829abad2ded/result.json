@@ -1,0 +1,108 @@
+{
+  "environment": {
+    "captured_at": "2026-10-09T19:56:16.946682+00:00",
+    "cpu_count": 8,
+    "git_head": "e059d05e65ab9884d718a99bfee44806dbf16392",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "V2-compatibility-and-contract",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_telemetry.py",
+        "tooling/agent-harness/tests/test_verification_contract.py",
+        "-v"
+      ],
+      "duration_ms": 1625,
+      "exit_code": 1,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "fail",
+      "stderr_sha256": "a78049f7aaf843ccc598053a5bf2b00d26f4fc9a49fbc8aff78121622b588286",
+      "stderr_tail": "ess/tests/test_telemetry.py\", line 24, in _signed_manual_fixture\n    from cryptography.hazmat.primitives import serialization\nModuleNotFoundError: No module named 'cryptography'\n\n======================================================================\nERROR: test_manual_attestation_rejects_valid_signature_for_different_task_before_register (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_manual_attestation_rejects_valid_signature_for_different_task_before_register)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/tests/test_telemetry.py\", line 172, in test_manual_attestation_rejects_valid_signature_for_different_task_before_register\n    fixture = self._signed_manual_fixture()\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/tests/test_telemetry.py\", line 24, in _signed_manual_fixture\n    from cryptography.hazmat.primitives import serialization\nModuleNotFoundError: No module named 'cryptography'\n\n======================================================================\nERROR: test_record_manual_verifies_ed25519_attestation_before_lifecycle_registration (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_record_manual_verifies_ed25519_attestation_before_lifecycle_registration)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/tests/test_telemetry.py\", line 240, in test_record_manual_verifies_ed25519_attestation_before_lifecycle_registration\n    from cryptography.hazmat.primitives import serialization\nModuleNotFoundError: No module named 'cryptography'\n\n----------------------------------------------------------------------\nRan 26 tests in 1.415s\n\nFAILED (errors=10)\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "V2-authority-and-isolation",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_eval.py",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_admission.py",
+        "tooling/agent-harness/tests/test_verification_completion_boundary.py",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "-v"
+      ],
+      "duration_ms": 48777,
+      "exit_code": 1,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "fail",
+      "stderr_sha256": "51181bdc7d641b8177ea251ececf2630057a77127082744539b1501f04fa5680",
+      "stderr_tail": "e_is_forwarded (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_explicit_gradle_read_only_cache_is_forwarded) ... ok\ntest_legacy_strong_isolation_is_not_v2_qualification (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_legacy_strong_isolation_is_not_v2_qualification) ... ok\ntest_off_is_explicit_and_not_strong (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_off_is_explicit_and_not_strong) ... ok\ntest_required_fails_when_no_backend_exists (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_required_fails_when_no_backend_exists) ... ok\ntest_safe_env_does_not_inherit_provider_or_ci_secrets (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_safe_env_does_not_inherit_provider_or_ci_secrets) ... ok\ntest_unsupported_backend_fails_closed_for_every_mode (tooling.agent-harness.tests.test_verification_sandbox.VerificationSandboxTest.test_unsupported_backend_fails_closed_for_every_mode) ... ok\n\n======================================================================\nERROR: test_verification_completion_boundary (unittest.loader._FailedTest.test_verification_completion_boundary)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_verification_completion_boundary\nTraceback (most recent call last):\n  File \"/Users/pau/.local/share/uv/python/cpython-3.13.16-macos-x86_64-none/lib/python3.13/unittest/loader.py\", line 141, in loadTestsFromName\n    module = __import__(module_name)\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/tests/test_verification_completion_boundary.py\", line 10, in <module>\n    import test_harness as fixtures\nModuleNotFoundError: No module named 'test_harness'\n\n\n----------------------------------------------------------------------\nRan 37 tests in 48.384s\n\nFAILED (errors=1)\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "V2-planning-benchmark",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "-v"
+      ],
+      "duration_ms": 34817,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "4eeb9152d57c15861777478910509a1cdce71cb3a0b7e53c82a4af15f76008f7",
+      "stderr_tail": "test_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 34.618s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    }
+  ],
+  "repeat": 1,
+  "run_id": "b829abad2ded",
+  "schema_version": 1,
+  "suite": "verification-v2",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/evals/verification-v2.json",
+  "summary": {
+    "by_case": {
+      "V2-authority-and-isolation": {
+        "median_duration_ms": 48777,
+        "pass_rate": 0.0,
+        "passes": 0,
+        "runs": 1
+      },
+      "V2-compatibility-and-contract": {
+        "median_duration_ms": 1625,
+        "pass_rate": 0.0,
+        "passes": 0,
+        "runs": 1
+      },
+      "V2-planning-benchmark": {
+        "median_duration_ms": 34817,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 34817,
+    "pass_rate": 0.3333333333333333,
+    "passes": 1,
+    "runs": 3
+  },
+  "target": null
+}

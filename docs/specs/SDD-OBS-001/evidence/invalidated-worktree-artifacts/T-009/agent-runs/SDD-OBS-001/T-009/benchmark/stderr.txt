@@ -1,0 +1,27 @@
+test_direct_cli_and_shared_planner_emit_identical_advisory_plan (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_direct_cli_and_shared_planner_emit_identical_advisory_plan) ... ok
+test_every_tracked_result_input_can_activate_its_gate (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_every_tracked_result_input_can_activate_its_gate) ... ok
+test_integration_mapping_retains_one_profile_node (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_integration_mapping_retains_one_profile_node) ... ok
+test_mapped_applicable_gate_keeps_separate_profile_requirement (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapped_applicable_gate_keeps_separate_profile_requirement) ... ok
+test_mapping_does_not_make_non_applicable_profile_gate_required (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapping_does_not_make_non_applicable_profile_gate_required) ... ok
+test_profile_covers_repository_quality_gate_inputs (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_covers_repository_quality_gate_inputs) ... ok
+test_profile_is_deterministic_and_gate_commands_are_unambiguous (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_is_deterministic_and_gate_commands_are_unambiguous) ... ok
+test_quality_gate_commands_and_working_directories_are_explicit (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_quality_gate_commands_and_working_directories_are_explicit) ... ok
+test_repeated_task_occurrences_remain_distinct (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_repeated_task_occurrences_remain_distinct) ... ok
+test_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract) ... FAIL
+test_accepted_plan_cli_reaches_durable_executor_and_returns_pass (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_accepted_plan_cli_reaches_durable_executor_and_returns_pass) ... ok
+test_runner_forwards_only_exact_accepted_plan_to_shared_cli (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_forwards_only_exact_accepted_plan_to_shared_cli) ... ok
+test_runner_missing_plan_is_blocked_without_cli_or_payload (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_missing_plan_is_blocked_without_cli_or_payload) ... ok
+
+======================================================================
+FAIL: test_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-009/tooling/agent-harness/tests/test_verification_benchmark.py", line 16, in test_representative_planning_benchmark_stays_within_contract
+    self.assertLessEqual(result['median_seconds'], 10)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 13.108095 not less than or equal to 10
+
+----------------------------------------------------------------------
+Ran 13 tests in 67.298s
+
+FAILED (failures=1)

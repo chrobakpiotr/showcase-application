@@ -1,0 +1,122 @@
+{
+  "environment": {
+    "captured_at": "2026-10-10T13:47:19.384982+00:00",
+    "cpu_count": 8,
+    "git_head": "15d6d3bc93490f9de7fa2e55ed39e02b0c40e485",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "SHIP-E001-map-valid",
+      "command": [
+        "python3",
+        "tooling/agent-harness/wayfinder.py",
+        "validate",
+        "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
+      ],
+      "duration_ms": 226,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "56c1c4a719fe44f5ca4de0edfa53440158164ae86adf07fdd36484c5ba1bb563",
+      "stdout_tail": "PASS: wayfinder decision map is structurally valid\n"
+    },
+    {
+      "case": "SHIP-E002-frontier",
+      "command": [
+        "python3",
+        "tooling/agent-harness/wayfinder.py",
+        "frontier",
+        "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
+      ],
+      "duration_ms": 331,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "23d78f49c73f64b20af4b939c0c3388639e4e9fbf94b1cea388c3d750ccb267b",
+      "stdout_tail": "D-001\t144\tarchitecture\tShipment truth and carrier boundary\nD-009\t64\tresearch\tExisting compatibility baseline\n"
+    },
+    {
+      "case": "SHIP-E003-not-cleared-prematurely",
+      "command": [
+        "python3",
+        "tooling/agent-harness/wayfinder.py",
+        "reconcile",
+        "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
+      ],
+      "duration_ms": 214,
+      "exit_code": 2,
+      "expected_exit": 2,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "27051ae87f1ffc5fec0c20de41bf8ffa98062c3db5dbc908d3220a4bf46d4600",
+      "stdout_tail": "RECONCILIATION BLOCKED\n  - decision D-001 is not closed (status=open): Shipment truth and carrier boundary\n  - decision D-002 is not closed (status=open): Carrier ingestion semantics\n  - decision D-003 is not closed (status=open): Tracking state normalization and ordering\n  - decision D-004 is not closed (status=open): Near-real-time UX contract\n  - decision D-005 is not closed (status=open): Timeline persistence and replay model\n  - decision D-006 is not closed (status=open): Tracking access and privacy boundary\n  - decision D-007 is not closed (status=open): Carrier failure and recovery model\n  - decision D-008 is not closed (status=open): Compatibility and migration path\n  - decision D-009 is not closed (status=open): Existing compatibility baseline\n  - fog F-001 is still open: Carrier capabilities differ: some may push webhooks, some may require polling, and delivery guarantees are unknown.\n  - fog F-002 is still open: The authoritative source of shipment state when operator state and carrier state disagree is not yet defined.\n  - fog F-003 is still open: Duplicate, delayed, reordered and replayed carrier events may violate the current linear shipment transition model.\n  - fog F-004 is still open: The meaning of near-real-time for operator/customer UX and the delivery mechanism to browsers are not yet fixed.\n  - fog F-005 is still open: History/replay/backfill requirements and the shape of any tracking read model are unclear.\n  - fog F-006 is still open: Authorization and data-isolation rules for exposing tracking beyond the current back-office API are unclear.\n  - fog F-007 is still open: Migration from the current one-shipment-per-order, operator-advanced model to carrier-fed updates must preserve compatibility and rollback options.\n  - fog F-008 is still open: Operational behavior during carrier outages, webhook loss, polling lag, poison events and replay storms is not yet defined.\n"
+    },
+    {
+      "case": "SHIP-E004-preview",
+      "command": [
+        "bash",
+        "docs/agentic-sdd/examples/SHIP-PLATFORM-001/preview.sh"
+      ],
+      "duration_ms": 1266,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "c4677bee90dd6c56b3524fb482107923f6be8067b208b93c175dcea854e6d512",
+      "stdout_tail": " - decision D-007 is not closed (status=open): Carrier failure and recovery model\n  - decision D-008 is not closed (status=open): Compatibility and migration path\n  - decision D-009 is not closed (status=open): Existing compatibility baseline\n  - fog F-001 is still open: Carrier capabilities differ: some may push webhooks, some may require polling, and delivery guarantees are unknown.\n  - fog F-002 is still open: The authoritative source of shipment state when operator state and carrier state disagree is not yet defined.\n  - fog F-003 is still open: Duplicate, delayed, reordered and replayed carrier events may violate the current linear shipment transition model.\n  - fog F-004 is still open: The meaning of near-real-time for operator/customer UX and the delivery mechanism to browsers are not yet fixed.\n  - fog F-005 is still open: History/replay/backfill requirements and the shape of any tracking read model are unclear.\n  - fog F-006 is still open: Authorization and data-isolation rules for exposing tracking beyond the current back-office API are unclear.\n  - fog F-007 is still open: Migration from the current one-shipment-per-order, operator-advanced model to carrier-fed updates must preserve compatibility and rollback options.\n  - fog F-008 is still open: Operational behavior during carrier outages, webhook loss, polling lag, poison events and replay storms is not yet defined.\nExpected: reconciliation is blocked while initial fog is open.\n\n5/6 Context trust smoke\n{\n  \".agent-state/control-plane/SHIP-PLATFORM-001-intent.md\": \"untrusted\"\n}\n{\n  \"docs/adr/0035-shipping-fulfillment-tracking-bounded-context.md\": \"trusted\"\n}\n\n6/6 No-model preview complete\nNo provider/model execution or application-code mutation was performed.\nTo run safe eval manifests (writes ignored .agent-runs only):\n  python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1\nTo activate the live decision map:\n  ./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-wayfinder.sh\n"
+    }
+  ],
+  "repeat": 1,
+  "run_id": "8430a790c944",
+  "schema_version": 1,
+  "suite": "shipping-preflight",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/evals/shipping-preflight.json",
+  "summary": {
+    "by_case": {
+      "SHIP-E001-map-valid": {
+        "median_duration_ms": 226,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "SHIP-E002-frontier": {
+        "median_duration_ms": 331,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "SHIP-E003-not-cleared-prematurely": {
+        "median_duration_ms": 214,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "SHIP-E004-preview": {
+        "median_duration_ms": 1266,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 278,
+    "pass_rate": 1.0,
+    "passes": 4,
+    "runs": 4
+  },
+  "target": null
+}

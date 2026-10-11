@@ -1,0 +1,3 @@
+Reviewer: platform-reviewer
+Result: PASS
+The fallback decision binds the expected report digest and job. All 26 checks and selected evidence match the T-005 Docker run. The current selected bundle and job-id use the current job; stale previous evidence is archived. Checker exit 1 is expected before T-900, and both Docker/GitHub qualification states remain false.

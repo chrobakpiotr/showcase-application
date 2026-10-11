@@ -1,0 +1,108 @@
+{
+  "environment": {
+    "captured_at": "2026-10-09T20:05:11.561808+00:00",
+    "cpu_count": 8,
+    "git_head": "e059d05e65ab9884d718a99bfee44806dbf16392",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "V2-compatibility-and-contract",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_telemetry.py",
+        "tooling/agent-harness/tests/test_verification_contract.py",
+        "-v"
+      ],
+      "duration_ms": 18417,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "164d8ce41f3874749e53e2a00a368dec05f8cce2c2a407d5a60157354169a9b0",
+      "stderr_tail": "st.test_provider_parsers_drop_nested_unrecognized_metadata_and_secret_ids) ... ok\ntest_reconcile_running_marks_only_owned_orphans_abandoned (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_reconcile_running_marks_only_owned_orphans_abandoned) ... ok\ntest_record_manual_verifies_ed25519_attestation_before_lifecycle_registration (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_record_manual_verifies_ed25519_attestation_before_lifecycle_registration) ... ok\ntest_summary_can_filter_orchestration (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_summary_can_filter_orchestration) ... ok\ntest_summary_does_not_treat_invalid_cost_or_token_shapes_as_known (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_summary_does_not_treat_invalid_cost_or_token_shapes_as_known) ... ok\ntest_summary_marks_missing_usage_and_cost_unknown (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_summary_marks_missing_usage_and_cost_unknown) ... ok\ntest_summary_never_renders_nested_provider_metadata_or_unknown_cost (tooling.agent-harness.tests.test_telemetry.TelemetryTest.test_summary_never_renders_nested_provider_metadata_or_unknown_cost) ... ok\ntest_agent_cannot_self_accept_exemption (tooling.agent-harness.tests.test_verification_contract.VerificationContractTest.test_agent_cannot_self_accept_exemption) ... ok\ntest_contract_becomes_stale_when_plan_changes (tooling.agent-harness.tests.test_verification_contract.VerificationContractTest.test_contract_becomes_stale_when_plan_changes) ... ok\ntest_required_contract_must_exist (tooling.agent-harness.tests.test_verification_contract.VerificationContractTest.test_required_contract_must_exist) ... ok\ntest_valid_required_contract_has_independent_criterion (tooling.agent-harness.tests.test_verification_contract.VerificationContractTest.test_valid_required_contract_has_independent_criterion) ... ok\n\n----------------------------------------------------------------------\nRan 26 tests in 18.212s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "V2-authority-and-isolation",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_eval.py",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_admission.py",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_backend_qualification.py",
+        "-v"
+      ],
+      "duration_ms": 47729,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "30d58b3199a6ffbb5417d8613d2dfeb2c038558a1816c53bcf3dbd8b19e93223",
+      "stderr_tail": " ok\ntest_discovery_does_not_qualify_a_candidate (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_discovery_does_not_qualify_a_candidate) ... ok\ntest_e33_containment_probe_kills_and_reaps_its_execution_unit (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_e33_containment_probe_kills_and_reaps_its_execution_unit) ... ok\ntest_execution_identity_round_trips_and_rejects_unknown_schema (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_execution_identity_round_trips_and_rejects_unknown_schema) ... ok\ntest_macos_policy_denies_canonical_authority_roots (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_macos_policy_denies_canonical_authority_roots) ... ok\ntest_policy_and_repository_identity_bind_qualification (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_policy_and_repository_identity_bind_qualification) ... ok\ntest_process_birth_identity_is_precise_on_current_host (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_process_birth_identity_is_precise_on_current_host) ... ok\ntest_production_candidate_prepares_durable_identity_before_payload (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_production_candidate_prepares_durable_identity_before_payload) ... ok\ntest_qualify_all_pass_is_all_or_nothing (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_qualify_all_pass_is_all_or_nothing) ... ok\ntest_uncertain_restart_identity_never_means_drained (tooling.agent-harness.tests.test_verification_backend_qualification.BackendQualificationTest.test_uncertain_restart_identity_never_means_drained) ... ok\n\n----------------------------------------------------------------------\nRan 63 tests in 47.474s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "V2-planning-benchmark",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "-v"
+      ],
+      "duration_ms": 34627,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "2546f73ce8b81d67119a53ad3e2849d4bd52947ffefb50bb29a27e7a871b9acb",
+      "stderr_tail": "test_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 34.433s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    }
+  ],
+  "repeat": 1,
+  "run_id": "b0835f619582",
+  "schema_version": 1,
+  "suite": "verification-v2",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007/tooling/agent-harness/evals/verification-v2.json",
+  "summary": {
+    "by_case": {
+      "V2-authority-and-isolation": {
+        "median_duration_ms": 47729,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "V2-compatibility-and-contract": {
+        "median_duration_ms": 18417,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "V2-planning-benchmark": {
+        "median_duration_ms": 34627,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 34627,
+    "pass_rate": 1.0,
+    "passes": 3,
+    "runs": 3
+  },
+  "target": null
+}
