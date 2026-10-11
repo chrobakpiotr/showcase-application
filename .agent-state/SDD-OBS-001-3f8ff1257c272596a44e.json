@@ -1,0 +1,78 @@
+{
+  "created_at": "2026-10-11T20:19:42.789838+00:00",
+  "feature": "SDD-OBS-001",
+  "feature_generation": 1,
+  "fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+  "historical_attempts": "unavailable",
+  "lifecycle_epoch_id": "showcase-recovery-20261011-a24b8ae",
+  "max_rework_attempts": 2,
+  "protocol_fingerprint": "795b29d619145887598a128c4ab188b6a927724d65bc9a24ac0099203876bc59",
+  "protocol_version": 1,
+  "recovery_epoch": {
+    "epoch_id": "showcase-recovery-20261011-a24b8ae",
+    "evidence_baseline_sha256": "d9bdde1d37f69e3a294879a57d8fb5d08d6a81eac1de284ebd20750c58019abf",
+    "feature_fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+    "incident_sha256": "79522836124106a9105496edfe406cb3795ad1e0288ee081093c90d29d57c259",
+    "record_path": "recovery-epochs/showcase-recovery-20261011-a24b8ae/recovery-record.json",
+    "record_sha256": "b1a8669cd02e165d9036a5c0a6af16fa66eda6289f4359f794905aa8ad973e8c",
+    "repository_id": "a0d62c1089ddc0a7aeeca005df21d065daa15d2ab625285e531d6b737ae75df9"
+  },
+  "state_version": 2,
+  "tasks": {
+    "T-001": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-002": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-003": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-004": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-005": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-006": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-007": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-008": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-009": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-900": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    },
+    "T-990": {
+      "attempts": 0,
+      "historical_attempts": "unavailable",
+      "status": "pending"
+    }
+  }
+}

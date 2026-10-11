@@ -1,0 +1,26 @@
+{
+  "created_at": "2026-10-11T20:19:42.973735+00:00",
+  "epoch_id": "showcase-recovery-20261011-a24b8ae",
+  "feature": "SDD-OBS-001",
+  "feature_generation": 1,
+  "files": [
+    {
+      "bytes": 2364,
+      "mode": 384,
+      "path": "SDD-OBS-001-3f8ff1257c272596a44e.json",
+      "sha256": "884e169580260b1062dfef1dce1a412a5257323f8b81d5a4d0c9c082c36e61e1"
+    },
+    {
+      "bytes": 1056,
+      "mode": 384,
+      "path": "recovery-epochs/showcase-recovery-20261011-a24b8ae/recovery-record.json",
+      "sha256": "b1a8669cd02e165d9036a5c0a6af16fa66eda6289f4359f794905aa8ad973e8c"
+    }
+  ],
+  "prior_files": [],
+  "repository_id": "a0d62c1089ddc0a7aeeca005df21d065daa15d2ab625285e531d6b737ae75df9",
+  "schema_version": 1,
+  "snapshot_id": "sha256:feab78b8087af8343deec5411e86b25f06ef149769bfc7c52784ce9a6ff5f916",
+  "state_path": "SDD-OBS-001-3f8ff1257c272596a44e.json",
+  "state_revision": "884e169580260b1062dfef1dce1a412a5257323f8b81d5a4d0c9c082c36e61e1"
+}

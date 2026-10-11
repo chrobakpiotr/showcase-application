@@ -1,0 +1,21 @@
+{
+  "completion_policy": "all tasks pending; prior evidence remains archival",
+  "created_at": "2026-10-11T20:19:42.767716+00:00",
+  "epoch_id": "showcase-recovery-20261011-a24b8ae",
+  "evidence_baseline_sha256": "d9bdde1d37f69e3a294879a57d8fb5d08d6a81eac1de284ebd20750c58019abf",
+  "evidence_entries_verified": 88,
+  "feature": "SDD-OBS-001",
+  "feature_fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+  "historical_attempts": "unavailable",
+  "historical_packet_lineage": "unavailable",
+  "historical_retry_grants_imported": false,
+  "imported_completions": [],
+  "incident_id": "showcase-sdd-obs-001-state-loss-2026-10-11",
+  "incident_sha256": "79522836124106a9105496edfe406cb3795ad1e0288ee081093c90d29d57c259",
+  "max_rework_attempts": 2,
+  "observation_head": "830f012107c0ba953fe8394e0a70ab391c8ebe5f",
+  "operator": "owner-approved-via-codex-session",
+  "record_type": "lifecycle-state-recovery-epoch",
+  "repository_id": "a0d62c1089ddc0a7aeeca005df21d065daa15d2ab625285e531d6b737ae75df9",
+  "schema_version": 1
+}
