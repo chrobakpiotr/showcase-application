@@ -25,6 +25,12 @@ This file is intentionally a **map**, not a manual. Follow links and load only t
 - `tooling/` - deploy/runtime/config contracts (AsyncAPI, Docker, Kubernetes/Helm, Terraform, etc.).
 - `docs/adr/` - architecture decision log.
 
+## Repository graph
+
+- For codebase navigation, start with `graphify query "<question>"`; use `graphify path "<A>" "<B>"` or `graphify explain "<concept>"` for focused relationships before broad searches.
+- Treat graph results as navigation hints and verify behavior against source and accepted specifications.
+- After code changes, run `graphify update .` and check that `graphify-out/GRAPH_REPORT.md` was built from the current `git rev-parse HEAD`. Generated graph data is ignored by Git.
+
 ## Mandatory invariants
 
 1. The accepted feature spec is the source of truth for externally observable behaviour.
