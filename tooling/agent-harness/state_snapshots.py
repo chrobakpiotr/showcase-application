@@ -185,6 +185,16 @@ def _state_files(state_dir: pathlib.Path, replacement_path: pathlib.Path,
     return files
 
 
+def _file_descriptors(files: dict[str, tuple[bytes, int]]) -> dict[str, tuple[str, int, int]]:
+    return {path: (sha256_bytes(payload), len(payload), mode)
+            for path, (payload, mode) in files.items()}
+
+
+def _file_descriptor_rows(files: dict[str, tuple[bytes, int]]) -> list[dict[str, Any]]:
+    return [{'path': path, 'sha256': digest, 'bytes': size, 'mode': mode}
+            for path, (digest, size, mode) in sorted(_file_descriptors(files).items())]
+
+
 def _publish_immutable_file(state_dir: pathlib.Path, relative: str,
                             payload: bytes, mode: int) -> None:
     target = state_dir.joinpath(*pathlib.PurePosixPath(relative).parts)
@@ -495,6 +505,24 @@ def _manifest(repository: pathlib.Path, commit: str,
                 any(part in {'', '.', '..'} for part in path.split('/')) or path in expected):
             raise SnapshotError('snapshot-manifest-invalid')
         expected[path] = entry
+    prior_entries = manifest.get('prior_files')
+    if 'prior_files' in manifest:
+        if not isinstance(prior_entries, list):
+            raise SnapshotError('snapshot-manifest-invalid')
+        prior_paths = set()
+        for entry in prior_entries:
+            if not isinstance(entry, dict):
+                raise SnapshotError('snapshot-manifest-invalid')
+            path = entry.get('path')
+            if (not isinstance(path, str) or not path or path.startswith('/') or
+                    any(part in {'', '.', '..'} for part in path.split('/')) or
+                    path in prior_paths or
+                    not isinstance(entry.get('sha256'), str) or
+                    re.fullmatch(r'[0-9a-f]{64}', entry['sha256']) is None or
+                    type(entry.get('bytes')) is not int or entry['bytes'] < 0 or
+                    entry.get('mode') not in _FILE_MODES):
+                raise SnapshotError('snapshot-manifest-invalid')
+            prior_paths.add(path)
     state_files = {path[len('.agent-state/'):]: value for path, value in files.items()
                    if path.startswith('.agent-state/')}
     if set(state_files) != set(expected):
@@ -653,17 +681,36 @@ def recover_prepared_snapshots(repository: pathlib.Path, state_dir: pathlib.Path
     if manifest.get('feature') != feature:
         raise SnapshotError('snapshot-prepared-scope-mismatch')
     old_files: dict[str, tuple[bytes, int]] = {}
-    if current_repository_ref_exists(repository):
+    prior_descriptors = None
+    if 'prior_files' in manifest:
+        prior_descriptors = {
+            entry['path']: (entry['sha256'], entry['bytes'], entry['mode'])
+            for entry in manifest['prior_files']
+        }
+    has_current_snapshot = current_repository_ref_exists(repository)
+    if has_current_snapshot:
         old_commit = current_repository_snapshot_commit(repository)
         if old_commit is None:
             raise SnapshotError('snapshot-current-ref-invalid')
         _old_manifest, old_files = _snapshot_tree_files(repository, old_commit, repository_id)
+        if (old_commit != commit and prior_descriptors is not None and
+                _file_descriptors(old_files) != prior_descriptors):
+            raise SnapshotError('snapshot-prepared-state-conflict')
+        if prior_descriptors is None:
+            prior_descriptors = _file_descriptors(old_files)
+    elif prior_descriptors is None:
+        # Older prepared records did not capture the pre-transaction tree. With
+        # no acknowledged snapshot, accepting a partial match could overwrite
+        # legacy authority whose contents are no longer knowable.
+        raise SnapshotError('snapshot-prepared-prior-state-unavailable')
     actual = _actual_state_files(state_dir)
-    all_paths = set(actual) | set(old_files) | set(new_files)
+    actual_descriptors = _file_descriptors(actual)
+    target_descriptors = _file_descriptors(new_files)
+    all_paths = set(actual) | set(prior_descriptors or {}) | set(new_files)
     for path in all_paths:
-        value = actual.get(path)
-        prior = old_files.get(path)
-        target = new_files.get(path)
+        value = actual_descriptors.get(path)
+        prior = (prior_descriptors or {}).get(path)
+        target = target_descriptors.get(path)
         if value is None:
             if prior is not None and target is not None:
                 raise SnapshotError('snapshot-prepared-state-conflict')
@@ -673,12 +720,12 @@ def recover_prepared_snapshots(repository: pathlib.Path, state_dir: pathlib.Path
 
     # If no disk write began, abandon the unacknowledged redo record. Otherwise
     # complete the exact prepared tree before advancing all restore refs.
-    if actual == old_files:
+    if actual_descriptors == prior_descriptors:
         _git(repository, 'update-ref', '-d', prepared_ref)
         _fsync_ref(repository, prepared_ref)
         return True
 
-    for path in sorted(set(old_files) - set(new_files)):
+    for path in sorted(set(prior_descriptors or {}) - set(new_files)):
         target = state_dir.joinpath(*pathlib.PurePosixPath(path).parts)
         if target.exists():
             target.unlink()
@@ -690,6 +737,97 @@ def recover_prepared_snapshots(repository: pathlib.Path, state_dir: pathlib.Path
         raise SnapshotError('snapshot-prepared-postcheck-failed')
     _advance_snapshot_refs(repository, feature, commit, prepared_ref)
     return True
+
+
+def discard_prepared_snapshot(repository: pathlib.Path, state_dir: pathlib.Path,
+                              feature: str, expected_commit: str,
+                              operator: str) -> dict[str, str]:
+    """Audibly discard an unacknowledged prepared write when state is absent.
+
+    Caller holds the repository-wide lifecycle lock. The audit record and the
+    compare-and-swap deletion of the prepared ref are one Git ref transaction.
+    The operator value is provenance, not an authenticated identity.
+    """
+    repository = pathlib.Path(repository).resolve()
+    state_dir = pathlib.Path(os.path.abspath(state_dir))
+    _validate_feature(feature)
+    if os.path.lexists(state_dir):
+        raise SnapshotError('snapshot-prepared-state-present')
+    if not isinstance(operator, str) or not operator.strip() or len(operator) > 256 or any(
+            ord(character) < 0x20 or ord(character) == 0x7f for character in operator):
+        raise SnapshotError('snapshot-discard-operator-invalid')
+    if not isinstance(expected_commit, str) or not _HEX.fullmatch(expected_commit):
+        raise SnapshotError('snapshot-discard-commit-invalid')
+
+    audit_ref = f'refs/agent-state-discarded/{feature}/{expected_commit}'
+    audit_lookup = subprocess.run(
+        ['git', '-C', str(repository), 'show-ref', '--verify', '--quiet', audit_ref],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
+    if audit_lookup.returncode == 0:
+        audit_commit = os.fsdecode(_git(repository, 'rev-parse', '--verify', audit_ref).strip())
+        _resolved, audit_files = _read_commit(repository, audit_commit)
+        try:
+            record = json.loads(audit_files['discard.json'])
+        except (KeyError, UnicodeDecodeError, json.JSONDecodeError):
+            raise SnapshotError('snapshot-discard-audit-invalid') from None
+        if (set(audit_files) != {'discard.json'} or not isinstance(record, dict) or
+                record.get('action') != 'discard-prepared-snapshot' or
+                record.get('feature') != feature or record.get('prepared_commit') != expected_commit or
+                not isinstance(record.get('prepared_ref'), str) or
+                re.fullmatch(rf'{re.escape(_prepared_prefix(feature))}[0-9a-f]{{64}}',
+                             record['prepared_ref']) is None or
+                not isinstance(record.get('operator'), str) or not record['operator'].strip() or
+                len(record['operator']) > 256 or not isinstance(record.get('recorded_at'), str)):
+            raise SnapshotError('snapshot-discard-audit-invalid')
+        return {'audit_ref': audit_ref, 'audit_commit': audit_commit,
+                'prepared_commit': expected_commit, 'operator': record['operator'],
+                'already_discarded': 'true'}
+    if audit_lookup.returncode != 1:
+        raise SnapshotError('snapshot-discard-audit-unavailable')
+
+    prepared = _prepared_refs(repository)
+    if len(prepared) != 1:
+        raise SnapshotError('snapshot-prepared-count-invalid')
+    prepared_ref, prepared_feature, prepared_commit = prepared[0]
+    if prepared_feature != feature:
+        raise SnapshotError('snapshot-prepared-scope-mismatch')
+    if prepared_commit != expected_commit:
+        raise SnapshotError('snapshot-prepared-commit-stale')
+    manifest, _ = _snapshot_tree_files(repository, prepared_commit, _repo_identity(repository))
+    if manifest.get('feature') != feature:
+        raise SnapshotError('snapshot-prepared-scope-mismatch')
+
+    record_bytes = canonical_json({
+        'schema_version': 1,
+        'action': 'discard-prepared-snapshot',
+        'feature': feature,
+        'prepared_ref': prepared_ref,
+        'prepared_commit': prepared_commit,
+        'operator': operator.strip(),
+        'recorded_at': dt.datetime.now(dt.timezone.utc).isoformat(),
+    }) + b'\n'
+    record_blob = _write_blob(repository, record_bytes)
+    audit_tree = _tree(repository, {'discard.json': ('100644', record_blob)})
+    audit_commit = os.fsdecode(_git(
+        repository, '-c', 'user.name=Showcase Agent State Audit',
+        '-c', 'user.email=agent-state-audit@invalid', 'commit-tree', audit_tree,
+        '-m', f'discard prepared snapshot {prepared_commit}').strip())
+    if not _HEX.fullmatch(audit_commit):
+        raise SnapshotError('snapshot-discard-audit-invalid')
+    _fsync_git_object(repository, audit_commit)
+    message = f'agent-state discard operator={operator.strip()} prepared={prepared_commit}'
+    transaction = (f'start\ncreate {audit_ref} {audit_commit}\n'
+                   f'delete {prepared_ref} {prepared_commit}\nprepare\ncommit\n').encode('ascii')
+    try:
+        _git(repository, 'update-ref', '--stdin', '--create-reflog', '-m', message,
+             input_bytes=transaction)
+    except SnapshotError:
+        raise SnapshotError('snapshot-prepared-commit-stale') from None
+    _fsync_ref(repository, audit_ref)
+    _fsync_ref(repository, prepared_ref)
+    return {'audit_ref': audit_ref, 'audit_commit': audit_commit,
+            'prepared_commit': prepared_commit, 'operator': operator.strip(),
+            'already_discarded': 'false'}
 
 
 def _retention_selection(refs: list[tuple[str, str, dict[str, Any]]], *, cap: int | None = None) -> set[str]:
@@ -808,6 +946,7 @@ def commit_state_snapshot(repository: pathlib.Path, state_dir: pathlib.Path,
         'feature_generation': state.get('feature_generation', 1),
         'epoch_id': epoch,
         'created_at': now,
+        'prior_files': _file_descriptor_rows(_actual_state_files(state_dir)),
         'files': file_entries,
     }
     manifest = {**core, 'snapshot_id': 'sha256:' + sha256_bytes(canonical_json(core))}

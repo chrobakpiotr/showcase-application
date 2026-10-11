@@ -1070,8 +1070,13 @@ def cmd_restore_state(args: argparse.Namespace) -> None:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
             try:
-                if state_snapshots.prepared_snapshot_exists(repository):
-                    die('STATE_RESTORE_PREPARED_SNAPSHOT: resolve the prepared snapshot with an ordinary lifecycle command first')
+                pending = state_snapshots._prepared_refs(repository)
+                if pending:
+                    details = ', '.join(f'{feature}:{commit}' for _ref, feature, commit in pending)
+                    die('STATE_RESTORE_PREPARED_SNAPSHOT: state is absent, so ordinary lifecycle recovery '
+                        f'cannot run; inspect the prepared commit and invoke discard-prepared-snapshot '
+                        f'with --expected-prepared-commit <commit> after confirming it was unacknowledged '
+                        f'(pending: {details})')
             except state_snapshots.SnapshotError as exc:
                 die(f'STATE_RESTORE_UNAVAILABLE: {exc}')
             try:
@@ -1087,6 +1092,29 @@ def cmd_restore_state(args: argparse.Namespace) -> None:
             if state_snapshot_status(feature_dir) != 'consistent':
                 die('STATE_RESTORE_POSTCHECK_FAILED: restored state differs from the current snapshot')
             print(f'RESTORED {feature_dir.name} snapshot={snapshot["commit"]} operator={args.operator.strip()}')
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+
+def cmd_discard_prepared_snapshot(args: argparse.Namespace) -> None:
+    """Audited owner action for abandoning an unacknowledged prepared write."""
+    feature_dir = pathlib.Path(args.feature_dir).resolve()
+    repository = feature_repo_base(feature_dir)
+    if not isinstance(args.operator, str) or not args.operator.strip() or len(args.operator) > 256:
+        die('STATE_SNAPSHOT_DISCARD_INVALID: provide an operator provenance label')
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            try:
+                result = state_snapshots.discard_prepared_snapshot(
+                    repository, runtime_state_dir(feature_dir), feature_dir.name,
+                    args.expected_prepared_commit, args.operator)
+            except state_snapshots.SnapshotError as exc:
+                die(f'STATE_SNAPSHOT_DISCARD_FAILED: {exc}')
+            action = 'ALREADY_DISCARDED' if result['already_discarded'] == 'true' else 'DISCARDED'
+            print(f'{action} {feature_dir.name} prepared={result["prepared_commit"]} '
+                  f'audit={result["audit_ref"]} audit_commit={result["audit_commit"]} '
+                  f'operator={result["operator"]}')
         finally:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
@@ -5885,6 +5913,14 @@ def parser() -> argparse.ArgumentParser:
                    help='Full commit ID shown by read-only snapshot inspection')
     s.add_argument('--operator', required=True, help='Operator provenance label; not authenticated by the harness')
     s.set_defaults(func=cmd_restore_state)
+
+    s = sub.add_parser('discard-prepared-snapshot',
+                       help='Audited owner action to discard an unacknowledged snapshot when state is absent')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('--expected-prepared-commit', required=True,
+                   help='Full prepared commit ID confirmed to be unacknowledged')
+    s.add_argument('--operator', required=True, help='Operator provenance label; not authenticated by the harness')
+    s.set_defaults(func=cmd_discard_prepared_snapshot)
 
     s = sub.add_parser('packet')
     s.add_argument('feature_dir', type=pathlib.Path)

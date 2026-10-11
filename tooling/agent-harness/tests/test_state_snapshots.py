@@ -2,6 +2,7 @@ import importlib.util
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -116,6 +117,48 @@ class StateSnapshotTest(unittest.TestCase):
         self.assertEqual(old_bytes, self.state_path.read_bytes())
         self.assertEqual(initial['commit'], snapshots.current_snapshot_commit(self.root, 'SDD-OBS-001'))
 
+    def test_first_snapshot_crash_recognizes_legacy_state_without_previous_ref(self):
+        import json
+        legacy_path = self.state_dir / 'legacy-record.json'
+        legacy_path.parent.mkdir(parents=True)
+        legacy_path.write_bytes(b'legacy authority\n')
+        self.state_path.write_bytes(json.dumps(self.state('legacy'), sort_keys=True).encode())
+        prior_state = self.state_path.read_bytes()
+        self.assertIsNone(snapshots.current_repository_snapshot_commit(self.root))
+
+        def fail(boundary):
+            if boundary == 'after-snapshot-publication':
+                raise OSError('simulated first-save crash')
+
+        with self.assertRaisesRegex(OSError, 'first-save crash'):
+            self.commit(self.state('new', generation=2), fault_injector=fail)
+
+        self.assertTrue(snapshots.recover_prepared_snapshots(self.root, self.state_dir))
+        self.assertEqual(prior_state, self.state_path.read_bytes())
+        self.assertEqual(b'legacy authority\n', legacy_path.read_bytes())
+        self.assertFalse(snapshots.prepared_snapshot_exists(self.root))
+        self.assertIsNone(snapshots.current_repository_snapshot_commit(self.root))
+
+    def test_first_snapshot_crash_after_replacement_rolls_forward_legacy_state(self):
+        import json
+        legacy_path = self.state_dir / 'legacy-record.json'
+        legacy_path.parent.mkdir(parents=True)
+        legacy_path.write_bytes(b'legacy authority\n')
+        self.state_path.write_bytes(json.dumps(self.state('legacy'), sort_keys=True).encode())
+        self.assertIsNone(snapshots.current_repository_snapshot_commit(self.root))
+
+        def fail(boundary):
+            if boundary == 'after-state-replacement':
+                raise OSError('simulated first-save replacement crash')
+
+        with self.assertRaisesRegex(OSError, 'replacement crash'):
+            self.commit(self.state('new', generation=2), fault_injector=fail)
+
+        self.assertTrue(snapshots.recover_prepared_snapshots(self.root, self.state_dir))
+        self.assertEqual('new', json.loads(self.state_path.read_bytes())['value'])
+        self.assertEqual(b'legacy authority\n', legacy_path.read_bytes())
+        self.assertEqual('consistent', snapshots.current_repository_state_status(self.root, self.state_dir))
+
     def test_crash_after_state_replace_does_not_acknowledge_new_snapshot(self):
         initial = self.commit(self.state('old'))
         old_ref = snapshots.current_snapshot_commit(self.root, 'SDD-OBS-001')
@@ -151,7 +194,10 @@ class StateSnapshotTest(unittest.TestCase):
                 snapshots.commit_state_snapshot(self.root, self.state_dir, self.state_path,
                                                  payload, state, additional_files=additional,
                                                  fault_injector=fail)
-            snapshots.recover_prepared_snapshots(self.root, self.state_dir)
+            try:
+                snapshots.recover_prepared_snapshots(self.root, self.state_dir)
+            except snapshots.SnapshotError as exc:
+                raise AssertionError(f'recovery failed at {boundary}: {exc}') from exc
             if boundary == 'after-snapshot-publication':
                 # No disk mutation occurred, so the unacknowledged redo record is discarded.
                 self.assertEqual(f'new-{index - 1}' if index else 'old',
@@ -181,6 +227,113 @@ class StateSnapshotTest(unittest.TestCase):
         shutil.rmtree(self.state_dir)
         with self.assertRaisesRegex(snapshots.SnapshotError, 'restore-prepared-pending'):
             snapshots.restore_current_snapshot(self.root, 'SDD-OBS-001')
+
+    def test_owner_discard_requires_exact_prepared_commit_and_audits_the_action(self):
+        import json
+        state = self.state('new')
+        payload = (json.dumps(state, sort_keys=True, indent=2) + '\n').encode()
+
+        def fail(boundary):
+            if boundary == 'after-snapshot-publication':
+                raise OSError('simulated crash')
+
+        with self.assertRaisesRegex(OSError, 'simulated crash'):
+            snapshots.commit_state_snapshot(self.root, self.state_dir, self.state_path,
+                                             payload, state, fault_injector=fail)
+        prepared = snapshots._prepared_refs(self.root)
+        self.assertEqual(1, len(prepared))
+        prepared_ref, feature, commit = prepared[0]
+        self.assertFalse(self.state_dir.exists())
+
+        with self.assertRaisesRegex(snapshots.SnapshotError, 'prepared-commit-stale'):
+            snapshots.discard_prepared_snapshot(self.root, self.state_dir, feature,
+                                                  '0' * len(commit), 'test-operator')
+        self.assertEqual(commit, snapshots._prepared_refs(self.root)[0][2])
+
+        result = snapshots.discard_prepared_snapshot(
+            self.root, self.state_dir, feature, commit, 'test-operator')
+        self.assertFalse(snapshots.prepared_snapshot_exists(self.root))
+        self.assertFalse(self.state_dir.exists())
+        audit_commit, audit_files = snapshots._read_commit(self.root, result['audit_commit'])
+        self.assertEqual(result['audit_commit'], audit_commit)
+        record = json.loads(audit_files['discard.json'])
+        self.assertEqual('discard-prepared-snapshot', record['action'])
+        self.assertEqual(prepared_ref, record['prepared_ref'])
+        self.assertEqual(commit, record['prepared_commit'])
+        self.assertEqual('test-operator', record['operator'])
+        self.assertEqual(result['audit_ref'],
+                         f"refs/agent-state-discarded/{feature}/{commit}")
+
+        repeated = snapshots.discard_prepared_snapshot(
+            self.root, self.state_dir, feature, commit, 'different-retry-operator')
+        self.assertEqual(result['audit_commit'], repeated['audit_commit'])
+
+    def test_owner_discard_refuses_when_state_root_exists(self):
+        import json
+        state = self.state('new')
+        payload = (json.dumps(state, sort_keys=True, indent=2) + '\n').encode()
+
+        def fail(boundary):
+            if boundary == 'after-state-replacement':
+                raise OSError('simulated crash')
+
+        with self.assertRaisesRegex(OSError, 'simulated crash'):
+            snapshots.commit_state_snapshot(self.root, self.state_dir, self.state_path,
+                                             payload, state, fault_injector=fail)
+        commit = snapshots._prepared_refs(self.root)[0][2]
+        with self.assertRaisesRegex(snapshots.SnapshotError, 'prepared-state-present'):
+            snapshots.discard_prepared_snapshot(
+                self.root, self.state_dir, 'SDD-OBS-001', commit, 'test-operator')
+        self.assertTrue(snapshots.prepared_snapshot_exists(self.root))
+
+    def test_missing_state_restore_error_points_to_audited_discard_command(self):
+        import hashlib
+        import json
+        common_dir = subprocess.check_output(
+            ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+            cwd=self.root, text=True).strip()
+        state_key = hashlib.sha256(f'{common_dir}\0SDD-OBS-001'.encode()).hexdigest()[:20]
+        self.state_path = self.state_dir / f'SDD-OBS-001-{state_key}.json'
+        initial = self.commit(self.state('acknowledged'))
+        state = self.state('unacknowledged', generation=2)
+        payload = (json.dumps(state, sort_keys=True, indent=2) + '\n').encode()
+
+        def fail(boundary):
+            if boundary == 'after-state-replacement':
+                raise OSError('simulated crash')
+
+        with self.assertRaisesRegex(OSError, 'simulated crash'):
+            self.commit(state, fault_injector=fail)
+        prepared_commit = snapshots._prepared_refs(self.root)[0][2]
+        import shutil
+        shutil.rmtree(self.state_dir)
+        feature_dir = self.root / 'docs/specs/SDD-OBS-001'
+        feature_dir.mkdir(parents=True)
+        harness = pathlib.Path(__file__).resolve().parents[1] / 'harness.py'
+        restore = subprocess.run(
+            [sys.executable, str(harness), 'restore-state', str(feature_dir),
+             '--expected-snapshot-commit', initial['commit'], '--operator', 'test-owner'],
+            cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(2, restore.returncode)
+        self.assertIn('discard-prepared-snapshot', restore.stderr)
+        self.assertIn(prepared_commit, restore.stderr)
+
+        discard = subprocess.run(
+            [sys.executable, str(harness), 'discard-prepared-snapshot', str(feature_dir),
+             '--expected-prepared-commit', prepared_commit, '--operator', 'test-owner'],
+            cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(0, discard.returncode, discard.stderr)
+        self.assertIn('DISCARDED SDD-OBS-001', discard.stdout)
+        self.assertFalse(snapshots.prepared_snapshot_exists(self.root))
+        self.assertIsNotNone(snapshots.current_repository_snapshot_commit(self.root))
+
+        restore = subprocess.run(
+            [sys.executable, str(harness), 'restore-state', str(feature_dir),
+             '--expected-snapshot-commit', initial['commit'], '--operator', 'test-owner'],
+            cwd=self.root, capture_output=True, text=True, check=False)
+        self.assertEqual(0, restore.returncode, restore.stderr)
+        self.assertIn('RESTORED SDD-OBS-001', restore.stdout)
+        self.assertEqual('acknowledged', json.loads(self.state_path.read_bytes())['value'])
 
     def test_manifest_binds_state_revision_to_state_file_and_generation(self):
         self.commit(self.state('state-value', generation=7))
