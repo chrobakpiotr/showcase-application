@@ -780,6 +780,8 @@ def _resolve_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> t
 
 def state_recovery_incident(feature_dir: pathlib.Path) -> dict[str, Any] | None:
     """Resolve the immutable incident record that fences this feature's lost state."""
+    if feature_dir.name != state_recovery.INCIDENT_FEATURE:
+        return None
     repository = feature_repo_base(feature_dir)
     incident_path = state_recovery.incident_path(repository)
     relative = incident_path.relative_to(repository).as_posix()
@@ -3420,7 +3422,8 @@ def validate_replan_task(feature_dir: pathlib.Path, doc: dict[str, Any], task_id
 
 
 def publish_revision(feature_dir: pathlib.Path, task_id: str,
-                     packet: dict[str, Any]) -> tuple[str, pathlib.Path]:
+                     packet: dict[str, Any],
+                     staged_files: dict[str, tuple[bytes, int]]) -> tuple[str, pathlib.Path]:
     revision_id = packet_revision_id(packet)
     path = revision_path(feature_dir, task_id, revision_id)
     authority_root = runtime_state_dir(feature_dir) / 'packet-revisions'
@@ -3428,37 +3431,22 @@ def publish_revision(feature_dir: pathlib.Path, task_id: str,
     task_root = path.parent
     if task_root.is_symlink() or feature_root.is_symlink() or (authority_root.exists() and authority_root.is_symlink()):
         die('ACTIVE_PACKET_AMBIGUOUS: symlink in immutable packet revision path')
-    task_root.mkdir(parents=True, exist_ok=True)
-    if task_root.resolve().parent != feature_root.resolve():
+    if task_root.exists() and task_root.resolve().parent != feature_root.resolve():
         die('ACTIVE_PACKET_AMBIGUOUS: packet revision directory escapes repository authority')
-    encoded = json.dumps(packet, indent=2, sort_keys=True) + '\n'
+    encoded = (json.dumps(packet, indent=2, sort_keys=True) + '\n').encode('utf-8')
     if path.exists():
-        if path.read_text(encoding='utf-8') != encoded:
+        if path.read_bytes() != encoded:
             die('PACKET_SUPERSESSION_CONFLICT: revision identity collision')
         return revision_id, path
-    fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=task_root)
+    replan_failpoint('R2')
+    replan_failpoint('R3')
     try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
-            handle.write(encoded)
-            replan_failpoint('R2')
-            handle.flush()
-            replan_failpoint('R3')
-            os.fsync(handle.fileno())
-        try:
-            os.link(temporary, path)
-        except FileExistsError:
-            if path.read_text(encoding='utf-8') != encoded:
-                die('PACKET_SUPERSESSION_CONFLICT: revision identity collision')
-        dir_fd = os.open(task_root, os.O_RDONLY)
-        try:
-            os.fsync(dir_fd)
-        finally:
-            os.close(dir_fd)
-    except OSError as exc:
-        die(f'PACKET_SUPERSESSION_CONFLICT: immutable packet publication failed: {exc}')
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        relative = path.resolve(strict=False).relative_to(runtime_state_dir(feature_dir).resolve()).as_posix()
+    except ValueError:
+        die('ACTIVE_PACKET_AMBIGUOUS: packet revision path escapes repository authority')
+    if relative in staged_files and staged_files[relative] != (encoded, 0o600):
+        die('PACKET_SUPERSESSION_CONFLICT: staged revision identity collision')
+    staged_files[relative] = (encoded, 0o600)
     return revision_id, path
 
 
@@ -3549,35 +3537,42 @@ def cmd_materialize_packet_history(args: argparse.Namespace) -> None:
     canonical_feature = git_common_dir(feature_dir).parent / 'docs' / 'specs' / feature_dir.name
     if feature_dir != canonical_feature.resolve():
         die('PACKET_HISTORY_MATERIALIZATION_REJECTED: run from the canonical repository feature path')
-    state = _read_state_unlocked_pure(feature_dir, doc)
-    entry = state['tasks'].get(args.task_id)
-    lineage = entry.get('packet_lineage') if isinstance(entry, dict) else None
-    if (not isinstance(lineage, list) or not lineage or not isinstance(lineage[0], dict) or
-            not lineage[0].get('legacy')):
-        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: task has no legacy lineage root')
-    # Prove the complete active chain from the canonical checkout before publishing
-    # any history. This validates active bytes, every audit hop, and the legacy root.
-    resolve_active_packet(feature_dir, doc, args.task_id, state=state)
-    relation = lineage[0]
-    path = legacy_packet_path(feature_dir, args.task_id)
-    if path.is_symlink():
-        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet is a symlink')
-    try:
-        raw = path.read_bytes()
-        packet = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
-        die(f'PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet unavailable: {exc}')
-    if (not isinstance(packet, dict) or packet.get('feature') != doc.get('feature', feature_dir.name) or
-            packet.get('task') != args.task_id):
-        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet identity mismatch')
-    validate_packet_integrity(packet)
-    if (packet_revision_id(packet) != relation.get('revision_id') or
-            packet_bound_semantic_contract_sha256(feature_dir, packet) != relation.get('contract_sha256')):
-        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet does not prove lineage root')
-    revision, published = publish_revision(feature_dir, args.task_id, packet)
-    if revision != relation['revision_id']:
-        die('PACKET_HISTORY_MATERIALIZATION_REJECTED: published revision differs from lineage root')
-    print(f'MATERIALIZED {args.task_id} revision={revision} raw_sha256={sha256_bytes(raw)} path={published}')
+    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            state = _read_state_unlocked_pure(feature_dir, doc)
+            entry = state['tasks'].get(args.task_id)
+            lineage = entry.get('packet_lineage') if isinstance(entry, dict) else None
+            if (not isinstance(lineage, list) or not lineage or not isinstance(lineage[0], dict) or
+                    not lineage[0].get('legacy')):
+                die('PACKET_HISTORY_MATERIALIZATION_REJECTED: task has no legacy lineage root')
+            # Prove the complete active chain before publishing any history.
+            resolve_active_packet(feature_dir, doc, args.task_id, state=state)
+            relation = lineage[0]
+            path = legacy_packet_path(feature_dir, args.task_id)
+            if path.is_symlink():
+                die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet is a symlink')
+            try:
+                raw = path.read_bytes()
+                packet = json.loads(raw)
+            except (OSError, json.JSONDecodeError) as exc:
+                die(f'PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet unavailable: {exc}')
+            if (not isinstance(packet, dict) or packet.get('feature') != doc.get('feature', feature_dir.name) or
+                    packet.get('task') != args.task_id):
+                die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet identity mismatch')
+            validate_packet_integrity(packet)
+            if (packet_revision_id(packet) != relation.get('revision_id') or
+                    packet_bound_semantic_contract_sha256(feature_dir, packet) != relation.get('contract_sha256')):
+                die('PACKET_HISTORY_MATERIALIZATION_REJECTED: canonical legacy packet does not prove lineage root')
+            revision_files: dict[str, tuple[bytes, int]] = {}
+            revision, published = publish_revision(feature_dir, args.task_id, packet, revision_files)
+            if revision_files:
+                save_state(feature_dir, state, additional_files=revision_files)
+            if revision != relation['revision_id']:
+                die('PACKET_HISTORY_MATERIALIZATION_REJECTED: published revision differs from lineage root')
+            print(f'MATERIALIZED {args.task_id} revision={revision} raw_sha256={sha256_bytes(raw)} path={published}')
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def packet_identity_bridge_path(feature_dir: pathlib.Path, task_id: str, attempt: int) -> pathlib.Path:
@@ -3597,31 +3592,22 @@ def bridge_failpoint(_stage: str) -> None:
     """Test seam for immutable bridge publication failure injection."""
 
 
-def publish_immutable_bridge(path: pathlib.Path, record: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(record, indent=2, sort_keys=True) + '\n'
-    if path.exists():
-        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: an immutable bridge already occupies this binding')
-    fd, temporary = tempfile.mkstemp(prefix=f'.{path.name}.', dir=path.parent)
+def publish_immutable_bridge(feature_dir: pathlib.Path, state: dict[str, Any],
+                            path: pathlib.Path, record: dict[str, Any]) -> None:
+    """Publish the bridge and unchanged lifecycle state in one repository snapshot."""
+    state_dir = runtime_state_dir(feature_dir).resolve()
     try:
-        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
-            handle.write(encoded)
-            bridge_failpoint('B3')
-            handle.flush()
-            bridge_failpoint('B4')
-            os.fsync(handle.fileno())
-        try:
-            os.link(temporary, path)
-        except FileExistsError:
-            die('PACKET_IDENTITY_ATTESTATION_CONFLICT: competing bridge creation')
-        directory_fd = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+        relative = path.resolve(strict=False).relative_to(state_dir).as_posix()
+    except ValueError:
+        die('PACKET_IDENTITY_ATTESTATION_REJECTED: bridge path is outside repository authority')
+    encoded = (json.dumps(record, indent=2, sort_keys=True) + '\n').encode('utf-8')
+    if path.exists() or path.is_symlink():
+        die('PACKET_IDENTITY_ATTESTATION_CONFLICT: an immutable bridge already occupies this binding')
+    # Preserve the pre-publication failure seams. The snapshot transaction makes
+    # the bridge visible only when its repository-wide authority is also advanced.
+    bridge_failpoint('B3')
+    bridge_failpoint('B4')
+    save_state(feature_dir, state, additional_files={relative: (encoded, 0o600)})
 
 
 def _bridge_request_identity(*, repository: str, feature: str, task: str, attempt: int,
@@ -3789,7 +3775,7 @@ def attest_packet_identity(args: argparse.Namespace) -> tuple[str, dict[str, Any
                   'protocol_version': args.expected_protocol_version,
                   'classification': 'HUMAN_ATTESTED', 'bridge_id': bridge_id,
                   'request': request, 'created_at': utc_now().isoformat()}
-        publish_immutable_bridge(path, record)
+        publish_immutable_bridge(feature_dir, state, path, record)
         bridge_failpoint('B5')
         if fcntl is not None:
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
@@ -3911,13 +3897,14 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
         # Publish validated legacy root bytes to the common repository authority
         # before publishing/activating a lineage that depends on them. Immutable
         # publication is idempotent and rejects identity collisions.
+        revision_files: dict[str, tuple[bytes, int]] = {}
         if active.get('legacy') and active.get('packet') is not None:
-            publish_revision(feature_dir, args.task_id, active['packet'])
-        revision_id, _packet_path = publish_revision(feature_dir, args.task_id, packet)
+            publish_revision(feature_dir, args.task_id, active['packet'], revision_files)
+        revision_id, _packet_path = publish_revision(feature_dir, args.task_id, packet, revision_files)
         # Immutable revisions are part of the complete state authority tree. Persist
         # newly published but not-yet-active revisions as an unchanged-state snapshot
         # before later CAS/activation steps can fail, so a safe orphan remains valid.
-        save_state(feature_dir, state)
+        save_state(feature_dir, state, additional_files=revision_files)
         replan_failpoint('R4')
         staged = copy.deepcopy(entry)
         lineage = staged.get('packet_lineage', [])

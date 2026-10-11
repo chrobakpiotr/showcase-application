@@ -91,6 +91,7 @@ class PacketIdentityBridgeTest(unittest.TestCase):
 
     def test_H02_exact_replay_is_idempotent(self):
         self.attest()
+        self.assertEqual('consistent', harness.state_snapshot_status(self.feature))
         result, _ = self.attest()
         self.assertEqual('ALREADY_ATTESTED', result)
         self.assertEqual(1, len(list((harness.runtime_state_dir(self.feature) / 'packet-identity-bridges').rglob('*.json'))))

@@ -311,8 +311,11 @@ class ReplanInfrastructureTest(unittest.TestCase):
             harness.cmd_authorize_retry(argparse.Namespace(feature_dir=self.feature, task_id='T-001',
                 reason='new contract retry', by='operator'))
         before = harness.load_state(self.feature, self.doc)
+        before_state_bytes = harness.state_path(self.feature).read_bytes()
+        before_snapshot = harness.state_snapshots.current_repository_snapshot_commit(self.root)
         active = harness.resolve_active_packet(self.feature, self.doc, 'T-001', state=before)
         path = pathlib.Path(active['path'])
+        active_bytes = path.read_bytes()
         packet = json.loads(path.read_text())
         packet['objective'] = 'tampered superseded packet content'
         packet['packet_sha256'] = harness.sha256_bytes(json.dumps(
@@ -321,6 +324,13 @@ class ReplanInfrastructureTest(unittest.TestCase):
         path.write_text(json.dumps(packet, indent=2, sort_keys=True) + '\n')
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_claim(argparse.Namespace(feature_dir=self.feature, task_id='T-001', owner='attempt-five'))
+        self.assertEqual(before_state_bytes, harness.state_path(self.feature).read_bytes())
+        self.assertEqual(before_snapshot, harness.state_snapshots.current_repository_snapshot_commit(self.root))
+        # The altered packet is outside the acknowledged snapshot; preserve that
+        # fail-closed finding without trying to read state through the guard.
+        with self.assertRaises(SystemExit):
+            harness.ready_ids(self.doc, before, self.feature)
+        path.write_bytes(active_bytes)
         after = harness.load_state(self.feature, self.doc)
         old = before['tasks']['T-001']
         current = after['tasks']['T-001']
@@ -329,8 +339,6 @@ class ReplanInfrastructureTest(unittest.TestCase):
             self.assertEqual(old.get(key), current.get(key), key)
         self.assertEqual('failed', current['status'])
         self.assertEqual(4, current['attempts'])
-        with self.assertRaises(SystemExit):
-            harness.ready_ids(self.doc, after, self.feature)
         current_grant = current['retry_authorizations'][-1]
         self.assertIsNone(current_grant['consumed_at'])
 
@@ -880,7 +888,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
         self.assertEqual(active_main['revision_id'], active_second['revision_id'])
         self.assertEqual(active_main['contract_sha256'], active_second['contract_sha256'])
 
-    def test_active_packet_and_status_reads_do_not_create_writer_lock(self):
+    def test_active_packet_reads_are_lock_free_and_status_serializes_recovery(self):
         args, _old_bytes, _grant_id = self.running_replan_fixture()
         with redirect_stdout(StringIO()):
             harness.cmd_replan_task(args)
@@ -891,10 +899,12 @@ class ReplanInfrastructureTest(unittest.TestCase):
         active = harness.resolve_active_packet(self.feature, self.doc, 'T-001')
         self.assertNotEqual('unpublished', active['revision_id'])
         with redirect_stdout(StringIO()):
-            harness.cmd_status(argparse.Namespace(feature_dir=self.feature, json=True))
             harness.cmd_packet(argparse.Namespace(feature_dir=self.feature, task_id='T-001',
                                                    identity=True, stdout=False))
         self.assertFalse(lock.exists())
+        with redirect_stdout(StringIO()):
+            harness.cmd_status(argparse.Namespace(feature_dir=self.feature, json=True))
+        self.assertTrue(lock.exists())
         self.assertEqual(state_before, state_file.read_bytes())
 
     def test_canonical_legacy_history_materialization_is_verified_and_idempotent(self):
@@ -904,7 +914,7 @@ class ReplanInfrastructureTest(unittest.TestCase):
         state = harness._read_state_unlocked_pure(self.feature, self.doc)
         root_id = state['tasks']['T-001']['packet_lineage'][0]['revision_id']
         canonical = harness.revision_path(self.feature, 'T-001', root_id)
-        canonical.unlink()
+        canonical_bytes = canonical.read_bytes()
         active_path = harness.revision_path(self.feature, 'T-001', state['tasks']['T-001']['active_packet_revision'])
         active_bytes = active_path.read_bytes()
         materialize = argparse.Namespace(feature_dir=self.feature, task_id='T-001')
@@ -915,12 +925,11 @@ class ReplanInfrastructureTest(unittest.TestCase):
         active_path.write_text(json.dumps(active_packet))
         with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
             harness.cmd_materialize_packet_history(materialize)
-        self.assertFalse(canonical.exists())
         active_path.write_bytes(active_bytes)
         with redirect_stdout(StringIO()) as first:
             harness.cmd_materialize_packet_history(materialize)
         self.assertIn(harness.sha256_bytes(old_bytes), first.getvalue())
-        self.assertEqual(root_id, harness.packet_revision_id(json.loads(canonical.read_text())))
+        self.assertEqual(canonical_bytes, canonical.read_bytes())
         with redirect_stdout(StringIO()):
             harness.cmd_materialize_packet_history(materialize)
         self.assertEqual(state_bytes, harness.state_path(self.feature).read_bytes())

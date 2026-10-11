@@ -9,6 +9,10 @@ import subprocess
 from typing import Any
 
 
+# This incident record is the one-off recovery authority for the lost SDD-OBS-001 state.
+INCIDENT_FEATURE = 'SDD-OBS-001'
+
+
 class RecoveryError(RuntimeError):
     """Recovery authority did not satisfy its accepted evidence contract."""
 

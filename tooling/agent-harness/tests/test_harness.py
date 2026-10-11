@@ -1418,6 +1418,14 @@ class HarnessTest(unittest.TestCase):
                         'commit', '-q', '-m', 'recovery test fixture'], cwd=self.root, check=True)
         return feature
 
+    def test_recovery_incident_does_not_block_an_unrelated_feature(self):
+        target = self.recovery_feature()
+        unrelated = self.feature()
+
+        self.assertIsNone(harness.state_recovery_incident(unrelated))
+        self.assertFalse(harness.state_recovery_required(unrelated))
+        self.assertTrue(harness.state_recovery_required(target))
+
     def test_recover_state_starts_empty_new_epoch_and_is_idempotent(self):
         from contextlib import redirect_stdout
         from io import StringIO
