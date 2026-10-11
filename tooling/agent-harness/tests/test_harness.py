@@ -1226,6 +1226,308 @@ class HarnessTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             harness.validate_loaded_state(feature, doc, state)
 
+    def test_missing_state_with_recovery_incident_is_read_only_and_mutations_fail_closed(self):
+        from contextlib import redirect_stdout, redirect_stderr
+        from io import StringIO
+
+        feature = self.feature()
+        renamed = feature.with_name('SDD-OBS-001')
+        feature.rename(renamed)
+        tasks_path = renamed / 'tasks.json'
+        doc = json.loads(tasks_path.read_text())
+        doc['feature'] = 'SDD-OBS-001'
+        tasks_path.write_text(json.dumps(doc), encoding='utf-8')
+        recovery = self.root / 'docs' / 'specs' / 'AGENT-STATE-RECOVERY-001' / 'evidence'
+        recovery.mkdir(parents=True)
+        baseline_path = recovery / 'evidence-baseline.json'
+        baseline_path.write_text(json.dumps({'entries': []}), encoding='utf-8')
+        incident_path = recovery / 'incident-record.json'
+        incident_path.write_text(json.dumps({
+            'schema_version': 1,
+            'feature': 'SDD-OBS-001',
+            'incident_id': 'state-loss-test',
+            'status': 'observed',
+            'state_present': False,
+            'state_mutations_during_investigation': False,
+            'cause': 'unknown',
+            'evidence_baseline_path': 'docs/specs/AGENT-STATE-RECOVERY-001/evidence/evidence-baseline.json',
+            'evidence_baseline_sha256': harness.sha256_bytes(baseline_path.read_bytes()),
+        }), encoding='utf-8')
+        subprocess.run(['git', 'add', str(incident_path.relative_to(self.root)),
+                        str(baseline_path.relative_to(self.root))], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'commit recovery incident fixture'], cwd=self.root, check=True)
+        legacy = harness.main_legacy_state_path(renamed)
+        legacy.parent.mkdir(parents=True, exist_ok=True)
+        legacy.write_text('{}', encoding='utf-8')
+
+        status_out = StringIO()
+        with redirect_stdout(status_out):
+            harness.cmd_status(argparse.Namespace(feature_dir=renamed, json=True))
+        self.assertEqual('recovery-required', json.loads(status_out.getvalue())['lifecycle_status'])
+        self.assertFalse(harness.state_path(renamed).exists())
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=renamed, task_id='T-001', owner='worker-a'))
+        self.assertFalse(harness.state_path(renamed).exists())
+
+    def test_uncommitted_incident_rebinding_cannot_bypass_missing_state_guard(self):
+        feature = self.feature()
+        feature = feature.with_name('SDD-OBS-001')
+        feature.parent.joinpath('TST-001').rename(feature)
+        tasks_path = feature / 'tasks.json'
+        doc = json.loads(tasks_path.read_text())
+        doc['feature'] = 'SDD-OBS-001'
+        tasks_path.write_text(json.dumps(doc), encoding='utf-8')
+        evidence_dir = self.root / 'docs/specs/AGENT-STATE-RECOVERY-001/evidence'
+        evidence_dir.mkdir(parents=True)
+        baseline_path = evidence_dir / 'evidence-baseline.json'
+        baseline_path.write_text(json.dumps({'entries': []}), encoding='utf-8')
+        incident_path = evidence_dir / 'incident-record.json'
+        incident = {
+            'schema_version': 1, 'feature': 'SDD-OBS-001', 'status': 'observed',
+            'state_present': False, 'state_mutations_during_investigation': False,
+            'cause': 'unknown', 'incident_id': 'incident-test',
+            'repository': 'example/showcase-application',
+            'observation_head': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip(),
+            'evidence_baseline_path': 'docs/specs/AGENT-STATE-RECOVERY-001/evidence/evidence-baseline.json',
+            'evidence_baseline_sha256': harness.sha256_bytes(baseline_path.read_bytes()),
+        }
+        incident_path.write_text(json.dumps(incident), encoding='utf-8')
+        subprocess.run(['git', 'add', str(incident_path.relative_to(self.root)),
+                        str(baseline_path.relative_to(self.root))], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'commit recovery incident fixture'], cwd=self.root, check=True)
+
+        incident['feature'] = 'OTHER-FEATURE'
+        incident_path.write_text(json.dumps(incident), encoding='utf-8')
+        with self.assertRaises(SystemExit):
+            harness.state_recovery_required(feature)
+        self.assertFalse(harness.state_path(feature).exists())
+
+    def test_next_status_command_redoes_crash_after_state_replacement(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        harness.save_state(feature, harness.initial_state(feature, doc))
+
+        def fail(boundary):
+            if boundary == 'after-state-replacement':
+                raise OSError('simulated process death')
+
+        args = argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker-a')
+        with mock.patch.object(harness, '_state_snapshot_fault_injector', fail):
+            with self.assertRaisesRegex(OSError, 'simulated process death'):
+                harness.cmd_claim(args)
+
+        output = StringIO()
+        with redirect_stdout(output):
+            harness.cmd_status(argparse.Namespace(feature_dir=feature, json=True))
+        status = json.loads(output.getvalue())
+        self.assertEqual('running', status['tasks']['T-001']['status'])
+        self.assertEqual('consistent', harness.state_snapshot_status(feature))
+
+    def test_next_ordinary_command_recovers_each_snapshot_crash_boundary(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+
+        tasks = [{
+            'id': f'T-{index:03d}', 'title': 'Build', 'objective': 'Implement it', 'role': 'builder',
+            'depends_on': [], 'allowed_paths': [f'modules/domain/task-{index}/**'], 'risk_tags': ['domain'],
+            'acceptance_criteria': ['AC-001'], 'verification': ['./gradlew :domain:test'],
+        } for index in range(1, 7)]
+        tasks.append({
+            'id': 'T-900', 'title': 'Evaluate', 'objective': 'Falsify it', 'role': 'evaluator',
+            'depends_on': [f'T-{index:03d}' for index in range(1, 7)],
+            'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+            'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
+            'verification': ['./gradlew test'],
+        })
+        feature = self.feature(tasks=tasks)
+        doc = harness.load_json(feature / 'tasks.json')
+        doc['max_parallel'] = 8
+        (feature / 'tasks.json').write_text(json.dumps(doc), encoding='utf-8')
+        harness.save_state(feature, harness.initial_state(feature, doc))
+        boundaries = ('after-snapshot-publication', 'after-additional-files',
+                      'after-state-replacement', 'after-archive-ref',
+                      'after-feature-current-ref', 'after-repository-current-ref')
+        for index, boundary in enumerate(boundaries, 1):
+            def fail(at):
+                if at == boundary:
+                    raise OSError(f'simulated {boundary}')
+
+            with mock.patch.object(harness, '_state_snapshot_fault_injector', fail):
+                with self.assertRaisesRegex(OSError, boundary):
+                    harness.cmd_claim(argparse.Namespace(feature_dir=feature,
+                                                         task_id=f'T-{index:03d}',
+                                                         owner='worker-a'))
+            output = StringIO()
+            with redirect_stdout(output):
+                harness.cmd_status(argparse.Namespace(feature_dir=feature, json=True))
+            status = json.loads(output.getvalue())
+            expected = ('pending' if boundary in {'after-snapshot-publication', 'after-additional-files'}
+                        else 'running')
+            self.assertEqual(expected, status['tasks'][f'T-{index:03d}']['status'])
+            self.assertEqual('consistent', harness.state_snapshot_status(feature))
+
+    def test_lifecycle_state_fails_closed_when_cross_process_lock_is_unavailable(self):
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        with mock.patch.object(harness, 'fcntl', None):
+            from contextlib import redirect_stderr
+            from io import StringIO
+            with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                harness.load_state(feature, doc)
+        self.assertFalse((self.root / '.agent-state').exists())
+
+    def recovery_feature(self):
+        feature = self.feature()
+        feature = feature.with_name('SDD-OBS-001')
+        (feature.parent / 'TST-001').rename(feature)
+        tasks_path = feature / 'tasks.json'
+        doc = json.loads(tasks_path.read_text())
+        doc.update({'feature': 'SDD-OBS-001', 'max_rework_attempts': 2})
+        tasks_path.write_text(json.dumps(doc), encoding='utf-8')
+        subprocess.run(['git', 'remote', 'add', 'origin',
+                        'https://github.com/chrobakpiotr/showcase-application.git'], cwd=self.root, check=True)
+        evidence_file = feature / 'evidence' / 'old.json'
+        evidence_file.parent.mkdir(parents=True)
+        evidence_bytes = b'{"kept":true}\n'
+        evidence_file.write_bytes(evidence_bytes)
+        baseline = {'entries': [{'path': 'docs/specs/SDD-OBS-001/evidence/old.json',
+                                 'kind': 'file', 'bytes': len(evidence_bytes),
+                                 'sha256': harness.sha256_bytes(evidence_bytes)}]}
+        recovery_dir = self.root / 'docs' / 'specs' / 'AGENT-STATE-RECOVERY-001' / 'evidence'
+        recovery_dir.mkdir(parents=True)
+        baseline_path = recovery_dir / 'evidence-baseline.json'
+        baseline_bytes = json.dumps(baseline, sort_keys=True, indent=2).encode() + b'\n'
+        baseline_path.write_bytes(baseline_bytes)
+        observation = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+        incident = {
+            'schema_version': 1, 'feature': 'SDD-OBS-001', 'status': 'observed',
+            'state_present': False, 'state_mutations_during_investigation': False,
+            'cause': 'unknown', 'incident_id': 'test-incident',
+            'repository': 'chrobakpiotr/showcase-application', 'observation_head': observation,
+            'evidence_baseline_path': 'docs/specs/AGENT-STATE-RECOVERY-001/evidence/evidence-baseline.json',
+            'evidence_baseline_sha256': harness.sha256_bytes(baseline_bytes),
+        }
+        (recovery_dir / 'incident-record.json').write_text(json.dumps(incident, sort_keys=True, indent=2) + '\n')
+        subprocess.run(['git', 'add', 'docs'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'recovery test fixture'], cwd=self.root, check=True)
+        return feature
+
+    def test_recover_state_starts_empty_new_epoch_and_is_idempotent(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature = self.recovery_feature()
+        args = argparse.Namespace(feature_dir=feature, epoch_id='epoch-test-001',
+                                  operator='owner@example.invalid',
+                                  expected_feature_fingerprint=harness.feature_fingerprint(feature))
+        output = StringIO()
+        with redirect_stdout(output):
+            harness.cmd_recover_state(args)
+        state_file = harness.state_path(feature)
+        original = state_file.read_bytes()
+        state = json.loads(original)
+        self.assertEqual('epoch-test-001', state['lifecycle_epoch_id'])
+        self.assertEqual(2, state['max_rework_attempts'])
+        self.assertEqual('unavailable', state['historical_attempts'])
+        self.assertTrue(all(task['status'] == 'pending' and task['attempts'] == 0
+                            and task['historical_attempts'] == 'unavailable'
+                            for task in state['tasks'].values()))
+        self.assertFalse(any('completion_record_id' in task or 'completion_repair_record_id' in task
+                             for task in state['tasks'].values()))
+        self.assertFalse(harness.state_recovery_required(feature))
+        snapshot = harness.state_snapshots.read_current_snapshot(self.root, 'SDD-OBS-001')
+        self.assertEqual(original, snapshot['files'][f'.agent-state/{state_file.name}'])
+        with redirect_stdout(output):
+            harness.cmd_recover_state(args)
+        self.assertEqual(original, state_file.read_bytes())
+        self.assertIn('ALREADY_RECOVERED', output.getvalue())
+
+    def test_recover_state_refuses_modified_baseline_without_creating_state(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.recovery_feature()
+        (feature / 'evidence' / 'old.json').write_bytes(b'{"changed":true}\n')
+        args = argparse.Namespace(feature_dir=feature, epoch_id='epoch-test-002',
+                                  operator='owner@example.invalid',
+                                  expected_feature_fingerprint=harness.feature_fingerprint(feature))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_recover_state(args)
+        self.assertFalse(harness.state_path(feature).exists())
+
+    def test_recovery_epoch_enters_sticky_read_only_mode_if_baseline_later_changes(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+        feature = self.recovery_feature()
+        args = argparse.Namespace(feature_dir=feature, epoch_id='epoch-test-sticky',
+                                  operator='owner@example.invalid',
+                                  expected_feature_fingerprint=harness.feature_fingerprint(feature))
+        harness.cmd_recover_state(args)
+        state_path = harness.state_path(feature)
+        before = state_path.read_bytes()
+        (feature / 'evidence' / 'old.json').write_bytes(b'{"post-recovery-change":true}\n')
+        self.assertTrue(harness.state_recovery_required(feature))
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_claim(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='worker-a'))
+        self.assertEqual(before, state_path.read_bytes())
+
+    def test_recover_state_retries_after_crash_between_receipt_and_state(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        feature = self.recovery_feature()
+        args = argparse.Namespace(feature_dir=feature, epoch_id='epoch-test-retry',
+                                  operator='owner@example.invalid',
+                                  expected_feature_fingerprint=harness.feature_fingerprint(feature))
+        def crash(boundary):
+            if boundary == 'after-additional-files':
+                raise OSError('simulated termination after immutable receipt')
+        with mock.patch.object(harness, '_state_snapshot_fault_injector', crash):
+            with self.assertRaisesRegex(OSError, 'immutable receipt'):
+                harness.cmd_recover_state(args)
+        self.assertFalse(harness.state_path(feature).exists())
+        record_path = harness.runtime_state_dir(feature) / 'recovery-epochs/epoch-test-retry/recovery-record.json'
+        first_record = record_path.read_bytes()
+        output = StringIO()
+        with redirect_stdout(output):
+            harness.cmd_recover_state(args)
+        self.assertTrue(harness.state_path(feature).is_file())
+        self.assertEqual(first_record, record_path.read_bytes())
+        self.assertIn('RECOVERED', output.getvalue())
+
+    def test_restore_state_restores_only_expected_current_snapshot_exactly(self):
+        from contextlib import redirect_stdout, redirect_stderr
+        from io import StringIO
+        feature = self.feature()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        harness.save_state(feature, state)
+        snapshot = harness.state_snapshots.read_current_snapshot(self.root, 'TST-001')
+        state_dir = harness.runtime_state_dir(feature)
+        expected_tree = {path.relative_to(state_dir).as_posix(): path.read_bytes()
+                         for path in state_dir.rglob('*') if path.is_file()}
+        shutil.rmtree(state_dir)
+
+        stale = argparse.Namespace(feature_dir=feature, expected_snapshot_commit='0' * 40,
+                                   operator='owner@example.invalid')
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+            harness.cmd_restore_state(stale)
+        self.assertFalse(state_dir.exists())
+
+        args = argparse.Namespace(feature_dir=feature, expected_snapshot_commit=snapshot['commit'],
+                                  operator='owner@example.invalid')
+        output = StringIO()
+        with redirect_stdout(output):
+            harness.cmd_restore_state(args)
+        actual_tree = {path.relative_to(state_dir).as_posix(): path.read_bytes()
+                       for path in state_dir.rglob('*') if path.is_file()}
+        self.assertEqual(expected_tree, actual_tree)
+        self.assertEqual('consistent', harness.state_snapshot_status(feature))
+        self.assertIn('RESTORED', output.getvalue())
+
     def test_explicit_migrate_state_preserves_legacy_history_and_is_idempotent(self):
         feature = self.feature([
             {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
@@ -1265,6 +1567,9 @@ class HarnessTest(unittest.TestCase):
 
         main_root = self.root / 'showcase'
         main_root.mkdir()
+        # Exercise the production repo-relative layout: the test harness's
+        # default absolute STATE_DIR would incorrectly put state in self.root.
+        harness.STATE_DIR = pathlib.Path('.agent-state')
         subprocess.run(['git', 'init', '-q'], cwd=main_root, check=True)
         subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
                         'commit', '--allow-empty', '-q', '-m', 'base'], cwd=main_root, check=True)
@@ -1360,12 +1665,12 @@ class HarnessTest(unittest.TestCase):
                         'commit', '-q', '-m', 'fixture'], cwd=self.root, check=True)
         doc = harness.load_json(feature / 'tasks.json')
         canonical = harness.initial_state(feature, doc)
-        harness.save_state(feature, canonical)
         legacy = harness.main_legacy_state_path(feature)
-        legacy.parent.mkdir(parents=True, exist_ok=True)
         old = json.loads(json.dumps(canonical))
         old['tasks']['T-001']['status'] = 'completed'
-        legacy.write_text(json.dumps(old))
+        harness.save_state(feature, canonical, additional_files={
+            legacy.name:
+                (json.dumps(old).encode(), 0o600)})
         errors = StringIO()
         with redirect_stderr(errors), self.assertRaises(SystemExit):
             harness.cmd_migrate_state(argparse.Namespace(feature_dir=feature))
@@ -1380,10 +1685,10 @@ class HarnessTest(unittest.TestCase):
                         'commit', '-q', '-m', 'fixture'], cwd=self.root, check=True)
         doc = harness.load_json(feature / 'tasks.json')
         state = harness.initial_state(feature, doc)
-        harness.save_state(feature, state)
         legacy = harness.main_legacy_state_path(feature)
-        legacy.parent.mkdir(parents=True, exist_ok=True)
-        legacy.write_text(json.dumps(state))
+        harness.save_state(feature, state, additional_files={
+            legacy.name:
+                (json.dumps(state).encode(), 0o600)})
         resolved = harness.load_state(feature, doc)
         self.assertEqual(state, resolved)
         self.assertFalse(legacy.exists())
@@ -2230,7 +2535,9 @@ class HarnessTest(unittest.TestCase):
         canonical_before = json.loads(harness.state_path(feature).read_text())
         conflicting = json.loads(json.dumps(canonical_before))
         conflicting['tasks']['T-001']['status'] = 'completed'
-        main_legacy.write_text(json.dumps(conflicting))
+        harness.save_state(feature, canonical_before, additional_files={
+            main_legacy.name:
+                (json.dumps(conflicting).encode(), 0o600)})
         with self.assertRaises(SystemExit):
             harness.load_state(feature, harness.load_json(feature / 'tasks.json'))
         self.assertEqual(canonical_before, json.loads(harness.state_path(feature).read_text()))
@@ -2761,7 +3068,7 @@ class HarnessTest(unittest.TestCase):
                 harness.cmd_replan_task(args)
 
         self.assertEqual(before, harness.state_path(feature).read_bytes())
-        current = harness._read_state_unlocked_pure(feature, doc)
+        current = harness.load_state(feature, doc)
         self.assertEqual(active['revision_id'], harness.resolve_active_packet(
             feature, doc, 'T-001', state=current)['revision_id'])
         self.assertEqual(old_bytes, old_packet.read_bytes())
@@ -3967,10 +4274,17 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
     def test_m42_34_35_projection_loss_preserves_repair(self):
         feature, doc, _, _, _, path = self._setup_repair()
         self._complete(feature, path)
-        harness.remove_state_locked(feature)
-        rebuilt = harness.load_state(feature, doc)
-        self.assertEqual('completed', harness.effective_task_status(feature, 'T-A', rebuilt['tasks']['T-A']))
-        self.assertEqual(5, rebuilt['tasks']['T-A']['attempts'])
+        state_dir = harness.runtime_state_dir(feature)
+        shutil.rmtree(state_dir)
+        with self.assertRaisesRegex(SystemExit, '2'):
+            harness.load_state(feature, doc)
+        current_snapshot = harness.state_snapshots.current_repository_snapshot_commit(self.root)
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_restore_state(argparse.Namespace(
+                feature_dir=feature, expected_snapshot_commit=current_snapshot, operator='fixture operator'))
+        restored = harness.load_state(feature, doc)
+        self.assertEqual('completed', harness.effective_task_status(feature, 'T-A', restored['tasks']['T-A']))
+        self.assertEqual(5, restored['tasks']['T-A']['attempts'])
         with self.assertRaises(SystemExit): self._claim_repair(feature, harness.repair_authorization_records(feature, 'T-A')[0])
 
     def test_m42_36_fresh_process_reconstruction(self):
@@ -4132,6 +4446,10 @@ class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionTest):
         before = claim_path.read_bytes(); self._bind(args)
         self.assertEqual(before, claim_path.read_bytes())
         harness.remove_state_locked(feature)
+        shutil.rmtree(harness.runtime_state_dir(feature))
+        snapshot = harness.state_snapshots.read_current_repository_snapshot(self.root)
+        harness.cmd_restore_state(argparse.Namespace(
+            feature_dir=feature, expected_snapshot_commit=snapshot['commit'], operator='test operator'))
         rebuilt = harness.load_state(feature, doc)
         self.assertEqual(5, rebuilt['tasks']['T-A']['attempts'])
         self.assertEqual(args.checkpoint, harness.repair_checkpoint_bindings(feature, 'T-A')[0]['checkpoint'])
@@ -4381,6 +4699,7 @@ class LegacyCompletionBindingTests(unittest.TestCase):
 
     def test_m4_1_15_immutable_b1_publication(self):
         feature, doc, path, evidence, _ = self.legacy_fixture(); self._attest(feature, doc, path, evidence)
+        self.assertEqual('consistent', harness.state_snapshot_status(feature))
         binding = harness.legacy_completion_bindings(feature, 'T-001')[0]
         with self.assertRaises(SystemExit): harness.publish_legacy_binding(feature, {**binding, 'reason': 'changed'})
 
@@ -4416,8 +4735,10 @@ class LegacyCompletionBindingTests(unittest.TestCase):
 
     def test_auto_mode_publishes_only_after_classifier_passes(self):
         feature, doc, path, evidence, _ = self.legacy_fixture(); self._sources(feature, path, evidence)
+        self.assertEqual('consistent', harness.state_snapshot_status(feature))
         with contextlib.redirect_stdout(io.StringIO()):
             harness.cmd_bind_legacy_completion_auto(argparse.Namespace(feature_dir=feature, task_id='T-001'))
+        self.assertEqual('consistent', harness.state_snapshot_status(feature))
         binding = harness.legacy_completion_bindings(feature, 'T-001')[0]
         self.assertEqual('AUTO_VERIFIED', binding['mode'])
 
@@ -4441,9 +4762,13 @@ class LegacyCompletionBindingTests(unittest.TestCase):
 
     def test_crash_before_durable_b1_publication_leaves_no_authority(self):
         feature, doc, path, evidence, _ = self.legacy_fixture()
-        with mock.patch.object(harness.os, 'link', side_effect=OSError('simulated pre-publication crash')):
+        harness._state_snapshot_fault_injector = lambda stage: (_ for _ in ()).throw(OSError('simulated pre-publication crash')) \
+            if stage == 'after-snapshot-publication' else None
+        try:
             with self.assertRaises(OSError):
                 self._attest(feature, doc, path, evidence)
+        finally:
+            harness._state_snapshot_fault_injector = None
         self.assertEqual([], harness.legacy_completion_bindings(feature, 'T-001'))
         binding_dir = harness.completion_authority_dir(feature, 'legacy-completion-bindings', 'T-001')
         self.assertFalse((binding_dir / 'binding.json').exists())
@@ -4481,7 +4806,14 @@ class LegacyCompletionBindingTests(unittest.TestCase):
         binding_path = harness.completion_authority_dir(feature, 'legacy-completion-bindings', 'T-001') / 'binding.json'
         binding = json.loads(binding_path.read_text())
         binding['binding_version'] = 99
-        binding_path.write_text(json.dumps(binding))
+        # Model a persisted future-version fixture without leaving a mutation
+        # outside the immutable state snapshot.
+        state = harness.load_state(feature, doc)
+        relative_path = binding_path.relative_to(harness.runtime_state_dir(feature)).as_posix()
+        binding_path.unlink()
+        harness.save_state(feature, state, additional_files={
+            relative_path: (json.dumps(binding).encode('utf-8'), 0o600),
+        })
         self.assertEqual('UNSUPPORTED', harness.classify_legacy_completion(feature, doc, 'T-001')[0])
 
     def test_m4_1_24_malformed_binding_fails_closed(self):

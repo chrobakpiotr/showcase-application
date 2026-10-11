@@ -1,7 +1,12 @@
 {
   "backup_search": {
-    "reported_findings": "No APFS local snapshots, configured Time Machine destination, or other on-disk copy was available to the owner.",
-    "source": "owner report, not independently verified"
+    "checks": [
+      "tmutil listlocalsnapshots /: no snapshots",
+      "tmutil destinationinfo: no destinations configured",
+      "no SDD-OBS-001-*.json or packet-revisions found on disk or in Spotlight"
+    ],
+    "confirmed_at_utc": "2026-10-11",
+    "status": "independently-confirmed-by-Harness"
   },
   "cause": "unknown",
   "evidence_baseline_path": "docs/specs/AGENT-STATE-RECOVERY-001/evidence/evidence-baseline.json",
@@ -25,5 +30,28 @@
   "state_path": ".agent-state",
   "state_present": false,
   "status": "observed",
-  "t009_disposition": "not imported; Harness round-4 implementation review failed; attempt-6 completion evidence is untracked and requires fresh independent evaluation"
+  "t009_disposition": "not imported; Harness round-4 implementation review failed; attempt-6 completion evidence is untracked and requires fresh independent evaluation",
+  "timeline": [
+    {
+      "at": "2026-10-10T21:22:00+02:00",
+      "evidence": "Harness read .agent-state/SDD-OBS-001 state and T-009 round-4 packet revisions; commit af1e4c9.",
+      "status": "present"
+    },
+    {
+      "at": "2026-10-10T22:10:00+02:00",
+      "evidence": "Showcase commit 75493a8 recorded lifecycle completion.",
+      "status": "presumed-present"
+    },
+    {
+      "evidence": "Harness observed a python:3.13-slim test container running tooling/agent-harness/tests/test_harness.py; check whether its mounted-checkout cleanup could remove ignored paths. This is not a cause attribution.",
+      "from": "2026-10-10T22:35:00+02:00",
+      "status": "unverified-lead",
+      "to": "2026-10-10T22:44:00+02:00"
+    },
+    {
+      "at": "2026-10-11",
+      "evidence": "Harness independently observed .agent-state absent before the incident record was created.",
+      "status": "absent"
+    }
+  ]
 }
