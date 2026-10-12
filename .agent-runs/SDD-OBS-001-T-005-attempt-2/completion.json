@@ -1,0 +1,167 @@
+{
+  "assumptions": [
+    "Harness independently accepted diff cb9faa11\u2026 for completion (agent-harness 359c042)."
+  ],
+  "attempt": 2,
+  "changed_paths": [],
+  "checkpoint": "c06108e4a70efb290bd49ca6b9bb5b64864176fc",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v"
+  ],
+  "contract_fingerprint": "dce345f552d6eacf31f02b7a90ae1accf7e895602a0f8403ae23f118edd3d6bc",
+  "criterion_results": {
+    "AC-OBS-019": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-020": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-021": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-022": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-023": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-032": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-033": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-036": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-037": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-019": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-020": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-021": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-022": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-023": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-025": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_telemetry.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Engine 29.8.2; local showcase-python313-telemetry image sha256:49d77d260d314f0a1fa4651443e02e59ae0add1f2139cbca28330cead132be96; Linux amd64; Python 3.13.16; cryptography 49.0.0",
+      "stderr": ".agent-runs/task-verification/SDD-OBS-001/T-005/attempt-2/command-0.stderr.txt",
+      "stderr_sha256": "9e1be1a44de8db61face06203b67a81e83ba66b03a738b736785f5b8aba6c574",
+      "stdout": ".agent-runs/task-verification/SDD-OBS-001/T-005/attempt-2/command-0.stdout.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:68cf43345cb7ee393006110290551eff2d392c7f07551b10cbf092b85a93c5e8",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "b126f86f3cd0558e9892fd2d39eba6d909eed342acbc0a30ccae6e06809f21e2",
+      "criteria": [
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-026",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "0a542f8c2d267f33b1356f3aa596118af62976f8e781698749bf3e2997ee309e",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "T-900 must add the requested unstubbed merged-tree record-manual integration test; T-005 tests stub the T-004 lifecycle API. This remains an integration evaluation requirement, not a T-005 completion blocker."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-005 attempt 2 passed its declared telemetry verification on Python 3.13.16 / cryptography 49.0.0; Harness accepted the implementation for completion (agent-harness 359c042).",
+  "task": "T-005"
+}
