@@ -24,6 +24,12 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
     if repository is not None:
         repository = pathlib.Path(repository).resolve(strict=True)
     from verification_command import executable_binding_for_command
+    import sys
+    from verification_sandbox import resolve_executable
+    control_interpreter = str(pathlib.Path(sys.executable).resolve(strict=True))
+    control_executable_binding = resolve_executable(control_interpreter,
+        toolchain_directories=profile.toolchain_directories, worktree=repository,
+        active_interpreter=True)
     for decision in plan.decisions:
         node, gate = decision.node, decision.node.gate
         if repository is None and gate.command.split(maxsplit=1)[0] == './gradlew':
@@ -58,6 +64,7 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
         'final_changed_surface_id': family['final_changed_surface_id'],
         'origin_binding': origin_binding, 'obligations': obligations,
         'execution_units': units, 'executable_bindings': executable_bindings,
+        'control_executable_binding': control_executable_binding,
         'task_commands': [dict(command=item['command'], cwd=item.get('cwd', '.'))
                           if isinstance(item, dict) else {'command': item, 'cwd': '.'}
                           for item in task_commands]}
@@ -201,7 +208,8 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
     required = {'schema_version', 'plan_id', 'feature_id', 'task_id', 'task_attempt',
         'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_id', 'profile_hash',
         'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id',
-        'origin_binding', 'obligations', 'execution_units', 'task_commands', 'executable_bindings'}
+        'origin_binding', 'obligations', 'execution_units', 'task_commands', 'executable_bindings',
+        'control_executable_binding'}
     try:
         if not isinstance(record, dict) or set(record) != required or type(record['schema_version']) is not int or record['schema_version'] != 2:
             raise ValueError()
@@ -219,6 +227,17 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         if profile_path.parent != profile_root.resolve(strict=True): raise ValueError()
         profile = load_profile(profile_path, repository=repository)
         if profile.content_hash != record['profile_hash']: raise ValueError()
+        control_binding = record['control_executable_binding']
+        from verification_sandbox import resolve_executable, verify_executable_binding
+        verify_executable_binding(control_binding)
+        import sys
+        control_interpreter = str(pathlib.Path(sys.executable).resolve(strict=True))
+        if control_binding.get('command') != control_interpreter: raise ValueError()
+        if repository is not None:
+            expected_control_binding = resolve_executable(control_interpreter,
+                toolchain_directories=profile.toolchain_directories, worktree=repository,
+                active_interpreter=True)
+            if control_binding != expected_control_binding: raise ValueError()
         family = record['family']
         if set(family) != {'id', 'base_sha', 'origin_policy', 'profile_hash', 'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id'}: raise ValueError()
         _validate_component(family['id'], 'invalid-verification-plan')
@@ -240,7 +259,6 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         raw_bindings = record['executable_bindings']
         if not isinstance(raw_bindings, list) or len(raw_bindings) != len(obligations): raise ValueError()
         bindings_by_gate = {}
-        from verification_sandbox import verify_executable_binding
         for executable in raw_bindings:
             if (not isinstance(executable, dict) or set(executable) != {'gate_id', 'command_hash', 'binding'} or
                     not isinstance(executable['gate_id'], str) or executable['gate_id'] in bindings_by_gate or

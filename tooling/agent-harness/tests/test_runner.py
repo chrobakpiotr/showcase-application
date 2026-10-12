@@ -336,10 +336,11 @@ class RunnerTest(unittest.TestCase):
             completed = subprocess.CompletedProcess([], 0,
                 json.dumps({'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:test'}), '')
             profile = load_profile(runner.HERE / 'verification-profiles/showcase.json')
-            record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash}
+            control_binding = {'command': 'python3', 'path': '/trusted/python3', 'sha256': 'a' * 64}
+            record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash,
+                      'control_executable_binding': control_binding}
             with mock.patch('verification.authority.resolve_accepted', return_value=record), \
-                 mock.patch.object(runner.verification_sandbox, 'resolve_executable',
-                                   side_effect=AssertionError('runner must use its active interpreter')), \
+                 mock.patch.object(runner.verification_sandbox, 'verify_executable_binding') as verify, \
                  mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
                 ok, results = runner.run_verification({}, root, root, 30,
                     accepted_plan_id='verification-plan-v1:sha256:test')
@@ -349,9 +350,35 @@ class RunnerTest(unittest.TestCase):
             self.assertIn('--plan-id', command)
             self.assertNotIn('--base', command)
             self.assertEqual('-I', command[1])
-            self.assertEqual(str(pathlib.Path(runner.sys.executable).resolve()), command[0])
+            self.assertEqual(control_binding['path'], command[0])
+            verify.assert_called_once_with(control_binding)
             self.assertNotIn('PYTHONPATH', run.call_args.kwargs['env'])
             self.assertNotIn('PYTHONHOME', run.call_args.kwargs['env'])
+
+    def test_runner_refuses_missing_or_changed_control_binding_before_launch(self):
+        import subprocess
+        from verification.profile import load_profile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            profile = load_profile(runner.HERE / 'verification-profiles/showcase.json', repository=root)
+            for binding, error in ((None, None),
+                    ({'command': 'python3', 'path': '/trusted/python3', 'sha256': 'a' * 64},
+                     runner.verification_sandbox.ExecutableResolutionError('executable-binding-changed'))):
+                record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash}
+                if binding is not None:
+                    record['control_executable_binding'] = binding
+                with self.subTest(binding=binding), \
+                     mock.patch('verification.authority.resolve_accepted', return_value=record), \
+                     mock.patch.object(runner.verification_sandbox, 'verify_executable_binding',
+                                       side_effect=error) as verify, \
+                     mock.patch.object(runner.subprocess, 'run') as run:
+                    ok, results = runner.run_verification({}, root, root, 10,
+                        accepted_plan_id='verification-plan-v2:sha256:' + 'a' * 64)
+                self.assertFalse(ok)
+                self.assertEqual('verification-blocked', results[0]['machine_category'])
+                run.assert_not_called()
+                if binding is not None:
+                    verify.assert_called_once_with(binding)
 
     def test_runner_launches_verify_under_isolated_active_interpreter(self):
         import subprocess
@@ -366,7 +393,7 @@ class RunnerTest(unittest.TestCase):
                 ok, results = runner.run_verification({}, root, out, 10,
                     accepted_plan_id='verification-plan-v2:sha256:' + 'a' * 64)
             self.assertFalse(ok)
-            self.assertEqual('ACCEPTED_PLAN_UNAVAILABLE', results[0]['reason_code'])
+            self.assertEqual('PLAN_BINDING_MISMATCH', results[0]['reason_code'])
             self.assertNotIn('ModuleNotFoundError', str(results))
 
 

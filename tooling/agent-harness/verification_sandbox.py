@@ -107,9 +107,32 @@ def _sha256_file(path: pathlib.Path) -> str:
 
 
 def resolve_executable(command: str, *, toolchain_directories=(), worktree=None,
-                        sandbox_home=None, tmpdir=None) -> dict[str, str]:
+                        sandbox_home=None, tmpdir=None,
+                        active_interpreter: bool = False) -> dict[str, str]:
     if not isinstance(command, str) or not command or command.strip() != command:
         raise ExecutableResolutionError('invalid-executable-name')
+    if active_interpreter:
+        raw = pathlib.Path(command)
+        if not raw.is_absolute():
+            raise ExecutableResolutionError('relative-executable-path-refused')
+        try:
+            path = raw.resolve(strict=True)
+            active_path = pathlib.Path(sys.executable).resolve(strict=True)
+            if path != active_path:
+                raise ExecutableResolutionError('not-active-control-interpreter')
+            excluded = tuple(_resolved_path(value, strict=False) for value in
+                (worktree, sandbox_home,
+                 tmpdir if tmpdir is not None else os.environ.get('TMPDIR')) if value)
+            if (not path.is_file() or not os.access(path, os.X_OK) or
+                    any(_overlaps(path, root) for root in excluded)):
+                raise ExecutableResolutionError('executable-path-excluded')
+            _secure_directory(path.parent)
+            canonical = str(path)
+            return {'command': canonical, 'path': canonical, 'sha256': _sha256_file(path)}
+        except ExecutableResolutionError:
+            raise
+        except (OSError, RuntimeError, ValueError):
+            raise ExecutableResolutionError('trusted-executable-not-found') from None
     directories = trusted_executable_directories(toolchain_directories,
         worktree=worktree, sandbox_home=sandbox_home, tmpdir=tmpdir)
     raw = pathlib.Path(command)
@@ -149,25 +172,6 @@ def verify_executable_binding(binding: dict[str, str]) -> None:
     if (str(path) != binding['path'] or not path.is_file() or not os.access(path, os.X_OK) or
             _sha256_file(path) != binding['sha256']):
         raise ExecutableResolutionError('executable-binding-changed')
-
-
-def bind_control_interpreter(executable: str, *, worktree=None) -> dict[str, str]:
-    """Bind the interpreter already running trusted control code, never PATH's python3."""
-    if not isinstance(executable, str) or not executable:
-        raise ExecutableResolutionError('control-interpreter-unavailable')
-    try:
-        path = _resolved_path(executable, strict=True)
-        if not path.is_file() or not os.access(path, os.X_OK):
-            raise ExecutableResolutionError('control-interpreter-unavailable')
-        _secure_directory(path.parent)
-        if worktree and _overlaps(path, _resolved_path(worktree, strict=False)):
-            raise ExecutableResolutionError('control-interpreter-excluded')
-        return {'command': 'active-control-interpreter', 'path': str(path),
-                'sha256': _sha256_file(path)}
-    except ExecutableResolutionError:
-        raise
-    except (OSError, RuntimeError, ValueError):
-        raise ExecutableResolutionError('control-interpreter-unavailable') from None
 
 
 @dataclass(frozen=True)

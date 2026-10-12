@@ -23,12 +23,41 @@ class VerificationSandboxTest(unittest.TestCase):
         self.assertEqual(64, len(binding['sha256']))
         vs.verify_executable_binding(binding)
 
-    def test_control_interpreter_binding_uses_the_active_absolute_binary(self):
-        binding = vs.bind_control_interpreter(sys.executable)
-        self.assertEqual(str(pathlib.Path(sys.executable).resolve()), binding['path'])
-        self.assertEqual('active-control-interpreter', binding['command'])
-        self.assertEqual(64, len(binding['sha256']))
+    def test_shared_resolver_binds_only_the_exact_active_interpreter(self):
+        active = str(pathlib.Path(sys.executable).resolve(strict=True))
+        binding = vs.resolve_executable(active, active_interpreter=True)
+        self.assertEqual({'command': active, 'path': active,
+                          'sha256': vs._sha256_file(pathlib.Path(active))}, binding)
         vs.verify_executable_binding(binding)
+        with self.assertRaises(vs.ExecutableResolutionError):
+            vs.resolve_executable('python3', active_interpreter=True)
+
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+            root = pathlib.Path(temporary).resolve()
+            fake = root / 'python3'
+            fake.write_text('#!/bin/sh\nexit 0\n')
+            fake.chmod(0o700)
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.resolve_executable(str(fake), worktree=root, active_interpreter=True)
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.resolve_executable(str(fake), active_interpreter=True)
+
+    def test_active_interpreter_inside_worktree_sandbox_home_or_tmpdir_is_refused(self):
+        for exclusion in ('worktree', 'sandbox_home', 'tmpdir'):
+            with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+                root = pathlib.Path(temporary).resolve()
+                executable = root / 'bin' / 'python3'
+                executable.parent.mkdir()
+                executable.write_text('#!/bin/sh\nexit 0\n')
+                executable.chmod(0o700)
+                kwargs = {} if exclusion == 'tmpdir' else {exclusion: root}
+                environment = {'TMPDIR': str(root)} if exclusion == 'tmpdir' else {}
+                with self.subTest(exclusion=exclusion), \
+                     mock.patch.object(vs.sys, 'executable', str(executable)), \
+                     mock.patch.dict(vs.os.environ, environment, clear=False), \
+                     self.assertRaisesRegex(vs.ExecutableResolutionError,
+                                            '^executable-path-excluded$'):
+                    vs.resolve_executable(str(executable), active_interpreter=True, **kwargs)
 
     def test_backend_discovery_uses_the_shared_resolver(self):
         executable_path = str(pathlib.Path(sys.executable).resolve())
@@ -70,15 +99,6 @@ class VerificationSandboxTest(unittest.TestCase):
                                       worktree=root, tmpdir='/definitely-not-a-temp-root')
         with self.assertRaises(vs.ExecutableResolutionError):
             vs.resolve_executable('true', toolchain_directories=('/tmp',))
-
-    def test_control_interpreter_inside_worktree_is_refused(self):
-        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
-            root = pathlib.Path(temporary).resolve()
-            interpreter = root / 'python-control'
-            interpreter.write_text('#!/bin/sh\nexit 0\n')
-            interpreter.chmod(0o700)
-            with self.assertRaises(vs.ExecutableResolutionError):
-                vs.bind_control_interpreter(str(interpreter), worktree=root)
 
     def test_control_store_read_probe_fails_when_any_process_depth_can_read(self):
         import subprocess

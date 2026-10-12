@@ -705,8 +705,9 @@ def run_verification(
         profile = load_profile(profile_path, repository=worktree)
         if profile.content_hash != record.get('profile_hash'):
             raise ValueError('PLAN_BINDING_MISMATCH')
-        control_python = verification_sandbox.bind_control_interpreter(
-            sys.executable, worktree=worktree)
+        control_python = record.get('control_executable_binding')
+        if not isinstance(control_python, dict):
+            raise ValueError('PLAN_BINDING_MISMATCH')
         control_env = verification_sandbox._safe_env(
             worktree, out / 'verification-control-home', profile.toolchain_directories)
         verification_sandbox.verify_executable_binding(control_python)

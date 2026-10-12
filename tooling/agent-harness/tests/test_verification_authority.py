@@ -69,6 +69,43 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         with self.assertRaises(StoreError):
             authority.validate_plan_record(changed)
 
+    def test_control_interpreter_is_shared_resolved_and_bound_to_plan(self):
+        import copy
+        import hashlib
+        from verification.serialization import canonical
+        binding = self.record['control_executable_binding']
+        self.assertEqual(str(pathlib.Path(sys.executable).resolve()), binding['command'])
+        self.assertEqual(str(pathlib.Path(binding['path']).resolve()), binding['path'])
+        self.assertEqual(64, len(binding['sha256']))
+        authority.validate_plan_record(self.record, repository=self.root)
+
+        missing = copy.deepcopy(self.record)
+        missing.pop('control_executable_binding')
+        with self.assertRaises(StoreError):
+            authority.validate_plan_record(missing)
+
+        changed = copy.deepcopy(self.record)
+        changed['control_executable_binding']['sha256'] = '0' * 64
+        changed['plan_id'] = 'verification-plan-v2:sha256:' + hashlib.sha256(
+            canonical({key: value for key, value in changed.items() if key != 'plan_id'})).hexdigest()
+        with self.assertRaises(StoreError):
+            authority.validate_plan_record(changed)
+
+    def test_control_interpreter_swap_after_plan_is_rejected(self):
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as toolchain_tmp:
+            toolchain = pathlib.Path(toolchain_tmp).resolve()
+            executable = toolchain / 'python3'
+            executable.write_text('#!/bin/sh\nexit 0\n')
+            executable.chmod(0o700)
+            with mock.patch.object(sys, 'executable', str(executable)):
+                record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
+                    self.profile_id, self.profile, self.plan, task_id='T-001', task_attempt=1,
+                    origin_binding='integration', repository=self.root)
+                authority.validate_plan_record(record, repository=self.root)
+                executable.write_text('#!/bin/sh\nexit 0\n# replaced after planning\n')
+                with self.assertRaises(StoreError):
+                    authority.validate_plan_record(record, repository=self.root)
+
     def test_rehashed_origin_or_membership_cannot_publish(self):
         import copy
         import hashlib
