@@ -425,11 +425,13 @@ def _canonical_paths(paths) -> tuple[str, ...]:
 
 
 def sandbox_policy_identity(writable_paths, protected_paths) -> str:
-    """Stable identity of effective writable/protected roots and policy version."""
+    """Stable identity of writable, write-protected and inaccessible paths."""
+    no_access = derive_no_access_authority_roots(protected_paths)
     payload = json.dumps({
-        'version': 1,
+        'version': 2,
         'writable': _canonical_paths(writable_paths),
         'protected': _canonical_paths(protected_paths),
+        'no_access': _canonical_paths(no_access),
         'network': 'denied',
         'descendant_policy': 'contained-unit-required',
     }, sort_keys=True, separators=(',', ':')).encode()
@@ -466,10 +468,17 @@ def derive_protected_authority_roots(repository: pathlib.Path) -> tuple[pathlib.
             return ()
         primary = owners[0]
         roots = _canonical_paths((primary / '.agent-runs', primary / '.agent-state', primary / 'docs' / 'specs',
-                                  primary / '.git', common))
+                                  primary / 'tooling' / 'agent-harness', primary / '.git', common))
         return tuple(pathlib.Path(path) for path in roots)
     except (OSError, subprocess.SubprocessError, RuntimeError):
         return ()
+
+
+def derive_no_access_authority_roots(protected_paths) -> tuple[pathlib.Path, ...]:
+    """Return control data that children must neither read nor write."""
+    return tuple(pathlib.Path(path) / 'control' / 'verification-v2'
+                 for path in _canonical_paths(protected_paths)
+                 if pathlib.Path(path).name == '.agent-runs')
 
 
 def macos_sandbox_profile(writable_paths, protected_paths) -> str:
@@ -477,6 +486,9 @@ def macos_sandbox_profile(writable_paths, protected_paths) -> str:
     quote = lambda value: json.dumps(str(pathlib.Path(value).resolve(strict=False)))
     rows = ['(version 1)', '(deny default)', '(allow process*)', '(allow file-read*)',
             '(allow sysctl-read)', '(allow mach-lookup)', '(allow ipc-posix*)', '(allow signal)']
+    no_access = derive_no_access_authority_roots(protected_paths)
+    rows.extend(f'(deny file-read* (subpath {quote(path)}))' for path in no_access)
+    rows.extend(f'(deny file-write* (subpath {quote(path)}))' for path in no_access)
     rows.extend(f'(deny file-write* (subpath {quote(path)}))' for path in _canonical_paths(protected_paths))
     rows.extend(f'(allow file-write* (subpath {quote(path)}))' for path in _canonical_paths(writable_paths))
     return '\n'.join(rows) + '\n'
@@ -628,7 +640,10 @@ def _active_filesystem_probe(candidate: BackendCandidate, check_id: str, writabl
                     f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
         if alias is not None:
             alias.unlink(missing_ok=True)
-        return 'PASS', 'PROTECTED_DIRECT_DENIED', 'absolute-relative-symlink-shell-denied-marker-absent'
+        read_result = _active_control_read_probe(candidate, check_id, writable, protected, worktree)
+        if read_result[0] != 'PASS':
+            return read_result
+        return 'PASS', 'PROTECTED_WRITE_AND_CONTROL_READ_DENIED', 'direct-write-and-control-read-denied'
 
     if check_id == 'Q03':
         child_only_code = ('import subprocess,sys; r=subprocess.run([sys.executable,"-c",' +
@@ -638,7 +653,10 @@ def _active_filesystem_probe(candidate: BackendCandidate, check_id: str, writabl
                                          protected=protected, profile_path=profile)
         marker.unlink(missing_ok=True)
         if stdout.startswith('denied:') and not marker.exists() and rc == 0:
-            return 'PASS', 'DESCENDANT_PROTECTED_WRITE_DENIED', f'{check_id}:{stdout}'
+            read_result = _active_control_read_probe(candidate, check_id, writable, protected, worktree)
+            if read_result[0] != 'PASS':
+                return read_result
+            return 'PASS', 'DESCENDANT_WRITE_AND_CONTROL_READ_DENIED', f'{check_id}:{stdout}'
         unavailable = _sandbox_launch_unavailable(stderr)
         return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
                 'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'DESCENDANT_PROTECTED_WRITE_NOT_PROVEN',
@@ -655,11 +673,51 @@ def _active_filesystem_probe(candidate: BackendCandidate, check_id: str, writabl
                                      protected=protected, profile_path=profile)
     marker.unlink(missing_ok=True)
     if stdout.startswith('denied:') and not marker.exists() and rc == 0:
-        return 'PASS', 'DESCENDANT_PROTECTED_WRITE_DENIED', f'{check_id}:{stdout}'
+        read_result = _active_control_read_probe(candidate, check_id, writable, protected, worktree)
+        if read_result[0] != 'PASS':
+            return read_result
+        return 'PASS', 'DESCENDANT_WRITE_AND_CONTROL_READ_DENIED', f'{check_id}:{stdout}'
     unavailable = _sandbox_launch_unavailable(stderr)
     return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
             'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'DESCENDANT_PROTECTED_WRITE_NOT_PROVEN',
             f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
+
+
+def _active_control_read_probe(candidate: BackendCandidate, check_id: str, writable,
+                               protected, worktree: pathlib.Path) -> tuple[str, str, str]:
+    """Prove control records remain unreadable at the same process depth as write probes."""
+    roots = derive_no_access_authority_roots(protected)
+    control = roots[0] if len(roots) == 1 else None
+    if control is None or not control.is_dir() or control.is_symlink():
+        return 'UNCERTAIN', 'CONTROL_STORE_UNAVAILABLE', 'no-canonical-control-store-root'
+    marker = control / f'.qualification-read-{uuid.uuid4().hex}'
+    try:
+        marker.write_text('trusted-control-read-probe', encoding='ascii')
+        read_leaf = ('import pathlib,sys;\ntry:\n print("READ:"+pathlib.Path(sys.argv[1]).read_text())\n'
+                     'except OSError as e: print("DENIED:"+str(e.errno))')
+        if check_id == 'Q02':
+            code = read_leaf
+        elif check_id == 'Q03':
+            code = ('import subprocess,sys; r=subprocess.run([sys.executable,"-c",' +
+                    repr(read_leaf) + ',sys.argv[1]],capture_output=True,text=True); print(r.stdout.strip())')
+        else:
+            child = ('import subprocess,sys; r=subprocess.run([sys.executable,"-c",' +
+                     repr(read_leaf) + ',sys.argv[1]],capture_output=True,text=True); print(r.stdout.strip())')
+            code = ('import subprocess,sys; r=subprocess.run([sys.executable,"-c",' +
+                    repr(child) + ',sys.argv[1]],capture_output=True,text=True); print(r.stdout.strip())')
+        rc, stdout, stderr = _run_probe(candidate, code, [str(marker)], cwd=worktree,
+            writable=(*writable, str(pathlib.Path(writable[0]))), protected=protected,
+            profile_path=pathlib.Path(writable[0]) / f'.qualification-read-{uuid.uuid4().hex}.sb')
+        if rc == 0 and stdout.startswith('DENIED:') and 'trusted-control-read-probe' not in stdout:
+            return 'PASS', 'CONTROL_READ_DENIED', stdout
+        unavailable = _sandbox_launch_unavailable(stderr)
+        return ('UNSUPPORTED' if unavailable else 'FAIL' if rc is not None else 'UNCERTAIN',
+                'CANDIDATE_SANDBOX_LAUNCH_UNAVAILABLE' if unavailable else 'CONTROL_READ_ALLOWED',
+                f'exit={rc};stdout={stdout};stderr={stderr[:200]}')
+    except OSError as exc:
+        return 'UNCERTAIN', 'CONTROL_PROBE_SETUP_FAILED', type(exc).__name__
+    finally:
+        marker.unlink(missing_ok=True)
 
 
 def _active_containment_probe(candidate: BackendCandidate, check_id: str, worktree: pathlib.Path,
@@ -1019,15 +1077,32 @@ def _bubblewrap(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.P
         '--proc', '/proc', '--dev', '/dev',
         '--chdir', str(worktree),
     ]
+    protected = derive_protected_authority_roots(worktree)
+    if not protected:
+        return None
+    # The writable worktree bind may contain control-plane code when running
+    # from the primary checkout. Rebind every existing authority root read-only
+    # after the workspace bind so descendants cannot replace trust anchors.
+    existing_protected = tuple(path for path in protected if path.exists())
+    for path in existing_protected:
+        cmd += ['--ro-bind', str(path), str(path)]
+    no_access = derive_no_access_authority_roots(protected)
+    for path in no_access:
+        if not path.is_dir() or path.is_symlink():
+            return None
+        cmd += ['--tmpfs', str(path)]
     for key in ('HOME', 'TMPDIR', 'XDG_CACHE_HOME', 'GRADLE_USER_HOME', 'npm_config_cache', 'PIP_CACHE_DIR',
                 'GIT_TERMINAL_PROMPT', 'CI', 'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY',
                 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'GRADLE_OPTS', 'GRADLE_RO_DEP_CACHE'):
         if key in env:
             cmd += ['--setenv', key, env[key]]
     cmd += ['--', *argv]
-    # Current bwrap setup shares the entire worktree; it does not protect nested
-    # authority paths nor provide a persistent descendant supervisor.
-    return SandboxPlan(cmd, env, 'bubblewrap', True, {'network': 'unshared', 'root': 'read-only', 'worktree': 'writable'}, None)
+    writable = (worktree, sandbox_home)
+    return SandboxPlan(cmd, env, 'bubblewrap', True,
+        {'network': 'unshared', 'root': 'read-only', 'worktree': 'writable',
+         'protected_roots': [str(path) for path in existing_protected],
+         'no_access_roots': [str(path) for path in no_access],
+         'policy_fingerprint': sandbox_policy_identity(writable, protected)}, None)
 
 
 def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str]) -> SandboxPlan | None:
@@ -1046,6 +1121,7 @@ def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: p
         [sandbox_exec, '-f', str(profile), *argv], env, 'macos-sandbox-exec', True,
         {'network': 'denied-by-default', 'write_roots': [str(worktree), str(sandbox_home)],
          'protected_roots': [str(path) for path in protected],
+         'no_access_roots': [str(path) for path in derive_no_access_authority_roots(protected)],
          'policy_fingerprint': sandbox_policy_identity(write_roots, protected)}, None,
     )
 

@@ -133,6 +133,7 @@ class PreparedCommand:
 
 class CommandExecutionBackend:
     """Phase-B qualified command facade consumed by the durable supervisor."""
+    requires_detached_supervisor = True
     def __init__(self):
         self.process_backend = verification_sandbox.PosixProcessGroupBackend()
         self._running = {}

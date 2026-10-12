@@ -275,6 +275,27 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 final_changed_surface_id=candidate_seal.changed_surface_id,
                 plan_id=authority_context.get('plan_id') if isinstance(authority_context, dict) else None,
                 retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint)
+            # Mutable callback collections were populated by the isolated
+            # supervisor process. Reconstruct their durable projection in the
+            # requesting executor after it receives the supervisor receipt.
+            if not execution_terminals:
+                for journal, started, _closure in store._scan_executions():
+                    if (started.get('family_id') != plan.family.id or
+                            started.get('attempt_id') != attempt_id or
+                            started.get('gate_id') != decision.node.id or
+                            started.get('launch_intent_hash') != gate.command_hash):
+                        continue
+                    terminal = store._read_execution_terminal(journal, started)
+                    if terminal is None:
+                        continue
+                    execution_terminals.append(terminal)
+                    record = terminal.get('verification_evidence')
+                    if record is not None and not terminal_evidence:
+                        terminal_evidence.append(Evidence(**{**record,
+                            'artifacts': tuple(FileIdentity(**item) for item in record['artifacts']),
+                            'dependencies': tuple((item['gate_id'], item['evidence_id'], item['fingerprint'])
+                                                  for item in record['dependencies'])}))
+                    break
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
             if ready.action == 'REUSE':
