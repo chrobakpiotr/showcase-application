@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "finding": "T-002 completion checkpoint is not based on the accepted T-001 checkpoint",
+  "reason_code": "COMPLETION_SEMANTICALLY_INVALID",
+  "task": "T-002",
+  "checkpoint": "238029ee158b70c95b0776fb73cedaa1d9847c33",
+  "parent": "046241235e91fb3750d789c3986433d605ac0fb4",
+  "stale_dependency_chain": [
+    "77813d42109b3494fd680990453893afd36de7d8",
+    "046241235e91fb3750d789c3986433d605ac0fb4",
+    "238029ee158b70c95b0776fb73cedaa1d9847c33"
+  ],
+  "accepted_dependency_checkpoint": "06d7f5d9a640588afe8a0089078054758bc18a85",
+  "ancestry_check": {
+    "command": "git merge-base --is-ancestor 77813d42109b3494fd680990453893afd36de7d8 06d7f5d9a640588afe8a0089078054758bc18a85",
+    "exit_code": 1
+  },
+  "conclusion": "The completed T-002 checkpoint derives from an attempt based on the pre-incident T-001 checkpoint 77813d4, which is not an ancestor of accepted T-001 checkpoint 06d7f5d. The completion must be corrected and T-002 repaired on the accepted dependency base."
+}
