@@ -70,6 +70,151 @@ class OrchestrateTest(unittest.TestCase):
             owner_prefix='orch', run_id='testrun123456', verification_timeout=900, verification_sandbox='off'
         )
 
+    def _control_binding(self, contents=b'#!/bin/sh\nexit 0\n'):
+        executable = self.root / 'bound-control-python'
+        executable.write_bytes(contents)
+        executable.chmod(0o755)
+        return {'command': 'python3', 'path': str(executable.resolve()),
+                'sha256': hashlib.sha256(contents).hexdigest()}
+
+    def _accepted_plan(self, plan_id, binding_marker='present', task_attempt=1):
+        from verification.profile import load_profile
+        profile = load_profile(orchestrate.HERE / 'verification-profiles/showcase.json')
+        record = {'plan_id': plan_id, 'task_id': 'T-001', 'task_attempt': task_attempt,
+                  'lifecycle_generation': 1, 'profile_id': 'showcase',
+                  'profile_hash': profile.content_hash}
+        if binding_marker != 'missing':
+            record['control_executable_binding'] = self._control_binding()
+        return record
+
+    def _launch_started_verification(self, feature, doc, worktree, packet, main_path, plan):
+        state = orchestrate.h.load_state(feature, doc)
+        state['tasks']['T-001'].update({'status': 'running', 'attempts': 1,
+                                        'owner': orchestrate.owner_for(self.args(), 'T-001')})
+        orchestrate.h.save_state(feature, state)
+        with mock.patch.object(orchestrate, 'lease_heartbeat',
+                               return_value=orchestrate.contextlib.nullcontext()), \
+             mock.patch.object(orchestrate.h, 'load_state', return_value=state), \
+             mock.patch.object(orchestrate, 'invoke_runner', return_value=main_path), \
+             mock.patch.object(orchestrate, 'prepare_task_plan', return_value=plan), \
+             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan', return_value=plan), \
+             mock.patch.object(orchestrate, 'verification_evidence_summary', return_value={
+                 'outcome': 'PASS', 'machine_category': 'pass'}), \
+             mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                 [], 0, stdout='{"outcome":"PASS"}\n', stderr='')) as launch:
+            outcome = orchestrate.run_started_task(feature, doc, doc['tasks'][0], worktree,
+                                                   packet, self.args(), feedback=None)
+        return outcome, launch
+
+    def _launch_resumed_verification(self, feature, doc, worktree, packet, plan, *, prior_path):
+        prior_path.parent.mkdir(parents=True, exist_ok=True)
+        prior_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass'}))
+        prior_digest = hashlib.sha256(prior_path.read_bytes()).hexdigest()
+        resume = {'plan_id': plan['plan_id'], 'task_attempt': 1,
+                  'prior_result_sha256': prior_digest, 'prior_result_path': str(prior_path),
+                  'operator': 'operator@example.invalid'}
+        task_state = {'attempts': 1, 'last_failure_evidence': str(prior_path)}
+        with mock.patch.object(orchestrate, 'REPO', self.root), \
+             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan', return_value=plan), \
+             mock.patch.object(orchestrate, 'verification_evidence_summary', return_value={
+                 'outcome': 'PASS', 'machine_category': 'pass'}), \
+             mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                 [], 0, stdout='{"outcome":"PASS"}\n', stderr='')) as launch:
+            outcome = orchestrate.run_resumed_verification(
+                feature, doc, doc['tasks'][0], worktree, packet, self.args(), resume, task_state)
+        return outcome, launch
+
+    def test_started_and_resumed_verification_use_bound_isolated_interpreter_and_safe_env(self):
+        feature, doc = self.feature()
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'verification': ['true'], 'required_reviewers': []}))
+        provenance = self.root / 'provenance.json'
+        provenance.write_text(json.dumps({'base_commit': 'a' * 40}))
+        main_path = self.root / 'main-result.json'
+        main_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass',
+                                         'provenance': str(provenance)}))
+        cases = []
+        for mode in ('started', 'resumed'):
+            plan = self._accepted_plan(f'plan-{mode}')
+            with self.subTest(mode=mode), \
+                 mock.patch.dict(os.environ, {'PYTHONPATH': '/untrusted/python',
+                                               'PYTHONSTARTUP': '/untrusted/startup'}):
+                if mode == 'started':
+                    outcome, launch = self._launch_started_verification(
+                        feature, doc, worktree, packet, main_path, plan)
+                else:
+                    outcome, launch = self._launch_resumed_verification(
+                        feature, doc, worktree, packet, plan,
+                        prior_path=self.root / '.agent-runs' / 'TST-002' / 'prior.json')
+                self.assertEqual('pass', outcome.status, outcome.summary)
+                command = launch.call_args.args[0]
+                self.assertEqual([
+                    plan['control_executable_binding']['path'], '-I',
+                    str(orchestrate.HERE / 'verify.py'), 'run', '--mode', 'integration',
+                    '--repo', str(worktree), '--plan-id', plan['plan_id'],
+                ], command)
+                env = launch.call_args.kwargs['env']
+                self.assertNotIn('PYTHONPATH', env)
+                self.assertNotIn('PYTHONSTARTUP', env)
+                cases.append(mode)
+        self.assertEqual(['started', 'resumed'], cases)
+
+    def test_started_and_resumed_verification_refuse_missing_or_swapped_interpreter_before_launch(self):
+        feature, doc = self.feature()
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'verification': ['true'], 'required_reviewers': []}))
+        provenance = self.root / 'provenance.json'
+        provenance.write_text(json.dumps({'base_commit': 'a' * 40}))
+        main_path = self.root / 'main-result.json'
+        main_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass',
+                                         'provenance': str(provenance)}))
+        for mode in ('started', 'resumed'):
+            for binding_state in ('missing', 'swapped'):
+                with self.subTest(mode=mode, binding_state=binding_state):
+                    plan = self._accepted_plan(f'plan-{mode}-{binding_state}',
+                                               binding_marker=binding_state)
+                    if binding_state == 'swapped':
+                        plan['control_executable_binding']['path'] = str((self.root / 'swapped-python').resolve())
+                        swapped = pathlib.Path(plan['control_executable_binding']['path'])
+                        swapped.write_bytes(b'#!/bin/sh\nexit 9\n')
+                        swapped.chmod(0o755)
+                        # Preserve the pre-swap digest, exactly as a plan made earlier would.
+                        plan['control_executable_binding']['sha256'] = hashlib.sha256(
+                            b'#!/bin/sh\nexit 0\n').hexdigest()
+                    if mode == 'started':
+                        with mock.patch.object(orchestrate, 'lease_heartbeat',
+                                return_value=orchestrate.contextlib.nullcontext()), \
+                             mock.patch.object(orchestrate.h, 'load_state', return_value={
+                                 'tasks': {'T-001': {'attempts': 1}}}), \
+                             mock.patch.object(orchestrate, 'invoke_runner', return_value=main_path), \
+                             mock.patch.object(orchestrate, 'prepare_task_plan', return_value=plan), \
+                             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan',
+                                               return_value=plan), \
+                             mock.patch.object(orchestrate.subprocess, 'run') as launch:
+                            outcome = orchestrate.run_started_task(feature, doc, doc['tasks'][0],
+                                worktree, packet, self.args(), feedback=None)
+                    else:
+                        prior_path = self.root / '.agent-runs' / 'TST-002' / f'{binding_state}.json'
+                        prior_path.parent.mkdir(parents=True, exist_ok=True)
+                        prior_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass'}))
+                        prior_digest = hashlib.sha256(prior_path.read_bytes()).hexdigest()
+                        resume = {'plan_id': plan['plan_id'], 'task_attempt': 1,
+                                  'prior_result_sha256': prior_digest,
+                                  'prior_result_path': str(prior_path), 'operator': 'operator'}
+                        task_state = {'attempts': 1, 'last_failure_evidence': str(prior_path)}
+                        with mock.patch.object(orchestrate, 'REPO', self.root), \
+                             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan',
+                                               return_value=plan), \
+                             mock.patch.object(orchestrate.subprocess, 'run') as launch:
+                            outcome = orchestrate.run_resumed_verification(feature, doc, doc['tasks'][0],
+                                worktree, packet, self.args(), resume, task_state)
+                    self.assertEqual('verification-blocked', outcome.status)
+                    launch.assert_not_called()
+
     def test_owner_is_scoped_by_orchestration_run(self):
         self.assertEqual('orch-testrun1-t-001', orchestrate.owner_for(self.args(), 'T-001'))
 
@@ -344,6 +489,7 @@ class OrchestrateTest(unittest.TestCase):
             'task_commands': [{'command': 'true', 'cwd': '.'}],
             'obligations': [{'gate_id': 'required-gate'}],
         }
+        plan.update(self._accepted_plan(plan['plan_id']))
         original_run = subprocess.run
         verification_outputs = [
             '[]\n',
@@ -365,8 +511,12 @@ class OrchestrateTest(unittest.TestCase):
 
                 with mock.patch.object(orchestrate, 'lease_heartbeat',
                                        return_value=orchestrate.contextlib.nullcontext()), \
+                        mock.patch.object(orchestrate.h, 'load_state', return_value={
+                            'tasks': {'T-001': {'attempts': 1}}}), \
                         mock.patch.object(orchestrate, 'invoke_runner', return_value=main_result) as invoke, \
                         mock.patch.object(orchestrate, 'prepare_task_plan', return_value=plan), \
+                        mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan',
+                                          return_value=plan), \
                         mock.patch.object(orchestrate.subprocess, 'run', side_effect=run_verifier_only):
                     outcome = orchestrate.run_started_task(
                         feature, doc, task, worktree, packet, self.args(), feedback=None)
@@ -388,9 +538,7 @@ class OrchestrateTest(unittest.TestCase):
         worktree.mkdir()
         packet = self.root / 'packet.json'
         packet.write_text(json.dumps({'required_reviewers': []}))
-        accepted = {'plan_id': 'plan-1', 'task_id': 'T-001', 'task_attempt': 2,
-                    'lifecycle_generation': 1, 'family': {'id': 'family-1'},
-                    'profile_hash': 'a' * 64}
+        accepted = self._accepted_plan('plan-1', task_attempt=2)
         task_state = {'attempts': 2, 'last_failure_evidence': str(main_path)}
         original_bytes = main_path.read_bytes()
         resume = {'plan_id': 'plan-1', 'task_attempt': 2,

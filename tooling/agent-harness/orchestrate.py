@@ -30,6 +30,8 @@ import harness as h  # noqa: E402
 import telemetry  # noqa: E402
 from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
 from verification.authority import prepare_task_plan  # noqa: E402
+from verification.profile import load_profile  # noqa: E402
+import verification_sandbox  # noqa: E402
 
 RUNNER = HERE / 'runner.py'
 REPO = HERE.parents[1]
@@ -87,6 +89,31 @@ def review_choice(args: argparse.Namespace) -> ProviderChoice:
         args.review_provider or args.evaluator_provider or args.provider,
         args.review_model or args.evaluator_model or args.model,
     )
+
+
+def run_accepted_verification(
+    worktree: pathlib.Path, output_dir: pathlib.Path, plan_id: str, timeout_seconds: int,
+) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
+    """Run only the currently accepted plan with its bound control interpreter."""
+    record = h.resolve_accepted_verification_plan(worktree, plan_id)
+    if record.get('plan_id') != plan_id:
+        raise ValueError('PLAN_BINDING_MISMATCH')
+    control_python = record.get('control_executable_binding')
+    if not isinstance(control_python, dict):
+        raise ValueError('PLAN_BINDING_MISMATCH')
+    profile_path = HERE / 'verification-profiles' / f"{record['profile_id']}.json"
+    profile = load_profile(profile_path, repository=worktree)
+    if profile.content_hash != record.get('profile_hash'):
+        raise ValueError('PLAN_BINDING_MISMATCH')
+    verification_sandbox.verify_executable_binding(control_python)
+    control_env = verification_sandbox._safe_env(
+        worktree, output_dir / 'verification-control-home', profile.toolchain_directories)
+    result = subprocess.run(
+        [control_python['path'], '-I', str(HERE / 'verify.py'), 'run',
+         '--mode', 'integration', '--repo', str(worktree), '--plan-id', plan_id],
+        cwd=worktree, env=control_env, text=True, capture_output=True,
+        timeout=timeout_seconds, check=False)
+    return record, result
 
 
 def owner_for(args: argparse.Namespace, task_id: str) -> str:
@@ -401,10 +428,11 @@ def run_started_task(
                     raise ValueError('BASE_COMMIT_UNAVAILABLE')
                 plan_record = prepare_task_plan(worktree, feature_dir, task_id,
                     task_attempt, base_sha, packet_doc.get('verification', []))
-                verify_proc = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
-                    '--mode', 'integration', '--repo', str(worktree),
-                    '--plan-id', plan_record['plan_id']], cwd=worktree, text=True,
-                    capture_output=True, timeout=args.verification_timeout, check=False)
+                accepted_plan, verify_proc = run_accepted_verification(
+                    worktree, main_path.parent, plan_record['plan_id'], args.verification_timeout)
+                if accepted_plan != plan_record:
+                    raise ValueError('PLAN_BINDING_MISMATCH')
+                plan_record = accepted_plan
                 verification_result = json.loads(verify_proc.stdout)
             except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
                 return TaskOutcome(task_id, 'verification-blocked', main_path,
@@ -490,13 +518,10 @@ def run_resumed_verification(
         if (not isinstance(plan_id, str) or resume.get('task_attempt') != attempt or
                 type(attempt) is not int or not isinstance(resume.get('prior_result_sha256'), str)):
             raise ValueError('resume tuple does not match current attempt')
-        accepted = h.resolve_accepted_verification_plan(worktree, plan_id)
+        accepted, verify_proc = run_accepted_verification(
+            worktree, main_path.parent, plan_id, args.verification_timeout)
         if accepted.get('task_id') != task_id or accepted.get('task_attempt') != attempt:
             raise ValueError('accepted plan does not match current task attempt')
-        verify_proc = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
-            '--mode', 'integration', '--repo', str(worktree), '--plan-id', plan_id],
-            cwd=worktree, text=True, capture_output=True,
-            timeout=args.verification_timeout, check=False)
         verification_result = json.loads(verify_proc.stdout)
         verification_summary = verification_evidence_summary(
             verification_result, accepted, verify_proc.returncode)
