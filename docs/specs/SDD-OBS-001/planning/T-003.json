@@ -1,0 +1,64 @@
+{
+  "id": "T-003",
+  "title": "Integrate shared verifier with runner and secure executable resolution",
+  "objective": "Refactor runner task-completion verification to the shared verification engine while preserving fresh execution of every declared command occurrence and dependency closure, existing allowlist/sandbox enforcement, whole-worktree mutation postconditions, and bounded timeout drainage. Close VC-016 executable-resolution risks in the shared verification core for both direct and runner execution: use one resolver for backend, allowlisted-command, and control-plane Python launches; search only absolute canonical trusted system paths plus toolchain paths declared by the bound profile; reject relative/empty, worktree/control-task-area/sandbox-home/TMPDIR, or group/other-writable search paths; validate toolchain environment selectors; bind resolved canonical executable paths and SHA-256 digests at planning/admission and re-check them at launch; use absolute argv[0] and a trusted child PATH; keep ./gradlew as the explicit worktree-relative code-under-test exception; launch the control-plane interpreter resolved by the shared resolver for every worktree with -I and an explicit environment allowlist that excludes import/startup and loader injection variables.",
+  "role": "builder",
+  "depends_on": [
+    "T-001",
+    "T-002"
+  ],
+  "allowed_paths": [
+    "tooling/agent-harness/runner.py",
+    "tooling/agent-harness/verify.py",
+    "tooling/agent-harness/verification_sandbox.py",
+    "tooling/agent-harness/verification_command.py",
+    "tooling/agent-harness/verification/executor.py",
+    "tooling/agent-harness/verification/supervisor.py",
+    "tooling/agent-harness/tests/test_runner.py",
+    "tooling/agent-harness/tests/test_verify.py",
+    "tooling/agent-harness/tests/test_verification_sandbox.py",
+    "tooling/agent-harness/tests/test_verification_command.py",
+    "tooling/agent-harness/tests/test_verification_executor.py",
+    "tooling/agent-harness/tests/test_verification_supervisor.py",
+    "tooling/agent-harness/verification/model.py",
+    "tooling/agent-harness/verification/profile.py",
+    "tooling/agent-harness/verification/planner.py",
+    "tooling/agent-harness/verification/serialization.py",
+    "tooling/agent-harness/verification/store.py",
+    "tooling/agent-harness/verification/authority.py",
+    "tooling/agent-harness/verification-profiles/showcase.json",
+    "tooling/agent-harness/tests/test_verification_profile.py",
+    "tooling/agent-harness/tests/test_verification_store.py",
+    "tooling/agent-harness/tests/test_verification_authority.py",
+    "tooling/agent-harness/tests/test_verification_profile_showcase.py",
+    "tooling/agent-harness/tests/test_verification_profile_applicability.py",
+    "tooling/agent-harness/schemas/verification-profile.schema.json"
+  ],
+  "risk_tags": [
+    "architecture",
+    "security",
+    "concurrency"
+  ],
+  "acceptance_criteria": [
+    "AC-OBS-001",
+    "AC-OBS-006",
+    "AC-OBS-015",
+    "AC-OBS-017",
+    "AC-OBS-024",
+    "AC-OBS-029",
+    "AC-OBS-035",
+    "VC-010",
+    "VC-015",
+    "VC-016",
+    "VC-017"
+  ],
+  "verification": [
+    "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verify.py tooling/agent-harness/tests/test_verification_profile.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_profile_applicability.py -v"
+  ],
+  "test_mode": "red-green-refactor",
+  "test_seam": "First demonstrate RED for direct and runner execution under hostile executable/import inputs: PATH beginning with dot, relative or worktree directories containing fake python3/git/sandbox-exec/codex; executable bytes changed after qualification; PYTHONPATH, PYTHONHOME, PYTHONSTARTUP, PYTHONUSERBASE, NODE_OPTIONS, LD_PRELOAD, LD_LIBRARY_PATH, DYLD_*, BASH_ENV, ENV, GIT_EXEC_PATH, JAVA_TOOL_OPTIONS and sitecustomize injection; JAVA_HOME into the worktree; and a shadow verification package under cwd. Require refusal or trusted absolute executable resolution, no injected marker, and a test proving the shared resolver is the only executable-resolution/launch path. Also prove path canonicalization and writable-ancestor rejection, plan/admission digest binding and launch-time mismatch failure, absolute argv with trusted child PATH, and that the control-plane interpreter is resolved by the shared resolver for every worktree, launched with -I and an explicit environment allowlist. Timeout drainage must be bounded and never treat an unconfirmed drain as terminal or evaluate a false-green postcondition. Preserve existing fresh execution, allowlist, sandbox and whole-worktree mutation regressions. Plan/admission must refuse when executable bindings are absent or mismatched; old plans are replanned, never upgraded in place; swapping executable bytes between planning and launch fails at launch; profile loading refuses an invalid toolchain directory.",
+  "agent_profile": "builder"
+}
