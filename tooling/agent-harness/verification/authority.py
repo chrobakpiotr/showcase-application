@@ -4,13 +4,14 @@ from __future__ import annotations
 import hashlib
 import pathlib
 import re
+import shlex
 
 from .serialization import canonical
 
 
 def execution_plan_record(feature_id: str, feature_fingerprint: str, generation: int,
                           profile_id: str, profile, plan, *, task_id: str, task_attempt: int,
-                          task_commands=(), origin_binding: str):
+                          task_commands=(), origin_binding: str, repository=None):
     family = {
         'id': plan.family.id, 'base_sha': plan.family.base_sha,
         'origin_policy': plan.family.origin_policy, 'profile_hash': plan.family.profile_hash,
@@ -19,8 +20,18 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
         'final_changed_surface_id': plan.family.final_changed_surface_id,
     }
     obligations = []
+    executable_bindings = []
+    if repository is not None:
+        repository = pathlib.Path(repository).resolve(strict=True)
+    from verification_command import executable_binding_for_command
     for decision in plan.decisions:
         node, gate = decision.node, decision.node.gate
+        if repository is None and gate.command.split(maxsplit=1)[0] == './gradlew':
+            raise ValueError('repository-required-for-worktree-executable-binding')
+        command_root = repository or pathlib.Path.cwd()
+        executable_bindings.append({'gate_id': node.id, 'command_hash': gate.command_hash,
+            'binding': executable_binding_for_command(gate.command, worktree=command_root,
+                cwd=command_root / gate.cwd, toolchain_directories=profile.toolchain_directories)})
         identity = {'family_id': family['id'], 'gate_id': node.id,
                     'profile_gate_id': node.profile_gate_id,
                     'occurrence': node.occurrence, 'ordinal': node.ordinal,
@@ -46,7 +57,7 @@ def execution_plan_record(feature_id: str, feature_fingerprint: str, generation:
         'candidate_identity': family['candidate_identity'],
         'final_changed_surface_id': family['final_changed_surface_id'],
         'origin_binding': origin_binding, 'obligations': obligations,
-        'execution_units': units,
+        'execution_units': units, 'executable_bindings': executable_bindings,
         'task_commands': [dict(command=item['command'], cwd=item.get('cwd', '.'))
                           if isinstance(item, dict) else {'command': item, 'cwd': '.'}
                           for item in task_commands]}
@@ -88,7 +99,7 @@ def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | 
     profile_path = (profile_root / (record['profile_id'] + '.json')).resolve(strict=True)
     if profile_path.parent != profile_root.resolve(strict=True):
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
-    profile = load_profile(profile_path)
+    profile = load_profile(profile_path, repository=repository)
     if (profile.content_hash != record['profile_hash'] or
             family_record.get('profile_hash') != record['profile_hash'] or
             record.get('origin_binding') != family_record.get('origin_policy') or
@@ -115,7 +126,7 @@ def resolve_execution(repository: pathlib.Path, plan_id: str, *, unit_id: str | 
     expected = execution_plan_record(record['feature_id'], record['feature_fingerprint'],
         record['lifecycle_generation'], record['profile_id'], profile, plan,
         task_id=record['task_id'], task_attempt=record['task_attempt'],
-        task_commands=commands, origin_binding=record['origin_binding'])
+        task_commands=commands, origin_binding=record['origin_binding'], repository=repository)
     if expected != record:
         raise StoreError('PLAN_BINDING_MISMATCH')
     obligation_by_id = {item['obligation_id']: item for item in record['obligations']}
@@ -155,7 +166,7 @@ def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
     profile_id = 'showcase'
     profile_path = pathlib.Path(__file__).resolve().parent.parent / 'verification-profiles/showcase.json'
-    profile = load_profile(profile_path)
+    profile = load_profile(profile_path, repository=repository)
     family_id = f'{feature_dir.name.lower()}-{task_id.lower()}-attempt-{task_attempt}'
     policy_checkpoint = profile.content_hash
     origin_binding = 'task-completion'
@@ -173,7 +184,7 @@ def prepare_task_plan(repository: pathlib.Path, feature_dir: pathlib.Path, task_
     record = execution_plan_record(doc['feature'], harness.feature_fingerprint(feature_dir),
         state.get('feature_generation', 1), profile_id, profile, plan,
         task_id=task_id, task_attempt=task_attempt, task_commands=commands,
-        origin_binding=origin_binding)
+        origin_binding=origin_binding, repository=repository)
     publish_and_accept(repository, feature_dir, record,
                        expected_generation=state.get('feature_generation', 1))
     return record
@@ -190,7 +201,7 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
     required = {'schema_version', 'plan_id', 'feature_id', 'task_id', 'task_attempt',
         'feature_fingerprint', 'lifecycle_generation', 'family', 'profile_id', 'profile_hash',
         'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id',
-        'origin_binding', 'obligations', 'execution_units', 'task_commands'}
+        'origin_binding', 'obligations', 'execution_units', 'task_commands', 'executable_bindings'}
     try:
         if not isinstance(record, dict) or set(record) != required or type(record['schema_version']) is not int or record['schema_version'] != 2:
             raise ValueError()
@@ -206,7 +217,7 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         profile_root = pathlib.Path(__file__).resolve().parent.parent / 'verification-profiles'
         profile_path = (profile_root / (record['profile_id'] + '.json')).resolve(strict=True)
         if profile_path.parent != profile_root.resolve(strict=True): raise ValueError()
-        profile = load_profile(profile_path)
+        profile = load_profile(profile_path, repository=repository)
         if profile.content_hash != record['profile_hash']: raise ValueError()
         family = record['family']
         if set(family) != {'id', 'base_sha', 'origin_policy', 'profile_hash', 'policy_checkpoint', 'candidate_identity', 'final_changed_surface_id'}: raise ValueError()
@@ -226,6 +237,17 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
         obligation_keys = identity_keys | {'obligation_id', 'command', 'command_hash', 'cwd', 'dependencies', 'critical', 'retry_policy', 'retry_controls', 'sandbox'}
         obligations = record['obligations']; units = record['execution_units']
         if not isinstance(obligations, list) or not obligations or not isinstance(units, list) or len(units) != len(obligations): raise ValueError()
+        raw_bindings = record['executable_bindings']
+        if not isinstance(raw_bindings, list) or len(raw_bindings) != len(obligations): raise ValueError()
+        bindings_by_gate = {}
+        from verification_sandbox import verify_executable_binding
+        for executable in raw_bindings:
+            if (not isinstance(executable, dict) or set(executable) != {'gate_id', 'command_hash', 'binding'} or
+                    not isinstance(executable['gate_id'], str) or executable['gate_id'] in bindings_by_gate or
+                    not isinstance(executable['command_hash'], str)):
+                raise ValueError()
+            verify_executable_binding(executable['binding'])
+            bindings_by_gate[executable['gate_id']] = executable
         seen = set()
         by_gate = {g.id: g for g in profile.gates}
         for item, unit in zip(obligations, units):
@@ -241,6 +263,17 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
             gate = by_gate.get(item['profile_gate_id'])
             if not task and (gate is None or cls not in gate.independent_execution_classes or item['sandbox'] != 'required' or item['gate_id'] != gate.id): raise ValueError()
             if item['command_hash'] != command_identity(item['command'], item['cwd']): raise ValueError()
+            executable = bindings_by_gate.get(item['gate_id'])
+            command_argv = shlex.split(item['command'], posix=True)
+            if (executable is None or executable['command_hash'] != item['command_hash'] or
+                    not command_argv or executable['binding'].get('command') != command_argv[0]):
+                raise ValueError()
+            if repository is not None:
+                from verification_command import executable_binding_for_command
+                expected_binding = executable_binding_for_command(item['command'], worktree=repository,
+                    cwd=pathlib.Path(repository) / item['cwd'],
+                    toolchain_directories=profile.toolchain_directories)
+                if executable['binding'] != expected_binding: raise ValueError()
             if gate is not None:
                 for key in ('command', 'command_hash', 'cwd', 'critical', 'retry_policy', 'sandbox'):
                     if item[key] != getattr(gate, key): raise ValueError()
@@ -264,7 +297,7 @@ def validate_plan_record(record, *, repository=None, reconstruct=False):
                 raise ValueError() from None
             if seal.candidate_identity != record['candidate_identity'] or seal.changed_surface_id != record['final_changed_surface_id']: raise ValueError()
             plan = build_plan(repository, profile, Family(**family), task_commands=record['task_commands'])
-            expected = execution_plan_record(record['feature_id'], record['feature_fingerprint'], record['lifecycle_generation'], record['profile_id'], profile, plan, task_id=record['task_id'], task_attempt=record['task_attempt'], task_commands=record['task_commands'], origin_binding=record['origin_binding'])
+            expected = execution_plan_record(record['feature_id'], record['feature_fingerprint'], record['lifecycle_generation'], record['profile_id'], profile, plan, task_id=record['task_id'], task_attempt=record['task_attempt'], task_commands=record['task_commands'], origin_binding=record['origin_binding'], repository=repository)
             if expected != record: raise ValueError()
         return record
     except StoreError:

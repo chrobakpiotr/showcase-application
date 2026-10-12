@@ -18,11 +18,156 @@ import shlex
 import shutil
 import subprocess
 import signal
+import stat
 import sys
 import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
+
+
+# Keep the common system package-manager directory explicit; it is checked for
+# canonical paths, symlinks, and group/world-writable ancestors like other roots.
+SYSTEM_EXECUTABLE_DIRECTORIES = ('/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin')
+TOOLCHAIN_ENVIRONMENT_SELECTORS = ('JAVA_HOME', 'JDK_HOME', 'SDKROOT', 'DEVELOPER_DIR')
+
+
+class ExecutableResolutionError(ValueError):
+    """Executable selection could not be proven to use a trusted immutable identity."""
+
+
+def _resolved_path(value, *, strict=True):
+    path = pathlib.Path(value)
+    if not path.is_absolute():
+        raise ExecutableResolutionError('executable-path-not-absolute')
+    try:
+        return path.resolve(strict=strict)
+    except (OSError, RuntimeError, ValueError):
+        raise ExecutableResolutionError('executable-path-unavailable') from None
+
+
+def _overlaps(path: pathlib.Path, root: pathlib.Path) -> bool:
+    return path == root or path in root.parents or root in path.parents
+
+
+def _secure_directory(path: pathlib.Path) -> None:
+    if not path.is_dir():
+        raise ExecutableResolutionError('executable-search-path-not-directory')
+    current = path
+    while True:
+        try:
+            info = current.lstat()
+        except OSError:
+            raise ExecutableResolutionError('executable-search-path-unavailable') from None
+        if stat.S_ISLNK(info.st_mode) or info.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            raise ExecutableResolutionError('executable-search-path-writable')
+        if current.parent == current:
+            return
+        current = current.parent
+
+
+def trusted_executable_directories(toolchain_directories=(), *, worktree=None,
+                                   sandbox_home=None, tmpdir=None) -> tuple[pathlib.Path, ...]:
+    if not isinstance(toolchain_directories, (tuple, list)) or any(
+            not isinstance(value, str) or not value for value in toolchain_directories):
+        raise ExecutableResolutionError('invalid-toolchain-directories')
+    excluded = []
+    for value in (worktree, sandbox_home, tmpdir if tmpdir is not None else os.environ.get('TMPDIR')):
+        if value:
+            excluded.append(_resolved_path(value, strict=False))
+    result = []
+    for value in (*SYSTEM_EXECUTABLE_DIRECTORIES, *toolchain_directories):
+        raw = pathlib.Path(value)
+        if not raw.is_absolute():
+            raise ExecutableResolutionError('executable-search-path-not-absolute')
+        try:
+            path = raw.resolve(strict=True)
+        except (OSError, RuntimeError, ValueError):
+            if value in SYSTEM_EXECUTABLE_DIRECTORIES:
+                continue
+            raise ExecutableResolutionError('executable-search-path-unavailable') from None
+        if value not in SYSTEM_EXECUTABLE_DIRECTORIES and path != raw:
+            raise ExecutableResolutionError('executable-search-path-not-canonical')
+        _secure_directory(path)
+        if any(_overlaps(path, root) for root in excluded):
+            raise ExecutableResolutionError('executable-search-path-excluded')
+        if path not in result:
+            result.append(path)
+    if not result:
+        raise ExecutableResolutionError('no-trusted-executable-path')
+    return tuple(result)
+
+
+def _sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def resolve_executable(command: str, *, toolchain_directories=(), worktree=None,
+                        sandbox_home=None, tmpdir=None) -> dict[str, str]:
+    if not isinstance(command, str) or not command or command.strip() != command:
+        raise ExecutableResolutionError('invalid-executable-name')
+    directories = trusted_executable_directories(toolchain_directories,
+        worktree=worktree, sandbox_home=sandbox_home, tmpdir=tmpdir)
+    raw = pathlib.Path(command)
+    if raw.is_absolute():
+        candidates = (raw,)
+    elif '/' in command or '\\' in command or command in {'.', '..'}:
+        raise ExecutableResolutionError('relative-executable-path-refused')
+    else:
+        candidates = tuple(directory / command for directory in directories)
+    for candidate in candidates:
+        try:
+            path = candidate.resolve(strict=True)
+            if not path.is_file() or not os.access(path, os.X_OK):
+                continue
+            if not any(path == directory or directory in path.parents for directory in directories):
+                continue
+            _secure_directory(path.parent)
+            if any(_overlaps(path, root) for root in (
+                    _resolved_path(value, strict=False) for value in
+                    (worktree, sandbox_home, tmpdir if tmpdir is not None else os.environ.get('TMPDIR'))
+                    if value)):
+                raise ExecutableResolutionError('executable-path-excluded')
+            return {'command': command, 'path': str(path), 'sha256': _sha256_file(path)}
+        except ExecutableResolutionError:
+            raise
+        except (OSError, RuntimeError, ValueError):
+            continue
+    raise ExecutableResolutionError('trusted-executable-not-found')
+
+
+def verify_executable_binding(binding: dict[str, str]) -> None:
+    if (not isinstance(binding, dict) or set(binding) != {'command', 'path', 'sha256'} or
+            not isinstance(binding['command'], str) or not isinstance(binding['path'], str) or
+            not isinstance(binding['sha256'], str) or len(binding['sha256']) != 64):
+        raise ExecutableResolutionError('executable-binding-invalid')
+    path = _resolved_path(binding['path'], strict=True)
+    if (str(path) != binding['path'] or not path.is_file() or not os.access(path, os.X_OK) or
+            _sha256_file(path) != binding['sha256']):
+        raise ExecutableResolutionError('executable-binding-changed')
+
+
+def bind_control_interpreter(executable: str, *, worktree=None) -> dict[str, str]:
+    """Bind the interpreter already running trusted control code, never PATH's python3."""
+    if not isinstance(executable, str) or not executable:
+        raise ExecutableResolutionError('control-interpreter-unavailable')
+    try:
+        path = _resolved_path(executable, strict=True)
+        if not path.is_file() or not os.access(path, os.X_OK):
+            raise ExecutableResolutionError('control-interpreter-unavailable')
+        _secure_directory(path.parent)
+        if worktree and _overlaps(path, _resolved_path(worktree, strict=False)):
+            raise ExecutableResolutionError('control-interpreter-excluded')
+        return {'command': 'active-control-interpreter', 'path': str(path),
+                'sha256': _sha256_file(path)}
+    except ExecutableResolutionError:
+        raise
+    except (OSError, RuntimeError, ValueError):
+        raise ExecutableResolutionError('control-interpreter-unavailable') from None
 
 
 @dataclass(frozen=True)
@@ -33,6 +178,7 @@ class SandboxPlan:
     strong_isolation: bool
     details: dict[str, Any]
     qualification: 'BackendQualification | None' = None
+    executable_bindings: tuple[dict[str, str], ...] = ()
 
 
 class BackendProtocol:
@@ -175,7 +321,7 @@ class PosixProcessGroupBackend:
                 'os._exit(125) if token != b"1" else os.execvpe(sys.argv[2],sys.argv[2:],os.environ)')
         process = None
         try:
-            process = subprocess.Popen([sys.executable, '-c', gate, str(read_gate), *argv],
+            process = subprocess.Popen([sys.executable, '-I', '-c', gate, str(read_gate), *argv],
                                        cwd=cwd, env=env, start_new_session=True,
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                        pass_fds=(read_gate,))
@@ -501,20 +647,18 @@ def discover_backends() -> tuple[BackendCandidate, ...]:
              ('macos-sandbox-exec', 'sandbox-exec'), ('docker-container', 'docker')]
     found = []
     for kind, command in specs:
-        executable = shutil.which(command)
-        if executable is None:
+        try:
+            binding = resolve_executable(command)
+        except ExecutableResolutionError:
             continue
+        executable = binding['path']
         if kind == 'bubblewrap' and system != 'linux':
             continue
         if kind == 'macos-sandbox-exec' and system != 'darwin':
             continue
         if kind == 'codex-sandbox' and system not in {'darwin', 'linux'}:
             continue
-        try:
-            identity = str(pathlib.Path(executable).resolve(strict=True))
-        except (OSError, RuntimeError):
-            continue
-        found.append(BackendCandidate(kind, 'unqualified', identity, system))
+        found.append(BackendCandidate(kind, 'unqualified', executable, system))
     return tuple(found)
 
 
@@ -1014,16 +1158,18 @@ def qualifies_v2(plan: SandboxPlan) -> bool:
                 proof.backend_identity.startswith(plan.backend + ':'))
 
 
-def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, str]:
+def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path, toolchain_directories=()) -> dict[str, str]:
     sandbox_home.mkdir(parents=True, exist_ok=True)
     (sandbox_home / 'tmp').mkdir(exist_ok=True)
+    directories = trusted_executable_directories(toolchain_directories, worktree=worktree,
+                                                  sandbox_home=sandbox_home)
     passthrough = (
-        'PATH', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'COLORTERM', 'CI',
-        'JAVA_HOME', 'JDK_HOME', 'SDKROOT', 'DEVELOPER_DIR',
+        'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'COLORTERM', 'CI',
         'SYSTEMROOT', 'WINDIR', 'PATHEXT', 'COMSPEC',
     )
     env = {key: os.environ[key] for key in passthrough if key in os.environ}
     env.update({
+        'PATH': os.pathsep.join(str(path) for path in directories),
         'HOME': str(sandbox_home),
         'TMPDIR': str(sandbox_home / 'tmp'),
         'XDG_CACHE_HOME': str(sandbox_home / 'cache'),
@@ -1038,6 +1184,26 @@ def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, s
     })
     # Prevent Gradle from trying to share a daemon across sandboxed invocations.
     env.setdefault('GRADLE_OPTS', '-Dorg.gradle.daemon=false')
+    declared = tuple(pathlib.Path(path) for path in toolchain_directories)
+    for key in TOOLCHAIN_ENVIRONMENT_SELECTORS:
+        value = os.environ.get(key)
+        if not value:
+            continue
+        try:
+            selector = _resolved_path(value, strict=True)
+            _secure_directory(selector)
+            excluded = tuple(pathlib.Path(item).resolve(strict=False) for item in
+                             (worktree, sandbox_home, env['TMPDIR']))
+            if any(_overlaps(selector, root) for root in excluded):
+                continue
+            if not any(selector == path or path in selector.parents or
+                       (selector / 'bin').resolve(strict=False) == path for path in declared):
+                continue
+            env[key] = str(selector)
+        except (ExecutableResolutionError, OSError, RuntimeError, ValueError):
+            # An inherited selector is optional. Invalid or undeclared values are
+            # rejected by omission, never passed through to a child process.
+            continue
     # Optional explicitly prepared read-only Gradle dependency cache. Do not point this at the
     # live ~/.gradle cache: Gradle's shared-cache contract expects a separately seeded directory.
     ro_cache = os.environ.get('AGENTIC_SDD_GRADLE_RO_DEP_CACHE')
@@ -1048,8 +1214,16 @@ def _safe_env(worktree: pathlib.Path, sandbox_home: pathlib.Path) -> dict[str, s
     return env
 
 
-def _codex_helper(argv: list[str], worktree: pathlib.Path, env: dict[str, str]) -> SandboxPlan | None:
-    codex = shutil.which('codex')
+def _codex_helper(argv: list[str], worktree: pathlib.Path, env: dict[str, str],
+                  toolchain_directories=(), executable_bindings=()) -> SandboxPlan | None:
+    try:
+        binding = resolve_executable('codex', toolchain_directories=toolchain_directories,
+                                     worktree=worktree, sandbox_home=env['HOME'], tmpdir=env['TMPDIR'])
+    except ExecutableResolutionError as exc:
+        if str(exc) == 'trusted-executable-not-found':
+            return None
+        raise
+    codex = binding['path']
     if not codex:
         return None
     system = platform.system().lower()
@@ -1062,13 +1236,23 @@ def _codex_helper(argv: list[str], worktree: pathlib.Path, env: dict[str, str]) 
         f'codex-{platform_name}',
         True,
         {'network': 'disabled', 'filesystem': 'workspace-write'}, None,
+        tuple(executable_bindings) + (binding,),
     )
 
 
-def _bubblewrap(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str]) -> SandboxPlan | None:
-    bwrap = shutil.which('bwrap')
-    if not bwrap or platform.system().lower() != 'linux':
+def _bubblewrap(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str],
+               toolchain_directories=(), executable_bindings=()) -> SandboxPlan | None:
+    if platform.system().lower() != 'linux':
         return None
+    try:
+        binding = resolve_executable('bwrap', toolchain_directories=toolchain_directories,
+                                     worktree=worktree, sandbox_home=sandbox_home,
+                                     tmpdir=env.get('TMPDIR'))
+    except ExecutableResolutionError as exc:
+        if str(exc) == 'trusted-executable-not-found':
+            return None
+        raise
+    bwrap = binding['path']
     cmd = [
         bwrap, '--die-with-parent', '--new-session', '--unshare-all', '--share-user',
         '--ro-bind', '/', '/',
@@ -1102,13 +1286,23 @@ def _bubblewrap(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.P
         {'network': 'unshared', 'root': 'read-only', 'worktree': 'writable',
          'protected_roots': [str(path) for path in existing_protected],
          'no_access_roots': [str(path) for path in no_access],
-         'policy_fingerprint': sandbox_policy_identity(writable, protected)}, None)
+         'policy_fingerprint': sandbox_policy_identity(writable, protected)}, None,
+        tuple(executable_bindings) + (binding,))
 
 
-def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str]) -> SandboxPlan | None:
-    sandbox_exec = shutil.which('sandbox-exec')
-    if not sandbox_exec or platform.system().lower() != 'darwin':
+def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: pathlib.Path, env: dict[str, str],
+                        toolchain_directories=(), executable_bindings=()) -> SandboxPlan | None:
+    if platform.system().lower() != 'darwin':
         return None
+    try:
+        binding = resolve_executable('sandbox-exec', toolchain_directories=toolchain_directories,
+                                     worktree=worktree, sandbox_home=sandbox_home,
+                                     tmpdir=env.get('TMPDIR'))
+    except ExecutableResolutionError as exc:
+        if str(exc) == 'trusted-executable-not-found':
+            return None
+        raise
+    sandbox_exec = binding['path']
     # Keep the policy deliberately small: read system/toolchain files, write only task workspace and
     # isolated build home, and expose no network. This is stricter than relying on shell allowlists.
     profile = sandbox_home / 'verification.sb'
@@ -1123,23 +1317,44 @@ def _macos_sandbox_exec(argv: list[str], worktree: pathlib.Path, sandbox_home: p
          'protected_roots': [str(path) for path in protected],
          'no_access_roots': [str(path) for path in derive_no_access_authority_roots(protected)],
          'policy_fingerprint': sandbox_policy_identity(write_roots, protected)}, None,
+        tuple(executable_bindings) + (binding,),
     )
 
 
 def build_plan(
-    argv: list[str], worktree: pathlib.Path, run_dir: pathlib.Path, mode: str = 'auto'
+    argv: list[str], worktree: pathlib.Path, run_dir: pathlib.Path, mode: str = 'auto',
+    toolchain_directories=(),
 ) -> SandboxPlan:
     if mode not in {'auto', 'required', 'off'}:
         raise ValueError(f'unknown verification sandbox mode: {mode}')
     sandbox_home = run_dir / 'verification-home'
-    env = _safe_env(worktree, sandbox_home)
+    env = _safe_env(worktree, sandbox_home, toolchain_directories)
+    argv = list(argv)
+    if not argv:
+        raise ExecutableResolutionError('invalid-command')
+    if argv[0] == './gradlew':
+        wrapper = pathlib.Path(worktree) / 'gradlew'
+        try:
+            info = wrapper.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode) or not os.access(wrapper, os.X_OK):
+                raise ExecutableResolutionError('worktree-gradle-wrapper-invalid')
+            argv[0] = str(wrapper.resolve(strict=True))
+        except (OSError, RuntimeError, ValueError):
+            raise ExecutableResolutionError('worktree-gradle-wrapper-invalid') from None
+        command_bindings = ()
+    else:
+        binding = resolve_executable(argv[0], toolchain_directories=toolchain_directories,
+                                     worktree=worktree, sandbox_home=sandbox_home, tmpdir=env['TMPDIR'])
+        argv[0] = binding['path']
+        command_bindings = (binding,)
     if mode == 'off':
-        return SandboxPlan(argv, env, 'off', False, {'explicit_opt_out': True})
+        return SandboxPlan(argv, env, 'off', False, {'explicit_opt_out': True},
+                           executable_bindings=command_bindings)
 
     for factory in (
-        lambda: _codex_helper(argv, worktree, env),
-        lambda: _bubblewrap(argv, worktree, sandbox_home, env),
-        lambda: _macos_sandbox_exec(argv, worktree, sandbox_home, env),
+        lambda: _codex_helper(argv, worktree, env, toolchain_directories, command_bindings),
+        lambda: _bubblewrap(argv, worktree, sandbox_home, env, toolchain_directories, command_bindings),
+        lambda: _macos_sandbox_exec(argv, worktree, sandbox_home, env, toolchain_directories, command_bindings),
     ):
         plan = factory()
         if plan is not None:
@@ -1153,6 +1368,7 @@ def build_plan(
     return SandboxPlan(
         argv, env, 'allowlist-only', False,
         {'warning': 'OS sandbox unavailable; strict command allowlist and isolated environment only'},
+        executable_bindings=command_bindings,
     )
 
 

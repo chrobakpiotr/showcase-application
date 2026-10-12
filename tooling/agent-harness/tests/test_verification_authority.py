@@ -45,7 +45,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         self.plan = build_plan(self.root, self.profile, self.family)
         self.record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
             self.profile_id, self.profile, self.plan, task_id='T-001', task_attempt=1,
-            origin_binding='integration')
+            origin_binding='integration', repository=self.root)
 
     def test_origin_authority_is_v2_and_execution_fails_closed(self):
         self.assertEqual(2, self.record['schema_version'])
@@ -54,6 +54,20 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
             with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
                 authority.resolve_execution(self.root, self.record['plan_id'])
+
+    def test_plan_refuses_absent_or_changed_executable_binding(self):
+        import copy
+        from verification.serialization import canonical
+        missing = copy.deepcopy(self.record)
+        missing.pop('executable_bindings')
+        with self.assertRaises(StoreError):
+            authority.validate_plan_record(missing)
+        changed = copy.deepcopy(self.record)
+        changed['executable_bindings'][0]['binding']['sha256'] = '0' * 64
+        changed['plan_id'] = 'verification-plan-v2:sha256:' + __import__('hashlib').sha256(
+            canonical({key: value for key, value in changed.items() if key != 'plan_id'})).hexdigest()
+        with self.assertRaises(StoreError):
+            authority.validate_plan_record(changed)
 
     def test_rehashed_origin_or_membership_cannot_publish(self):
         import copy
@@ -125,7 +139,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         family = dataclasses.replace(self.plan.family, policy_checkpoint='a' * 40)
         record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
             self.profile_id, self.profile, dataclasses.replace(self.plan, family=family),
-            task_id='T-001', task_attempt=1, origin_binding='integration')
+            task_id='T-001', task_attempt=1, origin_binding='integration', repository=self.root)
         authority.validate_plan_record(record)
 
     def test_invalid_family_identifier_and_unmapped_critical_retry_reject(self):
@@ -135,7 +149,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         plan = build_plan(self.root, self.profile, self.family, task_commands=['python3 -V'])
         record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
             self.profile_id, self.profile, plan, task_id='T-001', task_attempt=1,
-            task_commands=['python3 -V'], origin_binding='integration')
+            task_commands=['python3 -V'], origin_binding='integration', repository=self.root)
         item = next(o for o in record['obligations'] if o['profile_gate_id'] is None)
         item['critical'] = True
         item['retry_policy'] = 'allow'
@@ -147,7 +161,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             family=dataclasses.replace(self.plan.family, id='../untrusted'))
         record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
             self.profile_id, self.profile, bad_plan, task_id='T-001', task_attempt=1,
-            origin_binding='integration')
+            origin_binding='integration', repository=self.root)
         with self.assertRaises(StoreError):
             authority.validate_plan_record(record)
 
@@ -181,7 +195,7 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         plan = build_plan(self.root, self.profile, self.family, task_commands=['python3 -V'])
         record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
             self.profile_id, self.profile, plan, task_id='T-001', task_attempt=1,
-            task_commands=['python3 -V'], origin_binding='integration')
+            task_commands=['python3 -V'], origin_binding='integration', repository=self.root)
         authority.validate_plan_record(record)
         legacy = [o for o in record['obligations'] if o['profile_gate_id'] is None]
         self.assertEqual(1, len(legacy))

@@ -50,6 +50,7 @@ class Profile:
     schema_version: int
     content_hash: str
     gates: tuple[Gate, ...]
+    toolchain_directories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -21,6 +21,19 @@ from verification_command import CommandExecutionBackend
 from machine_outcomes import classify_reason, exit_code
 
 
+def _binding_for_gate(authority_context, gate):
+    if authority_context is None:
+        return None, None
+    if not isinstance(authority_context, dict) or not isinstance(authority_context.get('plan_id'), str):
+        raise StoreError('PLAN_BINDING_MISMATCH')
+    matches = [item for item in authority_context.get('executable_bindings', [])
+               if isinstance(item, dict) and item.get('gate_id') == gate.id]
+    if (len(matches) != 1 or matches[0].get('command_hash') != gate.command_hash or
+            not isinstance(matches[0].get('binding'), dict)):
+        raise StoreError('PLAN_BINDING_MISMATCH')
+    return authority_context['plan_id'], matches[0]['binding']
+
+
 @dataclass(frozen=True)
 class GateExecution:
     gate_id: str
@@ -155,6 +168,7 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             outcomes.append('NOT_RUN')
             continue
         try:
+            plan_id, expected_executable_binding = _binding_for_gate(authority_context, gate)
             retry_scope = None
             if isinstance(authority_context, dict):
                 obligations = authority_context.get('obligations', [])
@@ -273,8 +287,10 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 failure_grant_id=(failure_grants or {}).get(decision.node.id),
                 candidate_identity=candidate_seal.candidate_identity,
                 final_changed_surface_id=candidate_seal.changed_surface_id,
-                plan_id=authority_context.get('plan_id') if isinstance(authority_context, dict) else None,
-                retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint)
+                plan_id=plan_id,
+                retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint,
+                toolchain_directories=profile.toolchain_directories,
+                expected_executable_binding=expected_executable_binding)
             # Mutable callback collections were populated by the isolated
             # supervisor process. Reconstruct their durable projection in the
             # requesting executor after it receives the supervisor receipt.

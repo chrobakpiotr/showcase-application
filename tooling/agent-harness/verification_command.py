@@ -10,6 +10,7 @@ import shlex
 import subprocess
 import time
 import hashlib
+import os
 import uuid
 import stat
 from dataclasses import dataclass
@@ -102,6 +103,49 @@ def verification_argv(command: str, *, script_context=None, worktree=None, cwd=N
     return argv
 
 
+def executable_binding_for_command(command: str, *, worktree, cwd, toolchain_directories=()):
+    """Resolve the command's executable at trusted planning/admission time."""
+    try:
+        argv = shlex.split(command, posix=True)
+    except ValueError:
+        raise CommandRejected('invalid-command') from None
+    if not argv:
+        raise CommandRejected('invalid-command')
+    if argv[0] in PROFILE_SCRIPTS.values():
+        try:
+            script = (pathlib.Path(worktree).resolve(strict=True) / argv[0][2:]).resolve(strict=True)
+            root = pathlib.Path(worktree).resolve(strict=True)
+            if (root not in script.parents or not script.is_file() or not os.access(script, os.X_OK) or
+                    script.is_symlink()):
+                raise CommandRejected('script-command-path-invalid')
+            interpreter = verification_sandbox.resolve_executable(
+                'bash', toolchain_directories=toolchain_directories, worktree=worktree)
+            return {'command': argv[0], 'path': interpreter['path'], 'sha256': interpreter['sha256']}
+        except CommandRejected:
+            raise
+        except (OSError, RuntimeError, ValueError):
+            raise CommandRejected('script-command-authority-unavailable') from None
+    if argv[0] == './gradlew':
+        root = pathlib.Path(worktree).resolve(strict=True)
+        directory = pathlib.Path(cwd).resolve(strict=True)
+        wrapper = directory / 'gradlew'
+        try:
+            if root not in wrapper.resolve(strict=True).parents or wrapper.is_symlink():
+                raise CommandRejected('worktree-gradle-wrapper-invalid')
+            info = wrapper.lstat()
+            if not stat.S_ISREG(info.st_mode) or not os.access(wrapper, os.X_OK):
+                raise CommandRejected('worktree-gradle-wrapper-invalid')
+            return {'command': argv[0], 'path': str(wrapper.resolve(strict=True)),
+                    'sha256': verification_sandbox._sha256_file(wrapper)}
+        except (OSError, RuntimeError, ValueError):
+            raise CommandRejected('worktree-gradle-wrapper-invalid') from None
+    try:
+        return verification_sandbox.resolve_executable(
+            argv[0], toolchain_directories=toolchain_directories, worktree=worktree)
+    except verification_sandbox.ExecutableResolutionError as exc:
+        raise CommandRejected(str(exc)) from None
+
+
 @dataclass(frozen=True)
 class CommandResult:
     argv: tuple[str, ...]
@@ -146,8 +190,16 @@ class CommandExecutionBackend:
             # Accepted parser policy cannot replace lifecycle admission or a
             # winning one-shot capability, which are not implemented yet.
             raise CommandEnvironmentBlocked('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+        expected_binding = _kwargs.get('expected_executable_binding')
+        if _kwargs.get('plan_id') and not isinstance(expected_binding, dict):
+            raise CommandRejected('executable-binding-required')
         try:
-            plan = verification_sandbox.build_plan(argv, pathlib.Path(cwd), pathlib.Path(run_dir), sandbox_mode)
+            toolchain_directories = _kwargs.get('toolchain_directories', ())
+            plan = verification_sandbox.build_plan(argv, pathlib.Path(cwd), pathlib.Path(run_dir), sandbox_mode,
+                                                   toolchain_directories=toolchain_directories)
+            if expected_binding is not None and (not plan.executable_bindings or
+                    plan.executable_bindings[0] != expected_binding):
+                raise CommandRejected('executable-binding-mismatch')
         except RuntimeError as exc:
             # Backend discovery is not qualification. Keep the stable control
             # outcome and never leak host-specific command diagnostics.
@@ -180,12 +232,14 @@ class CommandExecutionBackend:
                 policy_identity=proof.policy_identity, execution_id=execution_id,
                 backend_identity=proof.backend_identity)
         return PreparedCommand(prepared.identity, proof.backend_identity, proof.policy_identity,
-                               proof.fingerprint, prepared, plan, tuple(argv))
+                               proof.fingerprint, prepared, plan, tuple(plan.argv))
 
     def launch(self, prepared: PreparedCommand, *, command, cwd, timeout_seconds, environment=None):
         started = time.time()
         monotonic = time.monotonic()
         env = dict(prepared.sandbox_plan.env)
+        for binding in prepared.sandbox_plan.executable_bindings:
+            verification_sandbox.verify_executable_binding(binding)
         if environment:
             if any(not isinstance(key, str) or not isinstance(value, str) or key not in env
                    for key, value in environment.items()):

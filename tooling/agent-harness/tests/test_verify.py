@@ -298,20 +298,10 @@ class PlannerTest(unittest.TestCase):
         )
         for relative, canonical in control_paths:
             with self.subTest(path=relative), \
-                    mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
+                    mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened, \
+                    mock.patch.object(fingerprint.os.path, 'samefile', return_value=False):
                 observation = observe_inputs(self.root, (relative,), surface)
-                # Case variants identify the exact control path only when this
-                # filesystem aliases them (for example, the default macOS
-                # filesystem). On case-sensitive filesystems they are distinct
-                # paths; a missing/sensitive input remains non-cacheable-policy.
-                try:
-                    aliases_control_path = os.path.samefile(
-                        self.root / relative, self.root / canonical)
-                except OSError:
-                    aliases_control_path = False
-                expected_reason = ('non-cacheable-external-state' if aliases_control_path
-                                   else 'non-cacheable-policy')
-                self.assertIn(expected_reason, observation.reasons)
+                self.assertIn('non-cacheable-external-state', observation.reasons)
                 self.assertFalse(any(str(call.args[0]) == str(self.root / relative)
                                      for call in opened.call_args_list))
                 with self.assertRaises(ValueError):
@@ -336,7 +326,7 @@ class PlannerTest(unittest.TestCase):
             os.chdir(original)
             fingerprint._control_runtime_relative.cache_clear()
 
-    def test_case_variant_control_name_is_candidate_on_case_sensitive_filesystem(self):
+    def test_case_variant_control_name_is_refused_on_every_filesystem(self):
         from verification import fingerprint
         payload = self.root / '.Agent-State/payload.txt'
         payload.parent.mkdir()
@@ -345,15 +335,13 @@ class PlannerTest(unittest.TestCase):
         self.git('commit', '-qm', 'add case-variant candidate')
         base = self.git('rev-parse', 'HEAD').strip()
         payload.write_text('after')
-        # Simulate a case-sensitive filesystem even when this test runs on a
-        # case-insensitive developer volume.
         with mock.patch.object(fingerprint.os.path, 'samefile', return_value=False):
             surface = changed_surface(
                 self.root, base,
                 patterns=('.Agent-State/**',),
                 applicability_patterns=('.Agent-State/**',),
             )
-        self.assertIn('.Agent-State/payload.txt', surface.paths)
+        self.assertNotIn('.Agent-State/payload.txt', surface.paths)
 
     def test_zero_match_input_pattern_is_noncacheable(self):
         from verification import fingerprint

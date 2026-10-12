@@ -330,11 +330,17 @@ class RunnerTest(unittest.TestCase):
     def test_runner_consumes_only_the_supplied_accepted_plan(self):
         import json
         import subprocess
+        from verification.profile import load_profile
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             completed = subprocess.CompletedProcess([], 0,
                 json.dumps({'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:test'}), '')
-            with mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
+            profile = load_profile(runner.HERE / 'verification-profiles/showcase.json')
+            record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash}
+            with mock.patch('verification.authority.resolve_accepted', return_value=record), \
+                 mock.patch.object(runner.verification_sandbox, 'resolve_executable',
+                                   side_effect=AssertionError('runner must use its active interpreter')), \
+                 mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
                 ok, results = runner.run_verification({}, root, root, 30,
                     accepted_plan_id='verification-plan-v1:sha256:test')
             self.assertTrue(ok)
@@ -342,6 +348,26 @@ class RunnerTest(unittest.TestCase):
             command = run.call_args.args[0]
             self.assertIn('--plan-id', command)
             self.assertNotIn('--base', command)
+            self.assertEqual('-I', command[1])
+            self.assertEqual(str(pathlib.Path(runner.sys.executable).resolve()), command[0])
+            self.assertNotIn('PYTHONPATH', run.call_args.kwargs['env'])
+            self.assertNotIn('PYTHONHOME', run.call_args.kwargs['env'])
+
+    def test_runner_launches_verify_under_isolated_active_interpreter(self):
+        import subprocess
+        from verification.profile import load_profile
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            out = root / 'runs'
+            out.mkdir()
+            profile = load_profile(runner.HERE / 'verification-profiles/showcase.json', repository=root)
+            record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash}
+            with mock.patch('verification.authority.resolve_accepted', return_value=record):
+                ok, results = runner.run_verification({}, root, out, 10,
+                    accepted_plan_id='verification-plan-v2:sha256:' + 'a' * 64)
+            self.assertFalse(ok)
+            self.assertEqual('ACCEPTED_PLAN_UNAVAILABLE', results[0]['reason_code'])
+            self.assertNotIn('ModuleNotFoundError', str(results))
 
 
 

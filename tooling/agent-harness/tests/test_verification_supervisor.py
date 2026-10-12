@@ -25,6 +25,27 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_plan_id_and_executable_binding_reach_backend_prepare(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+
+            class RecordingBackend(LifecycleBackend):
+                def prepare(self, **kwargs):
+                    self.prepare_kwargs = kwargs
+                    return super().prepare(**kwargs)
+
+            backend = RecordingBackend(store, root / 'unit')
+            binding = {'command': 'python3', 'path': '/usr/bin/python3', 'sha256': 'a' * 64}
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f',
+                attempt_id='a', gate_id='g', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                plan_id='verification-plan-v2:sha256:' + 'b' * 64,
+                expected_executable_binding=binding)
+            self.assertEqual('verification-plan-v2:sha256:' + 'b' * 64,
+                             backend.prepare_kwargs['plan_id'])
+            self.assertEqual(binding, backend.prepare_kwargs['expected_executable_binding'])
+
     @unittest.skipUnless(hasattr(os, 'fork'), 'requires POSIX process supervision')
     def test_detached_supervisor_refuses_fork_from_worker_thread_before_admission(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -1584,6 +1605,7 @@ class LifecycleBackend:
         self.events = []
 
     def prepare(self, **_kwargs):
+        self.prepare_kwargs = dict(_kwargs)
         identity = {'schema_version': 1, 'execution_id': 'unit-1', 'backend_identity': 'test-qualified/v1',
                     'unit_id': str(self.root / 'unit-1'), 'birth_identity': 'generation-1',
                     'repository_id': self.store.repository_id, 'policy_identity': 'sha256:' + 'a' * 64}

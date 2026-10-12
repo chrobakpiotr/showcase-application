@@ -145,7 +145,7 @@ class ShowcaseProfileTest(unittest.TestCase):
                     'non-cacheable-policy', 'fixture') for n in nodes))
                 record = execution_plan_record('fixture', 'a' * 64, 1, 'showcase',
                     self.profile, plan, task_id='T-1', task_attempt=1,
-                    task_commands=(command,) * count, origin_binding='task-completion')
+                    task_commands=(command,) * count, origin_binding='task-completion', repository=ROOT)
                 obligations = [o for o in record['obligations'] if o['command'] == command]
                 ids = {o['obligation_id'] for o in obligations}
                 self.assertEqual(count + 1, len(ids))

@@ -366,7 +366,8 @@ class VerificationSupervisor:
                 retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None,
                 candidate_identity: str | None = None, final_changed_surface_id: str | None = None,
                 plan_id: str | None = None, retry_scope: dict | None = None,
-                policy_checkpoint: str | None = None):
+                policy_checkpoint: str | None = None, toolchain_directories=(),
+                expected_executable_binding: dict | None = None):
         if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
             raise SupervisorError('invalid-retry-policy')
         if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
@@ -458,7 +459,9 @@ class VerificationSupervisor:
                 prepared = backend.prepare(worktree=pathlib.Path(worktree), cwd=pathlib.Path(cwd),
                     run_dir=backend_run_dir, repository_id=self.store.repository_id,
                     command=command, sandbox_mode=sandbox_mode, environment=environment,
-                    control_root=self.store.root, execution_id=execution_id)
+                    control_root=self.store.root, execution_id=execution_id,
+                    toolchain_directories=toolchain_directories, plan_id=plan_id,
+                    expected_executable_binding=expected_executable_binding)
                 self._crash('after-prepare')
             except Exception as exc:
                 if isinstance(exc, SupervisorError):

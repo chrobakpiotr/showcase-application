@@ -67,14 +67,10 @@ def _same_control_namespace(root, relative, canonical):
             tuple(part.casefold() for part in relative_parts[:len(canonical_parts)]) !=
             tuple(part.casefold() for part in canonical_parts)):
         return False
-    if relative_parts[:len(canonical_parts)] == canonical_parts:
-        return True
-    alias = pathlib.Path(root).joinpath(*relative_parts[:len(canonical_parts)])
-    trusted = pathlib.Path(root).joinpath(*canonical_parts)
-    try:
-        return os.path.samefile(alias, trusted)
-    except OSError:
-        return False
+    # Control namespaces are reserved case-insensitively on every host. Do not
+    # let a case-sensitive filesystem turn a spelling variant into candidate
+    # input: the same repository policy must hold after checkout elsewhere.
+    return True
 
 
 def _is_control_path(root, relative):

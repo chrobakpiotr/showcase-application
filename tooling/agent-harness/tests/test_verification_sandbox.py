@@ -1,4 +1,5 @@
 import importlib.util
+import os
 import pathlib
 import tempfile
 import unittest
@@ -14,6 +15,71 @@ spec.loader.exec_module(vs)
 
 
 class VerificationSandboxTest(unittest.TestCase):
+    def test_shared_executable_resolver_ignores_inherited_path_and_records_digest(self):
+        with mock.patch.object(vs, 'SYSTEM_EXECUTABLE_DIRECTORIES', ('/usr/bin',)), \
+             mock.patch.dict(vs.os.environ, {'PATH': '/tmp/hostile:/usr/bin'}, clear=True):
+            binding = vs.resolve_executable('true')
+        self.assertEqual('/usr/bin/true', binding['path'])
+        self.assertEqual(64, len(binding['sha256']))
+        vs.verify_executable_binding(binding)
+
+    def test_control_interpreter_binding_uses_the_active_absolute_binary(self):
+        binding = vs.bind_control_interpreter(sys.executable)
+        self.assertEqual(str(pathlib.Path(sys.executable).resolve()), binding['path'])
+        self.assertEqual('active-control-interpreter', binding['command'])
+        self.assertEqual(64, len(binding['sha256']))
+        vs.verify_executable_binding(binding)
+
+    def test_backend_discovery_uses_the_shared_resolver(self):
+        executable_path = str(pathlib.Path(sys.executable).resolve())
+        with mock.patch.object(vs.platform, 'system', return_value='Linux'), \
+             mock.patch.object(vs.shutil, 'which', side_effect=AssertionError('unbound lookup')), \
+             mock.patch.object(vs, 'resolve_executable', side_effect=lambda name, **_kwargs: {
+                 'command': name, 'path': executable_path, 'sha256': 'a' * 64}) as resolve:
+            candidates = vs.discover_backends()
+        self.assertEqual({'codex-sandbox', 'bubblewrap', 'docker-container'},
+                         {item.kind for item in candidates})
+        self.assertEqual(['codex', 'bwrap', 'sandbox-exec', 'docker'],
+                         [call.args[0] for call in resolve.call_args_list])
+        self.assertTrue(all(item.state == 'DISCOVERED' and item.qualification is None
+                            for item in candidates))
+
+    def test_shared_executable_resolver_rejects_hostile_paths_and_detects_swap(self):
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+            root = pathlib.Path(temporary).resolve()
+            executable = root / 'trusted-tool'
+            executable.write_text('#!/bin/sh\nexit 0\n')
+            executable.chmod(0o700)
+            binding = vs.resolve_executable('trusted-tool', toolchain_directories=(str(root),),
+                                            tmpdir='/definitely-not-a-temp-root')
+            executable.write_text('#!/bin/sh\nexit 1\n')
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.verify_executable_binding(binding)
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.resolve_executable('./trusted-tool', toolchain_directories=(str(root),),
+                                      tmpdir='/definitely-not-a-temp-root')
+
+    def test_shared_executable_resolver_rejects_worktree_and_writable_search_roots(self):
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+            root = pathlib.Path(temporary).resolve()
+            executable = root / 'fake-python3'
+            executable.write_text('#!/bin/sh\nexit 0\n')
+            executable.chmod(0o700)
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.resolve_executable('fake-python3', toolchain_directories=(str(root),),
+                                      worktree=root, tmpdir='/definitely-not-a-temp-root')
+        with self.assertRaises(vs.ExecutableResolutionError):
+            vs.resolve_executable('true', toolchain_directories=('/tmp',))
+
+    def test_control_interpreter_inside_worktree_is_refused(self):
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+            root = pathlib.Path(temporary).resolve()
+            interpreter = root / 'python-control'
+            interpreter.write_text('#!/bin/sh\nexit 0\n')
+            interpreter.chmod(0o700)
+            with self.assertRaises(vs.ExecutableResolutionError):
+                vs.bind_control_interpreter(str(interpreter), worktree=root)
+
     def test_control_store_read_probe_fails_when_any_process_depth_can_read(self):
         import subprocess
         with tempfile.TemporaryDirectory() as temp:
@@ -90,6 +156,9 @@ class VerificationSandboxTest(unittest.TestCase):
     def test_explicit_gradle_read_only_cache_is_forwarded(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
+            wrapper = root / 'gradlew'
+            wrapper.write_text('#!/bin/sh\nexit 0\n')
+            wrapper.chmod(0o700)
             cache = root / 'ro-cache'
             (cache / 'modules-2').mkdir(parents=True)
             with mock.patch.dict('os.environ', {'AGENTIC_SDD_GRADLE_RO_DEP_CACHE': str(cache)}, clear=False):
@@ -97,8 +166,9 @@ class VerificationSandboxTest(unittest.TestCase):
             self.assertEqual(str(cache.resolve()), plan.env.get('GRADLE_RO_DEP_CACHE'))
 
     def test_codex_sandbox_helper_uses_documented_command_shape(self):
+        binding = {'command': 'codex', 'path': '/usr/local/bin/codex', 'sha256': '0' * 64}
         with tempfile.TemporaryDirectory() as tmp, \
-             mock.patch.object(vs.shutil, 'which', return_value='/usr/local/bin/codex'), \
+             mock.patch.object(vs, 'resolve_executable', return_value=binding), \
              mock.patch.object(vs.platform, 'system', return_value='Darwin'):
             root = pathlib.Path(tmp)
             env = vs._safe_env(root, root / 'home')
@@ -120,18 +190,44 @@ class VerificationSandboxTest(unittest.TestCase):
                 'OPENAI_API_KEY': 'openai-secret',
                 'ANTHROPIC_API_KEY': 'anthropic-secret',
                 'AWS_SECRET_ACCESS_KEY': 'aws-secret',
+                'PYTHONPATH': '/attacker/python',
+                'PYTHONHOME': '/attacker/python-home',
+                'PYTHONSTARTUP': '/attacker/startup.py',
+                'PYTHONUSERBASE': '/attacker/userbase',
+                'NODE_OPTIONS': '--require /attacker/node.js',
+                'LD_PRELOAD': '/attacker/preload.so',
+                'LD_LIBRARY_PATH': '/attacker/lib',
+                'DYLD_INSERT_LIBRARIES': '/attacker/inject.dylib',
+                'BASH_ENV': '/attacker/bashrc',
+                'ENV': '/attacker/env',
+                'GIT_EXEC_PATH': '/attacker/git',
+                'JAVA_TOOL_OPTIONS': '-javaagent:/attacker/agent.jar',
             },
             clear=True,
         ):
             root = pathlib.Path(tmp)
             env = vs._safe_env(root, root / 'home')
-            self.assertEqual('/usr/bin:/bin', env['PATH'])
+            expected_path = os.pathsep.join(str(path) for path in vs.trusted_executable_directories())
+            self.assertEqual(expected_path, env['PATH'])
             self.assertEqual('true', env['CI'])
             self.assertNotIn('GITHUB_TOKEN', env)
             self.assertNotIn('OPENAI_API_KEY', env)
             self.assertNotIn('ANTHROPIC_API_KEY', env)
             self.assertNotIn('AWS_SECRET_ACCESS_KEY', env)
+            for key in ('PYTHONPATH', 'PYTHONHOME', 'PYTHONSTARTUP', 'PYTHONUSERBASE',
+                        'NODE_OPTIONS', 'LD_PRELOAD', 'LD_LIBRARY_PATH',
+                        'DYLD_INSERT_LIBRARIES', 'BASH_ENV', 'ENV', 'GIT_EXEC_PATH',
+                        'JAVA_TOOL_OPTIONS'):
+                with self.subTest(key=key):
+                    self.assertNotIn(key, env)
             self.assertEqual(str(root / 'home'), env['HOME'])
+
+    def test_safe_env_drops_undeclared_toolchain_selectors(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            with mock.patch.dict(vs.os.environ, {'JAVA_HOME': str(root)}, clear=True):
+                env = vs._safe_env(root, root / 'home')
+            self.assertNotIn('JAVA_HOME', env)
 
     def test_trusted_issuer_registry_is_a_protected_authority_path(self):
         repository = pathlib.Path(__file__).resolve().parents[3]
@@ -147,7 +243,8 @@ class VerificationSandboxTest(unittest.TestCase):
             registry.write_text('{"schema_version":1,"issuers":[]}')
             (root / '.agent-runs/control/verification-v2').mkdir(parents=True)
             with mock.patch.object(vs, 'derive_protected_authority_roots', return_value=(registry,)), \
-                 mock.patch.object(vs.shutil, 'which', return_value='/usr/bin/bwrap'), \
+                 mock.patch.object(vs, 'resolve_executable', return_value={
+                     'command': 'bwrap', 'path': '/usr/bin/bwrap', 'sha256': '0' * 64}), \
                  mock.patch.object(vs.platform, 'system', return_value='Linux'):
                 plan = vs._bubblewrap(['python3', '-c', 'pass'], root, root / 'home', {})
             self.assertIsNotNone(plan)
@@ -172,7 +269,8 @@ class VerificationSandboxTest(unittest.TestCase):
             secret = control / 'grants.json'
             secret.write_text('trusted grant')
             with mock.patch.object(vs, 'derive_protected_authority_roots', return_value=(root / '.agent-runs',)), \
-                 mock.patch.object(vs.shutil, 'which', return_value='/usr/bin/bwrap'), \
+                 mock.patch.object(vs, 'resolve_executable', return_value={
+                     'command': 'bwrap', 'path': '/usr/bin/bwrap', 'sha256': '0' * 64}), \
                  mock.patch.object(vs.platform, 'system', return_value='Linux'):
                 plan = vs._bubblewrap(['python3', '-c', 'pass'], root / 'worktree', root / 'home', {})
             self.assertIsNotNone(plan)
