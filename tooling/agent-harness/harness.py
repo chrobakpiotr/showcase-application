@@ -5409,6 +5409,7 @@ def cmd_complete(args: argparse.Namespace) -> None:
                 die('COMPLETION_CHECKPOINT_INVALID: checkpoint is not available in the repository')
         if evidence_doc['checkpoint'] != checkpoint:
             die('COMPLETION_CHECKPOINT_MISMATCH: evidence checkpoint differs from verified task checkpoint')
+        require_task_commit_ancestry(args.feature_dir, task, state, checkpoint, operation='COMPLETION')
 
         record = {
             'schema_version': COMPLETION_AUTHORITY_SCHEMA_VERSION, 'record_type': 'completion',
@@ -5541,6 +5542,8 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
             binding_errors.append('REPAIR_CHECKPOINT_MISMATCH: evidence checkpoint differs from immutable repair checkpoint authority')
         if binding_errors:
             die('COMPLETION_EVIDENCE_BINDING_INVALID: ' + '; '.join(binding_errors))
+        require_task_commit_ancestry(args.feature_dir, task, state, effective_checkpoint,
+                                     operation='COMPLETION_REPAIR')
         proof_errors = validate_completion_proofs(
             evidence_doc, task, required_completion_criteria(task), args.feature_dir)
         if proof_errors:
@@ -6554,6 +6557,45 @@ def assert_worktree_protocol_current(feature_dir: pathlib.Path, target: pathlib.
         die(f'existing task worktree contains incompatible lifecycle protocol: {target}')
 
 
+def task_base_commits(task: dict[str, Any], state: dict[str, Any]) -> list[tuple[str, str]]:
+    """Return the immutable commits a task branch must contain."""
+    dependencies = task.get('depends_on', [])
+    if dependencies:
+        result: list[tuple[str, str]] = []
+        for dependency in dependencies:
+            commit = state['tasks'][dependency].get('checkpoint_commit')
+            if not _valid_completion_commit(commit):
+                die(f'WORKTREE_BASE_UNAVAILABLE: dependency {dependency} has no full checkpoint commit')
+            result.append((dependency, commit))
+        return result
+    base = state.get('base_commit')
+    if not _valid_completion_commit(base):
+        die('WORKTREE_BASE_UNAVAILABLE: dependency-free task has no full feature base commit')
+    return [('feature base', base)]
+
+
+def require_task_commit_ancestry(feature_dir: pathlib.Path, task: dict[str, Any],
+                                 state: dict[str, Any], candidate: str, *,
+                                 operation: str) -> None:
+    """Fail closed unless a task checkpoint contains its accepted base commits."""
+    if not _valid_completion_commit(candidate):
+        die(f'{operation}_BASE_INVALID: candidate is not a full Git commit id')
+    repo = feature_repo_base(feature_dir)
+    exists = subprocess.run(['git', 'cat-file', '-e', f'{candidate}^{{commit}}'], cwd=repo,
+                            capture_output=True).returncode == 0
+    if not exists:
+        die(f'{operation}_BASE_INVALID: candidate commit is unavailable')
+    for label, required in task_base_commits(task, state):
+        present = subprocess.run(['git', 'cat-file', '-e', f'{required}^{{commit}}'], cwd=repo,
+                                 capture_output=True).returncode == 0
+        if not present:
+            die(f'{operation}_BASE_UNAVAILABLE: required {label} checkpoint is unavailable')
+        ancestry = subprocess.run(['git', 'merge-base', '--is-ancestor', required, candidate], cwd=repo,
+                                  capture_output=True)
+        if ancestry.returncode != 0:
+            die(f'{operation}_STALE_BASE: candidate does not descend from {label} checkpoint {required}')
+
+
 def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any],
                           task: dict[str, Any], *,
                           durable_state: dict[str, Any] | None = None) -> pathlib.Path:
@@ -6579,6 +6621,12 @@ def prepare_task_worktree(feature_dir: pathlib.Path, doc: dict[str, Any], state:
         if dirty:
             die(f'existing task worktree is dirty; fail/release/checkpoint it before reuse: {dirty}')
         assert_worktree_protocol_current(feature_dir, target)
+        reused_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=target,
+                                     capture_output=True, text=True)
+        if reused_head.returncode != 0:
+            die(f'WORKTREE_BASE_INVALID: cannot resolve existing task worktree HEAD: {target}')
+        require_task_commit_ancestry(feature_dir, task, state, reused_head.stdout.strip(),
+                                     operation='WORKTREE')
         return target
 
     target.parent.mkdir(parents=True, exist_ok=True)
