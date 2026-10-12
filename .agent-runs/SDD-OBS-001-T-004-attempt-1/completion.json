@@ -1,0 +1,116 @@
+{
+  "assumptions": [
+    "Harness independently accepted R1 and R2; this evidence reruns the active packet command on the final checkpoint."
+  ],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "64b25014061633a195e5f333e08db89bfb07d9ca",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_orchestrate.py -v"
+  ],
+  "contract_fingerprint": "d189f635caff0766e200eeef230c68643da2d5a301330e813567782057a8f284",
+  "criterion_results": {
+    "AC-OBS-014": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-016": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-018": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-032": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-005": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-008": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-016": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-018": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-025": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_orchestrate.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Engine 29.8.2; python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f; Linux verification container (not qualification target)",
+      "stderr": ".agent-runs/SDD-OBS-001-T-004-attempt-1/verification.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-004-attempt-1/verification.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:e1ea8e1f2f22bf4932246e7b8ce0fc98894d4468362b129764a874ccae9e1274",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "b499cfd40f4c8e63b4a187a63a5c20e33d6ed2df3eb5fdd07c17c25959fbecd5",
+      "criteria": [
+        "AC-OBS-014",
+        "AC-OBS-016",
+        "AC-OBS-018",
+        "AC-OBS-029",
+        "AC-OBS-032",
+        "VC-005",
+        "VC-008",
+        "VC-016",
+        "VC-018",
+        "VC-025"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "c4bbe39ac678ea1bc9976d4414f8ac78e1e8cb4982fc7f5e36a7c331c643939c",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "The separate CI-fixture maintenance patch still needs its supported-environment run and commit."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-004 implementation at 64b2501 passed its declared verification command: 324 tests OK on Python 3.13.16 with cryptography 49.0.0.",
+  "task": "T-004"
+}

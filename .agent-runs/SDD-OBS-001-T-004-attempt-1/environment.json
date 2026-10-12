@@ -1,0 +1,21 @@
+{
+  "attempt": 1,
+  "checkpoint": "64b25014061633a195e5f333e08db89bfb07d9ca",
+  "command": "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_orchestrate.py -v",
+  "container_image": "python:3.13.16-slim",
+  "container_image_digest": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "contract_fingerprint": "d189f635caff0766e200eeef230c68643da2d5a301330e813567782057a8f284",
+  "cryptography": "49.0.0",
+  "docker_engine": "29.8.2",
+  "exit_code": 0,
+  "git": "2.47.3",
+  "packet_revision": "sha256:e1ea8e1f2f22bf4932246e7b8ce0fc98894d4468362b129764a874ccae9e1274",
+  "platform": "Linux 7.0.14-linuxkit x86_64, glibc 2.41",
+  "python": "3.13.16",
+  "stderr_sha256": "4d3ca585204961cf10e25e4fd0ae6e272a23efc71d72ec5226777b71c1da2665",
+  "stdout_sha256": "32279f7a2ad2da6b2e4b1af37684113be6fc49343c21cbd30d27af7e24d9d630",
+  "task": "SDD-OBS-001/T-004",
+  "test_count": 324,
+  "test_duration_seconds": 408.169,
+  "verification_backend": "Docker Engine 29.8.2; python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f; Linux verification container (not qualification target)"
+}
