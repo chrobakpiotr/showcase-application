@@ -1,0 +1,44 @@
+{
+  "changed_diff_sha256": "fe150f9e3d9d3092e3afa141ecf98e4862ebbcd52e4e7775d4299a182ecc8236",
+  "commands": [
+    {
+      "command": "python -m unittest tooling/agent-harness/tests/test_runner.py -v",
+      "exit_code": 0,
+      "log": "packet-command-1.log",
+      "sha256": "77f3d3656bfe41c26320f11fc3e35dd731f43839938905551550da39fb77de91",
+      "tests_passed": 26
+    },
+    {
+      "command": "python -m unittest tooling/agent-harness/tests/test_verify.py tooling/agent-harness/tests/test_verification_profile.py -v",
+      "exit_code": 0,
+      "log": "packet-command-2.log",
+      "sha256": "19b59bb4aea83b72e20dd4db8645f4fd40ea3d48a1173dd02eae2697122e71a2",
+      "tests_passed": 59
+    },
+    {
+      "command": "python -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v",
+      "exit_code": 0,
+      "log": "packet-command-3.log",
+      "sha256": "19e609f763fd498dc7ee0ca5e2b0d7c7d5638c127127320cc14ecd21fa7c31fa",
+      "tests_passed": 142
+    },
+    {
+      "command": "python -m unittest tooling/agent-harness/tests/test_verification_authority.py tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_profile_applicability.py -v",
+      "exit_code": 0,
+      "log": "packet-command-4.log",
+      "sha256": "34a667e734fcf47988ee3c27dbada16c5cd5947d3ac68556a71074745b3d0b50",
+      "tests_passed": 26
+    }
+  ],
+  "container_image": "python:3.13-slim",
+  "container_image_id": "sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f",
+  "environment": {
+    "cryptography": "49.0.0",
+    "kernel": "7.0.14-linuxkit",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.14-linuxkit-x86_64-with-glibc2.41",
+    "python": "3.13.16 (main, Oct  1 2026, 21:42:25) [GCC 14.2.0]"
+  },
+  "git_version": "git version 2.47.3",
+  "packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86"
+}
