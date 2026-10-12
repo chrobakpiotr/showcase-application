@@ -1,0 +1,1 @@
+PASS: replacing verification_sandbox._overlaps with a function that always returns false made test_active_interpreter_inside_worktree_sandbox_home_or_tmpdir_is_refused fail as expected.

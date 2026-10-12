@@ -1,0 +1,68 @@
+{
+  "all_passed": true,
+  "attempt": 5,
+  "commands": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_runner.py -v",
+      "exit_code": 0,
+      "name": "runner",
+      "stderr": "runner.stderr.txt",
+      "stderr_sha256": "aff726a53db85b9b797feaef98d3df50167619ba0cdaed36772a41e0dabd3c45",
+      "stdout": "runner.stdout.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests_run": 27
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verify.py tooling/agent-harness/tests/test_verification_profile.py -v",
+      "exit_code": 0,
+      "name": "verify",
+      "stderr": "verify.stderr.txt",
+      "stderr_sha256": "5875d437d3bda0ced4830524445ea6c41110382cd4ef552d5d39be0f392fc9ce",
+      "stdout": "verify.stdout.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests_run": 59
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_command.py tooling/agent-harness/tests/test_verification_sandbox.py -v",
+      "exit_code": 0,
+      "name": "core",
+      "stderr": "core.stderr.txt",
+      "stderr_sha256": "8c65cfe06ee6c1390f1a599881abfd7448bee8ff9ebd59b06373a7babf30368d",
+      "stdout": "core.stdout.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests_run": 142
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py tooling/agent-harness/tests/test_verification_profile_showcase.py tooling/agent-harness/tests/test_verification_profile_applicability.py -v",
+      "exit_code": 0,
+      "name": "authority",
+      "stderr": "authority.stderr.txt",
+      "stderr_sha256": "d95a5b768b5b86d23dcc44e2576fd622e56baac234abdf12a68cdf717f624077",
+      "stdout": "authority.stdout.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tests_run": 28
+    }
+  ],
+  "environment": {
+    "architecture": "x86_64",
+    "base_image": "python:3.13-slim@sha256:3dd7cc108ec1493442514f5c2a871af6af0ec31d768ff6e378a93340c3b3db5f",
+    "container_image": "showcase-t003-python313-crypto49-git",
+    "container_image_id": "sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c",
+    "cryptography": "49.0.0",
+    "kernel": "7.0.14-linuxkit",
+    "os": "Linux",
+    "python": "3.13.16"
+  },
+  "feature": "SDD-OBS-001",
+  "implementation_diff_sha256": "a728b1650144fc1c724575d90f2b8f1326097a65ac2e69b1369b8728c44d6b2c",
+  "mutation_check": {
+    "log": "mutation-check.log",
+    "sha256": "604d9007e96ae0163ddc8c23676e1934c59585e90b32b126ab9f70f5828c1c7f"
+  },
+  "packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86",
+  "record_type": "t003-repair-verification",
+  "repair_checkpoint": "05b63a68f71a05366b82ba61a9c79fbbaf322b20",
+  "reviewed_checkpoint": "916af0b886f01e7c904fc954679bf3f6569b1073",
+  "schema_version": 1,
+  "task": "T-003"
+}

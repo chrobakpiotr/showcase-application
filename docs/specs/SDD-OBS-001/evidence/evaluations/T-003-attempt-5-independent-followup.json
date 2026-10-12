@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "record_type": "scoped-independent-evaluation",
+  "feature": "SDD-OBS-001",
+  "task": "T-003",
+  "attempt": 5,
+  "checkpoint": "916af0b886f01e7c904fc954679bf3f6569b1073",
+  "packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86",
+  "reviewer": "independent-evaluator",
+  "result": "fail",
+  "findings": [
+    {
+      "severity": "required",
+      "summary": "The control-plane Python launch does not use the shared executable resolver or bind the interpreter identity at planning/admission.",
+      "evidence": [
+        "runner.py invokes bind_control_interpreter(sys.executable) immediately before launching verify.py.",
+        "verification_sandbox.py validates and hashes the active interpreter path but does not call resolve_executable or compare against a plan/admission binding.",
+        "The active T-003 packet requires one resolver for backend, allowlisted-command, and control-plane Python launches, with resolved executable paths and SHA-256 digests bound at planning/admission and rechecked at launch."
+      ],
+      "impact": "The control interpreter is checked at launch time only; a binary change after planning is not rejected against the accepted plan binding. This leaves the control-plane launch outside the accepted VC-016 executable-resolution contract.",
+      "required_action": "Use the shared resolver for the control-plane interpreter and bind its canonical path and digest to the accepted plan/admission, then verify that binding immediately before launch. Add regression coverage for a post-planning interpreter swap."
+    },
+    {
+      "severity": "informational",
+      "summary": "The evaluator-side backend-discovery test still mocks shutil.which although discovery uses the shared resolver.",
+      "evidence": [
+        "tooling/agent-harness/tests/test_verification_backend_qualification.py::BackendQualificationTest.test_discovery_does_not_qualify_a_candidate patches shutil.which.",
+        "That test is outside T-003 allowed_paths and packet verification commands; Docker presence determines whether its current assertions still pass."
+      ],
+      "impact": "The discovery assertion is unreliable and may pass without exercising the mock on Docker hosts, or fail on hosts without Docker. It does not alter production behavior.",
+      "required_action": "Keep as a T-900 evaluator follow-up; do not change it in the T-003 repair."
+    }
+  ],
+  "positive_evidence": {
+    "packet_commands": [
+      {"tests_passed": 26, "exit_code": 0},
+      {"tests_passed": 59, "exit_code": 0},
+      {"tests_passed": 142, "exit_code": 0},
+      {"tests_passed": 26, "exit_code": 0}
+    ],
+    "payload_executable_bindings": "Plan and authority bind payload executable paths and digests; launch-time swap refusal is covered.",
+    "environment_and_case_handling": "Injection filtering and case-insensitive .git/.agent-state protection were inspected without a counterexample."
+  },
+  "scope": "Scoped independent follow-up review of completed T-003 only. This is not the global T-900 evaluation and does not qualify or complete T-900."
+}
