@@ -87,7 +87,8 @@ class OrchestrateTest(unittest.TestCase):
             record['control_executable_binding'] = self._control_binding()
         return record
 
-    def _launch_started_verification(self, feature, doc, worktree, packet, main_path, plan):
+    def _launch_started_verification(self, feature, doc, worktree, packet, main_path, plan,
+                                     accepted_plan=None):
         state = orchestrate.h.load_state(feature, doc)
         state['tasks']['T-001'].update({'status': 'running', 'attempts': 1,
                                         'owner': orchestrate.owner_for(self.args(), 'T-001')})
@@ -97,7 +98,8 @@ class OrchestrateTest(unittest.TestCase):
              mock.patch.object(orchestrate.h, 'load_state', return_value=state), \
              mock.patch.object(orchestrate, 'invoke_runner', return_value=main_path), \
              mock.patch.object(orchestrate, 'prepare_task_plan', return_value=plan), \
-             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan', return_value=plan), \
+             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan',
+                               return_value=accepted_plan or plan), \
              mock.patch.object(orchestrate, 'verification_evidence_summary', return_value={
                  'outcome': 'PASS', 'machine_category': 'pass'}), \
              mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
@@ -106,7 +108,8 @@ class OrchestrateTest(unittest.TestCase):
                                                    packet, self.args(), feedback=None)
         return outcome, launch
 
-    def _launch_resumed_verification(self, feature, doc, worktree, packet, plan, *, prior_path):
+    def _launch_resumed_verification(self, feature, doc, worktree, packet, plan, *, prior_path,
+                                     accepted_plan=None):
         prior_path.parent.mkdir(parents=True, exist_ok=True)
         prior_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass'}))
         prior_digest = hashlib.sha256(prior_path.read_bytes()).hexdigest()
@@ -115,7 +118,8 @@ class OrchestrateTest(unittest.TestCase):
                   'operator': 'operator@example.invalid'}
         task_state = {'attempts': 1, 'last_failure_evidence': str(prior_path)}
         with mock.patch.object(orchestrate, 'REPO', self.root), \
-             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan', return_value=plan), \
+             mock.patch.object(orchestrate.h, 'resolve_accepted_verification_plan',
+                               return_value=accepted_plan or plan), \
              mock.patch.object(orchestrate, 'verification_evidence_summary', return_value={
                  'outcome': 'PASS', 'machine_category': 'pass'}), \
              mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
@@ -214,6 +218,40 @@ class OrchestrateTest(unittest.TestCase):
                                 worktree, packet, self.args(), resume, task_state)
                     self.assertEqual('verification-blocked', outcome.status)
                     launch.assert_not_called()
+
+    def test_started_and_resumed_verification_refuse_identity_mismatch_before_launch(self):
+        feature, doc = self.feature()
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'verification': ['true'], 'required_reviewers': []}))
+        provenance = self.root / 'provenance.json'
+        provenance.write_text(json.dumps({'base_commit': 'a' * 40}))
+        main_path = self.root / 'main-result.json'
+        main_path.write_text(json.dumps({'task': 'T-001', 'status': 'pass',
+                                         'provenance': str(provenance)}))
+
+        cases = (
+            ('started-task-id', 'started', 'task_id', 'T-900'),
+            ('started-exact-record', 'started', 'lifecycle_generation', 2),
+            ('resumed-task-id', 'resumed', 'task_id', 'T-900'),
+            ('resumed-attempt', 'resumed', 'task_attempt', 2),
+        )
+        for case, mode, field, value in cases:
+            with self.subTest(case=case):
+                plan = self._accepted_plan(f'plan-{case}')
+                resolved = dict(plan)
+                resolved[field] = value
+                if mode == 'started':
+                    outcome, launch = self._launch_started_verification(
+                        feature, doc, worktree, packet, main_path, plan, accepted_plan=resolved)
+                else:
+                    outcome, launch = self._launch_resumed_verification(
+                        feature, doc, worktree, packet, plan,
+                        prior_path=self.root / '.agent-runs' / 'TST-002' / f'{case}.json',
+                        accepted_plan=resolved)
+                self.assertEqual('verification-blocked', outcome.status)
+                launch.assert_not_called()
 
     def test_owner_is_scoped_by_orchestration_run(self):
         self.assertEqual('orch-testrun1-t-001', orchestrate.owner_for(self.args(), 'T-001'))

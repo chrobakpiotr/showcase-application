@@ -93,10 +93,15 @@ def review_choice(args: argparse.Namespace) -> ProviderChoice:
 
 def run_accepted_verification(
     worktree: pathlib.Path, output_dir: pathlib.Path, plan_id: str, timeout_seconds: int,
+    *, expected_task_id: str, expected_task_attempt: int,
+    expected_record: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
     """Run only the currently accepted plan with its bound control interpreter."""
     record = h.resolve_accepted_verification_plan(worktree, plan_id)
-    if record.get('plan_id') != plan_id:
+    if (record.get('plan_id') != plan_id or record.get('task_id') != expected_task_id or
+            type(record.get('task_attempt')) is not int or
+            record.get('task_attempt') != expected_task_attempt or
+            (expected_record is not None and record != expected_record)):
         raise ValueError('PLAN_BINDING_MISMATCH')
     control_python = record.get('control_executable_binding')
     if not isinstance(control_python, dict):
@@ -429,9 +434,9 @@ def run_started_task(
                 plan_record = prepare_task_plan(worktree, feature_dir, task_id,
                     task_attempt, base_sha, packet_doc.get('verification', []))
                 accepted_plan, verify_proc = run_accepted_verification(
-                    worktree, main_path.parent, plan_record['plan_id'], args.verification_timeout)
-                if accepted_plan != plan_record:
-                    raise ValueError('PLAN_BINDING_MISMATCH')
+                    worktree, main_path.parent, plan_record['plan_id'], args.verification_timeout,
+                    expected_task_id=task_id, expected_task_attempt=task_attempt,
+                    expected_record=plan_record)
                 plan_record = accepted_plan
                 verification_result = json.loads(verify_proc.stdout)
             except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
@@ -519,9 +524,8 @@ def run_resumed_verification(
                 type(attempt) is not int or not isinstance(resume.get('prior_result_sha256'), str)):
             raise ValueError('resume tuple does not match current attempt')
         accepted, verify_proc = run_accepted_verification(
-            worktree, main_path.parent, plan_id, args.verification_timeout)
-        if accepted.get('task_id') != task_id or accepted.get('task_attempt') != attempt:
-            raise ValueError('accepted plan does not match current task attempt')
+            worktree, main_path.parent, plan_id, args.verification_timeout,
+            expected_task_id=task_id, expected_task_attempt=attempt)
         verification_result = json.loads(verify_proc.stdout)
         verification_summary = verification_evidence_summary(
             verification_result, accepted, verify_proc.returncode)
