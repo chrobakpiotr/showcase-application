@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "task": "T-008",
+  "reviewer": "independent platform-reviewer agent t008_platform_review",
+  "verdict": "PASS",
+  "reviewed_at": "2026-10-13",
+  "scope": [
+    "operator documentation against the current harness and accepted SDD-OBS-001 specification",
+    "manual report path constraints",
+    "generated PDF freshness and rendered readability",
+    "markdown link check and git diff check"
+  ],
+  "findings_resolved": [
+    "recover-verification fail-closed behavior documents exit 5",
+    "all record-manual examples require .agent-runs/control/verification-v2/manual-reports/ in the canonical primary worktree"
+  ],
+  "result": "PASS; no remaining blockers found"
+}
