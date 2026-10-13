@@ -1,0 +1,121 @@
+{
+  "candidate_checkpoint": "e3238a330a378ce128f742154480cc314b450aa0",
+  "feature": "SDD-OBS-001",
+  "file_count": 22,
+  "files": [
+    {
+      "bytes": 2998,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/integration-report.md",
+      "sha256": "bbaebdc1ab11f0f15d38b00ef72e04ed660147ca2d40adb938fb6ac83eb4e206"
+    },
+    {
+      "bytes": 19350,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/closure.json",
+      "sha256": "3d1f40b349a6458a5ca7bfe566717337ce809c2550aff3393e1a83aedd7be5a6"
+    },
+    {
+      "bytes": 31667,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/acceptance-coverage.json",
+      "sha256": "9dcf2f40ee6696d9e5a5660b326b6d08ae7b0098d744bb0cf42355a839f59e16"
+    },
+    {
+      "bytes": 2010,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/command-manifest.json",
+      "sha256": "151a113f5409c991897fc1037598de974fb46cc1501f7ebc86de92c5eab02785"
+    },
+    {
+      "bytes": 2,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/01.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/01.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 64,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/01.stdout.txt",
+      "sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870"
+    },
+    {
+      "bytes": 2,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/02.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/02.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 26,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/02.stdout.txt",
+      "sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789"
+    },
+    {
+      "bytes": 2,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/03.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/03.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 58,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/03.stdout.txt",
+      "sha256": "6a4a6207856e80902ffcd356eed6ef33a1dfe63041910f3d9376a671e35b0817"
+    },
+    {
+      "bytes": 2,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/04.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/04.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 153,
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990/verification/04.stdout.txt",
+      "sha256": "57b4559edd82220e8b8d21db0f30e621516190e882f88b25037d2c8fe421dfbf"
+    },
+    {
+      "bytes": 5330,
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-1/evaluation-report.md",
+      "sha256": "cc87aba5d810d6817f1b0fd28186ea127d753b1c9bcc3e230d242f8bb2ce3fa1"
+    },
+    {
+      "bytes": 120803,
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-1/acceptance-coverage.json",
+      "sha256": "e91f89b4fe3d29c9449ceb1f11a388e670a8cdef4b7d825ba3927a83d6ea5df7"
+    },
+    {
+      "bytes": 37810,
+      "path": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-1/evidence-manifest.json",
+      "sha256": "91f4785620b6fe26c44ddb0aa506e116e5713c96bfa63b49674bca828908f428"
+    },
+    {
+      "bytes": 1119,
+      "path": "docs/specs/SDD-OBS-001/design/master-closure.json",
+      "sha256": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff"
+    },
+    {
+      "bytes": 919,
+      "path": "docs/specs/SDD-OBS-001/design/gate.json",
+      "sha256": "74aeb057e91865f1981aa949dd9e61155dccf99c314fba906128b0b8145ac37d"
+    },
+    {
+      "bytes": 47726,
+      "path": "docs/specs/SDD-OBS-001/verification-contract.json",
+      "sha256": "74d828a6edcb60e3b8b5f6d1da60cfc20a4639854b8e9eec3a2908894b82d3c2"
+    }
+  ],
+  "manifest_excludes_self": true,
+  "packet_sha256": "0a60834155fe657af7aec3a55f56fc5e090ff1aee70d45695dbf97fff8265715",
+  "schema_version": 1,
+  "task": "T-990"
+}
