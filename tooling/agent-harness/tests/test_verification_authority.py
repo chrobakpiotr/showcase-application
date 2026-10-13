@@ -47,13 +47,16 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             self.profile_id, self.profile, self.plan, task_id='T-001', task_attempt=1,
             origin_binding='integration', repository=self.root)
 
-    def test_origin_authority_is_v2_and_execution_fails_closed(self):
+    def test_origin_authority_is_v2_and_resolution_is_read_only(self):
         self.assertEqual(2, self.record['schema_version'])
         for obligation in self.record['obligations']:
             self.assertEqual('independent', obligation['required_origin'])
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-                authority.resolve_execution(self.root, self.record['plan_id'])
+            record, profile, plan, units = authority.resolve_execution(self.root, self.record['plan_id'])
+        self.assertEqual(self.record, record)
+        self.assertEqual(self.profile.content_hash, profile.content_hash)
+        self.assertEqual(self.plan.family.id, plan.family.id)
+        self.assertEqual(self.record['execution_units'], units)
 
     def test_plan_refuses_absent_or_changed_executable_binding(self):
         import copy
@@ -217,14 +220,29 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             store.load_plan_record('verification-plan-v1:sha256:' + 'a' * 64)
         self.assertFalse(store.plans.exists())
 
-    def test_authority_context_cannot_launch_or_create_receipts(self):
+    def test_executor_refuses_context_that_differs_from_accepted_authority(self):
         from verification.executor import execute_plan
-        with mock.patch('verification.executor.VerificationStore') as store, \
+        with mock.patch.object(authority, 'resolve_execution',
+                               return_value=(self.record, self.profile, self.plan, [])), \
+             mock.patch('verification.executor.VerificationStore') as store, \
              mock.patch('verification.candidate.seal_candidate') as seal:
-            for context in (self.record, {'schema_version': 1}):
-                with self.subTest(context=context), self.assertRaisesRegex(
-                        StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-                    execute_plan(self.root, self.profile, self.plan, authority_context=context)
+            with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+                execute_plan(self.root, self.profile, self.plan,
+                             authority_context={'schema_version': 1})
+            store.assert_not_called()
+            seal.assert_not_called()
+
+    def test_executor_refuses_plan_not_equal_to_accepted_plan_before_sealing(self):
+        import dataclasses
+        from verification.executor import execute_plan
+        changed_plan = dataclasses.replace(self.plan, advisory=False)
+        with mock.patch.object(authority, 'resolve_execution',
+                               return_value=(self.record, self.profile, self.plan, [])), \
+             mock.patch('verification.executor.VerificationStore') as store, \
+             mock.patch('verification.candidate.seal_candidate') as seal:
+            with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+                execute_plan(self.root, self.profile, changed_plan,
+                             authority_context=self.record)
             store.assert_not_called()
             seal.assert_not_called()
 
@@ -241,8 +259,11 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
 
     def test_exact_accepted_plan_reconstructs_current_units_without_running_them(self):
         with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-                authority.resolve_execution(self.root, self.record['plan_id'])
+            record, profile, plan, units = authority.resolve_execution(self.root, self.record['plan_id'])
+        self.assertEqual(self.record, record)
+        self.assertEqual(self.profile.content_hash, profile.content_hash)
+        self.assertEqual(self.plan.family.id, plan.family.id)
+        self.assertEqual(self.record['execution_units'], units)
 
     def test_post_seal_candidate_mutation_rejects_before_execution(self):
         (self.root / 'tooling/agent-harness/seed.py').write_text('mutated after seal\n')
@@ -319,6 +340,90 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
                  mock.patch.object(harness, '_read_state_unlocked_pure', return_value=stale_state):
                 with self.assertRaisesRegex(StoreError, 'ACCEPTED_PLAN_UNAVAILABLE'):
                     harness.resolve_accepted_verification_plan(self.root, self.record['plan_id'])
+
+    def test_plan_admission_is_deterministic_and_binds_exact_unit(self):
+        unit = self.record['execution_units'][0]
+        kwargs = dict(repository_id='a' * 64,
+                      plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+                      admission_transition_id='00000000-0000-4000-8000-000000000002')
+        admission = authority.build_plan_admission_record(self.record, unit['unit_id'], **kwargs)
+        self.assertEqual(admission, authority.build_plan_admission_record(
+            self.record, unit['unit_id'], **kwargs))
+        self.assertEqual('independent', admission['execution_origin'])
+        self.assertEqual(admission['admission_id'], authority.plan_admission_id(
+            {key: value for key, value in admission.items() if key != 'admission_id'}))
+        self.assertEqual(self.record['plan_id'], admission['plan_id'])
+        self.assertEqual(self.record['candidate_identity'], admission['candidate_identity'])
+        self.assertEqual(unit['obligation_ids'], admission['obligation_ids'])
+        self.assertEqual(admission, authority.validate_plan_admission_record(
+            admission, self.record, unit))
+
+        changed_unit = dict(unit, obligation_ids=[])
+        with self.assertRaisesRegex(StoreError, 'invalid-execution-admission'):
+            authority.validate_plan_admission_record(admission, self.record, changed_unit)
+        tampered = dict(admission, final_changed_surface_id='0' * 64)
+        with self.assertRaisesRegex(StoreError, 'invalid-execution-admission'):
+            authority.validate_plan_admission_record(tampered, self.record, unit)
+
+    def test_task_admission_cannot_be_upgraded_to_independent_origin(self):
+        plan = build_plan(self.root, self.profile, self.family, task_commands=['python3 -V'])
+        record = authority.execution_plan_record('SDD-OBS-001', 'f' * 64, 2,
+            self.profile_id, self.profile, plan, task_id='T-001', task_attempt=1,
+            task_commands=['python3 -V'], origin_binding='integration', repository=self.root)
+        task_unit = next(unit for unit in record['execution_units']
+                         if unit['required_origin'] == 'task')
+        admission = authority.build_plan_admission_record(record, task_unit['unit_id'],
+            repository_id='a' * 64,
+            plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+            admission_transition_id='00000000-0000-4000-8000-000000000002')
+        self.assertEqual('task', admission['execution_origin'])
+        self.assertIsNone(admission['independent_execution_class'])
+        forged_plan = dict(record)
+        forged_plan['execution_units'] = [
+            dict(unit, required_origin='independent',
+                 independent_execution_class=authority.INDEPENDENT_CLASS)
+            if unit['unit_id'] == task_unit['unit_id'] else unit
+            for unit in record['execution_units']]
+        with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+            authority.build_plan_admission_record(forged_plan, task_unit['unit_id'],
+                repository_id='a' * 64,
+                plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+                admission_transition_id='00000000-0000-4000-8000-000000000002')
+
+    def test_reservation_and_consumption_are_bound_and_create_once_shapes(self):
+        unit = self.record['execution_units'][0]
+        admission = authority.build_plan_admission_record(self.record, unit['unit_id'],
+            repository_id='a' * 64,
+            plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+            admission_transition_id='00000000-0000-4000-8000-000000000002')
+        reservation = authority.build_plan_launch_reservation(admission,
+            transition_id='00000000-0000-4000-8000-000000000003')
+        self.assertEqual(reservation, authority.validate_plan_launch_reservation(
+            reservation, admission))
+        consumption = authority.build_launch_consumption_record(admission, reservation,
+            transition_id='00000000-0000-4000-8000-000000000004')
+        self.assertEqual(consumption, authority.validate_launch_consumption_record(
+            consumption, admission, reservation))
+
+        changed_admission = dict(admission, task_attempt=2)
+        with self.assertRaisesRegex(StoreError, 'invalid-launch-reservation'):
+            authority.validate_plan_launch_reservation(reservation, changed_admission)
+        changed_consumption = dict(consumption, reservation_id='launch-reservation-v1:wrong')
+        with self.assertRaisesRegex(StoreError, 'invalid-launch-consumption'):
+            authority.validate_launch_consumption_record(changed_consumption, admission, reservation)
+
+    def test_origin_records_reject_malformed_transition_and_membership(self):
+        unit = self.record['execution_units'][0]
+        with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+            authority.build_plan_admission_record(self.record, unit['unit_id'],
+                repository_id='not-a-repository-id',
+                plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+                admission_transition_id='00000000-0000-4000-8000-000000000002')
+        with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+            authority.build_plan_admission_record(self.record, 'unknown-unit',
+                repository_id='a' * 64,
+                plan_acceptance_transition_id='00000000-0000-4000-8000-000000000001',
+                admission_transition_id='00000000-0000-4000-8000-000000000002')
 
 
 if __name__ == '__main__':

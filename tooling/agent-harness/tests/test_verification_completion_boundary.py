@@ -24,6 +24,13 @@ class OriginCompletionBoundaryTest(unittest.TestCase):
         # their settings afterwards. No lifecycle operation is mocked.
         self.addCleanup(setattr, control_harness, 'STATE_DIR', control_harness.STATE_DIR)
         control_harness.STATE_DIR = self.fixture.root / '.agent-state'
+        # The accepted task command is a concrete executable binding, so this
+        # fixture supplies the same committed wrapper the real planner requires.
+        wrapper = self.fixture.root / 'gradlew'
+        wrapper.write_text('#!/bin/sh\nexit 0\n', encoding='utf-8')
+        wrapper.chmod(0o700)
+        subprocess.run(['git', 'add', 'gradlew'], check=True)
+        subprocess.run(['git', 'commit', '-qm', 'add bound verification executable'], check=True)
         self.feature = self.fixture.feature()
         self.doc = harness.load_validated(self.feature)
         harness.write_packet(self.doc, harness.task_index(self.doc)['T-001'], self.feature)
@@ -87,7 +94,8 @@ class OriginCompletionBoundaryTest(unittest.TestCase):
         self.assertEqual(1, current['tasks']['T-001']['attempts'])
         diagnostic = io.StringIO()
         with contextlib.redirect_stderr(diagnostic), self.assertRaises(SystemExit):
-            harness.require_available_completion_origin(current, 'T-001', current['tasks']['T-001'])
+            harness.require_available_completion_origin(
+                self.feature, current, 'T-001', current['tasks']['T-001'])
         self.assertIn('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE', diagnostic.getvalue())
 
     def test_unplanned_legacy_completion_retains_existing_behavior(self):
@@ -97,15 +105,14 @@ class OriginCompletionBoundaryTest(unittest.TestCase):
 
     def test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs(self):
         from verification import authority
-        from verification.store import StoreError, VerificationStore
+        from verification.store import VerificationStore
         record = authority.prepare_task_plan(self.fixture.root, self.feature,
             'T-001', 1, self.checkpoint, self.doc['tasks'][0]['verification'])
         self.assertEqual(record, VerificationStore(self.fixture.root).load_plan_record(record['plan_id']))
         self.assertEqual(record, authority.resolve_accepted(self.fixture.root, record['plan_id']))
         origins = {item['required_origin'] for item in record['obligations']}
         self.assertEqual({'task', 'independent'}, origins)
-        with self.assertRaisesRegex(StoreError, 'VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE'):
-            authority.resolve_execution(self.fixture.root, record['plan_id'])
+        self.assertEqual(record, authority.resolve_execution(self.fixture.root, record['plan_id'])[0])
         self.assert_blocked(harness.cmd_complete)
 
 
