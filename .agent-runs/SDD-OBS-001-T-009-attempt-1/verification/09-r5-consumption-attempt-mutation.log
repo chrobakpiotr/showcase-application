@@ -1,0 +1,15 @@
+test_consumption_refuses_task_attempt_mismatch_with_stable_code (test_verification_lifecycle.VerificationLifecycleTest.test_consumption_refuses_task_attempt_mismatch_with_stable_code) ... FAIL
+
+======================================================================
+FAIL: test_consumption_refuses_task_attempt_mismatch_with_stable_code (test_verification_lifecycle.VerificationLifecycleTest.test_consumption_refuses_task_attempt_mismatch_with_stable_code)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-009/tooling/agent-harness/tests/test_verification_lifecycle.py", line 223, in test_consumption_refuses_task_attempt_mismatch_with_stable_code
+    with self.assertRaisesRegex(StoreError, '^VERIFICATION_ATTEMPT_BINDING_MISMATCH$'):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: StoreError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 1.984s
+
+FAILED (failures=1)

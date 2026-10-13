@@ -1,0 +1,12 @@
+test_feature_reconciliation_cannot_erase_v2_completion_requirement (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_feature_reconciliation_cannot_erase_v2_completion_requirement) ... ok
+test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs) ... ok
+test_superseded_v2_authority_still_blocks_same_attempt_completion (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_superseded_v2_authority_still_blocks_same_attempt_completion) ... ok
+test_unplanned_legacy_completion_refuses_stale_checkpoint (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_unplanned_legacy_completion_refuses_stale_checkpoint) ... ok
+test_unplanned_legacy_completion_retains_existing_behavior (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_unplanned_legacy_completion_retains_existing_behavior) ... ok
+test_v2_normal_completion_rejects_fabricated_legacy_success (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_v2_normal_completion_rejects_fabricated_legacy_success) ... ok
+test_v2_repair_rejects_before_legacy_replay_or_publication (tooling.agent-harness.tests.test_verification_completion_boundary.OriginCompletionBoundaryTest.test_v2_repair_rejects_before_legacy_replay_or_publication) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 9.466s
+
+OK

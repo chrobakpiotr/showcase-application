@@ -1,0 +1,72 @@
+test_canonical_validation_enforces_dropped_unique_items_constraint (tooling.agent-harness.tests.test_runner.RunnerTest.test_canonical_validation_enforces_dropped_unique_items_constraint) ... ERROR: agent result violates canonical task-result schema: ['/rework_tasks: uniqueItems constraint violated']
+ok
+test_canonical_validation_enforces_nested_enum_pattern_and_unknown_fields (tooling.agent-harness.tests.test_runner.RunnerTest.test_canonical_validation_enforces_nested_enum_pattern_and_unknown_fields) ... ok
+test_claude_command_strips_meta_schema_without_mutating_canonical_schema (tooling.agent-harness.tests.test_runner.RunnerTest.test_claude_command_strips_meta_schema_without_mutating_canonical_schema) ... ok
+test_claude_command_uses_restricted_oauth_auth_not_bare_mode (tooling.agent-harness.tests.test_runner.RunnerTest.test_claude_command_uses_restricted_oauth_auth_not_bare_mode) ... ok
+test_claude_print_command_uses_a_real_generated_projection (tooling.agent-harness.tests.test_runner.RunnerTest.test_claude_print_command_uses_a_real_generated_projection) ... ok
+test_claude_result_rejects_unstructured_result_fallback (tooling.agent-harness.tests.test_runner.RunnerTest.test_claude_result_rejects_unstructured_result_fallback) ... ERROR: Claude response did not contain structured_output matching the task result schema
+ok
+test_codex_and_claude_result_schemas_are_projected_per_exact_cli_version (tooling.agent-harness.tests.test_runner.RunnerTest.test_codex_and_claude_result_schemas_are_projected_per_exact_cli_version) ... ok
+test_codex_command_accepts_explicit_output_schema (tooling.agent-harness.tests.test_runner.RunnerTest.test_codex_command_accepts_explicit_output_schema) ... ok
+test_codex_command_is_ephemeral_json_and_sandboxed (tooling.agent-harness.tests.test_runner.RunnerTest.test_codex_command_is_ephemeral_json_and_sandboxed) ... ok
+test_extract_claude_structured_output (tooling.agent-harness.tests.test_runner.RunnerTest.test_extract_claude_structured_output) ... ok
+test_fingerprint_does_not_follow_untracked_symlink (tooling.agent-harness.tests.test_runner.RunnerTest.test_fingerprint_does_not_follow_untracked_symlink) ... ok
+test_fingerprint_tracks_broken_symlink_target_without_dereference (tooling.agent-harness.tests.test_runner.RunnerTest.test_fingerprint_tracks_broken_symlink_target_without_dereference) ... ok
+test_packet_protocol_v3_requires_lease_policy (tooling.agent-harness.tests.test_runner.RunnerTest.test_packet_protocol_v3_requires_lease_policy) ... ERROR: task packet lease_policy is missing or invalid
+ok
+test_print_command_without_provider_cli_uses_explicit_preview_profile (tooling.agent-harness.tests.test_runner.RunnerTest.test_print_command_without_provider_cli_uses_explicit_preview_profile) ... ok
+test_projection_manifest_hashes_exact_provider_schema_bytes (tooling.agent-harness.tests.test_runner.RunnerTest.test_projection_manifest_hashes_exact_provider_schema_bytes) ... ok
+test_prompt_contains_context_trust_boundary (tooling.agent-harness.tests.test_runner.RunnerTest.test_prompt_contains_context_trust_boundary) ... ok
+test_protocol_v4_validates_context_trust (tooling.agent-harness.tests.test_runner.RunnerTest.test_protocol_v4_validates_context_trust) ... ERROR: task packet context_trust mismatch; expected={'spec': 'trusted'}, actual={'spec': 'untrusted'}
+ok
+test_read_only_postcondition_rejects_reviewer_mutation (tooling.agent-harness.tests.test_runner.RunnerTest.test_read_only_postcondition_rejects_reviewer_mutation) ... ERROR: reviewer modified the implementation; review-existing runs are read-only
+ok
+test_red_green_result_requires_tdd_evidence (tooling.agent-harness.tests.test_runner.RunnerTest.test_red_green_result_requires_tdd_evidence) ... ERROR: passing red-green-refactor builder result requires tdd_evidence
+ok
+test_render_prompt_contains_safety_contract (tooling.agent-harness.tests.test_runner.RunnerTest.test_render_prompt_contains_safety_contract) ... ok
+test_render_prompt_marks_human_resolution_feedback_as_trusted (tooling.agent-harness.tests.test_runner.RunnerTest.test_render_prompt_marks_human_resolution_feedback_as_trusted) ... ok
+test_runner_consumes_only_the_supplied_accepted_plan (tooling.agent-harness.tests.test_runner.RunnerTest.test_runner_consumes_only_the_supplied_accepted_plan) ... ok
+test_runner_launches_verify_under_isolated_active_interpreter (tooling.agent-harness.tests.test_runner.RunnerTest.test_runner_launches_verify_under_isolated_active_interpreter) ... ok
+test_runner_refuses_missing_or_changed_control_binding_before_launch (tooling.agent-harness.tests.test_runner.RunnerTest.test_runner_refuses_missing_or_changed_control_binding_before_launch) ... ok
+test_runner_without_lifecycle_accepted_plan_fails_closed_before_payload (tooling.agent-harness.tests.test_runner.RunnerTest.test_runner_without_lifecycle_accepted_plan_fails_closed_before_payload) ... ok
+test_unknown_provider_version_or_schema_keyword_fails_closed (tooling.agent-harness.tests.test_runner.RunnerTest.test_unknown_provider_version_or_schema_keyword_fails_closed) ... ok
+test_validate_result_requires_contract (tooling.agent-harness.tests.test_runner.RunnerTest.test_validate_result_requires_contract) ... ERROR: agent result violates canonical task-result schema: ['/summary: required property is missing', '/changed_paths: required property is missing', '/commands: required property is missing', '/assumptions: required property is missing', '/residual_risks: required property is missing']
+ok
+test_busy_verification_lock_is_manifested_before_any_outcome_mutation (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_busy_verification_lock_is_manifested_before_any_outcome_mutation) ... ERROR: VERIFICATION_OWNERSHIP_BLOCKED: busy
+ok
+test_evaluator_failure_reopens_named_builder_with_feedback (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_evaluator_failure_reopens_named_builder_with_feedback) ... ok
+test_human_resolution_makes_escalated_task_resumable_with_feedback (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_human_resolution_makes_escalated_task_resumable_with_feedback) ... ok
+test_malformed_verifier_json_becomes_blocked_outcome_without_runner_retry (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_malformed_verifier_json_becomes_blocked_outcome_without_runner_retry) ... ok
+test_malformed_verifier_shapes_fail_closed_without_type_errors (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_malformed_verifier_shapes_fail_closed_without_type_errors) ... ok
+test_needs_human_escalates_immediately (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_needs_human_escalates_immediately) ... ok
+test_owner_is_scoped_by_orchestration_run (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_owner_is_scoped_by_orchestration_run) ... ok
+test_provider_routing_separates_evaluator (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_provider_routing_separates_evaluator) ... ok
+test_started_and_resumed_verification_refuse_identity_mismatch_before_launch (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_started_and_resumed_verification_refuse_identity_mismatch_before_launch) ... ok
+test_started_and_resumed_verification_refuse_missing_or_swapped_interpreter_before_launch (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_started_and_resumed_verification_refuse_missing_or_swapped_interpreter_before_launch) ... ok
+test_started_and_resumed_verification_use_bound_isolated_interpreter_and_safe_env (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_started_and_resumed_verification_use_bound_isolated_interpreter_and_safe_env) ... ok
+test_started_verification_resume_routes_around_provider_runner (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_started_verification_resume_routes_around_provider_runner) ... ok
+test_verification_blockages_preserve_reason_and_never_start_a_new_builder_attempt (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_verification_blockages_preserve_reason_and_never_start_a_new_builder_attempt) ... ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ERROR: HUMAN_RESOLUTION_NOT_ALLOWED: verification blockage requires its scoped verification resume path
+ok
+test_verification_evidence_binds_profile_and_distinguishes_gate_dispositions (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_verification_evidence_binds_profile_and_distinguishes_gate_dispositions) ... ok
+test_verification_resume_rejects_changed_prior_builder_result_before_running_verifier (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_verification_resume_rejects_changed_prior_builder_result_before_running_verifier) ... ok
+test_verification_resume_reuses_prior_builder_result_without_provider_launch (tooling.agent-harness.tests.test_orchestrate.OrchestrateTest.test_verification_resume_reuses_prior_builder_result_without_provider_launch) ... ok
+
+----------------------------------------------------------------------
+Ran 43 tests in 8.681s
+
+OK
+FAILED T-900 attempt=1/3
+REOPENED T-001; invalidated descendants: T-900
+HUMAN_RESOLVED T-001 -> retry authorized; artifact=/tmp/tmps1ltszxr/docs/specs/TST-002/evidence/human-resolutions/T-001/20261013T095721.550577Z.json
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3
+ESCALATED T-001 attempt=1/3

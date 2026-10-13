@@ -1,0 +1,17 @@
+{
+  "attempt": 1,
+  "base_commit": "60ba82e91d54e9658a0b577261e68c0598df0162",
+  "files": {
+    "01-authority.log": "cdd2e9ba35fb1873eb849e2cc82df86651d4473ac23b03191e610e6a28afcde2",
+    "02-completion-boundary.log": "3e0d7ee1defbade6437c606bd250542328e6f7ff7a866c9ccedd06ae8580d88a",
+    "03-execution-lifecycle.log": "081d59b5de077dfe33e1784c8c40e2dcbd9f9c49b2faeb8605f69a55c00ef456",
+    "04-harness-sharded.log": "5b15182361b11f4f36f5b85fbd3717704dda0cff27adc84f12d47df580d801c0",
+    "05-runner-orchestrate.log": "40c925701839fc45ed7d705e27c9764e3518dbaa222687c0f3ac1dfdf467a5dc",
+    "06-contract.log": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789",
+    "06-qualified-backend-absence.log": "40c7ee2c9413a84fb48e0515f77c3f726eaaa4ffd7acb1c9ae64d360192ae6e2",
+    "review-round-2-results.md": "5ae14fc9df2108c398d89509aa398eed622c87aff382d553f395ac843ab247e1"
+  },
+  "schema_version": 1,
+  "task": "SDD-OBS-001/T-009",
+  "worktree_diff_sha256": "125bc36cdf78eef35dd514ad70330c60380fd3ef8239f7c36be25086b03e10ab"
+}

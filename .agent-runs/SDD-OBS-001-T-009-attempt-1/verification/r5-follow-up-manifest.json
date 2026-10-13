@@ -1,0 +1,22 @@
+{
+  "candidate_commit": "6a4caeb",
+  "candidate_scope_diff_sha256": "094316030f5779626c5666113282abec8f93f7c0fc3b0e0fcdd607f36b1b2f28",
+  "files": {
+    "01-authority.log": "cdd2e9ba35fb1873eb849e2cc82df86651d4473ac23b03191e610e6a28afcde2",
+    "02-completion-boundary.log": "3e0d7ee1defbade6437c606bd250542328e6f7ff7a866c9ccedd06ae8580d88a",
+    "03-execution-lifecycle.log": "081d59b5de077dfe33e1784c8c40e2dcbd9f9c49b2faeb8605f69a55c00ef456",
+    "04-harness-sharded.log": "5b15182361b11f4f36f5b85fbd3717704dda0cff27adc84f12d47df580d801c0",
+    "05-runner-orchestrate.log": "40c925701839fc45ed7d705e27c9764e3518dbaa222687c0f3ac1dfdf467a5dc",
+    "06-contract.log": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789",
+    "06-qualified-backend-absence.log": "40c7ee2c9413a84fb48e0515f77c3f726eaaa4ffd7acb1c9ae64d360192ae6e2",
+    "07-r5-focused-suite.log": "66c745f1028701f05f01dee27bd3bf1b311b80574d53d10be5fbbd24dfbe413f",
+    "08-r5-admission-attempt-mutation.log": "e2a8287a0a5001637201ce17adc289a6cbdbc06ec936b8bdcfd2726e8746017d",
+    "09-r5-consumption-attempt-mutation.log": "98d452d3f94e816556f2d7ab0aa3fda5103cc2642bc755b6a5a4f0d9d0802f28",
+    "manifest.json": "756141c9c27ba5b40a7e0ef973c3a9e5b8abb34f7b655dc69d7df22ad13fbb07",
+    "r5-follow-up.md": "10daf2dc434a411a1050b120a28000f63a83c100d04f59269207414d22caba03",
+    "review-round-2-results.md": "d90789c36bd26a5f60be96d3514d6063dfbd9ee31bfd67d388650c3fdbf0bf51"
+  },
+  "review": "Harness round 2 R5/R6 follow-up",
+  "schema_version": 1,
+  "task": "SDD-OBS-001/T-009"
+}
