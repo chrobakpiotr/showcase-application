@@ -2793,6 +2793,101 @@ class HarnessTest(unittest.TestCase):
         subprocess.run(['git', 'branch', '-D', 'agent/TST-001/T-B'], cwd=self.root, check=True,
                        capture_output=True)
 
+    def test_existing_clean_worktree_without_dependency_ancestry_is_rejected(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture(stale=False)
+        stale_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                    capture_output=True, text=True, check=True).stdout.strip()
+        target = harness.worktree_path('TST-001', 'T-B')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', 'agent/TST-001/T-B',
+                        stale_base], cwd=self.root, check=True)
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        self.assertIn('WORKTREE_STALE_BASE', error.getvalue())
+        self.assertTrue(target.exists(), 'the guard must leave a pre-existing worktree untouched')
+        actual_head = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=target,
+                                     capture_output=True, text=True, check=True).stdout.strip()
+        self.assertEqual(stale_base, actual_head)
+        self.assertNotEqual(0, subprocess.run(
+            ['git', 'merge-base', '--is-ancestor', dependency_checkpoint, actual_head], cwd=self.root
+        ).returncode)
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=self.root, check=True)
+        subprocess.run(['git', 'branch', '-D', 'agent/TST-001/T-B'], cwd=self.root, check=True,
+                       capture_output=True)
+
+    def test_existing_clean_worktree_with_dependency_ancestry_is_reused(self):
+        feature, doc, state, dependency_checkpoint = self._worktree_refresh_fixture(stale=False)
+        target = harness.worktree_path('TST-001', 'T-B')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', 'agent/TST-001/T-B',
+                        dependency_checkpoint], cwd=self.root, check=True)
+
+        reused = harness.prepare_task_worktree(feature, doc, state, doc['tasks'][1])
+
+        self.assertEqual(target, reused)
+        self.assertEqual(dependency_checkpoint, subprocess.run(
+            ['git', 'rev-parse', 'HEAD'], cwd=reused, capture_output=True, text=True, check=True
+        ).stdout.strip())
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=self.root, check=True)
+        subprocess.run(['git', 'branch', '-D', 'agent/TST-001/T-B'], cwd=self.root, check=True,
+                       capture_output=True)
+
+    def test_dependency_free_task_requires_valid_feature_base(self):
+        for base_commit in (None, 'not-a-full-commit'):
+            with self.subTest(base_commit=base_commit):
+                with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+                    harness.task_base_commits({'depends_on': []},
+                                              {'tasks': {}, 'base_commit': base_commit})
+                self.assertIn('WORKTREE_BASE_UNAVAILABLE', error.getvalue())
+
+    def test_dependency_free_stale_worktree_is_rejected(self):
+        feature = self.feature([
+            {'id': 'T-A', 'title': 'A', 'objective': 'A', 'role': 'builder', 'depends_on': [],
+             'allowed_paths': ['task-output.txt'], 'risk_tags': [], 'acceptance_criteria': ['AC-001'],
+             'verification': ['true']},
+        ])
+        (self.root / 'AGENTS.md').write_text('# agents\n')
+        (self.root / '.gitignore').write_text('.agent-state/\n')
+        (self.root / 'docs/agentic-sdd/constitution.md').write_text('# constitution\n')
+        harness_copy = self.root / 'tooling/agent-harness/harness.py'
+        harness_copy.parent.mkdir(parents=True)
+        harness_copy.write_bytes(MODULE_PATH.read_bytes())
+        subprocess.run(['git', 'add', '.'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'accepted task base'], cwd=self.root, check=True)
+        stale_commit = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                      capture_output=True, text=True, check=True).stdout.strip()
+        target = harness.worktree_path('TST-001', 'T-A')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        branch = 'agent/TST-001/T-A'
+        subprocess.run(['git', 'worktree', 'add', '--quiet', str(target), '-b', branch, stale_commit],
+                       cwd=self.root, check=True)
+        (self.root / 'unrelated-after-base.txt').write_text('advance accepted feature base\n')
+        subprocess.run(['git', 'add', 'unrelated-after-base.txt'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'advance feature base'], cwd=self.root, check=True)
+        accepted_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                       capture_output=True, text=True, check=True).stdout.strip()
+        doc = harness.load_json(feature / 'tasks.json')
+        state = harness.initial_state(feature, doc)
+        state.update({'base_commit': accepted_base, 'base_kind': 'head'})
+        harness.save_state(feature, state)
+
+        try:
+            with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+                harness.prepare_task_worktree(feature, doc, state, doc['tasks'][0])
+            self.assertIn('WORKTREE_STALE_BASE', error.getvalue())
+            self.assertEqual(stale_commit, subprocess.run(
+                ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True
+            ).stdout.strip())
+        finally:
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=self.root,
+                           check=False, capture_output=True)
+            subprocess.run(['git', 'branch', '-D', branch], cwd=self.root, check=False,
+                           capture_output=True)
+
     def test_active_design_feature_requires_fresh_gate(self):
         feature = self.feature()
         config = {
@@ -4232,11 +4327,37 @@ class CompletionCorrectionTest(unittest.TestCase):
         state = harness.initial_state(feature, doc)
         harness.write_packet(doc, harness.task_index(doc)['T-A'], feature, state=state)
         entry = state['tasks']['T-A']
+        # Completion ancestry fixtures need a real, committed feature base and
+        # a later task checkpoint. Keep lifecycle state outside both commits.
+        subprocess.run(['git', 'add', 'docs'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'fixture feature base'], cwd=self.root, check=True)
+        base_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+        checkpoint_file = self.root / 'src' / 'a' / 'fixture-checkpoint.txt'
+        checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint_file.write_text('task checkpoint\n', encoding='utf-8')
+        subprocess.run(['git', 'add', 'src/a/fixture-checkpoint.txt'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'fixture task checkpoint'], cwd=self.root, check=True)
+        checkpoint_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()
+        state['base_commit'] = base_commit
+        state['base_kind'] = 'head'
         entry.update({'status': status, 'attempts': attempts, 'owner': 'worker-a',
-                      'checkpoint_commit': subprocess.check_output(
-                          ['git', 'rev-parse', 'HEAD'], cwd=self.root, text=True).strip()})
+                      'checkpoint_commit': checkpoint_commit})
         harness.save_state(feature, state)
         return feature, doc
+
+    def assert_stale_checkpoint_refused(self, feature, doc):
+        stale = subprocess.check_output(
+            ['git', 'rev-list', '--max-parents=0', 'HEAD'], cwd=self.root, text=True).splitlines()[0]
+        state = harness.load_state(feature, doc)
+        diagnostic = io.StringIO()
+        with contextlib.redirect_stderr(diagnostic), self.assertRaises(SystemExit):
+            harness.require_task_commit_ancestry(
+                feature, harness.task_index(doc)['T-A'], state, stale, operation='COMPLETION')
+        self.assertIn('COMPLETION_STALE_BASE', diagnostic.getvalue())
 
     def evidence_doc(self, feature, doc, *, mutate=None):
         state = harness.load_state(feature, doc)
@@ -4296,9 +4417,40 @@ class CompletionCorrectionTest(unittest.TestCase):
 
     def test_m4_03_complete_required_vc_proof_accepts_completion(self):
         feature, doc = self.completion_fixture()
+        self.assert_stale_checkpoint_refused(feature, doc)
         path = self.write_evidence(self.evidence_doc(feature, doc))
         harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
         self.assertEqual('completed', harness.load_state(feature, doc)['tasks']['T-A']['status'])
+
+    def test_completion_rejects_checkpoint_not_descending_from_dependency(self):
+        feature, doc = self.completion_fixture()
+        accepted_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                       capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(['git', 'checkout', '-q', '-b', 'fixture/dependency'], cwd=self.root, check=True)
+        (self.root / 'dependency-only.txt').write_text('dependency checkpoint\n')
+        subprocess.run(['git', 'add', 'dependency-only.txt'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'dependency checkpoint'], cwd=self.root, check=True)
+        dependency_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                              capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(['git', 'checkout', '-q', '--detach', accepted_base], cwd=self.root, check=True)
+
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-A'].update({'status': 'completed', 'checkpoint_commit': dependency_checkpoint})
+        state['tasks']['T-B'].update({'status': 'running', 'attempts': 1, 'owner': 'worker-a',
+                                      'checkpoint_commit': accepted_base})
+        harness.save_state(feature, state)
+        evidence = HarnessTest.passing_completion_evidence(
+            self, feature, doc, 'T-B', 1, accepted_base)
+        path = self.write_evidence(evidence)
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-B', owner='worker-a', evidence=str(path)))
+
+        self.assertIn('COMPLETION_STALE_BASE', error.getvalue())
+        self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-B']['status'])
+        self.assertEqual([], harness.completion_records(feature, 'T-B'))
 
     def test_m4_04_missing_required_ac_rejects_completion_red(self):
         feature, doc = self.completion_fixture()
@@ -4350,6 +4502,7 @@ class CompletionCorrectionTest(unittest.TestCase):
         state = harness.load_state(feature, doc)
         entry = state['tasks']['T-A']
         entry.update({'completed_at': '2026-01-01T00:00:00+00:00', 'evidence': 'old-evidence.json'})
+        state.update({'base_commit': entry['checkpoint_commit'], 'base_kind': 'head'})
         harness.save_state(feature, state)
         active = harness.resolve_active_packet(feature, doc, 'T-A', state=state)
         binding = {
@@ -4616,7 +4769,7 @@ class CompletionCorrectionTest(unittest.TestCase):
                        stdout=subprocess.DEVNULL)
         try:
             linked_feature = linked / 'docs/specs/TST-001'
-            linked_feature.mkdir(parents=True)
+            linked_feature.mkdir(parents=True, exist_ok=True)
             for name in ('spec.md', 'plan.md', 'tasks.json', 'verification-contract.json'):
                 shutil.copy2(feature / name, linked_feature / name)
             self.assertEqual(harness.git_common_dir(feature), harness.git_common_dir(linked_feature))
@@ -4755,6 +4908,25 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         changed = dict(evidence); changed['checkpoint'] = 'f' * 40
         with self.assertRaises(SystemExit): self._complete(feature, self.write_evidence(changed))
 
+    def test_m42_repair_rejects_checkpoint_stale_to_dependency_free_feature_base(self):
+        feature, doc, _, _, _, path = self._setup_repair()
+        historical = harness.completion_records(feature, 'T-A')[0]
+        tree = subprocess.run(['git', 'rev-parse', f"{historical['checkpoint']}^{{tree}}"], cwd=self.root,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        unrelated_base = subprocess.run(
+            ['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+             'commit-tree', tree, '-m', 'unrelated accepted feature base'],
+            cwd=self.root, capture_output=True, text=True, check=True).stdout.strip()
+        state = harness.load_state(feature, doc)
+        state.update({'base_commit': unrelated_base, 'base_kind': 'head'})
+        harness.save_state(feature, state)
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            self._complete(feature, path)
+
+        self.assertIn('COMPLETION_REPAIR_STALE_BASE', error.getvalue())
+        self.assertEqual([], harness.repaired_completion_records(feature, 'T-A'))
+
     def test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected(self):
         cases = ['correction', 'authorization', 'claim', 'owner', 'attempt']
         for case in cases:
@@ -4889,7 +5061,7 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         subprocess.run(['git', 'worktree', 'add', '--detach', str(linked), 'HEAD'], cwd=self.root, check=True,
                        stdout=subprocess.DEVNULL)
         try:
-            linked_feature = linked / 'docs/specs/TST-001'; linked_feature.mkdir(parents=True)
+            linked_feature = linked / 'docs/specs/TST-001'; linked_feature.mkdir(parents=True, exist_ok=True)
             for name in ('spec.md', 'plan.md', 'tasks.json', 'verification-contract.json'):
                 shutil.copy2(feature / name, linked_feature / name)
             linked_state = harness.load_state(linked_feature, doc)
@@ -4960,12 +5132,13 @@ class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionTest):
         historical = next(x for x in harness.completion_records(feature, 'T-A')
                           if x['record_id'] == correction['original_completion_id'])
         active = harness.resolve_active_packet(feature, doc, 'T-A', state=harness.load_state(feature, doc))
-        evidence = self.evidence_doc(feature, doc); evidence['checkpoint'] = 'c' * 40
+        checkpoint = harness.load_state(feature, doc)['tasks']['T-A']['checkpoint_commit']
+        evidence = self.evidence_doc(feature, doc); evidence['checkpoint'] = checkpoint
         path = self.write_evidence(evidence)
         args = argparse.Namespace(feature_dir=feature, task_id='T-A', attempt=5,
             historical_completion_id=historical['record_id'], correction_id=correction['record_id'],
             authorization_id=authorization['record_id'], claim_id=claim['record_id'], owner='repair-worker',
-            checkpoint='c' * 40, by='master operator', reason='explicitly bind repaired source checkpoint')
+            checkpoint=checkpoint, by='master operator', reason='explicitly bind repaired source checkpoint')
         return feature, doc, correction, authorization, claim, historical, active, evidence, path, args
 
     def _bind(self, args):
@@ -5089,16 +5262,16 @@ class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionTest):
         linked = self.root / 'linked-m43'
         subprocess.run(['git', 'worktree', 'add', '--detach', str(linked), 'HEAD'], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
         try:
-            other = linked / 'docs/specs/TST-001'; other.mkdir(parents=True)
+            other = linked / 'docs/specs/TST-001'; other.mkdir(parents=True, exist_ok=True)
             for name in ('spec.md', 'plan.md', 'tasks.json', 'verification-contract.json'): shutil.copy2(feature / name, other / name)
             self.assertEqual(harness.repair_checkpoint_bindings(feature, 'T-A'), harness.repair_checkpoint_bindings(other, 'T-A'))
-            self.assertEqual('c' * 40, harness.repair_checkpoint_bindings(other, 'T-A')[0]['checkpoint'])
+            self.assertEqual(args.checkpoint, harness.repair_checkpoint_bindings(other, 'T-A')[0]['checkpoint'])
         finally: subprocess.run(['git', 'worktree', 'remove', '--force', str(linked)], cwd=self.root, check=True, stdout=subprocess.DEVNULL)
 
     def test_m43_41_49_c2_requires_checkpoint_and_keeps_other_validation(self):
         feature, _, _, _, _, _, _, evidence, path, args = self._legacy_repair()
         self._bind(args); self._complete(feature, path)
-        self.assertEqual('c' * 40, harness.repaired_completion_records(feature, 'T-A')[0]['checkpoint'])
+        self.assertEqual(args.checkpoint, harness.repaired_completion_records(feature, 'T-A')[0]['checkpoint'])
         self._complete(feature, path)  # exact C2 replay remains idempotent
         self.assertEqual(1, len(harness.repaired_completion_records(feature, 'T-A')))
         changed_evidence = dict(evidence); changed_evidence['checkpoint'] = 'd' * 40
