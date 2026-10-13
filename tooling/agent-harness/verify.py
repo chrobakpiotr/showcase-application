@@ -3,6 +3,14 @@
 import argparse
 import pathlib
 import json
+import sys
+
+# Isolated Python deliberately omits the script directory. This file is part
+# of the trusted control plane, so add only its own canonical directory before
+# importing repository-local verification modules.
+CONTROL_DIR = pathlib.Path(__file__).resolve().parent
+if str(CONTROL_DIR) not in sys.path:
+    sys.path.insert(0, str(CONTROL_DIR))
 
 from verification.model import Family, InvalidPolicy
 from verification.planner import build_plan
@@ -114,7 +122,7 @@ def main(argv=None):
         profile_path = (trusted_root / f'{args.profile}.json').resolve(strict=True)
         if profile_path.parent != trusted_root.resolve(strict=True):
             raise InvalidPolicy('profile-outside-trusted-root')
-        profile = load_profile(profile_path)
+        profile = load_profile(profile_path, repository=pathlib.Path(args.repo))
         family = Family(args.family_id, args.base_sha, args.origin_policy, profile.content_hash, args.policy_checkpoint)
         result = build_plan(args.repo, profile, family, task_commands=args.task_command)
         print(json.dumps(result.to_record(), sort_keys=True))

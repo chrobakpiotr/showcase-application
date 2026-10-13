@@ -1,0 +1,9 @@
+{
+  "feature": "SDD-OBS-001",
+  "feature_fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+  "incident_id": "showcase-sdd-obs-001-state-loss-2026-10-11",
+  "lifecycle_status": "recovery-required",
+  "snapshot_commit": "8fec399e793a754753e7a59cdbaf49287a43916c",
+  "snapshot_status": "state-missing",
+  "state_path": "/workspace/.agent-state/SDD-OBS-001-50f4ba3edb385f98cd8c.json"
+}

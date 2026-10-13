@@ -1,0 +1,2 @@
+python3 -m unittest test_verification_backend_qualification -v
+python3 -m unittest test_verify.PlannerTest.test_fingerprint_policy_and_probe_dimensions -v

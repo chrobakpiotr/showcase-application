@@ -38,8 +38,26 @@ and teardown commands, continue with [Starting the application](#starting-the-ap
 - [Documentation index](docs/README.md) - map of the repo's documentation.
 - [Architecture diagrams](docs/architecture/README.md) - C4-style context/container/module views and saga dynamics.
 - [Architecture Decision Records](docs/adr/README.md) - accepted decisions and their original context.
-- [Agentic SDD](docs/agentic-sdd/README.md) - specification/orchestration/evaluation harness.
+- [Agentic SDD](docs/agentic-sdd/README.md) - specification/orchestration/evaluation harness. Its [canonical verification handbook](docs/agentic-sdd/handbook.md) covers fresh task-completion checks, exact-plan integration reuse, recovery, rollback and manual-review telemetry.
 - [Kubernetes / Helm](infra/k8s/README.md) and [Terraform / LocalStack](infra/terraform/README.md) - deployment tooling.
+
+### Agentic SDD verification v2
+
+Verification planning reports three decisions: `ALREADY_GREEN` may reuse complete evidence only when policy permits; `INVALIDATED_BY_THIS_PATCH` always runs; `RUN_NOW` always runs. Reuse binds the exact profile, policy, command, inputs, dependencies, tools, artifacts and execution identity. Cache indexes are disposable; attempt and failure history is retained. Task completion freshly executes each declared check, while integration reuse is limited to the exact accepted plan and execution identity.
+
+Failures remain auditable. Critical retry needs a one-shot signed human grant; interrupted work resumes only after trusted ownership/drainage checks. `python3 tooling/agent-harness/harness.py recover-verification --repo .` releases only proven-dead prestart reservations and authoritative recoverable journals; active/uncertain ownership or pending backend drainage stays blocked and fails closed with exit 5. It does not clear all quarantine. Never manually delete unresolved ownership or drainage records: lease expiry and PID absence are not proof. Telemetry separates runs, attempts, verification units and planned/executed/reused/invalidated/blocked/failed outcomes; missing history and unknown cost stay `UNKNOWN`.
+
+After a manual reviewer/evaluator result is used, display **`MANUAL TELEMETRY REQUIRED`** and register the exact report with its trusted signed attestation. Store the report beneath `.agent-runs/control/verification-v2/manual-reports/` in the canonical primary worktree; no other report path is accepted:
+
+```bash
+python3 tooling/agent-harness/telemetry.py --repo . record-manual \
+  --feature <feature-id> --role <reviewer|evaluator|architecture-reviewer|verification-author> \
+  --provider <provider-name> --checkpoint <full-commit-id> \
+  --verdict <PASS|FAIL|NEEDS-HUMAN> --report .agent-runs/control/verification-v2/manual-reports/<report-file> \
+  --attestation <signed-attestation-path> [--task <task-id> --task-attempt <attempt>] [--plan-id <accepted-plan-id>]
+```
+
+Registration records provenance; only trusted lifecycle state can accept plan coverage. The harness cannot commit task/product changes or merge them into a user branch, push, open pull requests, deploy or mutate remote trackers. See the [verification handbook](docs/agentic-sdd/handbook.md) for recovery and rollback boundaries.
 
 ## Starting the application
 

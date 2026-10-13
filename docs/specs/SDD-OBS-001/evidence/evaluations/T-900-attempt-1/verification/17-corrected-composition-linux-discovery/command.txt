@@ -1,0 +1,1 @@
+docker run --rm --mount type=bind,src=/tmp/showcase-t900-isolated-retry-20261013-7f2a6d,dst=/workspace -w /workspace -e PYTHONPATH=tooling/agent-harness/tests showcase-t900-eval:pinned-20261013 python3 -m unittest discover -s tooling/agent-harness/tests -v

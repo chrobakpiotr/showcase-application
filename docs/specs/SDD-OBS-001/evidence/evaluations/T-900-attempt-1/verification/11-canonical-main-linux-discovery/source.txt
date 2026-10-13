@@ -1,0 +1,1 @@
+Canonical source: 5075492d24b9d600221e0f42bc76ef888eb9db94 plus only the accepted T-900 test_verification_backend_qualification.py stale-mock fix; this is not the T-900 composed candidate worktree.

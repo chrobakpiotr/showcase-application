@@ -1,0 +1,1 @@
+python3 tooling/agent-harness/harness.py validate-all docs/specs

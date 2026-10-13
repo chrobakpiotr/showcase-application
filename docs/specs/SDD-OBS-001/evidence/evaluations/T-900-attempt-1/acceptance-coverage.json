@@ -1,0 +1,3301 @@
+{
+  "feature": "SDD-OBS-001",
+  "task": "T-900",
+  "packet_sha256": "d2a59252e8078b44a97f4fc6b3fe5fc02c940b7814bd3f3cf416851b4c04a753",
+  "criterion_count": 144,
+  "criteria": [
+    {
+      "criterion": "AC-014",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-01",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-03",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-05",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-07",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-09",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-10",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-12",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-13",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-14",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-HANDOFF-16",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-01",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-02",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-03",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-04",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-05",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-06",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-07",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-08",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-09",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-10",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-11",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-12",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-13",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-14",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-LAUNCH-15",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-001",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-002",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-003",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-004",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-005",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-006",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-007",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-008",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-009",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-010",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-011",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-012",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-013",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-014",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-015",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-016",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-017",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-018",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-019",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-020",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-021",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-022",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-023",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-024",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-025",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-026",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        },
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-027",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        },
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-028",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-029",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        },
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        },
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-030",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-031",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-032",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-033",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-034",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-035",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-036",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-037",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-038",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        },
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-039",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-040",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-041",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-042",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-043",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-044",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-045",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-046",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-047",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-048",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-049",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-050",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-051",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-052",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-053",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-054",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-055",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-056",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-057",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-058",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-059",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-060",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-061",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-062",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-063",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-064",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-065",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-066",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-067",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-068",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-069",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-070",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-071",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-072",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "AC-OBS-073",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-001",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-002",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-003",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-004",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-005",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-006",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-007",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-008",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-009",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-010",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-011",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-012",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-013",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-014",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-015",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-016",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        },
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-017",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-003",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+          "completion_evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-018",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-019",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-001",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+          "completion_evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-020",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-002",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-021",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-022",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-023",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-024",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        },
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        },
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-025",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-004",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json"
+        },
+        {
+          "task": "T-005",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-026",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-027",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-028",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        },
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-029",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-030",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-006",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json"
+        },
+        {
+          "task": "T-007",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-031",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-008",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-032",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-033",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-034",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-035",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-036",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-037",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-038",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-039",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-040",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-041",
+      "result": "PASS",
+      "implementation_proofs": [
+        {
+          "task": "T-009",
+          "status": "completed",
+          "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+          "completion_evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json"
+        }
+      ],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-042",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-043",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-044",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    },
+    {
+      "criterion": "VC-045",
+      "result": "PASS",
+      "implementation_proofs": [],
+      "evaluator_gates": [
+        "packet-command-1-full-discovery",
+        "packet-command-2-validate-all",
+        "packet-command-3-orchestrate-plan",
+        "packet-command-4-verification-contract",
+        "packet-command-5-baseline",
+        "packet-command-6-adversarial",
+        "packet-command-7-shipping-preflight",
+        "packet-command-8-markdown-links",
+        "packet-command-9-handbook-pdf"
+      ]
+    }
+  ],
+  "basis": "Criterion ownership is cross-referenced to the accepted DAG and active lifecycle completion records; the nine packet gates are recorded independently in the report and raw command evidence.",
+  "packet_revision_id": "sha256:585c6a32a027ad58f5bc208d577f5d3a7a98261064329300d74af8e14d4a156e",
+  "packet_content_sha256": "d2a59252e8078b44a97f4fc6b3fe5fc02c940b7814bd3f3cf416851b4c04a753"
+}

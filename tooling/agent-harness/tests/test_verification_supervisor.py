@@ -5,6 +5,8 @@ import unittest
 import json
 import dataclasses
 import hashlib
+import os
+import signal
 import subprocess
 import threading
 import time
@@ -13,8 +15,12 @@ from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from verification.store import StoreError, VerificationStore
-from verification.supervisor import VerificationSupervisor
+from verification.store import StoreError, VerificationStore, _RETRY_CONTROL_INPUT_SHA256
+from verification.supervisor import (LaunchCapability, SafePrelaunchAbortProof,
+                                     VerificationSupervisor, _SAFE_ABORT_PROOF_SEAL,
+                                     issue_launch_capability, validate_launch_capability,
+                                     safe_prelaunch_abort_proof,
+                                     validate_safe_prelaunch_abort_proof)
 from verification.supervisor import SupervisorState
 from verification.model import Evidence
 from verification.serialization import digest, evidence_record
@@ -23,6 +29,223 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_safe_prelaunch_abort_proof_is_bound_to_exact_terminal(self):
+        terminal = {'execution_id': 'execution-1', 'receipt_hash': 'a' * 64,
+                    'started_hash': 'b' * 64}
+        proof = SafePrelaunchAbortProof('execution-1', 'a' * 64, 'b' * 64,
+                                        _SAFE_ABORT_PROOF_SEAL)
+        self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+        self.assertFalse(validate_safe_prelaunch_abort_proof(object(), terminal))
+        self.assertFalse(validate_safe_prelaunch_abort_proof(
+            dataclasses.replace(proof, receipt_hash='c' * 64), terminal))
+
+    def test_launch_capability_is_bound_and_single_use(self):
+        consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+        reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+        capability = issue_launch_capability(consumption_id, reservation_id)
+
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id='launch-consumption-v1:sha256:' + 'd' * 64,
+            reservation_id=reservation_id))
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id=consumption_id,
+            reservation_id='launch-reservation-v1:sha256:' + 'e' * 64))
+        self.assertTrue(validate_launch_capability(capability,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+
+    def test_launch_capability_cannot_be_constructed_or_forged(self):
+        consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+        reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+        with self.assertRaisesRegex(ValueError, 'launch-capability-unavailable'):
+            LaunchCapability(consumption_id, reservation_id)
+        forged = object.__new__(LaunchCapability)
+        self.assertFalse(validate_launch_capability(forged,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+
+    def test_launch_capability_is_spent_atomically_under_concurrent_validation(self):
+        capability = issue_launch_capability('consumption', 'reservation')
+        results = []
+        barrier = threading.Barrier(8)
+
+        def validate():
+            barrier.wait()
+            results.append(validate_launch_capability(capability,
+                consumption_id='consumption', reservation_id='reservation'))
+
+        workers = [threading.Thread(target=validate) for _ in range(8)]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+        self.assertEqual(1, sum(results))
+
+    def test_launch_authorizer_metadata_and_ids_are_bound_before_payload_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            observed = {}
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+
+            def authorize(metadata):
+                observed.update(metadata)
+                return {'reservation_id': reservation_id, 'consumption_id': consumption_id,
+                        'capability': issue_launch_capability(consumption_id, reservation_id),
+                        'plan_id': metadata['plan_id'], 'unit_id': 'unit-1',
+                        'obligation_ids': ['obligation-1'], 'admission_id': 'admission-1',
+                        'admission_sha256': 'a' * 64, 'reservation_transition_id': 'reserve-1',
+                        'consumption_transition_id': 'consume-1',
+                        'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1}
+
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                plan_id='plan-1', launch_authorizer=authorize)
+
+            self.assertEqual(store.repository_id, observed['repository_id'])
+            self.assertEqual(observed['execution_id'], observed['repository_admission_id'])
+            self.assertEqual('family', observed['family_id'])
+            self.assertEqual('attempt', observed['attempt_id'])
+            marker = json.loads(next(store.executions.glob('*/launching.json')).read_text())
+            self.assertEqual(reservation_id, marker['launch_reservation_id'])
+            self.assertEqual(consumption_id, marker['launch_consumption_id'])
+            self.assertEqual('unit-1', marker['unit_id'])
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertEqual(reservation_id, terminal['launch_reservation_id'])
+            self.assertEqual(consumption_id, terminal['launch_consumption_id'])
+            self.assertRegex(terminal['receipt_hash'], r'^[0-9a-f]{64}$')
+            self.assertEqual('DRAINED', terminal['drainage'])
+            self.assertIn('launch', backend.events)
+
+    def test_launch_authorizer_rejection_prevents_payload_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            with self.assertRaisesRegex(RuntimeError, 'VERIFICATION_LAUNCH_CAPABILITY_INVALID'):
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                    plan_id='plan-1',
+                    launch_authorizer=lambda _metadata: {
+                        'reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                        'consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                        'capability': object()})
+            self.assertIn('prepare', backend.events)
+            self.assertNotIn('launch', backend.events)
+            self.assertFalse(list(store.executions.glob('*/launching.json')))
+
+    def test_launch_authorizer_cannot_reuse_spent_capability(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+            capability = issue_launch_capability(consumption_id, reservation_id)
+
+            def authorize(_metadata):
+                return {'reservation_id': reservation_id, 'consumption_id': consumption_id,
+                        'capability': capability, 'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                        'obligation_ids': ['obligation-1'], 'admission_id': 'admission-1',
+                        'admission_sha256': 'a' * 64, 'reservation_transition_id': 'reserve-1',
+                        'consumption_transition_id': 'consume-1',
+                        'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1}
+
+            supervisor = VerificationSupervisor(store)
+            common = dict(worktree=root, family_id='family', gate_id='gate',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                timeout_seconds=2, sandbox_mode='required', plan_id='plan-1',
+                launch_authorizer=authorize)
+            supervisor.execute(backend, attempt_id='attempt-1', **common)
+            with self.assertRaisesRegex(RuntimeError, 'VERIFICATION_LAUNCH_CAPABILITY_INVALID'):
+                supervisor.execute(backend, attempt_id='attempt-2', **common)
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_plan_id_and_executable_binding_reach_backend_prepare(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+
+            class RecordingBackend(LifecycleBackend):
+                def prepare(self, **kwargs):
+                    self.prepare_kwargs = kwargs
+                    return super().prepare(**kwargs)
+
+            backend = RecordingBackend(store, root / 'unit')
+            binding = {'command': 'python3', 'path': '/usr/bin/python3', 'sha256': 'a' * 64}
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='f',
+                attempt_id='a', gate_id='g', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                plan_id='verification-plan-v2:sha256:' + 'b' * 64,
+                expected_executable_binding=binding)
+            self.assertEqual('verification-plan-v2:sha256:' + 'b' * 64,
+                             backend.prepare_kwargs['plan_id'])
+            self.assertEqual(binding, backend.prepare_kwargs['expected_executable_binding'])
+
+    @unittest.skipUnless(hasattr(os, 'fork'), 'requires POSIX process supervision')
+    def test_detached_supervisor_refuses_fork_from_worker_thread_before_admission(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            class DetachedBackend(LifecycleBackend):
+                requires_detached_supervisor = True
+            backend = DetachedBackend(store, root / 'unit')
+            errors = []
+            def execute():
+                try:
+                    VerificationSupervisor(store).execute(backend, worktree=root, family_id='f',
+                        attempt_id='a', gate_id='g', command='python3 -c pass', cwd=root,
+                        run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required')
+                except BaseException as exc:
+                    errors.append(exc)
+            thread = threading.Thread(target=execute)
+            thread.start(); thread.join()
+            self.assertEqual(1, len(errors))
+            self.assertEqual('TRUSTED_SUPERVISOR_PROCESS_UNAVAILABLE', str(errors[0]))
+            self.assertEqual([], list(store.executions.glob('*/started.json')))
+            self.assertNotIn('launch', backend.events)
+
+    @unittest.skipUnless(hasattr(os, 'fork'), 'requires POSIX process supervision')
+    def test_caller_death_does_not_kill_trusted_supervisor_or_release_execution(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            marker = root / 'payload-launched'
+            caller = os.fork()
+            if caller == 0:
+                store = VerificationStore(root, control_root=root / 'control')
+                class SlowBackend(LifecycleBackend):
+                    requires_detached_supervisor = True
+
+                    def launch(self, prepared, **kwargs):
+                        marker.write_text('running')
+                        time.sleep(.6)
+                        self.unit_state.write_text(json.dumps({'status': 'DRAINED'}))
+                        return type('Result', (), {'argv': ('python3',), 'cwd': str(root),
+                            'started_at': 1.0, 'ended_at': 2.0, 'duration_seconds': 1.0,
+                            'exit_code': 0, 'stdout': '', 'stderr': '', 'timed_out': False,
+                            'error': None})()
+                backend = SlowBackend(store, root / 'unit')
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='f',
+                    attempt_id='a', gate_id='g', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required')
+                os._exit(0)
+            deadline = time.monotonic() + 5
+            while not marker.exists() and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertTrue(marker.exists(), 'payload never reached the controlled launch point')
+            os.kill(caller, signal.SIGKILL)
+            os.waitpid(caller, 0)
+            drained = root / 'control' / 'executions'
+            deadline = time.monotonic() + 4
+            while not list(drained.glob('*/drained.json')) and time.monotonic() < deadline:
+                time.sleep(.02)
+            self.assertTrue(list(drained.glob('*/drained.json')),
+                            'requester death abandoned ownership before durable drainage')
+
     def test_vc009_08_unknown_tool_retry_behavior_fails_closed_before_launch(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -69,7 +292,7 @@ class SupervisorTest(unittest.TestCase):
                     raise RuntimeError('result-channel-failed-after-launch')
             backend = LaunchThenFailBackend(store, root/'unit')
             kwargs = dict(worktree=root, family_id='f', attempt_id='a', gate_id='g',
-                command='fake-tool --internal-retry', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
                 sandbox_mode='required', critical=True, retry_policy='forbid',
                 retry_controls=('no-internal-retries',))
             with self.assertRaisesRegex(RuntimeError, 'result-channel-failed-after-launch'):
@@ -96,7 +319,7 @@ class SupervisorTest(unittest.TestCase):
             root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
             backend = CriticalFailureBackend(store, root/'unit')
             VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
-                gate_id='g', command='python3 -c fail', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
                 sandbox_mode='required', critical=True, retry_policy='forbid', profile_hash='a' * 64,
                 input_fingerprint='b' * 64, retry_controls=('no-internal-retries',))
             self.assertEqual(1, backend.events.count('launch'))
@@ -110,7 +333,7 @@ class SupervisorTest(unittest.TestCase):
                     return result
             backend = TimeoutBackend(store, root/'unit')
             VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
-                gate_id='g', command='python3 -c timeout', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
                 sandbox_mode='required', critical=True, retry_policy='forbid',
                 retry_controls=('no-internal-retries',))
             self.assertEqual(1, backend.events.count('launch'))
@@ -133,10 +356,559 @@ class SupervisorTest(unittest.TestCase):
         self._vc009_positive('no-internal-retries')
 
     def test_vc009_06_internal_retries_disabled_control_is_recorded(self):
-        self._vc009_positive('internal-retry-disabled:gradle-test-retry-plugin')
+        self._vc009_positive('critical-postgres-gate-disables-gradle-test-retry-v1')
 
-    def test_vc009_07_bounded_internal_retry_controls_are_recorded(self):
-        self._vc009_positive('internal-retry-bounded:tool-retry-limit:2')
+    def test_vc009_07_bounded_internal_retry_is_not_retry_free(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                    command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required', critical=True,
+                    retry_policy='forbid', retry_controls=('internal-retry-bounded:tool-retry-limit:2',))
+            self.assertEqual(0, backend.events.count('launch'))
+
+    def test_vc009_rejects_unregistered_retry_control_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                    command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required', critical=True,
+                    retry_policy='forbid',
+                    retry_controls=('internal-retry-disabled:invented-control',))
+            self.assertEqual(0, backend.events.count('launch'))
+
+    def test_vc009_rejects_registered_control_for_different_command_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression', command='fake --retry-twice',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertEqual(0, backend.events.count('launch'))
+
+    def test_vc009_candidate_gradle_retry_mutation_fails_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            gradle_file = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            gradle_file.parent.mkdir(parents=True, exist_ok=True)
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            source = (source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_text()
+            mutated = source.replace('maxRetries = strictEvidenceGateEnabled ? 0 : 2', 'maxRetries = 2')
+            self.assertNotEqual(source, mutated)
+            gradle_file.write_text(mutated)
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper_path.write_bytes((source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_bytes())
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_critical_wrapper_must_enable_strict_gradle_property(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            wrapper_path.write_text(wrapper.replace('-PcriticalPostgresGate=true', '-PcriticalPostgresGate=false'))
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_wrapper_comment_cannot_substitute_for_effective_gradle_property(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            wrapper = wrapper.replace('-PcriticalPostgresGate=true', '-PcriticalPostgresGate=false')
+            wrapper += '\n# -PcriticalPostgresGate=true\n'
+            wrapper_path.write_text(wrapper)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_gradle_init_script_cannot_override_retry_policy(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            wrapper = wrapper.replace('./gradlew :application:ecommerce:test',
+                                      './gradlew :application:ecommerce:test --init-script tooling/retry-override.txt')
+            wrapper_path.write_text(wrapper)
+            (root / 'tooling/retry-override.txt').write_text(
+                'allprojects { tasks.withType(Test).configureEach { retry { maxRetries = 2 } } }\n')
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_echoed_gradle_command_cannot_prove_test_invocation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            wrapper = wrapper.replace('./gradlew :application:ecommerce:test',
+                                      'echo ./gradlew :application:ecommerce:test')
+            wrapper_path.write_text(wrapper)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_wrapper_cannot_mask_gradle_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            wrapper = wrapper.replace('-PcriticalPostgresGate=true', '-PcriticalPostgresGate=true || true')
+            wrapper_path.write_text(wrapper)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_wrapper_cannot_install_gradle_user_home_init_script(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper = (source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_text()
+            injection = '''
+export GRADLE_USER_HOME="$PWD/.agent-runs/retry-home"
+mkdir -p "$GRADLE_USER_HOME/init.d"
+printf '%s\\n' 'gradle.projectsEvaluated { allprojects { tasks.withType(Test).configureEach { retry { maxRetries = 2 } } } }' > "$GRADLE_USER_HOME/init.d/retry.gradle"
+'''
+            wrapper_path.write_text(wrapper + injection)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_candidate_pre_gradle_verifier_cannot_install_user_home_init_script(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            verifier = root / 'tooling/scripts/verify_critical_postgres_results.py'
+            verifier.write_text(verifier.read_text() + '''
+from pathlib import Path
+import os
+home = Path(os.environ['GRADLE_USER_HOME']) / 'init.d'
+home.mkdir(parents=True, exist_ok=True)
+(home / 'retry.gradle').write_text('gradle.projectsEvaluated { allprojects { tasks.withType(Test).configureEach { retry { maxRetries = 2 } } } }')
+''')
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_obfuscated_root_gradle_override_fails_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            (root / 'build.gradle').write_text('''
+def extensionName = 're' + 'try'
+def propertyName = 'max' + 'Retries'
+gradle.projectsEvaluated {
+    allprojects {
+        tasks.withType(Test).configureEach {
+            extensions.findByName(extensionName)."${propertyName}" = 2
+        }
+    }
+}
+''')
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_registered_gradle_gate_does_not_reuse_poisoned_shared_home(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            shared_run_dir = root / '.agent-runs/runs/family/attempt/sandbox'
+            poisoned_init = shared_run_dir / 'verification-home/gradle/init.d/retry.gradle'
+            poisoned_init.parent.mkdir(parents=True)
+            poisoned_init.write_text(
+                'gradle.projectsEvaluated { allprojects { tasks.withType(Test).configureEach { retry { maxRetries = 2 } } } }')
+
+            class IsolatedHomeBackend(LifecycleBackend):
+                def prepare(self, **kwargs):
+                    self.backend_run_dir = pathlib.Path(kwargs['run_dir'])
+                    return super().prepare(**kwargs)
+
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = IsolatedHomeBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='critical-postgres-regression',
+                command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                cwd=root, run_dir=shared_run_dir, timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotEqual(shared_run_dir, backend.backend_run_dir)
+            self.assertFalse((backend.backend_run_dir / 'verification-home/gradle/init.d/retry.gradle').exists())
+
+    def test_registered_gradle_namespace_is_stable_across_prepare_crash_replay(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+
+            class NamespaceRecordingBackend(LifecycleBackend):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.prepare_run_dirs = []
+
+                def prepare(self, **kwargs):
+                    self.prepare_run_dirs.append(pathlib.Path(kwargs['run_dir']))
+                    return super().prepare(**kwargs)
+
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = NamespaceRecordingBackend(store, root / 'unit')
+            kwargs = dict(
+                worktree=root, family_id='f', attempt_id='a',
+                gate_id='critical-postgres-regression',
+                command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                cwd=root, run_dir=root / '.agent-runs/runs/family/attempt/sandbox',
+                timeout_seconds=2, sandbox_mode='required', critical=True,
+                retry_policy='forbid',
+                retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            first = VerificationSupervisor(store)
+            first.inject_crash_at = 'after-prepare'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash:after-prepare'):
+                first.execute(backend, **kwargs)
+            VerificationSupervisor(store).execute(backend, **kwargs)
+            self.assertEqual(2, len(backend.prepare_run_dirs))
+            self.assertEqual(backend.prepare_run_dirs[0], backend.prepare_run_dirs[1])
+            self.assertEqual(1, backend.events.count('launch'))
+
+    def test_registered_gradle_replay_refuses_init_script_in_its_stable_home(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+
+            class NamespaceRecordingBackend(LifecycleBackend):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.prepare_run_dirs = []
+
+                def prepare(self, **kwargs):
+                    self.prepare_run_dirs.append(pathlib.Path(kwargs['run_dir']))
+                    return super().prepare(**kwargs)
+
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = NamespaceRecordingBackend(store, root / 'unit')
+            kwargs = dict(
+                worktree=root, family_id='f', attempt_id='a',
+                gate_id='critical-postgres-regression',
+                command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                cwd=root, run_dir=root / '.agent-runs/runs/family/attempt/sandbox',
+                timeout_seconds=2, sandbox_mode='required', critical=True,
+                retry_policy='forbid',
+                retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            first = VerificationSupervisor(store)
+            first.inject_crash_at = 'after-prepare'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash:after-prepare'):
+                first.execute(backend, **kwargs)
+            poisoned_home = backend.prepare_run_dirs[0] / 'verification-home/gradle/init.d'
+            poisoned_home.mkdir(parents=True)
+            (poisoned_home / 'retry.gradle').write_text('retry override')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(backend, **kwargs)
+            self.assertEqual(1, len(backend.prepare_run_dirs))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_included_symlinked_gradle_project_fails_before_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = pathlib.Path(temp)
+            root = temp_root / 'candidate'
+            root.mkdir()
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            source_root = pathlib.Path(__file__).resolve().parents[3]
+            config_path = root / 'apps/ecommerce/backend/ecommerce.gradle'
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_bytes((source_root / 'apps/ecommerce/backend/ecommerce.gradle').read_bytes())
+            wrapper_path = root / 'tooling/scripts/verify-critical-postgres-tests.sh'
+            wrapper_path.parent.mkdir(parents=True, exist_ok=True)
+            wrapper_path.write_bytes((source_root / 'tooling/scripts/verify-critical-postgres-tests.sh').read_bytes())
+            included_project = root / 'modules/adapters/persistence'
+            included_project.parent.mkdir(parents=True, exist_ok=True)
+            external_project = temp_root / 'external-persistence'
+            external_project.mkdir()
+            (external_project / 'persistence.gradle').write_text(
+                'tasks.withType(Test).configureEach { maxRetries = 2 }\n')
+            (included_project / 'persistence.gradle').unlink()
+            included_project.rmdir()
+            included_project.symlink_to(external_project, target_is_directory=True)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a',
+                    gate_id='critical-postgres-regression',
+                    command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                    cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', critical=True, retry_policy='forbid',
+                    retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            self.assertNotIn('launch', backend.events)
+
+    def test_vc009_generic_no_retry_marker_cannot_authorize_retrying_command(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                    command='fake --retry-twice', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required', critical=True,
+                    retry_policy='forbid', retry_controls=('no-internal-retries',))
+            self.assertEqual(0, backend.events.count('launch'))
+
+    def test_vc020_execution_receipts_never_persist_raw_output_hashes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            class OutputBackend(LifecycleBackend):
+                def launch(self, prepared, **kwargs):
+                    result = super().launch(prepared, **kwargs)
+                    return type('OutputResult', (), {**result.__dict__,
+                        'stdout': 'canary-output', 'stderr': 'other-output'})()
+            backend = OutputBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                sandbox_mode='required')
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            observation = json.loads(next(store.executions.glob('*/observation.json')).read_text())
+            for record in (terminal, observation):
+                self.assertNotIn('stdout_hash', record)
+                self.assertNotIn('stderr_hash', record)
+                self.assertNotIn('canary-output', json.dumps(record))
+                self.assertNotIn('other-output', json.dumps(record))
+            terminal['stdout_hash'] = hashlib.sha256(b'canary-output').hexdigest()
+            terminal.pop('receipt_hash')
+            from verification.serialization import canonical
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
+            legacy_write = dict(terminal, schema_version=1)
+            legacy_write.pop('output_persistence')
+            with self.assertRaisesRegex(StoreError, 'invalid-execution-terminal'):
+                store.publish_execution_terminal(legacy_write)
+            terminal_path.write_text(json.dumps(terminal))
+            with self.assertRaisesRegex(StoreError, 'invalid-execution-terminal'):
+                store.reconstruct_execution_terminals()
+
+    def test_vc020_schema_v1_output_hashes_remain_historical_and_reconstructable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                sandbox_mode='required')
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            terminal['schema_version'] = 1
+            terminal['stdout_hash'] = hashlib.sha256(b'old stdout').hexdigest()
+            terminal['stderr_hash'] = hashlib.sha256(b'old stderr').hexdigest()
+            terminal.pop('output_persistence')
+            terminal.pop('receipt_hash')
+            from verification.serialization import canonical
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
+            terminal_path.write_text(json.dumps(terminal))
+            drained = next(store.executions.glob('*/drained.json'))
+            drained_record = json.loads(drained.read_text())
+            drained_record['terminal_receipt_hash'] = terminal['receipt_hash']
+            drained.write_text(json.dumps(drained_record))
+            recovered = VerificationStore(root, control_root=root / 'control').reconstruct_execution_terminals()
+            self.assertEqual('PASS', recovered[0]['result'])
+
+    def test_v1_execution_is_readable_but_embedded_evidence_is_not_republished(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='family', attempt_id='attempt', gate_id='gate',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                sandbox_mode='required', input_fingerprint='c' * 64,
+                terminal_record_builder=lambda *_: _evidence_record(store))
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            evidence = terminal['verification_evidence']
+            # Model a historical v1 receipt carrying a syntactically valid v2
+            # evidence object. The evidence object itself must not become fresh
+            # reusable authority merely because recovery can read the receipt.
+            evidence_path = store.runs / evidence['family_id'] / evidence['evidence_id'] / 'terminal.json'
+            evidence_path.unlink()
+            (evidence_path.parent / 'projection.json').unlink(missing_ok=True)
+            terminal['schema_version'] = 1
+            terminal['stdout_hash'] = hashlib.sha256(b'').hexdigest()
+            terminal['stderr_hash'] = hashlib.sha256(b'').hexdigest()
+            terminal.pop('output_persistence', None)
+            terminal.pop('receipt_hash', None)
+            terminal['receipt_hash'] = digest(terminal)
+            terminal_path.write_text(json.dumps(terminal))
+
+            fresh = VerificationStore(root, control_root=root / 'control')
+            recovered = fresh.reconstruct_execution_terminals()
+            self.assertEqual(1, len(recovered))
+            self.assertEqual(1, recovered[0]['schema_version'])
+            self.assertEqual([], list(fresh.iter_evidence()))
+
+    def test_vc009_historical_unbound_retry_proofs_remain_readable_only(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='f', attempt_id='a', gate_id='g',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('no-internal-retries',))
+            started_path = next(store.executions.glob('*/started.json'))
+            started = json.loads(started_path.read_text())
+            legacy_proof = {
+                'schema_version': 1, 'policy': 'forbid', 'critical': True,
+                'retry_controls': ['internal-retry-disabled:gradle-test-retry-plugin'],
+                'retry_free': True,
+            }
+            started['retry_controls'] = legacy_proof['retry_controls']
+            started['retry_policy_proof'] = legacy_proof
+            started_path.write_text(json.dumps(started))
+
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            terminal['started_hash'] = hashlib.sha256(started_path.read_bytes()).hexdigest()
+            terminal['retry_policy_proof'] = legacy_proof
+            terminal.pop('receipt_hash')
+            from verification.serialization import canonical
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
+            terminal_path.write_text(json.dumps(terminal))
+
+            reconstructed = VerificationStore(root, control_root=root / 'control').reconstruct_execution_terminals()
+            self.assertEqual('PASS', reconstructed[0]['result'])
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
+                VerificationSupervisor(store).execute(
+                    backend, worktree=root, family_id='new-family', attempt_id='new-attempt',
+                    gate_id='g', command='fake --retry-twice', cwd=root,
+                    run_dir=root / 'new-run', timeout_seconds=2, sandbox_mode='required',
+                    critical=True, retry_policy='forbid',
+                    retry_controls=('internal-retry-disabled:gradle-test-retry-plugin',))
 
     def test_vc009_09_missing_required_control_fails_closed(self):
         self.test_vc009_08_unknown_tool_retry_behavior_fails_closed_before_launch()
@@ -169,6 +941,29 @@ class SupervisorTest(unittest.TestCase):
             with self.assertRaisesRegex(StoreError, 'retry-policy-violation'):
                 store.reconstruct_execution_terminals()
 
+    def test_vc009_registered_input_digest_is_validated_during_reconstruction(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            self._copy_registered_retry_inputs(root, 'critical-postgres-gate-disables-gradle-test-retry-v1')
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='f', attempt_id='a',
+                gate_id='critical-postgres-regression',
+                command='./tooling/scripts/verify-critical-postgres-tests.sh',
+                cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                sandbox_mode='required', critical=True, retry_policy='forbid',
+                retry_controls=('critical-postgres-gate-disables-gradle-test-retry-v1',))
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text())
+            terminal['retry_policy_proof']['control_evidence']['registered_inputs_sha256'] = '0' * 64
+            terminal.pop('receipt_hash')
+            from verification.serialization import canonical
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
+            terminal_path.write_text(json.dumps(terminal))
+            with self.assertRaisesRegex(StoreError, 'retry-policy-violation'):
+                VerificationStore(root, control_root=root / 'control').reconstruct_execution_terminals()
+
     def test_vc009_11_noncritical_unknown_behavior_remains_allowed(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
@@ -179,7 +974,7 @@ class SupervisorTest(unittest.TestCase):
             self.assertEqual(1, backend.events.count('launch'))
 
     def test_vc009_12_retry_control_proof_survives_serialization(self):
-        self._vc009_positive('internal-retry-disabled:gradle-test-retry-plugin')
+        self._vc009_positive('critical-rabbit-gate-disables-gradle-test-retry-v1')
 
     def test_vc009_13_stale_retry_declaration_rejected_on_execution_replay(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -189,9 +984,9 @@ class SupervisorTest(unittest.TestCase):
                 command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
                 sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
             supervisor.execute(backend, **kwargs)
-            with self.assertRaisesRegex(StoreError, 'immutable-record-collision'):
+            with self.assertRaisesRegex(RuntimeError, 'retry-policy-violation'):
                 supervisor.execute(backend, **{**kwargs,
-                    'retry_controls': ('internal-retry-disabled:gradle-test-retry-plugin',)})
+                    'retry_controls': ('critical-rabbit-gate-disables-gradle-test-retry-v1',)})
             self.assertEqual(1, backend.events.count('launch'))
 
     def test_vc009_14_command_identity_matches_durable_execution(self):
@@ -234,12 +1029,29 @@ class SupervisorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp); store = VerificationStore(root, control_root=root/'control')
             backend = LifecycleBackend(store, root/'unit')
+            gate_id, command = {
+                'no-internal-retries': ('g', 'python3 -c pass'),
+                'critical-postgres-gate-disables-gradle-test-retry-v1': (
+                    'critical-postgres-regression', './tooling/scripts/verify-critical-postgres-tests.sh'),
+                'critical-rabbit-gate-disables-gradle-test-retry-v1': (
+                    'critical-rabbitmq-regression', './tooling/scripts/verify-critical-rabbitmq-tests.sh'),
+            }[declaration]
+            if declaration != 'no-internal-retries':
+                self._copy_registered_retry_inputs(root, declaration)
             VerificationSupervisor(store).execute(backend, worktree=root, family_id='f', attempt_id='a',
-                gate_id='g', command='python3 -c pass', cwd=root, run_dir=root/'run', timeout_seconds=2,
+                gate_id=gate_id, command=command, cwd=root, run_dir=root/'run', timeout_seconds=2,
                 sandbox_mode='required', critical=True, retry_policy='forbid', retry_controls=(declaration,))
             terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
             self.assertEqual([declaration], terminal['retry_policy_proof']['retry_controls'])
             self.assertTrue(terminal['retry_policy_proof']['retry_free'])
+
+    def _copy_registered_retry_inputs(self, root, control_id):
+        source_root = pathlib.Path(__file__).resolve().parents[3]
+        for relative in _RETRY_CONTROL_INPUT_SHA256[control_id]:
+            source = source_root / relative
+            destination = root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(source.read_bytes())
 
     def test_e1_competing_repository_admission_rejects_waiting_execution_before_launch(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -339,6 +1151,27 @@ class SupervisorTest(unittest.TestCase):
                     with self.assertRaisesRegex(StoreError, 'verification-owned'):
                         fresh_store.admit_repository_verification()
 
+    def test_terminal_replay_rejects_changed_verification_bindings(self):
+        for field in ('input_fingerprint', 'plan_id', 'profile_hash', 'policy_checkpoint'):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp:
+                root = pathlib.Path(temp)
+                store = VerificationStore(root, control_root=root / 'control')
+                backend = LifecycleBackend(store, root / 'unit')
+                original = {'input_fingerprint': 'a' * 64, 'plan_id': 'plan-a',
+                    'profile_hash': 'profile-a', 'policy_checkpoint': 'checkpoint-a'}
+                kwargs = dict(worktree=root, family_id='family', attempt_id='attempt', gate_id='gate',
+                    command='python3 -c pass', cwd=root, run_dir=root / 'run', timeout_seconds=2,
+                    sandbox_mode='required', **original)
+                first, _ = VerificationSupervisor(store).execute(backend, **kwargs)
+                self.assertEqual(0, first.exit_code)
+                self.assertEqual(1, backend.events.count('launch'))
+
+                changed = dict(kwargs)
+                changed[field] = 'changed-' + str(original[field])
+                with self.assertRaisesRegex(StoreError, 'immutable-record-collision'):
+                    VerificationSupervisor(store).execute(backend, **changed)
+                self.assertEqual(1, backend.events.count('launch'))
+
     def test_pd3_unresolved_critical_failure_blocks_supervisor_before_prepare(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
@@ -346,7 +1179,7 @@ class SupervisorTest(unittest.TestCase):
             failed = CriticalFailureBackend(store, root)
             first = VerificationSupervisor(store)
             first.execute(failed, worktree=root, family_id='family-1', attempt_id='attempt-1',
-                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
+                gate_id='critical-gate', command='python3 -c pass', cwd=root, run_dir=root / 'run-1',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
                 input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
@@ -367,7 +1200,7 @@ class SupervisorTest(unittest.TestCase):
             store, grant_key = trusted_test_store(root)
             VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
-                command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
+                command='python3 -c pass', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
                 sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
                 critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
@@ -402,7 +1235,7 @@ class SupervisorTest(unittest.TestCase):
             store, grant_key = trusted_test_store(root)
             VerificationSupervisor(store).execute(CriticalFailureBackend(store, root),
                 worktree=root, family_id='family-1', attempt_id='attempt-1', gate_id='critical-gate',
-                command='python3 -c fail', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
+                command='python3 -c pass', cwd=root, run_dir=root / 'run-1', timeout_seconds=2,
                 sandbox_mode='required', profile_hash='profile-hash', input_fingerprint='fingerprint',
                 critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
@@ -439,7 +1272,7 @@ class SupervisorTest(unittest.TestCase):
             supervisor = VerificationSupervisor(store)
             first_backend = CriticalFailureBackend(store, root / 'first')
             supervisor.execute(first_backend, worktree=root, family_id='family-1', attempt_id='attempt-1',
-                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-1',
+                gate_id='critical-gate', command='python3 -c pass', cwd=root, run_dir=root / 'run-1',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
                 input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',))
             context = {'repository_id': store.repository_id, 'profile_hash': 'profile-hash',
@@ -460,7 +1293,7 @@ class SupervisorTest(unittest.TestCase):
 
             second_backend = GrantCheckingCriticalBackend(store, root / 'second')
             supervisor.execute(second_backend, worktree=root, family_id='family-2', attempt_id='attempt-2',
-                gate_id='critical-gate', command='python3 -c fail', cwd=root, run_dir=root / 'run-2',
+                gate_id='critical-gate', command='python3 -c pass', cwd=root, run_dir=root / 'run-2',
                 timeout_seconds=2, sandbox_mode='required', profile_hash='profile-hash',
                 input_fingerprint='fingerprint', critical=True, retry_controls=('no-internal-retries',),
                 failure_grant_id='grant-1', retry_scope=grant['retry_scope'])
@@ -557,6 +1390,179 @@ class SupervisorTest(unittest.TestCase):
                 VerificationStore(root, control_root=root / 'control'), root))
             self.assertEqual('ABORTED_PREPARED', recovered[0].state.value)
             self.assertEqual(0, sum(event == 'launch' for event in backend.events))
+
+    def test_prelaunch_recovery_authority_terminalizes_only_after_durable_abort(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(backend, worktree=root, family_id='family', attempt_id='attempt',
+                    gate_id='gate', command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            started = json.loads((journal / 'started.json').read_text())
+            fields = {
+                'launch_reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                'launch_consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                'obligation_ids': ['verification-obligation-v2:sha256:' + 'd' * 64],
+                'admission_id': 'admission-1', 'admission_sha256': 'a' * 64,
+                'reservation_transition_id': 'reserve-1', 'consumption_transition_id': 'consume-1',
+                'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1,
+            }
+            callbacks = []
+
+            def authorize_recovery(record):
+                self.assertEqual(started, record)
+                return fields
+
+            def terminalize(terminal, proof):
+                callbacks.append((terminal, proof))
+                self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+
+            result = supervisor.recover(prelaunch_recovery_authorizer=authorize_recovery,
+                                         prelaunch_terminalizer=terminalize)
+            self.assertEqual('ABORTED_PREPARED', result[0].state.value)
+            terminal = result[0].terminal
+            self.assertEqual(fields['launch_reservation_id'], terminal['launch_reservation_id'])
+            self.assertEqual(fields['launch_consumption_id'], terminal['launch_consumption_id'])
+            self.assertEqual(fields['admission_sha256'], terminal['admission_sha256'])
+            self.assertEqual(fields, {key: terminal[key] for key in fields})
+            self.assertEqual(1, len(callbacks))
+            self.assertTrue((journal / 'terminal.json').is_file())
+            self.assertTrue((journal / 'drained.json').is_file())
+            authority_record = json.loads((journal / 'launch-authority.json').read_text())
+            self.assertEqual({'schema_version': 1, 'execution_id': started['execution_id'], **fields},
+                             authority_record)
+            fabricated_id = 'f' * 32
+            fabricated = dict(terminal, execution_id=fabricated_id)
+            with self.assertRaisesRegex(RuntimeError, 'SAFE_PRELAUNCH_ABORT_PROOF_UNAVAILABLE'):
+                safe_prelaunch_abort_proof(supervisor, store.executions / fabricated_id,
+                    fabricated_id, fabricated, reason='prepared-never-launched')
+
+    def test_prelaunch_terminalizer_failure_keeps_admission_unresolved_then_retries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            fields = {
+                'launch_reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                'launch_consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                'obligation_ids': ['verification-obligation-v2:sha256:' + 'd' * 64],
+                'admission_id': 'admission-1', 'admission_sha256': 'a' * 64,
+                'reservation_transition_id': 'reserve-1', 'consumption_transition_id': 'consume-1',
+                'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1,
+            }
+            def authorize(_started):
+                return fields
+            failed = supervisor.recover(prelaunch_recovery_authorizer=authorize,
+                                        prelaunch_terminalizer=lambda *_: (_ for _ in ()).throw(RuntimeError()))
+            self.assertEqual('UNCERTAIN', failed[0].state.value)
+            self.assertTrue((journal / 'terminal.json').is_file())
+            self.assertFalse((journal / 'drained.json').exists())
+            terminalized = []
+            retried = supervisor.recover(prelaunch_terminalizer=lambda terminal, proof:
+                terminalized.append((terminal, proof)))
+            self.assertEqual('TERMINAL', retried[0].state.value)
+            self.assertEqual(1, len(terminalized))
+            terminal, proof = terminalized[0]
+            self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+            self.assertTrue((journal / 'drained.json').is_file())
+
+    def test_prelaunch_recovery_authorizer_failure_does_not_publish_terminal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            result = supervisor.recover(prelaunch_recovery_authorizer=lambda _started:
+                (_ for _ in ()).throw(RuntimeError('unavailable')))
+            self.assertEqual('UNCERTAIN', result[0].state.value)
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
+
+    def test_plan_bound_prelaunch_recovery_requires_authorizer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            result = supervisor.recover()
+            self.assertEqual('UNCERTAIN', result[0].state.value)
+            self.assertEqual('SAFE_PRELAUNCH_ABORT_AUTHORITY_REQUIRED', result[0].reason_code)
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
+
+    def test_corrupt_launch_marker_keeps_repository_admission_blocked(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root, launch_state='ACTIVE')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(backend, worktree=root, family_id='family', attempt_id='attempt',
+                    gate_id='gate', command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required')
+
+            journal = next(store.executions.iterdir())
+            (journal / 'launching.json').write_text('{ truncated', encoding='utf-8')
+            fresh_store = VerificationStore(root, control_root=root / 'control')
+            recovered = VerificationSupervisor(fresh_store).recover(
+                lambda _record: LifecycleBackend(fresh_store, root, launch_state='DRAINED'))
+
+            self.assertEqual('UNCERTAIN', recovered[0].state.value)
+            self.assertEqual('EXECUTION_LAUNCH_MARKER_INVALID', recovered[0].reason_code)
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
+
+            marker = journal / 'launching.json'
+            started = json.loads((journal / 'started.json').read_text(encoding='utf-8'))
+            valid_target = journal / 'launch-marker-target.json'
+            valid_target.write_text(json.dumps({'schema_version': 1,
+                'execution_id': started['execution_id'],
+                'execution_identity': started['execution_identity'],
+                'launch_intent_hash': started['launch_intent_hash']}), encoding='utf-8')
+            marker.unlink()
+            marker.symlink_to(valid_target)
+            recovered = VerificationSupervisor(fresh_store).recover()
+            self.assertEqual('UNCERTAIN', recovered[0].state.value)
+            self.assertEqual('EXECUTION_LAUNCH_MARKER_INVALID', recovered[0].reason_code)
+
+            real_read_text = pathlib.Path.read_text
+            def unreadable_marker(path, *args, **kwargs):
+                if path == marker:
+                    raise PermissionError('injected unreadable launch marker')
+                return real_read_text(path, *args, **kwargs)
+            with mock.patch.object(pathlib.Path, 'read_text', unreadable_marker):
+                recovered = VerificationSupervisor(fresh_store).recover()
+            self.assertEqual('UNCERTAIN', recovered[0].state.value)
+            self.assertEqual('EXECUTION_LAUNCH_MARKER_INVALID', recovered[0].reason_code)
+
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
+            with self.assertRaises(StoreError):
+                fresh_store.admit_repository_verification()
 
     def test_pc3_active_restart_reconciles_without_relaunch(self):
         self._crash_and_recover('after-launch', expected='ACTIVE')
@@ -825,8 +1831,9 @@ print(json.dumps([entry.state.value for entry in result]))
                 receipt = json.loads(next(fresh_store.executions.glob('*/terminal.json')).read_text())
                 self.assertEqual('ABORTED', receipt['result'])
                 self.assertEqual('UNAVAILABLE', receipt['output_observation'])
-                self.assertIsNone(receipt['stdout_hash'])
-                self.assertIsNone(receipt['stderr_hash'])
+                self.assertNotIn('stdout_hash', receipt)
+                self.assertNotIn('stderr_hash', receipt)
+                self.assertEqual('UNAVAILABLE', receipt['output_persistence'])
                 self.assertEqual('CAPTURED', receipt['post_observation']['status'])
             if expected == 'ABORTED_PREPARED':
                 self.assertNotIn('launch', backend.events)
@@ -860,6 +1867,7 @@ class LifecycleBackend:
         self.events = []
 
     def prepare(self, **_kwargs):
+        self.prepare_kwargs = dict(_kwargs)
         identity = {'schema_version': 1, 'execution_id': 'unit-1', 'backend_identity': 'test-qualified/v1',
                     'unit_id': str(self.root / 'unit-1'), 'birth_identity': 'generation-1',
                     'repository_id': self.store.repository_id, 'policy_identity': 'sha256:' + 'a' * 64}

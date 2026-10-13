@@ -1,0 +1,6 @@
+test_fingerprint_policy_and_probe_dimensions (test_verify.PlannerTest.test_fingerprint_policy_and_probe_dimensions) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.280s
+
+OK

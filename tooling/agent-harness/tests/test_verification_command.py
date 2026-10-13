@@ -2,6 +2,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
 import subprocess
 from unittest import mock
 
@@ -23,6 +24,106 @@ class VerificationCommandTest(unittest.TestCase):
         for value in ('python3 -c x | cat', 'python3 $(whoami)', 'sh -c true', ''):
             with self.subTest(value=value), self.assertRaises(command.CommandRejected):
                 command.verification_argv(value)
+
+    def test_launch_rechecks_the_admitted_executable_digest_before_spawn(self):
+        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as temporary:
+            root = pathlib.Path(temporary).resolve()
+            executable = root / 'approved-tool'
+            executable.write_text('#!/bin/sh\nexit 0\n')
+            executable.chmod(0o700)
+            binding = command.verification_sandbox.resolve_executable(
+                'approved-tool', toolchain_directories=(str(root),), tmpdir='/not-a-temp-root')
+            executable.write_text('#!/bin/sh\nexit 9\n')
+            plan = command.verification_sandbox.SandboxPlan(
+                [binding['path']], {}, 'off', False, {}, executable_bindings=(binding,))
+            prepared = command.PreparedCommand(SimpleNamespace(execution_id='unit'), 'backend',
+                'policy', 'qualification', None, plan, (binding['path'],))
+            backend = command.CommandExecutionBackend()
+            with mock.patch.object(backend.process_backend, 'launch') as launch, \
+                 self.assertRaises(command.verification_sandbox.ExecutableResolutionError):
+                backend.launch(prepared, command='approved-tool', cwd=root, timeout_seconds=1)
+            launch.assert_not_called()
+
+    def test_resolved_plan_binding_is_forwarded_and_swap_fails_before_payload(self):
+        import dataclasses
+        with tempfile.TemporaryDirectory() as temp, tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as tool_dir:
+            root = pathlib.Path(temp).resolve()
+            toolchain = pathlib.Path(tool_dir).resolve()
+            executable = toolchain / 'python3'
+            executable.write_text('#!/bin/sh\nexit 0\n')
+            executable.chmod(0o700)
+            self.git_root(root)
+            resolved_binding = {'command': 'python3', 'path': str(executable),
+                                'sha256': command.verification_sandbox._sha256_file(executable)}
+            backend = command.CommandExecutionBackend()
+            real_build_plan = command.verification_sandbox.build_plan
+            real_resolve = command.verification_sandbox.resolve_executable
+
+            def resolve(name, **kwargs):
+                if name == 'python3':
+                    return resolved_binding
+                return real_resolve(name, **kwargs)
+
+            with mock.patch.object(command.verification_sandbox, 'resolve_executable',
+                                   side_effect=resolve):
+                binding = command.executable_binding_for_command(
+                    'python3 -V', worktree=root, cwd=root,
+                    toolchain_directories=(str(toolchain),))
+            self.assertEqual(resolved_binding, binding)
+
+            def qualified_plan(argv, worktree, run_dir, mode, **kwargs):
+                plan = real_build_plan(argv, worktree, run_dir, mode, **kwargs)
+                self.assertEqual(binding, plan.executable_bindings[0])
+                checks = tuple(command.verification_sandbox.QualificationCheck(
+                    check_id, name, 'PASS', 'TEST_ONLY', 'test-evidence')
+                    for check_id, name in command.verification_sandbox.QUALIFICATION_CHECKS)
+                details = {**plan.details, 'policy_fingerprint': 'test-policy'}
+                proof = command.verification_sandbox.BackendQualification(
+                    'QUALIFIED', f'{plan.backend}:test', details['policy_fingerprint'],
+                    'test-qualification', (), checks, ())
+                return dataclasses.replace(plan, details=details, qualification=proof)
+
+            class SwapAfterPlanBackend(command.CommandExecutionBackend):
+                requires_detached_supervisor = False
+
+                def prepare(self, **kwargs):
+                    prepared = super().prepare(**kwargs)
+                    executable.write_text('#!/bin/sh\nexit 1\n')
+                    return prepared
+
+            from verification.store import VerificationStore
+            from verification.supervisor import SupervisorError, VerificationSupervisor
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = SwapAfterPlanBackend()
+            with mock.patch.object(command.verification_sandbox, 'resolve_executable',
+                                   side_effect=resolve), \
+                 mock.patch.object(command.verification_sandbox, 'build_plan',
+                                   side_effect=qualified_plan), \
+                 mock.patch.object(backend.process_backend, 'launch') as launch, \
+                 self.assertRaisesRegex(SupervisorError, 'executable-binding-changed'):
+                VerificationSupervisor(store).execute(backend, worktree=root,
+                    family_id='resolved-family', attempt_id='resolved-attempt', gate_id='python3',
+                    command='python3 -V', cwd=root, run_dir=root / 'run', timeout_seconds=1,
+                    sandbox_mode='off', toolchain_directories=(str(toolchain),),
+                    plan_id='verification-plan-v2:sha256:' + 'b' * 64,
+                    expected_executable_binding=binding)
+            launch.assert_not_called()
+
+    def test_post_timeout_handle_drain_is_bounded_and_uncertain_not_success(self):
+        identity = command.verification_sandbox.ExecutionIdentity(
+            'execution', 'backend', '/unit', 'repository', 'policy', 'birth')
+        process = mock.Mock()
+        process.communicate.side_effect = subprocess.TimeoutExpired('payload', 2)
+        backend = command.CommandExecutionBackend()
+        backend._running[identity.execution_id] = process
+        with mock.patch.object(backend.process_backend, 'cancel_and_drain',
+                               return_value=command.verification_sandbox.Reconciliation(
+                                   'DRAINED', 'CANCEL_DRAINED', 'unit-stopped')) as drain:
+            result = backend.cancel_and_drain(identity, 2)
+        self.assertEqual('UNCERTAIN', result.status)
+        self.assertEqual('DRAINED_HANDLE_STILL_OPEN', result.reason_code)
+        drain.assert_called_once_with(identity, 2)
+        process.communicate.assert_called_once_with(timeout=2)
 
     def test_R15_unqualified_backend_never_executes_payload_even_when_sandbox_is_off(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -46,10 +147,19 @@ class VerificationCommandTest(unittest.TestCase):
             docker.write_text('#!/bin/sh\nexit 0\n')
             docker.chmod(0o755)
             sentinel = root / 'sentinel'
+            real_resolve = command.verification_sandbox.resolve_executable
+            def resolve(name, **kwargs):
+                if name in {'codex', 'bwrap', 'sandbox-exec'}:
+                    raise command.verification_sandbox.ExecutableResolutionError('trusted-executable-not-found')
+                if name == 'docker':
+                    return {'command': 'docker', 'path': str(docker),
+                            'sha256': command.verification_sandbox._sha256_file(docker)}
+                return real_resolve(name, **kwargs)
             with mock.patch.object(command.verification_sandbox.platform, 'system',
                                    return_value='Darwin'), \
                  mock.patch.object(command.verification_sandbox.shutil, 'which',
-                                   side_effect=lambda name: str(docker) if name == 'docker' else None):
+                                   side_effect=AssertionError('backend lookup bypassed shared resolver')), \
+                 mock.patch.object(command.verification_sandbox, 'resolve_executable', side_effect=resolve):
                 status = command.verification_sandbox.doctor()
                 self.assertTrue(status['backend_status']['docker-container']['discovered'])
                 self.assertFalse(status['backend_status']['docker-container']['qualified'])
@@ -100,7 +210,7 @@ class VerificationCommandTest(unittest.TestCase):
             # Backend qualification precedes executable launch.
             missing = command.run_command('./gradlew test', cwd=root, run_dir=root / 'b',
                                           timeout_seconds=1, sandbox_mode='off')
-            self.assertEqual('backend-not-v2-qualified', missing.error)
+            self.assertEqual('worktree-gradle-wrapper-invalid', missing.error)
 
     def test_v2_capability_requirement_fails_before_spawn(self):
         with tempfile.TemporaryDirectory() as temp:

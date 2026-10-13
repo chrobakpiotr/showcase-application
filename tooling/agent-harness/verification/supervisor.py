@@ -4,18 +4,175 @@ from __future__ import annotations
 import enum
 import hashlib
 import json
+import os
 import pathlib
+import pickle
+import re
+import shlex
+import stat
+import threading
 import time
 import uuid
+import weakref
 from dataclasses import dataclass, replace
 
 from .serialization import canonical
 from .store import (ReconciliationOutcome, StoreError, VerificationStore,
-                    _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint)
+                    _fsync_directory, publish_create_once, repository_lock, candidate_failure_fingerprint,
+                    _retry_policy_facts, _RETRY_CONTROL_BINDINGS, _RETRY_CONTROL_WRAPPER_SHA256,
+                    _RETRY_CONTROL_INPUT_SHA256, _retry_control_inputs_digest)
 
 
 class SupervisorError(RuntimeError):
     """Execution lifecycle could not be established safely."""
+
+
+_LAUNCH_CAPABILITY_SEAL = object()
+_LAUNCH_CAPABILITY_LOCK = threading.Lock()
+_CONSUMED_LAUNCH_CAPABILITIES = weakref.WeakSet()
+
+
+class LaunchCapability:
+    """Ephemeral, process-local proof of one durable launch consumption."""
+    __slots__ = ('consumption_id', 'reservation_id', '_seal', '__weakref__')
+
+    def __init__(self, consumption_id: str, reservation_id: str, *, _seal=None):
+        if _seal is not _LAUNCH_CAPABILITY_SEAL:
+            raise ValueError('launch-capability-unavailable')
+        self.consumption_id = consumption_id
+        self.reservation_id = reservation_id
+        self._seal = _seal
+
+
+def issue_launch_capability(consumption_id: str, reservation_id: str) -> LaunchCapability:
+    """Create the in-memory capability returned to a launch-CAS winner."""
+    if not isinstance(consumption_id, str) or not consumption_id:
+        raise ValueError('invalid-launch-consumption')
+    if not isinstance(reservation_id, str) or not reservation_id:
+        raise ValueError('invalid-launch-reservation')
+    return LaunchCapability(consumption_id, reservation_id, _seal=_LAUNCH_CAPABILITY_SEAL)
+
+
+def validate_launch_capability(capability: object, *, consumption_id: str,
+                               reservation_id: str) -> bool:
+    """Match and atomically spend this process-local capability exactly once."""
+    if (not isinstance(capability, LaunchCapability) or
+            getattr(capability, '_seal', None) is not _LAUNCH_CAPABILITY_SEAL or
+            getattr(capability, 'consumption_id', None) != consumption_id or
+            getattr(capability, 'reservation_id', None) != reservation_id):
+        return False
+    with _LAUNCH_CAPABILITY_LOCK:
+        if capability in _CONSUMED_LAUNCH_CAPABILITIES:
+            return False
+        _CONSUMED_LAUNCH_CAPABILITIES.add(capability)
+        return True
+
+
+_SAFE_ABORT_PROOF_SEAL = object()
+
+
+@dataclass(frozen=True)
+class SafePrelaunchAbortProof:
+    """Process-local evidence that a terminal records a safe pre-launch abort."""
+    execution_id: str
+    receipt_hash: str
+    started_hash: str
+    _seal: object
+
+
+def validate_safe_prelaunch_abort_proof(proof: object, terminal: dict) -> bool:
+    """Bind an opaque safe-abort proof to the exact terminal receipt."""
+    return (isinstance(proof, SafePrelaunchAbortProof) and isinstance(terminal, dict) and
+            getattr(proof, '_seal', None) is _SAFE_ABORT_PROOF_SEAL and
+            getattr(proof, 'execution_id', None) == terminal.get('execution_id') and
+            getattr(proof, 'receipt_hash', None) == terminal.get('receipt_hash') and
+            getattr(proof, 'started_hash', None) == terminal.get('started_hash'))
+
+
+_SAFE_ABORT_AUTHORITY_FIELDS = (
+    'launch_reservation_id', 'launch_consumption_id', 'plan_id', 'unit_id',
+    'obligation_ids', 'admission_id', 'admission_sha256',
+    'reservation_transition_id', 'consumption_transition_id',
+    'plan_acceptance_transition_id', 'lifecycle_generation',
+)
+
+
+def _validated_safe_abort_authority_fields(fields: object, started: dict) -> dict:
+    if not isinstance(fields, dict) or set(fields) != set(_SAFE_ABORT_AUTHORITY_FIELDS):
+        raise SupervisorError('SAFE_PRELAUNCH_ABORT_AUTHORITY_UNAVAILABLE')
+    if (fields.get('plan_id') != started.get('plan_id') or
+            re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}',
+                         str(fields.get('launch_reservation_id'))) is None or
+            re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}',
+                         str(fields.get('launch_consumption_id'))) is None or
+            re.fullmatch(r'[0-9a-f]{64}', str(fields.get('admission_sha256'))) is None or
+            not isinstance(fields.get('unit_id'), str) or not fields['unit_id'] or
+            not isinstance(fields.get('obligation_ids'), list) or not fields['obligation_ids'] or
+            any(not isinstance(item, str) or re.fullmatch(
+                r'verification-obligation-v2:sha256:[0-9a-f]{64}', item) is None
+                for item in fields['obligation_ids']) or
+            fields['obligation_ids'] != sorted(set(fields['obligation_ids'])) or
+            type(fields.get('lifecycle_generation')) is not int or fields['lifecycle_generation'] < 1 or
+            any(not isinstance(fields.get(key), str) or not fields[key] for key in (
+                'plan_id', 'admission_id', 'reservation_transition_id',
+                'consumption_transition_id', 'plan_acceptance_transition_id'))):
+        raise SupervisorError('SAFE_PRELAUNCH_ABORT_AUTHORITY_UNAVAILABLE')
+    return dict(fields)
+
+
+def safe_prelaunch_abort_proof(supervisor, journal: pathlib.Path, execution_id: str,
+                               terminal: dict, *, reason: str) -> SafePrelaunchAbortProof:
+    """Mint proof only for the exact durable receipt of a proven non-launch abort."""
+    try:
+        store = supervisor.store
+        journal = pathlib.Path(journal)
+        expected_journal = store.executions / execution_id
+        if (not isinstance(execution_id, str) or not execution_id or
+                journal != expected_journal or journal.is_symlink() or
+                reason not in {'prepared-never-launched', 'backend-proved-not-launched'} or
+                not isinstance(terminal, dict) or terminal.get('execution_id') != execution_id or
+                terminal.get('result') != 'ABORTED' or
+                terminal.get('harness_invocation_upper_bound') != 0 or
+                terminal.get('timed_out') is not False or terminal.get('cancelled') is not False or
+                terminal.get('output_observation') != 'UNAVAILABLE'):
+            raise ValueError()
+        started_path = journal / 'started.json'
+        marker_path = journal / 'launching.json'
+        try:
+            marker_path.lstat()
+            raise ValueError()
+        except FileNotFoundError:
+            pass
+        if marker_path.is_symlink():
+            raise ValueError()
+        started = store._validated_started(journal)
+        if started.get('execution_id') != execution_id:
+            raise ValueError()
+        metadata = started_path.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+            raise ValueError()
+        started_hash = hashlib.sha256(started_path.read_bytes()).hexdigest()
+        if any(key in terminal for key in _SAFE_ABORT_AUTHORITY_FIELDS):
+            authority_path = journal / 'launch-authority.json'
+            authority_metadata = authority_path.lstat()
+            if not stat.S_ISREG(authority_metadata.st_mode) or stat.S_ISLNK(authority_metadata.st_mode):
+                raise ValueError()
+            authority = json.loads(authority_path.read_text(encoding='utf-8'))
+            if (authority != {'schema_version': 1, 'execution_id': execution_id,
+                              **{key: terminal.get(key) for key in _SAFE_ABORT_AUTHORITY_FIELDS}} or
+                    any(terminal.get(key) != authority.get(key)
+                        for key in _SAFE_ABORT_AUTHORITY_FIELDS)):
+                raise ValueError()
+        records = store.reconstruct_execution_terminals(rebuild=False)
+        matched = [item for item in records if item.get('execution_id') == execution_id]
+        if (terminal.get('started_hash') != started_hash or len(matched) != 1 or
+                matched[0] != terminal or not isinstance(terminal.get('receipt_hash'), str) or
+                re.fullmatch(r'[0-9a-f]{64}', terminal['receipt_hash']) is None):
+            raise ValueError()
+        return SafePrelaunchAbortProof(execution_id, terminal['receipt_hash'],
+                                       started_hash, _SAFE_ABORT_PROOF_SEAL)
+    except (OSError, StoreError, TypeError, ValueError, RuntimeError):
+        raise SupervisorError('SAFE_PRELAUNCH_ABORT_PROOF_UNAVAILABLE') from None
 
 
 class SupervisorState(enum.Enum):
@@ -35,6 +192,182 @@ class RecoveryResult:
     state: SupervisorState
     reason_code: str
     terminal: dict | None = None
+
+
+def _read_regular_worktree_file(root: pathlib.Path, relative: str) -> bytes:
+    """Read a candidate policy input without traversing symlinks."""
+    current = root
+    info = None
+    for component in pathlib.PurePosixPath(relative).parts:
+        current = current / component
+        try:
+            info = current.lstat()
+        except OSError:
+            raise SupervisorError('retry-policy-violation') from None
+        if stat.S_ISLNK(info.st_mode):
+            raise SupervisorError('retry-policy-violation')
+    if info is None or not stat.S_ISREG(info.st_mode):
+        raise SupervisorError('retry-policy-violation')
+    try:
+        fd = os.open(current, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise SupervisorError('retry-policy-violation')
+            with os.fdopen(fd, 'rb', closefd=False) as stream:
+                return stream.read()
+        finally:
+            os.close(fd)
+    except OSError:
+        raise SupervisorError('retry-policy-violation') from None
+
+
+def _gradle_user_home_has_init_scripts(execution_run_dir: pathlib.Path) -> bool:
+    home = execution_run_dir / 'verification-home' / 'gradle'
+    try:
+        for path in (execution_run_dir / 'verification-home', home):
+            if path.is_symlink():
+                return True
+        if any((home / name).exists() or (home / name).is_symlink()
+               for name in ('init.gradle', 'init.gradle.kts')):
+            return True
+        init_dir = home / 'init.d'
+        if init_dir.is_symlink():
+            return True
+        if init_dir.exists():
+            return not init_dir.is_dir() or next(init_dir.iterdir(), None) is not None
+        return False
+    except OSError:
+        return True
+
+
+def _registered_gradle_retry_evidence(worktree: pathlib.Path, gate_id: str, command: str,
+                                      controls: tuple[str, ...]) -> dict | None:
+    if len(controls) != 1 or controls[0] not in _RETRY_CONTROL_BINDINGS:
+        return None
+    expected_gate, expected_command = _RETRY_CONTROL_BINDINGS[controls[0]]
+    if gate_id != expected_gate or command != expected_command:
+        raise SupervisorError('retry-policy-violation')
+    try:
+        root = pathlib.Path(worktree).resolve(strict=True)
+        if not root.is_dir():
+            raise ValueError()
+    except (OSError, ValueError, RuntimeError):
+        raise SupervisorError('retry-policy-violation') from None
+    config_path = 'apps/ecommerce/backend/ecommerce.gradle'
+    wrapper_path = command.removeprefix('./')
+    try:
+        registered_inputs = _RETRY_CONTROL_INPUT_SHA256[controls[0]]
+        input_bytes = {relative: _read_regular_worktree_file(root, relative)
+                       for relative in registered_inputs}
+        if any(hashlib.sha256(input_bytes[path]).hexdigest() != expected
+               for path, expected in registered_inputs.items()):
+            raise SupervisorError('retry-policy-violation')
+        config_bytes = input_bytes[config_path]
+        wrapper_bytes = input_bytes[wrapper_path]
+        if hashlib.sha256(wrapper_bytes).hexdigest() != _RETRY_CONTROL_WRAPPER_SHA256[controls[0]]:
+            raise SupervisorError('retry-policy-violation')
+        config = config_bytes.decode('utf-8')
+        wrapper = wrapper_bytes.decode('utf-8')
+    except (UnicodeDecodeError, SupervisorError):
+        raise SupervisorError('retry-policy-violation') from None
+
+    gate_property = 'criticalPostgresGate' if 'postgres' in controls[0] else 'criticalRabbitGate'
+    enabled_name = 'criticalPostgresGateEnabled' if 'postgres' in controls[0] else 'criticalRabbitGateEnabled'
+    expected_lines = (
+        f'def {enabled_name} =',
+        f"providers.gradleProperty('{gate_property}').getOrElse('false').toBoolean()",
+        'def strictEvidenceGateEnabled = criticalPostgresGateEnabled || criticalRabbitGateEnabled',
+        'maxRetries = strictEvidenceGateEnabled ? 0 : 2',
+        'failOnPassedAfterRetry = strictEvidenceGateEnabled',
+        'outputs.upToDateWhen { false }',
+        'outputs.cacheIf { false }',
+    )
+    if any(config.count(line) != 1 for line in expected_lines):
+        raise SupervisorError('retry-policy-violation')
+    if (len(re.findall(r'\bretry\s*\{', config)) != 1 or
+            len(re.findall(r'\bmaxRetries\b', config)) != 1 or
+            len(re.findall(r'\bfailOnPassedAfterRetry\b', config)) != 1):
+        raise SupervisorError('retry-policy-violation')
+
+    gradle_files = []
+    excluded = {'.git', '.gradle', 'build', 'node_modules', '.agent-runs', '.agent-state'}
+    for parent, dirs, files in os.walk(root, followlinks=False):
+        retained_dirs = []
+        for name in dirs:
+            if name in excluded:
+                continue
+            if (pathlib.Path(parent) / name).is_symlink():
+                raise SupervisorError('retry-policy-violation')
+            retained_dirs.append(name)
+        dirs[:] = retained_dirs
+        for name in files:
+            if name.endswith('.gradle') or name.endswith('.gradle.kts'):
+                path = pathlib.Path(parent) / name
+                if path.is_symlink():
+                    raise SupervisorError('retry-policy-violation')
+                gradle_files.append(path)
+                if len(gradle_files) > 512:
+                    raise SupervisorError('retry-policy-violation')
+    registered_gradle_files = {
+        relative for relative in registered_inputs
+        if relative.endswith(('.gradle', '.gradle.kts'))
+    }
+    discovered_gradle_files = {path.relative_to(root).as_posix() for path in gradle_files}
+    if discovered_gradle_files != registered_gradle_files:
+        raise SupervisorError('retry-policy-violation')
+    config_file = root / config_path
+    for path in gradle_files:
+        if path == config_file:
+            continue
+        try:
+            other = _read_regular_worktree_file(root, path.relative_to(root).as_posix()).decode('utf-8')
+        except (OSError, UnicodeDecodeError, SupervisorError):
+            raise SupervisorError('retry-policy-violation') from None
+        if (re.search(r'\bretry\s*\{|\bmaxRetries\b|\bfailOnPassedAfterRetry\b', other) or
+                'strictEvidenceGateEnabled' in other):
+            raise SupervisorError('retry-policy-violation')
+
+    gradle_property = f'-P{gate_property}'
+    expected_gradle_invocations = 2 if 'postgres' in controls[0] else 1
+    logical_wrapper = wrapper.replace('\\\r\n', ' ').replace('\\\n', ' ')
+    gradle_commands = []
+    forbidden_configuration_options = {
+        '--init-script', '-I', '--settings-file', '-c', '--build-file', '-b',
+        '--project-dir', '-p', '--include-build',
+    }
+    try:
+        for line in logical_wrapper.splitlines():
+            tokens = shlex.split(line, comments=True, posix=True)
+            if './gradlew' not in tokens:
+                continue
+            if (not tokens or tokens[0] != './gradlew' or tokens.count('./gradlew') != 1 or
+                    ':application:ecommerce:test' not in tokens):
+                raise SupervisorError('retry-policy-violation')
+            if any(token in forbidden_configuration_options or
+                   token.startswith(('--init-script=', '--settings-file=', '--build-file=',
+                                     '--project-dir=', '--include-build=', '-I', '-c', '-b', '-p'))
+                   for token in tokens):
+                raise SupervisorError('retry-policy-violation')
+            properties = [token for token in tokens if token.startswith(gradle_property + '=')]
+            if properties != [gradle_property + '=true']:
+                raise SupervisorError('retry-policy-violation')
+            gradle_commands.append(tokens)
+    except ValueError:
+        raise SupervisorError('retry-policy-violation') from None
+    if len(gradle_commands) != expected_gradle_invocations:
+        raise SupervisorError('retry-policy-violation')
+    return {
+        'schema_version': 1,
+        'control_id': controls[0],
+        'gate_id': gate_id,
+        'command': command,
+        'config_path': config_path,
+        'config_sha256': hashlib.sha256(config_bytes).hexdigest(),
+        'wrapper_sha256': hashlib.sha256(wrapper_bytes).hexdigest(),
+        'registered_inputs_sha256': _retry_control_inputs_digest(controls[0]),
+        'strict_max_retries': 0,
+        'fail_on_passed_after_retry': True,
+    }
 
 
 class VerificationSupervisor:
@@ -71,6 +404,32 @@ class VerificationSupervisor:
         except (OSError, ValueError):
             return None
 
+    @classmethod
+    def _launch_marker_state(cls, journal: pathlib.Path, started: dict) -> str:
+        path = journal / 'launching.json'
+        try:
+            metadata = path.lstat()
+        except FileNotFoundError:
+            return 'absent'
+        except OSError:
+            return 'invalid'
+        if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+            return 'invalid'
+        marker = cls._read_json(path)
+        if (marker is None or marker.get('schema_version') not in {1, 2} or
+                marker.get('execution_id') != started.get('execution_id') or
+                marker.get('execution_identity') != started.get('execution_identity') or
+                marker.get('launch_intent_hash') != started.get('launch_intent_hash')):
+            return 'invalid'
+        if marker['schema_version'] == 2 and any(
+                not isinstance(marker.get(key), str) or
+                re.fullmatch(pattern, marker[key]) is None
+                for key, pattern in (
+                    ('launch_reservation_id', r'launch-reservation-v1:sha256:[0-9a-f]{64}'),
+                    ('launch_consumption_id', r'launch-consumption-v1:sha256:[0-9a-f]{64}'))):
+            return 'invalid'
+        return 'present'
+
     def _write_state(self, journal: pathlib.Path, name: str, record: dict) -> None:
         publish_create_once(journal / name, record, fault=self.store._fault)
 
@@ -82,7 +441,78 @@ class VerificationSupervisor:
                   'ended_at': time.time()}
         publish_create_once(journal / 'drained.json', record, fault=self.store._fault)
 
-    def execute(self, backend, *, worktree: pathlib.Path, family_id: str,
+    def execute(self, backend, **kwargs):
+        """Delegate ownership to a detached supervisor process before any admission."""
+        if not getattr(backend, 'requires_detached_supervisor', False):
+            # Deterministic fake backends exercise lifecycle logic in-process;
+            # only the supported command facade is allowed to create payloads.
+            return self._execute_owned(backend, **kwargs)
+        if (os.name != 'posix' or not hasattr(os, 'fork') or
+                threading.current_thread() is not threading.main_thread() or
+                threading.active_count() != 1):
+            raise SupervisorError('TRUSTED_SUPERVISOR_PROCESS_UNAVAILABLE')
+        read_fd, write_fd = os.pipe()
+        try:
+            child = os.fork()
+        except OSError:
+            os.close(read_fd)
+            os.close(write_fd)
+            raise SupervisorError('TRUSTED_SUPERVISOR_PROCESS_UNAVAILABLE') from None
+        if child == 0:
+            os.close(read_fd)
+            try:
+                os.setsid()
+                try:
+                    result, ready = self._execute_owned(backend, **kwargs)
+                    result_fields = {name: getattr(result, name, None) for name in (
+                        'argv', 'cwd', 'started_at', 'ended_at', 'duration_seconds', 'exit_code',
+                        'stdout', 'stderr', 'timed_out', 'error', 'sandbox_backend',
+                        'strong_isolation', 'protected_paths', 'descendant_containment')}
+                    payload = ('ok', result_fields, ready)
+                except BaseException as exc:
+                    try:
+                        pickle.dumps(exc, protocol=pickle.HIGHEST_PROTOCOL)
+                        payload = ('exception', exc)
+                    except (pickle.PickleError, TypeError, AttributeError):
+                        if isinstance(exc, (StoreError, SupervisorError, RuntimeError, ValueError)):
+                            payload = ('error', type(exc).__name__, str(exc))
+                        else:
+                            payload = ('error', 'SupervisorError', 'TRUSTED_SUPERVISOR_FAILED')
+                try:
+                    with os.fdopen(write_fd, 'wb', closefd=True) as stream:
+                        pickle.dump(payload, stream, protocol=pickle.HIGHEST_PROTOCOL)
+                except (BrokenPipeError, OSError, pickle.PickleError):
+                    pass
+            finally:
+                os._exit(0)
+        os.close(write_fd)
+        try:
+            with os.fdopen(read_fd, 'rb', closefd=True) as stream:
+                payload = pickle.load(stream)
+            _, status = os.waitpid(child, 0)
+        except (EOFError, OSError, pickle.PickleError, ValueError):
+            try:
+                os.waitpid(child, 0)
+            except ChildProcessError:
+                pass
+            raise SupervisorError('TRUSTED_SUPERVISOR_RESULT_UNAVAILABLE') from None
+        if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
+            raise SupervisorError('TRUSTED_SUPERVISOR_RESULT_UNAVAILABLE')
+        if not isinstance(payload, tuple) or not payload:
+            raise SupervisorError('TRUSTED_SUPERVISOR_RESULT_UNAVAILABLE')
+        if payload[0] == 'exception' and len(payload) == 2 and isinstance(payload[1], BaseException):
+            raise payload[1]
+        if payload[0] == 'error' and len(payload) == 3:
+            exception = {'StoreError': StoreError, 'SupervisorError': SupervisorError,
+                         'RuntimeError': RuntimeError, 'ValueError': ValueError}.get(
+                             payload[1], SupervisorError)
+            raise exception(payload[2])
+        if payload[0] != 'ok' or len(payload) != 3 or not isinstance(payload[1], dict):
+            raise SupervisorError('TRUSTED_SUPERVISOR_RESULT_UNAVAILABLE')
+        from verification_command import CommandResult
+        return CommandResult(**payload[1]), payload[2]
+
+    def _execute_owned(self, backend, *, worktree: pathlib.Path, family_id: str,
                 attempt_id: str, gate_id: str, command: str, cwd: pathlib.Path,
                 run_dir: pathlib.Path, timeout_seconds: float, sandbox_mode: str,
                 environment=None, preflight=None, terminal_publisher=None,
@@ -92,7 +522,9 @@ class VerificationSupervisor:
                 retry_controls: tuple[str, ...] = (), failure_grant_id: str | None = None,
                 candidate_identity: str | None = None, final_changed_surface_id: str | None = None,
                 plan_id: str | None = None, retry_scope: dict | None = None,
-                policy_checkpoint: str | None = None):
+                policy_checkpoint: str | None = None, toolchain_directories=(),
+                expected_executable_binding: dict | None = None, launch_authorizer=None,
+                prelaunch_recovery_authorizer=None, prelaunch_terminalizer=None):
         if retry_policy not in {'forbid', 'allow'} or not isinstance(critical, bool):
             raise SupervisorError('invalid-retry-policy')
         if not isinstance(retry_controls, (tuple, list)) or any(not isinstance(x, str) for x in retry_controls):
@@ -100,26 +532,14 @@ class VerificationSupervisor:
         retry_controls = tuple(retry_controls)
         if len(set(retry_controls)) != len(retry_controls):
             raise SupervisorError('invalid-retry-controls')
-        # retry_controls is part of the trusted profile snapshot. The explicit
-        # marker means the tool itself has no retry layer. A declared control
-        # uses `internal-retry-disabled:<id>` or
-        # `internal-retry-bounded:<id>:<max>`; opaque legacy names prove none.
-        retry_free = False
-        retry_policy_proof = {'schema_version': 1, 'policy': retry_policy, 'critical': critical,
-                              'retry_controls': list(retry_controls), 'retry_free': False}
-        if critical and retry_policy == 'forbid':
-            if retry_controls == ('no-internal-retries',):
-                retry_free = True
-            elif retry_controls and all(
-                    (item.startswith('internal-retry-disabled:') and item.split(':', 1)[1]) or
-                    (len(item.split(':')) == 3 and item.split(':')[0] == 'internal-retry-bounded' and
-                     item.split(':')[1] and item.split(':')[2].isdigit() and int(item.split(':')[2]) > 0)
-                    for item in retry_controls):
-                retry_free = True
-            retry_policy_proof['retry_free'] = retry_free
-            if not retry_free:
-                raise SupervisorError('retry-policy-violation')
-        retry_policy_proof['retry_free'] = bool(retry_free)
+        control_evidence = _registered_gradle_retry_evidence(
+            worktree, gate_id, command, retry_controls)
+        retry_facts = _retry_policy_facts(retry_policy, critical, list(retry_controls),
+                                          gate_id=gate_id, command=command,
+                                          control_evidence=control_evidence)
+        if retry_facts is None or (critical and retry_policy == 'forbid' and not retry_facts['retry_free']):
+            raise SupervisorError('retry-policy-violation')
+        retry_policy_proof = retry_facts
         intent_hash = hashlib.sha256(command.encode('utf-8')).hexdigest()
         derived_failure_fingerprint = candidate_failure_fingerprint({
             'repository_id': self.store.repository_id, 'family_id': family_id,
@@ -131,6 +551,7 @@ class VerificationSupervisor:
             'repository_id': self.store.repository_id, 'family_id': family_id,
             'attempt_id': attempt_id, 'gate_id': gate_id, 'command_hash': intent_hash,
         })).hexdigest()[:32]
+        repository_admission_id = execution_id
         if not hasattr(backend, 'prepare'):
             raise SupervisorError('EXECUTION_BACKEND_REQUIRED')
 
@@ -138,7 +559,9 @@ class VerificationSupervisor:
         # before waiting long enough to become a new, sequential execution.
         # Recovery remains an explicit operation and may take the normal lock.
         with repository_lock(self.store.root, timeout=0):
-            self._recover_locked(lambda _record: backend, recovery_observer)
+            self._recover_locked(lambda _record: backend, recovery_observer,
+                prelaunch_recovery_authorizer=prelaunch_recovery_authorizer,
+                prelaunch_terminalizer=prelaunch_terminalizer)
             self.store.admit_repository_verification()
             self._crash('after-admission')
             ready = preflight() if preflight else None
@@ -180,11 +603,26 @@ class VerificationSupervisor:
                 except TypeError:
                     ready.action = 'RUN'
                     ready.reason = 'failure-grant-retry'
+            backend_run_dir = pathlib.Path(run_dir)
+            if control_evidence is not None:
+                # A preceding gate can write Gradle user-home init scripts under
+                # the shared plan run directory. Give each execution a stable,
+                # isolated namespace so prepare/start crash replay retains its
+                # backend policy identity without reusing another gate's home.
+                backend_run_dir = backend_run_dir / 'registered-gradle' / execution_id
+                if environment and any(key in environment for key in
+                                       ('GRADLE_USER_HOME', 'GRADLE_OPTS', 'JAVA_OPTS')):
+                    raise SupervisorError('retry-policy-violation')
+                if _gradle_user_home_has_init_scripts(backend_run_dir):
+                    raise SupervisorError('retry-policy-violation')
             try:
                 prepared = backend.prepare(worktree=pathlib.Path(worktree), cwd=pathlib.Path(cwd),
-                    run_dir=pathlib.Path(run_dir), repository_id=self.store.repository_id,
+                    run_dir=backend_run_dir, repository_id=self.store.repository_id,
                     command=command, sandbox_mode=sandbox_mode, environment=environment,
-                    control_root=self.store.root, execution_id=execution_id)
+                    control_root=self.store.root, execution_id=execution_id,
+                    toolchain_directories=toolchain_directories, plan_id=plan_id,
+                    expected_executable_binding=expected_executable_binding)
+                self._crash('after-prepare')
             except Exception as exc:
                 if isinstance(exc, SupervisorError):
                     raise
@@ -226,9 +664,14 @@ class VerificationSupervisor:
                         existing.get('family_id') != family_id or existing.get('attempt_id') != attempt_id or
                         existing.get('gate_id') != gate_id or existing.get('execution_identity') != identity or
                         existing.get('policy_identity') != policy_identity or
+                        existing.get('qualification_fingerprint') != (qualification or policy_identity) or
                         existing.get('backend_identity') != backend_identity or
+                        existing.get('input_fingerprint') != input_fingerprint or
                         existing.get('candidate_identity') != candidate_identity or
                         existing.get('final_changed_surface_id') != final_changed_surface_id or
+                        existing.get('profile_hash') != profile_hash or
+                        existing.get('policy_checkpoint') != policy_checkpoint or
+                        existing.get('plan_id') != plan_id or
                         existing.get('retry_policy_proof') != retry_policy_proof):
                     raise StoreError('immutable-record-collision')
                 terminal = self.store._read_execution_terminal(journal, existing)
@@ -272,9 +715,58 @@ class VerificationSupervisor:
             _fsync_directory(self.store.executions)
             self._crash('after-started')
 
-            launch_marker = {'schema_version': 1, 'execution_id': execution_id,
+            launch_authority = None
+            if launch_authorizer is not None:
+                if not isinstance(plan_id, str) or not plan_id:
+                    raise SupervisorError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+                metadata = {
+                    'repository_id': self.store.repository_id,
+                    'repository_admission_id': repository_admission_id,
+                    'execution_id': execution_id,
+                    'family_id': family_id,
+                    'attempt_id': attempt_id,
+                    'gate_id': gate_id,
+                    'plan_id': plan_id,
+                    'command_hash': intent_hash,
+                    'candidate_identity': candidate_identity,
+                    'final_changed_surface_id': final_changed_surface_id,
+                    'profile_hash': profile_hash,
+                    'policy_checkpoint': policy_checkpoint,
+                    'input_fingerprint': input_fingerprint,
+                }
+                try:
+                    launch_authority = launch_authorizer(metadata)
+                except SupervisorError:
+                    raise
+                except Exception as exc:
+                    raise SupervisorError(getattr(exc, 'reason_code', None) or
+                                           'VERIFICATION_LAUNCH_AUTHORIZATION_FAILED') from None
+                if (not isinstance(launch_authority, dict) or
+                        not isinstance(launch_authority.get('reservation_id'), str) or
+                        re.fullmatch(r'launch-reservation-v1:sha256:[0-9a-f]{64}',
+                                     launch_authority['reservation_id']) is None or
+                        not isinstance(launch_authority.get('consumption_id'), str) or
+                        re.fullmatch(r'launch-consumption-v1:sha256:[0-9a-f]{64}',
+                                     launch_authority['consumption_id']) is None or
+                        launch_authority.get('plan_id') != plan_id or
+                        not validate_launch_capability(
+                            launch_authority.get('capability'),
+                            consumption_id=launch_authority['consumption_id'],
+                            reservation_id=launch_authority['reservation_id'])):
+                    raise SupervisorError('VERIFICATION_LAUNCH_CAPABILITY_INVALID')
+
+            launch_marker = {'schema_version': 2 if launch_authority else 1,
+                             'execution_id': execution_id,
                              'execution_identity': identity, 'launch_intent_hash': intent_hash,
                              'launch_requested_at': time.time()}
+            if launch_authority:
+                launch_marker.update({
+                    'launch_reservation_id': launch_authority['reservation_id'],
+                    'launch_consumption_id': launch_authority['consumption_id']})
+                launch_marker.update({key: launch_authority[key] for key in (
+                    'plan_id', 'unit_id', 'obligation_ids', 'admission_id', 'admission_sha256',
+                    'reservation_transition_id', 'consumption_transition_id',
+                    'plan_acceptance_transition_id', 'lifecycle_generation') if key in launch_authority})
             publish_create_once(journal / 'launching.json', launch_marker, fault=self.store._fault)
             self._crash('during-launch')
             try:
@@ -304,11 +796,10 @@ class VerificationSupervisor:
             self._crash('after-drain-proof')
             post_observation = post_observer(result, ready) if post_observer else {}
             observation = {
-                'schema_version': 1, 'execution_id': execution_id,
+                'schema_version': 2, 'execution_id': execution_id,
                 'exit_code': getattr(result, 'exit_code', None),
                 'timed_out': bool(getattr(result, 'timed_out', False)), 'cancelled': cancelled,
-                'stdout_hash': hashlib.sha256((getattr(result, 'stdout', '') or '').encode()).hexdigest(),
-                'stderr_hash': hashlib.sha256((getattr(result, 'stderr', '') or '').encode()).hexdigest(),
+                'output_observation': 'CAPTURED', 'output_persistence': 'OMITTED',
                 'started_at': getattr(result, 'started_at', started['started_at']),
                 'ended_at': getattr(result, 'ended_at', time.time()), 'post_observation': post_observation,
                 'result': self._outcome(result),
@@ -320,7 +811,7 @@ class VerificationSupervisor:
             terminal_material = (terminal_record_builder(result, ready, post_observation)
                                  if terminal_record_builder and observation['result'] == 'PASS' else None)
             receipt = {
-                'schema_version': 1, 'execution_id': execution_id,
+                'schema_version': 2, 'execution_id': execution_id,
                 'repository_id': self.store.repository_id, 'started_hash': started_hash,
                 'execution_identity': identity, 'backend_identity': backend_identity,
                 'candidate_identity': candidate_identity,
@@ -330,11 +821,17 @@ class VerificationSupervisor:
                 'harness_invocation_upper_bound': 1,
                 'exit_code': observation['exit_code'], 'timed_out': observation['timed_out'],
                 'cancelled': cancelled, 'drainage': 'DRAINED',
-                'output_observation': 'CAPTURED',
-                'stdout_hash': observation['stdout_hash'], 'stderr_hash': observation['stderr_hash'],
+                'output_observation': 'CAPTURED', 'output_persistence': 'OMITTED',
                 'post_observation': post_observation, 'result': observation['result'],
                 'ended_at': observation['ended_at'],
             }
+            if launch_authority:
+                receipt['launch_reservation_id'] = launch_authority['reservation_id']
+                receipt['launch_consumption_id'] = launch_authority['consumption_id']
+                receipt.update({key: launch_authority[key] for key in (
+                    'plan_id', 'unit_id', 'obligation_ids', 'admission_id', 'admission_sha256',
+                    'reservation_transition_id', 'consumption_transition_id',
+                    'plan_acceptance_transition_id', 'lifecycle_generation') if key in launch_authority})
             if terminal_material is not None:
                 receipt['verification_evidence'] = terminal_material
             self.store.publish_execution_terminal(receipt)
@@ -367,9 +864,12 @@ class VerificationSupervisor:
             'ended_at': observation.get('ended_at', started.get('started_at', 0)),
             'duration_seconds': max(0.0, observation.get('ended_at', 0) - observation.get('started_at', 0)),
             'exit_code': observation.get('exit_code'), 'stdout': '', 'stderr': '',
+            # CAPTURED records the execution-time observation; raw streams are
+            # intentionally omitted, so a recovered result has no diagnostics.
+            'output_persistence': observation.get('output_persistence', 'OMITTED'),
             'timed_out': observation.get('timed_out', False),
             'error': ('EXECUTION_ABORTED' if observation.get('result') == 'ABORTED' else
-                      'recovered-output-unavailable' if 'stdout_hash' not in observation else None),
+                      'recovered-output-unavailable' if observation.get('output_observation') != 'CAPTURED' else None),
             'sandbox_backend': started.get('backend'), 'strong_isolation': True,
             'protected_paths': True, 'descendant_containment': 'strong',
         })()
@@ -387,12 +887,17 @@ class VerificationSupervisor:
                         result.status, ReconciliationOutcome.UNCERTAIN)
         return reconcile
 
-    def recover(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
+    def recover(self, backend_factory=None, recovery_observer=None, *,
+                prelaunch_recovery_authorizer=None, prelaunch_terminalizer=None) -> tuple[RecoveryResult, ...]:
         """Reconcile every unresolved STARTED record using fresh durable identities."""
         with repository_lock(self.store.root):
-            return self._recover_locked(backend_factory, recovery_observer)
+            return self._recover_locked(backend_factory, recovery_observer,
+                prelaunch_recovery_authorizer=prelaunch_recovery_authorizer,
+                prelaunch_terminalizer=prelaunch_terminalizer)
 
-    def _recover_locked(self, backend_factory=None, recovery_observer=None) -> tuple[RecoveryResult, ...]:
+    def _recover_locked(self, backend_factory=None, recovery_observer=None, *,
+                        prelaunch_recovery_authorizer=None, prelaunch_terminalizer=None
+                        ) -> tuple[RecoveryResult, ...]:
         recovered = []
         for journal, started, closure in self.store._scan_executions():
             if closure is not None:
@@ -410,6 +915,21 @@ class VerificationSupervisor:
             if terminal is not None:
                 terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                                 if item['execution_id'] == execution_id)
+                if (terminal.get('result') == 'ABORTED' and
+                        terminal.get('harness_invocation_upper_bound') == 0 and
+                        terminal.get('launch_consumption_id') is not None):
+                    if prelaunch_terminalizer is None:
+                        recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                            'SAFE_PRELAUNCH_ABORT_TERMINALIZATION_REQUIRED', terminal))
+                        continue
+                    try:
+                        proof = safe_prelaunch_abort_proof(self, journal, execution_id, terminal,
+                                                           reason='prepared-never-launched')
+                        prelaunch_terminalizer(terminal, proof)
+                    except Exception:
+                        recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                            'SAFE_PRELAUNCH_ABORT_TERMINALIZATION_FAILED', terminal))
+                        continue
                 self._reconcile_phase_d(terminal, started)
                 self.store.rebuild_terminal_evidence(terminal)
                 self._publish_drained(journal, started, terminal['receipt_hash'],
@@ -419,9 +939,30 @@ class VerificationSupervisor:
                 continue
             # No launch-request marker proves the trusted supervisor never called
             # the Phase-B launch primitive. Persist an abort, never inferred success.
-            launching = self._read_json(journal / 'launching.json')
-            if launching is None:
-                recovered.append(self._abort_prepared(journal, started, 'prepared-never-launched'))
+            launch_marker_state = self._launch_marker_state(journal, started)
+            if launch_marker_state == 'invalid':
+                recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                                                 'EXECUTION_LAUNCH_MARKER_INVALID'))
+                continue
+            if launch_marker_state == 'absent':
+                authority_fields = None
+                if started.get('plan_id') is not None and prelaunch_recovery_authorizer is None:
+                    recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                        'SAFE_PRELAUNCH_ABORT_AUTHORITY_REQUIRED'))
+                    continue
+                if prelaunch_recovery_authorizer is not None:
+                    try:
+                        authority_fields = prelaunch_recovery_authorizer(started)
+                        if authority_fields is not None:
+                            authority_fields = _validated_safe_abort_authority_fields(
+                                authority_fields, started)
+                    except Exception:
+                        recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                            'SAFE_PRELAUNCH_ABORT_AUTHORITY_UNAVAILABLE'))
+                        continue
+                recovered.append(self._abort_prepared(journal, started, 'prepared-never-launched',
+                    authority_fields=authority_fields,
+                    prelaunch_terminalizer=prelaunch_terminalizer))
                 continue
             if backend_factory is None:
                 recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
@@ -435,7 +976,8 @@ class VerificationSupervisor:
                     getattr(inspection, 'reason_code', None) in
                     {'NOT_LAUNCHED', 'LAUNCH_FAILED_BEFORE_PAYLOAD'} and
                     self._read_json(journal / 'observation.json') is None):
-                recovered.append(self._abort_prepared(journal, started, 'backend-proved-not-launched'))
+                recovered.append(self._abort_prepared(journal, started, 'backend-proved-not-launched',
+                    prelaunch_terminalizer=prelaunch_terminalizer))
                 continue
             if (journal / 'cancelling.json').exists() and status in {'ACTIVE', 'NOT_DRAINED'}:
                 status = backend.cancel_and_drain(identity, 5).status
@@ -465,9 +1007,9 @@ class VerificationSupervisor:
                         recovered.append(RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
                             'POST_EXECUTION_OBSERVATION_UNAVAILABLE'))
                         continue
-                    observation = {'exit_code': None, 'timed_out': False, 'cancelled': True,
-                        'stdout_hash': None, 'stderr_hash': None,
-                        'output_observation': 'UNAVAILABLE',
+                    observation = {'schema_version': 2, 'exit_code': None,
+                        'timed_out': False, 'cancelled': True,
+                        'output_observation': 'UNAVAILABLE', 'output_persistence': 'UNAVAILABLE',
                         'post_observation': post_observation,
                         'result': 'ABORTED', 'ended_at': time.time()}
                 else:
@@ -496,23 +1038,41 @@ class VerificationSupervisor:
         if terminal.get('result') == 'PASS' and isinstance(retry, dict):
             self.store.publish_failure_resolution(retry['failure_id'], terminal['execution_id'], result='PASS')
 
-    def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str) -> RecoveryResult:
+    def _abort_prepared(self, journal: pathlib.Path, started: dict, reason: str, *,
+                        authority_fields: dict | None = None,
+                        prelaunch_terminalizer=None) -> RecoveryResult:
         execution_id = started['execution_id']
-        observation = {'exit_code': None, 'timed_out': False, 'cancelled': False,
-            'stdout_hash': hashlib.sha256(b'').hexdigest(),
-            'stderr_hash': hashlib.sha256(b'').hexdigest(), 'post_observation': {},
+        observation = {'schema_version': 2, 'exit_code': None, 'timed_out': False, 'cancelled': False,
+            'output_observation': 'UNAVAILABLE', 'output_persistence': 'UNAVAILABLE',
+            'post_observation': {},
             'result': 'ABORTED', 'ended_at': time.time()}
         receipt = self._terminal_from_observation(journal, started,
             started.get('execution_identity'), observation)
+        if authority_fields is not None:
+            authority_record = {'schema_version': 1, 'execution_id': execution_id,
+                                **authority_fields}
+            publish_create_once(journal / 'launch-authority.json', authority_record,
+                                fault=self.store._fault)
+            receipt.update(authority_fields)
         self.store.publish_execution_terminal(receipt)
         terminal = next(item for item in self.store.reconstruct_execution_terminals(rebuild=True)
                         if item['execution_id'] == execution_id)
+        if authority_fields is not None:
+            if prelaunch_terminalizer is None:
+                return RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                    'SAFE_PRELAUNCH_ABORT_TERMINALIZATION_REQUIRED', terminal)
+            try:
+                proof = safe_prelaunch_abort_proof(self, journal, execution_id, terminal, reason=reason)
+                prelaunch_terminalizer(terminal, proof)
+            except Exception:
+                return RecoveryResult(execution_id, SupervisorState.UNCERTAIN,
+                    'SAFE_PRELAUNCH_ABORT_TERMINALIZATION_FAILED', terminal)
         self._publish_drained(journal, started, terminal['receipt_hash'], reason=reason)
         return RecoveryResult(execution_id, SupervisorState.ABORTED_PREPARED,
                               'PREPARED_NOT_LAUNCHED', terminal)
 
     def _terminal_from_observation(self, journal, started, identity, observation):
-        return {'schema_version': 1, 'execution_id': started['execution_id'],
+        terminal = {'schema_version': 2, 'execution_id': started['execution_id'],
             'repository_id': self.store.repository_id,
             'started_hash': hashlib.sha256((journal / 'started.json').read_bytes()).hexdigest(),
             'execution_identity': identity or {'state': 'NOT_PREPARED'},
@@ -526,7 +1086,17 @@ class VerificationSupervisor:
             'exit_code': observation.get('exit_code'), 'timed_out': observation.get('timed_out', False),
             'cancelled': observation.get('cancelled', False), 'drainage': 'DRAINED',
             'output_observation': observation.get('output_observation', 'CAPTURED'),
-            'stdout_hash': observation.get('stdout_hash', hashlib.sha256(b'').hexdigest()),
-            'stderr_hash': observation.get('stderr_hash', hashlib.sha256(b'').hexdigest()),
+            'output_persistence': ('UNAVAILABLE' if observation.get('output_observation') == 'UNAVAILABLE'
+                                   else 'OMITTED'),
             'post_observation': observation.get('post_observation', {}),
             'result': observation.get('result', 'ABORTED'), 'ended_at': observation.get('ended_at', time.time())}
+        launch_marker = self._read_json(journal / 'launching.json')
+        if isinstance(launch_marker, dict):
+            for marker_key, terminal_key in ((key, key) for key in (
+                    'launch_reservation_id', 'launch_consumption_id', 'plan_id', 'unit_id',
+                    'obligation_ids', 'admission_id', 'admission_sha256',
+                    'reservation_transition_id', 'consumption_transition_id',
+                    'plan_acceptance_transition_id', 'lifecycle_generation')):
+                if marker_key in launch_marker:
+                    terminal[terminal_key] = launch_marker[marker_key]
+        return terminal

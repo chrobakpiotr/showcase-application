@@ -1,0 +1,16 @@
+docker run --rm --mount type=bind,src=/tmp/showcase-t900-isolated-retry-20261013-7f2a6d,dst=/workspace -w /workspace -e PYTHONPATH=tooling/agent-harness showcase-t900-eval:pinned-20261013 python3 -c import os,pathlib,signal,tempfile,time,subprocess
+import verification_sandbox as vs
+root=pathlib.Path(tempfile.mkdtemp()); writable=root/'writable'; writable.mkdir()
+candidate=vs.BackendCandidate('fixture','1','/bin/false','test'); groups=[]; real= os.killpg
+def record(pgid,sig):
+ if sig==signal.SIGKILL: groups.append(pgid)
+ return real(pgid,sig)
+vs._candidate_probe_argv=lambda _c,argv,*args: argv
+vs.os.killpg=record
+result=vs._active_containment_probe(candidate,'Q05',root,(str(writable),),())
+print('result=',result); print('pgids=',groups)
+for pgid in groups:
+ rows=subprocess.check_output(['/bin/ps','-axo','pid=,ppid=,pgid=,stat=,command='],text=True).splitlines()
+ found=[r.strip() for r in rows if len(r.split())>=3 and r.split()[2]==str(pgid)]
+ print('group_processes=',found); print('backend_group_status=',vs.PosixProcessGroupBackend._group_status(pgid))
+

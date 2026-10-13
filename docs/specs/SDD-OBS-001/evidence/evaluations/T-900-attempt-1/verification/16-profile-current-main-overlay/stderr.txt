@@ -1,0 +1,12 @@
+test_direct_cli_and_shared_planner_emit_identical_advisory_plan (test_verification_profile_showcase.ShowcaseProfileTest.test_direct_cli_and_shared_planner_emit_identical_advisory_plan) ... ok
+test_integration_mapping_retains_one_profile_node (test_verification_profile_showcase.ShowcaseProfileTest.test_integration_mapping_retains_one_profile_node) ... ok
+test_mapped_applicable_gate_keeps_separate_profile_requirement (test_verification_profile_showcase.ShowcaseProfileTest.test_mapped_applicable_gate_keeps_separate_profile_requirement) ... ok
+test_mapping_does_not_make_non_applicable_profile_gate_required (test_verification_profile_showcase.ShowcaseProfileTest.test_mapping_does_not_make_non_applicable_profile_gate_required) ... ok
+test_profile_covers_repository_quality_gate_inputs (test_verification_profile_showcase.ShowcaseProfileTest.test_profile_covers_repository_quality_gate_inputs) ... ok
+test_profile_is_deterministic_and_gate_commands_are_unambiguous (test_verification_profile_showcase.ShowcaseProfileTest.test_profile_is_deterministic_and_gate_commands_are_unambiguous) ... ok
+test_repeated_task_occurrences_remain_distinct (test_verification_profile_showcase.ShowcaseProfileTest.test_repeated_task_occurrences_remain_distinct) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.536s
+
+OK

@@ -1,4 +1,5 @@
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
@@ -41,6 +42,199 @@ class PlannerTest(unittest.TestCase):
     def plan(self, p=None, **kwargs):
         return build_plan(self.root, p or self.p, self.family(p), **kwargs)
 
+    def test_empty_profile_does_not_enumerate_repository_paths(self):
+        from verification import fingerprint
+        empty = profile()
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir:
+            plan = self.plan(empty)
+        self.assertEqual((), plan.decisions)
+        scandir.assert_not_called()
+
+    def test_literal_input_does_not_enumerate_unrelated_repository_paths(self):
+        from verification import fingerprint
+        target = self.root / 'target.txt'
+        target.write_text('target bytes')
+        for index in range(20):
+            (self.root / f'unrelated-{index}.txt').write_text('unrelated')
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['target.txt']))
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir:
+            plan = self.plan(p, task_commands=['python3 -m unittest'])
+        self.assertEqual(1, len(plan.decisions))
+        self.assertIsNotNone(plan.decisions[0].fingerprint)
+        scandir.assert_not_called()
+
+    def test_glob_input_scans_only_its_literal_prefix_subtree(self):
+        from verification import fingerprint
+        (self.root / 'src/nested').mkdir()
+        (self.root / 'src/nested/unit.py').write_text('unit')
+        for index in range(20):
+            (self.root / f'unrelated-{index}.txt').write_text('unrelated')
+        p = profile(gate('unit', command='python3 -m unittest unit', inputs=['src/**/*.py']),
+                    gate('other', command='python3 -m unittest other', inputs=['src/**/*.py']))
+        with mock.patch.object(fingerprint.os, 'scandir', wraps=fingerprint.os.scandir) as scandir, \
+                mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
+            plan = self.plan(p, task_commands=['python3 -m unittest unit', 'python3 -m unittest other'])
+        self.assertEqual(2, len(plan.decisions))
+        self.assertTrue(any(call.args[0] == 'unit.py' and call.kwargs.get('dir_fd') is not None
+                            for call in opened.call_args_list))
+        # The scanner opens each directory with a pinned dirfd, so scandir
+        # receives descriptors rather than path strings. Assert the requested
+        # prefix was opened beneath the repository root and no path-based scan
+        # can enumerate the root or an unrelated subtree.
+        self.assertTrue(all(isinstance(call.args[0], int)
+                            for call in scandir.call_args_list))
+        directory_opens = [call for call in opened.call_args_list
+                           if call.args[1] & fingerprint.os.O_DIRECTORY]
+        self.assertTrue(any(call.args[0] == 'src' and call.kwargs.get('dir_fd') is not None
+                            for call in directory_opens))
+        self.assertEqual(2, scandir.call_count)
+
+    def test_unconditional_applicability_does_not_widen_input_inventory(self):
+        from verification import fingerprint
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py']))
+        with mock.patch.object(fingerprint, '_git', wraps=fingerprint._git) as git:
+            plan = self.plan(p, task_commands=['python3 -m unittest'])
+        self.assertEqual(1, len(plan.decisions))
+        tree_queries = [call.args[1:] for call in git.call_args_list if call.args[1] == 'ls-tree']
+        self.assertEqual(1, len(tree_queries))
+        self.assertIn(':(literal)src', tree_queries[0])
+
+    def test_deleted_declared_input_is_a_fingerprinted_tombstone(self):
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py']))
+        before = self.plan(p).decisions[0]
+        prior = self.receipt(before, p)
+        (self.root / 'src/a.py').unlink()
+        after = self.plan(p, evidence={'unit': prior}).decisions[0]
+        self.assertIsNotNone(after.fingerprint)
+        self.assertNotEqual(before.fingerprint, after.fingerprint)
+        self.assertEqual('INVALIDATED_BY_THIS_PATCH', after.decision)
+        from verification import fingerprint
+        surface = fingerprint.changed_surface(
+            self.root, self.base, patterns=('src/**/*.py',), applicability_patterns=())
+        observation = fingerprint.observe_inputs(self.root, ('src/**/*.py',), surface)
+        self.assertIn(('src/a.py', 'absent'), {(item.path, item.kind) for item in observation.manifest})
+
+    def test_scanner_never_follows_directory_swapped_for_symlink(self):
+        from verification import fingerprint
+        source = self.root / 'src/nested'
+        source.mkdir()
+        external = self.root.parent / (self.root.name + '-external')
+        external.mkdir()
+        (external / 'secret.py').write_text('outside')
+        original_open = fingerprint.os.open
+        raced = False
+
+        def swap_then_open(path, flags, *args, **kwargs):
+            nonlocal raced
+            if path == 'nested' and kwargs.get('dir_fd') is not None and not raced:
+                raced = True
+                parked = self.root / 'src/nested-parked'
+                source.rename(parked)
+                source.symlink_to(external, target_is_directory=True)
+            return original_open(path, flags, *args, **kwargs)
+
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/nested/**/*.py']))
+        try:
+            with mock.patch.object(fingerprint.os, 'open', side_effect=swap_then_open):
+                observation = observe_inputs(
+                    self.root, ('src/nested/**/*.py',), changed_surface(self.root, self.base))
+            self.assertTrue(raced, 'the test must replace src between discovery and secure open')
+            self.assertIn('non-cacheable-symlink-input', observation.reasons)
+            self.assertNotIn(('src/nested/secret.py', 'file'),
+                             {(item.path, item.kind) for item in observation.manifest})
+        finally:
+            if source.is_symlink():
+                source.unlink()
+            parked = self.root / 'src/nested-parked'
+            if parked.exists():
+                parked.rename(source)
+            import shutil
+            shutil.rmtree(external, ignore_errors=True)
+
+    def test_file_open_never_follows_parent_swapped_for_symlink(self):
+        from verification import fingerprint
+        target = self.root / 'target'
+        target.mkdir()
+        (target / 'a.txt').write_text('inside')
+        external = self.root.parent / (self.root.name + '-file-open-external')
+        external.mkdir()
+        outside = external / 'a.txt'
+        outside.write_text('OUTSIDE-SECRET-CANARY')
+        outside_hash = hashlib.sha256(outside.read_bytes()).hexdigest()
+        original_open = fingerprint.os.open
+        raced = False
+
+        def swap_then_open(path, flags, *args, **kwargs):
+            nonlocal raced
+            is_absolute_leaf = pathlib.Path(path) == target / 'a.txt'
+            is_parent_component = path == 'target' and kwargs.get('dir_fd') is not None
+            if (is_absolute_leaf or is_parent_component) and not raced:
+                raced = True
+                parked = self.root / 'target-parked'
+                target.rename(parked)
+                target.symlink_to(external, target_is_directory=True)
+                try:
+                    return original_open(path, flags, *args, **kwargs)
+                finally:
+                    target.unlink()
+                    parked.rename(target)
+            return original_open(path, flags, *args, **kwargs)
+
+        try:
+            surface = fingerprint.changed_surface(self.root, self.base)
+            with mock.patch.object(fingerprint.os, 'open', side_effect=swap_then_open):
+                observation = fingerprint.observe_inputs(self.root, ('target/a.txt',), surface)
+            self.assertTrue(raced, 'the test must swap the ancestor between identity check and open')
+            self.assertIn('non-cacheable-symlink-input', observation.reasons)
+            self.assertNotIn(outside_hash, {item.sha256 for item in observation.manifest})
+        finally:
+            parked = self.root / 'target-parked'
+            if parked.exists():
+                parked.rename(target)
+            import shutil
+            shutil.rmtree(external, ignore_errors=True)
+
+    def test_file_open_is_nonblocking_when_candidate_becomes_fifo(self):
+        from verification import fingerprint
+        target = self.root / 'target'
+        target.mkdir()
+        leaf = target / 'a.txt'
+        leaf.write_text('inside')
+        original_open = fingerprint.os.open
+        raced = False
+
+        def replace_with_fifo(path, flags, *args, **kwargs):
+            nonlocal raced
+            if path == 'a.txt' and kwargs.get('dir_fd') is not None and not raced:
+                raced = True
+                leaf.unlink()
+                os.mkfifo(leaf)
+                self.assertTrue(flags & getattr(os, 'O_NONBLOCK', 0),
+                                'candidate file opens must not block on a raced FIFO')
+            return original_open(path, flags, *args, **kwargs)
+
+        try:
+            surface = fingerprint.changed_surface(self.root, self.base)
+            with mock.patch.object(fingerprint.os, 'open', side_effect=replace_with_fifo):
+                observation = fingerprint.observe_inputs(self.root, ('target/a.txt',), surface)
+            self.assertTrue(raced)
+            self.assertIn('non-cacheable-external-state', observation.reasons)
+            self.assertEqual((), tuple(item for item in observation.manifest
+                                       if item.sha256 == hashlib.sha256(b'inside').hexdigest()))
+        finally:
+            if leaf.exists():
+                leaf.unlink()
+
+    def test_planning_shares_one_scoped_base_tree_query_for_inputs_and_applicability(self):
+        from verification import fingerprint
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py'],
+                         applicability=['docs/**/*.md']))
+        with mock.patch.object(fingerprint, '_git', wraps=fingerprint._git) as git:
+            self.plan(p, task_commands=['python3 -m unittest'])
+        tree_queries = [call for call in git.call_args_list
+                        if call.args[1] == 'ls-tree']
+        self.assertEqual(1, len(tree_queries))
+
     def receipt(self, decision, p=None, evidence_id='receipt-1'):
         return seal_pass(decision, decision, family=self.family(p), evidence_id=evidence_id,
                          ownership_token='owner-1', started_at=1, ended_at=2,
@@ -59,6 +253,108 @@ class PlannerTest(unittest.TestCase):
         self.assertIn('src/a.py', surface.deleted)
         for bad in ['missing', self.git('rev-parse', 'HEAD:src/renamed.py').strip()]:
             with self.assertRaises(InvalidPolicy): changed_surface(self.root, bad)
+
+    def test_changed_surface_finds_deletions_without_full_tree_inventory(self):
+        from verification import fingerprint
+        (self.root / 'src/a.py').unlink()
+        with mock.patch.object(fingerprint, '_git', wraps=fingerprint._git) as git:
+            surface = changed_surface(self.root, self.base)
+        self.assertIn('src/a.py', surface.paths)
+        self.assertIn('src/a.py', surface.deleted)
+        commands = [call.args[1:] for call in git.call_args_list]
+        self.assertNotIn(('ls-files', '-z'), commands)
+        self.assertFalse(any(command[:3] == ('ls-tree', '-r', '--name-only') for command in commands))
+
+    def test_skip_worktree_deletion_invalidates_matching_input(self):
+        (self.root / 'src/skip.py').write_text('before')
+        self.git('add', 'src/skip.py')
+        self.git('commit', '-qm', 'add skip-worktree fixture')
+        self.base = self.git('rev-parse', 'HEAD').strip()
+        (self.root / 'src/a.py').write_text('changed')
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/**/*.py'],
+                         applicability=['src/**/*.py']))
+        initial = self.plan(p).decisions[0]
+        receipt = self.receipt(initial, p)
+        self.git('update-index', '--skip-worktree', 'src/skip.py')
+        (self.root / 'src/skip.py').unlink()
+        after_plan = self.plan(p, evidence={'unit': receipt})
+        self.assertEqual(1, len(after_plan.decisions))
+        self.assertIn('src/skip.py', changed_surface(self.root, self.base, patterns=('src/**/*.py',)).paths)
+        after = after_plan.decisions[0]
+        self.assertEqual('INVALIDATED_BY_THIS_PATCH', after.decision)
+        self.assertNotEqual(initial.fingerprint, after.fingerprint)
+
+    def test_literal_control_paths_are_never_observed_or_opened(self):
+        from verification import fingerprint
+        control = self.root / '.agent-state/private.json'
+        control.parent.mkdir(parents=True)
+        control.write_text('{"private":true}')
+        surface = changed_surface(self.root, self.base)
+        control_paths = (
+            ('.git/config', '.git/config'),
+            ('.GIT/config', '.git/config'),
+            ('.agent-state/private.json', '.agent-state/private.json'),
+            ('.Agent-State/private.json', '.agent-state/private.json'),
+        )
+        for relative, canonical in control_paths:
+            with self.subTest(path=relative), \
+                    mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened, \
+                    mock.patch.object(fingerprint.os.path, 'samefile', return_value=False):
+                observation = observe_inputs(self.root, (relative,), surface)
+                self.assertIn('non-cacheable-external-state', observation.reasons)
+                self.assertFalse(any(str(call.args[0]) == str(self.root / relative)
+                                     for call in opened.call_args_list))
+                with self.assertRaises(ValueError):
+                    observe_artifacts(self.root, (relative,))
+
+    def test_control_runtime_cache_distinguishes_relative_roots_after_chdir(self):
+        from verification import fingerprint
+        first = self.root / 'first-root'
+        second = self.root / 'second-root'
+        first.mkdir()
+        second.mkdir()
+        original = os.getcwd()
+        fingerprint._control_runtime_relative.cache_clear()
+        try:
+            with mock.patch.object(fingerprint, '_trusted_runtime_relative',
+                                   side_effect=lambda root: f'runtime-{pathlib.Path(root).name}'):
+                os.chdir(first)
+                self.assertTrue(fingerprint._is_control_path('.', 'runtime-first-root/probe'))
+                os.chdir(second)
+                self.assertTrue(fingerprint._is_control_path('.', 'runtime-second-root/probe'))
+        finally:
+            os.chdir(original)
+            fingerprint._control_runtime_relative.cache_clear()
+
+    def test_case_variant_control_name_is_refused_on_every_filesystem(self):
+        from verification import fingerprint
+        payload = self.root / '.Agent-State/payload.txt'
+        payload.parent.mkdir()
+        payload.write_text('before')
+        self.git('add', '.Agent-State/payload.txt')
+        self.git('commit', '-qm', 'add case-variant candidate')
+        base = self.git('rev-parse', 'HEAD').strip()
+        payload.write_text('after')
+        with mock.patch.object(fingerprint.os.path, 'samefile', return_value=False):
+            surface = changed_surface(
+                self.root, base,
+                patterns=('.Agent-State/**',),
+                applicability_patterns=('.Agent-State/**',),
+            )
+        self.assertNotIn('.Agent-State/payload.txt', surface.paths)
+
+    def test_zero_match_input_pattern_is_noncacheable(self):
+        from verification import fingerprint
+        p = profile(gate('unit', command='python3 -m unittest', inputs=['src/not-present.py']))
+        decision = self.plan(p).decisions[0]
+        self.assertEqual('empty-declared-input', decision.reason)
+        self.assertFalse(decision.cacheable)
+        self.assertIsNone(decision.fingerprint)
+        surface = fingerprint.changed_surface(
+            self.root, self.base, patterns=('src/not-present.py',), applicability_patterns=())
+        observation = fingerprint.observe_inputs(self.root, ('src/not-present.py',), surface)
+        self.assertEqual((), observation.manifest)
+        self.assertEqual(('empty-declared-input',), observation.reasons)
 
     def test_ignored_candidate_files_are_visible_but_only_exact_runtime_is_excluded(self):
         (self.root / '.gitignore').write_text('ignored-output/\n', encoding='utf-8')
@@ -176,11 +472,21 @@ class PlannerTest(unittest.TestCase):
 
     def test_fingerprint_policy_and_probe_dimensions(self):
         baseline = self.plan().decisions[0].fingerprint
-        for changes in [dict(command='python3 -V'), dict(cwd='src'), dict(sandbox='off'),
+        for changes in [dict(command='python3 -V'), dict(cwd='src'),
                         dict(retry_policy='allow'), dict(retry_controls=['disable-retries']),
                         dict(inputs=['src/a.py']), dict(critical=True)]:
             with self.subTest(changes=changes):
                 self.assertNotEqual(baseline, self.plan(profile(gate(**changes))).decisions[0].fingerprint)
+        task_profile = self.p
+        task_family = self.family(task_profile, policy='task-completion')
+        integration_family = self.family(task_profile, policy='integration')
+        task_fingerprint = build_plan(self.root, task_profile, task_family).decisions[0].fingerprint
+        integration_fingerprint = build_plan(self.root, task_profile, integration_family).decisions[0].fingerprint
+        self.assertNotEqual(task_fingerprint, integration_fingerprint)
+        task_sandbox_off = profile(gate(sandbox='off'))
+        task_sandbox_family = self.family(task_sandbox_off, policy='task-completion')
+        self.assertNotEqual(task_fingerprint,
+                            build_plan(self.root, task_sandbox_off, task_sandbox_family).decisions[0].fingerprint)
         p = profile(gate(probes=[{'id': 'python', 'format': 'version'}]))
         one = self.plan(p, probes={'unit': {'python': '3.14.0'}}).decisions[0]
         two = self.plan(p, probes={'unit': {'python': '3.14.1'}}).decisions[0]
@@ -263,9 +569,11 @@ class PlannerTest(unittest.TestCase):
         real_open = fingerprint.os.open
         with mock.patch.object(fingerprint.os, 'open', wraps=real_open) as opened:
             self.plan(p)
-            self.assertEqual(1, sum(str(c.args[0]) == str(self.root / 'src/a.py') for c in opened.call_args_list))
+            reads = lambda: sum(c.args[0] == 'a.py' and c.kwargs.get('dir_fd') is not None
+                                for c in opened.call_args_list)
+            self.assertEqual(1, reads())
             self.plan(p)
-            self.assertEqual(2, sum(str(c.args[0]) == str(self.root / 'src/a.py') for c in opened.call_args_list))
+            self.assertEqual(2, reads())
 
     def test_initial_freshness_cannot_hide_unresolved_dependency(self):
         p = profile(gate('producer', command='python3 -V', mandatory=False),
@@ -341,11 +649,13 @@ class PlannerTest(unittest.TestCase):
         (self.root / 'out').mkdir()
         path = self.root / 'out/data'
         path.write_text('full')
+        real_open = fingerprint.os.open
         producer = self.plan(p).decisions[0]
         evidence = {'producer': self.receipt(producer, p)}
-        with mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
+        with mock.patch.object(fingerprint.os, 'open', wraps=real_open) as opened:
+            def reads(): return sum(c.args[0] == 'data' and c.kwargs.get('dir_fd') is not None
+                                    for c in opened.call_args_list)
             plan = self.plan(p, evidence=evidence)
-            def reads(): return sum(str(c.args[0]) == str(path) for c in opened.call_args_list)
             self.assertEqual(1, reads())
             self.plan(p, evidence=evidence)
             self.assertEqual(2, reads())
@@ -374,8 +684,10 @@ class PlannerTest(unittest.TestCase):
         initial = self.plan(p)
         evidence = {'producer': self.receipt(initial.decisions[0], p)}
         safety = SafetyPolicy(('harmless synthetic phrase',))
-        with mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
-            def reads(): return sum(str(c.args[0]) == str(path) for c in opened.call_args_list)
+        real_open = fingerprint.os.open
+        with mock.patch.object(fingerprint.os, 'open', wraps=real_open) as opened:
+            def reads(): return sum(c.args[0] == 'data' and c.kwargs.get('dir_fd') is not None
+                                    for c in opened.call_args_list)
             for expected in (1, 2):
                 plan = self.plan(p, evidence=evidence, safety=safety)
                 self.assertEqual(expected, reads())
@@ -403,7 +715,8 @@ class PlannerTest(unittest.TestCase):
         with mock.patch.object(fingerprint.os, 'open', wraps=fingerprint.os.open) as opened:
             for _ in range(100):
                 self.assertEqual((None, 'non-cacheable-sensitive-identity'), session.identity('out/data'))
-            self.assertEqual(1, sum(str(c.args[0]) == str(path) for c in opened.call_args_list))
+            self.assertEqual(1, sum(c.args[0] == 'data' and c.kwargs.get('dir_fd') is not None
+                                    for c in opened.call_args_list))
         inputs = profile(*(gate('g' + str(i), command='python3 -m unittest g' + str(i))
                            for i in range(100)))
         (self.root / 'src/a.py').write_text('harmless synthetic phrase')
@@ -413,7 +726,7 @@ class PlannerTest(unittest.TestCase):
                 self.assertEqual('non-cacheable-sensitive-identity', decision.reason)
                 self.assertFalse(decision.cacheable)
                 self.assertIsNone(decision.fingerprint)
-            self.assertEqual(1, sum(str(c.args[0]) == str(self.root / 'src/a.py')
+            self.assertEqual(1, sum(c.args[0] == 'a.py' and c.kwargs.get('dir_fd') is not None
                                     for c in opened.call_args_list))
 
     def test_root_and_nested_secret_paths_are_never_read(self):

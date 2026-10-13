@@ -1,0 +1,1 @@
+env TMPDIR=/private/tmp PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests python3 -m unittest test_verification_workspace -v

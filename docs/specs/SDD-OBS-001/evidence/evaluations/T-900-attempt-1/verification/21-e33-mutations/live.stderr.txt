@@ -1,0 +1,19 @@
+test_group_status_treats_zombie_only_group_as_drained (test_verification_backend_qualification.BackendQualificationTest.test_group_status_treats_zombie_only_group_as_drained) ... FAIL
+
+======================================================================
+FAIL: test_group_status_treats_zombie_only_group_as_drained (test_verification_backend_qualification.BackendQualificationTest.test_group_status_treats_zombie_only_group_as_drained)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_backend_qualification.py", line 49, in test_group_status_treats_zombie_only_group_as_drained
+    self.assertEqual('NOT_DRAINED', vs.PosixProcessGroupBackend._group_status(123))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'NOT_DRAINED' != 'DRAINED'
+- NOT_DRAINED
+? ----
++ DRAINED
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+FAILED (failures=1)

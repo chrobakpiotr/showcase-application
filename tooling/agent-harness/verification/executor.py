@@ -7,6 +7,7 @@ authorization or evidence serialization semantics.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import pathlib
 import time
 import uuid
@@ -19,6 +20,19 @@ from .store import StoreError, VerificationStore
 from .supervisor import VerificationSupervisor
 from verification_command import CommandExecutionBackend
 from machine_outcomes import classify_reason, exit_code
+
+
+def _binding_for_gate(authority_context, gate):
+    if authority_context is None:
+        return None, None
+    if not isinstance(authority_context, dict) or not isinstance(authority_context.get('plan_id'), str):
+        raise StoreError('PLAN_BINDING_MISMATCH')
+    matches = [item for item in authority_context.get('executable_bindings', [])
+               if isinstance(item, dict) and item.get('gate_id') == gate.id]
+    if (len(matches) != 1 or matches[0].get('command_hash') != gate.command_hash or
+            not isinstance(matches[0].get('binding'), dict)):
+        raise StoreError('PLAN_BINDING_MISMATCH')
+    return authority_context['plan_id'], matches[0]['binding']
 
 
 @dataclass(frozen=True)
@@ -124,7 +138,37 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                  failure_grants: dict[str, str] | None = None,
                  authority_context: dict | None = None):
     if authority_context is not None:
-        raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+        from .authority import resolve_execution
+        if not isinstance(authority_context, dict):
+            raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE')
+        try:
+            trusted, trusted_profile, trusted_plan, _units = resolve_execution(
+                repository, authority_context.get('plan_id'))
+        except (KeyError, TypeError):
+            raise StoreError('VERIFICATION_ORIGIN_ADMISSION_UNAVAILABLE') from None
+        if (trusted != authority_context or trusted_profile.content_hash != profile.content_hash or
+                trusted_plan.family != plan.family or plan.advisory is not True):
+            raise StoreError('PLAN_BINDING_MISMATCH')
+        trusted_decisions = {item.node.id: item for item in trusted_plan.decisions}
+        selected_ids = [item.node.id for item in plan.decisions]
+        if (len(selected_ids) != len(set(selected_ids)) or not selected_ids or
+                any(trusted_decisions.get(item.node.id) != item for item in plan.decisions)):
+            raise StoreError('PLAN_BINDING_MISMATCH')
+        gate_obligations = {item['gate_id']: item['obligation_id']
+                            for item in authority_context.get('obligations', [])
+                            if isinstance(item, dict)}
+        selected_obligations = {gate_obligations.get(gate_id) for gate_id in selected_ids}
+        if None in selected_obligations:
+            raise StoreError('PLAN_BINDING_MISMATCH')
+        selected_units = [unit for unit in authority_context.get('execution_units', [])
+                          if isinstance(unit, dict) and
+                          set(unit.get('obligation_ids', [])) & selected_obligations]
+        if (not selected_units or
+                {item for unit in selected_units for item in unit.get('obligation_ids', [])} !=
+                selected_obligations or
+                [item.node.id for item in trusted_plan.decisions
+                 if gate_obligations.get(item.node.id) in selected_obligations] != selected_ids):
+            raise StoreError('PLAN_BINDING_MISMATCH')
     safety = safety or default_safety()
     store = store or VerificationStore(repository)
     attempt_id = attempt_id or uuid.uuid4().hex
@@ -155,7 +199,9 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
             outcomes.append('NOT_RUN')
             continue
         try:
+            plan_id, expected_executable_binding = _binding_for_gate(authority_context, gate)
             retry_scope = None
+            launch_authorizer = None
             if isinstance(authority_context, dict):
                 obligations = authority_context.get('obligations', [])
                 units = authority_context.get('execution_units', [])
@@ -186,6 +232,56 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                     'origin_binding': authority_context['origin_binding'],
                     'fence_fingerprint': decision.fingerprint,
                 }
+                def authorize_launch(metadata):
+                    if (not isinstance(metadata, dict) or
+                            metadata.get('repository_id') != store.repository_id or
+                            metadata.get('repository_admission_id') != metadata.get('execution_id') or
+                            metadata.get('plan_id') != authority_context['plan_id'] or
+                            metadata.get('family_id') != plan.family.id or
+                            metadata.get('attempt_id') != attempt_id or
+                            metadata.get('gate_id') != decision.node.id or
+                            # The supervisor's launch intent hash is SHA-256 of
+                            # the exact command text; gate.command_hash also
+                            # incorporates cwd and is validated separately by
+                            # the accepted executable binding.
+                            metadata.get('command_hash') != hashlib.sha256(
+                                gate.command.encode('utf-8')).hexdigest() or
+                            metadata.get('candidate_identity') != candidate_seal.candidate_identity or
+                            metadata.get('final_changed_surface_id') != candidate_seal.changed_surface_id or
+                            metadata.get('profile_hash') != plan.family.profile_hash or
+                            metadata.get('policy_checkpoint') != plan.family.policy_checkpoint or
+                            metadata.get('input_fingerprint') != decision.fingerprint):
+                        raise StoreError('PLAN_BINDING_MISMATCH')
+                    import harness
+                    feature_dir = pathlib.Path(repository) / 'docs' / 'specs' / authority_context['feature_id']
+                    feature_doc = harness.load_validated(feature_dir)
+                    current_state = harness.load_state(feature_dir, feature_doc)
+                    admitted = harness.admit_verification_execution(
+                        repository, authority_context['plan_id'], unit['unit_id'],
+                        expected_generation=authority_context['lifecycle_generation'],
+                        expected_state_revision=current_state.get('state_revision', 0),
+                        repository_admission_id=metadata['repository_admission_id'])
+                    consumed = harness.consume_verification_launch(
+                        repository, authority_context['plan_id'], unit['unit_id'],
+                        reservation_id=admitted['reservation']['reservation_id'],
+                        expected_generation=authority_context['lifecycle_generation'],
+                        expected_state_revision=admitted['state_revision'],
+                        repository_admission_id=metadata['repository_admission_id'])
+                    return {
+                        'reservation_id': admitted['reservation']['reservation_id'],
+                        'consumption_id': consumed['consumption']['consumption_id'],
+                        'admission_id': admitted['admission']['admission_id'],
+                        'admission_sha256': admitted['admission_sha256'],
+                        'reservation_transition_id': admitted['reservation']['transition_id'],
+                        'consumption_transition_id': consumed['consumption']['transition_id'],
+                        'plan_acceptance_transition_id': admitted['plan_acceptance_transition_id'],
+                        'plan_id': authority_context['plan_id'],
+                        'unit_id': unit['unit_id'],
+                        'obligation_ids': list(unit['obligation_ids']),
+                        'lifecycle_generation': authority_context['lifecycle_generation'],
+                        'capability': consumed['capability'],
+                    }
+                launch_authorizer = authorize_launch
             supervisor = VerificationSupervisor(store)
             terminal_evidence = []
             execution_terminals = []
@@ -273,8 +369,44 @@ def execute_plan(repository: pathlib.Path, profile, plan, *, store: Verification
                 failure_grant_id=(failure_grants or {}).get(decision.node.id),
                 candidate_identity=candidate_seal.candidate_identity,
                 final_changed_surface_id=candidate_seal.changed_surface_id,
-                plan_id=authority_context.get('plan_id') if isinstance(authority_context, dict) else None,
-                retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint)
+                plan_id=plan_id,
+                retry_scope=retry_scope, policy_checkpoint=plan.family.policy_checkpoint,
+                toolchain_directories=profile.toolchain_directories,
+                expected_executable_binding=expected_executable_binding,
+                launch_authorizer=launch_authorizer)
+            # Mutable callback collections were populated by the isolated
+            # supervisor process. Reconstruct their durable projection in the
+            # requesting executor after it receives the supervisor receipt.
+            if not execution_terminals:
+                for journal, started, _closure in store._scan_executions():
+                    if (started.get('family_id') != plan.family.id or
+                            started.get('attempt_id') != attempt_id or
+                            started.get('gate_id') != decision.node.id or
+                            started.get('launch_intent_hash') != gate.command_hash):
+                        continue
+                    terminal = store._read_execution_terminal(journal, started)
+                    if terminal is None:
+                        continue
+                    execution_terminals.append(terminal)
+                    record = terminal.get('verification_evidence')
+                    if record is not None and not terminal_evidence:
+                        terminal_evidence.append(Evidence(**{**record,
+                            'artifacts': tuple(FileIdentity(**item) for item in record['artifacts']),
+                            'dependencies': tuple((item['gate_id'], item['evidence_id'], item['fingerprint'])
+                                                  for item in record['dependencies'])}))
+                    break
+            if (isinstance(authority_context, dict) and execution_terminals and
+                    execution_terminals[0].get('launch_consumption_id')):
+                import harness
+                # The publisher receives the pre-publication receipt. Read the
+                # canonical, hashed receipt back from durable storage before
+                # making the lifecycle CAS; never advance state from a
+                # mutable in-memory terminal proposal.
+                terminal = next(item for item in store.reconstruct_execution_terminals(
+                    rebuild=False) if item.get('execution_id') == execution_terminals[0].get('execution_id'))
+                harness.terminalize_verification_execution(
+                    repository, terminal,
+                    repository_admission_id=terminal['execution_id'])
             if ready is None:
                 raise RuntimeError('ready-gate-not-evaluated')
             if ready.action == 'REUSE':

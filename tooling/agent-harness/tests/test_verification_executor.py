@@ -6,14 +6,26 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-from verification.executor import ExecutionResult, GateExecution, execute_plan
+from verification.executor import ExecutionResult, GateExecution, _binding_for_gate, execute_plan
 from verification.model import Family
 from verification.planner import build_plan
 from verification.profile import load_profile
-from verification.store import VerificationStore
+from verification.store import StoreError, VerificationStore
 
 
 class ExecutorTest(unittest.TestCase):
+    def test_authority_binding_is_selected_by_gate_and_command_identity(self):
+        from types import SimpleNamespace
+        gate = SimpleNamespace(id='gate-a', command_hash='command-digest')
+        binding = {'command': 'python3', 'path': '/usr/bin/python3', 'sha256': 'a' * 64}
+        context = {'plan_id': 'accepted-plan', 'executable_bindings': [
+            {'gate_id': 'gate-a', 'command_hash': 'command-digest', 'binding': binding}]}
+        self.assertEqual(('accepted-plan', binding), _binding_for_gate(context, gate))
+        for rows in ([], context['executable_bindings'] * 2,
+                     [{'gate_id': 'gate-a', 'command_hash': 'wrong', 'binding': binding}]):
+            with self.subTest(rows=rows), self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
+                _binding_for_gate({'plan_id': 'accepted-plan', 'executable_bindings': rows}, gate)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

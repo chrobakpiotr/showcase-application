@@ -1,0 +1,18 @@
+test_verification_workspace (unittest.loader._FailedTest.test_verification_workspace) ... ERROR
+
+======================================================================
+ERROR: test_verification_workspace (unittest.loader._FailedTest.test_verification_workspace)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_verification_workspace
+Traceback (most recent call last):
+  File "/Users/pau/.local/share/uv/python/cpython-3.13.16-macos-x86_64-none/lib/python3.13/unittest/loader.py", line 141, in loadTestsFromName
+    module = __import__(module_name)
+  File "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_workspace.py", line 5, in <module>
+    import test_verification_candidate as fixture
+ModuleNotFoundError: No module named 'test_verification_candidate'
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

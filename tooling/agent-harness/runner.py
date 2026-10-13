@@ -698,12 +698,31 @@ def run_verification(
                         'machine_category': 'verification-blocked',
                         'reason_code': 'VERIFICATION_EXECUTION_PLAN_REQUIRED'}]
     try:
-        result = subprocess.run([sys.executable, str(HERE / 'verify.py'), 'run',
+        from verification.authority import resolve_accepted
+        from verification.profile import load_profile
+        record = resolve_accepted(worktree, accepted_plan_id)
+        profile_path = HERE / 'verification-profiles' / f"{record['profile_id']}.json"
+        profile = load_profile(profile_path, repository=worktree)
+        if profile.content_hash != record.get('profile_hash'):
+            raise ValueError('PLAN_BINDING_MISMATCH')
+        control_python = record.get('control_executable_binding')
+        if not isinstance(control_python, dict):
+            raise ValueError('PLAN_BINDING_MISMATCH')
+        control_env = verification_sandbox._safe_env(
+            worktree, out / 'verification-control-home', profile.toolchain_directories)
+        verification_sandbox.verify_executable_binding(control_python)
+        result = subprocess.run([control_python['path'], '-I', str(HERE / 'verify.py'), 'run',
             '--mode', 'integration', '--repo', str(worktree), '--plan-id', accepted_plan_id],
-            cwd=worktree, text=True, capture_output=True, timeout=timeout_seconds, check=False)
+            cwd=worktree, env=control_env, text=True, capture_output=True,
+            timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired:
         return False, [{'command': '<accepted-plan>', 'exit_code': None,
                         'outcome': 'TIMEOUT', 'plan_id': accepted_plan_id}]
+    except (OSError, RuntimeError, ValueError, verification_sandbox.ExecutableResolutionError) as exc:
+        reason = str(exc) if str(exc) in {'PLAN_BINDING_MISMATCH'} else 'ACCEPTED_PLAN_UNAVAILABLE'
+        return False, [{'command': '<accepted-plan>', 'exit_code': 5,
+                        'machine_category': 'verification-blocked', 'reason_code': reason,
+                        'plan_id': accepted_plan_id}]
     try:
         authority_result = json.loads(result.stdout)
     except (TypeError, json.JSONDecodeError):

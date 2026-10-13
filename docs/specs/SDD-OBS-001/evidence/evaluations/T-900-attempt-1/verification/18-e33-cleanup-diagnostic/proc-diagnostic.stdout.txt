@@ -1,0 +1,4 @@
+result= ('PASS', 'DESCENDANT_ASSOCIATED_WITH_UNIT', 'Q05:group=7')
+pgids= [7]
+group_processes= ['8:state=Z:ppid=1']
+killpg_zero_status=exists

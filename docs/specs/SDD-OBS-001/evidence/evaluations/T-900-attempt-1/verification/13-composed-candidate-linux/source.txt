@@ -1,0 +1,26 @@
+Run 13 source and result manifest
+
+Candidate source HEAD: 7de8e69998cd152ea2b8b93773c191d3749d38bd
+Working directory: /tmp/showcase-t900-composed-20261013 (temporary detached linked worktree)
+Docker custom image: showcase-t900-eval:pinned-20261013
+Docker image ID/digest: sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5
+Base image: python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+Image dependencies: agent-harness[grants] v0.5.0 @ 16bb93821292096b94889306288ee2caec5f4006; cryptography==49.0.0
+
+Exact test commands:
+1. python3 -m unittest tooling/agent-harness/tests/test_verification_profile_applicability.py -v
+   exit 0; 3 tests passed. Raw stdout/stderr/exit are 01-profile.*.
+2. python3 -m unittest discover -s tooling/agent-harness/tests -v
+   exit 1; 919 tests in 336.807s; 5 failures, 104 errors. Raw stdout/stderr/exit are 02-discovery.*.
+
+The Docker run used the custom image above and mounted this temporary worktree as /workspace, with working directory /workspace. The original docker CLI string/container ID was not persisted at launch; no matching container remains. This is explicitly recorded as a command-capture gap, not represented as a byte-exact invocation.
+
+Overlays (applied only in the temporary evaluation tree; no commit):
+- Profile from canonical main 5075492d24b9d600221e0f42bc76ef888eb9db94; showcase.json SHA256 99aaaa102933284e04cb0fce7c44496306cbaabe51bdd5bde9c72f7c0f4bdec5.
+- T-900 test-only stale discovery mock; test_verification_backend_qualification.py SHA256 712e37f34107cdb7d1031154447002eff7b21197e49d1b1c233e7fd7c16ea262.
+- Main fixture patch f407d05, patch SHA256 42330c72602b00ae6125da009f942dc8f5bb05bce21ef3753b229999614280b6.
+- Main fixture patch 8bdec33, patch SHA256 af9b5d3d6a0ab76ca6290849a4655c0dabc6f69c0393d4f51db47be9a4e04a01.
+- Main fixture patch 0341275, patch SHA256 c9f9d6aaccc615bcf5dfca39af5fc869c60f57aa30c8436d5791fa17178500ed.
+- Candidate already includes fixture revision a8e6a5a; e43a170 was not an ancestor and was not applied directly.
+
+Environment artifact: the temporary worktree was linked to the primary Git common directory and bind-mounted into Docker. This produced the issuer-registry protected-root failure; rerun that check in a standalone clone before classifying it.

@@ -1,0 +1,775 @@
+{
+  "accepted_binding_artifacts": {
+    "design.json": "796e31861fe5351806b766a566f02779bf01daa684fa4d126fcacc15d6942b04",
+    "design/gate.json": "74aeb057e91865f1981aa949dd9e61155dccf99c314fba906128b0b8145ac37d",
+    "design/master-closure.json": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff",
+    "plan.md": "e4314a90fda1f1735878ed3fdae0e988d19a6a84930960ea07b380c8eaf8492e",
+    "spec.md": "c5a9398d6d2af115816e4d2ae824982f90ac445d948bfd64176b32abd5c902eb",
+    "tasks.json": "b79fd072bd039af94780bb4cc896b75e23747b666131da58ef22369e8633b239",
+    "verification-contract.json": "74d828a6edcb60e3b8b5f6d1da60cfc20a4639854b8e9eec3a2908894b82d3c2"
+  },
+  "candidate_checkpoint": "e3238a330a378ce128f742154480cc314b450aa0",
+  "candidate_tree": "243a61764af0f2062422d4a6c0562abc9a04904d",
+  "criteria": [
+    {
+      "criterion": "AC-014",
+      "source_t900_criterion": "AC-014",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-01",
+      "source_t900_criterion": "AC-HANDOFF-01",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-03",
+      "source_t900_criterion": "AC-HANDOFF-03",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-05",
+      "source_t900_criterion": "AC-HANDOFF-05",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-07",
+      "source_t900_criterion": "AC-HANDOFF-07",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-09",
+      "source_t900_criterion": "AC-HANDOFF-09",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-10",
+      "source_t900_criterion": "AC-HANDOFF-10",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-12",
+      "source_t900_criterion": "AC-HANDOFF-12",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-13",
+      "source_t900_criterion": "AC-HANDOFF-13",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-14",
+      "source_t900_criterion": "AC-HANDOFF-14",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-HANDOFF-16",
+      "source_t900_criterion": "AC-HANDOFF-16",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-01",
+      "source_t900_criterion": "AC-LAUNCH-01",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-02",
+      "source_t900_criterion": "AC-LAUNCH-02",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-03",
+      "source_t900_criterion": "AC-LAUNCH-03",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-04",
+      "source_t900_criterion": "AC-LAUNCH-04",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-05",
+      "source_t900_criterion": "AC-LAUNCH-05",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-06",
+      "source_t900_criterion": "AC-LAUNCH-06",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-07",
+      "source_t900_criterion": "AC-LAUNCH-07",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-08",
+      "source_t900_criterion": "AC-LAUNCH-08",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-09",
+      "source_t900_criterion": "AC-LAUNCH-09",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-10",
+      "source_t900_criterion": "AC-LAUNCH-10",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-11",
+      "source_t900_criterion": "AC-LAUNCH-11",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-12",
+      "source_t900_criterion": "AC-LAUNCH-12",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-13",
+      "source_t900_criterion": "AC-LAUNCH-13",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-14",
+      "source_t900_criterion": "AC-LAUNCH-14",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-LAUNCH-15",
+      "source_t900_criterion": "AC-LAUNCH-15",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-001",
+      "source_t900_criterion": "AC-OBS-001",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-002",
+      "source_t900_criterion": "AC-OBS-002",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-003",
+      "source_t900_criterion": "AC-OBS-003",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-004",
+      "source_t900_criterion": "AC-OBS-004",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-005",
+      "source_t900_criterion": "AC-OBS-005",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-006",
+      "source_t900_criterion": "AC-OBS-006",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-007",
+      "source_t900_criterion": "AC-OBS-007",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-008",
+      "source_t900_criterion": "AC-OBS-008",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-009",
+      "source_t900_criterion": "AC-OBS-009",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-010",
+      "source_t900_criterion": "AC-OBS-010",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-011",
+      "source_t900_criterion": "AC-OBS-011",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-012",
+      "source_t900_criterion": "AC-OBS-012",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-013",
+      "source_t900_criterion": "AC-OBS-013",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-014",
+      "source_t900_criterion": "AC-OBS-014",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-015",
+      "source_t900_criterion": "AC-OBS-015",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-016",
+      "source_t900_criterion": "AC-OBS-016",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-017",
+      "source_t900_criterion": "AC-OBS-017",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-018",
+      "source_t900_criterion": "AC-OBS-018",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-019",
+      "source_t900_criterion": "AC-OBS-019",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-020",
+      "source_t900_criterion": "AC-OBS-020",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-021",
+      "source_t900_criterion": "AC-OBS-021",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-022",
+      "source_t900_criterion": "AC-OBS-022",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-023",
+      "source_t900_criterion": "AC-OBS-023",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-024",
+      "source_t900_criterion": "AC-OBS-024",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-025",
+      "source_t900_criterion": "AC-OBS-025",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-026",
+      "source_t900_criterion": "AC-OBS-026",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-027",
+      "source_t900_criterion": "AC-OBS-027",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-028",
+      "source_t900_criterion": "AC-OBS-028",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-029",
+      "source_t900_criterion": "AC-OBS-029",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-030",
+      "source_t900_criterion": "AC-OBS-030",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-031",
+      "source_t900_criterion": "AC-OBS-031",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-032",
+      "source_t900_criterion": "AC-OBS-032",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-033",
+      "source_t900_criterion": "AC-OBS-033",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-034",
+      "source_t900_criterion": "AC-OBS-034",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-035",
+      "source_t900_criterion": "AC-OBS-035",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-036",
+      "source_t900_criterion": "AC-OBS-036",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-037",
+      "source_t900_criterion": "AC-OBS-037",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-038",
+      "source_t900_criterion": "AC-OBS-038",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-039",
+      "source_t900_criterion": "AC-OBS-039",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-040",
+      "source_t900_criterion": "AC-OBS-040",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-041",
+      "source_t900_criterion": "AC-OBS-041",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-042",
+      "source_t900_criterion": "AC-OBS-042",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-043",
+      "source_t900_criterion": "AC-OBS-043",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-044",
+      "source_t900_criterion": "AC-OBS-044",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-045",
+      "source_t900_criterion": "AC-OBS-045",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-046",
+      "source_t900_criterion": "AC-OBS-046",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-047",
+      "source_t900_criterion": "AC-OBS-047",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-048",
+      "source_t900_criterion": "AC-OBS-048",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-049",
+      "source_t900_criterion": "AC-OBS-049",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-050",
+      "source_t900_criterion": "AC-OBS-050",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-051",
+      "source_t900_criterion": "AC-OBS-051",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-052",
+      "source_t900_criterion": "AC-OBS-052",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-053",
+      "source_t900_criterion": "AC-OBS-053",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-054",
+      "source_t900_criterion": "AC-OBS-054",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-055",
+      "source_t900_criterion": "AC-OBS-055",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-056",
+      "source_t900_criterion": "AC-OBS-056",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-057",
+      "source_t900_criterion": "AC-OBS-057",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-058",
+      "source_t900_criterion": "AC-OBS-058",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-059",
+      "source_t900_criterion": "AC-OBS-059",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-060",
+      "source_t900_criterion": "AC-OBS-060",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-061",
+      "source_t900_criterion": "AC-OBS-061",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-062",
+      "source_t900_criterion": "AC-OBS-062",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-063",
+      "source_t900_criterion": "AC-OBS-063",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-064",
+      "source_t900_criterion": "AC-OBS-064",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-065",
+      "source_t900_criterion": "AC-OBS-065",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-066",
+      "source_t900_criterion": "AC-OBS-066",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-067",
+      "source_t900_criterion": "AC-OBS-067",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-068",
+      "source_t900_criterion": "AC-OBS-068",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-069",
+      "source_t900_criterion": "AC-OBS-069",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-070",
+      "source_t900_criterion": "AC-OBS-070",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-071",
+      "source_t900_criterion": "AC-OBS-071",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-072",
+      "source_t900_criterion": "AC-OBS-072",
+      "status": "PASS"
+    },
+    {
+      "criterion": "AC-OBS-073",
+      "source_t900_criterion": "AC-OBS-073",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-001",
+      "source_t900_criterion": "VC-001",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-002",
+      "source_t900_criterion": "VC-002",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-003",
+      "source_t900_criterion": "VC-003",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-004",
+      "source_t900_criterion": "VC-004",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-005",
+      "source_t900_criterion": "VC-005",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-006",
+      "source_t900_criterion": "VC-006",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-007",
+      "source_t900_criterion": "VC-007",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-008",
+      "source_t900_criterion": "VC-008",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-009",
+      "source_t900_criterion": "VC-009",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-010",
+      "source_t900_criterion": "VC-010",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-011",
+      "source_t900_criterion": "VC-011",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-012",
+      "source_t900_criterion": "VC-012",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-013",
+      "source_t900_criterion": "VC-013",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-014",
+      "source_t900_criterion": "VC-014",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-015",
+      "source_t900_criterion": "VC-015",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-016",
+      "source_t900_criterion": "VC-016",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-017",
+      "source_t900_criterion": "VC-017",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-018",
+      "source_t900_criterion": "VC-018",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-019",
+      "source_t900_criterion": "VC-019",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-020",
+      "source_t900_criterion": "VC-020",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-021",
+      "source_t900_criterion": "VC-021",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-022",
+      "source_t900_criterion": "VC-022",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-023",
+      "source_t900_criterion": "VC-023",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-024",
+      "source_t900_criterion": "VC-024",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-025",
+      "source_t900_criterion": "VC-025",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-026",
+      "source_t900_criterion": "VC-026",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-027",
+      "source_t900_criterion": "VC-027",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-028",
+      "source_t900_criterion": "VC-028",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-029",
+      "source_t900_criterion": "VC-029",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-030",
+      "source_t900_criterion": "VC-030",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-031",
+      "source_t900_criterion": "VC-031",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-032",
+      "source_t900_criterion": "VC-032",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-033",
+      "source_t900_criterion": "VC-033",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-034",
+      "source_t900_criterion": "VC-034",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-035",
+      "source_t900_criterion": "VC-035",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-036",
+      "source_t900_criterion": "VC-036",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-037",
+      "source_t900_criterion": "VC-037",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-038",
+      "source_t900_criterion": "VC-038",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-039",
+      "source_t900_criterion": "VC-039",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-040",
+      "source_t900_criterion": "VC-040",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-041",
+      "source_t900_criterion": "VC-041",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-042",
+      "source_t900_criterion": "VC-042",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-043",
+      "source_t900_criterion": "VC-043",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-044",
+      "source_t900_criterion": "VC-044",
+      "status": "PASS"
+    },
+    {
+      "criterion": "VC-045",
+      "source_t900_criterion": "VC-045",
+      "status": "PASS"
+    }
+  ],
+  "criteria_count": 144,
+  "criteria_passed": 144,
+  "criteria_source": "T-900 acceptance crosswalk; IDs exactly equal the active T-990 packet criteria",
+  "design_authority": {
+    "canonical_design_gate": "not-pass",
+    "interpretation": "The explicit accepted master-closure authorizes implementation and verification-contract refresh; it is not a canonical Design Gate pass. This handoff preserves that distinction.",
+    "master_closure_sha256": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff",
+    "status": "implementation-authorized"
+  },
+  "feature": "SDD-OBS-001",
+  "human_actions": [
+    "Review and accept the local integration checkpoint before any remote or deployment action.",
+    "Do not infer a canonical Design Gate pass or production readiness from this closure."
+  ],
+  "packet_revision": "sha256:fae0ed76ea56ad4e5cb4d62e1c5e70dbe069db41cec05e1cbb00f32a36a25fcd",
+  "packet_sha256": "0a60834155fe657af7aec3a55f56fc5e090ff1aee70d45695dbf97fff8265715",
+  "residual_risks": [
+    "No production qualification or deployment-readiness claim is made.",
+    "The final canonical Design Gate is not pass and remains governed by the explicit master-closure record above."
+  ],
+  "schema_version": 1,
+  "semantic_contract_sha256": "b63d1db39523a8a3e324b02330f6fcc761983fe6010d3175e71d975b5bb2553b",
+  "t900": {
+    "acceptance_coverage_sha256": "e91f89b4fe3d29c9449ceb1f11a388e670a8cdef4b7d825ba3927a83d6ea5df7",
+    "checkpoint": "e3238a330a378ce128f742154480cc314b450aa0",
+    "completion_record_id": "completion:sha256:56aa0d6047709fcb16577d1584403f9150de54296a1f3752091cebca752fb5de",
+    "evidence_manifest_sha256": "91f4785620b6fe26c44ddb0aa506e116e5713c96bfa63b49674bca828908f428",
+    "full_discovery_seconds": 469.82,
+    "full_discovery_tests": 920,
+    "manifest_entries": 198,
+    "manifest_mismatches": 0,
+    "packet_commands_passed": 9,
+    "report_sha256": "cc87aba5d810d6817f1b0fd28186ea127d753b1c9bcc3e230d242f8bb2ce3fa1",
+    "status": "completed"
+  },
+  "t990_verification_commands": 4,
+  "t990_verification_manifest": "evidence/integration/T-990/verification/command-manifest.json",
+  "t990_verification_passed": 4,
+  "task": "T-990",
+  "verification_contract_status": "accepted; packet command 4 passes and its input hashes match current spec, plan, constitution, design gate, and master closure"
+}
