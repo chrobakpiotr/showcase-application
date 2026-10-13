@@ -1,8 +1,0 @@
-Preparing worktree (detached HEAD 6824777)
-Preparing worktree (detached HEAD c52025a)
-Preparing worktree (detached HEAD de681eb)
-Preparing worktree (detached HEAD 0399c7c)
-error: cannot lock ref 'refs/heads/agent/TST-001/T-B': is at bd7bc52b75d18bb282057653ee8949849cf0add3 but expected b76674f90afa8334c0cdb5c9a8e3fe4ba6e7290d
-Preparing worktree (detached HEAD 0399c7c)
-Preparing worktree (detached HEAD 84d4076)
-Preparing worktree (detached HEAD f28ff14)
