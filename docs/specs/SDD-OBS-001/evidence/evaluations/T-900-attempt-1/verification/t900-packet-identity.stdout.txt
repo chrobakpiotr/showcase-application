@@ -1,0 +1,1 @@
+{"revision_id": "sha256:585c6a32a027ad58f5bc208d577f5d3a7a98261064329300d74af8e14d4a156e", "contract_sha256": "e3d8c6696f2c8509cee5f65778763997a8310bf7a8e75614edd176dae2f3f043", "path": "docs/specs/SDD-OBS-001/packets/T-900.json"}

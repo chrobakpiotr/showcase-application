@@ -1,0 +1,12 @@
+feature=SDD-OBS-001 max_parallel=3 lease_ttl=1800s heartbeat=60s
+T-001   role=builder     provider=codex  deps=-                        reviewers=architecture-reviewer,security-reviewer,performance-reviewer
+T-002   role=builder     provider=codex  deps=T-001                    reviewers=architecture-reviewer,security-reviewer,concurrency-reviewer,platform-reviewer
+T-003   role=builder     provider=codex  deps=T-001,T-002              reviewers=architecture-reviewer,security-reviewer,concurrency-reviewer
+T-004   role=builder     provider=codex  deps=T-002,T-003              reviewers=architecture-reviewer,security-reviewer,concurrency-reviewer,platform-reviewer
+T-005   role=builder     provider=codex  deps=T-001,T-002              reviewers=platform-reviewer,security-reviewer
+T-006   role=builder     provider=codex  deps=T-003,T-004,T-005        reviewers=architecture-reviewer,performance-reviewer,platform-reviewer,security-reviewer
+T-007   role=builder     provider=codex  deps=T-006                    reviewers=platform-reviewer,security-reviewer
+T-008   role=builder     provider=codex  deps=T-007                    reviewers=platform-reviewer
+T-009   role=builder     provider=codex  deps=T-006                    reviewers=architecture-reviewer,security-reviewer,concurrency-reviewer,platform-reviewer
+T-900   role=evaluator   provider=codex  deps=T-001,T-002,T-003,T-004,T-005,T-006,T-007,T-008,T-009 reviewers=-
+T-990   role=integration provider=codex  deps=T-900                    reviewers=-

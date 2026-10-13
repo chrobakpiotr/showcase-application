@@ -1,0 +1,489 @@
+{
+  "base_commit": "a24b8aeb69fb7e223773ff8dfd6faaafa9efe1bf",
+  "base_kind": "head",
+  "created_at": "2026-10-11T20:19:42.789838+00:00",
+  "feature": "SDD-OBS-001",
+  "feature_generation": 1,
+  "fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+  "historical_attempts": "unavailable",
+  "lifecycle_epoch_id": "showcase-recovery-20261011-a24b8ae",
+  "max_rework_attempts": 2,
+  "packet_identity_bridges": [],
+  "protocol_fingerprint": "795b29d619145887598a128c4ab188b6a927724d65bc9a24ac0099203876bc59",
+  "protocol_version": 1,
+  "recovery_epoch": {
+    "epoch_id": "showcase-recovery-20261011-a24b8ae",
+    "evidence_baseline_sha256": "d9bdde1d37f69e3a294879a57d8fb5d08d6a81eac1de284ebd20750c58019abf",
+    "feature_fingerprint": "1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3",
+    "incident_sha256": "79522836124106a9105496edfe406cb3795ad1e0288ee081093c90d29d57c259",
+    "record_path": "recovery-epochs/showcase-recovery-20261011-a24b8ae/recovery-record.json",
+    "record_sha256": "b1a8669cd02e165d9036a5c0a6af16fa66eda6289f4359f794905aa8ad973e8c",
+    "repository_id": "a0d62c1089ddc0a7aeeca005df21d065daa15d2ab625285e531d6b737ae75df9"
+  },
+  "state_version": 2,
+  "tasks": {
+    "T-001": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-11T20:23:33.227986+00:00",
+          "contract_sha256": "f9d47336f1e4f4cfff0ec83516c2e2ba7652d9ff18bd6835d1a4eed83c9f0f57",
+          "packet_revision": "sha256:375e0df525aa3c855529d047972baa714b07c16c3fc161d1cc43ed6d57c253a4"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "06d7f5d9a640588afe8a0089078054758bc18a85",
+      "claimed_at": "2026-10-11T20:23:33.227304+00:00",
+      "completed_at": "2026-10-11T20:47:16.318756+00:00",
+      "completion_record_id": "completion:sha256:cd932f5c5d57741a07911271d1b2779ec732518fbb751674c038a1dfeae931b4",
+      "effective_status": "completed",
+      "evidence": "/Users/pau/IdeaProjects/showcase-application/.agent-runs/SDD-OBS-001-T-001-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-001"
+    },
+    "T-002": {
+      "active_completion_correction_id": "completion-correction:sha256:67d3fa859bb0e975336428e08a42b2a2e3c1224ecc8dc0967227ee5b2f51070f",
+      "active_completion_repair_authorization": "completion-repair-authorization:sha256:c369f98382f13c0230b8dc1aa51ca85547db11226c15e4e1be57d84bc379d99e",
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-11T20:47:35.077101+00:00",
+          "contract_sha256": "ba67c8e308d1b99a269c6b74d717f58650dc8e7ffdda19cb7bcd0a9a01e18689",
+          "packet_revision": "sha256:ddc3e67b3069378fd7280c5436cc454253c716ce60e0512f3b6c95e72b41b300"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "b6a023c6b42736067ae8a16f4b881617c33bc375",
+      "claimed_at": "2026-10-11T20:47:35.076042+00:00",
+      "completed_at": "2026-10-12T08:19:01.766667+00:00",
+      "completion_record_id": "completion:sha256:6fad2fdc532e5d2f2fe89b92db44810a7760e3ebab7f9935b23b8a4ea94e8550",
+      "completion_repair_history": [
+        {
+          "attempt": 1,
+          "completed_at": "2026-10-12T08:19:01.766667+00:00",
+          "completion_id": "completion-repair:sha256:55f92fd2118d0253e251a03a3d33e9dda18bb6c79ce4a69f76e2577ed31b53a2",
+          "repair_claim_id": "completion-repair-claim:sha256:fa6b7de049980123409ac04dc3c9e7629b0ed8e0e8c72a2a8e51e1fa1444d7d5"
+        }
+      ],
+      "completion_repair_record_id": "completion-repair:sha256:55f92fd2118d0253e251a03a3d33e9dda18bb6c79ce4a69f76e2577ed31b53a2",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-002-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-002"
+    },
+    "T-003": {
+      "active_completion_correction_id": "completion-correction:sha256:3c75fae6d0cc0f5a135c406fa048e674dd0a7594d36816277616dfa398bdf96d",
+      "active_completion_repair_authorization": "completion-repair-authorization:sha256:80966bfc03e64e60678fd876dc3431cb95c19c6fd1580d33d4c06a790e0f793a",
+      "active_packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86",
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-11T21:19:21.134628+00:00",
+          "contract_sha256": "99d13baf73f5f5dadbd5b9db671da670c74f1065ec0fa5abce5e364aa8101c89",
+          "packet_revision": "sha256:6d75ade0cb10c94e2d7f39faab8b416d68e07a15d2d25509825da7c29290892a"
+        },
+        {
+          "attempt": 2,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T08:19:50.672356+00:00",
+          "contract_sha256": "207a5b10fdfc89f15488ae272ee1ec652237a5cdb5f4eecbc1433eb5ee3d0d4a",
+          "packet_revision": "sha256:fc07592a9cbf045eab0507dcaeaf0c7120e3777577011ded35d3ef0c6fb32f56"
+        },
+        {
+          "attempt": 3,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T08:32:35.199251+00:00",
+          "contract_sha256": "d79905f752ccae1201afb95fa5403ea552bbb9ac98b1e7ebcfa61c14db61c9ee",
+          "packet_revision": "sha256:55c47faa2cf49e0e9b6b3ca07d64fb5c6bf7f3b043477feb8ff43e795f281d6d"
+        },
+        {
+          "attempt": 4,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T08:40:08.469850+00:00",
+          "contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+          "packet_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31"
+        },
+        {
+          "attempt": 5,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T09:53:09.995930+00:00",
+          "contract_sha256": "3b14e49ac19b8b200c1158c15b5671ad8b0d8b330f0ca7d817a34f954d6e4007",
+          "packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86"
+        }
+      ],
+      "attempt_termination": {
+        "active_revision_at_termination": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+        "attempt": 4,
+        "classification": "REPLAN_SUPERSEDED",
+        "contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+        "contract_sha256_at_termination": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+        "historical_binding_classification": "AUTOMATICALLY_PROVEN",
+        "historical_binding_status": "proven",
+        "packet_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+        "reason": "Apply Harness-confirmed B5 control-path case handling and prove resolver-based backend discovery in T-003 tests",
+        "reason_code": "TASK_REPLAN_REQUIRED",
+        "terminated_at": "2026-10-12T09:51:24.094842+00:00",
+        "verification": "NOT_RUN_BY_REPLAN"
+      },
+      "attempts": 5,
+      "checkpoint_commit": "05b63a68f71a05366b82ba61a9c79fbbaf322b20",
+      "claimed_at": "2026-10-12T09:53:09.995373+00:00",
+      "completed_at": "2026-10-12T12:40:02.480012+00:00",
+      "completion_record_id": "completion:sha256:b9ac3c13b31f1107f3a0db84e90244e87ac33aa2c51a29f6187ff85c9da09504",
+      "completion_repair_history": [
+        {
+          "attempt": 5,
+          "completed_at": "2026-10-12T12:40:02.480012+00:00",
+          "completion_id": "completion-repair:sha256:b982f359b54fa1f8b94e9e3625707d0155b07b7978ea872bd1a74bd62b9e7557",
+          "repair_claim_id": "completion-repair-claim:sha256:d7b32073e87078a4782c224558b98d77c6305b57a7e27bcade6ba442ba770544"
+        }
+      ],
+      "completion_repair_record_id": "completion-repair:sha256:b982f359b54fa1f8b94e9e3625707d0155b07b7978ea872bd1a74bd62b9e7557",
+      "effective_status": "completed",
+      "evidence": "docs/specs/SDD-OBS-001/evidence/task-completions/T-003-attempt-5.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "last_human_resume_used_at": "2026-10-12T10:07:46.442009+00:00",
+      "last_transition": {
+        "at": "2026-10-12T09:52:07.177928+00:00",
+        "attempts": 4,
+        "authorization_id": "15f3840de4eb9abeb286e69f27b33ebc6e58c739b68a456a2c02cabf3e673ada",
+        "kind": "retry_authorization"
+      },
+      "packet_lineage": [
+        {
+          "contract_sha256": "99d13baf73f5f5dadbd5b9db671da670c74f1065ec0fa5abce5e364aa8101c89",
+          "legacy": true,
+          "previous_revision": null,
+          "revision_id": "sha256:6d75ade0cb10c94e2d7f39faab8b416d68e07a15d2d25509825da7c29290892a"
+        },
+        {
+          "contract_sha256": "207a5b10fdfc89f15488ae272ee1ec652237a5cdb5f4eecbc1433eb5ee3d0d4a",
+          "legacy": false,
+          "previous_revision": "sha256:6d75ade0cb10c94e2d7f39faab8b416d68e07a15d2d25509825da7c29290892a",
+          "revision_id": "sha256:fc07592a9cbf045eab0507dcaeaf0c7120e3777577011ded35d3ef0c6fb32f56"
+        },
+        {
+          "contract_sha256": "d79905f752ccae1201afb95fa5403ea552bbb9ac98b1e7ebcfa61c14db61c9ee",
+          "legacy": false,
+          "previous_revision": "sha256:fc07592a9cbf045eab0507dcaeaf0c7120e3777577011ded35d3ef0c6fb32f56",
+          "revision_id": "sha256:55c47faa2cf49e0e9b6b3ca07d64fb5c6bf7f3b043477feb8ff43e795f281d6d"
+        },
+        {
+          "contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+          "legacy": false,
+          "previous_revision": "sha256:55c47faa2cf49e0e9b6b3ca07d64fb5c6bf7f3b043477feb8ff43e795f281d6d",
+          "revision_id": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31"
+        },
+        {
+          "contract_sha256": "3b14e49ac19b8b200c1158c15b5671ad8b0d8b330f0ca7d817a34f954d6e4007",
+          "legacy": false,
+          "previous_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+          "revision_id": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86"
+        }
+      ],
+      "replan_requests": [
+        {
+          "checkpoint": null,
+          "committed_at": "2026-10-12T07:35:30.887371+00:00",
+          "expected_attempts": 1,
+          "expected_feature_generation": 1,
+          "expected_status": "running",
+          "feature": "SDD-OBS-001",
+          "historical_binding_classification": "AUTOMATICALLY_PROVEN",
+          "identity_bridge_id": null,
+          "new_contract_sha256": "207a5b10fdfc89f15488ae272ee1ec652237a5cdb5f4eecbc1433eb5ee3d0d4a",
+          "new_revision": "sha256:fc07592a9cbf045eab0507dcaeaf0c7120e3777577011ded35d3ef0c6fb32f56",
+          "old_contract_sha256": "99d13baf73f5f5dadbd5b9db671da670c74f1065ec0fa5abce5e364aa8101c89",
+          "old_revision": "sha256:6d75ade0cb10c94e2d7f39faab8b416d68e07a15d2d25509825da7c29290892a",
+          "provenance": "Piotr (owner instruction; Harness review a1e238e)",
+          "reason": "Address VC-016 executable resolution across direct and runner verification per Harness review a1e238e",
+          "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+          "request_id": "675943391a81c1206b4b5b69ccce623e3da25906cc3bf3087b959519a9c33811",
+          "task": "T-003"
+        },
+        {
+          "checkpoint": null,
+          "committed_at": "2026-10-12T08:32:06.435414+00:00",
+          "expected_attempts": 2,
+          "expected_feature_generation": 1,
+          "expected_status": "running",
+          "feature": "SDD-OBS-001",
+          "historical_binding_classification": "AUTOMATICALLY_PROVEN",
+          "identity_bridge_id": null,
+          "new_contract_sha256": "d79905f752ccae1201afb95fa5403ea552bbb9ac98b1e7ebcfa61c14db61c9ee",
+          "new_revision": "sha256:55c47faa2cf49e0e9b6b3ca07d64fb5c6bf7f3b043477feb8ff43e795f281d6d",
+          "old_contract_sha256": "207a5b10fdfc89f15488ae272ee1ec652237a5cdb5f4eecbc1433eb5ee3d0d4a",
+          "old_revision": "sha256:fc07592a9cbf045eab0507dcaeaf0c7120e3777577011ded35d3ef0c6fb32f56",
+          "provenance": "Piotr (owner instruction; Harness review 4c0e7dd)",
+          "reason": "Apply Harness-accepted second T-003 replan e68eccc/4c0e7dd to bind executable identities at planning/admission and launch",
+          "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+          "request_id": "1476ea467998e6c63de49f1c512b162cc804e75793624f198031e066ab069484",
+          "task": "T-003"
+        },
+        {
+          "checkpoint": null,
+          "committed_at": "2026-10-12T08:38:23.893188+00:00",
+          "expected_attempts": 3,
+          "expected_feature_generation": 1,
+          "expected_status": "running",
+          "feature": "SDD-OBS-001",
+          "historical_binding_classification": "AUTOMATICALLY_PROVEN",
+          "identity_bridge_id": null,
+          "new_contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+          "new_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+          "old_contract_sha256": "d79905f752ccae1201afb95fa5403ea552bbb9ac98b1e7ebcfa61c14db61c9ee",
+          "old_revision": "sha256:55c47faa2cf49e0e9b6b3ca07d64fb5c6bf7f3b043477feb8ff43e795f281d6d",
+          "provenance": "Piotr (owner instruction; Harness review 3c186ef)",
+          "reason": "Apply Harness-confirmed T-003 profile schema path; keep profile schema v1 with optional toolchain_directories",
+          "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+          "request_id": "8bd1de6f1a867fdb18213d5e2b22dcad25a8f6b6406e0ad0654aee09336078b8",
+          "task": "T-003"
+        },
+        {
+          "checkpoint": null,
+          "committed_at": "2026-10-12T09:51:24.094842+00:00",
+          "expected_attempts": 4,
+          "expected_feature_generation": 1,
+          "expected_status": "running",
+          "feature": "SDD-OBS-001",
+          "historical_binding_classification": "AUTOMATICALLY_PROVEN",
+          "identity_bridge_id": null,
+          "new_contract_sha256": "3b14e49ac19b8b200c1158c15b5671ad8b0d8b330f0ca7d817a34f954d6e4007",
+          "new_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86",
+          "old_contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+          "old_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+          "provenance": "Piotr (owner instruction; Harness review 27733a5)",
+          "reason": "Apply Harness-confirmed B5 control-path case handling and prove resolver-based backend discovery in T-003 tests",
+          "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+          "request_id": "3cc30b442c37765ab58c5cdbb9edf2c306abbf85e88703737982a86398e52b4f",
+          "task": "T-003"
+        }
+      ],
+      "replanned_at": "2026-10-12T09:51:24.094842+00:00",
+      "retry_authorizations": [
+        {
+          "binding": {
+            "binding_version": 2,
+            "contract_sha256": "42fb1f1e8846bb602b5d43244c90bc9c2ccaae9d1e54747f6f60e3404daece2d",
+            "expected_attempts": 3,
+            "expected_status": "failed",
+            "feature": "SDD-OBS-001",
+            "packet_revision": "sha256:6208bb6589cdd1dec9f4e757de5c7c44af7c930e157da984770ea72be4743c31",
+            "protocol_version": 1,
+            "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+            "task": "T-003"
+          },
+          "consumed_at": "2026-10-12T08:40:06.194484+00:00",
+          "consumed_attempt": 4,
+          "id": "f9a3f0d00cbd1e753ed5c2e6e722afde16d8e64b7634e5e37679e2fa1fffb6db",
+          "issued_at": "2026-10-12T08:39:52.182614+00:00",
+          "provenance": "Piotr (owner instruction)",
+          "reason": "Owner instruction to implement Harness-confirmed proposal 9d62ac19; accepted review 3c186ef",
+          "version": 2
+        },
+        {
+          "binding": {
+            "binding_version": 2,
+            "contract_sha256": "3b14e49ac19b8b200c1158c15b5671ad8b0d8b330f0ca7d817a34f954d6e4007",
+            "expected_attempts": 4,
+            "expected_status": "failed",
+            "feature": "SDD-OBS-001",
+            "packet_revision": "sha256:7019712b0390fe2f39bf9cfc3b7f8a6a12f3b7a3f72027ba542ff7c95aa31d86",
+            "protocol_version": 1,
+            "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+            "task": "T-003"
+          },
+          "consumed_at": "2026-10-12T09:53:09.663025+00:00",
+          "consumed_attempt": 5,
+          "id": "15f3840de4eb9abeb286e69f27b33ebc6e58c739b68a456a2c02cabf3e673ada",
+          "issued_at": "2026-10-12T09:52:07.177928+00:00",
+          "provenance": "Piotr (owner instruction; Harness review 27733a5)",
+          "reason": "Owner instruction to implement Harness-confirmed B5 replan 27733a5 for case-safe control-path exclusion and resolver discovery evidence",
+          "version": 2
+        }
+      ],
+      "status": "completed",
+      "unbound_historical_attempts": [],
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-003"
+    },
+    "T-004": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T13:12:18.297730+00:00",
+          "contract_sha256": "d189f635caff0766e200eeef230c68643da2d5a301330e813567782057a8f284",
+          "packet_revision": "sha256:e1ea8e1f2f22bf4932246e7b8ce0fc98894d4468362b129764a874ccae9e1274"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "64b25014061633a195e5f333e08db89bfb07d9ca",
+      "claimed_at": "2026-10-12T13:12:18.296628+00:00",
+      "completed_at": "2026-10-12T20:38:30.240660+00:00",
+      "completion_record_id": "completion:sha256:91dcef6a738fb90ea3bc68396c81c680054610fef3cad23c496780ed5efaa37c",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-004-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-004"
+    },
+    "T-005": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-11T21:20:38.899309+00:00",
+          "contract_sha256": "dce345f552d6eacf31f02b7a90ae1accf7e895602a0f8403ae23f118edd3d6bc",
+          "packet_revision": "sha256:68cf43345cb7ee393006110290551eff2d392c7f07551b10cbf092b85a93c5e8"
+        },
+        {
+          "attempt": 2,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T20:57:12.045480+00:00",
+          "contract_sha256": "dce345f552d6eacf31f02b7a90ae1accf7e895602a0f8403ae23f118edd3d6bc",
+          "packet_revision": "sha256:68cf43345cb7ee393006110290551eff2d392c7f07551b10cbf092b85a93c5e8"
+        }
+      ],
+      "attempts": 2,
+      "checkpoint_commit": "c06108e4a70efb290bd49ca6b9bb5b64864176fc",
+      "claimed_at": "2026-10-12T20:57:12.043703+00:00",
+      "completed_at": "2026-10-12T21:14:22.231099+00:00",
+      "completion_record_id": "completion:sha256:05675392411a0c2eae49b3a2836cdf823bf93dd75e7286a99074bf98ed1bd97d",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-005-attempt-2/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "last_attempt_commit": "38042d5912d82670869a774b1d6d99b7a6e43e0d",
+      "last_failure": "lease expired; attempt 1 started on pre-incident worktree 38042d5 through the stale-worktree reuse defect fixed in 805d5bd; no new-epoch work performed",
+      "lease_recovered_at": "2026-10-12T20:56:39.897025+00:00",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-005"
+    },
+    "T-006": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-12T21:21:16.611371+00:00",
+          "contract_sha256": "d08ca745317ba9abaeb10bb851e303bbe7e06bb47c1ead4da5257aa4953cc016",
+          "packet_revision": "sha256:37ac8c5e5f6ee8cda2b436fbb957f5189d1e49581fe8a9a034b5b2b3f1659226"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "8cdc9b59044a1f49094b4a1e59938cfda106520a",
+      "claimed_at": "2026-10-12T21:21:16.610433+00:00",
+      "completed_at": "2026-10-13T07:55:57.426106+00:00",
+      "completion_record_id": "completion:sha256:59ac6ec43ecd0377ad37fb60dfc4fdd528013920b0b8cd0a4f521d52a222e801",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-006-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-006"
+    },
+    "T-007": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-13T07:57:00.985906+00:00",
+          "contract_sha256": "d7820de01dd3c0522ce3ebbeea75939e1d1a2765a7420a17658ec7e442e6a744",
+          "packet_revision": "sha256:ce947d6a4b3e3145a90392daf864198ac46c70fcb2b9c7cae5a9c3567a9bd7c4"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "633311e58cd4535e5fbc576dd03619511ad5521c",
+      "claimed_at": "2026-10-13T07:57:00.984955+00:00",
+      "completed_at": "2026-10-13T13:33:14.658508+00:00",
+      "completion_record_id": "completion:sha256:ca103d3cdd1785cebd047454fdffd1b7a5a8f41091afc5a78f11ab8d559d50cd",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-007-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-007"
+    },
+    "T-008": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-13T13:35:07.467886+00:00",
+          "contract_sha256": "d349f3ed0eb7b2a743a5ede47688ff5b928a8fdd59e5130240ee639c4cae1aad",
+          "packet_revision": "sha256:feadb51efae8cfaa6342b797e55a2619d6a57c78e613698acd693656e6a79c41"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "05f9a227de5a92ddfa747ee815d65ecb5d90682e",
+      "claimed_at": "2026-10-13T13:35:07.466736+00:00",
+      "completed_at": "2026-10-13T13:53:51.945385+00:00",
+      "completion_record_id": "completion:sha256:17eb8b6bfc601a45b7de62eb337fff60dcb021dc604f11750ee2cdcf6565493c",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-008-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008"
+    },
+    "T-009": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-13T08:05:43.132752+00:00",
+          "contract_sha256": "bfa919c5564c09ffeeccf0db2d43796c71116a23752ff596403dd004dda415fa",
+          "packet_revision": "sha256:85dda3602417e15cb7d4caabf08903603d179b6cd3de101dfe343dc81397b132"
+        }
+      ],
+      "attempts": 1,
+      "checkpoint_commit": "6691b64819e96cd411d22ab6dd4e97c95f7f03bb",
+      "claimed_at": "2026-10-13T08:05:43.131631+00:00",
+      "completed_at": "2026-10-13T13:30:30.199890+00:00",
+      "completion_record_id": "completion:sha256:6b06142bf51f3b32607907ff3881bfd74fcaa5da1630cae78554a0b0fe7e1c74",
+      "effective_status": "completed",
+      "evidence": ".agent-runs/SDD-OBS-001-T-009-attempt-1/completion.json",
+      "historical_attempts": "unavailable",
+      "historical_status": "completed",
+      "status": "completed",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-009"
+    },
+    "T-900": {
+      "attempt_bindings": [
+        {
+          "attempt": 1,
+          "binding_status": "proven",
+          "bound_at": "2026-10-13T13:56:16.046739+00:00",
+          "contract_sha256": "e3d8c6696f2c8509cee5f65778763997a8310bf7a8e75614edd176dae2f3f043",
+          "packet_revision": "sha256:585c6a32a027ad58f5bc208d577f5d3a7a98261064329300d74af8e14d4a156e"
+        }
+      ],
+      "attempts": 1,
+      "claimed_at": "2026-10-13T13:56:16.045517+00:00",
+      "effective_status": "running",
+      "heartbeat_at": "2026-10-13T15:45:01.603816+00:00",
+      "historical_attempts": "unavailable",
+      "historical_status": "running",
+      "lease_expires_at": "2026-10-13T16:15:01.603816+00:00",
+      "owner": "t900-evaluator",
+      "start_origin_status": "pending",
+      "status": "running",
+      "worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900"
+    },
+    "T-990": {
+      "attempts": 0,
+      "effective_status": "pending",
+      "historical_attempts": "unavailable",
+      "historical_status": "pending",
+      "status": "pending"
+    }
+  }
+}

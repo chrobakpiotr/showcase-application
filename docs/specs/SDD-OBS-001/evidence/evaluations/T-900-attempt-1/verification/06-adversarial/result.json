@@ -1,0 +1,207 @@
+{
+  "environment": {
+    "captured_at": "2026-10-13T15:04:52.458555+00:00",
+    "cpu_count": 8,
+    "git_head": "7de8e69998cd152ea2b8b93773c191d3749d38bd",
+    "machine": "x86_64",
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "A001-content-sensitive-verification",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "duration_ms": 1365,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "547c37ecf0e7bde6ae519b19032fb6482a74423193cb4ba0f71f57f6e37fa420",
+      "stderr_tail": "ERROR: agent result violates canonical task-result schema: ['/rework_tasks: uniqueItems constraint violated']\n.....ERROR: Claude response did not contain structured_output matching the task result schema\n.......ERROR: task packet lease_policy is missing or invalid\n....ERROR: task packet context_trust mismatch; expected={'spec': 'trusted'}, actual={'spec': 'untrusted'}\n.ERROR: reviewer modified the implementation; review-existing runs are read-only\n.ERROR: passing red-green-refactor builder result requires tdd_evidence\n........ERROR: agent result violates canonical task-result schema: ['/summary: required property is missing', '/changed_paths: required property is missing', '/commands: required property is missing', '/assumptions: required property is missing', '/residual_risks: required property is missing']\n.\n----------------------------------------------------------------------\nRan 27 tests in 1.215s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A002-secret-minimized-verification-env",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_verification_sandbox.py"
+      ],
+      "duration_ms": 631,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "828101427a3aa23619fb50c9e61ddeddacce3a9fe53506a30c9991038d1800ce",
+      "stderr_tail": "....................\n----------------------------------------------------------------------\nRan 20 tests in 0.500s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A003-reopen-lease-and-history-safety",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_harness.py",
+        "HarnessTest.test_expired_lease_is_recovered_for_resume",
+        "HarnessTest.test_reopen_archives_invalidated_descendant_attempt_history",
+        "HarnessTest.test_reopen_refuses_running_descendant_before_pruning_workspace"
+      ],
+      "duration_ms": 9156,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "7bf12194db3b24d01dbcf2dd108aa2cdb8496a89d5a3d2bf70df0d10d3548b6f",
+      "stderr_tail": "..ERROR: cannot reopen T-001 while descendants are running: ['T-900']; release or recover them first\n.\n----------------------------------------------------------------------\nRan 3 tests in 8.931s\n\nOK\n",
+      "stdout_sha256": "dab8b439dfcedb9c65ed96cba72a1891adeede05e2c83d487adc7e5cdb9b873d",
+      "stdout_tail": "REOPENED T-001; invalidated descendants: T-900\n"
+    },
+    {
+      "case": "A004-real-showcase-feature-validates",
+      "command": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate",
+        "docs/specs/DEMO-003"
+      ],
+      "duration_ms": 205,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870",
+      "stdout_tail": "PASS: feature specification and task DAG are structurally valid\n"
+    },
+    {
+      "case": "A005-v2-profile-benchmark-parity",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_profile_showcase.py",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "tooling/agent-harness/tests/test_verification_parity.py",
+        "-v"
+      ],
+      "duration_ms": 27334,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "bb2ac04c0229275b1256f1d76892a4426dab90dbd567e0ad0927ae05d104d9f9",
+      "stderr_tail": "te_profile_requirement) ... ok\ntest_mapping_does_not_make_non_applicable_profile_gate_required (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapping_does_not_make_non_applicable_profile_gate_required) ... ok\ntest_profile_covers_repository_quality_gate_inputs (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_covers_repository_quality_gate_inputs) ... ok\ntest_profile_is_deterministic_and_gate_commands_are_unambiguous (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_is_deterministic_and_gate_commands_are_unambiguous) ... ok\ntest_repeated_task_occurrences_remain_distinct (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_repeated_task_occurrences_remain_distinct) ... ok\ntest_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract) ... ok\ntest_accepted_plan_cli_reaches_durable_executor_and_returns_pass (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_accepted_plan_cli_reaches_durable_executor_and_returns_pass) ... ok\ntest_orchestrator_uses_the_same_bound_plan_invocation_as_runner (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_orchestrator_uses_the_same_bound_plan_invocation_as_runner) ... ok\ntest_runner_forwards_only_exact_accepted_plan_to_shared_cli (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_forwards_only_exact_accepted_plan_to_shared_cli) ... ok\ntest_runner_missing_plan_is_blocked_without_cli_or_payload (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_missing_plan_is_blocked_without_cli_or_payload) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 27.170s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A006-v2-authority-store",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_store.py",
+        "-v"
+      ],
+      "duration_ms": 46739,
+      "exit_code": 1,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "fail",
+      "stderr_sha256": "b6e33f1ff1342213919835d05f97300d1b6884c582168a9770e36f90ee5db74e",
+      "stderr_tail": "-harness.tests.test_verification_authority.AcceptedPlanResolutionTest.test_trusted_orchestrator_plan_creation_binds_running_attempt_and_candidate) ... ok\ntest_unknown_execution_unit_rejects_before_execution (tooling.agent-harness.tests.test_verification_authority.AcceptedPlanResolutionTest.test_unknown_execution_unit_rejects_before_execution) ... ok\ntest_unmapped_integration_command_is_task_origin (tooling.agent-harness.tests.test_verification_authority.AcceptedPlanResolutionTest.test_unmapped_integration_command_is_task_origin) ... ok\ntest_verification_store (unittest.loader._FailedTest.test_verification_store) ... ERROR\n\n======================================================================\nERROR: test_verification_store (unittest.loader._FailedTest.test_verification_store)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_verification_store\nTraceback (most recent call last):\n  File \"/Users/pau/.local/share/uv/python/cpython-3.13.16-macos-x86_64-none/lib/python3.13/unittest/loader.py\", line 141, in loadTestsFromName\n    module = __import__(module_name)\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_store.py\", line 15, in <module>\n    from test_verification_supervisor import LifecycleBackend\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_supervisor.py\", line 28, in <module>\n    from human_grant_fixture import signed_test_grant, trusted_test_store\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/human_grant_fixture.py\", line 7, in <module>\n    from cryptography.hazmat.primitives import serialization\nModuleNotFoundError: No module named 'cryptography'\n\n\n----------------------------------------------------------------------\nRan 24 tests in 46.559s\n\nFAILED (errors=1)\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A007-v2-security-qualification",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_sandbox_doctor.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py",
+        "-v"
+      ],
+      "duration_ms": 687,
+      "exit_code": 1,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "fail",
+      "stderr_sha256": "aa17464096f82e34da77d6f15d7a47d8cc953c3587e4b1fb600427b53ac81134",
+      "stderr_tail": "ling.agent-harness.tests.test_verification_sandbox_doctor.SandboxDoctorTest.test_darwin_discovery_is_not_qualification_or_launch_readiness) ... ok\ntest_docker_discovery_does_not_claim_qualification_or_readiness (tooling.agent-harness.tests.test_verification_sandbox_doctor.SandboxDoctorTest.test_docker_discovery_does_not_claim_qualification_or_readiness) ... ok\ntest_linux_discovery_reports_missing_qualification_dispatch (tooling.agent-harness.tests.test_verification_sandbox_doctor.SandboxDoctorTest.test_linux_discovery_reports_missing_qualification_dispatch) ... ok\ntest_missing_executables_have_no_readiness (tooling.agent-harness.tests.test_verification_sandbox_doctor.SandboxDoctorTest.test_missing_executables_have_no_readiness) ... ok\ntest_verification_supervisor (unittest.loader._FailedTest.test_verification_supervisor) ... ERROR\n\n======================================================================\nERROR: test_verification_supervisor (unittest.loader._FailedTest.test_verification_supervisor)\n----------------------------------------------------------------------\nImportError: Failed to import test module: test_verification_supervisor\nTraceback (most recent call last):\n  File \"/Users/pau/.local/share/uv/python/cpython-3.13.16-macos-x86_64-none/lib/python3.13/unittest/loader.py\", line 141, in loadTestsFromName\n    module = __import__(module_name)\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_supervisor.py\", line 28, in <module>\n    from human_grant_fixture import signed_test_grant, trusted_test_store\n  File \"/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/human_grant_fixture.py\", line 7, in <module>\n    from cryptography.hazmat.primitives import serialization\nModuleNotFoundError: No module named 'cryptography'\n\n\n----------------------------------------------------------------------\nRan 25 tests in 0.524s\n\nFAILED (errors=1)\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    }
+  ],
+  "repeat": 1,
+  "run_id": "0e5085cecd36",
+  "schema_version": 1,
+  "suite": "adversarial",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/evals/adversarial.json",
+  "summary": {
+    "by_case": {
+      "A001-content-sensitive-verification": {
+        "median_duration_ms": 1365,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A002-secret-minimized-verification-env": {
+        "median_duration_ms": 631,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A003-reopen-lease-and-history-safety": {
+        "median_duration_ms": 9156,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A004-real-showcase-feature-validates": {
+        "median_duration_ms": 205,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A005-v2-profile-benchmark-parity": {
+        "median_duration_ms": 27334,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A006-v2-authority-store": {
+        "median_duration_ms": 46739,
+        "pass_rate": 0.0,
+        "passes": 0,
+        "runs": 1
+      },
+      "A007-v2-security-qualification": {
+        "median_duration_ms": 687,
+        "pass_rate": 0.0,
+        "passes": 0,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 1365,
+    "pass_rate": 0.7142857142857143,
+    "passes": 5,
+    "runs": 7
+  },
+  "target": null
+}

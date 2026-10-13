@@ -1,0 +1,19 @@
+test_baseline_privacy_before_copy (test_verification_workspace.WorkspaceTests.test_baseline_privacy_before_copy) ... ok
+test_baseline_secret_is_not_silently_excluded (test_verification_workspace.WorkspaceTests.test_baseline_secret_is_not_silently_excluded) ... ok
+test_collision_fails (test_verification_workspace.WorkspaceTests.test_collision_fails) ... ok
+test_descriptor_root_and_source_swaps_rejected (test_verification_workspace.WorkspaceTests.test_descriptor_root_and_source_swaps_rejected) ... ok
+test_full_source_and_runtime_outputs (test_verification_workspace.WorkspaceTests.test_full_source_and_runtime_outputs) ... ok
+test_hardlink_special_and_unsafe_component_rejected (test_verification_workspace.WorkspaceTests.test_hardlink_special_and_unsafe_component_rejected) ... ok
+test_manifest_mutation_and_partial_workspace_reject (test_verification_workspace.WorkspaceTests.test_manifest_mutation_and_partial_workspace_reject) ... ok
+test_manifest_symlink_and_hardlink_rejected (test_verification_workspace.WorkspaceTests.test_manifest_symlink_and_hardlink_rejected) ... ok
+test_nested_git_metadata_is_not_copied (test_verification_workspace.WorkspaceTests.test_nested_git_metadata_is_not_copied) ... ok
+test_original_and_copy_drift_rejected (test_verification_workspace.WorkspaceTests.test_original_and_copy_drift_rejected) ... ok
+test_original_baseline_drift_rejected (test_verification_workspace.WorkspaceTests.test_original_baseline_drift_rejected) ... ok
+test_output_symlink_and_barrier_drift_rejected (test_verification_workspace.WorkspaceTests.test_output_symlink_and_barrier_drift_rejected) ... ok
+test_runtime_symlink_rejected_before_resolve (test_verification_workspace.WorkspaceTests.test_runtime_symlink_rejected_before_resolve) ... ok
+test_source_race_rejects_before_copy (test_verification_workspace.WorkspaceTests.test_source_race_rejects_before_copy) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 47.307s
+
+OK

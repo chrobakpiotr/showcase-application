@@ -1,0 +1,1 @@
+python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check

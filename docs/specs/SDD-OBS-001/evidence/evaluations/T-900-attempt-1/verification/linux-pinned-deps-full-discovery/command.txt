@@ -1,0 +1,1 @@
+docker run --rm -v "$PWD:/workspace" -w /workspace python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f sh -c "apt-get update -qq && apt-get install -y -qq git && python3 -m pip install -q -r tooling/agent-harness/requirements.txt && python3 -m unittest discover -s tooling/agent-harness/tests -v"

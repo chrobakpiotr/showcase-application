@@ -1,0 +1,2 @@
+result= ('PASS', 'DESCENDANT_ASSOCIATED_WITH_UNIT', 'Q05:group=7')
+pgids= [7]

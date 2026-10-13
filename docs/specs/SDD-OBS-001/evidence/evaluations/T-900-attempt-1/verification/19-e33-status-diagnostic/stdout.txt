@@ -1,0 +1,4 @@
+probe_result= ('PASS', 'DESCENDANT_ASSOCIATED_WITH_UNIT', 'Q05:group=7')
+group_status= UNCERTAIN
+proc_members= ['8:state=Z:pgrp=7']
+killpg_zero=exists

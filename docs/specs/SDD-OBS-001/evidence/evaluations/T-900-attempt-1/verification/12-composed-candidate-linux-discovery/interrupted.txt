@@ -1,0 +1,1 @@
+Stopped before completion after parent correction to include all accepted fixture-maintenance overlays. Partial output is diagnostic only and must not be counted; source was T-900 candidate 7de8e69998cd152ea2b8b93773c191d3749d38bd plus canonical-main showcase.json overlay only.

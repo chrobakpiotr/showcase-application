@@ -1,0 +1,1 @@
+ERROR: ACTIVE_PACKET_AMBIGUOUS: required legacy packet is missing

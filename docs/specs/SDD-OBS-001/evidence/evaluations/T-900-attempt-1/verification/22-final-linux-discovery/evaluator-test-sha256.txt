@@ -1,0 +1,2 @@
+61d5af782cef3cda7ce2cc5d00424355be73930d9697d115f3791aea0734053f  tooling/agent-harness/tests/test_verification_backend_qualification.py
+8768ec547d5b8baab8a6cbb2b10626bd38bab24e052d32ff3d66bc83ec087534  tooling/agent-harness/tests/test_verify.py

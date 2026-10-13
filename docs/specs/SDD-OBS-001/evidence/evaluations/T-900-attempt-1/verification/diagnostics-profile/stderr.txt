@@ -1,0 +1,30 @@
+test_noop_is_empty_advisory_and_cannot_publish_executable_plan (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_noop_is_empty_advisory_and_cannot_publish_executable_plan) ... ok
+test_real_git_deletion_and_rename_retain_source_requirements (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_git_deletion_and_rename_retain_source_requirements) ... ok
+test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) ... 
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/karma.conf.js') ... FAIL
+  test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/eslint.config.js') ... FAIL
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/karma.conf.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'showcase-gradle-build'
+
+======================================================================
+FAIL: test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) (path='apps/ecommerce/frontend/eslint.config.js')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/tests/test_verification_profile_applicability.py", line 81, in test_real_profile_truth_table_and_selected_inputs
+    self.assertEqual(expected, {n.profile_gate_id for n in nodes})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Items in the second set but not the first:
+'showcase-gradle-build'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.634s
+
+FAILED (failures=2)

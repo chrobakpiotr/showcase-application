@@ -1,0 +1,38 @@
+[agent/TST-001/T-001 e176d7d] agent checkpoint TST-001 T-001
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+[agent/TST-001/T-A 3b4545b] agent checkpoint TST-001 T-A
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+[agent/TST-001/T-B 2cc25da] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+[agent/TST-001/T-B 41971b4] agent checkpoint TST-001 T-B
+ 1 file changed, 1 insertion(+)
+ create mode 100644 task-output.txt
+[agent/TST-001/T-B 6409a24] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+[agent/TST-001/T-B cadca1c] agent orchestration refresh TST-001
+ 4 files changed, 1 insertion(+), 5 deletions(-)
+ delete mode 100644 docs/specs/TST-001/design.json
+[agent/TST-001/T-A 57312d3] agent checkpoint TST-001 T-A
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+HEAD is now at b0703d6 base
+HEAD is now at b0703d6 base
+[agent/TST-001/T-B a14dd8c] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+{
+  "task": "T-001",
+  "owner": "worker-a",
+  "worktree": "/tmp/tmpxlgdqi2c-agent-worktrees/TST-001/T-001",
+  "packet": "/tmp/tmpxlgdqi2c/docs/specs/TST-001/packets/T-001.json"
+}
+COMPLETED T-001 checkpoint=e176d7d83bb5
+/tmp/tmpxlgdqi2c-agent-worktrees/TST-001/T-002
+CLAIMED T-001 by worker-a
+CLAIMED T-001 by worker-a
+HUMAN_RESOLVED T-001 -> retry authorized; artifact=/tmp/tmpgomrtumn/docs/specs/TST-001/evidence/human-resolutions/T-001/20261013T151519.608112Z.json
+REPLANNED T-001 revision=sha256:1e8d845ae936577ee6fa5921d1ee6443b1f03251bfc120d61728daa749aae714 attempts=0
+CLAIMED T-001 by sequential-replan-worker
+ESCALATED T-001 attempt=1/3
+HUMAN_RESOLVED T-001 -> retry authorized; artifact=/tmp/tmpgomrtumn/docs/specs/TST-001/evidence/human-resolutions/T-001/20261013T151520.462449Z.json

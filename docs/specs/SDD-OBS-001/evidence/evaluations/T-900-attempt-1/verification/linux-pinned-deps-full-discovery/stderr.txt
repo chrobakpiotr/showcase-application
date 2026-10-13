@@ -1,0 +1,389 @@
+debconf: unable to initialize frontend: Dialog
+debconf: (TERM is not set, so the dialog frontend is not usable.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 49.)
+debconf: falling back to frontend: Teletype
+debconf: unable to initialize frontend: Teletype
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Noninteractive
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+test_github_issue_normalizes_to_read_only_intent (test_control_plane.ControlPlaneTest.test_github_issue_normalizes_to_read_only_intent) ... ok
+test_jira_adf_description_is_flattened (test_control_plane.ControlPlaneTest.test_jira_adf_description_is_flattened) ... ok
+test_remote_fetch_is_explicit_get_and_uses_no_redirect_opener (test_control_plane.ControlPlaneTest.test_remote_fetch_is_explicit_get_and_uses_no_redirect_opener) ... ok
+test_codex_design_output_schema_uses_closed_objects_and_required_properties (test_design.DesignTest.test_codex_design_output_schema_uses_closed_objects_and_required_properties) ... ok
+test_design_result_contract_accepts_representative_grill_results (test_design.DesignTest.test_design_result_contract_accepts_representative_grill_results) ... ok
+test_explicit_prototype_question_enables_auto_prototype (test_design.DesignTest.test_explicit_prototype_question_enables_auto_prototype) ... ok
+test_full_design_loop_with_fake_codex_produces_gate_and_cleans_worktrees (test_design.DesignTest.test_full_design_loop_with_fake_codex_produces_gate_and_cleans_worktrees) ... ok
+test_low_risk_auto_skips_grills (test_design.DesignTest.test_low_risk_auto_skips_grills) ... ok
+test_medium_risk_auto_runs_grills_but_not_empty_prototype (test_design.DesignTest.test_medium_risk_auto_runs_grills_but_not_empty_prototype) ... ok
+test_normalize_generated_prototype_recommendation (test_design.DesignTest.test_normalize_generated_prototype_recommendation) ... ok
+test_stage_off_requires_explicit_waiver_reason (test_design.DesignTest.test_stage_off_requires_explicit_waiver_reason) ... ERROR: using any design stage mode=off requires --waiver-reason so the gate records the deliberate bypass
+ok
+test_validate_config_accepts_bakeoff (test_design.DesignTest.test_validate_config_accepts_bakeoff) ... ok
+test_validate_config_rejects_duplicate_candidate (test_design.DesignTest.test_validate_config_rejects_duplicate_candidate) ... ok
+test_adversarial_eval_pins_verification_v2_regression_modules (test_eval.EvalTest.test_adversarial_eval_pins_verification_v2_regression_modules) ... ok
+test_checked_in_suites_are_valid (test_eval.EvalTest.test_checked_in_suites_are_valid) ... ok
+test_ci_runs_discovery_and_enforces_linux_benchmark_environment (test_eval.EvalTest.test_ci_runs_discovery_and_enforces_linux_benchmark_environment) ... ok
+test_rejects_destructive_remote_command (test_eval.EvalTest.test_rejects_destructive_remote_command) ... ok
+test_substitution_requires_target (test_eval.EvalTest.test_substitution_requires_target) ... ERROR: suite requires --target
+ok
+test_summary_computes_pass_rate (test_eval.EvalTest.test_summary_computes_pass_rate) ... ok
+test_completion_rejects_checkpoint_not_descending_from_dependency (test_harness.CanonicalCompletionRepairTests.test_completion_rejects_checkpoint_not_descending_from_dependency) ... FAIL
+test_m42_01_to_08_c2_binds_chain_and_preserves_attempt (test_harness.CanonicalCompletionRepairTests.test_m42_01_to_08_c2_binds_chain_and_preserves_attempt) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_09_to_15_effective_restore_and_history_preserved (test_harness.CanonicalCompletionRepairTests.test_m42_09_to_15_effective_restore_and_history_preserved) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_16_exact_replay_is_idempotent (test_harness.CanonicalCompletionRepairTests.test_m42_16_exact_replay_is_idempotent) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_17_18_conflicting_evidence_and_checkpoint_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_17_18_conflicting_evidence_and_checkpoint_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+
+  test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) (case='correction') ... ERROR
+FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+  test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) (case='authorization') ... ERROR
+FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+  test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) (case='claim') ... ERROR
+FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+  test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) (case='owner') ... ERROR
+FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+  test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_19_to_23_wrong_authority_owner_and_attempt_rejected) (case='attempt') ... ERROR
+test_m42_24_25_stale_packet_identity_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_24_25_stale_packet_identity_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_26_29_missing_coverage_invalid_evidence_or_checkpoint_rejected (test_harness.CanonicalCompletionRepairTests.test_m42_26_29_missing_coverage_invalid_evidence_or_checkpoint_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_30_identical_concurrency_has_one_record (test_harness.CanonicalCompletionRepairTests.test_m42_30_identical_concurrency_has_one_record) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_31_conflicting_concurrency_fails_closed (test_harness.CanonicalCompletionRepairTests.test_m42_31_conflicting_concurrency_fails_closed) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_32_33_publication_crash_recovery (test_harness.CanonicalCompletionRepairTests.test_m42_32_33_publication_crash_recovery) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_34_35_projection_loss_preserves_repair (test_harness.CanonicalCompletionRepairTests.test_m42_34_35_projection_loss_preserves_repair) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_36_fresh_process_reconstruction (test_harness.CanonicalCompletionRepairTests.test_m42_36_fresh_process_reconstruction) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_37_cross_worktree_resolution (test_harness.CanonicalCompletionRepairTests.test_m42_37_cross_worktree_resolution) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_38_cli_help_discovery (test_harness.CanonicalCompletionRepairTests.test_m42_38_cli_help_discovery) ... ok
+test_m42_39_40_cli_valid_and_invalid (test_harness.CanonicalCompletionRepairTests.test_m42_39_40_cli_valid_and_invalid) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_41_to_48_no_retry_special_case_or_stale_worktree_dependency (test_harness.CanonicalCompletionRepairTests.test_m42_41_to_48_no_retry_special_case_or_stale_worktree_dependency) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m42_repair_rejects_checkpoint_stale_to_dependency_free_feature_base (test_harness.CanonicalCompletionRepairTests.test_m42_repair_rejects_checkpoint_stale_to_dependency_free_feature_base) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_01_missing_required_vc_rejects_completion_red (test_harness.CanonicalCompletionRepairTests.test_m4_01_missing_required_vc_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_claimed_result_hash_must_match_harness_output (test_harness.CanonicalCompletionRepairTests.test_m4_02_claimed_result_hash_must_match_harness_output) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_string_only_vc_claim_without_command_proof_rejects_red (test_harness.CanonicalCompletionRepairTests.test_m4_02_string_only_vc_claim_without_command_proof_rejects_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red (test_harness.CanonicalCompletionRepairTests.test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_03_complete_required_vc_proof_accepts_completion (test_harness.CanonicalCompletionRepairTests.test_m4_03_complete_required_vc_proof_accepts_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_04_missing_required_ac_rejects_completion_red (test_harness.CanonicalCompletionRepairTests.test_m4_04_missing_required_ac_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_05_stale_revision_rejects_completion (test_harness.CanonicalCompletionRepairTests.test_m4_05_stale_revision_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_06_stale_fingerprint_rejects_completion (test_harness.CanonicalCompletionRepairTests.test_m4_06_stale_fingerprint_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_07_wrong_attempt_rejects_completion (test_harness.CanonicalCompletionRepairTests.test_m4_07_wrong_attempt_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_08_wrong_checkpoint_rejects_completion (test_harness.CanonicalCompletionRepairTests.test_m4_08_wrong_checkpoint_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_09_correction_preserves_historical_completion (test_harness.CanonicalCompletionRepairTests.test_m4_09_correction_preserves_historical_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_10_correction_changes_effective_state (test_harness.CanonicalCompletionRepairTests.test_m4_10_correction_changes_effective_state) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_11_correction_does_not_increment_attempts (test_harness.CanonicalCompletionRepairTests.test_m4_11_correction_does_not_increment_attempts) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_12_correction_preserves_retry_authorizations (test_harness.CanonicalCompletionRepairTests.test_m4_12_correction_preserves_retry_authorizations) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_13_exact_correction_replay_is_idempotent (test_harness.CanonicalCompletionRepairTests.test_m4_13_exact_correction_replay_is_idempotent) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_14_conflicting_correction_is_rejected (test_harness.CanonicalCompletionRepairTests.test_m4_14_conflicting_correction_is_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_15_corrected_completion_blocks_dependent (test_harness.CanonicalCompletionRepairTests.test_m4_15_corrected_completion_blocks_dependent) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_16_corrected_task_cannot_use_ordinary_claim (test_harness.CanonicalCompletionRepairTests.test_m4_16_corrected_task_cannot_use_ordinary_claim) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_17_repair_requires_explicit_authorization (test_harness.CanonicalCompletionRepairTests.test_m4_17_repair_requires_explicit_authorization) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_18_repair_authorization_is_exactly_scoped (test_harness.CanonicalCompletionRepairTests.test_m4_18_repair_authorization_is_exactly_scoped) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_19_repair_claim_preserves_attempt (test_harness.CanonicalCompletionRepairTests.test_m4_19_repair_claim_preserves_attempt) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_20_fresh_module_reconstructs_correction_and_authorization (test_harness.CanonicalCompletionRepairTests.test_m4_20_fresh_module_reconstructs_correction_and_authorization) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_21_repaired_completion_requires_complete_coverage (test_harness.CanonicalCompletionRepairTests.test_m4_21_repaired_completion_requires_complete_coverage) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_22_repaired_completion_preserves_c1_and_k1 (test_harness.CanonicalCompletionRepairTests.test_m4_22_repaired_completion_preserves_c1_and_k1) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_23_repaired_completion_restores_dependency_satisfaction (test_harness.CanonicalCompletionRepairTests.test_m4_23_repaired_completion_restores_dependency_satisfaction) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_24_stale_repair_authorization_rejected (test_harness.CanonicalCompletionRepairTests.test_m4_24_stale_repair_authorization_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_25_concurrent_corrections_have_one_authority_result (test_harness.CanonicalCompletionRepairTests.test_m4_25_concurrent_corrections_have_one_authority_result) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_26_concurrent_repair_claim_has_one_owner (test_harness.CanonicalCompletionRepairTests.test_m4_26_concurrent_repair_claim_has_one_owner) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_27_cross_worktree_uses_repository_authority (test_harness.CanonicalCompletionRepairTests.test_m4_27_cross_worktree_uses_repository_authority) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_28_crash_after_correction_publication_blocks_dependency (test_harness.CanonicalCompletionRepairTests.test_m4_28_crash_after_correction_publication_blocks_dependency) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_29_crash_after_c2_publication_reconstructs_completion (test_harness.CanonicalCompletionRepairTests.test_m4_29_crash_after_c2_publication_reconstructs_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_30_repair_flow_never_creates_attempt_six (test_harness.CanonicalCompletionRepairTests.test_m4_30_repair_flow_never_creates_attempt_six) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_completion_rejects_checkpoint_not_descending_from_dependency (test_harness.CompletionCorrectionTest.test_completion_rejects_checkpoint_not_descending_from_dependency) ... FAIL
+test_m4_01_missing_required_vc_rejects_completion_red (test_harness.CompletionCorrectionTest.test_m4_01_missing_required_vc_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_claimed_result_hash_must_match_harness_output (test_harness.CompletionCorrectionTest.test_m4_02_claimed_result_hash_must_match_harness_output) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_string_only_vc_claim_without_command_proof_rejects_red (test_harness.CompletionCorrectionTest.test_m4_02_string_only_vc_claim_without_command_proof_rejects_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red (test_harness.CompletionCorrectionTest.test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_03_complete_required_vc_proof_accepts_completion (test_harness.CompletionCorrectionTest.test_m4_03_complete_required_vc_proof_accepts_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_04_missing_required_ac_rejects_completion_red (test_harness.CompletionCorrectionTest.test_m4_04_missing_required_ac_rejects_completion_red) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_05_stale_revision_rejects_completion (test_harness.CompletionCorrectionTest.test_m4_05_stale_revision_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_06_stale_fingerprint_rejects_completion (test_harness.CompletionCorrectionTest.test_m4_06_stale_fingerprint_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_07_wrong_attempt_rejects_completion (test_harness.CompletionCorrectionTest.test_m4_07_wrong_attempt_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_08_wrong_checkpoint_rejects_completion (test_harness.CompletionCorrectionTest.test_m4_08_wrong_checkpoint_rejects_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ok
+test_m4_09_correction_preserves_historical_completion (test_harness.CompletionCorrectionTest.test_m4_09_correction_preserves_historical_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_10_correction_changes_effective_state (test_harness.CompletionCorrectionTest.test_m4_10_correction_changes_effective_state) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_11_correction_does_not_increment_attempts (test_harness.CompletionCorrectionTest.test_m4_11_correction_does_not_increment_attempts) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_12_correction_preserves_retry_authorizations (test_harness.CompletionCorrectionTest.test_m4_12_correction_preserves_retry_authorizations) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_13_exact_correction_replay_is_idempotent (test_harness.CompletionCorrectionTest.test_m4_13_exact_correction_replay_is_idempotent) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_14_conflicting_correction_is_rejected (test_harness.CompletionCorrectionTest.test_m4_14_conflicting_correction_is_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_15_corrected_completion_blocks_dependent (test_harness.CompletionCorrectionTest.test_m4_15_corrected_completion_blocks_dependent) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_16_corrected_task_cannot_use_ordinary_claim (test_harness.CompletionCorrectionTest.test_m4_16_corrected_task_cannot_use_ordinary_claim) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_17_repair_requires_explicit_authorization (test_harness.CompletionCorrectionTest.test_m4_17_repair_requires_explicit_authorization) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_18_repair_authorization_is_exactly_scoped (test_harness.CompletionCorrectionTest.test_m4_18_repair_authorization_is_exactly_scoped) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_19_repair_claim_preserves_attempt (test_harness.CompletionCorrectionTest.test_m4_19_repair_claim_preserves_attempt) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_20_fresh_module_reconstructs_correction_and_authorization (test_harness.CompletionCorrectionTest.test_m4_20_fresh_module_reconstructs_correction_and_authorization) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_21_repaired_completion_requires_complete_coverage (test_harness.CompletionCorrectionTest.test_m4_21_repaired_completion_requires_complete_coverage) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_22_repaired_completion_preserves_c1_and_k1 (test_harness.CompletionCorrectionTest.test_m4_22_repaired_completion_preserves_c1_and_k1) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_23_repaired_completion_restores_dependency_satisfaction (test_harness.CompletionCorrectionTest.test_m4_23_repaired_completion_restores_dependency_satisfaction) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_24_stale_repair_authorization_rejected (test_harness.CompletionCorrectionTest.test_m4_24_stale_repair_authorization_rejected) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_25_concurrent_corrections_have_one_authority_result (test_harness.CompletionCorrectionTest.test_m4_25_concurrent_corrections_have_one_authority_result) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_26_concurrent_repair_claim_has_one_owner (test_harness.CompletionCorrectionTest.test_m4_26_concurrent_repair_claim_has_one_owner) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_27_cross_worktree_uses_repository_authority (test_harness.CompletionCorrectionTest.test_m4_27_cross_worktree_uses_repository_authority) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_28_crash_after_correction_publication_blocks_dependency (test_harness.CompletionCorrectionTest.test_m4_28_crash_after_correction_publication_blocks_dependency) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_29_crash_after_c2_publication_reconstructs_completion (test_harness.CompletionCorrectionTest.test_m4_29_crash_after_c2_publication_reconstructs_completion) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_m4_30_repair_flow_never_creates_attempt_six (test_harness.CompletionCorrectionTest.test_m4_30_repair_flow_never_creates_attempt_six) ... FAIL: verification contract is stale: inputs.constitution_sha256 does not match current artifact
+ERROR: feature is invalid
+ERROR
+test_active_design_feature_requires_fresh_gate (test_harness.HarnessTest.test_active_design_feature_requires_fresh_gate) ... ok
+test_active_verification_resume_requires_matching_history_before_finalization (test_harness.HarnessTest.test_active_verification_resume_requires_matching_history_before_finalization) ... ERROR: VERIFICATION_RESUME_STATE_INVALID: active resume does not match durable history
+ERROR: VERIFICATION_RESUME_STATE_INVALID: active resume does not match durable history
+ok
+test_ai_risk_routes_to_quality_and_security_reviewers (test_harness.HarnessTest.test_ai_risk_routes_to_quality_and_security_reviewers) ... ok
+test_all_spec_acceptance_criteria_require_evaluator_coverage (test_harness.HarnessTest.test_all_spec_acceptance_criteria_require_evaluator_coverage) ... ok
+test_attempt_scoped_recovery_accepts_proven_historical_fields_and_rejects_current_or_ambiguous (test_harness.HarnessTest.test_attempt_scoped_recovery_accepts_proven_historical_fields_and_rejects_current_or_ambiguous) ... ok
+test_attempt_scoped_runtime_evidence_uses_explicit_attempt_binding (test_harness.HarnessTest.test_attempt_scoped_runtime_evidence_uses_explicit_attempt_binding) ... ok
+test_busy_verification_lock_blocks_stale_worktree_recovery (test_harness.HarnessTest.test_busy_verification_lock_blocks_stale_worktree_recovery) ... ok
+test_checkpoint_composes_dependency_into_clean_worktree (test_harness.HarnessTest.test_checkpoint_composes_dependency_into_clean_worktree) ... ok
+test_claim_accepts_provenance_only_packet_change_without_rewriting_packet (test_harness.HarnessTest.test_claim_accepts_provenance_only_packet_change_without_rewriting_packet) ... ok
+test_claim_creates_renewable_lease (test_harness.HarnessTest.test_claim_creates_renewable_lease) ... ERROR: task is owned by worker-a, not worker-b
+ok
+test_claim_exception_immediately_before_publication_preserves_state (test_harness.HarnessTest.test_claim_exception_immediately_before_publication_preserves_state) ... ok
+test_claim_output_failure_after_commit_keeps_success_exit_contract (test_harness.HarnessTest.test_claim_output_failure_after_commit_keeps_success_exit_contract) ... ok
+test_claim_packet_precommit_failure_injection_preserves_retry_state (test_harness.HarnessTest.test_claim_packet_precommit_failure_injection_preserves_retry_state) ... ERROR: cannot serialize task packet for T-001: serialize failure
+ok
+test_claim_prevents_second_owner (test_harness.HarnessTest.test_claim_prevents_second_owner) ... ERROR: T-001 is not ready
+ok
+test_claim_rejects_each_changed_execution_contract_field_before_commit (test_harness.HarnessTest.test_claim_rejects_each_changed_execution_contract_field_before_commit) ... ok
+test_claim_semantic_packet_mismatch_fails_before_authorization_commit (test_harness.HarnessTest.test_claim_semantic_packet_mismatch_fails_before_authorization_commit) ... ok
+test_claim_state_commit_failure_is_read_back_as_unclaimed_after_restart (test_harness.HarnessTest.test_claim_state_commit_failure_is_read_back_as_unclaimed_after_restart) ... ok
+test_completed_task_cannot_be_replanned (test_harness.HarnessTest.test_completed_task_cannot_be_replanned) ... ERROR: TASK_REPLAN_NOT_ALLOWED: completed tasks cannot be replanned
+ok
+test_completion_evidence_must_be_json (test_harness.HarnessTest.test_completion_evidence_must_be_json) ... ok
+test_completion_evidence_requires_pass_status (test_harness.HarnessTest.test_completion_evidence_requires_pass_status) ... ok
+test_concurrent_sequential_replans_have_one_winner (test_harness.HarnessTest.test_concurrent_sequential_replans_have_one_winner) ... ERROR: STALE_ACTIVE_PACKET: a prior replan changed the active packet revision
+ok
+test_concurrent_supersession_and_ordinary_authorization_have_one_transition (test_harness.HarnessTest.test_concurrent_supersession_and_ordinary_authorization_have_one_transition) ... ERROR: RETRY_AUTHORIZATION_INVALID: a valid authorization already exists for this task state
+ok
+test_concurrent_supersession_has_one_winner (test_harness.HarnessTest.test_concurrent_supersession_has_one_winner) ... ok
+test_concurrent_worktree_updates_are_not_lost (test_harness.HarnessTest.test_concurrent_worktree_updates_are_not_lost) ... ok
+test_conflicting_failed_task_replans_serialize_with_one_winner (test_harness.HarnessTest.test_conflicting_failed_task_replans_serialize_with_one_winner) ... ok
+test_conflicting_valid_legacy_state_candidates_fail_closed (test_harness.HarnessTest.test_conflicting_valid_legacy_state_candidates_fail_closed) ... ok
+test_consumed_authorization_cannot_be_superseded (test_harness.HarnessTest.test_consumed_authorization_cannot_be_superseded) ... ok
+test_current_dependency_checkpoint_does_not_get_refresh_commit (test_harness.HarnessTest.test_current_dependency_checkpoint_does_not_get_refresh_commit) ... ok
+test_cycle_is_rejected (test_harness.HarnessTest.test_cycle_is_rejected) ... ok
+test_dependency_free_stale_worktree_is_rejected (test_harness.HarnessTest.test_dependency_free_stale_worktree_is_rejected) ... ok
+test_dependency_free_task_requires_valid_feature_base (test_harness.HarnessTest.test_dependency_free_task_requires_valid_feature_base) ... ok
+test_design_gate_becomes_stale_when_plan_changes (test_harness.HarnessTest.test_design_gate_becomes_stale_when_plan_changes) ... ok
+test_equivalent_canonical_and_legacy_states_resolve_to_canonical (test_harness.HarnessTest.test_equivalent_canonical_and_legacy_states_resolve_to_canonical) ... ok
+test_evidence_contract (test_harness.HarnessTest.test_evidence_contract) ... ok
+test_exhausted_retry_authorization_is_one_shot_atomic_and_preserves_dag_history (test_harness.HarnessTest.test_exhausted_retry_authorization_is_one_shot_atomic_and_preserves_dag_history) ... ok
+test_existing_clean_worktree_with_dependency_ancestry_is_reused (test_harness.HarnessTest.test_existing_clean_worktree_with_dependency_ancestry_is_reused) ... ok
+test_existing_clean_worktree_without_dependency_ancestry_is_rejected (test_harness.HarnessTest.test_existing_clean_worktree_without_dependency_ancestry_is_rejected) ... ok
+test_existing_stale_worktree_remains_rejected (test_harness.HarnessTest.test_existing_stale_worktree_remains_rejected) ... ok
+test_expired_lease_is_recovered_for_resume (test_harness.HarnessTest.test_expired_lease_is_recovered_for_resume) ... ok
+test_explicit_migrate_state_preserves_legacy_history_and_is_idempotent (test_harness.HarnessTest.test_explicit_migrate_state_preserves_legacy_history_and_is_idempotent) ... ok
+test_fail_cli_does_not_expose_verification_control_outcome (test_harness.HarnessTest.test_fail_cli_does_not_expose_verification_control_outcome) ... ok
+test_failed_lifecycle_mutation_is_blocked_by_unresolved_verification_before_checkpoint (test_harness.HarnessTest.test_failed_lifecycle_mutation_is_blocked_by_unresolved_verification_before_checkpoint) ... ok
+test_failed_task_replan_preserves_state_then_claim_binds_new_revision (test_harness.HarnessTest.test_failed_task_replan_preserves_state_then_claim_binds_new_revision) ... ok
+test_failed_task_replan_rejects_reused_decision_after_prior_replan (test_harness.HarnessTest.test_failed_task_replan_rejects_reused_decision_after_prior_replan) ... ok
+test_failed_task_replan_rejects_stale_attempt_revision_and_fingerprint (test_harness.HarnessTest.test_failed_task_replan_rejects_stale_attempt_revision_and_fingerprint) ... ok
+test_failed_task_replan_rejects_stale_feature_generation_without_state_change (test_harness.HarnessTest.test_failed_task_replan_rejects_stale_feature_generation_without_state_change) ... ok
+test_failed_task_replan_requires_human_resolution_to_remain_last_transition (test_harness.HarnessTest.test_failed_task_replan_requires_human_resolution_to_remain_last_transition) ... ok
+test_failed_task_replan_requires_latest_human_resolution_transition (test_harness.HarnessTest.test_failed_task_replan_requires_latest_human_resolution_transition) ... ok
+test_failed_task_replan_state_replacement_failure_leaves_only_inactive_orphan (test_harness.HarnessTest.test_failed_task_replan_state_replacement_failure_leaves_only_inactive_orphan) ... ok
+test_feature_id_must_match_directory (test_harness.HarnessTest.test_feature_id_must_match_directory) ... ok
+test_first_worktree_base_survives_start_and_allows_feature_reconcile (test_harness.HarnessTest.test_first_worktree_base_survives_start_and_allows_feature_reconcile) ... ok
+test_first_worktree_uses_the_exact_snapshot_recorded_as_base (test_harness.HarnessTest.test_first_worktree_uses_the_exact_snapshot_recorded_as_base) ... ok
+test_human_resolution_rejects_non_escalated_task (test_harness.HarnessTest.test_human_resolution_rejects_non_escalated_task) ... ok
+test_human_resolution_reopens_escalated_task_with_auditable_retry_grant (test_harness.HarnessTest.test_human_resolution_reopens_escalated_task_with_auditable_retry_grant) ... ok
+test_inactive_maintained_example_does_not_require_live_design_gate (test_harness.HarnessTest.test_inactive_maintained_example_does_not_require_live_design_gate) ... ok
+test_lease_configuration_is_validated (test_harness.HarnessTest.test_lease_configuration_is_validated) ... ok
+test_legacy_main_state_migrates_and_conflicting_copy_fails_safe (test_harness.HarnessTest.test_legacy_main_state_migrates_and_conflicting_copy_fails_safe) ... ok
+test_legacy_provenance_change_is_not_ready_and_claim_explains_supersession (test_harness.HarnessTest.test_legacy_provenance_change_is_not_ready_and_claim_explains_supersession) ... ok
+test_library_dependency_pin_is_part_of_protocol_fingerprint (test_harness.HarnessTest.test_library_dependency_pin_is_part_of_protocol_fingerprint) ... ok
+test_lifecycle_cli_cross_worktree_manual_exercise (test_harness.HarnessTest.test_lifecycle_cli_cross_worktree_manual_exercise) ... ok
+test_lifecycle_mutation_and_verifier_reservation_share_atomic_guard (test_harness.HarnessTest.test_lifecycle_mutation_and_verifier_reservation_share_atomic_guard) ... ok
+test_lifecycle_mutation_holds_repository_lock_through_state_commit (test_harness.HarnessTest.test_lifecycle_mutation_holds_repository_lock_through_state_commit) ... ok
+test_lifecycle_state_fails_closed_when_cross_process_lock_is_unavailable (test_harness.HarnessTest.test_lifecycle_state_fails_closed_when_cross_process_lock_is_unavailable) ... ok
+test_malformed_exact_legacy_state_fails_closed (test_harness.HarnessTest.test_malformed_exact_legacy_state_fails_closed) ... ok
+test_master_closure_authorizes_implementation_without_claiming_gate_pass (test_harness.HarnessTest.test_master_closure_authorizes_implementation_without_claiming_gate_pass) ... ok
+test_matching_wayfinder_map_is_allowed_during_feature_bootstrap (test_harness.HarnessTest.test_matching_wayfinder_map_is_allowed_during_feature_bootstrap) ... ok
+test_migrate_state_resolves_old_path_key_used_by_status_and_ready (test_harness.HarnessTest.test_migrate_state_resolves_old_path_key_used_by_status_and_ready) ... ok
+test_migration_fails_closed_for_dag_change_corruption_and_unknown_version (test_harness.HarnessTest.test_migration_fails_closed_for_dag_change_corruption_and_unknown_version) ... ok
+test_migration_never_infers_completion_from_git_ancestry (test_harness.HarnessTest.test_migration_never_infers_completion_from_git_ancestry) ... ok
+test_missing_acceptance_criterion_is_rejected (test_harness.HarnessTest.test_missing_acceptance_criterion_is_rejected) ... ok
+test_missing_risk_selected_reviewer_profile_is_rejected (test_harness.HarnessTest.test_missing_risk_selected_reviewer_profile_is_rejected) ... ok
+test_missing_state_with_recovery_incident_is_read_only_and_mutations_fail_closed (test_harness.HarnessTest.test_missing_state_with_recovery_incident_is_read_only_and_mutations_fail_closed) ... ok
+test_nested_parallel_builder_write_collision_is_rejected (test_harness.HarnessTest.test_nested_parallel_builder_write_collision_is_rejected) ... ok
+test_new_dependent_worktree_refreshes_stale_protocol_and_preserves_dependency (test_harness.HarnessTest.test_new_dependent_worktree_refreshes_stale_protocol_and_preserves_dependency) ... ok
+test_new_worktree_freshness_failure_removes_only_created_resources (test_harness.HarnessTest.test_new_worktree_freshness_failure_removes_only_created_resources) ... ok
+test_next_ordinary_command_recovers_each_snapshot_crash_boundary (test_harness.HarnessTest.test_next_ordinary_command_recovers_each_snapshot_crash_boundary) ... ok
+test_next_status_command_redoes_crash_after_state_replacement (test_harness.HarnessTest.test_next_status_command_redoes_crash_after_state_replacement) ... ok
+test_normal_atomic_claim_does_not_require_recovery (test_harness.HarnessTest.test_normal_atomic_claim_does_not_require_recovery) ... ok
+test_packet_is_deterministic_and_immutable (test_harness.HarnessTest.test_packet_is_deterministic_and_immutable) ... ok
+test_parallel_builder_write_collision_is_rejected (test_harness.HarnessTest.test_parallel_builder_write_collision_is_rejected) ... ok
+test_protocol_fingerprint_is_audit_only_and_state_schema_controls_compatibility (test_harness.HarnessTest.test_protocol_fingerprint_is_audit_only_and_state_schema_controls_compatibility) ... ok
+test_protocol_self_spec_is_allowed_during_synthetic_bootstrap (test_harness.HarnessTest.test_protocol_self_spec_is_allowed_during_synthetic_bootstrap) ... ok
+test_real_freshness_guard_failure_cleans_worktree_when_design_is_ignored (test_harness.HarnessTest.test_real_freshness_guard_failure_cleans_worktree_when_design_is_ignored) ... ok
+test_real_git_worktrees_share_lifecycle_store_lock_and_claim_state (test_harness.HarnessTest.test_real_git_worktrees_share_lifecycle_store_lock_and_claim_state) ... ok
+test_recover_claim_accepts_exact_consumed_v2_supersession_shape (test_harness.HarnessTest.test_recover_claim_accepts_exact_consumed_v2_supersession_shape)
+RED regression for a valid V2 retry that replaced an unusable V1 grant. ... ok
+test_recover_claim_is_idempotent_and_conflicting_assertion_fails (test_harness.HarnessTest.test_recover_claim_is_idempotent_and_conflicting_assertion_fails) ... ok
+test_recover_claim_preserves_attempt_grant_packet_and_renews_expired_lease (test_harness.HarnessTest.test_recover_claim_preserves_attempt_grant_packet_and_renews_expired_lease) ... ok
+test_recover_claim_rejects_execution_checkpoint_completion_and_legacy_unidentified_states (test_harness.HarnessTest.test_recover_claim_rejects_execution_checkpoint_completion_and_legacy_unidentified_states) ... ok
+test_recover_claim_rejects_runner_journal_and_wrong_feature_repository (test_harness.HarnessTest.test_recover_claim_rejects_runner_journal_and_wrong_feature_repository) ... ok
+test_recover_claim_rejects_semantic_packet_mismatch_but_accepts_provenance (test_harness.HarnessTest.test_recover_claim_rejects_semantic_packet_mismatch_but_accepts_provenance) ... ok
+test_recover_claim_rejects_wrong_bindings_and_authorization_history (test_harness.HarnessTest.test_recover_claim_rejects_wrong_bindings_and_authorization_history) ... ok
+test_recover_claim_requires_explicit_attestation (test_harness.HarnessTest.test_recover_claim_requires_explicit_attestation) ... ok
+test_recover_claim_v2_grant_predicates_fail_independently (test_harness.HarnessTest.test_recover_claim_v2_grant_predicates_fail_independently) ... 

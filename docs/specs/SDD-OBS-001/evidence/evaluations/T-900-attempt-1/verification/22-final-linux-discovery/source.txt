@@ -1,0 +1,7 @@
+Candidate: 7de8e69998cd152ea2b8b93773c191d3749d38bd plus recorded canonical-main overlays and T-900 test-only fixture corrections.
+Evaluation clone: /tmp/showcase-t900-isolated-retry-20261013-7f2a6d (standalone .git, no linked-worktree common-dir mount).
+Image: showcase-t900-eval:pinned-20261013@sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5.
+Pinned base: python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f; agent-harness v0.5.0 commit 16bb93821292096b94889306288ee2caec5f4006; cryptography 49.0.0.
+T-900-owned test overlays: test_verification_backend_qualification.py is zombie-aware and tests live/zombie _group_status outcomes; test_verify.py adapts origin fingerprint test to Family.origin_policy with matching profile hash. Current-main test_verification_profile_showcase.py with repository=ROOT compatibility adaptation remains.
+Temporary test_harness.py fixture correction uses the committed runtime repository constitution input, matching verification_contract.REPO; profile fixtures use accepted current-main applicability test with candidate's repository-bound plan API.
+No production code changed by T-900.

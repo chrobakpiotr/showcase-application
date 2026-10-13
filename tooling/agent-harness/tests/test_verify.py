@@ -472,11 +472,21 @@ class PlannerTest(unittest.TestCase):
 
     def test_fingerprint_policy_and_probe_dimensions(self):
         baseline = self.plan().decisions[0].fingerprint
-        for changes in [dict(command='python3 -V'), dict(cwd='src'), dict(sandbox='off'),
+        for changes in [dict(command='python3 -V'), dict(cwd='src'),
                         dict(retry_policy='allow'), dict(retry_controls=['disable-retries']),
                         dict(inputs=['src/a.py']), dict(critical=True)]:
             with self.subTest(changes=changes):
                 self.assertNotEqual(baseline, self.plan(profile(gate(**changes))).decisions[0].fingerprint)
+        task_profile = self.p
+        task_family = self.family(task_profile, policy='task-completion')
+        integration_family = self.family(task_profile, policy='integration')
+        task_fingerprint = build_plan(self.root, task_profile, task_family).decisions[0].fingerprint
+        integration_fingerprint = build_plan(self.root, task_profile, integration_family).decisions[0].fingerprint
+        self.assertNotEqual(task_fingerprint, integration_fingerprint)
+        task_sandbox_off = profile(gate(sandbox='off'))
+        task_sandbox_family = self.family(task_sandbox_off, policy='task-completion')
+        self.assertNotEqual(task_fingerprint,
+                            build_plan(self.root, task_sandbox_off, task_sandbox_family).decisions[0].fingerprint)
         p = profile(gate(probes=[{'id': 'python', 'format': 'version'}]))
         one = self.plan(p, probes={'unit': {'python': '3.14.0'}}).decisions[0]
         two = self.plan(p, probes={'unit': {'python': '3.14.1'}}).decisions[0]

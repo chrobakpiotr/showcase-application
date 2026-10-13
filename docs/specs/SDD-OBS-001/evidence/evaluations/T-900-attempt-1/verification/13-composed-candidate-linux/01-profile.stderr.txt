@@ -1,0 +1,8 @@
+test_noop_is_empty_advisory_and_cannot_publish_executable_plan (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_noop_is_empty_advisory_and_cannot_publish_executable_plan) ... ok
+test_real_git_deletion_and_rename_retain_source_requirements (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_git_deletion_and_rename_retain_source_requirements) ... ok
+test_real_profile_truth_table_and_selected_inputs (tooling.agent-harness.tests.test_verification_profile_applicability.ShowcaseApplicabilityTest.test_real_profile_truth_table_and_selected_inputs) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.236s
+
+OK
