@@ -8,8 +8,11 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from verification.store import (StoreError, VerificationStore, publish_create_once, resolve_control_root,
                                 ReconciliationOutcome, repository_lock)
+from verification.supervisor import VerificationSupervisor
+from test_verification_supervisor import LifecycleBackend
 
 
 class StoreTest(unittest.TestCase):
@@ -328,6 +331,28 @@ class StoreTest(unittest.TestCase):
             projection = terminal.parent / 'projection.json'
             self.assertTrue(projection.exists())
             self.assertEqual('e1', json.loads(projection.read_text())['evidence_id'])
+
+    def test_rehashed_terminal_receipt_cannot_change_its_started_binding(self):
+        import hashlib
+        from verification.serialization import canonical
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'store')
+            backend = LifecycleBackend(store, root / 'unit')
+            VerificationSupervisor(store).execute(
+                backend, worktree=root, family_id='family', attempt_id='attempt',
+                gate_id='gate', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required')
+
+            terminal_path = next(store.executions.glob('*/terminal.json'))
+            terminal = json.loads(terminal_path.read_text(encoding='utf-8'))
+            terminal['started_hash'] = '0' * 64
+            terminal.pop('receipt_hash')
+            terminal['receipt_hash'] = hashlib.sha256(canonical(terminal)).hexdigest()
+            terminal_path.write_text(json.dumps(terminal, sort_keys=True), encoding='utf-8')
+
+            with self.assertRaisesRegex(StoreError, 'invalid-execution-terminal'):
+                store.reconstruct_execution_terminals(rebuild=False)
 
     def test_terminal_without_projection_survives_projection_failure_and_restart(self):
         with tempfile.TemporaryDirectory() as temp:

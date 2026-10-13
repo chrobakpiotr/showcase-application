@@ -222,13 +222,14 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
 
     def test_executor_refuses_context_that_differs_from_accepted_authority(self):
         from verification.executor import execute_plan
+        unaccepted_context = dict(self.record, test_only_untrusted_field='not in the accepted record')
         with mock.patch.object(authority, 'resolve_execution',
                                return_value=(self.record, self.profile, self.plan, [])), \
              mock.patch('verification.executor.VerificationStore') as store, \
              mock.patch('verification.candidate.seal_candidate') as seal:
             with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
                 execute_plan(self.root, self.profile, self.plan,
-                             authority_context={'schema_version': 1})
+                             authority_context=unaccepted_context)
             store.assert_not_called()
             seal.assert_not_called()
 
@@ -358,9 +359,18 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         self.assertEqual(admission, authority.validate_plan_admission_record(
             admission, self.record, unit))
 
-        changed_unit = dict(unit, obligation_ids=[])
-        with self.assertRaisesRegex(StoreError, 'invalid-execution-admission'):
-            authority.validate_plan_admission_record(admission, self.record, changed_unit)
+        changed_memberships = (
+            ('missing', dict(unit, obligation_ids=unit['obligation_ids'][1:])),
+            ('extra', dict(unit, obligation_ids=[*unit['obligation_ids'],
+                'verification-obligation-v2:sha256:' + 'e' * 64])),
+            ('stale', dict(unit, obligation_ids=[
+                'verification-obligation-v2:sha256:' + 'f' * 64,
+                *unit['obligation_ids'][1:]])),
+        )
+        for membership, changed_unit in changed_memberships:
+            with self.subTest(membership=membership), self.assertRaisesRegex(
+                    StoreError, 'invalid-execution-admission'):
+                authority.validate_plan_admission_record(admission, self.record, changed_unit)
         tampered = dict(admission, final_changed_surface_id='0' * 64)
         with self.assertRaisesRegex(StoreError, 'invalid-execution-admission'):
             authority.validate_plan_admission_record(tampered, self.record, unit)

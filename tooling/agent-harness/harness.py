@@ -1419,8 +1419,6 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str, *
     from verification.store import VerificationStore, StoreError
     store = VerificationStore(repository)
     record = store.load_plan_record(plan_id)
-    from verification.authority import validate_plan_record
-    validate_plan_record(record, repository=repository, reconstruct=True)
     feature_dir = pathlib.Path(repository) / 'docs' / 'specs' / record['feature_id']
     try:
         doc = load_validated(feature_dir)
@@ -1441,6 +1439,8 @@ def resolve_accepted_verification_plan(repository: pathlib.Path, plan_id: str, *
             task_state.get('attempts') != record.get('task_attempt') or
             current.get('binding') != expected):
         raise StoreError('ACCEPTED_PLAN_UNAVAILABLE')
+    from verification.authority import validate_plan_record
+    validate_plan_record(record, repository=repository, reconstruct=True)
     return record
 
 
@@ -1485,7 +1485,6 @@ def admit_verification_execution(repository: pathlib.Path, plan_id: str, unit_id
         raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
     store = VerificationStore(repository)
     from verification.authority import validate_plan_record
-    validate_plan_record(plan, repository=repository, reconstruct=True)
     with lifecycle_state_lock(feature_dir, repository_admission_id=repository_admission_id,
                                    allowed_reservation=(plan_id, unit_id)):
         state = _load_state_unlocked(feature_dir, doc)
@@ -1517,7 +1516,7 @@ def admit_verification_execution(repository: pathlib.Path, plan_id: str, unit_id
                 admission = authority.get('admissions', {}).get(unit_id)
                 if (not isinstance(admission, dict) or admission.get('admission_id') != existing.get('admission_id') or
                         existing.get('plan_id') != plan_id):
-                    raise StoreError('VERIFICATION_EXECUTION_IN_FLIGHT')
+                    raise StoreError('VERIFICATION_EXECUTION_PLAN_CONFLICT')
                 bound = store.load_admission_record(admission['admission_id'],
                     expected_hash=authority.get('admission_hashes', {}).get(unit_id))
                 return {'admission': bound, 'admission_sha256': authority['admission_hashes'][unit_id],
@@ -1596,17 +1595,17 @@ def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id:
         if (not isinstance(reservation, dict) or reservation.get('reservation_id') != reservation_id or
                 reservation.get('status') != 'launch_reserved' or
                 not isinstance(admission, dict) or not isinstance(hashes.get(unit_id), str)):
-            raise StoreError('VERIFICATION_LAUNCH_RESERVATION_STALE')
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
         bound_admission = store.load_admission_record(admission.get('admission_id'),
             expected_hash=hashes[unit_id])
         validate_plan_admission_record(bound_admission, plan, units[0])
         validate_plan_launch_reservation(reservation, bound_admission)
         if unit_id in consumptions:
-            raise StoreError('VERIFICATION_LAUNCH_ALREADY_CONSUMED')
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_CONFLICT')
         task_state = state.get('tasks', {}).get(plan['task_id'])
         if (not isinstance(task_state, dict) or task_state.get('status') != 'running' or
                 task_state.get('attempts') != plan['task_attempt']):
-            raise StoreError('VERIFICATION_ATTEMPT_BINDING_MISMATCH')
+            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
         import uuid
         transition_id = str(uuid.uuid4())
         consumption = build_launch_consumption_record(bound_admission, reservation,

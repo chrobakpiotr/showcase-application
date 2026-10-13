@@ -3,8 +3,18 @@ import argparse
 import contextlib
 import io
 import json
+import pathlib
 import subprocess
+import sys
 import unittest
+
+# The task packet invokes this module directly with ``python -m unittest``.
+# Make the control-plane module and sibling fixture modules importable before
+# importing either one; relying on CI discovery imported test_harness first and
+# hid this standalone-command failure.
+TESTS = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(TESTS))
+sys.path.insert(0, str(TESTS.parent))
 
 import harness as control_harness
 import test_harness as fixtures
