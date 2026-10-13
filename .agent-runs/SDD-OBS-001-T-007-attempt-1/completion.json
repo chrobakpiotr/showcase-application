@@ -1,0 +1,142 @@
+{
+  "assumptions": [
+    "The focused eval tests confirm that the checked-in adversarial suite contains verification-v2 profile/benchmark parity, authority/store, and security qualification cases.",
+    "GitHub CI has not yet run for this local checkpoint; the later T-900 and CI run remain independent evidence."
+  ],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "633311e58cd4535e5fbc576dd03619511ad5521c",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+    "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001"
+  ],
+  "contract_fingerprint": "d7820de01dd3c0522ce3ebbeea75939e1d1a2765a7420a17658ec7e442e6a744",
+  "criterion_results": {
+    "AC-OBS-025": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-027": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-038": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-027": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-028": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-029": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; macOS-15.8.1-x86_64-i386-64bit-Mach-O; no sandbox isolation (static CI/eval configuration checks only)",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-attempt-1/verification/command-0.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-attempt-1/verification/command-0.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; macOS-15.8.1-x86_64-i386-64bit-Mach-O; no sandbox isolation (static CI/eval configuration checks only)",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-attempt-1/verification/command-1.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-attempt-1/verification/command-1.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:ce947d6a4b3e3145a90392daf864198ac46c70fcb2b9c7cae5a9c3567a9bd7c4",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "637346adea828f4142d1d2a02eceb3a39ad34cb8bb92e1b8bb5e531ce45dbcfb",
+      "criteria": [
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "8abea51025a772b86add11fc63c2d66aa1d17ee17e35f18225c10f7f174b1177",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "cdb5158344493ca48c8e0849a9e5d2fb7f8463c438d1c30d9a434a6fba4d009b",
+      "criteria": [
+        "AC-OBS-029",
+        "VC-027",
+        "VC-028"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "ebd26eedfa98743a7d6e967a74276b7aeb9014892cb36a76bc5d9f9f2f83d4bb",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "T-008 documentation and T-900 independent evaluation remain pending."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-007 attempt 1 at 633311e passed both declared verification commands; regression suite entries and CI wiring are covered by focused tests.",
+  "task": "T-007"
+}
