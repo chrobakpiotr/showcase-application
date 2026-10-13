@@ -1,0 +1,442 @@
+{
+  "assumptions": [
+    "Harness independently accepted T-009 round 3 at agent-harness commit 5a528d7.",
+    "The packet test_harness module was run using the repository-approved six-process sharded runner; runner and orchestrate tests ran afterward."
+  ],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "6691b64819e96cd411d22ab6dd4e97c95f7f03bb",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_lifecycle.py -v",
+    "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_runner.py tooling/agent-harness/tests/test_orchestrate.py -v",
+    "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001"
+  ],
+  "contract_fingerprint": "bfa919c5564c09ffeeccf0db2d43796c71116a23752ff596403dd004dda415fa",
+  "criterion_results": {
+    "AC-HANDOFF-01": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-03": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-05": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-07": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-09": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-10": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-12": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-13": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-14": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-HANDOFF-16": {
+      "proof_ids": [
+        "proof-1",
+        "proof-4"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-01": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-02": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-03": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-04": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-05": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-06": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-07": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-08": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-09": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-10": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-11": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-12": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-13": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-14": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-LAUNCH-15": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-040": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-041": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-042": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-043": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-050": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-051": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-052": {
+      "proof_ids": [
+        "proof-2",
+        "proof-3"
+      ],
+      "status": "PASS"
+    },
+    "VC-037": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3",
+        "proof-5"
+      ],
+      "status": "PASS"
+    },
+    "VC-038": {
+      "proof_ids": [
+        "proof-1",
+        "proof-3",
+        "proof-5"
+      ],
+      "status": "PASS"
+    },
+    "VC-041": {
+      "proof_ids": [
+        "proof-4",
+        "proof-5"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_authority.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Desktop 29.8.2; Linux x86_64; showcase-t003-python313-crypto49-git:latest; image sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c; Python 3.13.16; cryptography 49.0.0",
+      "stderr": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-0.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-0.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_completion_boundary.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Desktop 29.8.2; Linux x86_64; showcase-t003-python313-crypto49-git:latest; image sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c; Python 3.13.16; cryptography 49.0.0",
+      "stderr": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-1.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-1.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_verification_executor.py tooling/agent-harness/tests/test_verification_supervisor.py tooling/agent-harness/tests/test_verification_store.py tooling/agent-harness/tests/test_verification_lifecycle.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Desktop 29.8.2; Linux x86_64; showcase-t003-python313-crypto49-git:latest; image sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c; Python 3.13.16; cryptography 49.0.0",
+      "stderr": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-2.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-2.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_runner.py tooling/agent-harness/tests/test_orchestrate.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Desktop 29.8.2; Linux x86_64; showcase-t003-python313-crypto49-git:latest; image sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c; Python 3.13.16; cryptography 49.0.0; test_harness ran with the repository sharded runner (6 isolated processes), followed by the declared runner/orchestrate tests.",
+      "stderr": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-3.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-3.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "Docker Desktop 29.8.2; Linux x86_64; showcase-t003-python313-crypto49-git:latest; image sha256:cc903239c8ac2ca9633fa621cc9f8f0ae30678b0d938567a0e38df8e8b69641c; Python 3.13.16; cryptography 49.0.0",
+      "stderr": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-4.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-009-attempt-1/verification/final/command-4.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:85dda3602417e15cb7d4caabf08903603d179b6cd3de101dfe343dc81397b132",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "4b0875183f079b28661e17a213fa38bee6b05114126a131586606f1c13970f15",
+      "criteria": [
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "VC-037",
+        "VC-038"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "0c5febd2f82a17ec44b2dda298d5895d010f84b555ba2c52a6e5808207a5871d",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "f3a06173398fb7a29b7758d627d5caa6d8706f02381fd56a5073a07fc5d4f8af",
+      "criteria": [
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "8682c3ca604d9ece33eae4af97f7390e3a9948d65713a7aa5a30ff6c298cbef8",
+      "status": "PASS"
+    },
+    {
+      "command_index": 2,
+      "command_sha256": "ae18ed34f95487d8d48cc2bf7d515e3328792c48e6b262e31a252a7e22a70d5e",
+      "criteria": [
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "VC-037",
+        "VC-038"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-3",
+      "result_sha256": "14dfee190b4a7c442c9ab0aa3ca186b7af91765f24405deeb250ebac7ea53e06",
+      "status": "PASS"
+    },
+    {
+      "command_index": 3,
+      "command_sha256": "0c98ac36ae2db8a693ffd3d8aeb03842e3b99ca3207e9eef1b1696dc251b63ba",
+      "criteria": [
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-4",
+      "result_sha256": "37808c3b3854de97b18694db44c7fb097b6c6926ef259c0e42ada60fb093c00c",
+      "status": "PASS"
+    },
+    {
+      "command_index": 4,
+      "command_sha256": "b28e70c5893ea4be30b9db75a50ff74941f6e95a76febaa73979588cecab9d79",
+      "criteria": [
+        "VC-037",
+        "VC-038",
+        "VC-041"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-5",
+      "result_sha256": "e0ecf6bfbe65e9ea1858f95054df061fb870e5d33208b1cda2f3177bb3830f26",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "T-900 independent evaluation and T-990 integration remain separate lifecycle gates."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-009 checkpoint 6691b64 passes all five declared verification commands on Linux; Harness accepted round 3 (agent-harness 5a528d7).",
+  "task": "T-009"
+}
