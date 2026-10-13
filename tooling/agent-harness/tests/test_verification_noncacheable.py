@@ -53,7 +53,7 @@ class NoncacheableExecutionTest(unittest.TestCase):
         self.base = subprocess.check_output(['git', '-C', str(self.root), 'rev-parse', 'HEAD'], text=True).strip()
         (self.root / 'seed').write_text('candidate\n')
         self.profile = load_profile({'schema_version': 1, 'gates': [{
-            'id': 'noncacheable', 'command': 'python3 -V', 'inputs': ['seed'],
+            'id': 'noncacheable', 'command': 'python3 -c pass', 'inputs': ['seed'],
             'mandatory': True, 'cacheable': False, 'critical': True,
             'retry_policy': 'forbid', 'retry_controls': ['no-internal-retries'],
         }]})
@@ -109,7 +109,7 @@ class NoncacheableExecutionTest(unittest.TestCase):
     def test_unscoped_historical_failure_cannot_gain_permission_from_new_scope(self):
         VerificationSupervisor(self.store).execute(PayloadBackend(self.store, exit_code=1),
             worktree=self.root, family_id='historical', attempt_id='old', gate_id='noncacheable',
-            command='python3 -V', cwd=self.root, run_dir=self.store.root / 'old',
+            command='python3 -c pass', cwd=self.root, run_dir=self.store.root / 'old',
             timeout_seconds=2, sandbox_mode='required', profile_hash=self.profile.content_hash,
             critical=True, retry_policy='forbid', retry_controls=('no-internal-retries',))
         result = self.run_gate('new', PayloadBackend(self.store))

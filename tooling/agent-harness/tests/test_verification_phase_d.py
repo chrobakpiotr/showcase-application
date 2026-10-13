@@ -3,7 +3,6 @@
 These deliberately use isolated control roots. The fixture publishes a real
 Phase-C execution terminal before asking the store to derive failure truth.
 """
-import hashlib
 import json
 import pathlib
 import subprocess
@@ -58,16 +57,33 @@ class FailureGrantTest(unittest.TestCase):
             'retry_scope': retry_proof.get('retry_scope') if isinstance(retry_proof, dict) else None,
         }
         started_hash = publish_create_once(self.store.executions / execution_id / 'started.json', started)
+        authority = {
+            'launch_reservation_id': 'launch-reservation-v1:sha256:' + 'd' * 64,
+            'launch_consumption_id': 'launch-consumption-v1:sha256:' + 'e' * 64,
+            'plan_id': 'verification-plan-v2:sha256:' + 'f' * 64,
+            'unit_id': 'test-unit',
+            'obligation_ids': ['verification-obligation-v2:sha256:' + 'a' * 64],
+            'admission_id': 'verification-admission-v1:sha256:' + 'b' * 64,
+            'admission_sha256': 'c' * 64,
+            'reservation_transition_id': '00000000-0000-4000-8000-000000000001',
+            'consumption_transition_id': '00000000-0000-4000-8000-000000000002',
+            'plan_acceptance_transition_id': '00000000-0000-4000-8000-000000000003',
+            'lifecycle_generation': 1,
+        }
+        publish_create_once(self.store.executions / execution_id / 'launching.json', {
+            'schema_version': 2, 'execution_id': execution_id,
+            'execution_identity': identity, 'launch_intent_hash': started['launch_intent_hash'],
+            'launch_requested_at': 1.5, **authority,
+        })
         receipt = {
-            'schema_version': 1, 'execution_id': execution_id,
+            'schema_version': 2, 'execution_id': execution_id,
             'repository_id': self.store.repository_id, 'started_hash': started_hash,
             'execution_identity': identity, 'backend_identity': 'test',
             'policy_identity': policy, 'command_identity': 'c' * 64,
             'exit_code': 1 if result == 'FAIL' else 0, 'timed_out': False,
             'cancelled': False, 'drainage': 'DRAINED', 'output_observation': 'CAPTURED',
-            'stdout_hash': hashlib.sha256(b'').hexdigest(),
-            'stderr_hash': hashlib.sha256(b'').hexdigest(), 'post_observation': {},
-            'result': result, 'ended_at': 2.0,
+            'output_persistence': 'OMITTED', 'post_observation': {},
+            'result': result, 'ended_at': 2.0, **authority,
         }
         self.store.publish_execution_terminal(receipt)
         return next(item for item in self.store.reconstruct_execution_terminals(rebuild=False)
