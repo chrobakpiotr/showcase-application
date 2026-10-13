@@ -1605,7 +1605,7 @@ def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id:
         task_state = state.get('tasks', {}).get(plan['task_id'])
         if (not isinstance(task_state, dict) or task_state.get('status') != 'running' or
                 task_state.get('attempts') != plan['task_attempt']):
-            raise StoreError('VERIFICATION_EXECUTION_PLAN_STALE')
+            raise StoreError('VERIFICATION_ATTEMPT_BINDING_MISMATCH')
         import uuid
         transition_id = str(uuid.uuid4())
         consumption = build_launch_consumption_record(bound_admission, reservation,

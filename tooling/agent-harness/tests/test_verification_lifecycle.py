@@ -196,6 +196,38 @@ class VerificationLifecycleTest(unittest.TestCase):
                 expected_generation=state.get('feature_generation', 1),
                 expected_state_revision=state.get('state_revision', 0))
 
+    def test_admission_refuses_task_attempt_mismatch_with_stable_code(self):
+        unit = self.accepted['execution_units'][0]
+        state = control_harness.load_state(self.feature, self.doc)
+        state['tasks']['T-001']['attempts'] = 2
+        control_harness.save_state(self.feature, state)
+        state = control_harness.load_state(self.feature, self.doc)
+
+        with mock.patch.object(control_harness, 'resolve_accepted_verification_plan',
+                               return_value=self.accepted):
+            with self.assertRaisesRegex(StoreError, '^VERIFICATION_ATTEMPT_BINDING_MISMATCH$'):
+                control_harness.admit_verification_execution(
+                    self.fixture.root, self.accepted['plan_id'], unit['unit_id'],
+                    expected_generation=state.get('feature_generation', 1),
+                    expected_state_revision=state.get('state_revision', 0))
+
+    def test_consumption_refuses_task_attempt_mismatch_with_stable_code(self):
+        unit, admitted = self._reserve_first_unit()
+        state = control_harness.load_state(self.feature, self.doc)
+        state['tasks']['T-001']['attempts'] = 2
+        control_harness.save_state(self.feature, state)
+        state = control_harness.load_state(self.feature, self.doc)
+
+        with mock.patch.object(control_harness, 'resolve_accepted_verification_plan',
+                               return_value=self.accepted):
+            with self.assertRaisesRegex(StoreError, '^VERIFICATION_ATTEMPT_BINDING_MISMATCH$'):
+                control_harness.consume_verification_launch(
+                    self.fixture.root, self.accepted['plan_id'], unit['unit_id'],
+                    reservation_id=admitted['reservation']['reservation_id'],
+                    expected_generation=state.get('feature_generation', 1),
+                    expected_state_revision=state.get('state_revision', 0),
+                    repository_admission_id='attempt-binding-regression-test')
+
     def test_second_consumption_after_lost_reply_never_issues_another_capability(self):
         _accepted, profile, plan, units = resolve_execution(
             self.fixture.root, self.accepted['plan_id'])
