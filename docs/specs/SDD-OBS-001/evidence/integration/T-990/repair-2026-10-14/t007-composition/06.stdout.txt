@@ -1,0 +1,51 @@
+PASS E001-self-validate run=1 298ms
+PASS E002-wayfinder-map run=1 186ms
+PASS E003-wayfinder-reconciliation-blocks-fog run=1 178ms
+PASS E004-context-trust run=1 77ms
+PASS E005-self-orchestration-plan run=1 2210ms
+PASS E006-showcase-resilience-spec run=1 284ms
+{
+  "by_case": {
+    "E001-self-validate": {
+      "median_duration_ms": 298,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "E002-wayfinder-map": {
+      "median_duration_ms": 186,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "E003-wayfinder-reconciliation-blocks-fog": {
+      "median_duration_ms": 178,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "E004-context-trust": {
+      "median_duration_ms": 77,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "E005-self-orchestration-plan": {
+      "median_duration_ms": 2210,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "E006-showcase-resilience-spec": {
+      "median_duration_ms": 284,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    }
+  },
+  "median_duration_ms": 235,
+  "pass_rate": 1.0,
+  "passes": 6,
+  "runs": 6
+}
+/workspace/.agent-runs/evals/baseline/557eb905bd0f/result.json

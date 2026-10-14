@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "finding": "The existing T-990 completion references the pre-repair T-900 result and cannot establish closure after the accepted T-900 and T-007 corrections.",
+  "previous_t900_checkpoint": "e3238a330a378ce128f742154480cc314b450aa0",
+  "repaired_t900_checkpoint": "987fe1307b4d7fab3c9dc19a549bb258c6b58847",
+  "repaired_t900_evidence_sha256": "00921cee4de3224e2a933ab81e5d59c5b0d1aedb94c3af09e219e077d264a604",
+  "repaired_t007_checkpoint": "a840c1eb56bbc7aa8cad490bade7e58fa4b08559",
+  "repaired_t007_diff_sha256": "245b6e70c175abce759d755876e2715f0176123f2e70602cacb614822f83970c",
+  "harness_review": "5011f3b",
+  "decision": "Re-gate T-990 on the accepted repaired inputs; do not treat the old completion as closure evidence."
+}

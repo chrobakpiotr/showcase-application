@@ -1,0 +1,5 @@
+  Running command git clone --filter=blob:none --quiet https://github.com/chrobakpiotr/agent-harness.git /tmp/pip-install-s0wb9286/agent-harness_a0638fdc52d24f39b2694ece497c2433
+  Running command git rev-parse -q --verify '16bb93821292096b94889306288ee2caec5f4006^{commit}'
+  16bb93821292096b94889306288ee2caec5f4006
+  Running command git checkout -q 16bb93821292096b94889306288ee2caec5f4006
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.

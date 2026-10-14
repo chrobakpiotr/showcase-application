@@ -1,0 +1,12 @@
+test_adversarial_eval_pins_verification_v2_regression_modules (tooling.agent-harness.tests.test_eval.EvalTest.test_adversarial_eval_pins_verification_v2_regression_modules) ... ok
+test_checked_in_suites_are_valid (tooling.agent-harness.tests.test_eval.EvalTest.test_checked_in_suites_are_valid) ... ok
+test_ci_runs_discovery_and_enforces_linux_benchmark_environment (tooling.agent-harness.tests.test_eval.EvalTest.test_ci_runs_discovery_and_enforces_linux_benchmark_environment) ... ok
+test_rejects_destructive_remote_command (tooling.agent-harness.tests.test_eval.EvalTest.test_rejects_destructive_remote_command) ... ok
+test_substitution_requires_target (tooling.agent-harness.tests.test_eval.EvalTest.test_substitution_requires_target) ... ERROR: suite requires --target
+ok
+test_summary_computes_pass_rate (tooling.agent-harness.tests.test_eval.EvalTest.test_summary_computes_pass_rate) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.002s
+
+OK

@@ -1,0 +1,58 @@
+PASS A001-content-sensitive-verification run=1 461ms
+PASS A002-secret-minimized-verification-env run=1 507ms
+PASS A003-reopen-lease-and-history-safety run=1 1474ms
+PASS A004-real-showcase-feature-validates run=1 288ms
+PASS A005-v2-profile-benchmark-parity run=1 49761ms
+PASS A006-v2-authority-store run=1 7952ms
+PASS A007-v2-security-qualification run=1 5142ms
+{
+  "by_case": {
+    "A001-content-sensitive-verification": {
+      "median_duration_ms": 461,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A002-secret-minimized-verification-env": {
+      "median_duration_ms": 507,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A003-reopen-lease-and-history-safety": {
+      "median_duration_ms": 1474,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A004-real-showcase-feature-validates": {
+      "median_duration_ms": 288,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A005-v2-profile-benchmark-parity": {
+      "median_duration_ms": 49761,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A006-v2-authority-store": {
+      "median_duration_ms": 7952,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A007-v2-security-qualification": {
+      "median_duration_ms": 5142,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    }
+  },
+  "median_duration_ms": 1474,
+  "pass_rate": 1.0,
+  "passes": 7,
+  "runs": 7
+}
+/workspace/.agent-runs/evals/adversarial/be9a880fd144/result.json

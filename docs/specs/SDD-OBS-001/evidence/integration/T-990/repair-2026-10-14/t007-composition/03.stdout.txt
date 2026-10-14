@@ -1,0 +1,28 @@
+Collecting agent-harness @ git+https://github.com/chrobakpiotr/agent-harness.git@16bb93821292096b94889306288ee2caec5f4006 (from agent-harness[grants] @ git+https://github.com/chrobakpiotr/agent-harness.git@16bb93821292096b94889306288ee2caec5f4006->-r tooling/agent-harness/requirements.txt (line 2))
+  Cloning https://github.com/chrobakpiotr/agent-harness.git (to revision 16bb93821292096b94889306288ee2caec5f4006) to /tmp/pip-install-s0wb9286/agent-harness_a0638fdc52d24f39b2694ece497c2433
+  Resolved https://github.com/chrobakpiotr/agent-harness.git to commit 16bb93821292096b94889306288ee2caec5f4006
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting cryptography==49.0.0 (from -r tooling/agent-harness/requirements.txt (line 1))
+  Downloading cryptography-49.0.0-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (4.3 kB)
+Collecting cffi>=2.0.0 (from cryptography==49.0.0->-r tooling/agent-harness/requirements.txt (line 1))
+  Downloading cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.5 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography==49.0.0->-r tooling/agent-harness/requirements.txt (line 1))
+  Downloading pycparser-3.11-py3-none-any.whl.metadata (8.2 kB)
+Downloading cryptography-49.0.0-cp311-abi3-manylinux_2_34_x86_64.whl (4.7 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.7/4.7 MB 42.9 MB/s  0:00:00
+Downloading cffi-2.1.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (221 kB)
+Downloading pycparser-3.11-py3-none-any.whl (51 kB)
+Building wheels for collected packages: agent-harness
+  Building wheel for agent-harness (pyproject.toml): started
+  Building wheel for agent-harness (pyproject.toml): finished with status 'done'
+  Created wheel for agent-harness: filename=agent_harness-0.5.0-py3-none-any.whl size=78712 sha256=2eb0e8c1a23f3716a6290af763a3e1b45098a919a01d3fe948885701315b2474
+  Stored in directory: /root/.cache/pip/wheels/90/1f/81/8be5ec09fb0435c276d14b136392b8226daaa68cb35932f25b
+Successfully built agent-harness
+Installing collected packages: pycparser, agent-harness, cffi, cryptography
+
+Successfully installed agent-harness-0.5.0 cffi-2.1.1 cryptography-49.0.0 pycparser-3.11

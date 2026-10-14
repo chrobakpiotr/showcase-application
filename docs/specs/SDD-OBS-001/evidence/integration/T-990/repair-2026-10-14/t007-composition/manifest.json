@@ -1,0 +1,107 @@
+{
+  "run_id": "local-ci-repair-20261014-73e+987+T007",
+  "candidate": "73e2965 + T900 987fe13 + T007 patch 245b6e70",
+  "image": "python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "files": [
+    {
+      "path": "01.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "01.stdout.txt",
+      "sha256": "752dae01a901ce06dacc40b486427e50794c4c11f9cb17e70f697c7c91c64f78",
+      "bytes": 501
+    },
+    {
+      "path": "02.stderr.txt",
+      "sha256": "3a5ab9f88f3ba0c14ac1607fefb4da653ba75afa3c26f781768309ff5565771d",
+      "bytes": 856
+    },
+    {
+      "path": "02.stdout.txt",
+      "sha256": "0191595fea5893bccc9901bbb00ed809e7243563104acb7cf8a460fa325f1733",
+      "bytes": 12380
+    },
+    {
+      "path": "03.stderr.txt",
+      "sha256": "6ce3990e0d351d8da99ff6b542461634313f0b38b5c8697e1e98c4f3053943ff",
+      "bytes": 756
+    },
+    {
+      "path": "03.stdout.txt",
+      "sha256": "5bb7c84d0841b5dfaa2b52c7f5f5dc5a5e495896fa03887cd797a9c6b7f07487",
+      "bytes": 2536
+    },
+    {
+      "path": "04.stderr.txt",
+      "sha256": "ee10a47eaceb82050656dd51b88a20fe3fb73ee9e5935383346bd7feaed0e9d5",
+      "bytes": 995
+    },
+    {
+      "path": "04.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "05.stderr.txt",
+      "sha256": "3eba6af9a5ee39d1dde2efb864d8dab0b15627fa749d09357cadb4e693d5eeb1",
+      "bytes": 158203
+    },
+    {
+      "path": "05.stdout.txt",
+      "sha256": "cab0c0ddd49269fb9aae409b4212dcde7d8a82407e818184caf1e68c097a0232",
+      "bytes": 1155
+    },
+    {
+      "path": "06.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "06.stdout.txt",
+      "sha256": "922af5fdec8937e9f7f23303b51de90cbfcbb834a3bb0241ff8cbddcbb42144e",
+      "bytes": 1226
+    },
+    {
+      "path": "07.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "07.stdout.txt",
+      "sha256": "24e2758573beda639d89de8ab1520c184eb651d0c6ac961b029b7a2b5db5ca5e",
+      "bytes": 1525
+    },
+    {
+      "path": "08.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "08.stdout.txt",
+      "sha256": "3e006fa0eea5d0fc5d86ab7a6fcf61146291ed1a7a53c1da26f20702f20f96b3",
+      "bytes": 854
+    },
+    {
+      "path": "adversarial-result.json",
+      "sha256": "4f6577446f990c2f17c1ef7eb9726190c71f9b8490c613a31c8e0c361b1f1da2",
+      "bytes": 13871
+    },
+    {
+      "path": "baseline-result.json",
+      "sha256": "289302cac49e7def756e0433289ebbc4dd5579549dd0b5cbda1ce3f7ec905186",
+      "bytes": 7844
+    },
+    {
+      "path": "results.json",
+      "sha256": "8f944020d9b9d2c77090ad96de024527c6cf4e8ad822078575757e364ba5e536",
+      "bytes": 3091
+    },
+    {
+      "path": "shipping-preflight-result.json",
+      "sha256": "ea9ece272df20a59c57ae62f045d1f0d5945ac947468c9f133815b4734200015",
+      "bytes": 7616
+    }
+  ]
+}

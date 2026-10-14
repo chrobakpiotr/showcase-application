@@ -1,0 +1,148 @@
+{
+  "assumptions": [
+    "Harness review 5011f3b accepted the exact T-007 patch sha256 245b6e70c175abce759d755876e2715f0176123f2e70602cacb614822f83970c.",
+    "Composition evidence names inputs 73e2965 + T-900 987fe13 + the accepted T-007 diff; the pinned image run passed 922 test discovery and baseline/adversarial/shipping-preflight evals.",
+    "The completion evidence contains local packet-command outputs; the reviewed Linux composition run is supplemental recorded evidence, not a claim of GitHub CI."
+  ],
+  "attempt": 1,
+  "changed_paths": [
+    ".github/workflows/agentic-sdd.yml",
+    "tooling/agent-harness/tests/test_eval.py"
+  ],
+  "checkpoint": "a840c1eb56bbc7aa8cad490bade7e58fa4b08559",
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+    "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001"
+  ],
+  "contract_fingerprint": "d7820de01dd3c0522ce3ebbeea75939e1d1a2765a7420a17658ec7e442e6a744",
+  "criterion_results": {
+    "AC-OBS-025": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-026": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-027": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-029": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "AC-OBS-038": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-024": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-027": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-028": {
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "VC-029": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "VC-030": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "SDD-OBS-001",
+  "findings": [],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; static workflow and feature validation; no sandbox isolation",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-repair-attempt-1/command-0.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-repair-attempt-1/command-0.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; static workflow and feature validation; no sandbox isolation",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-repair-attempt-1/command-1.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-repair-attempt-1/command-1.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:ce947d6a4b3e3145a90392daf864198ac46c70fcb2b9c7cae5a9c3567a9bd7c4",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "637346adea828f4142d1d2a02eceb3a39ad34cb8bb92e1b8bb5e531ce45dbcfb",
+      "criteria": [
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "b28187249a29abf9d0b9043308254b35070ab090c060414fa81fbf72e65cfeaa",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "cdb5158344493ca48c8e0849a9e5d2fb7f8463c438d1c30d9a434a6fba4d009b",
+      "criteria": [
+        "AC-OBS-029",
+        "VC-027",
+        "VC-028"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "8b646d056056c15eaab365c4e60f1c70591385a4f79b301048e4d023e11fe698",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "GitHub Actions has not yet been rerun on an integrated and pushed main."
+  ],
+  "rework_tasks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "Harness accepted T-007 CI repair diff 245b6e70 (review 5011f3b). The exact patch is committed as checkpoint a840c1e; the six focused tests and feature validation pass locally, and the accepted composed Linux run passed 922 discovery tests plus baseline, adversarial and shipping-preflight evals.",
+  "task": "T-007"
+}

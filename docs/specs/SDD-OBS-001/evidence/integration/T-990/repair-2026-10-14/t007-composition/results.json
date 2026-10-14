@@ -1,0 +1,120 @@
+{
+  "python": "3.13.16 (main, Oct  6 2026, 02:02:59) [GCC 14.2.0]",
+  "platform": "Linux-7.0.14-linuxkit-x86_64-with-glibc2.41",
+  "machine": "x86_64",
+  "git_head": "633311e58cd4535e5fbc576dd03619511ad5521c + uncommitted T-007/T-900 test overlays",
+  "image": "python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "results": [
+    {
+      "command": [
+        "apt-get",
+        "update"
+      ],
+      "exit_code": 0,
+      "stdout": "01.stdout.txt",
+      "stderr": "01.stderr.txt"
+    },
+    {
+      "command": [
+        "apt-get",
+        "install",
+        "--no-install-recommends",
+        "-y",
+        "git"
+      ],
+      "exit_code": 0,
+      "stdout": "02.stdout.txt",
+      "stderr": "02.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "tooling/agent-harness/requirements.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "03.stdout.txt",
+      "stderr": "03.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_eval.py",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "04.stdout.txt",
+      "stderr": "04.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tooling/agent-harness/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "05.stdout.txt",
+      "stderr": "05.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "baseline",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "06.stdout.txt",
+      "stderr": "06.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "adversarial",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "07.stdout.txt",
+      "stderr": "07.stderr.txt"
+    },
+    {
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "shipping-preflight",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "08.stdout.txt",
+      "stderr": "08.stderr.txt"
+    }
+  ],
+  "candidate": {
+    "integrated_base": "73e2965558f16be2a75d26d368979ed954070681",
+    "T900_test_correction_commit": "987fe1307b4d7fab3c9dc19a549bb258c6b58847",
+    "composed_candidate_commit": "7fe7877",
+    "T007_working_diff_sha256": "245b6e70c175abce759d755876e2715f0176123f2e70602cacb614822f83970c",
+    "changes": "T900 correction was cherry-picked onto integrated main; T007 workflow/test changes were applied as the stated diff; no other overlays."
+  },
+  "python_image": "python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "summary": "All setup, T-007 packet tests, full discovery (922 tests), baseline, adversarial and shipping-preflight commands exited 0."
+}

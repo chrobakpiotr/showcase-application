@@ -1,0 +1,57 @@
+{
+  "feature": "SDD-OBS-001",
+  "harness_review": "5011f3b",
+  "inputs": {
+    "composition": "73e2965 + T900 987fe13 + T007 patch 245b6e70",
+    "composition_run_id": "local-ci-repair-20261014-73e+987+T007",
+    "integrated_main": "73e2965558f16be2a75d26d368979ed954070681",
+    "t007_checkpoint": "a840c1eb56bbc7aa8cad490bade7e58fa4b08559",
+    "t007_completion_record": "completion-repair:sha256:2840a5ba21f84407efdd50fb8e495a55210362074dcc07cf72fa28a9f8892083",
+    "t007_composition_manifest_sha256": "1bc81ac546c04f7ce9233d4325f8d8a52dd44dbd3cf5009fb5bb001c6fdaaa4a",
+    "t007_diff_sha256": "245b6e70c175abce759d755876e2715f0176123f2e70602cacb614822f83970c",
+    "t900_checkpoint": "987fe1307b4d7fab3c9dc19a549bb258c6b58847",
+    "t900_completion_record": "completion-repair:sha256:d16e35f1e084cac981d3f064a225b3128ef5f0998e4a16b5fa4f614d9ae4e041",
+    "t900_evidence_commit": "b01563f",
+    "t900_report_sha256": "00921cee4de3224e2a933ab81e5d59c5b0d1aedb94c3af09e219e077d264a604"
+  },
+  "integration_status": "local repair checkpoints are accepted and completed; main has not yet been updated with them",
+  "remote_ci": {
+    "head": "73e2965",
+    "last_known_run": "38470552667",
+    "rerun_after_integration": "pending; do not claim remote CI green",
+    "status": "failed before accepted repairs"
+  },
+  "schema_version": 1,
+  "status": "pass_local_re_gate",
+  "task": "T-990",
+  "verification": {
+    "commands": [
+      {
+        "command": "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001",
+        "exit_code": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870"
+      },
+      {
+        "command": "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+        "exit_code": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789"
+      },
+      {
+        "command": "python3 tooling/scripts/check_markdown_links.py",
+        "exit_code": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "ba1c6d6d61ebd9645f091f32428acbad0c40c39115ac8cb87cce41b72a1ef66b"
+      },
+      {
+        "command": "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check",
+        "exit_code": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_sha256": "3bbb9a5dd31a64645ccc263fb379b90cae0b0135a9b8c5c60b6636f83fe282cb"
+      }
+    ],
+    "t007_composed_checks": "922 tests and baseline/adversarial/shipping-preflight evals exited 0 in pinned image",
+    "t900_full_discovery": "922 tests, OK, pinned image; report binds candidate 987fe13"
+  }
+}
