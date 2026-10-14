@@ -18,6 +18,12 @@ class EvalTest(unittest.TestCase):
         workflow=(REPO_ROOT/'.github/workflows/agentic-sdd.yml').read_text()
         self.assertIn('python3 -m unittest discover -s tooling/agent-harness/tests -v',workflow)
         harness_job=workflow.split('  harness-tests:',1)[1].split('\n  examples-validation:',1)[0]
+        behavioral_job=workflow.split('  behavioral-evaluations:',1)[1].split('\n  agentic-sdd-gate:',1)[0]
+        trusted_python='python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f'
+        for job in (harness_job, behavioral_job):
+            self.assertIn(f'container: {trusted_python}',job)
+            self.assertNotIn('actions/setup-python@',job)
+            self.assertIn('apt-get install --no-install-recommends -y git',job)
         self.assertRegex(harness_job,r'(?m)^\s+CI:\s*[\'\"]?true[\'\"]?\s*$')
         gate=workflow.split('  agentic-sdd-gate:',1)[1]
         self.assertIn('      - harness-tests',gate)
