@@ -1,0 +1,36 @@
+test_declared_search_directory_inside_excluded_root_is_refused (test_verification_t900_resolver_guards.T900ResolverExclusionGuardTest.test_declared_search_directory_inside_excluded_root_is_refused) ... FAIL
+
+======================================================================
+FAIL: test_declared_search_directory_inside_excluded_root_is_refused (test_verification_t900_resolver_guards.T900ResolverExclusionGuardTest.test_declared_search_directory_inside_excluded_root_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_t900_resolver_guards.py", line 22, in test_declared_search_directory_inside_excluded_root_is_refused
+    with self.assertRaisesRegex(sandbox.ExecutableResolutionError,
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                '^executable-search-path-excluded$'):
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ExecutableResolutionError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.009s
+
+FAILED (failures=1)
+test_executable_nested_under_excluded_worktree_is_refused (test_verification_t900_resolver_guards.T900ResolverExclusionGuardTest.test_executable_nested_under_excluded_worktree_is_refused) ... FAIL
+
+======================================================================
+FAIL: test_executable_nested_under_excluded_worktree_is_refused (test_verification_t900_resolver_guards.T900ResolverExclusionGuardTest.test_executable_nested_under_excluded_worktree_is_refused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/tooling/agent-harness/tests/test_verification_t900_resolver_guards.py", line 44, in test_executable_nested_under_excluded_worktree_is_refused
+    with self.assertRaisesRegex(sandbox.ExecutableResolutionError,
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                '^executable-path-excluded$'):
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ExecutableResolutionError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+MUTATION CAUGHT: test_declared_search_directory_inside_excluded_root_is_refused
+MUTATION CAUGHT: test_executable_nested_under_excluded_worktree_is_refused
+FAILED (failures=1)

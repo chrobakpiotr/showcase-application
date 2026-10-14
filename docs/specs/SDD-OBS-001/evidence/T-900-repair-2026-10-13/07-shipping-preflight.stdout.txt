@@ -1,0 +1,37 @@
+PASS SHIP-E001-map-valid run=1 198ms
+PASS SHIP-E002-frontier run=1 193ms
+PASS SHIP-E003-not-cleared-prematurely run=1 183ms
+PASS SHIP-E004-preview run=1 898ms
+{
+  "by_case": {
+    "SHIP-E001-map-valid": {
+      "median_duration_ms": 198,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E002-frontier": {
+      "median_duration_ms": 193,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E003-not-cleared-prematurely": {
+      "median_duration_ms": 183,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E004-preview": {
+      "median_duration_ms": 898,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    }
+  },
+  "median_duration_ms": 196,
+  "pass_rate": 1.0,
+  "passes": 4,
+  "runs": 4
+}
+/workspace/.agent-runs/evals/shipping-preflight/3f529c07533f/result.json

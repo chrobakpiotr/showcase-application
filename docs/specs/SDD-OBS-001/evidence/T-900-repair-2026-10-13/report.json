@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "run_id": "t900-repair-987fe13-20261013",
+  "candidate_commit": "987fe1307b4d7fab3c9dc19a549bb258c6b58847",
+  "candidate_parent": "e3238a330a378ce128f742154480cc314b450aa0",
+  "clean_clone": "/tmp/showcase-t900-repair-987fe13",
+  "clone_status": "clean before and after full discovery; no overlays",
+  "image": "showcase-t900-eval:pinned-20261013",
+  "image_digest": "sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5",
+  "platform": "linux/amd64",
+  "full_discovery_summary": "Ran 922 tests in 678.121s; OK",
+  "commands": [
+    {
+      "name": "01-unittest-discovery",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tooling/agent-harness/tests",
+        "-v"
+      ],
+      "exit_code": 0,
+      "stdout": "01-unittest-discovery.stdout.txt",
+      "stderr": "01-unittest-discovery.stderr.txt",
+      "exit_code_file": "01-unittest-discovery.exit-code.txt",
+      "execution_context": "clean standalone clone at candidate 987fe13; no overlays; working tree clean before/after."
+    },
+    {
+      "name": "02-validate-all",
+      "command": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate-all",
+        "docs/specs"
+      ],
+      "exit_code": 0,
+      "stdout": "02-validate-all.stdout.txt",
+      "stderr": "02-validate-all.stderr.txt",
+      "exit_code_file": "02-validate-all.exit-code.txt"
+    },
+    {
+      "name": "03-orchestrate-plan",
+      "command": [
+        "python3",
+        "tooling/agent-harness/orchestrate.py",
+        "docs/specs/SDD-OBS-001",
+        "--plan"
+      ],
+      "exit_code": 0,
+      "stdout": "03-orchestrate-plan.stdout.txt",
+      "stderr": "03-orchestrate-plan.stderr.txt",
+      "exit_code_file": "03-orchestrate-plan.exit-code.txt",
+      "execution_context": "root checkout 73e2965; task candidate source is unchanged in this planning command, and repository-bound lifecycle state was not transplanted into the independent evaluator clone."
+    },
+    {
+      "name": "04-verification-contract",
+      "command": [
+        "python3",
+        "tooling/agent-harness/verification_contract.py",
+        "validate",
+        "docs/specs/SDD-OBS-001"
+      ],
+      "exit_code": 0,
+      "stdout": "04-verification-contract.stdout.txt",
+      "stderr": "04-verification-contract.stderr.txt",
+      "exit_code_file": "04-verification-contract.exit-code.txt"
+    },
+    {
+      "name": "05-baseline",
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "baseline",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "05-baseline.stdout.txt",
+      "stderr": "05-baseline.stderr.txt",
+      "exit_code_file": "05-baseline.exit-code.txt"
+    },
+    {
+      "name": "06-adversarial",
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "adversarial",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "06-adversarial.stdout.txt",
+      "stderr": "06-adversarial.stderr.txt",
+      "exit_code_file": "06-adversarial.exit-code.txt"
+    },
+    {
+      "name": "07-shipping-preflight",
+      "command": [
+        "python3",
+        "tooling/agent-harness/eval.py",
+        "run",
+        "--suite",
+        "shipping-preflight",
+        "--repeat",
+        "1"
+      ],
+      "exit_code": 0,
+      "stdout": "07-shipping-preflight.stdout.txt",
+      "stderr": "07-shipping-preflight.stderr.txt",
+      "exit_code_file": "07-shipping-preflight.exit-code.txt"
+    },
+    {
+      "name": "08-markdown-links",
+      "command": [
+        "python3",
+        "tooling/scripts/check_markdown_links.py"
+      ],
+      "exit_code": 0,
+      "stdout": "08-markdown-links.stdout.txt",
+      "stderr": "08-markdown-links.stderr.txt",
+      "exit_code_file": "08-markdown-links.exit-code.txt"
+    },
+    {
+      "name": "09-handbook-pdf",
+      "command": [
+        "python3",
+        "tooling/scripts/generate-agentic-sdd-handbook-pdf.py",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "09-handbook-pdf.stdout.txt",
+      "stderr": "09-handbook-pdf.stderr.txt",
+      "exit_code_file": "09-handbook-pdf.exit-code.txt"
+    },
+    {
+      "name": "10-guard-mutation",
+      "command": [
+        "python3",
+        "/mutation.py"
+      ],
+      "exit_code": 0,
+      "stdout": "10-guard-mutation.log",
+      "stderr": "10-guard-mutation.log",
+      "exit_code_file": "10-guard-mutation.exit-code.txt",
+      "details": "The shared overlap predicate was independently disabled for each guard test; both tests failed as expected with the exact refusal assertion, proving each guard is exercised."
+    }
+  ],
+  "limitations": [
+    "orchestrate --plan uses repository-bound lifecycle state, so it ran in the main checkout at 73e2965; the candidate test-only changes do not affect that command.",
+    "GitHub Actions hosted-toolcache failures are tracked in a separate active T-007 completion repair; this report only records the pinned Linux qualification."
+  ]
+}
