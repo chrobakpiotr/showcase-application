@@ -84,24 +84,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Git for repository fixtures
+      - name: Install Git before checkout
         run: |
           apt-get update
           apt-get install --no-install-recommends -y git
 
-      - name: Initialize Git metadata for repository fixtures
-        run: |
-          if ! git rev-parse --git-dir >/dev/null 2>&1; then
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
-            git init
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add --all
-            git -c commit.gpgsign=false commit -m "CI working-tree snapshot"
-          fi
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify checkout Git metadata
+        run: git rev-parse --git-dir
 
       - name: Install Agentic SDD Python dependencies
         run: python3 -m pip install -r tooling/agent-harness/requirements.txt
@@ -149,24 +141,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Git for repository fixtures
+      - name: Install Git before checkout
         run: |
           apt-get update
           apt-get install --no-install-recommends -y git
 
-      - name: Initialize Git metadata for repository fixtures
-        run: |
-          if ! git rev-parse --git-dir >/dev/null 2>&1; then
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
-            git init
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add --all
-            git -c commit.gpgsign=false commit -m "CI working-tree snapshot"
-          fi
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify checkout Git metadata
+        run: git rev-parse --git-dir
 
       - name: Install Agentic SDD Python dependencies
         run: python3 -m pip install -r tooling/agent-harness/requirements.txt
