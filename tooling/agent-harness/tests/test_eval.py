@@ -24,6 +24,20 @@ class EvalTest(unittest.TestCase):
             self.assertIn(f'container: {trusted_python}',job)
             self.assertNotIn('actions/setup-python@',job)
             self.assertIn('apt-get install --no-install-recommends -y git',job)
+        for job in (harness_job, behavioral_job):
+            checkout_step = job.index('      - name: Checkout')
+            install_git_step = job.index('      - name: Install Git for repository fixtures')
+            initialize_git_step = job.index('      - name: Initialize Git metadata for repository fixtures')
+            install_dependencies_step = job.index('      - name: Install Agentic SDD Python dependencies')
+            self.assertLess(checkout_step, install_git_step)
+            self.assertLess(install_git_step, initialize_git_step)
+            self.assertLess(initialize_git_step, install_dependencies_step)
+            git_metadata = job[initialize_git_step:install_dependencies_step]
+            self.assertIn('git config --global --add safe.directory "$GITHUB_WORKSPACE"', git_metadata)
+            self.assertIn('git rev-parse --git-dir', git_metadata)
+            self.assertIn('git init', git_metadata)
+            self.assertIn('git add --all', git_metadata)
+            self.assertIn('commit -m "CI working-tree snapshot"', git_metadata)
         self.assertRegex(harness_job,r'(?m)^\s+CI:\s*[\'\"]?true[\'\"]?\s*$')
         gate=workflow.split('  agentic-sdd-gate:',1)[1]
         self.assertIn('      - harness-tests',gate)
