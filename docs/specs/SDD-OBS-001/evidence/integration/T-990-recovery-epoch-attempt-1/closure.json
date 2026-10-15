@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "feature": "SDD-OBS-001",
+  "task": "T-990",
+  "packet_revision": "sha256:fae0ed76ea56ad4e5cb4d62e1c5e70dbe069db41cec05e1cbb00f32a36a25fcd",
+  "packet_sha256": "0a60834155fe657af7aec3a55f56fc5e090ff1aee70d45695dbf97fff8265715",
+  "semantic_contract_sha256": "b63d1db39523a8a3e324b02330f6fcc761983fe6010d3175e71d975b5bb2553b",
+  "candidate_checkpoint": "2d7d7729845fefdbd01eb0203331884b97296784",
+  "candidate_tree": "60e53aba833121dc269da4747519228e3bff1fa0",
+  "accepted_binding_artifacts": {
+    "spec.md": "c5a9398d6d2af115816e4d2ae824982f90ac445d948bfd64176b32abd5c902eb",
+    "plan.md": "e4314a90fda1f1735878ed3fdae0e988d19a6a84930960ea07b380c8eaf8492e",
+    "tasks.json": "b79fd072bd039af94780bb4cc896b75e23747b666131da58ef22369e8633b239",
+    "design.json": "796e31861fe5351806b766a566f02779bf01daa684fa4d126fcacc15d6942b04",
+    "design/gate.json": "74aeb057e91865f1981aa949dd9e61155dccf99c314fba906128b0b8145ac37d",
+    "design/master-closure.json": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff",
+    "verification-contract.json": "74d828a6edcb60e3b8b5f6d1da60cfc20a4639854b8e9eec3a2908894b82d3c2"
+  },
+  "criteria_count": 144,
+  "criteria_passed": 144,
+  "criteria_source": "T-900 acceptance crosswalk; IDs exactly equal active T-990 packet criteria",
+  "t900": {
+    "status": "completed",
+    "checkpoint": "2d7d7729845fefdbd01eb0203331884b97296784",
+    "completion_record_id": "completion:sha256:d32d50d903e4802ad1bd28cb6d7ace4bfdc8894296bd59475b5da99fad8e09d2",
+    "report_sha256": "e81a665518428b17ab1ff1ca37c3a48140b30ca2e90e6c103e90ea4cd5303f7e",
+    "acceptance_coverage_sha256": "2121eeb821dae1e3c65b5c93ce1adfd0df107600343cb746806fab34a7a06d28",
+    "evidence_manifest_sha256": "8c80d0a3c72faf73874e2c338b50b3ca3a3f05612614de6260cea4b4f6dd00db",
+    "manifest_entries": 46,
+    "manifest_mismatches": 0,
+    "full_discovery_tests": 923,
+    "packet_commands_passed": 9,
+    "qualification_claim": "evaluator-only evidence; no target qualification or production readiness claimed"
+  },
+  "verification_contract_status": "accepted contract hashes match this candidate",
+  "t990_verification_commands": 4,
+  "t990_verification_passed": 4,
+  "t990_verification_manifest": "verification/command-manifest.json",
+  "design_authority": {
+    "status": "implementation-authorized",
+    "canonical_design_gate": "not-pass",
+    "master_closure_sha256": "3b3a42e77a3a4605aa1bfb25486d926b7c1249aec5fd3fbe6bf33bb8900968ff",
+    "interpretation": "The accepted master-closure authorizes implementation and verification-contract refresh; it does not upgrade the canonical Design Gate."
+  },
+  "human_actions": [
+    "Review the local candidate and closure evidence before integration or publication.",
+    "Do not infer a canonical Design Gate pass, backend qualification, or production readiness."
+  ],
+  "residual_risks": [
+    "Production readiness remains unqualified.",
+    "The canonical Design Gate remains NOT PASS."
+  ]
+}

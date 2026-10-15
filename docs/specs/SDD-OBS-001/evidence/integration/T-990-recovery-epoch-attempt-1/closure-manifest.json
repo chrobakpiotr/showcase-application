@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "feature": "SDD-OBS-001",
+  "task": "T-990",
+  "candidate_checkpoint": "2d7d7729845fefdbd01eb0203331884b97296784",
+  "packet_sha256": "0a60834155fe657af7aec3a55f56fc5e090ff1aee70d45695dbf97fff8265715",
+  "manifest_excludes_self": true,
+  "file_count": 16,
+  "files": [
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/acceptance-coverage.json",
+      "bytes": 16508,
+      "sha256": "e81087df8be8766c199649e72198822c1b59fd94a2083d15897b1e1455a55fa4"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/closure.json",
+      "bytes": 2986,
+      "sha256": "465b0df43c19434e5bd6c472fba3d23b52c487c69d8ef952c4f690a42a3c5b1b"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/integration-report.md",
+      "bytes": 2426,
+      "sha256": "ab85d944d4f4a60cbb2a25a5cc44f249a7864778f065547b3980240884d498ab"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/01-validate-feature.exit.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/01-validate-feature.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/01-validate-feature.stdout.txt",
+      "bytes": 64,
+      "sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/02-verification-contract.exit.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/02-verification-contract.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/02-verification-contract.stdout.txt",
+      "bytes": 26,
+      "sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/03-markdown-links.exit.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/03-markdown-links.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/03-markdown-links.stdout.txt",
+      "bytes": 58,
+      "sha256": "6a4a6207856e80902ffcd356eed6ef33a1dfe63041910f3d9376a671e35b0817"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/04-handbook-pdf.exit.txt",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/04-handbook-pdf.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/04-handbook-pdf.stdout.txt",
+      "bytes": 153,
+      "sha256": "57b4559edd82220e8b8d21db0f30e621516190e882f88b25037d2c8fe421dfbf"
+    },
+    {
+      "path": "docs/specs/SDD-OBS-001/evidence/integration/T-990-recovery-epoch-attempt-1/verification/command-manifest.json",
+      "bytes": 1878,
+      "sha256": "02b010fc8e196cd599bcf28c09b46b7c4f857228548b8ef6087dae2e8c40791f"
+    }
+  ]
+}

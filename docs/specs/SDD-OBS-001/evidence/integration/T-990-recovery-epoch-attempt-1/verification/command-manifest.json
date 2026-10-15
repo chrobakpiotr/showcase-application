@@ -1,0 +1,59 @@
+{
+  "commands": [
+    {
+      "name": "01-validate-feature",
+      "argv": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate",
+        "docs/specs/SDD-OBS-001"
+      ],
+      "cwd": ".",
+      "exit_code": 0,
+      "duration_seconds": 0.497,
+      "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "02-verification-contract",
+      "argv": [
+        "python3",
+        "tooling/agent-harness/verification_contract.py",
+        "validate",
+        "docs/specs/SDD-OBS-001"
+      ],
+      "cwd": ".",
+      "exit_code": 0,
+      "duration_seconds": 0.182,
+      "stdout_sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "03-markdown-links",
+      "argv": [
+        "python3",
+        "tooling/scripts/check_markdown_links.py"
+      ],
+      "cwd": ".",
+      "exit_code": 0,
+      "duration_seconds": 0.686,
+      "stdout_sha256": "6a4a6207856e80902ffcd356eed6ef33a1dfe63041910f3d9376a671e35b0817",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "04-handbook-pdf",
+      "argv": [
+        "python3",
+        "tooling/scripts/generate-agentic-sdd-handbook-pdf.py",
+        "--check"
+      ],
+      "cwd": ".",
+      "exit_code": 0,
+      "duration_seconds": 0.077,
+      "stdout_sha256": "57b4559edd82220e8b8d21db0f30e621516190e882f88b25037d2c8fe421dfbf",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "python": "3.13.16 (main, Oct  3 2026, 00:54:33) [Clang 22.1.3 ]",
+  "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O"
+}
