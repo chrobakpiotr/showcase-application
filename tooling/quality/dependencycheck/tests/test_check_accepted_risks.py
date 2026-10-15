@@ -15,32 +15,14 @@ def document(until="2026-11-03Z", notes=None, package_url=r"^pkg:javascript/DOMP
 
 
 class AcceptedRiskValidationTest(unittest.TestCase):
-    def test_checked_in_dom_purify_risks_are_exact_and_share_expiry(self):
+    def test_checked_in_accepted_risks_are_empty_after_dependency_remediation(self):
         accepted_risks_path = Path(__file__).parents[1] / "accepted-risks.xml"
         root = ET.parse(accepted_risks_path).getroot()
-        actual = set()
-        for suppression in root.iter():
-            if suppression.tag.rsplit("}", 1)[-1] != "suppress":
-                continue
-            children = {
-                child.tag.rsplit("}", 1)[-1]: child for child in suppression
-            }
-            actual.add(
-                (
-                    suppression.get("until"),
-                    children["packageUrl"].text.strip(),
-                    children["vulnerabilityName"].text.strip(),
-                )
-            )
-
-        exact_package = r"^pkg:javascript/DOMPurify@3\.4\.13$"
-        self.assertEqual(
-            {
-                ("2026-11-03Z", exact_package, "GHSA-p98j-92pf-mc4p"),
-                ("2026-11-03Z", exact_package, "GHSA-6688-9rhm-gjv2"),
-            },
-            actual,
-        )
+        suppressions = [element for element in root.iter()
+                        if element.tag.rsplit("}", 1)[-1] == "suppress"]
+        self.assertEqual([], suppressions)
+        result = validate_document(accepted_risks_path.read_text(encoding="utf-8"), dt.date(2026, 10, 15))
+        self.assertEqual([], result.errors)
 
     def test_warns_inside_review_window_and_passes_before_expiry(self):
         result = validate_document(document(), dt.date(2026, 10, 20), warn_days=30)
@@ -70,6 +52,11 @@ class AcceptedRiskValidationTest(unittest.TestCase):
     def test_fails_on_invalid_expiry(self):
         result = validate_document(document(until="not-a-date"), dt.date(2026, 10, 1))
         self.assertTrue(any("expiry" in error.lower() for error in result.errors))
+
+    def test_empty_risk_file_is_valid_when_no_exceptions_are_accepted(self):
+        result = validate_document('<suppressions xmlns="urn:dependency-check:test"/>', dt.date(2026, 10, 15))
+        self.assertEqual([], result.errors)
+        self.assertEqual([], result.warnings)
 
 
 if __name__ == "__main__":

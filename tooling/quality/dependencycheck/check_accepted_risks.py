@@ -45,9 +45,9 @@ def validate_document(xml_text: str, today: dt.date, warn_days: int = 30) -> Val
     except ET.ParseError as error:
         return ValidationResult([f"invalid accepted-risks XML: {error}"], [])
 
+    if root.tag.rsplit("}", 1)[-1] != "suppressions":
+        return ValidationResult(["accepted-risks XML root must be suppressions"], [])
     risks = [element for element in root.iter() if element.tag.rsplit("}", 1)[-1] == "suppress"]
-    if not risks:
-        return ValidationResult(["accepted-risks XML contains no suppress entries"], [])
 
     for index, risk in enumerate(risks, start=1):
         expiry, expiry_error = _expiry_date(risk.get("until"), index)
