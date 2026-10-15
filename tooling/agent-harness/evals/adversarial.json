@@ -45,6 +45,53 @@
       "stdout_contains": [
         "PASS"
       ]
+    },
+    {
+      "id": "A005-v2-profile-benchmark-parity",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_profile_showcase.py",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "tooling/agent-harness/tests/test_verification_parity.py",
+        "-v"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 180
+    },
+    {
+      "id": "A006-v2-authority-store",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_store.py",
+        "-v"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 300
+    },
+    {
+      "id": "A007-v2-security-qualification",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_sandbox_doctor.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py",
+        "-v"
+      ],
+      "expected_exit": 0,
+      "timeout_seconds": 300
     }
   ]
 }
