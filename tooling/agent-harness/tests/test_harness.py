@@ -4988,6 +4988,51 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         self.assertEqual(1, completed['attempts'])
         self.assertIsNone(harness.completion_records(feature, 'T-A')[-1].get('correction_id'))
 
+    def test_new_completion_repair_is_not_treated_as_replay_of_older_repair(self):
+        feature, doc = self._completed_fixture(attempts=1)
+        first_correction = self._correct(feature)
+        first_authorization = self._authorize_repair(feature, first_correction)
+        self._claim_repair(feature, first_authorization)
+        self._bind_fixture_repair_checkpoint(feature)
+        self._complete_repair(feature, doc)
+
+        # A later attempt has its own completion and repair authority. The old
+        # C2 must not make complete-repair treat this new claim as a replay.
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-A']
+        entry.update({'status': 'running', 'attempts': 2, 'owner': 'worker-b'})
+        harness.save_state(feature, state)
+        ordinary_evidence = self.write_evidence(self.evidence_doc(feature, doc))
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='worker-b', evidence=str(ordinary_evidence)))
+
+        current_completion = next(item for item in harness.completion_records(feature, 'T-A')
+                                  if item.get('attempt') == 2 and item.get('correction_id') is None)
+        self._correct(feature)
+        second_correction = next(item for item in harness.correction_records(feature, 'T-A')
+                                 if item['original_completion_id'] == current_completion['record_id'])
+        self._authorize_repair(feature, second_correction)
+        second_authorization = next(item for item in harness.repair_authorization_records(feature, 'T-A')
+                                    if item['correction_id'] == second_correction['record_id'])
+        self._claim_repair(feature, second_authorization, owner='repair-worker-2')
+        second_claim = next(item for item in harness.repair_claim_records(feature, 'T-A')
+                            if item['correction_id'] == second_correction['record_id'])
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_bind_repair_checkpoint(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', attempt=2,
+                historical_completion_id=current_completion['record_id'],
+                correction_id=second_correction['record_id'],
+                authorization_id=second_authorization['record_id'], claim_id=second_claim['record_id'],
+                owner='repair-worker-2', checkpoint=current_completion['checkpoint'],
+                by='fixture operator', reason='second explicit repair checkpoint attestation'))
+        second_evidence = self.write_evidence(self.evidence_doc(feature, doc))
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete_repair(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='repair-worker-2', evidence=str(second_evidence)))
+
+        self.assertEqual(2, len(harness.repaired_completion_records(feature, 'T-A')))
+
     def test_current_attempt_correction_requires_canonical_repair_completion(self):
         feature, doc = self._completed_fixture(attempts=1)
         correction = self._correct(feature)

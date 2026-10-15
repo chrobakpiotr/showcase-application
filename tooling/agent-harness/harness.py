@@ -5535,11 +5535,13 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
         # A replay after publication is resolved from immutable history even if
         # the first publisher already cleared the mutable active-claim projection.
         all_repair_records = repaired_completion_records(args.feature_dir, args.task_id)
-        if all_repair_records:
+        existing = None
+        if isinstance(claim_projection, dict):
+            existing = next((item for item in all_repair_records
+                             if item.get('repair_claim_id') == claim_projection.get('claim_id')), None)
+        elif entry.get('status') == 'completed' and all_repair_records:
             existing = all_repair_records[-1]
-            if isinstance(claim_projection, dict):
-                existing = next((item for item in all_repair_records
-                                 if item.get('repair_claim_id') == claim_projection.get('claim_id')), existing)
+        if existing is not None:
             active_now = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
             binding_now = validate_completion_binding(
                 evidence_doc, args.feature_dir, args.task_id, entry, active_now)
