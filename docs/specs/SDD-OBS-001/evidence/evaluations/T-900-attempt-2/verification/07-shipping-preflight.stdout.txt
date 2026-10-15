@@ -1,0 +1,37 @@
+PASS SHIP-E001-map-valid run=1 342ms
+PASS SHIP-E002-frontier run=1 585ms
+PASS SHIP-E003-not-cleared-prematurely run=1 294ms
+PASS SHIP-E004-preview run=1 1500ms
+{
+  "by_case": {
+    "SHIP-E001-map-valid": {
+      "median_duration_ms": 342,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E002-frontier": {
+      "median_duration_ms": 585,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E003-not-cleared-prematurely": {
+      "median_duration_ms": 294,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "SHIP-E004-preview": {
+      "median_duration_ms": 1500,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    }
+  },
+  "median_duration_ms": 464,
+  "pass_rate": 1.0,
+  "passes": 4,
+  "runs": 4
+}
+/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/.agent-runs/evals/shipping-preflight/b4fa2288f74d/result.json

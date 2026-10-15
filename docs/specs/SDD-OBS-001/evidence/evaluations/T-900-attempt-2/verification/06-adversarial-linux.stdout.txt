@@ -1,0 +1,58 @@
+PASS A001-content-sensitive-verification run=1 789ms
+PASS A002-secret-minimized-verification-env run=1 813ms
+PASS A003-reopen-lease-and-history-safety run=1 1635ms
+PASS A004-real-showcase-feature-validates run=1 323ms
+PASS A005-v2-profile-benchmark-parity run=1 52573ms
+PASS A006-v2-authority-store run=1 8308ms
+PASS A007-v2-security-qualification run=1 5433ms
+{
+  "by_case": {
+    "A001-content-sensitive-verification": {
+      "median_duration_ms": 789,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A002-secret-minimized-verification-env": {
+      "median_duration_ms": 813,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A003-reopen-lease-and-history-safety": {
+      "median_duration_ms": 1635,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A004-real-showcase-feature-validates": {
+      "median_duration_ms": 323,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A005-v2-profile-benchmark-parity": {
+      "median_duration_ms": 52573,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A006-v2-authority-store": {
+      "median_duration_ms": 8308,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    },
+    "A007-v2-security-qualification": {
+      "median_duration_ms": 5433,
+      "pass_rate": 1.0,
+      "passes": 1,
+      "runs": 1
+    }
+  },
+  "median_duration_ms": 1635,
+  "pass_rate": 1.0,
+  "passes": 7,
+  "runs": 7
+}
+/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/.agent-runs/evals/adversarial/a8c3c99795c8/result.json

@@ -1,0 +1,31 @@
+{
+  "candidate_parent": "141d5f48135cd2b63d95dc93a34ba2b9e13317c2",
+  "production_source_changed": false,
+  "evaluator_test_files": {
+    "tooling/agent-harness/tests/test_verification_backend_qualification.py": {
+      "sha256": "61d5af782cef3cda7ce2cc5d00424355be73930d9697d115f3791aea0734053f",
+      "bytes": 25877
+    },
+    "tooling/agent-harness/tests/test_verification_noncacheable.py": {
+      "sha256": "efba0bbf330fc14fe42604bfc8d22a7c60c8c2a1ff0e819ec50bd7d041df4ace",
+      "bytes": 12870
+    },
+    "tooling/agent-harness/tests/test_verification_phase_d.py": {
+      "sha256": "d11dc3e7561436eae537af5b4354b785be9fa9bcfa5b1c0672d873c6bd1b6a49",
+      "bytes": 25155
+    },
+    "tooling/agent-harness/tests/test_verification_profile_applicability.py": {
+      "sha256": "96f367bb5dc98b9b8e1dece3d23673d00a9f1909351988837a62653e8e02113a",
+      "bytes": 6783
+    },
+    "tooling/agent-harness/tests/test_verification_t900_resolver_guards.py": {
+      "sha256": "7caeb57d735cc9492b55c71bac27af2abc67e90c93042f8ba8da70dd24eeae9d",
+      "bytes": 2339
+    }
+  },
+  "test_corrections": [
+    "T-900 reviewed stale resolver mock now patches resolve_executable and asserts legacy which is not used.",
+    "T-900 E33 test treats a zombie-only process group as drained while still refusing live members.",
+    "Previously reviewed home-root resolver guard tests and phase-D/noncacheable/profile fixture corrections reapplied."
+  ]
+}

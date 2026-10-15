@@ -1,0 +1,29 @@
+{
+  "image": "showcase-t900-eval:pinned-20261013",
+  "image_digest": "sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5",
+  "platform": "linux/amd64",
+  "python": "3.13.16",
+  "cryptography": "49.0.0",
+  "candidate_parent": "141d5f48135cd2b63d95dc93a34ba2b9e13317c2",
+  "task_worktree": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900",
+  "primary_repository_mount": "read-only",
+  "task_worktree_mount": "read-write",
+  "full_discovery": {
+    "command": "python3 -m unittest discover -s tooling/agent-harness/tests -v",
+    "exit_code": 0,
+    "test_count": 923,
+    "duration_seconds": 649.651,
+    "log": "docs/specs/SDD-OBS-001/evidence/evaluations/T-900-attempt-2/verification/01-unittest-discovery-final.stderr.txt"
+  },
+  "initial_diagnostic": {
+    "host": "macOS 15.8.1 x86_64, Python 3.13.16, cryptography absent",
+    "adversarial_exit": 1,
+    "reason": "A006/A007 could not import cryptography; rerun in pinned Linux image passed"
+  },
+  "full_discovery_initial": {
+    "exit_code": 1,
+    "tests": 921,
+    "failures": 2,
+    "cause": "T-900 stale resolve_executable mock and zombie-only process group misclassified as live; corrected with the accepted evaluator-only tests from prior reviewed T-900 fix."
+  }
+}

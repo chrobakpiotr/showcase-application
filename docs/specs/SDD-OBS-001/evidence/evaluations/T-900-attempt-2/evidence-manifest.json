@@ -1,0 +1,243 @@
+{
+  "feature": "SDD-OBS-001",
+  "task": "T-900",
+  "attempt": 1,
+  "result": "PASS",
+  "packet_commands": 9,
+  "packet_commands_passed": 9,
+  "candidate_commit": "141d5f48135cd2b63d95dc93a34ba2b9e13317c2",
+  "evaluation_run": "T-900-attempt-2-linux-final",
+  "manifest_excludes_self": true,
+  "files": [
+    {
+      "path": "acceptance-coverage.json",
+      "sha256": "2121eeb821dae1e3c65b5c93ce1adfd0df107600343cb746806fab34a7a06d28",
+      "bytes": 131894
+    },
+    {
+      "path": "candidate-regressions.txt",
+      "sha256": "a7bf23ca08c537bac99701601866034452a8010b4ff54a2ba31e16192b1e0622",
+      "bytes": 28092
+    },
+    {
+      "path": "evaluation-report.md",
+      "sha256": "e81a665518428b17ab1ff1ca37c3a48140b30ca2e90e6c103e90ea4cd5303f7e",
+      "bytes": 3388
+    },
+    {
+      "path": "evaluation-result.json",
+      "sha256": "9b3992e5e2de001289e3fddde148205a12239bf66fac21f2683a989d3a2e0cb8",
+      "bytes": 3783
+    },
+    {
+      "path": "results/05-baseline-host-result.json",
+      "sha256": "fafd1ad3a754cfa72c2c9d3a38eaa9e9c50f9ccf4de614388a6fd9e7efad0c34",
+      "bytes": 7910
+    },
+    {
+      "path": "results/06-adversarial-host-diagnostic.json",
+      "sha256": "9f207c5b56ad7cb328286dcd0dbe95177a721ba7cf6e0c39c0c802380d79a966",
+      "bytes": 13991
+    },
+    {
+      "path": "results/06-adversarial-linux-result.json",
+      "sha256": "74a2cc74481b9592ad6157c47184361883013b588e8b676e7172c0e823611e55",
+      "bytes": 13939
+    },
+    {
+      "path": "results/07-shipping-preflight-host-result.json",
+      "sha256": "3774b38f0b780db38d4b4ac8327d671066916ba62182ea0c0fe9625ce066d52d",
+      "bytes": 7680
+    },
+    {
+      "path": "source.json",
+      "sha256": "1e2e165924ebcae81da4d3872ae0f02307ad960c4ecc0a5070aeb7d39819dd5a",
+      "bytes": 1437
+    },
+    {
+      "path": "verification/01-failed-module-linux.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/01-failed-module-linux.stderr.txt",
+      "sha256": "f3552d58251712005346d21caf7b6ba7d6e1f76f42370041f5bf37ff1a00c768",
+      "bytes": 6458
+    },
+    {
+      "path": "verification/01-failed-module-linux.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/01-unittest-discovery-final.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/01-unittest-discovery-final.stderr.txt",
+      "sha256": "5f2f73cd38b3e3cae1ea67be6adebd11a4cdd90c7501080c87cd25343c9ec6f6",
+      "bytes": 158411
+    },
+    {
+      "path": "verification/01-unittest-discovery-final.stdout.txt",
+      "sha256": "a42caab7f1c5ee051d924436a1f1010d8424c549d1dc40dadb46f602be2c08ad",
+      "bytes": 1155
+    },
+    {
+      "path": "verification/01-unittest-discovery.exit.txt",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "verification/01-unittest-discovery.stderr.txt",
+      "sha256": "de0e73c84253231681ba399a41f78ee3802a122a6a279e3dc41e268979fffda3",
+      "bytes": 159610
+    },
+    {
+      "path": "verification/01-unittest-discovery.stdout.txt",
+      "sha256": "71ca862b803db1f14723d6e53b44e0947daf81ac6bfc272af21a6e271713ce4c",
+      "bytes": 1155
+    },
+    {
+      "path": "verification/02-validate-all.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/02-validate-all.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/02-validate-all.stdout.txt",
+      "sha256": "0df76693d419f39bf6f173e8c1bb03fe3bbeb1e4a8414c74ee2438d78db9eee2",
+      "bytes": 2275
+    },
+    {
+      "path": "verification/03-orchestrate-plan.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/03-orchestrate-plan.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/03-orchestrate-plan.stdout.txt",
+      "sha256": "adfe83a682aeeafe60e63704cf4c55aa1e62594ba23fce61543625e19de6c8fe",
+      "bytes": 1517
+    },
+    {
+      "path": "verification/04-verification-contract.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/04-verification-contract.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/04-verification-contract.stdout.txt",
+      "sha256": "883dcf25065d5686f32ecdef508fc887fcbbed22acf58ee49db91228d0667789",
+      "bytes": 26
+    },
+    {
+      "path": "verification/05-baseline.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/05-baseline.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/05-baseline.stdout.txt",
+      "sha256": "3552096f32bf636aa324e862b8a41dc544964f73d49a95395fc6b5c02ede81fc",
+      "bytes": 1298
+    },
+    {
+      "path": "verification/06-adversarial-linux.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/06-adversarial-linux.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/06-adversarial-linux.stdout.txt",
+      "sha256": "42153e08eef2bdf025d2e9a9d7f5667fd90d665b0df00b6f52e8a1d9862b90ed",
+      "bytes": 1593
+    },
+    {
+      "path": "verification/06-adversarial.exit.txt",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "path": "verification/06-adversarial.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/06-adversarial.stdout.txt",
+      "sha256": "e9c5a2d7da5f5fd4463eb41bc74d7d13040cee5e5688c0f2d4e4e6e5fa535d89",
+      "bytes": 1616
+    },
+    {
+      "path": "verification/07-shipping-preflight.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/07-shipping-preflight.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/07-shipping-preflight.stdout.txt",
+      "sha256": "264f5a1d733ab6364107bfea2989847c6487a4385b5941237bc775cec246aa13",
+      "bytes": 924
+    },
+    {
+      "path": "verification/08-markdown-links.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/08-markdown-links.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/08-markdown-links.stdout.txt",
+      "sha256": "76681dce8dded53d379bb09c3627ddbc6ea339dd519133e33d1691aa43143fdd",
+      "bytes": 58
+    },
+    {
+      "path": "verification/09-handbook-pdf.exit.txt",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "path": "verification/09-handbook-pdf.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "verification/09-handbook-pdf.stdout.txt",
+      "sha256": "43333a6e87aabf98a07f6a6b4eb951cbdb512da2d0159352175227a80a69c61d",
+      "bytes": 153
+    },
+    {
+      "path": "verification/environment.json",
+      "sha256": "299ad18676f231c43ccc8b1195dfa3735517f3cb478721491b39a12f21bc640c",
+      "bytes": 1281
+    }
+  ]
+}

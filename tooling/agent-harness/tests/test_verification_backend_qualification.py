@@ -22,13 +22,48 @@ spec.loader.exec_module(vs)
 
 
 class BackendQualificationTest(unittest.TestCase):
+    def _live_process_group_members(self, pgid):
+        proc = pathlib.Path('/proc')
+        if proc.is_dir():
+            live = []
+            for stat_path in proc.glob('[0-9]*/stat'):
+                try:
+                    raw = stat_path.read_text(encoding='ascii')
+                    fields = raw[raw.rfind(')') + 1:].split()
+                    if len(fields) >= 3 and int(fields[2]) == pgid and fields[0] != 'Z':
+                        live.append(stat_path.parent.name)
+                except (OSError, ValueError):
+                    continue
+            return live
+        rows = subprocess.check_output(
+            ['/bin/ps', '-axo', 'pgid=,stat='], text=True, stderr=subprocess.DEVNULL
+        )
+        return [row for row in rows.splitlines()
+                if len(row.split()) >= 2 and row.split()[0].isdigit()
+                and int(row.split()[0]) == pgid and not row.split()[1].startswith('Z')]
+
+    def test_group_status_treats_zombie_only_group_as_drained(self):
+        with mock.patch.object(vs.subprocess, 'check_output', return_value='123 Z\n'):
+            self.assertEqual('DRAINED', vs.PosixProcessGroupBackend._group_status(123))
+        with mock.patch.object(vs.subprocess, 'check_output', return_value='123 S\n'):
+            self.assertEqual('NOT_DRAINED', vs.PosixProcessGroupBackend._group_status(123))
+
+    def test_group_status_rejects_live_execution_unit_member(self):
+        process = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'],
+                                   start_new_session=True)
+        try:
+            self.assertNotEqual('DRAINED', vs.PosixProcessGroupBackend._group_status(process.pid))
+        finally:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=2)
+
     def test_process_birth_identity_is_precise_on_current_host(self):
         import os
         identity = vs.PosixProcessGroupBackend._birth_identity(os.getpid())
         self.assertTrue(identity.endswith(f':{os.getpid()}'))
         self.assertGreaterEqual(len(identity.split(':')), 2)
 
-    def test_e33_containment_probe_kills_and_reaps_its_execution_unit(self):
+    def test_e33_containment_probe_kills_its_execution_unit(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             writable = root / 'writable'
@@ -49,13 +84,11 @@ class BackendQualificationTest(unittest.TestCase):
             self.assertEqual(1, len(process_groups))
             deadline = time.monotonic() + 2
             while time.monotonic() < deadline:
-                try:
-                    real_killpg(process_groups[0], 0)
-                except ProcessLookupError:
+                if not self._live_process_group_members(process_groups[0]):
                     break
                 time.sleep(.01)
             else:
-                self.fail('qualification execution-unit process group still exists after cleanup')
+                self.fail('live qualification execution-unit member remains after cleanup')
             self.assertEqual([], list(writable.iterdir()))
 
     def test_R1_R16_active_runner_returns_structured_evidence_for_all_checks(self):
@@ -259,7 +292,10 @@ class BackendQualificationTest(unittest.TestCase):
             executable = pathlib.Path(tmp) / 'candidate'
             executable.write_text('#!/bin/sh\nexit 0\n')
             executable.chmod(0o755)
-            with mock.patch.object(vs.shutil, 'which', return_value=str(executable)):
+            binding = {'command': 'candidate', 'path': str(executable), 'sha256': 'a' * 64}
+            with mock.patch.object(vs.shutil, 'which',
+                                   side_effect=AssertionError('legacy executable lookup')), \
+                 mock.patch.object(vs, 'resolve_executable', return_value=binding):
                 candidates = vs.discover_backends()
             self.assertTrue(candidates)
             self.assertIn('docker-container', {candidate.kind for candidate in candidates})
