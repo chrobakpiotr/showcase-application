@@ -119,7 +119,7 @@ _REGISTERED_GRADLE_BUILD_INPUT_SHA256 = {
     'apps/ecommerce/frontend/ecommerce-frontend.gradle':
         '5519a9ffb311c31f9e4ac4312c4b31ee02e259406cc38511b68cd2b57de9cfa9',
     'build.gradle':
-        '4e6329601e45a88f2af728f6f4bfc93d362c7143a316494c0caa016cf25ce556',
+        'b2d5db7b604937ea0982c983d3b2dd912b5b9d910b308700193ddba986acd4df',
     'gradle.properties':
         '3094caed5e3cb5293956a90d26c10deb30b0b67ed73ee8457d56765f15487b94',
     'modules/adapters/ai/ai.gradle':
