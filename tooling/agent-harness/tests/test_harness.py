@@ -4955,6 +4955,39 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         self.assertEqual([], [record for record in harness.completion_records(feature, 'T-A')
                               if record.get('attempt') == 2])
 
+    def test_repaired_correction_from_prior_epoch_does_not_block_reused_attempt_number(self):
+        feature, doc = self._completed_fixture(attempts=1)
+        correction = self._correct(feature)
+        authorization = self._authorize_repair(feature, correction)
+        self._claim_repair(feature, authorization)
+        self._bind_fixture_repair_checkpoint(feature, owner='repair-worker')
+        self._complete(feature, self.write_evidence(self.evidence_doc(feature, doc)))
+
+        # Recovery starts a new lifecycle epoch and can reuse numeric attempt 1.
+        # Historical authority records survive, but the recovered task does not
+        # point at that old completion or its repair.
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-A']
+        entry.update({
+            'status': 'running', 'attempts': 1, 'owner': 'worker-b',
+            'attempt_history': [{'attempts': 1, 'prior_status': 'completed',
+                                 'invalidated_by': 'recovery-epoch'}],
+        })
+        for key in ('completion_record_id', 'completion_repair_record_id',
+                    'active_completion_correction_id', 'active_completion_repair_authorization'):
+            entry.pop(key, None)
+        harness.save_state(feature, state)
+        path = self.write_evidence(self.evidence_doc(feature, doc))
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='worker-b', evidence=str(path)))
+
+        completed = harness.load_state(feature, doc)['tasks']['T-A']
+        self.assertEqual('completed', completed['status'])
+        self.assertEqual(1, completed['attempts'])
+        self.assertIsNone(harness.completion_records(feature, 'T-A')[-1].get('correction_id'))
+
     def test_current_attempt_correction_requires_canonical_repair_completion(self):
         feature, doc = self._completed_fixture(attempts=1)
         correction = self._correct(feature)

@@ -2371,6 +2371,20 @@ def correction_is_repaired(feature_dir: pathlib.Path, task_id: str,
     return False
 
 
+def correction_targets_current_completion(feature_dir: pathlib.Path, task_id: str,
+                                          entry: dict[str, Any],
+                                          correction: dict[str, Any]) -> bool:
+    """Return whether lifecycle state still names the completion this correction repairs."""
+    if (entry.get('completion_record_id') == correction.get('original_completion_id') or
+            entry.get('active_completion_correction_id') == correction.get('record_id')):
+        return True
+    repair_record_id = entry.get('completion_repair_record_id')
+    return isinstance(repair_record_id, str) and any(
+        record.get('record_id') == repair_record_id and
+        record.get('correction_id') == correction.get('record_id')
+        for record in repaired_completion_records(feature_dir, task_id))
+
+
 def retire_finalized_completion_repair_pointers(feature_dir: pathlib.Path, task_id: str,
                                                 entry: dict[str, Any], *, retired_by: str) -> None:
     """Move a finalized repair's active pointers into immutable attempt-tagged state history."""
@@ -5432,8 +5446,11 @@ def cmd_complete(args: argparse.Namespace) -> None:
         repair_authorization = None
         correction_id = None
         for correction in correction_records(args.feature_dir, args.task_id):
-            if (correction.get('completed_attempt') == entry.get('attempts') or
-                    not correction_is_repaired(args.feature_dir, args.task_id, correction)):
+            repaired = correction_is_repaired(args.feature_dir, args.task_id, correction)
+            if (not repaired or
+                    (correction.get('completed_attempt') == entry.get('attempts') and
+                     correction_targets_current_completion(
+                         args.feature_dir, args.task_id, entry, correction))):
                 die('COMPLETION_CORRECTION_REQUIRED: corrected completion requires explicit repair claim')
         retire_finalized_completion_repair_pointers(
             args.feature_dir, args.task_id, entry, retired_by='complete')
