@@ -84,13 +84,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Git for repository fixtures
+      - name: Install Git before checkout
         run: |
           apt-get update
           apt-get install --no-install-recommends -y git
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify checkout Git metadata
+        run: git rev-parse --git-dir
 
       - name: Install Agentic SDD Python dependencies
         run: python3 -m pip install -r tooling/agent-harness/requirements.txt
@@ -138,13 +141,16 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Git for repository fixtures
+      - name: Install Git before checkout
         run: |
           apt-get update
           apt-get install --no-install-recommends -y git
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify checkout Git metadata
+        run: git rev-parse --git-dir
 
       - name: Install Agentic SDD Python dependencies
         run: python3 -m pip install -r tooling/agent-harness/requirements.txt

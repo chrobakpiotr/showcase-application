@@ -21,9 +21,19 @@ class EvalTest(unittest.TestCase):
         behavioral_job=workflow.split('  behavioral-evaluations:',1)[1].split('\n  agentic-sdd-gate:',1)[0]
         trusted_python='python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f'
         for job in (harness_job, behavioral_job):
+            install_git_step = job.index('      - name: Install Git before checkout')
             self.assertIn(f'container: {trusted_python}',job)
             self.assertNotIn('actions/setup-python@',job)
-            self.assertIn('apt-get install --no-install-recommends -y git',job)
+            checkout_step = job.index('      - name: Checkout')
+            self.assertLess(install_git_step, checkout_step)
+            self.assertIn('apt-get install --no-install-recommends -y git',job[install_git_step:checkout_step])
+            self.assertNotIn('Initialize Git metadata for repository fixtures',job)
+            self.assertNotIn('Install Git for repository fixtures',job)
+            verify_git_step = job.index('      - name: Verify checkout Git metadata')
+            install_dependencies_step = job.index('      - name: Install Agentic SDD Python dependencies')
+            self.assertLess(checkout_step, verify_git_step)
+            self.assertLess(verify_git_step, install_dependencies_step)
+            self.assertIn('git rev-parse --git-dir',job[verify_git_step:install_dependencies_step])
         self.assertRegex(harness_job,r'(?m)^\s+CI:\s*[\'\"]?true[\'\"]?\s*$')
         gate=workflow.split('  agentic-sdd-gate:',1)[1]
         self.assertIn('      - harness-tests',gate)

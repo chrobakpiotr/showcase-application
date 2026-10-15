@@ -1,62 +1,51 @@
 {
-  "commands": [
-    {
-      "command": "python3 tooling/scripts/check_markdown_links.py",
-      "exit_code": 0,
-      "stderr": "docs/specs/SDD-OBS-001/evidence/handbook/verification/01-markdown-links.stderr.txt",
-      "stdout": "docs/specs/SDD-OBS-001/evidence/handbook/verification/01-markdown-links.stdout.txt"
-    },
-    {
-      "command": "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check",
-      "exit_code": 0,
-      "stderr": "docs/specs/SDD-OBS-001/evidence/handbook/verification/02-pdf-freshness.stderr.txt",
-      "stdout": "docs/specs/SDD-OBS-001/evidence/handbook/verification/02-pdf-freshness.stdout.txt"
-    }
-  ],
+  "schema_version": 1,
+  "task": "T-008",
+  "commands": [],
   "content_consistency": {
-    "Agentic SDD README": {
+    "root README": {
+      "path": "README.md",
+      "sha256": "0d0a42513dd32b3471aa6092114857e32b86ab99d97a4df7a561e6924b235015",
       "checks": {
-        "completion boundary": true,
-        "fingerprints and artifacts": true,
-        "manual report namespace": true,
+        "fresh task-completion checks": true,
+        "manual registration path": true,
+        "no remote mutation authority": true,
+        "canonical handbook link": true
+      }
+    },
+    "Agentic SDD README": {
+      "path": "docs/agentic-sdd/README.md",
+      "sha256": "f2ecbbc9bc2f922a6e7cceb011488ba409417d31da81123c6fc71fd54d73d151",
+      "checks": {
         "planner outcomes": true,
-        "recovery behavior": true
-      },
-      "path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008/docs/agentic-sdd/README.md",
-      "sha256": "f2ecbbc9bc2f922a6e7cceb011488ba409417d31da81123c6fc71fd54d73d151"
+        "manual registration path": true,
+        "quarantine and recovery": true,
+        "rollback guidance link": true,
+        "no remote mutation authority": true
+      }
     },
     "canonical handbook": {
+      "path": "docs/agentic-sdd/handbook.md",
+      "sha256": "d7e5c41cd52a8048bd6379a294cd0fda56f99ba74a9963d5c08d4d8305d18aac",
       "checks": {
         "completion boundary": true,
-        "fingerprints and artifacts": true,
-        "manual report namespace": true,
         "planner outcomes": true,
-        "recovery behavior": true
-      },
-      "path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008/docs/agentic-sdd/handbook.md",
-      "sha256": "d7e5c41cd52a8048bd6379a294cd0fda56f99ba74a9963d5c08d4d8305d18aac"
+        "fingerprints and artifacts": true,
+        "manual registration": true,
+        "quarantine and recovery": true,
+        "rollback and backend limits": true,
+        "no remote authority": true
+      }
     },
     "generated PDF text": {
+      "path": "docs/specs/SDD-OBS-001/evidence/handbook/extracted-text.txt",
+      "sha256": "799fe850b57992dac012952acf3c130f8301959bf10e1ccb19fe31067e8d4626",
       "checks": {
-        "completion boundary": true,
-        "fingerprints and artifacts": true,
-        "manual report namespace": true,
-        "planner outcomes": true,
-        "recovery behavior": true
-      },
-      "path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008/docs/specs/SDD-OBS-001/evidence/handbook/extracted-text.txt",
-      "sha256": "799fe850b57992dac012952acf3c130f8301959bf10e1ccb19fe31067e8d4626"
-    },
-    "root README": {
-      "checks": {
-        "completion boundary": true,
-        "fingerprints and artifacts": true,
-        "manual report namespace": true,
-        "planner outcomes": true,
-        "recovery behavior": true
-      },
-      "path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008/README.md",
-      "sha256": "0d0a42513dd32b3471aa6092114857e32b86ab99d97a4df7a561e6924b235015"
+        "manual registration": true,
+        "quarantine and recovery": true,
+        "rollback and backend limits": true,
+        "no remote authority": true
+      }
     }
   },
   "generated_artifact_sha256": {
@@ -64,27 +53,25 @@
     "handbook_source": "d7e5c41cd52a8048bd6379a294cd0fda56f99ba74a9963d5c08d4d8305d18aac",
     "pdf_text": "799fe850b57992dac012952acf3c130f8301959bf10e1ccb19fe31067e8d4626"
   },
-  "platform_review": {
-    "path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-008/docs/specs/SDD-OBS-001/evidence/handbook/platform-review.json",
-    "reviewer": "independent platform-reviewer agent t008_platform_review",
-    "sha256": "a488dbbd9b5c5f23e1c4727d958b3c1b55b3845d137724587b0ff02e4897eebe",
-    "verdict": "PASS"
-  },
   "rendered_pages_sha256": {
-    "1": "9052d39ede416d9be705956c5a07880ce1896eb5c49a8c05195dc255fc15dab7",
-    "2": "b17c12c54a65dfd5d328f19a628b8b5485320bc86c2c19f6685f90d4a000db60",
-    "3": "7bcf89bb259ab20cb9392f6f69abf58ac093df3cb3998c9b16c1013ba6902be3"
+    "1": "29092bcb8ad2d5cb8829dd1426e356d362b2fdcbae26416016ef949dcc8f0f2a",
+    "2": "69c1cd3e0beea4c75d7abbeddf46cac85e84597c504c983a96a71bff214522f2",
+    "3": "2be65397adc671674ab2f3bba81695472b55740fa89337b4f516d6ea3e19e2a8"
   },
-  "schema_version": 1,
-  "task": "T-008",
   "visual_inspection": {
-    "pages": 3,
     "renderer": "macOS PDFKit, 2x PNG",
-    "result": "PASS: all pages legible; no clipped text, overlap or blank trailing page; current recovery exit and manual report namespace visible.",
+    "pages": 3,
     "reviewed_pages": [
       1,
       2,
       3
-    ]
+    ],
+    "result": "PASS: all pages legible; no clipped text, overlap or blank trailing page; manual registration command and recovery/rollback details visible."
+  },
+  "platform_review": {
+    "path": "docs/specs/SDD-OBS-001/evidence/handbook/verification/platform-review.json",
+    "reviewer": "independent platform reviewer",
+    "verdict": "PASS",
+    "sha256": "16da3c1126383f2596b0c88860b320a2a0a9739d5f059c04d85b251e6f4a0735"
   }
 }

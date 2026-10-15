@@ -1,0 +1,207 @@
+{
+  "environment": {
+    "captured_at": "2026-10-15T20:19:21.232992+00:00",
+    "cpu_count": 8,
+    "git_head": "141d5f48135cd2b63d95dc93a34ba2b9e13317c2",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.14-linuxkit-x86_64-with-glibc2.41",
+    "provider": null,
+    "provider_cli_version": null,
+    "python": "3.13.16"
+  },
+  "records": [
+    {
+      "case": "A001-content-sensitive-verification",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_runner.py"
+      ],
+      "duration_ms": 789,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "f9f2e92d7a85f0e0a369c009503d8e7108ccd1c8ba0409b69cf228419d120dd5",
+      "stderr_tail": "ERROR: agent result violates canonical task-result schema: ['/rework_tasks: uniqueItems constraint violated']\n.....ERROR: Claude response did not contain structured_output matching the task result schema\n.......ERROR: task packet lease_policy is missing or invalid\n....ERROR: task packet context_trust mismatch; expected={'spec': 'trusted'}, actual={'spec': 'untrusted'}\n.ERROR: reviewer modified the implementation; review-existing runs are read-only\n.ERROR: passing red-green-refactor builder result requires tdd_evidence\n........ERROR: agent result violates canonical task-result schema: ['/summary: required property is missing', '/changed_paths: required property is missing', '/commands: required property is missing', '/assumptions: required property is missing', '/residual_risks: required property is missing']\n.\n----------------------------------------------------------------------\nRan 27 tests in 0.318s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A002-secret-minimized-verification-env",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_verification_sandbox.py"
+      ],
+      "duration_ms": 813,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "5a809bbae57aca93c32d20037695b208f9c597d018fa3145d0aabc2068257165",
+      "stderr_tail": "....................\n----------------------------------------------------------------------\nRan 20 tests in 0.605s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A003-reopen-lease-and-history-safety",
+      "command": [
+        "python3",
+        "tooling/agent-harness/tests/test_harness.py",
+        "HarnessTest.test_expired_lease_is_recovered_for_resume",
+        "HarnessTest.test_reopen_archives_invalidated_descendant_attempt_history",
+        "HarnessTest.test_reopen_refuses_running_descendant_before_pruning_workspace"
+      ],
+      "duration_ms": 1635,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "8f8399b89d1c80a536dc1194a5cdeb48c254c4024c23b5ee28a075e5dfe7c4c5",
+      "stderr_tail": "..ERROR: cannot reopen T-001 while descendants are running: ['T-900']; release or recover them first\n.\n----------------------------------------------------------------------\nRan 3 tests in 1.233s\n\nOK\n",
+      "stdout_sha256": "dab8b439dfcedb9c65ed96cba72a1891adeede05e2c83d487adc7e5cdb9b873d",
+      "stdout_tail": "REOPENED T-001; invalidated descendants: T-900\n"
+    },
+    {
+      "case": "A004-real-showcase-feature-validates",
+      "command": [
+        "python3",
+        "tooling/agent-harness/harness.py",
+        "validate",
+        "docs/specs/DEMO-003"
+      ],
+      "duration_ms": 323,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_tail": "",
+      "stdout_sha256": "6f82b8e5ae64b76680bdc0a4d469cec89040eac6202bb2bf838c96c39a00d870",
+      "stdout_tail": "PASS: feature specification and task DAG are structurally valid\n"
+    },
+    {
+      "case": "A005-v2-profile-benchmark-parity",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_profile_showcase.py",
+        "tooling/agent-harness/tests/test_verification_benchmark.py",
+        "tooling/agent-harness/tests/test_verification_parity.py",
+        "-v"
+      ],
+      "duration_ms": 52573,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "09c971f48dc3d1f0bd0b1b39efaaebc5c8ed4deb06b5d03716afe5d89a3e1369",
+      "stderr_tail": "te_profile_requirement) ... ok\ntest_mapping_does_not_make_non_applicable_profile_gate_required (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_mapping_does_not_make_non_applicable_profile_gate_required) ... ok\ntest_profile_covers_repository_quality_gate_inputs (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_covers_repository_quality_gate_inputs) ... ok\ntest_profile_is_deterministic_and_gate_commands_are_unambiguous (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_profile_is_deterministic_and_gate_commands_are_unambiguous) ... ok\ntest_repeated_task_occurrences_remain_distinct (tooling.agent-harness.tests.test_verification_profile_showcase.ShowcaseProfileTest.test_repeated_task_occurrences_remain_distinct) ... ok\ntest_representative_planning_benchmark_stays_within_contract (tooling.agent-harness.tests.test_verification_benchmark.VerificationBenchmarkTest.test_representative_planning_benchmark_stays_within_contract) ... ok\ntest_accepted_plan_cli_reaches_durable_executor_and_returns_pass (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_accepted_plan_cli_reaches_durable_executor_and_returns_pass) ... ok\ntest_orchestrator_uses_the_same_bound_plan_invocation_as_runner (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_orchestrator_uses_the_same_bound_plan_invocation_as_runner) ... ok\ntest_runner_forwards_only_exact_accepted_plan_to_shared_cli (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_forwards_only_exact_accepted_plan_to_shared_cli) ... ok\ntest_runner_missing_plan_is_blocked_without_cli_or_payload (tooling.agent-harness.tests.test_verification_parity.VerificationParityTest.test_runner_missing_plan_is_blocked_without_cli_or_payload) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 52.268s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A006-v2-authority-store",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_authority.py",
+        "tooling/agent-harness/tests/test_verification_store.py",
+        "-v"
+      ],
+      "duration_ms": 8308,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "73a141c89e7642e0dc159aec7301c4b9e4104fe0f0dd520b39652818d66eb1f4",
+      "stderr_tail": "_store.StoreTest.test_rehashed_terminal_receipt_cannot_change_its_started_binding) ... ok\ntest_repository_admission_keeps_active_and_uncertain_unresolved (tooling.agent-harness.tests.test_verification_store.StoreTest.test_repository_admission_keeps_active_and_uncertain_unresolved) ... ok\ntest_repository_admission_reconciles_only_proven_drained_and_rescans (tooling.agent-harness.tests.test_verification_store.StoreTest.test_repository_admission_reconciles_only_proven_drained_and_rescans) ... ok\ntest_symlinked_authority_directory_and_artifact_fail_closed (tooling.agent-harness.tests.test_verification_store.StoreTest.test_symlinked_authority_directory_and_artifact_fail_closed) ... ok\ntest_terminal_corruption_and_projection_contradiction_handling (tooling.agent-harness.tests.test_verification_store.StoreTest.test_terminal_corruption_and_projection_contradiction_handling) ... ok\ntest_terminal_receipt_is_authority_and_projection_is_rebuilt_after_restart (tooling.agent-harness.tests.test_verification_store.StoreTest.test_terminal_receipt_is_authority_and_projection_is_rebuilt_after_restart) ... ok\ntest_terminal_without_projection_survives_projection_failure_and_restart (tooling.agent-harness.tests.test_verification_store.StoreTest.test_terminal_without_projection_survives_projection_failure_and_restart) ... ok\ntest_two_process_admissions_cannot_both_reserve_clean_repository (tooling.agent-harness.tests.test_verification_store.StoreTest.test_two_process_admissions_cannot_both_reserve_clean_repository) ... ok\ntest_unrelated_projection_never_creates_terminal_authority (tooling.agent-harness.tests.test_verification_store.StoreTest.test_unrelated_projection_never_creates_terminal_authority) ... ok\ntest_unresolved_execution_is_repository_admission_barrier (tooling.agent-harness.tests.test_verification_store.StoreTest.test_unresolved_execution_is_repository_admission_barrier) ... ok\n\n----------------------------------------------------------------------\nRan 55 tests in 7.995s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    },
+    {
+      "case": "A007-v2-security-qualification",
+      "command": [
+        "env",
+        "PYTHONPATH=tooling/agent-harness:tooling/agent-harness/tests",
+        "python3",
+        "-m",
+        "unittest",
+        "tooling/agent-harness/tests/test_verification_sandbox.py",
+        "tooling/agent-harness/tests/test_verification_sandbox_doctor.py",
+        "tooling/agent-harness/tests/test_verification_supervisor.py",
+        "-v"
+      ],
+      "duration_ms": 5433,
+      "exit_code": 0,
+      "expected_exit": 0,
+      "iteration": 1,
+      "status": "pass",
+      "stderr_sha256": "82e371e7cc8496209832c61442eec980aaa0ae00b4ddaa2715bf285100f47522",
+      "stderr_tail": "stered_gradle_gate_does_not_reuse_poisoned_shared_home (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_registered_gradle_gate_does_not_reuse_poisoned_shared_home) ... ok\ntest_vc009_registered_input_digest_is_validated_during_reconstruction (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_registered_input_digest_is_validated_during_reconstruction) ... ok\ntest_vc009_rejects_registered_control_for_different_command_before_launch (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_rejects_registered_control_for_different_command_before_launch) ... ok\ntest_vc009_rejects_unregistered_retry_control_before_launch (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_rejects_unregistered_retry_control_before_launch) ... ok\ntest_vc009_wrapper_cannot_install_gradle_user_home_init_script (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_wrapper_cannot_install_gradle_user_home_init_script) ... ok\ntest_vc009_wrapper_cannot_mask_gradle_failure (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_wrapper_cannot_mask_gradle_failure) ... ok\ntest_vc009_wrapper_comment_cannot_substitute_for_effective_gradle_property (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc009_wrapper_comment_cannot_substitute_for_effective_gradle_property) ... ok\ntest_vc020_execution_receipts_never_persist_raw_output_hashes (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc020_execution_receipts_never_persist_raw_output_hashes) ... ok\ntest_vc020_schema_v1_output_hashes_remain_historical_and_reconstructable (tooling.agent-harness.tests.test_verification_supervisor.SupervisorTest.test_vc020_schema_v1_output_hashes_remain_historical_and_reconstructable) ... ok\n\n----------------------------------------------------------------------\nRan 112 tests in 5.146s\n\nOK\n",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdout_tail": ""
+    }
+  ],
+  "repeat": 1,
+  "run_id": "a8c3c99795c8",
+  "schema_version": 1,
+  "suite": "adversarial",
+  "suite_path": "/Users/pau/IdeaProjects/showcase-application-agent-worktrees/SDD-OBS-001/T-900/tooling/agent-harness/evals/adversarial.json",
+  "summary": {
+    "by_case": {
+      "A001-content-sensitive-verification": {
+        "median_duration_ms": 789,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A002-secret-minimized-verification-env": {
+        "median_duration_ms": 813,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A003-reopen-lease-and-history-safety": {
+        "median_duration_ms": 1635,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A004-real-showcase-feature-validates": {
+        "median_duration_ms": 323,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A005-v2-profile-benchmark-parity": {
+        "median_duration_ms": 52573,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A006-v2-authority-store": {
+        "median_duration_ms": 8308,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      },
+      "A007-v2-security-qualification": {
+        "median_duration_ms": 5433,
+        "pass_rate": 1.0,
+        "passes": 1,
+        "runs": 1
+      }
+    },
+    "median_duration_ms": 1635,
+    "pass_rate": 1.0,
+    "passes": 7,
+    "runs": 7
+  },
+  "target": null
+}

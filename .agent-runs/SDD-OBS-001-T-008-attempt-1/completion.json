@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-008 attempt 1 handbook, README synchronization, deterministic PDF generation, text extraction and three-page visual review passed.",
+  "feature": "SDD-OBS-001",
+  "task": "T-008",
+  "attempt": 1,
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "packet_revision": "sha256:feadb51efae8cfaa6342b797e55a2619d6a57c78e613698acd693656e6a79c41",
+  "contract_fingerprint": "d349f3ed0eb7b2a743a5ede47688ff5b928a8fdd59e5130240ee639c4cae1aad",
+  "checkpoint": "51d21a21a3b1dcf4e0ccb1679369cb327f505736",
+  "changed_paths": [],
+  "commands": [
+    "python3 tooling/scripts/check_markdown_links.py",
+    "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+  ],
+  "assumptions": [
+    "The prior T-008 implementation at 05f9a22 was used as reference; all declared checks and PDF visual evidence were regenerated on attempt 1.",
+    "PDFKit extraction and rendering were performed from the generated PDF in this attempt."
+  ],
+  "residual_risks": [
+    "The canonical M5.3 Design Gate remains NOT PASS; documentation does not qualify a verification backend."
+  ],
+  "harness_verification": [
+    {
+      "command": "python3 tooling/scripts/check_markdown_links.py",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; documentation/link/PDF deterministic checks; no sandbox isolation required",
+      "stderr": ".agent-runs/SDD-OBS-001-T-008-attempt-1/verification/command-0.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-008-attempt-1/verification/command-0.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16; documentation/link/PDF deterministic checks; no sandbox isolation required",
+      "stderr": ".agent-runs/SDD-OBS-001-T-008-attempt-1/verification/command-1.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-008-attempt-1/verification/command-1.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "ae2828845ccc5d76463203194e87b9e939f25756a0a118fe71d130bddf8c23b1",
+      "criteria": [
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-028"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "3af56d49a1136093e76f3b91bbf36d64e153a74017291aa85cd43b9b32c7e489",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "216a4d7f19cc6111de8f5f4e41b785ec6c586547c69ae96e88d164d04d14b279",
+      "criteria": [
+        "AC-OBS-028",
+        "VC-031"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "c8628f4af9e7b64fdf4dda42c9942376721feae9d9d3b946666b7c888f0534a8",
+      "status": "PASS"
+    }
+  ],
+  "criterion_results": {
+    "AC-OBS-028": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "AC-OBS-029": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-038": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-024": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-028": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-031": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-2"
+      ]
+    }
+  },
+  "verification_evidence": {
+    "environment": "macOS; Python 3.13.16",
+    "markdown_link_check": "PASS (291 files)",
+    "pdf_freshness": "PASS",
+    "platform_review": "docs/specs/SDD-OBS-001/evidence/handbook/verification/platform-review.json",
+    "platform_review_sha256": "16da3c1126383f2596b0c88860b320a2a0a9739d5f059c04d85b251e6f4a0735"
+  }
+}

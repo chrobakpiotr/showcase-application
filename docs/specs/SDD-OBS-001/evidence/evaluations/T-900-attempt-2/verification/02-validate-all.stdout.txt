@@ -1,0 +1,49 @@
+INFO docs/specs/QUALITY-HARDENING-Q01-Q06: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+INFO docs/specs/RECOVERY-TIMELINE-001: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+INFO docs/specs/S30-AMQP-POISON-001: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+INFO docs/specs/STABILIZATION-N01-N13: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+INFO docs/specs/STABILIZATION-N14: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+INFO docs/specs/STABILIZATION-N15-N20: document-only; no tasks.json; not executable by validate-all; see docs/specs/INVENTORY.md
+PASS docs/specs/AH5-04B-QUAL-001
+PASS docs/specs/API-ACCESS-001
+PASS docs/specs/APP-ORCH-001
+PASS docs/specs/COMPLETION-AUTHORITY-BINDING-001
+PASS docs/specs/DEMO-002
+PASS docs/specs/DEMO-003
+PASS docs/specs/DOMAIN-INDEP-001
+PASS docs/specs/DURABLE-RECOVERY-001
+PASS docs/specs/FAILED-TASK-REPLAN-001
+PASS docs/specs/FAILURE-GATES-001
+PASS docs/specs/GRADLE-PERF-001
+PASS docs/specs/INSTANT-TIME-001
+PASS docs/specs/INV-RES-001
+PASS docs/specs/INV-TX-001
+PASS docs/specs/OIDC-PKCE-001
+PASS docs/specs/OPERATOR-CAP-001
+PASS docs/specs/OPS-LIST-PAGING-001
+PASS docs/specs/ORDER-APP-001
+PASS docs/specs/ORDER-PRICING-001
+PASS docs/specs/ORDER-READ-BATCH-001
+PASS docs/specs/ORDER-SAGA-001
+PASS docs/specs/OUTBOX-BATCH-001
+PASS docs/specs/OUTBOX-CLAIM-001
+PASS docs/specs/PAYMENT-CAPTURE-IDEMP-001
+PASS docs/specs/PAYMENT-REFUND-001
+PASS docs/specs/READ-PERF-001
+PASS docs/specs/RECOVERY-METRICS-001
+PASS docs/specs/RECOVERY-OPS-001
+PASS docs/specs/REOPEN-EXHAUSTED-DESCENDANTS-001
+PASS docs/specs/REOPEN-LEGACY-PACKET-001
+PASS docs/specs/RMA-CONCURRENCY-001
+PASS docs/specs/RUNNER-STRICT-OUTPUT-001
+PASS docs/specs/SDD-001
+PASS docs/specs/SDD-OBS-001
+PASS docs/specs/SECURITY-GATES-001
+PASS docs/specs/SEQUENTIAL-TASK-REPLAN-001
+PASS docs/specs/SHIP-FULFILL-001
+PASS docs/specs/SHOWCASE-DOCS-001
+PASS docs/specs/TIME-CONTROL-001
+PASS docs/specs/TIME-POLICY-001
+PASS docs/specs/UNEXECUTED-START-ROLLBACK-001
+PASS docs/specs/WORKTREE-PROTOCOL-REFRESH-001
+PASS docs/specs/WORKTREE-PROTOCOL-REFRESH-ROUND4-001

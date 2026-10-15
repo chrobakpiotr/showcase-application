@@ -1,0 +1,24 @@
+[agent/TST-001/T-001 c451705] agent checkpoint TST-001 T-001
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+[agent/TST-001/T-A 75de33c] agent checkpoint TST-001 T-A
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+[agent/TST-001/T-B 737829c] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+[agent/TST-001/T-B 245fb78] agent checkpoint TST-001 T-B
+ 1 file changed, 1 insertion(+)
+ create mode 100644 task-output.txt
+[agent/TST-001/T-B 737829c] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+[agent/TST-001/T-B 8a8a0ed] agent orchestration refresh TST-001
+ 4 files changed, 1 insertion(+), 5 deletions(-)
+ delete mode 100644 docs/specs/TST-001/design.json
+[agent/TST-001/T-A f930734] agent checkpoint TST-001 T-A
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+HEAD is now at ab85c20 base
+HEAD is now at ab85c20 base
+[agent/TST-001/T-B b8c78de] agent orchestration refresh TST-001
+ 3 files changed, 1 insertion(+), 4 deletions(-)
+ALREADY_COMPLETED_REPAIR T-A c2=completion-repair:sha256:c58979c5e917656c178fcdcb2df7419c7e485b0104dbc41ae997e2866efeeeb3

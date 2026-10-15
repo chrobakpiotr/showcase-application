@@ -1,0 +1,1130 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-900 attempt 2 passed all nine packet commands, including 923 tests in the pinned Linux evaluator image, and found no candidate-owned implementation defect.",
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "feature": "SDD-OBS-001",
+  "task": "T-900",
+  "attempt": 1,
+  "packet_revision": "sha256:585c6a32a027ad58f5bc208d577f5d3a7a98261064329300d74af8e14d4a156e",
+  "contract_fingerprint": "e3d8c6696f2c8509cee5f65778763997a8310bf7a8e75614edd176dae2f3f043",
+  "checkpoint": "2d7d7729845fefdbd01eb0203331884b97296784",
+  "changed_paths": [],
+  "commands": [
+    "python3 -m unittest discover -s tooling/agent-harness/tests -v",
+    "python3 tooling/agent-harness/harness.py validate-all docs/specs",
+    "python3 tooling/agent-harness/orchestrate.py docs/specs/SDD-OBS-001 --plan",
+    "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+    "python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1",
+    "python3 tooling/agent-harness/eval.py run --suite adversarial --repeat 1",
+    "python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1",
+    "python3 tooling/scripts/check_markdown_links.py",
+    "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check"
+  ],
+  "assumptions": [
+    "The initial host adversarial failure was due to missing cryptography 49.0.0 and was superseded by a passing run in the pinned Linux image.",
+    "The initial full discovery identified two T-900 test defects; the accepted evaluator-only corrections were applied and exact full discovery passed.",
+    "The orchestration --plan command ran in the canonical primary checkout as required by its path-bound lifecycle state."
+  ],
+  "residual_risks": [
+    "The M5.3 Design Gate remains NOT PASS; this evaluation does not qualify a backend target or assert production readiness."
+  ],
+  "findings": [],
+  "rework_tasks": [],
+  "criterion_results": {
+    "AC-014": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-01": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-03": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-05": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-07": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-09": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-10": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-12": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-13": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-14": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-HANDOFF-16": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-01": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-02": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-03": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-04": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-05": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-06": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-07": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-08": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-09": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-10": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-11": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-12": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-13": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-14": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-LAUNCH-15": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-001": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-002": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-003": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-004": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-005": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-006": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-007": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-008": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-009": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-010": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-011": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-012": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-013": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-014": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-015": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-016": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-017": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-018": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-019": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-020": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-021": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-022": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-023": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-024": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-025": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-026": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-027": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-028": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-029": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-030": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-031": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-032": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-033": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-034": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-035": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-036": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-037": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-038": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-039": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-040": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-041": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-042": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-043": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-044": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-045": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-046": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-047": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-048": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-049": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-050": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-051": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-052": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-053": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-054": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-055": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-056": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-057": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-058": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-059": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-060": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-061": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-062": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-063": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-064": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-065": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-066": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-067": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-068": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-069": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-070": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-071": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-072": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "AC-OBS-073": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-001": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-002": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-003": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-004": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-005": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-006": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-007": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-008": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-009": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-010": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-011": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-012": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-013": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-014": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-015": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-016": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-017": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-018": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-019": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-020": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-021": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-022": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-023": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-024": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-025": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-026": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-027": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-028": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-029": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-030": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-031": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-032": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-033": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-034": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-035": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-036": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-037": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-038": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-039": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-040": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-041": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-042": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-043": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-044": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    },
+    "VC-045": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1"
+      ]
+    }
+  },
+  "proofs": [
+    {
+      "proof_id": "proof-1",
+      "command_index": 0,
+      "command_sha256": "2b446893d179304dab5534dd0f79e32dcd71fda580e780a32dd2e74dde235b06",
+      "status": "PASS",
+      "exit_code": 0,
+      "result_sha256": "ec11fafca9b3a7b7f446a88b09ff4734950982fa9558fc7c9be1179d3478445a",
+      "criteria": [
+        "AC-014",
+        "AC-HANDOFF-01",
+        "AC-HANDOFF-03",
+        "AC-HANDOFF-05",
+        "AC-HANDOFF-07",
+        "AC-HANDOFF-09",
+        "AC-HANDOFF-10",
+        "AC-HANDOFF-12",
+        "AC-HANDOFF-13",
+        "AC-HANDOFF-14",
+        "AC-HANDOFF-16",
+        "AC-LAUNCH-01",
+        "AC-LAUNCH-02",
+        "AC-LAUNCH-03",
+        "AC-LAUNCH-04",
+        "AC-LAUNCH-05",
+        "AC-LAUNCH-06",
+        "AC-LAUNCH-07",
+        "AC-LAUNCH-08",
+        "AC-LAUNCH-09",
+        "AC-LAUNCH-10",
+        "AC-LAUNCH-11",
+        "AC-LAUNCH-12",
+        "AC-LAUNCH-13",
+        "AC-LAUNCH-14",
+        "AC-LAUNCH-15",
+        "AC-OBS-001",
+        "AC-OBS-002",
+        "AC-OBS-003",
+        "AC-OBS-004",
+        "AC-OBS-005",
+        "AC-OBS-006",
+        "AC-OBS-007",
+        "AC-OBS-008",
+        "AC-OBS-009",
+        "AC-OBS-010",
+        "AC-OBS-011",
+        "AC-OBS-012",
+        "AC-OBS-013",
+        "AC-OBS-014",
+        "AC-OBS-015",
+        "AC-OBS-016",
+        "AC-OBS-017",
+        "AC-OBS-018",
+        "AC-OBS-019",
+        "AC-OBS-020",
+        "AC-OBS-021",
+        "AC-OBS-022",
+        "AC-OBS-023",
+        "AC-OBS-024",
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-028",
+        "AC-OBS-029",
+        "AC-OBS-030",
+        "AC-OBS-031",
+        "AC-OBS-032",
+        "AC-OBS-033",
+        "AC-OBS-034",
+        "AC-OBS-035",
+        "AC-OBS-036",
+        "AC-OBS-037",
+        "AC-OBS-038",
+        "AC-OBS-039",
+        "AC-OBS-040",
+        "AC-OBS-041",
+        "AC-OBS-042",
+        "AC-OBS-043",
+        "AC-OBS-044",
+        "AC-OBS-045",
+        "AC-OBS-046",
+        "AC-OBS-047",
+        "AC-OBS-048",
+        "AC-OBS-049",
+        "AC-OBS-050",
+        "AC-OBS-051",
+        "AC-OBS-052",
+        "AC-OBS-053",
+        "AC-OBS-054",
+        "AC-OBS-055",
+        "AC-OBS-056",
+        "AC-OBS-057",
+        "AC-OBS-058",
+        "AC-OBS-059",
+        "AC-OBS-060",
+        "AC-OBS-061",
+        "AC-OBS-062",
+        "AC-OBS-063",
+        "AC-OBS-064",
+        "AC-OBS-065",
+        "AC-OBS-066",
+        "AC-OBS-067",
+        "AC-OBS-068",
+        "AC-OBS-069",
+        "AC-OBS-070",
+        "AC-OBS-071",
+        "AC-OBS-072",
+        "AC-OBS-073",
+        "VC-001",
+        "VC-002",
+        "VC-003",
+        "VC-004",
+        "VC-005",
+        "VC-006",
+        "VC-007",
+        "VC-008",
+        "VC-009",
+        "VC-010",
+        "VC-011",
+        "VC-012",
+        "VC-013",
+        "VC-014",
+        "VC-015",
+        "VC-016",
+        "VC-017",
+        "VC-018",
+        "VC-019",
+        "VC-020",
+        "VC-021",
+        "VC-022",
+        "VC-023",
+        "VC-024",
+        "VC-025",
+        "VC-026",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030",
+        "VC-031",
+        "VC-032",
+        "VC-033",
+        "VC-034",
+        "VC-035",
+        "VC-036",
+        "VC-037",
+        "VC-038",
+        "VC-039",
+        "VC-040",
+        "VC-041",
+        "VC-042",
+        "VC-043",
+        "VC-044",
+        "VC-045"
+      ]
+    }
+  ],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest discover -s tooling/agent-harness/tests -v",
+      "exit_code": 0,
+      "sandbox_backend": "showcase-t900-eval:pinned-20261013@sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5 (Linux amd64)",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-0.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-0.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/harness.py validate-all docs/specs",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-1.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-1.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/orchestrate.py docs/specs/SDD-OBS-001 --plan",
+      "exit_code": 0,
+      "sandbox_backend": "Canonical primary checkout; macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-2.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-2.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-3.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-3.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-4.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-4.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/eval.py run --suite adversarial --repeat 1",
+      "exit_code": 0,
+      "sandbox_backend": "showcase-t900-eval:pinned-20261013@sha256:bb7600c8e1542e7eac4706f14dca1b78c6e043b19f8f61d226faa906c695c4c5 (Linux amd64)",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-5.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-5.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-6.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-6.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/scripts/check_markdown_links.py",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-7.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-7.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/scripts/generate-agentic-sdd-handbook-pdf.py --check",
+      "exit_code": 0,
+      "sandbox_backend": "Native macOS; Python 3.13.16",
+      "stderr": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-8.stderr.txt",
+      "stdout": ".agent-runs/SDD-OBS-001-T-900-attempt-2/verification/command-8.stdout.txt",
+      "strong_isolation": false
+    }
+  ]
+}
