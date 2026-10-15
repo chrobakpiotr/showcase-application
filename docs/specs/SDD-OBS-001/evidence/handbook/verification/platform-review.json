@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "task": "T-008",
+  "reviewer": "independent platform reviewer",
+  "verdict": "PASS",
+  "reviewed_at": "2026-10-15",
+  "scope": [
+    "handbook and both README summaries against the accepted task and current verifier behavior",
+    "manual report path and telemetry CLI",
+    "recover-verification quarantine and rollback limits",
+    "no-remote-authority boundary",
+    "PDF freshness, extracted content and visual readability across all pages",
+    "Markdown links and diff check"
+  ],
+  "findings_resolved": [
+    "Manual registration path and uppercase verdicts match telemetry.py.",
+    "Recovery command exists and failures use exit 5.",
+    "PDF text contains required manual, recovery, rollback and authority guidance; rendered pages are legible without clipping."
+  ],
+  "result": "PASS; no remaining blockers found."
+}

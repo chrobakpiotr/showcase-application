@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": "T-008",
+  "commands": [],
+  "content_consistency": {
+    "root README": {
+      "path": "README.md",
+      "sha256": "0d0a42513dd32b3471aa6092114857e32b86ab99d97a4df7a561e6924b235015",
+      "checks": {
+        "fresh task-completion checks": true,
+        "manual registration path": true,
+        "no remote mutation authority": true,
+        "canonical handbook link": true
+      }
+    },
+    "Agentic SDD README": {
+      "path": "docs/agentic-sdd/README.md",
+      "sha256": "f2ecbbc9bc2f922a6e7cceb011488ba409417d31da81123c6fc71fd54d73d151",
+      "checks": {
+        "planner outcomes": true,
+        "manual registration path": true,
+        "quarantine and recovery": true,
+        "rollback guidance link": true,
+        "no remote mutation authority": true
+      }
+    },
+    "canonical handbook": {
+      "path": "docs/agentic-sdd/handbook.md",
+      "sha256": "d7e5c41cd52a8048bd6379a294cd0fda56f99ba74a9963d5c08d4d8305d18aac",
+      "checks": {
+        "completion boundary": true,
+        "planner outcomes": true,
+        "fingerprints and artifacts": true,
+        "manual registration": true,
+        "quarantine and recovery": true,
+        "rollback and backend limits": true,
+        "no remote authority": true
+      }
+    },
+    "generated PDF text": {
+      "path": "docs/specs/SDD-OBS-001/evidence/handbook/extracted-text.txt",
+      "sha256": "799fe850b57992dac012952acf3c130f8301959bf10e1ccb19fe31067e8d4626",
+      "checks": {
+        "manual registration": true,
+        "quarantine and recovery": true,
+        "rollback and backend limits": true,
+        "no remote authority": true
+      }
+    }
+  },
+  "generated_artifact_sha256": {
+    "generated_pdf": "b7cc3d9e3a078729d8d79bc317dccbd90d399c1a643f68626c3c9427d5344ff4",
+    "handbook_source": "d7e5c41cd52a8048bd6379a294cd0fda56f99ba74a9963d5c08d4d8305d18aac",
+    "pdf_text": "799fe850b57992dac012952acf3c130f8301959bf10e1ccb19fe31067e8d4626"
+  },
+  "rendered_pages_sha256": {
+    "1": "29092bcb8ad2d5cb8829dd1426e356d362b2fdcbae26416016ef949dcc8f0f2a",
+    "2": "69c1cd3e0beea4c75d7abbeddf46cac85e84597c504c983a96a71bff214522f2",
+    "3": "2be65397adc671674ab2f3bba81695472b55740fa89337b4f516d6ea3e19e2a8"
+  },
+  "visual_inspection": {
+    "renderer": "macOS PDFKit, 2x PNG",
+    "pages": 3,
+    "reviewed_pages": [
+      1,
+      2,
+      3
+    ],
+    "result": "PASS: all pages legible; no clipped text, overlap or blank trailing page; manual registration command and recovery/rollback details visible."
+  },
+  "platform_review": {
+    "path": "docs/specs/SDD-OBS-001/evidence/handbook/verification/platform-review.json",
+    "reviewer": "independent platform reviewer",
+    "verdict": "PASS",
+    "sha256": "16da3c1126383f2596b0c88860b320a2a0a9739d5f059c04d85b251e6f4a0735"
+  }
+}
