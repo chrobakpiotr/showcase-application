@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "run_id": 38805366493,
+  "head_sha": "7b927b3931c0d71b9743916fa502c2ff4f5ae9fa",
+  "url": "https://github.com/chrobakpiotr/showcase-application/actions/runs/38805366493",
+  "workflow": "Agentic SDD CI",
+  "failed_jobs": [
+    "Agentic SDD behavioral evaluations",
+    "Agentic SDD harness tests"
+  ],
+  "failed_step": "Verify checkout Git metadata",
+  "cause": "Git rejected the checkout because the runner-owned working tree appears as an unsafe directory to the root user in the Python container.",
+  "log_path": ".agent-runs/SDD-OBS-001-T-007-ci-repair-38805366493/failed-logs.txt",
+  "log_sha256": "173d328e3dd19165e9b37f4146769d4f3629467a3293774ed359454bc18bb690"
+}

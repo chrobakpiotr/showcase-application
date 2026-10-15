@@ -29,10 +29,14 @@ class EvalTest(unittest.TestCase):
             self.assertIn('apt-get install --no-install-recommends -y git',job[install_git_step:checkout_step])
             self.assertNotIn('Initialize Git metadata for repository fixtures',job)
             self.assertNotIn('Install Git for repository fixtures',job)
+            safe_directory_step = job.index('      - name: Trust runner-owned checkout in container')
             verify_git_step = job.index('      - name: Verify checkout Git metadata')
             install_dependencies_step = job.index('      - name: Install Agentic SDD Python dependencies')
-            self.assertLess(checkout_step, verify_git_step)
+            self.assertLess(checkout_step, safe_directory_step)
+            self.assertLess(safe_directory_step, verify_git_step)
             self.assertLess(verify_git_step, install_dependencies_step)
+            self.assertIn('git config --global --add safe.directory "$GITHUB_WORKSPACE"',
+                          job[safe_directory_step:verify_git_step])
             self.assertIn('git rev-parse --git-dir',job[verify_git_step:install_dependencies_step])
         self.assertRegex(harness_job,r'(?m)^\s+CI:\s*[\'\"]?true[\'\"]?\s*$')
         gate=workflow.split('  agentic-sdd-gate:',1)[1]

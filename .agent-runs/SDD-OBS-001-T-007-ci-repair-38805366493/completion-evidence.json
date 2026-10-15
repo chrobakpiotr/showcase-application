@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-007 correction repairs containerized Git checkout ownership for both jobs; all declared checks pass.",
+  "feature": "SDD-OBS-001",
+  "task": "T-007",
+  "attempt": 2,
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "packet_revision": "sha256:ce947d6a4b3e3145a90392daf864198ac46c70fcb2b9c7cae5a9c3567a9bd7c4",
+  "contract_fingerprint": "d7820de01dd3c0522ce3ebbeea75939e1d1a2765a7420a17658ec7e442e6a744",
+  "checkpoint": "b7fee8bcad945689aa9cab9af062ba677248dc09",
+  "changed_paths": [],
+  "commands": [
+    "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+    "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001"
+  ],
+  "assumptions": [
+    "The GitHub runner checkout is owned outside the root container user; the exact GITHUB_WORKSPACE is allowlisted in Git safe.directory after checkout and before Git metadata inspection."
+  ],
+  "residual_risks": [
+    "GitHub CI must rerun to confirm the host/container ownership behavior."
+  ],
+  "findings": [],
+  "rework_tasks": [],
+  "harness_verification": [
+    {
+      "command": "python3 -m unittest tooling/agent-harness/tests/test_eval.py -v",
+      "exit_code": 0,
+      "sandbox_backend": "macOS host; Python 3.13.16; T-007 repair worktree",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-ci-repair-38805366493/verification/0.stdout.txt",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-ci-repair-38805366493/verification/0.stderr.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "python3 tooling/agent-harness/harness.py validate docs/specs/SDD-OBS-001",
+      "exit_code": 0,
+      "sandbox_backend": "macOS host; Python 3.13.16; T-007 repair worktree",
+      "stdout": ".agent-runs/SDD-OBS-001-T-007-ci-repair-38805366493/verification/1.stdout.txt",
+      "stderr": ".agent-runs/SDD-OBS-001-T-007-ci-repair-38805366493/verification/1.stderr.txt",
+      "strong_isolation": false
+    }
+  ],
+  "proofs": [
+    {
+      "proof_id": "proof-1",
+      "command_index": 0,
+      "command_sha256": "637346adea828f4142d1d2a02eceb3a39ad34cb8bb92e1b8bb5e531ce45dbcfb",
+      "status": "PASS",
+      "exit_code": 0,
+      "result_sha256": "2e8c21486da7f197733812946f88cd0aa4284ad346a650738b0d4f5bd2af94bb",
+      "criteria": [
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030"
+      ]
+    },
+    {
+      "proof_id": "proof-2",
+      "command_index": 1,
+      "command_sha256": "cdb5158344493ca48c8e0849a9e5d2fb7f8463c438d1c30d9a434a6fba4d009b",
+      "status": "PASS",
+      "exit_code": 0,
+      "result_sha256": "3c1305b32bad0ed3fc52ebb64d604c059848667cb3db741190150ac66fe716f5",
+      "criteria": [
+        "AC-OBS-025",
+        "AC-OBS-026",
+        "AC-OBS-027",
+        "AC-OBS-029",
+        "AC-OBS-038",
+        "VC-024",
+        "VC-027",
+        "VC-028",
+        "VC-029",
+        "VC-030"
+      ]
+    }
+  ],
+  "criterion_results": {
+    "AC-OBS-025": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "AC-OBS-026": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "AC-OBS-027": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "AC-OBS-029": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "AC-OBS-038": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "VC-024": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "VC-027": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "VC-028": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "VC-029": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    },
+    "VC-030": {
+      "status": "PASS",
+      "proof_ids": [
+        "proof-1",
+        "proof-2"
+      ]
+    }
+  }
+}

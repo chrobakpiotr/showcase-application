@@ -1,0 +1,49 @@
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	﻿2026-10-15T20:52:08.0080025Z ##[group]Run git rev-parse --git-dir
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0080367Z ^[[36;1mgit rev-parse --git-dir^[[0m
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0080742Z shell: sh -e {0}
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0080950Z ##[endgroup]
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0617533Z fatal: detected dubious ownership in repository at '/__w/showcase-application/showcase-application'
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0619197Z To add an exception for this directory, call:
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0619608Z 
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0620027Z 	git config --global --add safe.directory /__w/showcase-application/showcase-application
+Agentic SDD behavioral evaluations	Verify checkout Git metadata	2026-10-15T20:52:08.0654096Z ##[error]Process completed with exit code 128.
+Agentic SDD harness tests	Verify checkout Git metadata	﻿2026-10-15T20:52:12.6691869Z ##[group]Run git rev-parse --git-dir
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.6692240Z ^[[36;1mgit rev-parse --git-dir^[[0m
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.6692609Z shell: sh -e {0}
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.6692807Z env:
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.6692979Z   CI: true
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.6693157Z ##[endgroup]
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.7262284Z fatal: detected dubious ownership in repository at '/__w/showcase-application/showcase-application'
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.7263363Z To add an exception for this directory, call:
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.7263756Z 
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.7264273Z 	git config --global --add safe.directory /__w/showcase-application/showcase-application
+Agentic SDD harness tests	Verify checkout Git metadata	2026-10-15T20:52:12.7302585Z ##[error]Process completed with exit code 128.
+Agentic SDD quality gate	Verify Agentic SDD checks	﻿2026-10-15T20:52:19.6645049Z ##[group]Run printf '%-28s %s\n' 'Protocol validation' "$PROTOCOL_VALIDATION_RESULT"
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6646662Z ^[[36;1mprintf '%-28s %s\n' 'Protocol validation' "$PROTOCOL_VALIDATION_RESULT"^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6647985Z ^[[36;1mprintf '%-28s %s\n' 'Harness tests' "$HARNESS_TESTS_RESULT"^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6649490Z ^[[36;1mprintf '%-28s %s\n' 'Examples validation' "$EXAMPLES_VALIDATION_RESULT"^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6651105Z ^[[36;1mprintf '%-28s %s\n' 'Behavioral evaluations' "$BEHAVIORAL_EVALUATIONS_RESULT"^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6652308Z ^[[36;1m^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6652968Z ^[[36;1mfor result in \^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6653761Z ^[[36;1m  "$PROTOCOL_VALIDATION_RESULT" \^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6654711Z ^[[36;1m  "$HARNESS_TESTS_RESULT" \^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6655593Z ^[[36;1m  "$EXAMPLES_VALIDATION_RESULT" \^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6656544Z ^[[36;1m  "$BEHAVIORAL_EVALUATIONS_RESULT"; do^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6657518Z ^[[36;1m  if [[ "$result" != 'success' ]]; then^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6658712Z ^[[36;1m    echo '::error::One or more Agentic SDD checks did not succeed.'^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6659808Z ^[[36;1m    exit 1^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6660701Z ^[[36;1m  fi^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.6661375Z ^[[36;1mdone^[[0m
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7508360Z shell: /usr/bin/bash -e {0}
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7509329Z env:
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7509867Z   PROTOCOL_VALIDATION_RESULT: success
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7510667Z   HARNESS_TESTS_RESULT: failure
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7511280Z   EXAMPLES_VALIDATION_RESULT: success
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7511859Z   BEHAVIORAL_EVALUATIONS_RESULT: failure
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7512432Z ##[endgroup]
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7745815Z Protocol validation          success
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7746348Z Harness tests                failure
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7746796Z Examples validation          success
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7747244Z Behavioral evaluations       failure
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7770061Z ##[error]One or more Agentic SDD checks did not succeed.
+Agentic SDD quality gate	Verify Agentic SDD checks	2026-10-15T20:52:19.7781897Z ##[error]Process completed with exit code 1.
