@@ -2371,6 +2371,52 @@ def correction_is_repaired(feature_dir: pathlib.Path, task_id: str,
     return False
 
 
+def retire_finalized_completion_repair_pointers(feature_dir: pathlib.Path, task_id: str,
+                                                entry: dict[str, Any], *, retired_by: str) -> None:
+    """Move a finalized repair's active pointers into immutable attempt-tagged state history."""
+    correction_id = entry.get('active_completion_correction_id')
+    authorization_id = entry.get('active_completion_repair_authorization')
+    if correction_id is None and authorization_id is None:
+        return
+    if not isinstance(correction_id, str) or not isinstance(authorization_id, str):
+        die('COMPLETION_REPAIR_POINTER_INVALID: correction and authorization pointers must be paired')
+
+    correction = next((item for item in correction_records(feature_dir, task_id)
+                       if item.get('record_id') == correction_id), None)
+    authorization = next((item for item in repair_authorization_records(feature_dir, task_id)
+                          if item.get('record_id') == authorization_id), None)
+    current_attempt = int(entry.get('attempts', 0))
+    correction_attempt = correction.get('completed_attempt') if correction else None
+    if (not correction or not authorization or
+            not isinstance(correction_attempt, int) or correction_attempt > current_attempt or
+            authorization.get('attempt') != correction_attempt or
+            authorization.get('correction_id') != correction_id or
+            not correction_is_repaired(feature_dir, task_id, correction)):
+        die('COMPLETION_REPAIR_POINTER_INVALID: active repair is not finalized for an existing attempt')
+
+    repair = next((item for item in repaired_completion_records(feature_dir, task_id)
+                   if item.get('correction_id') == correction_id and
+                   item.get('repair_authorization_id') == authorization_id and
+                   item.get('attempt') == correction_attempt), None)
+    if not repair or entry.get('completion_repair_record_id') != repair.get('record_id'):
+        die('COMPLETION_REPAIR_POINTER_INVALID: finalized repair record does not match lifecycle state')
+
+    history = entry.setdefault('completion_repair_pointer_history', [])
+    retired = {
+        'attempt': correction_attempt,
+        'correction_id': correction_id,
+        'repair_authorization_id': authorization_id,
+        'repair_completion_id': repair['record_id'],
+        'retired_by': retired_by,
+        'retired_at': utc_now().isoformat(),
+    }
+    if not any(item.get('attempt') == correction_attempt and item.get('correction_id') == correction_id and
+               item.get('repair_authorization_id') == authorization_id for item in history):
+        history.append(retired)
+    entry.pop('active_completion_correction_id', None)
+    entry.pop('active_completion_repair_authorization', None)
+
+
 def task_has_effective_completion(feature_dir: pathlib.Path, task_id: str,
                                   entry: dict[str, Any]) -> bool:
     corrections = correction_records(feature_dir, task_id)
@@ -5385,8 +5431,12 @@ def cmd_complete(args: argparse.Namespace) -> None:
 
         repair_authorization = None
         correction_id = None
-        if correction_records(args.feature_dir, args.task_id):
-            die('COMPLETION_CORRECTION_REQUIRED: corrected completion requires explicit repair claim')
+        for correction in correction_records(args.feature_dir, args.task_id):
+            if (correction.get('completed_attempt') == entry.get('attempts') or
+                    not correction_is_repaired(args.feature_dir, args.task_id, correction)):
+                die('COMPLETION_CORRECTION_REQUIRED: corrected completion requires explicit repair claim')
+        retire_finalized_completion_repair_pointers(
+            args.feature_dir, args.task_id, entry, retired_by='complete')
 
         feature = str(doc.get('feature', args.feature_dir.name))
         target = worktree_path(feature, args.task_id)
@@ -6209,6 +6259,9 @@ def cmd_reopen(args: argparse.Namespace) -> None:
         max_attempts = 1 + int(doc.get('max_rework_attempts', 2))
         exhausted = int(target.get('attempts', 0)) >= max_attempts
 
+        retire_finalized_completion_repair_pointers(
+            args.feature_dir, args.task_id, target, retired_by='reopen')
+
         # Preflight every descendant before removing the first workspace. prune_task_workspace
         # repeats the check immediately before each removal to fail closed on intervening edits.
         for tid in stale:
@@ -6786,6 +6839,8 @@ def cmd_start(args: argparse.Namespace) -> None:
                 die('VERIFICATION_RESUME_INVALID: prior builder result changed before start')
             now = utc_now()
             entry = state['tasks'][args.task_id]
+            retire_finalized_completion_repair_pointers(
+                args.feature_dir, args.task_id, entry, retired_by='start')
             entry['status'] = 'running'
             entry['owner'] = args.owner
             entry['claimed_at'] = now.isoformat()
@@ -6802,6 +6857,8 @@ def cmd_start(args: argparse.Namespace) -> None:
             packet = write_packet(doc, task, args.feature_dir, state=state)
             staged_state = copy.deepcopy(state)
             entry = staged_state['tasks'][args.task_id]
+            retire_finalized_completion_repair_pointers(
+                args.feature_dir, args.task_id, entry, retired_by='start')
             if is_unrecovered_partial_claim(entry):
                 die(f'CLAIM_RECOVERY_REQUIRED: {args.task_id} has an unrecovered exceptional claim')
             consume_attempt_authorization(entry, args.task_id, doc, args.feature_dir, staged_state)

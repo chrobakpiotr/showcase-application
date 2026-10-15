@@ -4497,8 +4497,8 @@ class CompletionCorrectionTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
 
-    def _completed_fixture(self):
-        feature, doc = self.completion_fixture(status='completed', attempts=5)
+    def _completed_fixture(self, *, attempts=5):
+        feature, doc = self.completion_fixture(status='completed', attempts=attempts)
         state = harness.load_state(feature, doc)
         entry = state['tasks']['T-A']
         entry.update({'completed_at': '2026-01-01T00:00:00+00:00', 'evidence': 'old-evidence.json'})
@@ -4509,7 +4509,7 @@ class CompletionCorrectionTest(unittest.TestCase):
             'schema_version': 1, 'binding_version': 1,
             'binding_type': 'historical-legacy-completion',
             'repository_id': str(harness.git_common_dir(feature)), 'feature': feature.name,
-            'task': 'T-A', 'attempt': 5, 'historical_status': 'completed',
+            'task': 'T-A', 'attempt': attempts, 'historical_status': 'completed',
             'attempt_identity': harness.legacy_attempt_identity(feature, 'T-A', entry),
             'checkpoint': entry['checkpoint_commit'], 'packet_revision': active['revision_id'],
             'contract_fingerprint': active['contract_sha256'], 'evidence_sha256': 'b' * 64,
@@ -4519,7 +4519,7 @@ class CompletionCorrectionTest(unittest.TestCase):
             'attested_fields': {'checkpoint': entry['checkpoint_commit'], 'packet_revision': active['revision_id'],
                                 'contract_fingerprint': active['contract_sha256'],
                                 'repository': str(harness.git_common_dir(feature)), 'feature': feature.name,
-                                'task': 'T-A', 'attempt': 5},
+                                'task': 'T-A', 'attempt': attempts},
             'created_at': '2026-01-02T00:00:00+00:00',
         }
         binding['binding_id'] = harness.legacy_completion_binding_id(binding)
@@ -4855,6 +4855,126 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         evidence = self.evidence_doc(feature, doc)
         path = self.write_evidence(evidence)
         return feature, doc, correction, authorization, evidence, path
+
+    def test_repaired_completion_can_reopen_and_complete_a_new_attempt(self):
+        from unittest import mock
+
+        feature, doc = self._completed_fixture(attempts=1)
+        correction = self._correct(feature)
+        authorization = self._authorize_repair(feature, correction)
+        self._claim_repair(feature, authorization)
+        self._bind_fixture_repair_checkpoint(feature, owner='repair-worker')
+        repair_evidence = self.write_evidence(self.evidence_doc(feature, doc))
+        self._complete(feature, repair_evidence)
+
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-A']
+        self.assertEqual(correction['record_id'], entry['active_completion_correction_id'])
+        self.assertEqual(authorization['record_id'], entry['active_completion_repair_authorization'])
+        authority_dirs = {
+            'completions': harness.completion_authority_dir(feature, 'completion-records', 'T-A'),
+            'corrections': harness.completion_authority_dir(feature, 'completion-corrections', 'T-A'),
+            'authorizations': harness.completion_authority_dir(
+                feature, 'completion-repair-authorizations', 'T-A'),
+            'claims': harness.completion_authority_dir(feature, 'completion-repair-claims', 'T-A'),
+            'repairs': harness.completion_authority_dir(feature, 'completion-repair-records', 'T-A'),
+        }
+        immutable_before = {
+            name: {path.name: path.read_bytes() for path in directory.glob('*.json')}
+            for name, directory in authority_dirs.items()
+        }
+
+        with mock.patch.object(harness, 'prune_task_workspace'):
+            harness.cmd_reopen(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', reason='new implementation attempt', evidence=None))
+
+        after_reopen = harness.load_state(feature, doc)['tasks']['T-A']
+        self.assertNotIn('active_completion_correction_id', after_reopen)
+        self.assertNotIn('active_completion_repair_authorization', after_reopen)
+        pointer_history = after_reopen['completion_repair_pointer_history']
+        self.assertEqual(1, len(pointer_history))
+        self.assertEqual(1, pointer_history[0]['attempt'])
+        self.assertEqual(correction['record_id'], pointer_history[0]['correction_id'])
+        self.assertEqual(authorization['record_id'], pointer_history[0]['repair_authorization_id'])
+
+        # A reopened state persisted by an older harness may still carry the same
+        # finalized pointers. Starting the retry must retire those stale pointers too.
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-A']['active_completion_correction_id'] = correction['record_id']
+        state['tasks']['T-A']['active_completion_repair_authorization'] = authorization['record_id']
+        harness.save_state(feature, state)
+        with mock.patch.object(harness, 'prepare_task_worktree', return_value=self.root / 'absent-task-worktree'):
+            harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-b'))
+        after_start = harness.load_state(feature, doc)['tasks']['T-A']
+        self.assertNotIn('active_completion_correction_id', after_start)
+        self.assertNotIn('active_completion_repair_authorization', after_start)
+        self.assertEqual(pointer_history, after_start['completion_repair_pointer_history'])
+
+        # Reproduce T-007's persisted state: the old implementation had already
+        # reopened and started attempt 2 while leaving attempt 1's finalized pointers.
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-A']['active_completion_correction_id'] = correction['record_id']
+        state['tasks']['T-A']['active_completion_repair_authorization'] = authorization['record_id']
+        harness.save_state(feature, state)
+        new_evidence = self.write_evidence(self.evidence_doc(feature, doc))
+        with contextlib.redirect_stdout(io.StringIO()):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='worker-b', evidence=str(new_evidence)))
+
+        final_state = harness.load_state(feature, doc)
+        self.assertEqual('completed', final_state['tasks']['T-A']['status'])
+        self.assertEqual(2, final_state['tasks']['T-A']['attempts'])
+        self.assertNotIn('active_completion_correction_id', final_state['tasks']['T-A'])
+        self.assertNotIn('active_completion_repair_authorization', final_state['tasks']['T-A'])
+        self.assertEqual(1, final_state['tasks']['T-A']['completion_repair_pointer_history'][-1]['attempt'])
+        self.assertIsNone(harness.completion_records(feature, 'T-A')[-1].get('correction_id'))
+        for name, prior_records in immutable_before.items():
+            current_records = {path.name: path.read_bytes() for path in authority_dirs[name].glob('*.json')}
+            for filename, content in prior_records.items():
+                self.assertEqual(content, current_records[filename], f'{name}/{filename} was mutated')
+
+        with mock.patch.object(harness, 'prune_task_workspace'):
+            harness.cmd_reopen(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', reason='review attempt 2', evidence=None))
+        self.assertEqual('failed', harness.load_state(feature, doc)['tasks']['T-A']['status'])
+
+    def test_unresolved_older_correction_still_refuses_completion(self):
+        feature, doc = self._completed_fixture(attempts=1)
+        self._correct(feature)
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-A']
+        entry.update({'status': 'running', 'attempts': 2, 'owner': 'worker-b'})
+        harness.save_state(feature, state)
+        path = self.write_evidence(self.evidence_doc(feature, doc))
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='worker-b', evidence=str(path)))
+
+        self.assertIn('COMPLETION_CORRECTION_REQUIRED', error.getvalue())
+        self.assertEqual([], [record for record in harness.completion_records(feature, 'T-A')
+                              if record.get('attempt') == 2])
+
+    def test_current_attempt_correction_requires_canonical_repair_completion(self):
+        feature, doc = self._completed_fixture(attempts=1)
+        correction = self._correct(feature)
+        authorization = self._authorize_repair(feature, correction)
+        self._claim_repair(feature, authorization)
+        self._bind_fixture_repair_checkpoint(feature, owner='repair-worker')
+        self._complete(feature, self.write_evidence(self.evidence_doc(feature, doc)))
+        state = harness.load_state(feature, doc)
+        entry = state['tasks']['T-A']
+        entry.update({'status': 'running', 'owner': 'worker-a'})
+        harness.save_state(feature, state)
+        records_before = harness.completion_records(feature, 'T-A')
+        path = self.write_evidence(self.evidence_doc(feature, doc))
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+
+        self.assertIn('COMPLETION_CORRECTION_REQUIRED', error.getvalue())
+        self.assertEqual(records_before, harness.completion_records(feature, 'T-A'))
 
     def _complete(self, feature, evidence_path, *, owner='repair-worker'):
         with contextlib.redirect_stdout(io.StringIO()):
