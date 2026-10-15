@@ -16,7 +16,11 @@ from unittest import mock
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from verification.store import StoreError, VerificationStore, _RETRY_CONTROL_INPUT_SHA256
-from verification.supervisor import VerificationSupervisor
+from verification.supervisor import (LaunchCapability, SafePrelaunchAbortProof,
+                                     VerificationSupervisor, _SAFE_ABORT_PROOF_SEAL,
+                                     issue_launch_capability, validate_launch_capability,
+                                     safe_prelaunch_abort_proof,
+                                     validate_safe_prelaunch_abort_proof)
 from verification.supervisor import SupervisorState
 from verification.model import Evidence
 from verification.serialization import digest, evidence_record
@@ -25,6 +29,142 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_safe_prelaunch_abort_proof_is_bound_to_exact_terminal(self):
+        terminal = {'execution_id': 'execution-1', 'receipt_hash': 'a' * 64,
+                    'started_hash': 'b' * 64}
+        proof = SafePrelaunchAbortProof('execution-1', 'a' * 64, 'b' * 64,
+                                        _SAFE_ABORT_PROOF_SEAL)
+        self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+        self.assertFalse(validate_safe_prelaunch_abort_proof(object(), terminal))
+        self.assertFalse(validate_safe_prelaunch_abort_proof(
+            dataclasses.replace(proof, receipt_hash='c' * 64), terminal))
+
+    def test_launch_capability_is_bound_and_single_use(self):
+        consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+        reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+        capability = issue_launch_capability(consumption_id, reservation_id)
+
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id='launch-consumption-v1:sha256:' + 'd' * 64,
+            reservation_id=reservation_id))
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id=consumption_id,
+            reservation_id='launch-reservation-v1:sha256:' + 'e' * 64))
+        self.assertTrue(validate_launch_capability(capability,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+        self.assertFalse(validate_launch_capability(capability,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+
+    def test_launch_capability_cannot_be_constructed_or_forged(self):
+        consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+        reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+        with self.assertRaisesRegex(ValueError, 'launch-capability-unavailable'):
+            LaunchCapability(consumption_id, reservation_id)
+        forged = object.__new__(LaunchCapability)
+        self.assertFalse(validate_launch_capability(forged,
+            consumption_id=consumption_id, reservation_id=reservation_id))
+
+    def test_launch_capability_is_spent_atomically_under_concurrent_validation(self):
+        capability = issue_launch_capability('consumption', 'reservation')
+        results = []
+        barrier = threading.Barrier(8)
+
+        def validate():
+            barrier.wait()
+            results.append(validate_launch_capability(capability,
+                consumption_id='consumption', reservation_id='reservation'))
+
+        workers = [threading.Thread(target=validate) for _ in range(8)]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+        self.assertEqual(1, sum(results))
+
+    def test_launch_authorizer_metadata_and_ids_are_bound_before_payload_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            observed = {}
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+
+            def authorize(metadata):
+                observed.update(metadata)
+                return {'reservation_id': reservation_id, 'consumption_id': consumption_id,
+                        'capability': issue_launch_capability(consumption_id, reservation_id),
+                        'plan_id': metadata['plan_id'], 'unit_id': 'unit-1',
+                        'obligation_ids': ['obligation-1'], 'admission_id': 'admission-1',
+                        'admission_sha256': 'a' * 64, 'reservation_transition_id': 'reserve-1',
+                        'consumption_transition_id': 'consume-1',
+                        'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1}
+
+            VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                plan_id='plan-1', launch_authorizer=authorize)
+
+            self.assertEqual(store.repository_id, observed['repository_id'])
+            self.assertEqual(observed['execution_id'], observed['repository_admission_id'])
+            self.assertEqual('family', observed['family_id'])
+            self.assertEqual('attempt', observed['attempt_id'])
+            marker = json.loads(next(store.executions.glob('*/launching.json')).read_text())
+            self.assertEqual(reservation_id, marker['launch_reservation_id'])
+            self.assertEqual(consumption_id, marker['launch_consumption_id'])
+            self.assertEqual('unit-1', marker['unit_id'])
+            terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
+            self.assertEqual(reservation_id, terminal['launch_reservation_id'])
+            self.assertEqual(consumption_id, terminal['launch_consumption_id'])
+            self.assertRegex(terminal['receipt_hash'], r'^[0-9a-f]{64}$')
+            self.assertEqual('DRAINED', terminal['drainage'])
+            self.assertIn('launch', backend.events)
+
+    def test_launch_authorizer_rejection_prevents_payload_launch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            with self.assertRaisesRegex(RuntimeError, 'VERIFICATION_LAUNCH_CAPABILITY_INVALID'):
+                VerificationSupervisor(store).execute(backend, worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required',
+                    plan_id='plan-1',
+                    launch_authorizer=lambda _metadata: {
+                        'reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                        'consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                        'capability': object()})
+            self.assertIn('prepare', backend.events)
+            self.assertNotIn('launch', backend.events)
+            self.assertFalse(list(store.executions.glob('*/launching.json')))
+
+    def test_launch_authorizer_cannot_reuse_spent_capability(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            reservation_id = 'launch-reservation-v1:sha256:' + 'b' * 64
+            consumption_id = 'launch-consumption-v1:sha256:' + 'c' * 64
+            capability = issue_launch_capability(consumption_id, reservation_id)
+
+            def authorize(_metadata):
+                return {'reservation_id': reservation_id, 'consumption_id': consumption_id,
+                        'capability': capability, 'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                        'obligation_ids': ['obligation-1'], 'admission_id': 'admission-1',
+                        'admission_sha256': 'a' * 64, 'reservation_transition_id': 'reserve-1',
+                        'consumption_transition_id': 'consume-1',
+                        'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1}
+
+            supervisor = VerificationSupervisor(store)
+            common = dict(worktree=root, family_id='family', gate_id='gate',
+                command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                timeout_seconds=2, sandbox_mode='required', plan_id='plan-1',
+                launch_authorizer=authorize)
+            supervisor.execute(backend, attempt_id='attempt-1', **common)
+            with self.assertRaisesRegex(RuntimeError, 'VERIFICATION_LAUNCH_CAPABILITY_INVALID'):
+                supervisor.execute(backend, attempt_id='attempt-2', **common)
+            self.assertEqual(1, backend.events.count('launch'))
+
     def test_plan_id_and_executable_binding_reach_backend_prepare(self):
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp).resolve()
@@ -1250,6 +1390,128 @@ gradle.projectsEvaluated {
                 VerificationStore(root, control_root=root / 'control'), root))
             self.assertEqual('ABORTED_PREPARED', recovered[0].state.value)
             self.assertEqual(0, sum(event == 'launch' for event in backend.events))
+
+    def test_prelaunch_recovery_authority_terminalizes_only_after_durable_abort(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            backend = LifecycleBackend(store, root)
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(backend, worktree=root, family_id='family', attempt_id='attempt',
+                    gate_id='gate', command='python3 -c pass', cwd=root, run_dir=root / 'run',
+                    timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            started = json.loads((journal / 'started.json').read_text())
+            fields = {
+                'launch_reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                'launch_consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                'obligation_ids': ['verification-obligation-v2:sha256:' + 'd' * 64],
+                'admission_id': 'admission-1', 'admission_sha256': 'a' * 64,
+                'reservation_transition_id': 'reserve-1', 'consumption_transition_id': 'consume-1',
+                'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1,
+            }
+            callbacks = []
+
+            def authorize_recovery(record):
+                self.assertEqual(started, record)
+                return fields
+
+            def terminalize(terminal, proof):
+                callbacks.append((terminal, proof))
+                self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+
+            result = supervisor.recover(prelaunch_recovery_authorizer=authorize_recovery,
+                                         prelaunch_terminalizer=terminalize)
+            self.assertEqual('ABORTED_PREPARED', result[0].state.value)
+            terminal = result[0].terminal
+            self.assertEqual(fields['launch_reservation_id'], terminal['launch_reservation_id'])
+            self.assertEqual(fields['launch_consumption_id'], terminal['launch_consumption_id'])
+            self.assertEqual(fields['admission_sha256'], terminal['admission_sha256'])
+            self.assertEqual(fields, {key: terminal[key] for key in fields})
+            self.assertEqual(1, len(callbacks))
+            self.assertTrue((journal / 'terminal.json').is_file())
+            self.assertTrue((journal / 'drained.json').is_file())
+            authority_record = json.loads((journal / 'launch-authority.json').read_text())
+            self.assertEqual({'schema_version': 1, 'execution_id': started['execution_id'], **fields},
+                             authority_record)
+            fabricated_id = 'f' * 32
+            fabricated = dict(terminal, execution_id=fabricated_id)
+            with self.assertRaisesRegex(RuntimeError, 'SAFE_PRELAUNCH_ABORT_PROOF_UNAVAILABLE'):
+                safe_prelaunch_abort_proof(supervisor, store.executions / fabricated_id,
+                    fabricated_id, fabricated, reason='prepared-never-launched')
+
+    def test_prelaunch_terminalizer_failure_keeps_admission_unresolved_then_retries(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            fields = {
+                'launch_reservation_id': 'launch-reservation-v1:sha256:' + 'b' * 64,
+                'launch_consumption_id': 'launch-consumption-v1:sha256:' + 'c' * 64,
+                'plan_id': 'plan-1', 'unit_id': 'unit-1',
+                'obligation_ids': ['verification-obligation-v2:sha256:' + 'd' * 64],
+                'admission_id': 'admission-1', 'admission_sha256': 'a' * 64,
+                'reservation_transition_id': 'reserve-1', 'consumption_transition_id': 'consume-1',
+                'plan_acceptance_transition_id': 'accept-1', 'lifecycle_generation': 1,
+            }
+            def authorize(_started):
+                return fields
+            failed = supervisor.recover(prelaunch_recovery_authorizer=authorize,
+                                        prelaunch_terminalizer=lambda *_: (_ for _ in ()).throw(RuntimeError()))
+            self.assertEqual('UNCERTAIN', failed[0].state.value)
+            self.assertTrue((journal / 'terminal.json').is_file())
+            self.assertFalse((journal / 'drained.json').exists())
+            terminalized = []
+            retried = supervisor.recover(prelaunch_terminalizer=lambda terminal, proof:
+                terminalized.append((terminal, proof)))
+            self.assertEqual('TERMINAL', retried[0].state.value)
+            self.assertEqual(1, len(terminalized))
+            terminal, proof = terminalized[0]
+            self.assertTrue(validate_safe_prelaunch_abort_proof(proof, terminal))
+            self.assertTrue((journal / 'drained.json').is_file())
+
+    def test_prelaunch_recovery_authorizer_failure_does_not_publish_terminal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            result = supervisor.recover(prelaunch_recovery_authorizer=lambda _started:
+                (_ for _ in ()).throw(RuntimeError('unavailable')))
+            self.assertEqual('UNCERTAIN', result[0].state.value)
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
+
+    def test_plan_bound_prelaunch_recovery_requires_authorizer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp).resolve()
+            store = VerificationStore(root, control_root=root / 'control')
+            supervisor = VerificationSupervisor(store)
+            supervisor.inject_crash_at = 'after-started'
+            with self.assertRaisesRegex(RuntimeError, 'injected-crash'):
+                supervisor.execute(LifecycleBackend(store, root), worktree=root, family_id='family',
+                    attempt_id='attempt', gate_id='gate', command='python3 -c pass', cwd=root,
+                    run_dir=root / 'run', timeout_seconds=2, sandbox_mode='required', plan_id='plan-1')
+            journal = next(store.executions.iterdir())
+            result = supervisor.recover()
+            self.assertEqual('UNCERTAIN', result[0].state.value)
+            self.assertEqual('SAFE_PRELAUNCH_ABORT_AUTHORITY_REQUIRED', result[0].reason_code)
+            self.assertFalse((journal / 'terminal.json').exists())
+            self.assertFalse((journal / 'drained.json').exists())
 
     def test_corrupt_launch_marker_keeps_repository_admission_blocked(self):
         with tempfile.TemporaryDirectory() as temp:
