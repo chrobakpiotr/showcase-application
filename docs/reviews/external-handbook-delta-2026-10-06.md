@@ -1,4 +1,4 @@
-# External handbook delta — Showcase master review — updated 2026-10-10
+# External handbook delta — Showcase master review — updated 2026-10-17
 
 Prepared for the designated owner of the separate handbook. This is a
 source-bound handoff from the Showcase repository; it does not update that
@@ -35,6 +35,8 @@ and fresh evidence against the intended handbook revision.
   06b retry, parking, invalid-identity, retention and ordering rules also stay
   open. The review synthesis is in
   [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md).
+  The point-by-point mapping from existing prototypes to their unresolved
+  claims is in the [design evidence coverage matrix](../specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md).
   Candidate C is the accepted REF-Q design direction, not implementation or
   qualification evidence. No AMQP consumer is enabled and no production
   readiness is claimed. See the
@@ -52,10 +54,13 @@ and fresh evidence against the intended handbook revision.
   Angular suite passed 33 tests, and the browser check covered anonymous
   denial, ORDER_READ access, absence of mutation controls, and 320/768/1024/1440
   pixel viewports. This does not imply operator redrive support.
-- **Dependency risk:** `a0f12b9` adds expiry validation; `a675836` records the
-  exact DOMPurify `GHSA-6688-9rhm-gjv2` accepted risk through 2026-11-03 without
-  changing the CVSS threshold. It is accepted risk, not remediation. The OWASP
-  job passed on pushed `a6fac3c33376` in [run 37512052634](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052634).
+- **Dependency risk, historical:** `a0f12b9` added expiry validation and
+  `a675836` temporarily recorded the exact DOMPurify
+  `GHSA-6688-9rhm-gjv2` accepted risk through 2026-11-03 without changing the
+  CVSS threshold. That entry was later removed after `deddce1` upgraded the
+  Swagger UI WebJar and its vulnerable transitive dependency. The old OWASP
+  result on `a6fac3c33376` in [run 37512052634](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052634)
+  is historical; see the current scan below.
 - **Harness consumer pin:** `4fd9abe` adds
   `tooling/agent-harness/requirements.txt` to the protocol fingerprint input;
   a focused regression test proves a pin change changes the digest. This
@@ -75,6 +80,39 @@ and fresh evidence against the intended handbook revision.
   refusal `BACKEND_UNAVAILABLE` remain. The GitHub runner is not qualified,
   and this evidence does not claim production readiness or authorize payload
   execution.
+
+## Current implementation and CI update — 2026-10-17
+
+- **SDD-OBS-001 verification-v2 slice:** the current Showcase lifecycle reports
+  T-001 through T-009, T-900, and T-990 completed. T-900's corrected repair
+  evidence passed full discovery (922 tests) in the pinned evaluator image;
+  Harness accepted the T-900 and T-007 repairs. T-990 was re-gated against
+  those repaired inputs and its closure record reports 144/144 criteria
+  passed. See the [T-990 closure repair record](../specs/SDD-OBS-001/evidence/integration/T-990/repair-2026-10-14/closure-repair.json),
+  [T-900 repair report](../specs/SDD-OBS-001/evidence/T-900-repair-2026-10-13/report.json),
+  and [integration report](../specs/SDD-OBS-001/evidence/integration/T-990/integration-report.md).
+  This is an implementation handoff, not a production qualification or closure
+  of the separate S30-06 design gate.
+- **Current main verification:** pushed SHA
+  `9455e8a36c1694998b0a521fe48099f71c45585c` passed [CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281347),
+  [Agentic SDD CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281330),
+  [CodeQL](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281331),
+  and [OpenSSF Scorecard](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281343).
+  The push event skipped Dependency Review. CI includes backend quality/tests,
+  PostgreSQL and RabbitMQ evidence checks, Playwright, frontend checks, OWASP
+  DependencyCheck, SBOM, Trivy, PIT, infrastructure validation, repository
+  guards, and documentation links.
+- **OWASP dependency correction:** `deddce1` upgrades the managed Swagger UI
+  WebJar to `5.33.2` and removes the two accepted-risk suppressions for the
+  bundled vulnerable DOMPurify version. `9455e8a` refreshes the registered
+  Gradle input digest so verification retry evidence binds to the changed
+  committed `build.gradle`. OWASP passes on current `main`; do not carry the
+  prior accepted-risk entry forward as an open risk.
+- **Remaining master-plan limits:** S30-06 remains OPEN with its design gate
+  open; REF-Q is distinct from PROD-Q and no production qualification is
+  claimed. S05-05b remains blocked on an accepted representative workload and
+  latency target. S05-07 remains partial until the designated owner applies
+  this source-linked delta to the separate handbook.
 
 ## Historical workflow status and limits — through 2026-10-07
 

@@ -1,14 +1,40 @@
-# Showcase master review progress — updated 2026-10-10
+# Showcase master review progress — updated 2026-10-17
 
 This is a source-bound implementation handoff for the Showcase slice of the
 master review plan. It is not a whole-repository audit, evaluator approval,
 production qualification, or evidence that another agent's work is complete.
 
-Showcase slice estimate: **85%** using equal task weighting across the ten
-listed S05 tasks (7 DONE, 2 PARTIAL/IN REVIEW, 1 BLOCKED; partial values are
-estimated at 70–80%). This is not the percentage for the combined
-Showcase+Harness+Benchmark master plan; those task states are not aggregated
-here.
+S05 slice estimate: **85%**, carried forward from its 2026-10-10 assessment,
+using equal task weighting across the ten listed S05 tasks (7 DONE, 2
+PARTIAL/IN REVIEW, 1 BLOCKED; partial values estimated at 70–80%). This update
+does not reassess those S05 task estimates and is not a percentage for the
+combined Showcase+Harness+Benchmark master plan.
+
+## Verification-v2 completion — 2026-10-17
+
+`harness.py status docs/specs/SDD-OBS-001` reports T-001 through T-009, T-900,
+and T-990 completed, with no active task. This closes the Showcase execution
+slice tracked by SDD-OBS-001; it does not close the separate S30-06 design gate
+or qualify a production environment.
+
+The pushed `main` head is `9455e8a36c1694998b0a521fe48099f71c45585c`.
+The [main CI run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281347)
+and [Agentic SDD CI run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281330)
+both completed successfully on that SHA. CodeQL
+([run 38811281331](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281331))
+and OpenSSF Scorecard
+([run 38811281343](https://github.com/chrobakpiotr/showcase-application/actions/runs/38811281343))
+also passed. The push event skipped Dependency Review; this is not a PR review
+result. The CI suite included OWASP DependencyCheck, backend build/quality/tests,
+PostgreSQL and RabbitMQ evidence checks, Playwright, frontend checks, SBOM,
+Trivy, PIT, infrastructure validation, repository guards, and documentation
+links. The SDD workflow passed harness tests, behavioral evaluations, protocol
+validation, examples validation, and its aggregate quality gate.
+
+The CI repair commit `9455e8a` updates the registered Gradle build-input digest
+after the Swagger UI WebJar upgrade in `deddce1`; without it, retry evidence
+validation correctly failed closed on the changed `build.gradle`. This repairs
+the verification-v2 CI path; it does not change the S05 progress estimate.
 
 ## Task status at this snapshot — 2026-10-10
 
@@ -18,20 +44,20 @@ here.
 | S05-02 — duplicate Rabbit testcase evidence | DONE | `baaaef7`; regression reproducer and validator guard. `python3 -m unittest discover -s tooling/scripts/tests` passed 50 tests. |
 | S05-03a — order summary log privacy | DONE | `f7526d3`; focused `LogOrderAdapterTest` passed, including sensitive-field and exception-marker checks. |
 | S05-03b — dispatch/mock log privacy | DONE | `52e1837`; capture tests and bounded inventory in `S05-03b-log-privacy-inventory-2026-10-05.md`. Focused persistence, Camel, Kafka and AWS tests passed. `61aa560` applies formatter-only changes to seven AWS/Camel/Kafka test files; persistence plus AWS/Camel/Kafka Spotless checks now all pass in the Java 25 `/workspace` builder container. |
-| S05-04 — S30-06 scope revision | IN REVIEW — design blocked | Accepted D1–D5 and the scoped Candidate C contract amendment remain unchanged; REF-Q and PROD-Q are separate, and S30-06 remains OPEN. Fresh read-only scope and architecture reviews on 2026-10-10 confirmed Candidate C is a direction, not a closed design. They identified unresolved restore freshness/anti-rollback authority, per-instance identity and exact Rabbit connection fencing, PG/Redis cross-store recovery, permit/admission linearization, accepted module/API ownership, and remaining 06b retry/parking/ordering rules. The `restart: "no"` probe in `8f5675a` covers only a disposable worker's stop/controller-exit behavior, not daemon restart or REF-Q integration. The design gate remains OPEN: no hash-bound verification contract or gate PASS exists, and implementation tasks/consumer enablement remain unauthorized. No production qualification is claimed. The review synthesis and next evidence sequence are recorded in [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md). See also [`spec.md`](../specs/S30-AMQP-POISON-001/spec.md), [`plan.md`](../specs/S30-AMQP-POISON-001/plan.md), and [`revision-proposal-2026-10-05.md`](../specs/S30-AMQP-POISON-001/revision-proposal-2026-10-05.md). |
+| S05-04 — S30-06 scope revision | IN REVIEW — design blocked | Accepted D1–D5 and the scoped Candidate C contract amendment remain unchanged; REF-Q and PROD-Q are separate, and S30-06 remains OPEN. Fresh read-only scope and architecture reviews on 2026-10-10 confirmed Candidate C is a direction, not a closed design. They identified unresolved restore freshness/anti-rollback authority, per-instance identity and exact Rabbit connection fencing, PG/Redis cross-store recovery, permit/admission linearization, accepted module/API ownership, and remaining 06b retry/parking/ordering rules. The `restart: "no"` probe in `8f5675a` covers only a disposable worker's stop/controller-exit behavior, not daemon restart or REF-Q integration. The design gate remains OPEN: no hash-bound verification contract or gate PASS exists, and implementation tasks/consumer enablement remain unauthorized. No production qualification is claimed. The evidence-to-gap map is in [`design-evidence-coverage-matrix-2026-10-17.md`](../specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md); the review synthesis and next evidence sequence remain in [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md). See also [`spec.md`](../specs/S30-AMQP-POISON-001/spec.md), [`plan.md`](../specs/S30-AMQP-POISON-001/plan.md), and [`revision-proposal-2026-10-05.md`](../specs/S30-AMQP-POISON-001/revision-proposal-2026-10-05.md). |
 | S05-05a — PostgreSQL measurement fixture | DONE | `0c1f4e2` records the successful PostgreSQL 18.6/Docker 29.8.2 run, source and image digests, ten query summaries, and all 60 raw JSON plans in `tooling/performance/evidence/S05-05a-2026-10-05/`. Three helper tests and artifact-count checks pass. This is reproducible synthetic sensitivity evidence, not production workload qualification or an SLO. |
 | S05-05b — query/index comparison | BLOCKED | The 05a fixture now has reproducible synthetic evidence, but this comparison still requires an accepted representative workload/latency target. No query or index change is authorized by the synthetic sensitivity reports alone. |
 | S05-06 — parked-dispatch UI | DONE | `513c7df` adds a read-only parked-dispatch page on the existing ORDER_READ endpoint, with safe reason labels, age/attempt details, refresh and responsive states. 33 focused Angular tests, app/spec/E2E TypeScript compilation, ESLint, formatting, Playwright discovery and the backend ORDER_READ/deny-mutation security test passed. The Compose/Keycloak browser test passed: anonymous endpoint access returned 401; an ORDER_READ viewer loaded the page; no redrive control appeared; viewport widths 320/768/1024/1440 had no horizontal overflow. |
-| S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. Latest main evidence is now available for pushed SHA `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`: CI run [`38047027408`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027408), Agentic SDD CI [`38047027482`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027482), CodeQL [`38047027494`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027494), and Scorecard [`38047027409`](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027409) all completed successfully on 2026-10-10. The main CI jobs passed, including Java 25 backend build/quality/tests, critical PostgreSQL and RabbitMQ evidence, Playwright, frontend, OWASP DependencyCheck, SBOM, Trivy, PIT, infrastructure validation, repository guards, and documentation links. Dependency Review was skipped because the event was a push. The Agentic SDD protocol, harness, examples, and behavioral-evaluation jobs also passed. A manually dispatched Agentic SDD workflow on the older T-008 branch (`3d9c4bf`) later failed; that branch was seven commits behind current main and reported stale spec inventory plus harness-test failures. It does not change the green main result or qualify the T-008 branch against current main. Earlier #154/#155/#157/#158 remain historical. See [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). The source-linked delta in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md) is refreshed, including the latest 04b qualification; the designated owner still must apply it to the separate handbook. This repo-only task does not edit another repository. |
-| S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. Local follow-up `a675836` adds an exact PURL+advisory suppression for `GHSA-6688-9rhm-gjv2` through the existing 2026-11-03 review deadline, with the CVSS threshold unchanged. Seven validator tests passed, forced DependencyCheck scans for `:adapter:web` and `:application:ecommerce` reported zero unsuppressed vulnerabilities, and OWASP succeeded on pushed `a6fac3c33376` in run `37512052634`. The advisory remains accepted risk pending its removal condition, not a remediated dependency. |
+| S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. Current main and Agentic SDD CI evidence is recorded above for pushed SHA `9455e8a36c1694998b0a521fe48099f71c45585c`; both workflows pass. The source-linked delta remains in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md), and the designated owner still must apply it to the separate handbook. This repository update does not infer or change external handbook state. Historical workflow evidence and the older-branch failure are recorded below in the prior snapshot and [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). |
+| S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. The temporary exact PURL+advisory suppression for `GHSA-6688-9rhm-gjv2` was removed after `deddce1` upgraded Swagger UI WebJar to `5.33.2`. `9455e8a` refreshed the build-input digest, and current main's OWASP DependencyCheck passed in CI run `38811281347`; the advisory is no longer an open accepted risk. |
 
 The master handover's original review baseline was `50c18f9`; the current
-Showcase `main` snapshot for this update is `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`.
-Earlier source-level and CI results above remain historical; current remote
-workflow evidence is recorded in the linked CI evidence document. S05-04 is
-still IN REVIEW because the S30-06 design gate is open. S05-07 remains PARTIAL
-until the designated owner applies this source-linked delta to the separate
-handbook; no external handbook state is inferred.
+Showcase `main` snapshot is `9455e8a36c1694998b0a521fe48099f71c45585c`.
+S05-04 remains IN REVIEW because the S30-06 design gate is open. S05-05b
+remains BLOCKED pending an accepted representative workload and latency target.
+S05-07 remains PARTIAL until the designated owner applies this source-linked
+delta to the separate handbook; no external handbook state is inferred. The
+completed SDD-OBS-001 execution slice does not resolve those independent items.
 
 ## External handbook delta for its owner
 
