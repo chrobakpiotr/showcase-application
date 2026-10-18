@@ -1,0 +1,72 @@
+{
+  "assumptions": [
+    "The accepted R08 spec and superseding ADR text are the source artifacts for the four T-001 criteria."
+  ],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "378677671746d2717e875cfcb35d1ec658f41df4",
+  "commands": [
+    "python3 tooling/agent-harness/harness.py validate docs/specs/API-ACCESS-001"
+  ],
+  "contract_fingerprint": "484f6a99c5c81a2449335706f4ffd6aae1dbb602c4df8274c1d65a3194700ca0",
+  "criterion_results": {
+    "AC-001": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-004": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-009": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-014": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "API-ACCESS-001",
+  "harness_verification": [
+    {
+      "command": "python3 tooling/agent-harness/harness.py validate docs/specs/API-ACCESS-001",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": "docs/specs/API-ACCESS-001/evidence/T-001-attempt-1/validate.stderr.txt",
+      "stdout": "docs/specs/API-ACCESS-001/evidence/T-001-attempt-1/validate.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:fdeb51496cee4032da43f22dedc89d13d36568be8f634e7981dc42580d93cb7b",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "feefaa9810e98242233a067b4f73865bdd633fced1ef67115ce989fd693ea020",
+      "criteria": [
+        "AC-001",
+        "AC-004",
+        "AC-009",
+        "AC-014"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "229e5cc2190d7bebccf0f0caca3215430c8c87d320c38e547beefa537314a197",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "Current-epoch T-001 source-of-truth validation passed; accepted specification and ADR artifacts are unchanged and remain the criterion evidence.",
+  "task": "T-001"
+}

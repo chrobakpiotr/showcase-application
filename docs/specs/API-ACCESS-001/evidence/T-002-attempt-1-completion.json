@@ -1,0 +1,98 @@
+{
+  "assumptions": [],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "449474e31d12bac5c2133a09ce324a0e0a9d3693",
+  "commands": [
+    "./gradlew :adapter:security:test --tests com.cp.ecommerce.adapter.security.configuration.WebSecurityConfigurationTest --no-configuration-cache --no-parallel"
+  ],
+  "contract_fingerprint": "24476718f5adcd1bc5fcf6deaaecaaa416802cc2d7f310e6739d2fce9a80f4d0",
+  "criterion_results": {
+    "AC-001": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-002": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-003": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-004": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-005": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-006": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-007": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-008": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "API-ACCESS-001",
+  "harness_verification": [
+    {
+      "command": "./gradlew :adapter:security:test --tests com.cp.ecommerce.adapter.security.configuration.WebSecurityConfigurationTest --no-configuration-cache --no-parallel",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": "docs/specs/API-ACCESS-001/evidence/T-002-attempt-1/security.stderr.txt",
+      "stdout": "docs/specs/API-ACCESS-001/evidence/T-002-attempt-1/security.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:4bc24358099155607b489ba3cceede4a936ea1f6d6689cb4b80849b91fa03685",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "eeb81c07292840c7fbbc76c370dd32f072e484ec8a398098e5fd27ff13108c8d",
+      "criteria": [
+        "AC-001",
+        "AC-002",
+        "AC-003",
+        "AC-004",
+        "AC-005",
+        "AC-006",
+        "AC-007",
+        "AC-008"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "08f03d8533380fdc2d35730a19568fedf1e9a696df9e1313484e4c6aef0d6def",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "T-002 authorization boundary test passed; the public reviews matcher no longer grants unsupported moderation methods.",
+  "task": "T-002"
+}

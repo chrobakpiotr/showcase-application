@@ -1,0 +1,138 @@
+> Task :domain:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:compileJava UP-TO-DATE
+> Task :domain:compileJava UP-TO-DATE
+> Task :adapter:common:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:compileJava UP-TO-DATE
+> Task :adapter:security:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:security:compileJava UP-TO-DATE
+> Task :adapter:security:processResources UP-TO-DATE
+> Task :adapter:security:classes UP-TO-DATE
+> Task :adapter:security:jar UP-TO-DATE
+> Task :domain:processResources NO-SOURCE
+> Task :domain:classes UP-TO-DATE
+> Task :domain:jar UP-TO-DATE
+> Task :foundation:processResources NO-SOURCE
+> Task :foundation:classes UP-TO-DATE
+> Task :foundation:jar UP-TO-DATE
+> Task :adapter:ai:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:ai:compileJava UP-TO-DATE
+> Task :adapter:ai:processResources UP-TO-DATE
+> Task :adapter:ai:classes UP-TO-DATE
+> Task :adapter:ai:jar UP-TO-DATE
+> Task :adapter:amqp:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:amqp:compileJava UP-TO-DATE
+> Task :adapter:amqp:processResources UP-TO-DATE
+> Task :adapter:amqp:classes UP-TO-DATE
+> Task :adapter:amqp:jar UP-TO-DATE
+> Task :adapter:aws:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:aws:compileJava UP-TO-DATE
+> Task :adapter:aws:processResources UP-TO-DATE
+> Task :adapter:aws:classes UP-TO-DATE
+> Task :adapter:aws:jar UP-TO-DATE
+> Task :adapter:camel:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:camel:compileJava UP-TO-DATE
+> Task :adapter:camel:processResources UP-TO-DATE
+> Task :adapter:camel:classes UP-TO-DATE
+> Task :adapter:camel:jar UP-TO-DATE
+> Task :adapter:common:processResources NO-SOURCE
+> Task :adapter:common:classes UP-TO-DATE
+> Task :adapter:common:jar UP-TO-DATE
+> Task :adapter:common:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:compileTestJava UP-TO-DATE
+> Task :adapter:common:processTestResources NO-SOURCE
+> Task :adapter:common:testClasses UP-TO-DATE
+> Task :adapter:common:testJar UP-TO-DATE
+> Task :adapter:kafka:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:kafka:compileJava UP-TO-DATE
+> Task :adapter:kafka:processResources UP-TO-DATE
+> Task :adapter:kafka:classes UP-TO-DATE
+> Task :adapter:kafka:jar UP-TO-DATE
+> Task :adapter:mail:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:persistence:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:persistence:compileJava UP-TO-DATE
+> Task :adapter:mail:compileJava UP-TO-DATE
+> Task :adapter:mail:processResources UP-TO-DATE
+> Task :adapter:mail:classes UP-TO-DATE
+> Task :adapter:mail:jar UP-TO-DATE
+> Task :adapter:persistence:processResources UP-TO-DATE
+> Task :adapter:persistence:classes UP-TO-DATE
+> Task :adapter:persistence:jar UP-TO-DATE
+> Task :adapter:security:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:web:generateEffectiveLombokConfig UP-TO-DATE
+> Task :application:orchestration:generateEffectiveLombokConfig UP-TO-DATE
+> Task :application:orchestration:compileJava UP-TO-DATE
+> Task :adapter:web:compileJava UP-TO-DATE
+> Task :adapter:security:compileTestJava UP-TO-DATE
+> Task :adapter:security:processTestResources UP-TO-DATE
+> Task :adapter:security:testClasses UP-TO-DATE
+> Task :adapter:web:processResources NO-SOURCE
+> Task :adapter:web:classes UP-TO-DATE
+> Task :adapter:web:jar UP-TO-DATE
+> Task :application:orchestration:processResources NO-SOURCE
+> Task :application:orchestration:classes UP-TO-DATE
+> Task :application:orchestration:jar UP-TO-DATE
+> Task :adapter:security:test UP-TO-DATE
+== Build time summary ==
+                   :domain:generateEffectiveLombokConfig | 0S | 0% | 
+               :foundation:generateEffectiveLombokConfig | 0S | 0% | 
+                                 :foundation:compileJava | 0S | 0% | 
+                                     :domain:compileJava | 0S | 0% | 
+           :adapter:common:generateEffectiveLombokConfig | 0S | 0% | 
+                             :adapter:common:compileJava | 0S | 0% | 
+         :adapter:security:generateEffectiveLombokConfig | 0S | 0% | 
+                           :adapter:security:compileJava | 0S | 0% | 
+                      :adapter:security:processResources | 0S | 0% | 
+                                   :adapter:security:jar | 0S | 0% | 
+                                :domain:processResources | 0S | 0% | 
+                                             :domain:jar | 0S | 0% | 
+                            :foundation:processResources | 0S | 0% | 
+                                         :foundation:jar | 0S | 0% | 
+               :adapter:ai:generateEffectiveLombokConfig | 0S | 0% | 
+                                 :adapter:ai:compileJava | 0S | 0% | 
+                            :adapter:ai:processResources | 0S | 0% | 
+                                         :adapter:ai:jar | 0S | 0% | 
+             :adapter:amqp:generateEffectiveLombokConfig | 0S | 0% | 
+                               :adapter:amqp:compileJava | 0S | 0% | 
+                          :adapter:amqp:processResources | 0S | 0% | 
+                                       :adapter:amqp:jar | 0S | 0% | 
+              :adapter:aws:generateEffectiveLombokConfig | 0S | 0% | 
+                                :adapter:aws:compileJava | 0S | 0% | 
+                           :adapter:aws:processResources | 0S | 0% | 
+                                    :adapter:aws:classes | 0S | 0% | 
+                                        :adapter:aws:jar | 0S | 0% | 
+            :adapter:camel:generateEffectiveLombokConfig | 0S | 0% | 
+                              :adapter:camel:compileJava | 0S | 0% | 
+                                      :adapter:camel:jar | 0S | 0% | 
+                        :adapter:common:processResources | 0S | 0% | 
+                                     :adapter:common:jar | 0S | 0% | 
+       :adapter:common:generateTestEffectiveLombokConfig | 0S | 0% | 
+                         :adapter:common:compileTestJava | 0S | 0% | 
+                    :adapter:common:processTestResources | 0S | 0% | 
+                                 :adapter:common:testJar | 0S | 0% | 
+            :adapter:kafka:generateEffectiveLombokConfig | 0S | 0% | 
+                              :adapter:kafka:compileJava | 0S | 0% | 
+                                      :adapter:kafka:jar | 0S | 0% | 
+             :adapter:mail:generateEffectiveLombokConfig | 0S | 0% | 
+      :adapter:persistence:generateEffectiveLombokConfig | 0S | 0% | 
+                        :adapter:persistence:compileJava | 0S | 0% | 
+                               :adapter:mail:compileJava | 0S | 0% | 
+                          :adapter:mail:processResources | 0S | 0% | 
+                                       :adapter:mail:jar | 0S | 0% | 
+                   :adapter:persistence:processResources | 0S | 0% | 
+                                :adapter:persistence:jar | 0S | 0% | 
+     :adapter:security:generateTestEffectiveLombokConfig | 0S | 0% | 
+              :adapter:web:generateEffectiveLombokConfig | 0S | 0% | 
+:application:orchestration:generateEffectiveLombokConfig | 0S | 0% | 
+                  :application:orchestration:compileJava | 0S | 0% | 
+                                :adapter:web:compileJava | 0S | 0% | 
+                       :adapter:security:compileTestJava | 0S | 0% | 
+                  :adapter:security:processTestResources | 0S | 0% | 
+                           :adapter:web:processResources | 0S | 0% | 
+                                        :adapter:web:jar | 0S | 0% | 
+             :application:orchestration:processResources | 0S | 0% | 
+                          :application:orchestration:jar | 0S | 0% | 
+                                  :adapter:security:test | 0S | 0% | 
+
+BUILD SUCCESSFUL in 6s
+54 actionable tasks: 54 up-to-date

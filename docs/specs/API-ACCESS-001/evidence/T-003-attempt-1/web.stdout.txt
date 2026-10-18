@@ -1,0 +1,100 @@
+> Task :domain:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:compileJava UP-TO-DATE
+> Task :domain:compileJava UP-TO-DATE
+> Task :domain:processResources NO-SOURCE
+> Task :domain:classes UP-TO-DATE
+> Task :domain:jar UP-TO-DATE
+> Task :foundation:processResources NO-SOURCE
+> Task :foundation:classes UP-TO-DATE
+> Task :foundation:jar UP-TO-DATE
+> Task :adapter:common:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:compileJava UP-TO-DATE
+> Task :adapter:common:processResources NO-SOURCE
+> Task :adapter:common:classes UP-TO-DATE
+> Task :adapter:common:jar UP-TO-DATE
+> Task :adapter:common:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:compileTestJava UP-TO-DATE
+> Task :adapter:common:processTestResources NO-SOURCE
+> Task :adapter:common:testClasses UP-TO-DATE
+> Task :adapter:common:testJar UP-TO-DATE
+> Task :adapter:mail:generateEffectiveLombokConfig FROM-CACHE
+> Task :adapter:persistence:generateEffectiveLombokConfig FROM-CACHE
+> Task :adapter:persistence:compileJava FROM-CACHE
+> Task :adapter:security:generateEffectiveLombokConfig FROM-CACHE
+> Task :adapter:security:compileJava FROM-CACHE
+> Task :adapter:mail:compileJava FROM-CACHE
+> Task :adapter:mail:processResources
+> Task :adapter:mail:classes
+> Task :adapter:mail:jar
+> Task :adapter:persistence:processResources
+> Task :adapter:persistence:classes
+> Task :adapter:persistence:jar
+> Task :adapter:security:processResources
+> Task :adapter:security:classes
+> Task :adapter:security:jar
+> Task :adapter:web:generateEffectiveLombokConfig FROM-CACHE
+> Task :application:orchestration:generateEffectiveLombokConfig FROM-CACHE
+> Task :application:orchestration:compileJava FROM-CACHE
+> Task :adapter:web:compileJava FROM-CACHE
+> Task :adapter:web:processResources NO-SOURCE
+> Task :adapter:web:classes UP-TO-DATE
+> Task :adapter:web:generateTestEffectiveLombokConfig FROM-CACHE
+> Task :adapter:web:compileTestJava FROM-CACHE
+> Task :adapter:web:processTestResources
+> Task :adapter:web:testClasses
+> Task :application:orchestration:processResources NO-SOURCE
+> Task :application:orchestration:classes UP-TO-DATE
+> Task :application:orchestration:jar
+
+> Task :adapter:web:test
+
+SupportAssistantControllerTest > shouldAnswerQuestionSuccessfully() PASSED
+
+SupportAssistantControllerTest > shouldReturn400WhenQuestionIsBlank() PASSED
+
+SupportAssistantControllerTest > shouldReturn400WhenQuestionIsMissing() PASSED
+
+SupportAssistantControllerTest > shouldRespondWith429WhenRateLimitExceeded() PASSED
+== Build time summary ==
+                                       :adapter:web:test | 12S | 92% | ████████████
+                   :domain:generateEffectiveLombokConfig |  0S |  0% | 
+               :foundation:generateEffectiveLombokConfig |  0S |  0% | 
+                                 :foundation:compileJava |  0S |  0% | 
+                                     :domain:compileJava |  0S |  0% | 
+                                             :domain:jar |  0S |  0% | 
+                            :foundation:processResources |  0S |  0% | 
+                                         :foundation:jar |  0S |  0% | 
+           :adapter:common:generateEffectiveLombokConfig |  0S |  0% | 
+                             :adapter:common:compileJava |  0S |  0% | 
+                        :adapter:common:processResources |  0S |  0% | 
+                                     :adapter:common:jar |  0S |  0% | 
+       :adapter:common:generateTestEffectiveLombokConfig |  0S |  0% | 
+                         :adapter:common:compileTestJava |  0S |  0% | 
+                    :adapter:common:processTestResources |  0S |  0% | 
+                                 :adapter:common:testJar |  0S |  0% | 
+             :adapter:mail:generateEffectiveLombokConfig |  0S |  0% | 
+      :adapter:persistence:generateEffectiveLombokConfig |  0S |  0% | 
+                        :adapter:persistence:compileJava |  0S |  0% | 
+         :adapter:security:generateEffectiveLombokConfig |  0S |  0% | 
+                           :adapter:security:compileJava |  0S |  0% | 
+                               :adapter:mail:compileJava |  0S |  0% | 
+                          :adapter:mail:processResources |  0S |  0% | 
+                                       :adapter:mail:jar |  0S |  0% | 
+                   :adapter:persistence:processResources |  0S |  0% | 
+                                :adapter:persistence:jar |  0S |  0% | 
+                      :adapter:security:processResources |  0S |  0% | 
+                                   :adapter:security:jar |  0S |  0% | 
+              :adapter:web:generateEffectiveLombokConfig |  0S |  0% | 
+:application:orchestration:generateEffectiveLombokConfig |  0S |  0% | 
+                  :application:orchestration:compileJava |  0S |  0% | 
+                                :adapter:web:compileJava |  0S |  0% | 
+                           :adapter:web:processResources |  0S |  0% | 
+          :adapter:web:generateTestEffectiveLombokConfig |  0S |  0% | 
+                            :adapter:web:compileTestJava |  0S |  0% | 
+                       :adapter:web:processTestResources |  0S |  0% | 
+             :application:orchestration:processResources |  0S |  0% | 
+                          :application:orchestration:jar |  0S |  0% | 
+
+BUILD SUCCESSFUL in 18s
+33 actionable tasks: 9 executed, 12 from cache, 12 up-to-date

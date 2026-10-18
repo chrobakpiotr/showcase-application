@@ -1,0 +1,98 @@
+{
+  "assumptions": [],
+  "attempt": 1,
+  "changed_paths": [],
+  "checkpoint": "449474e31d12bac5c2133a09ce324a0e0a9d3693",
+  "commands": [
+    "./gradlew :adapter:ai:test --tests com.cp.ecommerce.adapter.ai.support.SupportAssistantAdapterTest --no-configuration-cache --no-parallel",
+    "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.assistant.SupportAssistantControllerTest --no-configuration-cache --no-parallel"
+  ],
+  "contract_fingerprint": "1d8b74c41da5dee2198101dc54d783eb333c107468dce6059b152d3af4ccde42",
+  "criterion_results": {
+    "AC-009": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-010": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-011": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    },
+    "AC-012": {
+      "proof_ids": [
+        "proof-2"
+      ],
+      "status": "PASS"
+    },
+    "AC-013": {
+      "proof_ids": [
+        "proof-1"
+      ],
+      "status": "PASS"
+    }
+  },
+  "feature": "API-ACCESS-001",
+  "harness_verification": [
+    {
+      "command": "./gradlew :adapter:ai:test --tests com.cp.ecommerce.adapter.ai.support.SupportAssistantAdapterTest --no-configuration-cache --no-parallel",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": "docs/specs/API-ACCESS-001/evidence/T-003-attempt-1/ai.stderr.txt",
+      "stdout": "docs/specs/API-ACCESS-001/evidence/T-003-attempt-1/ai.stdout.txt",
+      "strong_isolation": false
+    },
+    {
+      "command": "./gradlew :adapter:web:test --tests com.cp.ecommerce.adapter.web.assistant.SupportAssistantControllerTest --no-configuration-cache --no-parallel",
+      "exit_code": 0,
+      "sandbox_backend": "host-test-process (no verifier payload launched)",
+      "stderr": "docs/specs/API-ACCESS-001/evidence/T-003-attempt-1/web.stderr.txt",
+      "stdout": "docs/specs/API-ACCESS-001/evidence/T-003-attempt-1/web.stdout.txt",
+      "strong_isolation": false
+    }
+  ],
+  "packet_revision": "sha256:a32d16ec4621e9b923071068c7b78dfc0470d9f2c4fcb5434ae87f89303ebbeb",
+  "proofs": [
+    {
+      "command_index": 0,
+      "command_sha256": "5b2339bb48da499a81264f3c342108623e1a0a2034e81b32109ca069a433f02c",
+      "criteria": [
+        "AC-009",
+        "AC-010",
+        "AC-011",
+        "AC-013"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-1",
+      "result_sha256": "c1fdf2aa483d56f78a5b441d6b47d7450d1863ea99a179192cb5940c5d666aef",
+      "status": "PASS"
+    },
+    {
+      "command_index": 1,
+      "command_sha256": "6454c2c622aec972926b874c5fcb43a136e4763b67dade77b1e2c7adfbccf578",
+      "criteria": [
+        "AC-012"
+      ],
+      "exit_code": 0,
+      "proof_id": "proof-2",
+      "result_sha256": "975d253e78ae0b171e5b9dbb5e4a7750421f494da765a171acdb7ed884ef3e12",
+      "status": "PASS"
+    }
+  ],
+  "repository": "/Users/pau/IdeaProjects/showcase-application/.git",
+  "residual_risks": [
+    "The declared tests do not independently assert source-structure absence of OrderLookupTool, @Tool, or MessageChatMemoryAdvisor; T-004 must inspect these boundaries directly."
+  ],
+  "schema_version": 1,
+  "status": "pass",
+  "summary": "Both declared support-assistant adapter and controller test commands passed on the current dependency checkpoint.",
+  "task": "T-003"
+}

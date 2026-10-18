@@ -1,7 +1,8 @@
 # T-004 independent R08 evaluation — current HEAD
 
 **Evaluation date:** 2026-10-18
-**Candidate:** `49ab97f580ad21c67e9378e15448aca9fe365c45` (`main`)
+**Candidate HEAD:** `378677671746d2717e875cfcb35d1ec658f41df4` (`main`)
+**Assessed application-code baseline:** `49ab97f580ad21c67e9378e15448aca9fe365c45`; the intervening commit records API-ACCESS-001 research evidence and does not change any assessed implementation path.
 **Historical reference only:** `7ed3c42`
 **Disposition:** CHANGES REQUIRED; findings recorded. No feature/task completion or acceptance is asserted here.
 
@@ -15,13 +16,13 @@ The commit `7ed3c42` is not used as the assessed candidate. Findings below refer
 
 ## Candidate and local changes
 
-The current branch is `main`, at the candidate SHA above. A path-scoped comparison of the worktree against that HEAD found no local changes in:
+The current branch is `main`, at the candidate HEAD above. A path-scoped comparison of the worktree against that HEAD found no local changes in:
 
 - `docs/specs/API-ACCESS-001/**`;
 - `docs/adr/0017-order-api-operator-authorization-model.md`, `0020-ai-support-assistant-rag-tool-calling.md`, `0036-ai-personalized-product-recommendations.md`, and `0044-explicit-api-access-boundary.md`;
 - the assessed security, web recommendation, and public support AI source/test paths.
 
-The pre-existing uncommitted changes are confined to S30-06/S05-05b documentation, evidence and performance tooling. They do not change the assessed API access or support-assistant code. They remain untouched by this evaluation.
+The uncommitted Harness v0.11.0 cutover changes only `tooling/agent-harness/**`; the preserved API-ACCESS-001 evidence files are documentation/evidence. Neither changes the assessed API access or support-assistant implementation paths.
 
 ## Requirement-to-implementation evidence map
 

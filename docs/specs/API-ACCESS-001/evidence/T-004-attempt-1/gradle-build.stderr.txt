@@ -1,0 +1,164 @@
+[ant:checkstyle] [INFO] /Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/modules/domain/src/main/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCase.java:168:32: More than 5 parameters (found 6). [ParameterNumber]
+[ant:checkstyle] [INFO] /Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/modules/adapters/web/src/main/java/com/cp/ecommerce/adapter/web/order/LogOrderAdapter.java:23:11: Catching 'RuntimeException' is not allowed. [IllegalCatch]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |ecommerce-frontend| src/app/catalog/catalog.component.spec.ts > CatalogComponent > should create the component
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/app/catalog/catalog.component.spec.ts:66:3
+     64|   });
+     65|
+     66|   it('should create the component', () => {
+       |   ^
+     67|     setup();
+     68|     expect(component).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  |ecommerce-frontend| src/app/cart/cart.component.spec.ts > CartComponent > should create the component
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/app/cart/cart.component.spec.ts:64:3
+     62|   });
+     63|
+     64|   it('should create the component', () => {
+       |   ^
+     65|     setup();
+     66|     cartServiceSpy.createCart.mockReturnValue(of(cart));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  |ecommerce-frontend| src/app/order/order.component.spec.ts > OrderComponent > should create the component
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/app/order/order.component.spec.ts:94:3
+     92|   });
+     93|
+     94|   it('should create the component', () => {
+       |   ^
+     95|     setup();
+     96|     expect(component).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  |ecommerce-frontend| src/app/reviews/reviews.component.spec.ts > ReviewsComponent > should create the component
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/app/reviews/reviews.component.spec.ts:57:3
+     55|   });
+     56|
+     57|   it('should create the component', () => {
+       |   ^
+     58|     setup();
+     59|     expect(component).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil (file:/Users/pau/.gradle/caches/modules-2/files-2.1/org.ehcache/ehcache/3.12.0/421e5ee10eaa2faeea0cab4886d44ef8706776b7/ehcache-3.12.0.jar)
+WARNING: Please consider reporting this to the maintainers of class org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil (file:/Users/pau/.gradle/caches/modules-2/files-2.1/org.ehcache/ehcache/3.12.0/421e5ee10eaa2faeea0cab4886d44ef8706776b7/ehcache-3.12.0.jar)
+WARNING: Please consider reporting this to the maintainers of class org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil (file:/Users/pau/.gradle/caches/modules-2/files-2.1/org.ehcache/ehcache/3.12.0/421e5ee10eaa2faeea0cab4886d44ef8706776b7/ehcache-3.12.0.jar)
+WARNING: Please consider reporting this to the maintainers of class org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil (file:/Users/pau/.gradle/caches/modules-2/files-2.1/org.ehcache/ehcache/3.12.0/421e5ee10eaa2faeea0cab4886d44ef8706776b7/ehcache-3.12.0.jar)
+WARNING: Please consider reporting this to the maintainers of class org.ehcache.impl.internal.concurrent.ThreadLocalRandomUtil
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':adapter:ecommerce-frontend:spotlessStylingCheck' (registered in script 'tooling/quality/spotless/spotless-prettier.gradle').
+> The following files had format violations:
+      src/app/auth/capabilities.spec.ts
+          @@ -19,6 +19,8 @@
+           ··});
+           
+           ··it('restricts·parked·dispatches·to·read-authorized·operators',·()·=>·{
+          -····expect(capabilityForPath('/parked-dispatches')?.readRole).toBe('ORDER_READ');
+          +····expect(capabilityForPath('/parked-dispatches')?.readRole).toBe(
+          +······'ORDER_READ'
+          +····);
+           ··});
+           });
+      src/app/parked-dispatches/parked-dispatches.component.html
+          @@ -8,122 +8,115 @@
+           ······</p>
+           ····</div>
+           ····@if·(canRead)·{
+          -······<button
+          -········type="button"
+          -········class="refresh-button"
+          -········data-testid="parked-dispatches-refresh"
+          -········[disabled]="loading()"
+          -········(click)="retry()"
+          -······>
+          -········Refresh
+          -······</button>
+          +····<button
+          +······type="button"
+          +······class="refresh-button"
+          +······data-testid="parked-dispatches-refresh"
+          +······[disabled]="loading()"
+          +······(click)="retry()"
+          +····>
+          +······Refresh
+          +····</button>
+           ····}
+           ··</header>
+           
+           ··@if·(!canRead)·{
+          -····<p·data-testid="parked-dispatches-no-access"·role="status">
+          -······You·do·not·have·access·to·parked·dispatches.
+          -····</p>
+          +··<p·data-testid="parked-dispatches-no-access"·role="status">
+          +····You·do·not·have·access·to·parked·dispatches.
+          +··</p>
+           ··}·@else·{
+          -····<div·class="queue-summary"·aria-label="Parked·dispatch·summary">
+          -······<div>
+          -········<span·class="queue-summary__label">Parked·now</span>
+          -········<strong·data-testid="parked-dispatches-total">{{
+          -··········totalElements()
+      ... (186 more lines that didn't fit)
+  Violations also present in:
+      src/app/parked-dispatches/parked-dispatches.component.spec.ts
+      src/app/parked-dispatches/parked-dispatches.component.ts
+      src/app/parked-dispatches/parked-dispatches.service.spec.ts
+      src/app/parked-dispatches/parked-dispatches.service.ts
+  Run './gradlew spotlessApply' to fix all violations.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':adapter:ecommerce-frontend:runUnitTests' (registered in build file 'apps/ecommerce/frontend/ecommerce-frontend.gradle').
+> Process 'command '/Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/apps/ecommerce/frontend/.gradle/nodejs/node-v24.20.0-darwin-x64/bin/npm'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 29m 46s

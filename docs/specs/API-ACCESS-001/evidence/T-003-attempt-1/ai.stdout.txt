@@ -1,0 +1,65 @@
+> Task :domain:generateEffectiveLombokConfig FROM-CACHE
+> Task :foundation:generateEffectiveLombokConfig FROM-CACHE
+> Task :foundation:compileJava FROM-CACHE
+> Task :domain:compileJava FROM-CACHE
+> Task :domain:processResources NO-SOURCE
+> Task :domain:classes UP-TO-DATE
+> Task :domain:jar
+> Task :foundation:processResources NO-SOURCE
+> Task :foundation:classes UP-TO-DATE
+> Task :foundation:jar
+> Task :adapter:ai:generateEffectiveLombokConfig FROM-CACHE
+> Task :adapter:common:generateEffectiveLombokConfig FROM-CACHE
+> Task :adapter:common:compileJava FROM-CACHE
+> Task :adapter:ai:compileJava FROM-CACHE
+> Task :adapter:ai:processResources
+> Task :adapter:ai:classes
+> Task :adapter:ai:generateTestEffectiveLombokConfig FROM-CACHE
+> Task :adapter:common:processResources NO-SOURCE
+> Task :adapter:common:classes UP-TO-DATE
+> Task :adapter:common:generateTestEffectiveLombokConfig FROM-CACHE
+> Task :adapter:common:compileTestJava FROM-CACHE
+> Task :adapter:common:processTestResources NO-SOURCE
+> Task :adapter:common:testClasses UP-TO-DATE
+> Task :adapter:common:testJar
+> Task :adapter:ai:compileTestJava FROM-CACHE
+> Task :adapter:ai:processTestResources NO-SOURCE
+> Task :adapter:ai:testClasses UP-TO-DATE
+> Task :adapter:common:jar
+
+> Task :adapter:ai:test
+
+SupportAssistantAdapterTest > shouldIgnoreArbitraryConversationIdWithoutServerSideMemory() PASSED
+
+SupportAssistantAdapterTest > shouldReturnFallbackAnswerWhenResilienceFails() PASSED
+
+SupportAssistantAdapterTest > shouldAnswerUsingTheModelResponseGroundedByRetrievedDocuments() PASSED
+
+SupportAssistantAdapterTest > shouldAnswerWhenConversationIdIsMissing() PASSED
+== Build time summary ==
+                                 :adapter:ai:test | 6S | 86% | ██████
+            :domain:generateEffectiveLombokConfig | 0S |  0% | 
+        :foundation:generateEffectiveLombokConfig | 0S |  0% | 
+                          :foundation:compileJava | 0S |  0% | 
+                              :domain:compileJava | 0S |  0% | 
+                         :domain:processResources | 0S |  0% | 
+                                      :domain:jar | 0S |  0% | 
+                     :foundation:processResources | 0S |  0% | 
+                                  :foundation:jar | 0S |  0% | 
+        :adapter:ai:generateEffectiveLombokConfig | 0S |  0% | 
+    :adapter:common:generateEffectiveLombokConfig | 0S |  0% | 
+                      :adapter:common:compileJava | 0S |  0% | 
+                          :adapter:ai:compileJava | 0S |  0% | 
+                     :adapter:ai:processResources | 0S |  0% | 
+    :adapter:ai:generateTestEffectiveLombokConfig | 0S |  0% | 
+                 :adapter:common:processResources | 0S |  0% | 
+:adapter:common:generateTestEffectiveLombokConfig | 0S |  0% | 
+                  :adapter:common:compileTestJava | 0S |  0% | 
+             :adapter:common:processTestResources | 0S |  0% | 
+                          :adapter:common:testJar | 0S |  0% | 
+                      :adapter:ai:compileTestJava | 0S |  0% | 
+                 :adapter:ai:processTestResources | 0S |  0% | 
+                              :adapter:common:jar | 0S |  0% | 
+
+BUILD SUCCESSFUL in 12s
+18 actionable tasks: 6 executed, 12 from cache

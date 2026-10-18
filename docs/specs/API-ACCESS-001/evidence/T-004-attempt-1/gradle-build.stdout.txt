@@ -1,0 +1,1589 @@
+Calculating task graph as no cached configuration is available for tasks: build
+> Task :adapter:processTestResources NO-SOURCE
+> Task :application:processResources NO-SOURCE
+> Task :application:processTestResources NO-SOURCE
+> Task :domain:processResources NO-SOURCE
+> Task :domain:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :application:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :application:generateEffectiveLombokConfig UP-TO-DATE
+> Task :domain:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:persistence:generateEffectiveLombokConfig UP-TO-DATE
+> Task :application:compileJava NO-SOURCE
+> Task :adapter:mail:generateEffectiveLombokConfig UP-TO-DATE
+> Task :application:classes UP-TO-DATE
+> Task :adapter:security:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:generateEffectiveLombokConfig UP-TO-DATE
+> Task :domain:processTestResources NO-SOURCE
+> Task :foundation:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:processResources NO-SOURCE
+> Task :application:compileTestJava NO-SOURCE
+> Task :adapter:compileJava NO-SOURCE
+> Task :application:testClasses UP-TO-DATE
+> Task :application:orchestration:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:processResources NO-SOURCE
+> Task :application:test NO-SOURCE
+> Task :application:check UP-TO-DATE
+> Task :adapter:processResources NO-SOURCE
+> Task :adapter:classes UP-TO-DATE
+> Task :adapter:persistence:processResources UP-TO-DATE
+> Task :application:jar
+> Task :adapter:mail:processResources UP-TO-DATE
+> Task :foundation:compileJava UP-TO-DATE
+> Task :adapter:security:processResources UP-TO-DATE
+> Task :adapter:compileTestJava NO-SOURCE
+> Task :foundation:classes UP-TO-DATE
+> Task :adapter:testClasses UP-TO-DATE
+> Task :application:assemble
+> Task :application:build
+> Task :adapter:test NO-SOURCE
+> Task :adapter:check UP-TO-DATE
+> Task :application:orchestration:processResources NO-SOURCE
+> Task :adapter:web:processResources NO-SOURCE
+> Task :foundation:jar UP-TO-DATE
+> Task :foundation:assemble UP-TO-DATE
+> Task :adapter:web:generateEffectiveLombokConfig UP-TO-DATE
+> Task :foundation:processTestResources NO-SOURCE
+> Task :foundation:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:jar
+> Task :adapter:assemble
+> Task :adapter:build
+> Task :adapter:ai:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:ai:processResources UP-TO-DATE
+> Task :adapter:ai:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:common:processTestResources NO-SOURCE
+> Task :foundation:compileTestJava UP-TO-DATE
+> Task :adapter:common:compileJava UP-TO-DATE
+> Task :adapter:common:classes UP-TO-DATE
+> Task :foundation:testClasses UP-TO-DATE
+> Task :adapter:ai:processTestResources NO-SOURCE
+> Task :adapter:common:jar UP-TO-DATE
+> Task :adapter:common:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :domain:compileJava UP-TO-DATE
+> Task :domain:classes UP-TO-DATE
+> Task :foundation:test UP-TO-DATE
+> Task :domain:jar UP-TO-DATE
+> Task :domain:assemble UP-TO-DATE
+> Task :adapter:persistence:compileJava UP-TO-DATE
+> Task :adapter:security:compileJava UP-TO-DATE
+> Task :adapter:mail:compileJava UP-TO-DATE
+> Task :application:orchestration:compileJava UP-TO-DATE
+> Task :adapter:web:compileJava UP-TO-DATE
+> Task :domain:compileTestJava UP-TO-DATE
+> Task :domain:testClasses UP-TO-DATE
+> Task :foundation:checkstyleMain
+> Task :foundation:spotbugsMain
+> Task :foundation:pmdMain
+> Task :foundation:checkstyleTest
+> Task :foundation:pmdTest
+> Task :foundation:spotbugsTest
+> Task :domain:checkstyleMain
+> Task :domain:checkstyleTest
+> Task :adapter:mail:classes UP-TO-DATE
+> Task :adapter:mail:jar UP-TO-DATE
+> Task :adapter:persistence:classes UP-TO-DATE
+> Task :adapter:persistence:jar UP-TO-DATE
+> Task :adapter:security:classes UP-TO-DATE
+> Task :adapter:security:jar UP-TO-DATE
+> Task :adapter:web:classes UP-TO-DATE
+> Task :adapter:web:jar UP-TO-DATE
+> Task :application:orchestration:classes UP-TO-DATE
+> Task :application:orchestration:jar UP-TO-DATE
+> Task :domain:test UP-TO-DATE
+> Task :adapter:ai:compileJava UP-TO-DATE
+> Task :adapter:ai:classes UP-TO-DATE
+> Task :adapter:ai:jar UP-TO-DATE
+> Task :adapter:ai:assemble UP-TO-DATE
+
+> Task :domain:checkstyleMain
+
+> Task :adapter:common:compileTestJava UP-TO-DATE
+> Task :adapter:common:testClasses UP-TO-DATE
+> Task :adapter:common:testJar UP-TO-DATE
+> Task :adapter:ai:compileTestJava UP-TO-DATE
+> Task :adapter:ai:testClasses UP-TO-DATE
+
+> Task :domain:checkstyleMain
+Checkstyle rule violations were found. See the report at: file:///Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/modules/domain/build/reports/checkstyle/main.html
+Checkstyle files with violations: 1
+Checkstyle violations by severity: [info:1]
+
+
+> Task :adapter:ai:test UP-TO-DATE
+> Task :adapter:ai:checkstyleMain
+> Task :adapter:ai:checkstyleTest
+> Task :domain:spotbugsMain
+> Task :adapter:ai:jacocoTestReport
+> Task :adapter:ai:jacocoTestCoverageVerification
+> Task :adapter:amqp:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:amqp:compileJava UP-TO-DATE
+> Task :adapter:amqp:processResources UP-TO-DATE
+> Task :adapter:amqp:classes UP-TO-DATE
+> Task :adapter:amqp:jar UP-TO-DATE
+> Task :adapter:amqp:assemble UP-TO-DATE
+> Task :domain:spotbugsTest
+> Task :foundation:check
+> Task :foundation:build
+> Task :adapter:amqp:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:amqp:compileTestJava UP-TO-DATE
+> Task :adapter:amqp:processTestResources NO-SOURCE
+> Task :adapter:amqp:testClasses UP-TO-DATE
+> Task :adapter:amqp:checkstyleMain
+> Task :adapter:amqp:test UP-TO-DATE
+> Task :adapter:amqp:jacocoTestReport
+> Task :adapter:amqp:jacocoTestCoverageVerification
+> Task :adapter:amqp:checkstyleTest
+> Task :adapter:amqp:pmdMain
+> Task :adapter:ai:pmdMain
+> Task :adapter:ai:pmdTest
+> Task :adapter:ai:spotbugsMain
+> Task :adapter:ai:spotbugsTest
+> Task :adapter:amqp:pmdTest
+> Task :adapter:aws:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:aws:compileJava UP-TO-DATE
+> Task :adapter:aws:processResources UP-TO-DATE
+> Task :adapter:aws:classes UP-TO-DATE
+> Task :adapter:aws:jar UP-TO-DATE
+> Task :adapter:aws:assemble UP-TO-DATE
+> Task :adapter:aws:checkstyleMain
+> Task :adapter:aws:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:aws:compileTestJava UP-TO-DATE
+> Task :adapter:aws:processTestResources NO-SOURCE
+> Task :adapter:aws:testClasses UP-TO-DATE
+> Task :adapter:aws:checkstyleTest
+> Task :adapter:aws:test UP-TO-DATE
+> Task :adapter:aws:jacocoTestReport
+> Task :adapter:aws:jacocoTestCoverageVerification
+> Task :adapter:amqp:spotbugsMain
+> Task :adapter:aws:pmdMain
+> Task :adapter:amqp:spotbugsTest
+> Task :adapter:aws:pmdTest
+> Task :adapter:camel:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:camel:compileJava UP-TO-DATE
+> Task :adapter:camel:processResources UP-TO-DATE
+> Task :adapter:camel:classes UP-TO-DATE
+> Task :adapter:camel:jar UP-TO-DATE
+> Task :adapter:camel:assemble UP-TO-DATE
+> Task :adapter:camel:checkstyleMain
+> Task :adapter:camel:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:camel:compileTestJava UP-TO-DATE
+> Task :adapter:camel:processTestResources NO-SOURCE
+> Task :adapter:camel:testClasses UP-TO-DATE
+> Task :adapter:camel:checkstyleTest
+> Task :adapter:camel:test UP-TO-DATE
+> Task :adapter:camel:jacocoTestReport
+> Task :adapter:camel:jacocoTestCoverageVerification
+> Task :adapter:ai:check
+> Task :adapter:ai:build
+> Task :adapter:aws:spotbugsMain
+> Task :adapter:camel:pmdMain
+> Task :adapter:aws:spotbugsTest
+> Task :adapter:camel:pmdTest
+> Task :adapter:common:assemble UP-TO-DATE
+> Task :adapter:common:checkstyleMain
+> Task :adapter:common:checkstyleTest
+> Task :adapter:common:test UP-TO-DATE
+> Task :adapter:common:jacocoTestReport
+> Task :adapter:common:jacocoTestCoverageVerification
+> Task :adapter:amqp:check
+> Task :adapter:amqp:build
+> Task :adapter:camel:spotbugsMain
+> Task :adapter:camel:spotbugsTest
+> Task :adapter:common:pmdMain
+> Task :adapter:ecommerce-frontend:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:ecommerce-frontend:compileJava NO-SOURCE
+> Task :adapter:ecommerce-frontend:processResources NO-SOURCE
+> Task :adapter:ecommerce-frontend:classes UP-TO-DATE
+> Task :adapter:ecommerce-frontend:jar
+> Task :adapter:ecommerce-frontend:assemble
+> Task :domain:check
+> Task :domain:build
+> Task :adapter:ecommerce-frontend:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:ecommerce-frontend:compileTestJava NO-SOURCE
+> Task :adapter:ecommerce-frontend:nodeSetup UP-TO-DATE
+> Task :adapter:ecommerce-frontend:npmSetup SKIPPED
+> Task :adapter:common:pmdTest
+> Task :adapter:common:spotbugsMain
+> Task :adapter:aws:check
+> Task :adapter:aws:build
+> Task :adapter:ecommerce-frontend:processTestResources NO-SOURCE
+> Task :adapter:ecommerce-frontend:testClasses UP-TO-DATE
+> Task :adapter:kafka:generateEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:kafka:compileJava UP-TO-DATE
+> Task :adapter:kafka:processResources UP-TO-DATE
+> Task :adapter:kafka:classes UP-TO-DATE
+> Task :adapter:kafka:jar UP-TO-DATE
+> Task :adapter:kafka:assemble UP-TO-DATE
+> Task :adapter:common:spotbugsTest
+> Task :adapter:kafka:checkstyleMain
+> Task :adapter:kafka:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:kafka:compileTestJava UP-TO-DATE
+> Task :adapter:kafka:processTestResources NO-SOURCE
+> Task :adapter:kafka:testClasses UP-TO-DATE
+> Task :adapter:kafka:test UP-TO-DATE
+> Task :adapter:kafka:checkstyleTest
+> Task :adapter:kafka:jacocoTestReport
+> Task :adapter:kafka:jacocoTestCoverageVerification
+> Task :adapter:camel:check
+> Task :adapter:camel:build
+> Task :adapter:ecommerce-frontend:spotlessStyling
+> Task :adapter:kafka:pmdMain
+> Task :adapter:mail:assemble UP-TO-DATE
+
+> Task :adapter:ecommerce-frontend:npmInstall
+
+up to date, audited 393 packages in 25s
+
+110 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> Task :adapter:mail:checkstyleMain
+> Task :adapter:mail:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:mail:compileTestJava UP-TO-DATE
+> Task :adapter:mail:processTestResources UP-TO-DATE
+> Task :adapter:mail:testClasses UP-TO-DATE
+> Task :adapter:mail:checkstyleTest
+> Task :adapter:mail:test UP-TO-DATE
+> Task :adapter:mail:jacocoTestReport
+> Task :adapter:mail:jacocoTestCoverageVerification
+> Task :adapter:kafka:pmdTest
+> Task :adapter:kafka:spotbugsMain
+> Task :adapter:kafka:spotbugsTest
+> Task :adapter:mail:pmdMain
+> Task :adapter:ecommerce-frontend:spotlessStylingCheck FAILED
+> Task :adapter:persistence:assemble UP-TO-DATE
+> Task :adapter:ecommerce-frontend:npm_run_build
+> Task :adapter:mail:pmdTest
+> Task :adapter:persistence:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:persistence:compileTestJava UP-TO-DATE
+> Task :adapter:persistence:processTestResources UP-TO-DATE
+> Task :adapter:persistence:testClasses UP-TO-DATE
+> Task :adapter:persistence:checkstyleMain
+> Task :adapter:persistence:test UP-TO-DATE
+> Task :adapter:common:check
+> Task :adapter:common:build
+> Task :adapter:persistence:checkstyleTest
+> Task :adapter:mail:spotbugsMain
+> Task :adapter:mail:spotbugsTest
+> Task :adapter:persistence:jacocoTestReport
+> Task :adapter:persistence:jacocoTestCoverageVerification
+> Task :adapter:kafka:check
+> Task :adapter:kafka:build
+> Task :adapter:security:assemble UP-TO-DATE
+> Task :adapter:security:checkstyleMain
+> Task :adapter:security:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:security:compileTestJava UP-TO-DATE
+> Task :adapter:security:processTestResources UP-TO-DATE
+> Task :adapter:security:testClasses UP-TO-DATE
+> Task :adapter:security:checkstyleTest
+> Task :adapter:security:test UP-TO-DATE
+> Task :adapter:persistence:pmdMain
+> Task :adapter:persistence:pmdTest
+> Task :adapter:security:jacocoTestReport
+> Task :adapter:security:jacocoTestCoverageVerification
+> Task :adapter:persistence:spotbugsMain
+> Task :adapter:persistence:spotbugsTest
+> Task :adapter:security:pmdMain
+> Task :adapter:security:pmdTest
+
+> Task :adapter:ecommerce-frontend:runESLintCheck
+
+> ecommerce-frontend@0.0.1-SNAPSHOT lint
+> ng lint
+
+
+Linting "ecommerce-frontend"...
+
+> Task :adapter:mail:check
+> Task :adapter:mail:build
+> Task :adapter:web:assemble UP-TO-DATE
+
+> Task :adapter:ecommerce-frontend:runUnitTests
+
+> ecommerce-frontend@0.0.1-SNAPSHOT test
+> ng test --no-watch --coverage
+
+❯ Building...
+
+> Task :adapter:security:spotbugsMain
+
+> Task :adapter:web:checkstyleMain
+Checkstyle rule violations were found. See the report at: file:///Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/modules/adapters/web/build/reports/checkstyle/main.html
+Checkstyle files with violations: 1
+Checkstyle violations by severity: [info:1]
+
+
+> Task :adapter:web:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :adapter:web:compileTestJava UP-TO-DATE
+> Task :adapter:web:processTestResources UP-TO-DATE
+> Task :adapter:web:testClasses UP-TO-DATE
+> Task :adapter:web:checkstyleTest
+> Task :adapter:web:test UP-TO-DATE
+> Task :adapter:security:spotbugsTest
+> Task :adapter:web:jacocoTestReport
+> Task :adapter:web:jacocoTestCoverageVerification
+
+> Task :adapter:ecommerce-frontend:runESLintCheck
+
+All files pass linting.
+
+
+> Task :adapter:web:pmdMain
+> Task :application:ecommerce:generateEffectiveLombokConfig UP-TO-DATE
+> Task :application:ecommerce:compileJava UP-TO-DATE
+> Task :adapter:web:pmdTest
+> Task :adapter:web:spotbugsMain
+> Task :application:ecommerce:generateGitProperties
+> Task :adapter:ecommerce-frontend:processGeneratedResources UP-TO-DATE
+> Task :application:ecommerce:bootBuildInfo
+> Task :application:ecommerce:processResources
+> Task :application:ecommerce:classes
+> Task :application:ecommerce:resolveMainClassName
+
+> Task :adapter:ecommerce-frontend:runUnitTests
+✔ Building...
+Application bundle generation complete. [74.741 seconds] - 2026-10-18T14:50:54.861Z
+
+
+ RUN  v5.0.3 /Users/pau/IdeaProjects/showcase-application-agent-worktrees/API-ACCESS-001/T-004/apps/ecommerce/frontend
+      Coverage enabled with v8
+
+
+> Task :adapter:web:spotbugsTest
+> Task :application:ecommerce:jar
+> Task :application:ecommerce:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :application:ecommerce:compileTestJava UP-TO-DATE
+> Task :application:ecommerce:processTestResources UP-TO-DATE
+> Task :application:ecommerce:testClasses UP-TO-DATE
+> Task :application:ecommerce:bootJar
+> Task :application:ecommerce:assemble
+> Task :application:orchestration:assemble UP-TO-DATE
+> Task :adapter:security:check
+> Task :adapter:security:build
+> Task :application:orchestration:generateTestEffectiveLombokConfig UP-TO-DATE
+> Task :application:orchestration:compileTestJava UP-TO-DATE
+> Task :application:orchestration:processTestResources NO-SOURCE
+> Task :application:orchestration:testClasses UP-TO-DATE
+> Task :application:orchestration:checkstyleMain
+> Task :application:orchestration:test UP-TO-DATE
+> Task :application:orchestration:checkstyleTest
+> Task :application:orchestration:jacocoTestReport
+> Task :application:orchestration:jacocoTestCoverageVerification
+
+> Task :adapter:ecommerce-frontend:runUnitTests
+ ✓ |ecommerce-frontend| src/app/shipments/shipments.component.spec.ts (18 tests) 8120ms
+   ✓ ShipmentsComponent (18)
+     ✓ should create the component 3405ms
+     ✓ loads shipments with the SHIPMENT_READ role 568ms
+     ✓ defaults the list to an empty array when embedded collection is missing 362ms
+     ✓ loads shipments filtered by status 352ms
+     ✓ advances a shipment and reloads the list 428ms
+     ✓ reuses the same pending operation identity after a failed shipment advance 349ms
+     ✓ retains unresolved operation identity after component recreation 490ms
+     ✓ drops a rejected shipment-page operation and retries from refreshed status after 409 433ms
+     ✓ keeps the newest filter result when an older request finishes later 347ms
+     ✓ blocks duplicate shipment advances until the first mutation completes 506ms
+ ✓ |ecommerce-frontend| src/app/inventory/inventory.component.spec.ts (17 tests) 8537ms
+   ✓ InventoryComponent (17)
+     ✓ should create the component 3843ms
+     ✓ does not look up when the form is invalid 358ms
+     ✓ sets an error message when the lookup fails 554ms
+     ✓ reports canWrite false without the INVENTORY_WRITE role 347ms
+     ✓ reports canWrite true with the INVENTORY_WRITE role 366ms
+     ✓ does not adjust stock when the adjustment form is invalid 417ms
+     ✓ unlocks adjustments after a failure without retrying automatically 474ms
+     ✓ receives stock 352ms
+     ✓ releases stock 461ms
+     ✓ sets an error message when an adjustment fails 433ms
+ ❯ |ecommerce-frontend| src/app/catalog/catalog.component.spec.ts (11 tests | 1 failed) 11220ms
+   ❯ CatalogComponent (11)
+     × should create the component 6702ms
+     ✓ loads categories and products on init 441ms
+     ✓ sets an error message when categories fail to load 393ms
+     ✓ sets an error message when products fail to load 234ms
+     ✓ defaults to an empty product list when the page has no embedded content 516ms
+     ✓ filters by the selected category and resets to the first page 425ms
+     ✓ treats an empty category selection as no filter 372ms
+     ✓ advances to the next page when not on the last page 605ms
+     ✓ does not advance past the last page 542ms
+     ✓ goes back to the previous page 458ms
+     ✓ does not go before the first page 526ms
+
+> Task :application:ecommerce:test
+> Task :application:orchestration:pmdMain
+
+> Task :adapter:ecommerce-frontend:runUnitTests
+ ❯ |ecommerce-frontend| src/app/reviews/reviews.component.spec.ts (21 tests | 1 failed) 13691ms
+   ❯ ReviewsComponent (21)
+     × should create the component 5657ms
+     ✓ does not load pending reviews without the REVIEWS_READ role 518ms
+     ✓ loads pending reviews with the REVIEWS_READ role 778ms
+     ✓ sets an error message when loading pending reviews fails 87ms
+     ✓ reports canWrite true with the REVIEWS_WRITE role 606ms
+     ✓ does not browse when the form is invalid 542ms
+     ✓ browses reviews and summary for a sku 240ms
+     ✓ sets an error message when browsing reviews fails 591ms
+     ✓ sets an error message when loading the summary fails 414ms
+     ✓ does not submit when the form is invalid 478ms
+     ✓ submits a review 253ms
+     ✓ sets an error message when submitting a review fails 347ms
+     ✓ approves a pending review and reloads the queue 643ms
+     ✓ sets an error message when approving fails 426ms
+     ✓ rejects a pending review and reloads the queue 297ms
+     ✓ sets an error message when rejecting fails 670ms
+     ✓ keeps browse results atomic and ignores a stale earlier request 399ms
+     ✓ blocks duplicate moderation mutations while one review is being updated 271ms
+     ✓ blocks duplicate review submissions while the first request is in flight 402ms
+     ✓ blocks reject while another moderation mutation is in flight 39ms
+     ✓ clears stale browse data while the latest request is pending 28ms
+ ✓ |ecommerce-frontend| src/app/app.component.spec.ts (18 tests) 6892ms
+   ✓ AppComponent (18)
+     ✓ should create the component 1464ms
+     ✓ shows header when isAuthenticated is true 611ms
+     ✓ shows the analytics nav link when the user has ORDER_READ 584ms
+     ✓ hides the analytics nav link when the user lacks ORDER_READ 326ms
+     ✓ always shows the dashboard, cart, wishlist, recommendations and reviews nav links 585ms
+     ✓ shows the returns nav link when the user has RETURN_READ 418ms
+     ✓ hides the returns nav link when the user lacks RETURN_READ 337ms
+     ✓ hides the notifications nav link when the user lacks NOTIFICATION_READ 310ms
+     ✓ hides the order history nav link when the user lacks ORDER_READ 720ms
+     ✓ hides the inventory nav link when the user lacks INVENTORY_READ 472ms
+ ❯ |ecommerce-frontend| src/app/cart/cart.component.spec.ts (28 tests | 1 failed) 15449ms
+   ❯ CartComponent (28)
+     × should create the component 5128ms
+     ✓ starts a new cart when nothing is stored 535ms
+     ✓ sets an error message when starting a new cart fails 321ms
+     ✓ loads an existing cart from storage 47ms
+     ✓ starts a new cart when the stored cart id no longer exists 794ms
+     ✓ preserves the stored cart on transient load failures and retries it 188ms
+     ✓ does not add an item when the form is invalid 756ms
+     ✓ does not add an item when cart is unavailable 191ms
+     ✓ adds an item to the cart 500ms
+     ✓ sets an error message when adding an item fails 483ms
+     ✓ ignores a quantity update below 1 490ms
+     ✓ updates an item quantity 655ms
+     ✓ sets an error message when updating quantity fails 237ms
+     ✓ does not remove an item when cart is unavailable 265ms
+     ✓ removes an item 354ms
+     ✓ sets an error message when removing an item fails 178ms
+     ✓ does not clear the cart when cart is unavailable 388ms
+     ✓ clears the cart 733ms
+     ✓ sets an error message when clearing the cart fails 428ms
+     ✓ applies a coupon 32ms
+     ✓ does not apply an invalid coupon form 310ms
+     ✓ does not apply a coupon when cart is unavailable 329ms
+     ✓ sets an error when applying coupon fails 313ms
+     ✓ does not remove a coupon when cart is unavailable 274ms
+     ✓ removes a coupon 512ms
+     ✓ sets an error when removing coupon fails 475ms
+     ✓ preserves the stored cart when loading fails with a non-HTTP error 176ms
+     ✓ replaces the stored cart when the server reports it gone 337ms
+ ✓ |ecommerce-frontend| src/app/returns/returns.component.spec.ts (20 tests) 5582ms
+   ✓ ReturnsComponent (20)
+     ✓ should create the component 1567ms
+     ✓ loads returns with the RETURN_READ role 535ms
+     ✓ sets an error message when approving fails 429ms
+     ✓ blocks conflicting actions until the mutation and queue refresh finish 331ms
+     ✓ blocks approve while the refreshed queue is loading and clears stale rows on failure 325ms
+     ✓ cancels both pending list reads when destroyed 354ms
+     ✓ covers pending pagination boundaries and backs up from an empty trailing page 342ms
+ ✓ |ecommerce-frontend| src/app/order-list/order-list.component.spec.ts (48 tests) 16767ms
+   ✓ OrderListComponent (48)
+     ✓ should create the component 4915ms
+     ✓ loads orders on init 571ms
+     ✓ defaults to an empty list when there is no embedded content 455ms
+     ✓ sets an error message when loading orders fails 391ms
+     ✓ loads returns for a selected order when the user can read returns 328ms
+     ✓ sets an error message when loading order details fails 486ms
+     ✓ sets an error message when loading order returns fails 455ms
+     ✓ does not load order returns or shipments after cancellation without read roles 594ms
+     ✓ sets an error message when cancelling fails 367ms
+     ✓ creates a return request with a defaulted quantity when the control value is null 434ms
+     ✓ sets an error message when requested quantity exceeds remaining returnable quantity 391ms
+     ✓ sets an error message when creating a return request fails 316ms
+     ✓ calculates remaining quantity excluding rejected returns 343ms
+     ✓ initializes the return form with the first order item when no item is returnable yet 344ms
+     ✓ switches the selected sku to another returnable item after loading returns 435ms
+     ✓ reports whether the user can manage returns 473ms
+     ✓ creates a shipment 455ms
+     ✓ does not create a shipment when the form is invalid 314ms
+     ✓ advances a shipment status 462ms
+     ✓ reuses the same pending shipment operation identity after a failed order-detail advance 452ms
+     ✓ sets an error message when advancing a shipment fails 502ms
+     ✓ reports no returnable items when no order is selected 303ms
+     ✓ does not advance an unknown shipment for a selected order 449ms
+ ✓ |ecommerce-frontend| src/app/wishlist/wishlist.component.spec.ts (17 tests) 4852ms
+   ✓ WishlistComponent (17)
+     ✓ should create the component 911ms
+     ✓ starts a new wishlist when nothing is stored 435ms
+     ✓ loads an existing wishlist from storage 403ms
+     ✓ starts a new wishlist when the stored wishlist id no longer exists 378ms
+     ✓ sets an error message when adding an item fails 364ms
+     ✓ removes an item 301ms
+     ✓ moves an item to an existing cart 559ms
+     ✓ sets an error when creating a cart for move fails 542ms
+ ✓ |ecommerce-frontend| src/app/coupons/coupons.component.spec.ts (14 tests) 5393ms
+   ✓ CouponsComponent (14)
+     ✓ should create the component 401ms
+     ✓ does not load coupons without read role 361ms
+     ✓ falls back to an empty list when response has no embedded coupons 338ms
+     ✓ creates a coupon with write role 800ms
+     ✓ converts expiresAt to iso string when creating a coupon 499ms
+     ✓ does not create when user cannot write 354ms
+     ✓ does not create when invalid 493ms
+     ✓ sets error on create failure 413ms
+     ✓ deactivates an active coupon 378ms
+     ✓ does not toggle when user cannot write 646ms
+     ✓ sets error on toggle failure 387ms
+ ✓ |ecommerce-frontend| src/app/dashboard/dashboard.component.spec.ts (6 tests) 5720ms
+   ✓ DashboardComponent (6)
+     ✓ should create the component 3103ms
+     ✓ always shows role-agnostic cards 530ms
+     ✓ hides role-gated cards without the required role 444ms
+     ✓ shows role-gated cards with the required roles 753ms
+     ✓ reports role-agnostic capabilities as visible 313ms
+     ✓ supports write-only capability visibility 577ms
+ ✓ |ecommerce-frontend| src/app/analytics-assistant/analytics-assistant.component.spec.ts (10 tests) 3929ms
+   ✓ AnalyticsAssistantComponent (10)
+     ✓ should create the component 945ms
+     ✓ should append the assistant answer on success 773ms
+     ✓ should show an unavailable hint when the assistant answer is a fallback 380ms
+     ✓ should append a fallback assistant message on HTTP error 589ms
+     ✓ should not render a digest card when none has been generated yet 421ms
+     ✓ should set the digest to null on HTTP error while loading it 501ms
+ ✓ |ecommerce-frontend| src/app/support-assistant/support-assistant.component.spec.ts (9 tests) 2247ms
+   ✓ SupportAssistantComponent (9)
+     ✓ should create the component 716ms
+     ✓ should show an unavailable hint when the assistant answer is a fallback 447ms
+ ✓ |ecommerce-frontend| src/app/parked-dispatches/parked-dispatches.component.spec.ts (8 tests) 3450ms
+   ✓ ParkedDispatchesComponent (8)
+     ✓ does not request parked dispatches without ORDER_READ 1272ms
+     ✓ loads a safe read-only page with the oldest age 447ms
+     ✓ renders an empty state for an empty page 445ms
+     ✓ does not paginate past either boundary or while loading 330ms
+ ✓ |ecommerce-frontend| src/app/auth/login.component.spec.ts (5 tests) 5015ms
+   ✓ LoginComponent (5)
+     ✓ renders redirect-based Keycloak login without password fields 3928ms
+     ✓ starts login with the original returnUrl 314ms
+     ✓ uses dashboard as the default post-login route 354ms
+ ✓ |ecommerce-frontend| src/app/notifications/notifications.component.spec.ts (7 tests) 1377ms
+   ✓ NotificationsComponent (7)
+     ✓ should create the component 671ms
+ ✓ |ecommerce-frontend| src/app/shipments/shipments.service.spec.ts (16 tests) 1181ms
+   ✓ ShipmentsService (16)
+     ✓ covers shipment paging defaults and idempotency header branches 308ms
+ ✓ |ecommerce-frontend| src/app/recommendations/recommendations.component.spec.ts (5 tests) 841ms
+   ✓ RecommendationsComponent (5)
+     ✓ should load and render recommendations 404ms
+ ✓ |ecommerce-frontend| src/app/auth/auth.service.spec.ts (24 tests) 1487ms
+   ✓ AuthService (24)
+     ✓ rejects unsafe returnUrl: https://attacker.example/steal 353ms
+     ✓ clears state and returns null when refresh fails 351ms
+
+> Task :application:orchestration:pmdTest
+
+> Task :adapter:ecommerce-frontend:runUnitTests
+ ✓ |ecommerce-frontend| src/app/cart/cart.service.spec.ts (9 tests) 517ms
+ ✓ |ecommerce-frontend| src/app/notifications/notifications.service.spec.ts (5 tests) 330ms
+   ✓ NotificationsService (5)
+     ✓ covers explicit and default paging parameters for notification reads 304ms
+ ✓ |ecommerce-frontend| src/app/inventory/inventory.service.spec.ts (6 tests) 43ms
+ ✓ |ecommerce-frontend| src/app/app.routes.spec.ts (19 tests) 1499ms
+   ✓ app routes (19)
+     ✓ defines guarded orders route 332ms
+     ✓ defines authenticated forbidden route 611ms
+ ✓ |ecommerce-frontend| src/app/order/order.service.spec.ts (8 tests) 680ms
+   ✓ OrderService (8)
+     ✓ should call backend order service and get response 360ms
+ ✓ |ecommerce-frontend| src/app/order/order-attempt.store.spec.ts (14 tests) 10ms
+ ✓ |ecommerce-frontend| src/app/wishlist/wishlist.service.spec.ts (6 tests) 309ms
+ ✓ |ecommerce-frontend| src/app/auth/auth.interceptor.spec.ts (11 tests) 767ms
+ ✓ |ecommerce-frontend| src/app/analytics-assistant/analytics-assistant.service.spec.ts (5 tests) 434ms
+ ✓ |ecommerce-frontend| src/app/forbidden/forbidden.component.spec.ts (1 test) 16ms
+ ✓ |ecommerce-frontend| src/app/returns/returns.service.spec.ts (8 tests) 699ms
+ ✓ |ecommerce-frontend| src/app/not-found/not-found.component.spec.ts (2 tests) 278ms
+ ✓ |ecommerce-frontend| src/app/reviews/reviews.service.spec.ts (7 tests) 328ms
+ ✓ |ecommerce-frontend| src/app/support-assistant/support-assistant.service.spec.ts (3 tests) 217ms
+ ✓ |ecommerce-frontend| src/app/catalog/catalog.service.spec.ts (4 tests) 110ms
+ ✓ |ecommerce-frontend| src/app/coupons/coupons.service.spec.ts (6 tests) 279ms
+ ✓ |ecommerce-frontend| src/app/cart/cart-session.service.spec.ts (3 tests) 158ms
+ ✓ |ecommerce-frontend| src/app/recommendations/recommendations.service.spec.ts (1 test) 80ms
+ ✓ |ecommerce-frontend| src/app/app.config.spec.ts (3 tests) 196ms
+ ✓ |ecommerce-frontend| src/app/auth/role.guard.spec.ts (5 tests) 23ms
+ ✓ |ecommerce-frontend| src/app/parked-dispatches/parked-dispatches.service.spec.ts (1 test) 7ms
+ ✓ |ecommerce-frontend| src/app/core/global-error-handler.spec.ts (3 tests) 4ms
+ ✓ |ecommerce-frontend| src/app/auth/keycloak.instance.spec.ts (1 test) 5ms
+ ✓ |ecommerce-frontend| src/app/http/problem-details.adapter.spec.ts (8 tests) 4ms
+ ✓ |ecommerce-frontend| src/app/auth/auth.guard.spec.ts (2 tests) 14ms
+ ✓ |ecommerce-frontend| src/app/auth/capabilities.spec.ts (5 tests) 3ms
+ ❯ |ecommerce-frontend| src/app/order/order.component.spec.ts (40 tests | 1 failed) 40650ms
+   ❯ OrderComponent (40)
+     × should create the component 6425ms
+     ✓ should not submit when form is invalid 1601ms
+     ✓ should not submit when customer details are missing 907ms
+     ✓ should not submit when the only line item is incomplete 1137ms
+     ✓ should not submit when already submitting 865ms
+     ✓ should call orderService.placeOrder() with remarks, customer, line items and payment method 1006ms
+     ✓ should add and remove line items, never dropping below one row 1065ms
+     ✓ on success with orderNumber: sets orderNumber signal and shows it 1347ms
+     ✓ loads and renders the read-only recovery timeline after placement 1233ms
+     ✓ guards refresh without an order and while a timeline request is already running 1275ms
+     ✓ treats a missing timeline items collection as an empty projection 896ms
+     ✓ surfaces a timeline read failure without changing the successful order result 1226ms
+     ✓ on success with empty orderNumber: shows "Order outcome is unknown. Retry this same attempt." message 844ms
+     ✓ on HTTP error: shows "Failed to place order." message 965ms
+     ✓ shows loading indicator while submitting 1307ms
+     ✓ shows validation message when remarks is touched and empty 717ms
+     ✓ shows maxlength validation message when remarks exceeds 800 chars 1087ms
+     ✓ shows validation message when customer email is invalid 569ms
+     ✓ shows validation message when customer street is touched and empty 875ms
+     ✓ marks form invalid when country code is missing 744ms
+     ✓ marks form invalid when phone does not match the expected pattern 764ms
+     ✓ fills a complete seeded demo order 632ms
+     ✓ surfaces RFC 9457 detail when order placement fails 827ms
+     ✓ uses the right fallback for a non-HTTP error 684ms
+     ✓ uses the right fallback for a plain-text HTTP error body 513ms
+     ✓ uses the right fallback for an empty problem object 700ms
+     ✓ uses the right fallback for a problem with only a title 777ms
+     ✓ uses the right fallback for a problem with only detail 609ms
+     ✓ retains the complete attempt through unknown errors and blocks edits until replay succeeds 906ms
+     ✓ permits a corrected new attempt after a definitive original rejection 925ms
+     ✓ allows correcting an initial urn:problem-type:insufficient-stock but preserves a previously unknown attempt 778ms
+     ✓ allows correcting an initial urn:problem-type:stock-level-conflict but preserves a previously unknown attempt 673ms
+     ✓ keeps an unrecognized initial 409 locked: null 781ms
+     ✓ keeps an unrecognized initial 409 locked: "conflict" 674ms
+     ✓ keeps an unrecognized initial 409 locked: {} 601ms
+     ✓ keeps an unrecognized initial 409 locked: {"type":"urn:problem-type:idempotency-key-conflict"} 589ms
+     ✓ treats malformed successful responses as an unresolved attempt 708ms
+     ✓ restores an unresolved attempt after a component reload and reuses the same key 1094ms
+     ✓ clears a structurally corrupt recovered payload instead of locking checkout 621ms
+     ✓ restores a non-empty coupon code with the unresolved attempt 697ms
+
+ Test Files  4 failed | 42 passed (46)
+      Tests  4 failed | 484 passed (488)
+   Start at  16:51:01
+   Duration  72.48s (environment 70%, tests 20%, setup 5%, import 2%, transform 2%, worker 1%)
+
+
+> Task :adapter:ecommerce-frontend:runUnitTests FAILED
+> Task :application:orchestration:spotbugsMain
+> Task :application:orchestration:spotbugsTest
+> Task :adapter:persistence:check
+> Task :adapter:persistence:build
+> Task :adapter:web:check
+> Task :adapter:web:build
+> Task :application:orchestration:check
+> Task :application:orchestration:build
+
+> Task :application:ecommerce:test
+
+DispatchRedrivePostgresIntegrationTest > schedulerClaimMustSerializeWithRedriveAndStaleOwnerMustNotFinalize() PASSED
+
+DispatchRedrivePostgresIntegrationTest > redriveMustRejectParkedRowsWithResidualClaimMarkers() PASSED
+
+DispatchRedrivePostgresIntegrationTest > redriveMustAuditPreviousCycleReplaySafelyAndBoundNextCycle() PASSED
+
+DispatchRedrivePostgresIntegrationTest > redriveMustRejectIneligibleReasonsAndRollbackAuditWithTransition() PASSED
+
+DispatchRedrivePostgresIntegrationTest > concurrentSameCommandMustReplayAndDifferentCommandsMustHaveOneWinner() PASSED
+
+OrderPlacementDispatchPostgresIntegrationTest > concurrentClaimMustHaveOneOwnerAndRetrySameDispatchIdentity() PASSED
+
+OrderPlacementDispatchPostgresIntegrationTest > replayedEnqueueMustCreateExactlyTwoStableDispatchIntents() PASSED
+
+OrderPlacementDispatchPostgresIntegrationTest > fiftyPoisonDispatchesMustNotStarveHealthyDispatchOnSecondDueTick() PASSED
+
+OrderPlacementDispatchPostgresIntegrationTest > exhaustedAmbiguousDispatchMustParkWithoutNinthExternalAttempt() PASSED
+
+OrderPlacementDispatchPostgresIntegrationTest > missingOrderMustParkBeforeCallingEitherDownstreamPort() PASSED
+
+ParkedDispatchQueuePostgresIntegrationTest > parkedQueueMustObserveCommittedStateWithoutTakingClaimLocks() PASSED
+
+ParkedDispatchQueuePostgresIntegrationTest > parkedQueueMustBoundPagesOrderTiesAndHideUnsafeData() PASSED
+
+OrderRecoveryTimelinePostgresIntegrationTest > exactOrderScopeMustResistSqlWildcardsAndExcludeSensitiveFields() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > currentOwnerRecoversPendingRefundExactlyOnce() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > manualReviewIsNotAutomaticallyReplayedOrClosed() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > staleOwnerCannotCrossTakeoverBoundary() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > ordinaryClientCannotUseAnotherWorkersClaim() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > terminalReplayDoesNotCreateAnotherProviderEffect() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > lostProviderResponseReplaysSameKeyWithOneEconomicEffect() PASSED
+
+PaymentReconciliationOwnerRecoveryPostgresIntegrationTest > currentOwnerRecoversPendingCapture() PASSED
+
+PaymentReconciliationRetentionPostgresIntegrationTest > shouldDeleteCompletedEvidenceOnlyInBoundedBatchesBeyondReplayHorizon() PASSED
+
+RefundReturnContinuationFairnessPostgresIntegrationTest > fiftyPoisonContinuationsMustNotStarveHealthyItemFiftyOne() PASSED
+
+DurableNotificationRetryPostgresIntegrationTest > shouldRetryFailedDeliveryOnSamePersistedNotificationRow() PASSED
+
+DurableNotificationRetryPostgresIntegrationTest > shouldRejectSameEventKeyWithConflictingPayload() PASSED
+
+DurableNotificationRetryPostgresIntegrationTest > shouldNeverRegressSentNotificationToPendingOnReplay() PASSED
+
+DurableNotificationRetryPostgresIntegrationTest > shouldPreserveSingleSentRecordWhenEnqueueOverlapsDeliveryFinalization() PASSED
+
+DurableNotificationRetryPostgresIntegrationTest > shouldInsertOneNotificationForConcurrentEnqueueOfSameEvent() PASSED
+
+EcommerceApplicationWithInMemoryH2DbTest > springContextShouldLoad(ApplicationContext) PASSED
+
+EcommerceApplicationWithInMemoryH2DbTest > injectedComponentsShouldNotBeNull() PASSED
+
+EcommerceApplicationWithInMemoryH2DbTest > shouldIncrementSequenceByOne() PASSED
+
+2026-10-18T17:00:29.454+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-2) is shutting down (timeout:45s)
+2026-10-18T17:00:29.455+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:0)
+2026-10-18T17:00:29.456+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-2) shutdown in 1ms (uptime:4m53s)
+2026-10-18T17:00:29.496+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:29.498+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown initiated...
+2026-10-18T17:00:31.924+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown completed.
+2026-10-18T17:00:31.928+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) is shutting down (timeout:45s)
+2026-10-18T17:00:31.928+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:0)
+2026-10-18T17:00:31.930+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) shutdown in 1ms (uptime:4m6s)
+2026-10-18T17:00:31.942+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:31.943+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown initiated...
+2026-10-18T17:00:36.550+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown completed.
+2026-10-18T17:00:36.553+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) is shutting down (timeout:45s)
+2026-10-18T17:00:36.553+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:0)
+2026-10-18T17:00:36.554+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) shutdown in 1ms (uptime:3m35s)
+2026-10-18T17:00:36.571+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:36.572+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-18T17:00:40.977+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+2026-10-18T17:00:40.980+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) is shutting down (timeout:45s)
+2026-10-18T17:00:40.990+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:00:40.990+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:00:40.990+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:00:40.990+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:00:40.990+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:00:40.993+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) shutdown in 12ms (uptime:2m53s)
+2026-10-18T17:00:41.003+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:41.004+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown initiated...
+2026-10-18T17:00:41.976+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown completed.
+2026-10-18T17:00:41.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) is shutting down (timeout:45s)
+2026-10-18T17:00:41.982+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:00:41.982+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:00:41.982+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:00:41.982+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:00:41.982+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:00:41.984+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) shutdown in 4ms (uptime:2m7s)
+2026-10-18T17:00:41.996+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:41.997+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown initiated...
+2026-10-18T17:00:44.733+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown completed.
+2026-10-18T17:00:44.736+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) is shutting down (timeout:45s)
+2026-10-18T17:00:44.738+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:00:44.738+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:00:44.738+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:00:44.738+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:00:44.738+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:00:44.739+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) shutdown in 2ms (uptime:1m20s)
+2026-10-18T17:00:44.750+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:44.751+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown initiated...
+2026-10-18T17:00:48.972+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown completed.
+2026-10-18T17:00:48.976+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) is shutting down (timeout:45s)
+2026-10-18T17:00:48.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:00:48.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:00:48.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:00:48.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:00:48.979+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:00:48.980+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) shutdown in 4ms (uptime:38s)
+2026-10-18T17:00:48.991+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:48.992+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown initiated...
+2026-10-18T17:00:48.994+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown completed.
+2026-10-18T17:00:48.997+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) is shutting down (timeout:45s)
+2026-10-18T17:00:48.998+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:00:48.998+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:00:48.998+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:00:48.998+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:00:48.998+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:00:49.000+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) shutdown in 3ms (uptime:19s)
+2026-10-18T17:00:49.015+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:00:49.016+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown initiated...
+2026-10-18T17:00:49.017+02:00  INFO 37099 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown completed.
+
+> Task :application:ecommerce:test
+
+EcommerceApplicationWithPostgresDbTest > springContextShouldLoad(ApplicationContext) PASSED
+
+EcommerceApplicationWithPostgresDbTest > injectedComponentsShouldNotBeNull() PASSED
+
+EcommerceApplicationWithPostgresDbTest > shouldIncrementSequenceByOne() PASSED
+
+EcommerceApplicationWithPostgresDbTest > postgresContainerShouldBeRunning() PASSED
+
+ForwardMigrationUpgradePostgresIntegrationTest > shouldForwardFixDeterministicPaymentStateAndReportAmbiguousStockState() PASSED
+
+HistoricalUpgradePostgresIntegrationTest > shouldUpgradeFrozenD702f9cDataAndExposeSafeRecoveryContract() PASSED
+
+ManageOrderIntegrationTest > springContextShouldLoad(ApplicationContext) PASSED
+
+ManageOrderIntegrationTest > injectedComponentsShouldNotBeNull() PASSED
+
+ManageOrderIntegrationTest > shouldIncrementSequenceByOne() PASSED
+
+ManageOrderIntegrationTest > shouldSaveOrder() PASSED
+
+OperatorRecoveryToolingPostgresIntegrationTest > shouldExecuteReadOnlyReconciliationQueriesAgainstCurrentSchema() PASSED
+
+OrderCancellationFinalizationPostgresIntegrationTest > staleOwnerAfterTakeoverMustReportLostClaimAndMustNotEnqueueNotification() PASSED
+
+OrderCancellationFinalizationPostgresIntegrationTest > notificationFailureAfterFencedStateChangeMustRollbackStateAndRetryExactlyOnce() PASSED
+
+OrderCancellationManualReviewRedrivePostgresIntegrationTest > shouldDurablyAuditReplayAndFenceManualReviewRedrive() PASSED
+
+OrderCancellationMultiWorkerClaimPostgresIntegrationTest > staleWorkerMustNotMutateSuccessOrFailureAfterLeaseTakeover() PASSED
+
+OrderCancellationMultiWorkerClaimPostgresIntegrationTest > shouldAllowOnlyOneWorkerToOwnCancellationRecoveryLease() PASSED
+
+OrderCancellationRecoveryPostgresIntegrationTest > claimedRecoveryMustFinishCancellationInsteadOfBlockingItsOwnLease() PASSED
+
+OrderCancellationRecoveryPostgresIntegrationTest > shouldResumeCancellationFromDurableIntentAfterFirstSideEffectFails() PASSED
+
+OrderCancellationSagaPostgresIntegrationTest > shouldLetPollWinnerFinishAndRejectConcurrentCancellation() PASSED
+
+OrderCancellationSagaPostgresIntegrationTest > shouldNotCaptureOrFulfillWhenOrderWasCancelledBeforeFirstPoll() PASSED
+
+OrderCancellationSagaPostgresIntegrationTest > shouldNotRecaptureAfterFulfillmentRetryWasCancelledAndRefunded() PASSED
+
+OrderFulfillmentReceiptPostgresIntegrationTest > operationIdReuseWithDifferentPayloadMustFailClosed() PASSED
+
+OrderFulfillmentReceiptPostgresIntegrationTest > concurrentRedeliveryMustCreateOneDurableFulfillmentReceipt() PASSED
+
+2026-10-18T17:05:51.766+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-1) is shutting down (timeout:45s)
+2026-10-18T17:05:51.769+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:05:51.769+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:05:51.769+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:05:51.769+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:05:51.769+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:05:51.770+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-1) shutdown in 3ms (uptime:4m22s)
+2026-10-18T17:05:51.817+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:05:51.834+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-18T17:05:53.002+02:00  WARN 7235 --- [onnection-adder] [                                                 ] com.zaxxer.hikari.pool.PoolBase          : HikariPool-4 - Pool is empty, failed to create/setup connection (80f1665a-3d8c-4a9b-92aa-dc5ae42ad74e)
+
+org.postgresql.util.PSQLException: Connection to localhost:61521 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:427) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:295) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.Driver.makeConnection(Driver.java:437) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.Driver.connect(Driver.java:305) ~[postgresql-42.7.13.jar:42.7.13]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-7.0.2.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:548) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:270) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:131) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:221) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:367) ~[postgresql-42.7.13.jar:42.7.13]
+	... 14 common frames omitted
+
+2026-10-18T17:05:54.561+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-18T17:05:54.565+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) is shutting down (timeout:45s)
+2026-10-18T17:05:54.566+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:05:54.567+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:05:54.567+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:05:54.567+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:05:54.567+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:05:54.568+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) shutdown in 3ms (uptime:3m42s)
+2026-10-18T17:05:54.604+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:05:54.607+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown initiated...
+2026-10-18T17:05:54.608+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown completed.
+2026-10-18T17:05:54.611+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) is shutting down (timeout:45s)
+2026-10-18T17:05:54.613+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:05:54.613+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:05:54.613+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:05:54.613+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:05:54.613+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:05:54.615+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) shutdown in 3ms (uptime:3m16s)
+2026-10-18T17:05:54.645+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:05:54.647+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-18T17:05:56.308+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@22cef97c (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.309+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@7ef29a5b (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.310+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@596975c2 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.310+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@10da6da9 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.311+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@2b6d418c (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.311+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@12f4cb2f (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.311+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@2db20856 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.312+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@4a64cbfb (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.312+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@96e28b9 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:56.313+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] com.zaxxer.hikari.pool.PoolBase          : HikariPool-9 - Failed to validate connection org.postgresql.jdbc.PgConnection@758120e4 (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:57.031+02:00  WARN 7235 --- [l-6:housekeeper] [                                                 ] com.zaxxer.hikari.pool.PoolBase          : HikariPool-6 - Failed to validate connection org.postgresql.jdbc.PgConnection@24c6744e (This connection has been closed.). Possibly consider using a shorter maxLifetime value.
+2026-10-18T17:05:58.005+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+2026-10-18T17:05:58.007+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) is shutting down (timeout:45s)
+2026-10-18T17:05:58.009+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:05:58.009+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:05:58.009+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:05:58.009+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:05:58.009+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:05:58.010+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) shutdown in 2ms (uptime:2m32s)
+2026-10-18T17:05:58.020+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:05:58.021+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown initiated...
+2026-10-18T17:06:00.387+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown completed.
+2026-10-18T17:06:00.390+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) is shutting down (timeout:45s)
+2026-10-18T17:06:00.391+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:06:00.391+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:06:00.392+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:06:00.392+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:06:00.392+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:06:00.393+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) shutdown in 3ms (uptime:1m48s)
+2026-10-18T17:06:00.404+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:06:00.405+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown initiated...
+2026-10-18T17:06:01.731+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown completed.
+2026-10-18T17:06:01.734+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) is shutting down (timeout:45s)
+2026-10-18T17:06:01.736+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:06:01.736+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:06:01.736+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:06:01.736+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:06:01.736+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:06:01.737+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) shutdown in 3ms (uptime:1m34s)
+2026-10-18T17:06:01.748+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:06:01.748+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown initiated...
+2026-10-18T17:06:02.161+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown completed.
+2026-10-18T17:06:02.163+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) is shutting down (timeout:45s)
+2026-10-18T17:06:02.165+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:06:02.165+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:06:02.165+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:06:02.165+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:06:02.165+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:06:02.166+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) shutdown in 2ms (uptime:52s)
+2026-10-18T17:06:02.176+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:06:02.177+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown initiated...
+2026-10-18T17:06:04.446+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown completed.
+2026-10-18T17:06:04.449+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) is shutting down (timeout:45s)
+2026-10-18T17:06:04.451+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:06:04.451+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:06:04.451+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:06:04.451+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:06:04.451+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:06:04.452+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) shutdown in 2ms (uptime:13s)
+2026-10-18T17:06:26.308+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 08001
+2026-10-18T17:06:26.309+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] org.hibernate.orm.jdbc.error             : HikariPool-9 - Connection is not available, request timed out after 30000ms (total=0, active=0, idle=0, waiting=0)
+2026-10-18T17:06:26.309+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] org.hibernate.orm.jdbc.error             : HHH000247: ErrorCode: 0, SQLState: 08001
+2026-10-18T17:06:26.309+02:00  WARN 7235 --- [   scheduling-2] [d6e392bb89343d2bfa561d6e99b981c7-5b61dac56f71def2] org.hibernate.orm.jdbc.error             : HikariPool-9 - Connection is not available, request timed out after 30000ms (total=0, active=0, idle=0, waiting=0)
+2026-10-18T17:06:26.311+02:00 ERROR 7235 --- [   scheduling-2] [                                                 ] o.s.s.s.TaskUtils$LoggingErrorHandler    : Unexpected error occurred in scheduled task
+
+org.springframework.dao.DataAccessResourceFailureException: Unable to acquire JDBC Connection [HikariPool-9 - Connection is not available, request timed out after 30000ms (total=0, active=0, idle=0, waiting=0)] [n/a]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:153) ~[spring-orm-7.0.9.jar:7.0.9]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.convertHibernateAccessException(HibernateExceptionTranslator.java:131) ~[spring-orm-7.0.9.jar:7.0.9]
+	at org.springframework.orm.jpa.hibernate.HibernateExceptionTranslator.translateExceptionIfPossible(HibernateExceptionTranslator.java:105) ~[spring-orm-7.0.9.jar:7.0.9]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:223) ~[spring-orm-7.0.9.jar:7.0.9]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.translateExceptionIfPossible(AbstractEntityManagerFactoryBean.java:577) ~[spring-orm-7.0.9.jar:7.0.9]
+	at org.springframework.dao.support.ChainedPersistenceExceptionTranslator.translateExceptionIfPossible(ChainedPersistenceExceptionTranslator.java:61) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.dao.support.DataAccessUtils.translateIfNecessary(DataAccessUtils.java:346) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:157) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.data.jpa.repository.support.CrudMethodMetadataPostProcessor$CrudMethodMetadataPopulatingMethodInterceptor.invoke(CrudMethodMetadataPostProcessor.java:137) ~[spring-data-jpa-4.1.1.jar:4.1.1]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.JdkDynamicAopProxy.invoke(JdkDynamicAopProxy.java:222) ~[spring-aop-7.0.9.jar:7.0.9]
+	at jdk.proxy3/jdk.proxy3.$Proxy276.findDueDispatchIds(Unknown Source) ~[na:na]
+	at com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchManager.retryDueDispatches(OrderPlacementDispatchManager.java:84) ~[persistence-0.1.jar:na]
+	at com.cp.ecommerce.adapter.persistence.order.dispatch.OrderPlacementDispatchScheduler.retryDueDispatches(OrderPlacementDispatchScheduler.java:23) ~[persistence-0.1.jar:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:128) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$1(ScheduledMethodRunnable.java:122) ~[spring-context-7.0.9.jar:7.0.9]
+	at io.micrometer.observation.Observation.observe(Observation.java:569) ~[micrometer-observation-1.17.1.jar:1.17.1]
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:122) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.scheduling.config.Task$OutcomeTrackingRunnable.run(Task.java:88) ~[spring-context-7.0.9.jar:7.0.9]
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54) ~[spring-context-7.0.9.jar:7.0.9]
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.runAndReset(FutureTask.java:371) ~[na:na]
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:310) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:475) ~[na:na]
+Caused by: org.hibernate.exception.JDBCConnectionException: Unable to acquire JDBC Connection [HikariPool-9 - Connection is not available, request timed out after 30000ms (total=0, active=0, idle=0, waiting=0)] [n/a]
+	at org.hibernate.exception.internal.SQLExceptionTypeDelegate.convert(SQLExceptionTypeDelegate.java:49) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:34) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:115) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:101) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.acquire(LogicalConnectionManagedImpl.java:190) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.acquireConnectionIfNeeded(LogicalConnectionManagedImpl.java:87) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.getPhysicalConnection(LogicalConnectionManagedImpl.java:126) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.doExecuteQuery(JdbcSelectExecutorStandardImpl.java:132) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.sql.exec.internal.JdbcSelectExecutorStandardImpl.executeQuery(JdbcSelectExecutorStandardImpl.java:100) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.sql.exec.spi.JdbcSelectExecutor.executeQuery(JdbcSelectExecutor.java:63) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.sql.exec.spi.JdbcSelectExecutor.list(JdbcSelectExecutor.java:137) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.lambda$new$1(ConcreteSqmSelectQueryPlan.java:136) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.withCacheableSqmInterpretation(ConcreteSqmSelectQueryPlan.java:484) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.sqm.internal.ConcreteSqmSelectQueryPlan.performList(ConcreteSqmSelectQueryPlan.java:411) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.sqm.internal.SqmQueryImpl.doList(SqmQueryImpl.java:379) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.spi.AbstractSelectionQuery.list(AbstractSelectionQuery.java:153) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.query.Query.getResultList(Query.java:121) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565) ~[na:na]
+	at org.springframework.orm.jpa.SharedEntityManagerCreator$DeferredQueryInvocationHandler.invoke(SharedEntityManagerCreator.java:567) ~[spring-orm-7.0.9.jar:7.0.9]
+	at jdk.proxy3/jdk.proxy3.$Proxy323.getResultList(Unknown Source) ~[na:na]
+	at org.springframework.data.jpa.repository.query.JpaQueryExecution$CollectionExecution.doExecute(JpaQueryExecution.java:141) ~[spring-data-jpa-4.1.1.jar:4.1.1]
+	at org.springframework.data.jpa.repository.query.JpaQueryExecution.execute(JpaQueryExecution.java:100) ~[spring-data-jpa-4.1.1.jar:4.1.1]
+	at org.springframework.data.jpa.repository.query.AbstractJpaQuery.doExecute(AbstractJpaQuery.java:166) ~[spring-data-jpa-4.1.1.jar:4.1.1]
+	at org.springframework.data.jpa.repository.query.AbstractJpaQuery.execute(AbstractJpaQuery.java:156) ~[spring-data-jpa-4.1.1.jar:4.1.1]
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.doInvoke(RepositoryMethodInvoker.java:169) ~[spring-data-commons-4.1.1.jar:4.1.1]
+	at org.springframework.data.repository.core.support.RepositoryMethodInvoker.invoke(RepositoryMethodInvoker.java:158) ~[spring-data-commons-4.1.1.jar:4.1.1]
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.doInvoke(QueryExecutorMethodInterceptor.java:167) ~[spring-data-commons-4.1.1.jar:4.1.1]
+	at org.springframework.data.repository.core.support.QueryExecutorMethodInterceptor.invoke(QueryExecutorMethodInterceptor.java:146) ~[spring-data-commons-4.1.1.jar:4.1.1]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.data.projection.DefaultMethodInvokingMethodInterceptor.invoke(DefaultMethodInvokingMethodInterceptor.java:69) ~[spring-data-commons-4.1.1.jar:4.1.1]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:133) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:371) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:130) ~[spring-tx-7.0.9.jar:7.0.9]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.9.jar:7.0.9]
+	at org.springframework.dao.support.PersistenceExceptionTranslationInterceptor.invoke(PersistenceExceptionTranslationInterceptor.java:135) ~[spring-tx-7.0.9.jar:7.0.9]
+	... 21 common frames omitted
+Caused by: java.sql.SQLTransientConnectionException: HikariPool-9 - Connection is not available, request timed out after 30000ms (total=0, active=0, idle=0, waiting=0)
+	at com.zaxxer.hikari.pool.HikariPool.createTimeoutException(HikariPool.java:714) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:184) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:142) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:127) ~[HikariCP-7.0.2.jar:na]
+	at org.hibernate.engine.jdbc.connections.internal.DataSourceConnectionProvider.getConnection(DataSourceConnectionProvider.java:149) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.internal.NonContextualJdbcConnectionAccess.obtainConnection(NonContextualJdbcConnectionAccess.java:62) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	at org.hibernate.resource.jdbc.internal.LogicalConnectionManagedImpl.acquire(LogicalConnectionManagedImpl.java:187) ~[hibernate-core-7.4.7.Final.jar:7.4.7.Final]
+	... 53 common frames omitted
+Caused by: org.postgresql.util.PSQLException: Connection to localhost:61705 refused. Check that the hostname and port are correct and that the postmaster is accepting TCP/IP connections.
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:427) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:52) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:295) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.Driver.makeConnection(Driver.java:437) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.Driver.connect(Driver.java:305) ~[postgresql-42.7.13.jar:42.7.13]
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:144) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:373) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:210) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:488) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:752) ~[HikariCP-7.0.2.jar:na]
+	at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:731) ~[HikariCP-7.0.2.jar:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1516) ~[na:na]
+Caused by: java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:642) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:555) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:599) ~[na:na]
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:284) ~[na:na]
+	at java.base/java.net.Socket.connect(Socket.java:668) ~[na:na]
+	at org.postgresql.core.PGStream.createSocket(PGStream.java:270) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.PGStream.<init>(PGStream.java:131) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:221) ~[postgresql-42.7.13.jar:42.7.13]
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:367) ~[postgresql-42.7.13.jar:42.7.13]
+	... 14 common frames omitted
+
+2026-10-18T17:06:26.323+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:06:26.324+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown initiated...
+2026-10-18T17:06:26.449+02:00  INFO 7235 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown completed.
+
+> Task :application:ecommerce:test
+
+OrderReplayH2IntegrationTest > shouldReplayAfterStockExhaustionWithoutAdditionalWrites() PASSED
+
+OrderReplayH2IntegrationTest > shouldRejectReservationOutsideAnAmbientTransaction() PASSED
+
+OrderReplayH2IntegrationTest > shouldRollbackPartialStockAndKeyThenPermitImmediateRetry() PASSED
+
+OrderReplayH2IntegrationTest > shouldLetAWaitingAttemptProceedAfterRollback() PASSED
+
+OrderReplayH2IntegrationTest > shouldUpgradeAWrappedSequenceBeyondRetainedIds() PASSED
+
+OrderReplayH2IntegrationTest > shouldSerializeStaleTakeoverUntilCompletionCommits() PASSED
+
+OrderReplayH2IntegrationTest > shouldSerializeConcurrentSameKeyPlacements() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldReplayAfterStockExhaustionWithoutAdditionalWrites() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldRejectReservationOutsideAnAmbientTransaction() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldRollbackPartialStockAndKeyThenPermitImmediateRetry() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldLetAWaitingAttemptProceedAfterRollback() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldUpgradeAWrappedSequenceBeyondRetainedIds() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldSerializeStaleTakeoverUntilCompletionCommits() PASSED
+
+OrderReplayPostgresIntegrationTest > shouldSerializeConcurrentSameKeyPlacements() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > staleCaptureRecoveryOwnerMustNotStartRefundAfterTakeover() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > cancellationWinningBeforeCapturePrepareMustCompensateLateCapture() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > shouldNotRefundLateCaptureAfterHealthyTakeover() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > shouldAllowOnlyOneWorkerWhilePlacementLeaseIsActive() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > shouldRecoverExpiredPlacementLeaseAfterWorkerDeath() PASSED
+
+OutboxMultiWorkerClaimPostgresIntegrationTest > captureFinalizationFailureAfterCancellationMustRecoverAndRefund() PASSED
+
+PaymentOperationPreparationPostgresIntegrationTest > stalePendingPrepareMustNotOverwriteFullyRefundedCanonicalPayment() PASSED
+
+PaymentOperationPreparationPostgresIntegrationTest > concurrentFirstCaptureMustConvergeOnOneCanonicalPaymentAndOneIntent() PASSED
+
+PaymentOperationPreparationPostgresIntegrationTest > stalePendingPrepareMustNotOverwritePartiallyRefundedCanonicalPayment() PASSED
+
+PaymentOperationPreparationPostgresIntegrationTest > shouldRollbackPendingPaymentWhenReconciliationIntentPreparationFails() PASSED
+
+PaymentPartialRefundPostgresIntegrationTest > shouldRefundTwoReturnsIncrementallyAndReplayApprovalIdempotently() PASSED
+
+PaymentPartialRefundPostgresIntegrationTest > shouldPreventConcurrentClaimsFromOverRefundingPayment() PASSED
+
+PaymentPartialRefundPostgresIntegrationTest > shouldRefundOnlyRemainingAmountOnWholeOrderRefundAfterPartialReturn() PASSED
+
+RabbitMqFulfillmentDeliveryIntegrationTest > committedReceiptMustSurviveAckLossAndBrokerRedeliveryWithoutFinanceMutation() PASSED
+
+RabbitMqFulfillmentDeliveryIntegrationTest > acceptedPublishCanBeRepublishedAfterOwnerLossWithoutDuplicateReceiptOrFinanceMutation() PASSED
+
+RefundContinuationCrashPointPostgresIntegrationTest > zeroValueApprovalMustRollbackWithNotificationFailure() PASSED
+
+RefundContinuationCrashPointPostgresIntegrationTest > approvalAndDurableContinuationMustRollbackTogether() PASSED
+
+RefundContinuationCrashPointPostgresIntegrationTest > mappingWithoutRefundRowMustRemainDiscoverable() PASSED
+
+RefundToReturnRecoveryPostgresIntegrationTest > completedRefundMustResumeApprovedReturnWithoutSecondUserAction() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldPreserveHistoricalActiveAmountAndAllocateOnlyRemainingMinorUnits() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldReleaseRejectedAmountAcrossMixedActiveStates() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldRespectHistoricalPersistedRefundSnapshotWhenAllocatingRemainingEntitlement() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldAllowOnlyOneConcurrentApproveOrRejectDecision() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldAllowOnlyOneConcurrentRequestForLastReturnableUnit() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldConserveMinorUnitsAcrossTwoConcurrentEntitlementRequests() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldReleaseRejectedEntitlementExactlyOnce() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldRestoreExactRejectedMinorUnitAcrossABRejectACD() PASSED
+
+ReturnConcurrencyPostgresIntegrationTest > shouldConserveRefundEntitlementAcrossGeneratedRejectPatterns() PASSED
+
+SagaCompensationRecoveryPostgresIntegrationTest > shouldResumeDurableCompensationAfterStockReleaseFailure() PASSED
+
+ShipmentAtomicityPostgresIntegrationTest > legacyDispatchMustRollbackShipmentAndEarlierSkuWhenLaterSkuFails() PASSED
+
+2026-10-18T17:09:48.804+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) is shutting down (timeout:45s)
+2026-10-18T17:09:48.806+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:48.807+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:48.807+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:48.807+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:48.807+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:48.808+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) shutdown in 3ms (uptime:1m27s)
+2026-10-18T17:09:48.819+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:48.820+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-18T17:09:48.822+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+2026-10-18T17:09:48.825+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) is shutting down (timeout:45s)
+2026-10-18T17:09:48.826+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:48.827+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:48.827+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:48.827+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:48.827+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:48.828+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-5) shutdown in 3ms (uptime:1m17s)
+2026-10-18T17:09:48.839+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:48.840+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown initiated...
+2026-10-18T17:09:51.604+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-5 - Shutdown completed.
+2026-10-18T17:09:51.606+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) is shutting down (timeout:45s)
+2026-10-18T17:09:51.608+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.608+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.608+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.608+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.608+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.609+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-6) shutdown in 2ms (uptime:40s)
+2026-10-18T17:09:51.616+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.617+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown initiated...
+2026-10-18T17:09:51.619+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-6 - Shutdown completed.
+2026-10-18T17:09:51.621+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) is shutting down (timeout:45s)
+2026-10-18T17:09:51.622+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.622+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.622+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.622+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.622+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.623+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-7) shutdown in 2ms (uptime:31s)
+2026-10-18T17:09:51.630+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.631+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown initiated...
+2026-10-18T17:09:51.633+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-7 - Shutdown completed.
+2026-10-18T17:09:51.635+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) is shutting down (timeout:45s)
+2026-10-18T17:09:51.636+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.636+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.636+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.636+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.636+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.637+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-8) shutdown in 1ms (uptime:25s)
+2026-10-18T17:09:51.644+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.645+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown initiated...
+2026-10-18T17:09:51.646+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-8 - Shutdown completed.
+2026-10-18T17:09:51.649+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) is shutting down (timeout:45s)
+2026-10-18T17:09:51.650+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.650+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.650+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.650+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.650+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.651+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-9) shutdown in 1ms (uptime:18s)
+2026-10-18T17:09:51.657+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.658+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown initiated...
+2026-10-18T17:09:51.659+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-9 - Shutdown completed.
+2026-10-18T17:09:51.661+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-10) is shutting down (timeout:45s)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.662+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-10) shutdown in 1ms (uptime:10s)
+2026-10-18T17:09:51.669+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.670+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-10 - Shutdown initiated...
+2026-10-18T17:09:51.671+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-10 - Shutdown completed.
+2026-10-18T17:09:51.674+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-11) is shutting down (timeout:45s)
+2026-10-18T17:09:51.675+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:09:51.675+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:09:51.675+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:09:51.675+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:09:51.675+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:09:51.676+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-11) shutdown in 1ms (uptime:3s)
+2026-10-18T17:09:51.683+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:09:51.684+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-11 - Shutdown initiated...
+2026-10-18T17:09:51.685+02:00  INFO 40048 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-11 - Shutdown completed.
+
+> Task :application:ecommerce:test
+
+ShipmentDispatchRulesPostgresIntegrationTest > legacyDispatchMustRejectPartiallyRefundedPaymentWithoutMutatingShipmentOrStock() PASSED
+
+ShipmentOperationIdentityRacePostgresIntegrationTest > committedOperationIdMustNotBeReassignedToAnotherShipment() PASSED
+
+ShipmentOperationIdentityRacePostgresIntegrationTest > concurrentOperationIdCollisionMustHaveExactlyOneWinner() PASSED
+
+ShipmentOperationIdentityRacePostgresIntegrationTest > concurrentIdenticalCommandsMustBothReplayCanonicalResult() PASSED
+
+StockReservationIdentityPostgresIntegrationTest > shouldNotReleaseAnotherOrdersReservationAfterFulfillment() PASSED
+
+StockReservationIdentityPostgresIntegrationTest > shouldNotReleaseOtherOrdersReservationWhenCancellationIsRetried() PASSED
+
+StockReservationIdentityPostgresIntegrationTest > shouldReserveOnceAndReleaseOnceUnderConcurrentDuplicateReplay() PASSED
+
+StockRetryTransactionBoundaryPostgresIntegrationTest > shouldRetryStockMutationInsideAmbientTransactionWithoutPoisoningIt() PASSED
+
+2026-10-18T17:10:53.071+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-1) is shutting down (timeout:45s)
+2026-10-18T17:10:53.081+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:10:53.081+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:10:53.081+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:10:53.081+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:10:53.081+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:10:53.086+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-1) shutdown in 15ms (uptime:31s)
+2026-10-18T17:10:53.142+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:10:53.146+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-10-18T17:10:53.150+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-10-18T17:10:53.154+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-2) is shutting down (timeout:45s)
+2026-10-18T17:10:53.157+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:10:53.157+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:10:53.157+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:10:53.157+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:10:53.157+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:10:53.158+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-2) shutdown in 3ms (uptime:22s)
+2026-10-18T17:10:53.191+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:10:53.192+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown initiated...
+2026-10-18T17:10:53.194+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-2 - Shutdown completed.
+2026-10-18T17:10:53.198+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) is shutting down (timeout:45s)
+2026-10-18T17:10:53.200+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:10:53.200+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:10:53.200+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:10:53.200+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:10:53.200+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:10:53.201+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-3) shutdown in 3ms (uptime:11s)
+2026-10-18T17:10:53.234+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:10:53.237+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown initiated...
+2026-10-18T17:10:53.238+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-3 - Shutdown completed.
+2026-10-18T17:10:53.242+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) is shutting down (timeout:45s)
+2026-10-18T17:10:53.244+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Routes stopped (total:4)
+2026-10-18T17:10:53.244+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped internationalOrderFulfillmentRoute (direct://internationalOrderFulfillment)
+2026-10-18T17:10:53.244+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped domesticOrderFulfillmentRoute (direct://domesticOrderFulfillment)
+2026-10-18T17:10:53.244+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationAuditRoute (direct://orderNotificationAudit)
+2026-10-18T17:10:53.244+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   :     Stopped orderNotificationRoute (direct://orderNotification)
+2026-10-18T17:10:53.245+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] o.a.c.impl.engine.AbstractCamelContext   : Apache Camel 4.22.1 (camel-4) shutdown in 3ms (uptime:0s)
+2026-10-18T17:10:53.276+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-10-18T17:10:53.277+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown initiated...
+2026-10-18T17:10:53.279+02:00  INFO 55776 --- [ionShutdownHook] [                                                 ] com.zaxxer.hikari.HikariDataSource       : HikariPool-4 - Shutdown completed.
+
+> Task :application:ecommerce:check
+> Task :application:ecommerce:build
+== Build time summary ==
+                                  :application:ecommerce:test | 19M44S | 72% | ████████████████████████████████████████████████████████████████████████████████████████████████████
+                            :adapter:persistence:spotbugsTest |  3M55S | 14% | ████████████████████
+                            :adapter:persistence:spotbugsMain |   3M8S | 11% | ████████████████
+                                         :domain:spotbugsTest |  2M55S | 11% | ███████████████
+                     :adapter:ecommerce-frontend:runUnitTests |  2M49S | 10% | ██████████████
+                                    :adapter:web:spotbugsTest |  2M35S |  9% | █████████████
+                                         :domain:spotbugsMain |  2M29S |  9% | █████████████
+                                    :adapter:web:spotbugsMain |  2M22S |  9% | ████████████
+                                 :adapter:persistence:pmdTest |  1M46S |  6% | █████████
+                    :adapter:ecommerce-frontend:npm_run_build |  1M45S |  6% | █████████
+                                   :adapter:mail:spotbugsMain |  1M43S |  6% | █████████
+                                 :adapter:common:spotbugsTest |  1M40S |  6% | ████████
+                                   :adapter:mail:spotbugsTest |  1M40S |  6% | ████████
+                               :adapter:security:spotbugsTest |  1M39S |  6% | ████████
+                                     :adapter:ai:spotbugsTest |  1M33S |  6% | ████████
+                      :application:orchestration:spotbugsTest |  1M33S |  6% | ████████
+                                    :adapter:aws:spotbugsTest |  1M31S |  6% | ████████
+                                   :adapter:amqp:spotbugsTest |  1M24S |  5% | ███████
+                                     :adapter:ai:spotbugsMain |  1M23S |  5% | ███████
+                                    :adapter:aws:spotbugsMain |  1M22S |  5% | ███████
+                                  :adapter:kafka:spotbugsTest |  1M19S |  5% | ███████
+                               :adapter:security:spotbugsMain |  1M18S |  5% | ███████
+                                  :adapter:camel:spotbugsTest |  1M15S |  5% | ██████
+                                  :adapter:kafka:spotbugsMain |  1M15S |  5% | ██████
+                      :application:orchestration:spotbugsMain |  1M15S |  5% | ██████
+                                  :adapter:camel:spotbugsMain |  1M13S |  4% | ██████
+                                 :adapter:common:spotbugsMain |  1M13S |  4% | ██████
+                                     :foundation:spotbugsMain |  1M10S |  4% | ██████
+                                   :adapter:amqp:spotbugsMain |  1M10S |  4% | ██████
+                  :adapter:ecommerce-frontend:spotlessStyling |   1M5S |  4% | █████
+                                     :foundation:spotbugsTest |   1M2S |  4% | █████
+                                          :foundation:pmdTest |    59S |  4% | █████
+                                          :foundation:pmdMain |    58S |  4% | █████
+                                       :domain:checkstyleMain |    58S |  4% | █████
+                   :adapter:ecommerce-frontend:runESLintCheck |    56S |  3% | █████
+                                         :adapter:web:pmdTest |    55S |  3% | █████
+                                       :domain:checkstyleTest |    52S |  3% | ████
+                                      :adapter:common:pmdTest |    48S |  3% | ████
+                                          :adapter:ai:pmdMain |    44S |  3% | ████
+                                          :adapter:ai:pmdTest |    43S |  3% | ████
+                                        :adapter:amqp:pmdTest |    42S |  3% | ████
+                                       :adapter:kafka:pmdTest |    40S |  2% | ███
+                                   :foundation:checkstyleMain |    39S |  2% | ███
+                                 :adapter:persistence:pmdMain |    39S |  2% | ███
+                       :adapter:ecommerce-frontend:npmInstall |    36S |  2% | ███
+                                   :foundation:checkstyleTest |    34S |  2% | ███
+                                        :adapter:mail:pmdTest |    25S |  2% | ██
+                               :application:ecommerce:bootJar |    25S |  2% | ██
+                           :application:orchestration:pmdTest |    23S |  1% | ██
+                                    :adapter:security:pmdTest |    22S |  1% | ██
+                                         :adapter:web:pmdMain |    21S |  1% | ██
+                           :application:orchestration:pmdMain |    21S |  1% | ██
+                                         :adapter:aws:pmdTest |    19S |  1% | ██
+                          :adapter:persistence:checkstyleMain |    18S |  1% | ██
+                                       :adapter:camel:pmdTest |    17S |  1% | █
+                                        :adapter:mail:pmdMain |    17S |  1% | █
+                 :application:ecommerce:generateGitProperties |    16S |  1% | █
+                                        :adapter:amqp:pmdMain |    15S |  1% | █
+                                      :adapter:common:pmdMain |    15S |  1% | █
+                          :adapter:persistence:checkstyleTest |    15S |  1% | █
+                                         :adapter:aws:pmdMain |    14S |  1% | █
+                                    :adapter:security:pmdMain |    14S |  1% | █
+                        :adapter:persistence:jacocoTestReport |    13S |  1% | █
+                                :adapter:web:jacocoTestReport |    12S |  1% | █
+                                       :adapter:camel:pmdMain |    11S |  1% | █
+                                       :adapter:kafka:pmdMain |    11S |  1% | █
+                                   :adapter:ai:checkstyleMain |     9S |  1% | █
+                           :adapter:security:jacocoTestReport |     9S |  1% | █
+                                  :adapter:web:checkstyleMain |     9S |  1% | █
+                                 :adapter:ai:jacocoTestReport |     8S |  0% | █
+                    :application:orchestration:checkstyleTest |     8S |  0% | █
+                                  :adapter:web:checkstyleTest |     7S |  0% | █
+                                   :adapter:ai:checkstyleTest |     6S |  0% | █
+                    :application:orchestration:checkstyleMain |     6S |  0% | █
+                             :adapter:security:checkstyleMain |     5S |  0% | 
+                               :adapter:common:checkstyleMain |     4S |  0% | 
+                               :adapter:common:checkstyleTest |     4S |  0% | 
+                                 :adapter:mail:checkstyleMain |     4S |  0% | 
+                               :adapter:mail:jacocoTestReport |     4S |  0% | 
+                             :adapter:security:checkstyleTest |     4S |  0% | 
+                                 :adapter:amqp:checkstyleTest |     3S |  0% | 
+                                  :adapter:aws:checkstyleTest |     3S |  0% | 
+                                :adapter:kafka:checkstyleMain |     3S |  0% | 
+                  :application:orchestration:jacocoTestReport |     3S |  0% | 
+                                 :adapter:amqp:checkstyleMain |     2S |  0% | 
+                                  :adapter:aws:checkstyleMain |     2S |  0% | 
+                             :adapter:common:jacocoTestReport |     2S |  0% | 
+                        :adapter:ecommerce-frontend:nodeSetup |     2S |  0% | 
+                                :adapter:kafka:checkstyleTest |     2S |  0% | 
+                                 :adapter:mail:checkstyleTest |     2S |  0% | 
+          :adapter:persistence:jacocoTestCoverageVerification |     2S |  0% | 
+                  :adapter:web:jacocoTestCoverageVerification |     2S |  0% | 
+                   :adapter:ai:jacocoTestCoverageVerification |     1S |  0% | 
+                               :adapter:amqp:jacocoTestReport |     1S |  0% | 
+                                :adapter:aws:jacocoTestReport |     1S |  0% | 
+                                :adapter:camel:checkstyleMain |     1S |  0% | 
+                                :adapter:camel:checkstyleTest |     1S |  0% | 
+                              :adapter:camel:jacocoTestReport |     1S |  0% | 
+               :adapter:common:jacocoTestCoverageVerification |     1S |  0% | 
+                              :adapter:kafka:jacocoTestReport |     1S |  0% | 
+                                :application:processResources |     0S |  0% | 
+                                :adapter:processTestResources |     0S |  0% | 
+                            :application:processTestResources |     0S |  0% | 
+                        :domain:generateEffectiveLombokConfig |     0S |  0% | 
+                   :adapter:generateTestEffectiveLombokConfig |     0S |  0% | 
+               :application:generateTestEffectiveLombokConfig |     0S |  0% | 
+                   :application:generateEffectiveLombokConfig |     0S |  0% | 
+                    :domain:generateTestEffectiveLombokConfig |     0S |  0% | 
+                :adapter:common:generateEffectiveLombokConfig |     0S |  0% | 
+           :adapter:persistence:generateEffectiveLombokConfig |     0S |  0% | 
+                                     :application:compileJava |     0S |  0% | 
+                  :adapter:mail:generateEffectiveLombokConfig |     0S |  0% | 
+              :adapter:security:generateEffectiveLombokConfig |     0S |  0% | 
+                       :adapter:generateEffectiveLombokConfig |     0S |  0% | 
+                                 :domain:processTestResources |     0S |  0% | 
+                    :foundation:generateEffectiveLombokConfig |     0S |  0% | 
+                                 :foundation:processResources |     0S |  0% | 
+                                 :application:compileTestJava |     0S |  0% | 
+                                         :adapter:compileJava |     0S |  0% | 
+     :application:orchestration:generateEffectiveLombokConfig |     0S |  0% | 
+                                            :application:test |     0S |  0% | 
+                                    :adapter:processResources |     0S |  0% | 
+                        :adapter:persistence:processResources |     0S |  0% | 
+                                             :application:jar |     0S |  0% | 
+                               :adapter:mail:processResources |     0S |  0% | 
+                                      :foundation:compileJava |     0S |  0% | 
+                           :adapter:security:processResources |     0S |  0% | 
+                                     :adapter:compileTestJava |     0S |  0% | 
+                                                :adapter:test |     0S |  0% | 
+                                               :adapter:check |     0S |  0% | 
+                  :application:orchestration:processResources |     0S |  0% | 
+                                :adapter:web:processResources |     0S |  0% | 
+                                              :foundation:jar |     0S |  0% | 
+                   :adapter:web:generateEffectiveLombokConfig |     0S |  0% | 
+                             :foundation:processTestResources |     0S |  0% | 
+                :foundation:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                                 :adapter:jar |     0S |  0% | 
+                    :adapter:ai:generateEffectiveLombokConfig |     0S |  0% | 
+                                 :adapter:ai:processResources |     0S |  0% | 
+                :adapter:ai:generateTestEffectiveLombokConfig |     0S |  0% | 
+                         :adapter:common:processTestResources |     0S |  0% | 
+                                  :foundation:compileTestJava |     0S |  0% | 
+                                  :adapter:common:compileJava |     0S |  0% | 
+                             :adapter:ai:processTestResources |     0S |  0% | 
+                                          :adapter:common:jar |     0S |  0% | 
+            :adapter:common:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                          :domain:compileJava |     0S |  0% | 
+                                              :domain:classes |     0S |  0% | 
+                                             :foundation:test |     0S |  0% | 
+                                                  :domain:jar |     0S |  0% | 
+                             :adapter:persistence:compileJava |     0S |  0% | 
+                                :adapter:security:compileJava |     0S |  0% | 
+                                    :adapter:mail:compileJava |     0S |  0% | 
+                       :application:orchestration:compileJava |     0S |  0% | 
+                                     :adapter:web:compileJava |     0S |  0% | 
+                                      :domain:compileTestJava |     0S |  0% | 
+                                            :adapter:mail:jar |     0S |  0% | 
+                                     :adapter:persistence:jar |     0S |  0% | 
+                                        :adapter:security:jar |     0S |  0% | 
+                                             :adapter:web:jar |     0S |  0% | 
+                               :application:orchestration:jar |     0S |  0% | 
+                                                 :domain:test |     0S |  0% | 
+                                      :adapter:ai:compileJava |     0S |  0% | 
+                                              :adapter:ai:jar |     0S |  0% | 
+                              :adapter:common:compileTestJava |     0S |  0% | 
+                                      :adapter:common:testJar |     0S |  0% | 
+                                  :adapter:ai:compileTestJava |     0S |  0% | 
+                                             :adapter:ai:test |     0S |  0% | 
+                  :adapter:amqp:generateEffectiveLombokConfig |     0S |  0% | 
+                                    :adapter:amqp:compileJava |     0S |  0% | 
+                               :adapter:amqp:processResources |     0S |  0% | 
+                                            :adapter:amqp:jar |     0S |  0% | 
+              :adapter:amqp:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                :adapter:amqp:compileTestJava |     0S |  0% | 
+                           :adapter:amqp:processTestResources |     0S |  0% | 
+                                           :adapter:amqp:test |     0S |  0% | 
+                 :adapter:amqp:jacocoTestCoverageVerification |     0S |  0% | 
+                   :adapter:aws:generateEffectiveLombokConfig |     0S |  0% | 
+                                     :adapter:aws:compileJava |     0S |  0% | 
+                                :adapter:aws:processResources |     0S |  0% | 
+                                             :adapter:aws:jar |     0S |  0% | 
+                                        :adapter:aws:assemble |     0S |  0% | 
+               :adapter:aws:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                 :adapter:aws:compileTestJava |     0S |  0% | 
+                            :adapter:aws:processTestResources |     0S |  0% | 
+                                            :adapter:aws:test |     0S |  0% | 
+                  :adapter:aws:jacocoTestCoverageVerification |     0S |  0% | 
+                 :adapter:camel:generateEffectiveLombokConfig |     0S |  0% | 
+                                   :adapter:camel:compileJava |     0S |  0% | 
+                              :adapter:camel:processResources |     0S |  0% | 
+                                           :adapter:camel:jar |     0S |  0% | 
+             :adapter:camel:generateTestEffectiveLombokConfig |     0S |  0% | 
+                               :adapter:camel:compileTestJava |     0S |  0% | 
+                          :adapter:camel:processTestResources |     0S |  0% | 
+                                          :adapter:camel:test |     0S |  0% | 
+                :adapter:camel:jacocoTestCoverageVerification |     0S |  0% | 
+                                         :adapter:common:test |     0S |  0% | 
+                                          :adapter:amqp:build |     0S |  0% | 
+    :adapter:ecommerce-frontend:generateEffectiveLombokConfig |     0S |  0% | 
+                      :adapter:ecommerce-frontend:compileJava |     0S |  0% | 
+                 :adapter:ecommerce-frontend:processResources |     0S |  0% | 
+                              :adapter:ecommerce-frontend:jar |     0S |  0% | 
+:adapter:ecommerce-frontend:generateTestEffectiveLombokConfig |     0S |  0% | 
+                  :adapter:ecommerce-frontend:compileTestJava |     0S |  0% | 
+                         :adapter:ecommerce-frontend:npmSetup |     0S |  0% | 
+             :adapter:ecommerce-frontend:processTestResources |     0S |  0% | 
+                 :adapter:kafka:generateEffectiveLombokConfig |     0S |  0% | 
+                                   :adapter:kafka:compileJava |     0S |  0% | 
+                              :adapter:kafka:processResources |     0S |  0% | 
+                                           :adapter:kafka:jar |     0S |  0% | 
+             :adapter:kafka:generateTestEffectiveLombokConfig |     0S |  0% | 
+                               :adapter:kafka:compileTestJava |     0S |  0% | 
+                          :adapter:kafka:processTestResources |     0S |  0% | 
+                                   :adapter:kafka:testClasses |     0S |  0% | 
+                                          :adapter:kafka:test |     0S |  0% | 
+                :adapter:kafka:jacocoTestCoverageVerification |     0S |  0% | 
+              :adapter:mail:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                :adapter:mail:compileTestJava |     0S |  0% | 
+                           :adapter:mail:processTestResources |     0S |  0% | 
+                                           :adapter:mail:test |     0S |  0% | 
+                 :adapter:mail:jacocoTestCoverageVerification |     0S |  0% | 
+             :adapter:ecommerce-frontend:spotlessStylingCheck |     0S |  0% | 
+       :adapter:persistence:generateTestEffectiveLombokConfig |     0S |  0% | 
+                         :adapter:persistence:compileTestJava |     0S |  0% | 
+                    :adapter:persistence:processTestResources |     0S |  0% | 
+                                    :adapter:persistence:test |     0S |  0% | 
+                                        :adapter:common:build |     0S |  0% | 
+                                         :adapter:kafka:check |     0S |  0% | 
+          :adapter:security:generateTestEffectiveLombokConfig |     0S |  0% | 
+                            :adapter:security:compileTestJava |     0S |  0% | 
+                       :adapter:security:processTestResources |     0S |  0% | 
+                                       :adapter:security:test |     0S |  0% | 
+             :adapter:security:jacocoTestCoverageVerification |     0S |  0% | 
+                                          :adapter:mail:check |     0S |  0% | 
+               :adapter:web:generateTestEffectiveLombokConfig |     0S |  0% | 
+                                 :adapter:web:compileTestJava |     0S |  0% | 
+                            :adapter:web:processTestResources |     0S |  0% | 
+                                            :adapter:web:test |     0S |  0% | 
+         :application:ecommerce:generateEffectiveLombokConfig |     0S |  0% | 
+                           :application:ecommerce:compileJava |     0S |  0% | 
+        :adapter:ecommerce-frontend:processGeneratedResources |     0S |  0% | 
+                         :application:ecommerce:bootBuildInfo |     0S |  0% | 
+                      :application:ecommerce:processResources |     0S |  0% | 
+                  :application:ecommerce:resolveMainClassName |     0S |  0% | 
+                                   :application:ecommerce:jar |     0S |  0% | 
+     :application:ecommerce:generateTestEffectiveLombokConfig |     0S |  0% | 
+                       :application:ecommerce:compileTestJava |     0S |  0% | 
+                  :application:ecommerce:processTestResources |     0S |  0% | 
+                                      :adapter:security:check |     0S |  0% | 
+ :application:orchestration:generateTestEffectiveLombokConfig |     0S |  0% | 
+                   :application:orchestration:compileTestJava |     0S |  0% | 
+              :application:orchestration:processTestResources |     0S |  0% | 
+                              :application:orchestration:test |     0S |  0% | 
+    :application:orchestration:jacocoTestCoverageVerification |     0S |  0% | 
+                                   :adapter:persistence:check |     0S |  0% | 
+                                           :adapter:web:check |     0S |  0% | 
+                             :application:orchestration:check |     0S |  0% | 
+                                 :application:ecommerce:check |     0S |  0% | 
+                                 :application:ecommerce:build |     0S |  0% | 
+218 actionable tasks: 114 executed, 104 up-to-date
+Configuration cache entry stored.
