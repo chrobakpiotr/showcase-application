@@ -1,0 +1,108 @@
+{
+  "after_count": 107,
+  "before_count": 113,
+  "removed_candidates": [
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "51ad527ea80062cf2109c2258e5e211e615b30489a5d2620a17e82fdf1e05d5a"
+      ],
+      "created_at": "2026-10-17T20:15:13Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p005-rabbit-49279ea241b7",
+      "name": "51ad527ea80062cf2109c2258e5e211e615b30489a5d2620a17e82fdf1e05d5a",
+      "run": "P-005 blocked reconnect follow-up",
+      "started_at_utc": "2026-10-17T20:15:12.797630Z",
+      "stderr": "",
+      "stdout": "51ad527ea80062cf2109c2258e5e211e615b30489a5d2620a17e82fdf1e05d5a"
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "7f0352109341b0009b24f87d85a98b19041a6df4dadf77b6c28bf9e695b1c048"
+      ],
+      "created_at": "2026-10-17T20:29:44Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p005-rabbit-5fdec701f640",
+      "name": "7f0352109341b0009b24f87d85a98b19041a6df4dadf77b6c28bf9e695b1c048",
+      "run": "P-005 successful reconnect follow-up",
+      "started_at_utc": "2026-10-17T20:29:43.999629Z",
+      "stderr": "",
+      "stdout": "7f0352109341b0009b24f87d85a98b19041a6df4dadf77b6c28bf9e695b1c048"
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "d35ca15a450c4657f05b42beed1d3d146b329c8aa0d7e53b62d36d7697916412"
+      ],
+      "created_at": "2026-10-17T21:02:34Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p006-rabbit-20261017",
+      "name": "d35ca15a450c4657f05b42beed1d3d146b329c8aa0d7e53b62d36d7697916412",
+      "run": "P-006 original startup run, writable-layer attempt",
+      "started_at_utc": "2026-10-17T21:02Z (run directory timestamp)",
+      "stderr": "",
+      "stdout": "d35ca15a450c4657f05b42beed1d3d146b329c8aa0d7e53b62d36d7697916412"
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "cbe777351bb4374ce838f884df7bad8fa9164092e6a68dbd61d93df0a8de81c5"
+      ],
+      "created_at": "2026-10-17T21:09:28Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p006-rabbit-20261017t210906z",
+      "name": "cbe777351bb4374ce838f884df7bad8fa9164092e6a68dbd61d93df0a8de81c5",
+      "run": "P-006 explicit-cookie readiness-timeout retry",
+      "started_at_utc": "2026-10-17T21:09:06Z (run directory timestamp)",
+      "stderr": "",
+      "stdout": "cbe777351bb4374ce838f884df7bad8fa9164092e6a68dbd61d93df0a8de81c5"
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "080b8f28c898d81d85e4c5ec1a690a833c583ca408ef980e49b5660a49eb78fb"
+      ],
+      "created_at": "2026-10-17T21:15:04Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p006-rabbit-p005-baseline-20261017t211452z",
+      "name": "080b8f28c898d81d85e4c5ec1a690a833c583ca408ef980e49b5660a49eb78fb",
+      "run": "P-006 P-005-argv baseline replay",
+      "started_at_utc": "2026-10-17T21:14:52Z (run directory timestamp)",
+      "stderr": "",
+      "stdout": "080b8f28c898d81d85e4c5ec1a690a833c583ca408ef980e49b5660a49eb78fb"
+    },
+    {
+      "argv": [
+        "docker",
+        "volume",
+        "rm",
+        "41eb0696898eee9111ffe374bf6593b27ab80a204d40ec6eb2828f1ec17e0884"
+      ],
+      "created_at": "2026-10-17T21:16:59Z",
+      "created_at_match": true,
+      "exit_code": 0,
+      "former_container": "container p006-rabbit-cookie-20261017t211649z",
+      "name": "41eb0696898eee9111ffe374bf6593b27ab80a204d40ec6eb2828f1ec17e0884",
+      "run": "P-006 cookie-args-only comparison",
+      "started_at_utc": "2026-10-17T21:16:49Z (run directory timestamp)",
+      "stderr": "",
+      "stdout": "41eb0696898eee9111ffe374bf6593b27ab80a204d40ec6eb2828f1ec17e0884"
+    }
+  ]
+}

@@ -1,0 +1,298 @@
+{
+  "status": "REFERENCE_SYNTHETIC_EXPERIMENT_COMPLETE; CANDIDATE_INDEX_NOT_SELECTED",
+  "source_git_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+  "runs": [
+    {
+      "created_at_utc": "2026-10-17T12:58:59.656978+00:00",
+      "source_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+      "source_worktree_dirty": true,
+      "runner_sha256": "a3f1cce6c578f83dc62f0e051aa359d573449a2f00239cec38e914d002896a5c",
+      "test_sha256": "13ef5234c8e8d23c1bd4b82ee290700bd60a24c924fccdbbb76e40459acd6fb6",
+      "host": {
+        "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+        "python": "3.13.16",
+        "docker_server": "29.8.2"
+      },
+      "postgres_image": {
+        "requested": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "image_id": "sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "repo_digests": [
+          "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+        ]
+      },
+      "warmups_per_query_profile": 3,
+      "measured_read_samples": 25,
+      "measured_write_samples_per_direction": 25,
+      "matrix": {
+        "rows": [
+          10000,
+          100000,
+          1000000
+        ],
+        "parked_selectivities": [
+          0.001,
+          0.01,
+          0.1
+        ],
+        "scenarios_run": 9
+      },
+      "read_query_shapes": [
+        "page-first",
+        "page-offset-500",
+        "count",
+        "oldest"
+      ],
+      "baseline_indexes": "primary key, unique(order_number, dispatch_type), and current due index (status, next_attempt_date, created_date)",
+      "candidate_delta": "CREATE INDEX {index_name} ON {table} (created_date, dispatch_id) INCLUDE (order_number, dispatch_type, attempts, last_error) WHERE status = 'PARKED'",
+      "data_sha256": "f15c22e3001a634e061643a448acc79fc8f5aff48d49cc5749a4cb7c15a3e253",
+      "storage": "ephemeral PostgreSQL container filesystem; no host volumes or network attachment",
+      "cache_note": "Warm-up included before each profile; cache not flushed. Baseline/candidate order alternates by sample. This is warm synthetic query evidence only."
+    },
+    {
+      "created_at_utc": "2026-10-17T13:01:06.679642+00:00",
+      "source_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+      "source_worktree_dirty": true,
+      "runner_sha256": "a3f1cce6c578f83dc62f0e051aa359d573449a2f00239cec38e914d002896a5c",
+      "test_sha256": "13ef5234c8e8d23c1bd4b82ee290700bd60a24c924fccdbbb76e40459acd6fb6",
+      "host": {
+        "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+        "python": "3.13.16",
+        "docker_server": "29.8.2"
+      },
+      "postgres_image": {
+        "requested": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "image_id": "sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "repo_digests": [
+          "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+        ]
+      },
+      "warmups_per_query_profile": 3,
+      "measured_read_samples": 25,
+      "measured_write_samples_per_direction": 25,
+      "matrix": {
+        "rows": [
+          10000,
+          100000,
+          1000000
+        ],
+        "parked_selectivities": [
+          0.001,
+          0.01,
+          0.1
+        ],
+        "scenarios_run": 9
+      },
+      "read_query_shapes": [
+        "page-first",
+        "page-offset-500",
+        "count",
+        "oldest"
+      ],
+      "baseline_indexes": "primary key, unique(order_number, dispatch_type), and current due index (status, next_attempt_date, created_date)",
+      "candidate_delta": "CREATE INDEX {index_name} ON {table} (created_date, dispatch_id) INCLUDE (order_number, dispatch_type, attempts, last_error) WHERE status = 'PARKED'",
+      "data_sha256": "f15c22e3001a634e061643a448acc79fc8f5aff48d49cc5749a4cb7c15a3e253",
+      "storage": "ephemeral PostgreSQL container filesystem; no host volumes or network attachment",
+      "cache_note": "Warm-up included before each profile; cache not flushed. Baseline/candidate order alternates by sample. This is warm synthetic query evidence only."
+    },
+    {
+      "created_at_utc": "2026-10-17T13:03:10.257840+00:00",
+      "source_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+      "source_worktree_dirty": true,
+      "runner_sha256": "a3f1cce6c578f83dc62f0e051aa359d573449a2f00239cec38e914d002896a5c",
+      "test_sha256": "13ef5234c8e8d23c1bd4b82ee290700bd60a24c924fccdbbb76e40459acd6fb6",
+      "host": {
+        "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+        "python": "3.13.16",
+        "docker_server": "29.8.2"
+      },
+      "postgres_image": {
+        "requested": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "image_id": "sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+        "repo_digests": [
+          "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+        ]
+      },
+      "warmups_per_query_profile": 3,
+      "measured_read_samples": 25,
+      "measured_write_samples_per_direction": 25,
+      "matrix": {
+        "rows": [
+          10000,
+          100000,
+          1000000
+        ],
+        "parked_selectivities": [
+          0.001,
+          0.01,
+          0.1
+        ],
+        "scenarios_run": 9
+      },
+      "read_query_shapes": [
+        "page-first",
+        "page-offset-500",
+        "count",
+        "oldest"
+      ],
+      "baseline_indexes": "primary key, unique(order_number, dispatch_type), and current due index (status, next_attempt_date, created_date)",
+      "candidate_delta": "CREATE INDEX {index_name} ON {table} (created_date, dispatch_id) INCLUDE (order_number, dispatch_type, attempts, last_error) WHERE status = 'PARKED'",
+      "data_sha256": "f15c22e3001a634e061643a448acc79fc8f5aff48d49cc5749a4cb7c15a3e253",
+      "storage": "ephemeral PostgreSQL container filesystem; no host volumes or network attachment",
+      "cache_note": "Warm-up included before each profile; cache not flushed. Baseline/candidate order alternates by sample. This is warm synthetic query evidence only."
+    }
+  ],
+  "primary_query": "1,000,000 rows, 10% PARKED, page-offset-500",
+  "primary_results": [
+    {
+      "run": "r8",
+      "baseline_p95_ms": 33.75919999999999,
+      "candidate_p95_ms": 0.3256,
+      "improvement_percent": 99.03552216877176
+    },
+    {
+      "run": "r9",
+      "baseline_p95_ms": 32.571200000000005,
+      "candidate_p95_ms": 0.3093999999999999,
+      "improvement_percent": 99.05008105320039
+    },
+    {
+      "run": "r10",
+      "baseline_p95_ms": 35.934200000000004,
+      "candidate_p95_ms": 0.3161999999999999,
+      "improvement_percent": 99.12005832883436
+    }
+  ],
+  "primary_median_p95_improvement_percent": 99.05008105320039,
+  "per_query_p95_improvement_across_all_cells": [
+    {
+      "query": "page-first",
+      "median_p95_improvement_percent": 94.28422967004416,
+      "min_p95_improvement_percent": 34.49612403100776,
+      "max_p95_improvement_percent": 99.85905777353864
+    },
+    {
+      "query": "page-offset-500",
+      "median_p95_improvement_percent": 71.49899170961237,
+      "min_p95_improvement_percent": 10.544815465729505,
+      "max_p95_improvement_percent": 99.12005832883436
+    },
+    {
+      "query": "count",
+      "median_p95_improvement_percent": 0.17520766193091036,
+      "min_p95_improvement_percent": -93.38842975206602,
+      "max_p95_improvement_percent": 68.29787234042547
+    },
+    {
+      "query": "oldest",
+      "median_p95_improvement_percent": 90.9182137481184,
+      "min_p95_improvement_percent": -21.746293245469335,
+      "max_p95_improvement_percent": 99.82554427488468
+    }
+  ],
+  "repeatable_other_read_regressions_over_10_percent": [
+    {
+      "scenario": "n10000_s010",
+      "query": "count",
+      "p95_regression_percent_by_run": [
+        -25.96,
+        93.39,
+        78.28
+      ]
+    }
+  ],
+  "repeatable_write_throughput_losses_over_10_percent": [
+    {
+      "scenario": "n10000_s001",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        13.82,
+        14.47,
+        13.72
+      ]
+    },
+    {
+      "scenario": "n10000_s010",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        15.06,
+        0.26,
+        15.13
+      ]
+    },
+    {
+      "scenario": "n10000_s100",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        12.78,
+        15.89,
+        13.73
+      ]
+    },
+    {
+      "scenario": "n100000_s001",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        12.05,
+        12.83,
+        17.4
+      ]
+    },
+    {
+      "scenario": "n100000_s010",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        2.53,
+        12.72,
+        14.37
+      ]
+    },
+    {
+      "scenario": "n100000_s100",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        15.68,
+        15.82,
+        14.06
+      ]
+    },
+    {
+      "scenario": "n1000000_s001",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        14.14,
+        15.48,
+        14.63
+      ]
+    },
+    {
+      "scenario": "n1000000_s010",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        13.81,
+        13.19,
+        13.52
+      ]
+    },
+    {
+      "scenario": "n1000000_s100",
+      "direction": "park",
+      "throughput_loss_percent_by_run": [
+        13.89,
+        14.23,
+        13.7
+      ]
+    }
+  ],
+  "candidate_index_bytes_at_primary_case": [
+    8151040,
+    8151040,
+    8151040
+  ],
+  "decision": "The primary read criterion passes by a wide margin, but the partial index causes >10% repeatable PARKED-entry write-throughput loss in every scale/selectivity profile. The candidate therefore fails the stated guardrail. Keep the existing indexes and do not add a migration. The 10k/1%-PARKED count p95 is noisy/inconclusive; it does not alter the no-go result.",
+  "limits": [
+    "synthetic deterministic data only",
+    "one macOS/Docker Desktop host and one PostgreSQL image",
+    "warm cache, no concurrent writers",
+    "not production workload, capacity claim, or SLO"
+  ]
+}

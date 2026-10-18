@@ -1,0 +1,74 @@
+[
+  {
+    "rows": 10000,
+    "selectivity": 0.001,
+    "parked_rows": 10,
+    "name": "n10000_s001",
+    "baseline_table": "base_n10000_s001",
+    "candidate_table": "cand_n10000_s001"
+  },
+  {
+    "rows": 10000,
+    "selectivity": 0.01,
+    "parked_rows": 100,
+    "name": "n10000_s010",
+    "baseline_table": "base_n10000_s010",
+    "candidate_table": "cand_n10000_s010"
+  },
+  {
+    "rows": 10000,
+    "selectivity": 0.1,
+    "parked_rows": 1000,
+    "name": "n10000_s100",
+    "baseline_table": "base_n10000_s100",
+    "candidate_table": "cand_n10000_s100"
+  },
+  {
+    "rows": 100000,
+    "selectivity": 0.001,
+    "parked_rows": 100,
+    "name": "n100000_s001",
+    "baseline_table": "base_n100000_s001",
+    "candidate_table": "cand_n100000_s001"
+  },
+  {
+    "rows": 100000,
+    "selectivity": 0.01,
+    "parked_rows": 1000,
+    "name": "n100000_s010",
+    "baseline_table": "base_n100000_s010",
+    "candidate_table": "cand_n100000_s010"
+  },
+  {
+    "rows": 100000,
+    "selectivity": 0.1,
+    "parked_rows": 10000,
+    "name": "n100000_s100",
+    "baseline_table": "base_n100000_s100",
+    "candidate_table": "cand_n100000_s100"
+  },
+  {
+    "rows": 1000000,
+    "selectivity": 0.001,
+    "parked_rows": 1000,
+    "name": "n1000000_s001",
+    "baseline_table": "base_n1000000_s001",
+    "candidate_table": "cand_n1000000_s001"
+  },
+  {
+    "rows": 1000000,
+    "selectivity": 0.01,
+    "parked_rows": 10000,
+    "name": "n1000000_s010",
+    "baseline_table": "base_n1000000_s010",
+    "candidate_table": "cand_n1000000_s010"
+  },
+  {
+    "rows": 1000000,
+    "selectivity": 0.1,
+    "parked_rows": 100000,
+    "name": "n1000000_s100",
+    "baseline_table": "base_n1000000_s100",
+    "candidate_table": "cand_n1000000_s100"
+  }
+]

@@ -1,0 +1,357 @@
+{
+  "consumer_enabled": false,
+  "image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "interpretation": "P-005 startup argv without explicit cookie arguments reproduced the cookie-file EACCES startup failure on this host. This baseline did not run plugin or fencer checks.",
+  "network": "internal; removed after attempt",
+  "persistent_data_mount": null,
+  "plugin_or_fencing_checks_run": false,
+  "profiles": [
+    {
+      "broker_exit_observation": "Readiness polls reported the container no longer running. Broker logs were captured before removal and report auth:init_no_setcookie failing to read /var/lib/rabbitmq/.erlang.cookie with eacces.",
+      "container_start_exit_code": 0,
+      "container_start_timed_out": false,
+      "cookie_args_added": false,
+      "logs_command_exit_code": 0,
+      "logs_command_timed_out": false,
+      "profile": "p005-baseline",
+      "readiness": "BLOCKED_DEADLINE",
+      "readiness_polls": [
+        {
+          "attempt": 1,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 3.673,
+          "exit_code": 69,
+          "timed_out": false
+        },
+        {
+          "attempt": 2,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 1.877,
+          "exit_code": 69,
+          "timed_out": false
+        },
+        {
+          "attempt": 3,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.073,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 4,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.072,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 5,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.067,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 6,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.079,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 7,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.068,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 8,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 9,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.068,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 10,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.069,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 11,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.069,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 12,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.068,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 13,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.072,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 14,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 15,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.072,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 16,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.069,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 17,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 18,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 19,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.063,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 20,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.059,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 21,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.074,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 22,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.066,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 23,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.067,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 24,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.063,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 25,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.064,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 26,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.06,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 27,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 28,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.085,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 29,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.075,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 30,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.066,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 31,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.07,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 32,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.064,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 33,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.066,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 34,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.062,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 35,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.095,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 36,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.067,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 37,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.064,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 38,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.066,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 39,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.062,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 40,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.061,
+          "exit_code": 1,
+          "timed_out": false
+        },
+        {
+          "attempt": 41,
+          "client_timeout_seconds": 8,
+          "diagnostics_timeout_seconds": 5,
+          "duration_seconds": 0.063,
+          "exit_code": 1,
+          "timed_out": false
+        }
+      ],
+      "state_before_cleanup": "",
+      "state_command_exit_code": 125,
+      "state_command_timed_out": false,
+      "state_inspection_gap": "The first state-before-cleanup command used unsupported `docker inspect --name` syntax and exited 125; its stdout/stderr are retained. The broker log collection succeeded before removal."
+    }
+  ],
+  "published_ports": [],
+  "status": "BASELINE_BLOCKED_COOKIE_EACCES",
+  "synthetic_secret_values_retained": false
+}

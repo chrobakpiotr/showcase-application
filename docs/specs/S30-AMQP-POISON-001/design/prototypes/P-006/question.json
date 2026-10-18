@@ -1,0 +1,25 @@
+{
+  "id": "P-006",
+  "status": "registered-research-only",
+  "question": "Can a disposable RabbitMQ broker-side plugin fence one registered consumer incarnation with narrow authority and serialize principal revocation against in-progress authentication and session registration?",
+  "scope": {
+    "allowed_environment": "One disposable isolated Docker network with the pinned RabbitMQ image, synthetic principals, synthetic messages, and synthetic PostgreSQL rows only; all plugin code runs from a disposable scratch worktree.",
+    "application_consumer": "Must remain disabled throughout.",
+    "prototype_authorization": "A short-lived plugin spike is authorized only as disposable research code to test the fixed criteria below. It is not an application fencer, deployable service, shared framework extension, or production implementation; do not promote its code.",
+    "identity_boundary": "Use a separately named deployment provisioner principal and credential (SHOWCASE_AMQP_PROVISIONER_CLIENT_CERT) to create per-incarnation Rabbit users and mappings; record its actual privileges and treat broader bootstrap/admin rights as a separate trusted boundary. The fencer identity (SHOWCASE_AMQP_FENCER_CLIENT_CERT) may only invoke the exact registered-incarnation fence operation. Never reuse the provisioner credential as the fencer identity.",
+    "production_changes": "None; no app AMQP consumer, gate, production fencer, deployment change, migration, push, PR, or merge.",
+    "deliverable": "Raw synthetic evidence, disposable prototype source kept out of production paths, findings against the predeclared criteria, and an updated proposed integration boundary for review; no qualification claim."
+  },
+  "fixed_checks": [
+    "Use the pinned RabbitMQ 4.1.8 image; compare native deletion of an old per-incarnation user as a baseline with the plugin candidate. Baseline deletion uses the separate test provisioner/admin identity and is not accepted fencer authority.",
+    "Verify the named provisioner's actual privileges and whether its bootstrap scope can be constrained; explicitly record any broad administrator capability. Independently verify the fencer cannot create principals, change mappings, enumerate users, read message bodies, alter topology/permissions, or target an unregistered/arbitrary principal.",
+    "The plugin accepts only fence(incarnation_id, expected_generation, request_id) and returns FENCED, GENERATION_MISMATCH, UNKNOWN_INCARNATION, PARTIAL, or FAILED. A caller-side timeout or transport error is UNKNOWN.",
+    "Accept FENCED only when incarnation_id, expected_generation and request_id exactly echo the request, the revocation record is present, and reconciled session count is zero. Any other outcome, mismatched echo or nonzero count returns no drain acknowledgement and leaves the synthetic admission coordinator INHIBITED.",
+    "Bind request_id to the complete request tuple: exact replay returns the original revocation record; reuse with a different incarnation_id or expected_generation is rejected. A lower generation never reports success. PARTIAL or FAILED never undo a revocation.",
+    "Disable rabbitmq_auth_backend_cache or explicitly invalidate it. A small TCP proxy deterministically pauses authentication after connection.start-ok, before connection.open, and before the first channel opens while fence executes. After exact FENCED, no old session remains usable or reconnects; the replacement principal's live channel and consumer remain usable.",
+    "Treat PostgreSQL fence_generation as the sole authority for protected synthetic effects. Close admission, advance the database generation, fence, verify the bounded single-node drain observation, then audited resume. The effect's generation check and write share one transaction: a generation-advance-first ordering refuses the old effect, while an effect-first ordering commits before generation advance.",
+    "Record management observations as single-node diagnostic evidence only. Do not claim a production settle interval, cluster-wide drain, application-handler termination, ACK/commit atomicity, restore safety, or REF-Q/PROD-Q/S30-06 qualification."
+  ],
+  "decision_rule": "Return measurements and falsifiable findings for each check. Reject the plugin candidate if the broker cannot serialize revocation with authentication/session registration, if credential caching defeats immediate revocation, if the fencer needs broad administrator credentials, if the mapping can be changed by the fencer, or if any uncertain/non-FENCED result can be mistaken for drain or admission. No policy or production implementation follows automatically.",
+  "source_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"
+}

@@ -1,0 +1,50 @@
+{
+  "created_at_utc": "2026-10-17T20:15:12.797630+00:00",
+  "status": "BLOCKED",
+  "scope": "single bounded disposable reconnect attempt; no application consumer",
+  "rabbit_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "probe_base_image": "python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "network": "private Docker internal network; no published ports or volumes",
+  "timeouts_seconds": {
+    "network": 20,
+    "rabbit_start": 45,
+    "image_build": 180,
+    "probe": 100,
+    "diagnostic_logs": 15,
+    "container_stop": 15,
+    "container_kill": 10,
+    "network_remove": 15
+  },
+  "failure": "BLOCKED before AMQP interaction: probe hard-coded p005-rabbit-followup, while runner assigned p005-rabbit-49279ea241b7.",
+  "failed_stage": "single-reconnect-probe",
+  "completed_at_utc": "2026-10-17T20:16:24.949712+00:00",
+  "host": {
+    "os": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "kernel": "24.6.0",
+    "architecture": "x86_64",
+    "docker_engine": "29.8.2",
+    "host_clock_note": "The recorded UTC clock was 2026-10-17T20:15Z; directory name reflects the task environment date."
+  },
+  "source_sha256": {
+    "reconnect-probe.py": "36c167698edac050336da4e8b01e4380b37c405894d7d54af38d06d51a864cff",
+    "run-reconnect-followup.py": "11d42ce54abef41e63d834303e4299ea0a31cf17d538a6e02c712f1f0b5daa94"
+  },
+  "observations": "None. The probe did not resolve a broker hostname; no AMQP connection, channel, consumer, stale-ID DELETE, or channel usability check occurred.",
+  "diagnostic_log_sha256": {
+    "logs/docker-network-create.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/docker-network-create.stdout.log": "67d8ac4e6e8cc5741350ba6f083a3e0ab75022abe9586b17d26c379c827ded66",
+    "logs/network-remove.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/network-remove.stdout.log": "7eff18ecf69ac74585a860f561c56e1930d1e4ecb2568f6af25fc87f772e86f2",
+    "logs/probe-image-build.stderr.log": "663d53d56a0c65a53bb69ccf806b839a0c351a6f4f47f62679aea1dcde649772",
+    "logs/probe-image-build.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/rabbit-diagnostics.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/rabbit-diagnostics.stdout.log": "dd1e06a5fe6ac73f5dd5a817b8e9e6ce01a7ab1ebd8df9e392ffd23944668235",
+    "logs/rabbit-start.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/rabbit-start.stdout.log": "f9fd3a5c377b9597a96ec6bf49f8ae5c8de0172c96022c7f5d4c56693691ae66",
+    "logs/rabbit-stop.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "logs/rabbit-stop.stdout.log": "9717930d6bf23f67b83ccf06b024d02260260fbce972a758118fb3cacdd27338",
+    "logs/single-reconnect-probe.stderr.log": "366f2b24eb015d0d50ce5563b399bc658e4b71a080a6b427b342d2f9ecee1663",
+    "logs/single-reconnect-probe.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "followup_report_sha256": "aa4d351539748d25f633e9ac6d9fc979b7c25180894f83c8ab5c965e4d0173de"
+}

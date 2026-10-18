@@ -1,0 +1,1 @@
+The runner removed the disposable container in its finally block after readiness timed out, before docker logs was collected. No broker log for this attempt is available. This is an evidence-collection gap; no cause is inferred.

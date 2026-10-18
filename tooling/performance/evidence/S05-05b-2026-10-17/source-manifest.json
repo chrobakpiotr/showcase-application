@@ -1,0 +1,420 @@
+{
+  "source_git_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+  "source_worktree_dirty": true,
+  "source_files": [
+    {
+      "path": "docs/reviews/external-handbook-delta-2026-10-06.md",
+      "bytes": 18181,
+      "sha256": "62cfdbe3b54373663a1fd2d89ab876cc8f7e213450eacabb2ba8dcb74b2f1617"
+    },
+    {
+      "path": "docs/reviews/harness-handover-S30-P005-2026-10-17.md",
+      "bytes": 10355,
+      "sha256": "f3f467ee17ce436701346e4f27a6ab1d59573931e4c5946c7dd44ab6c9db03a1"
+    },
+    {
+      "path": "docs/reviews/showcase-master-review-progress-2026-10-05.md",
+      "bytes": 13081,
+      "sha256": "442805a521a06e9ca27956f1be9cc67138fae1b2ecaa7c7f2f7123843b41dcb6"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design.json",
+      "bytes": 20132,
+      "sha256": "2d69545f32bcee54b5d9f2ad985ad21db28db2732e3861a241a6df2e88a16ebf"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/Dockerfile",
+      "bytes": 247,
+      "sha256": "c515a2ccb9234bda09171c2706992b429cde36292436b77a97bb65986c9cfe14"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/Dockerfile.reconnect",
+      "bytes": 253,
+      "sha256": "97d21bdd8ced56820785c368b02576a5b679a82cd153d4b2e91dba8ef5b99d42"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/README.md",
+      "bytes": 11593,
+      "sha256": "81a806376eb12d769a82b4b8e67aaac5715e801684f93d7e1183540eb3ff7e2d"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/probe.py",
+      "bytes": 14314,
+      "sha256": "3c3fc90d9c9f9e800b2ebb08a9f88b9993dd55d21fe6f99b220a1011307366f6"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/question.json",
+      "bytes": 2642,
+      "sha256": "71cff2bb5497b2718deb80724c204b144dc3b1a61fbb8dd2f4162744e0fefb1e"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/reconnect-probe.py",
+      "bytes": 9293,
+      "sha256": "887a6951fa269ed42eb6b63e58a4f24d7b9ce23b8786af52fd841137fa0e60d2"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/run-reconnect-followup.py",
+      "bytes": 8248,
+      "sha256": "0c021023fb11ac3c3218aad5276ce94db205e33f9c3479af2501e727c0ff553e"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-18-errata.md",
+      "bytes": 4150,
+      "sha256": "74c30b89f328f2ae3c006a5b010ae348454a6bcfa9e437e65bae3c7900829dc6"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/test_reconnect_runner.py",
+      "bytes": 4273,
+      "sha256": "86c7c6ee525310ec3b6cfe72cf7864abdc887ea77a3fac5d5ba795297b24c910"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md",
+      "bytes": 11777,
+      "sha256": "7e5f9bfc8bb67f9b9868a42d89f1e7d71b80f350d5f93033f2f6835f77b885c5"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/design-revision-proposal-2026-10-17.md",
+      "bytes": 9049,
+      "sha256": "00f39da2c3c5b393c4034d7335379ae403ccb604fedafc9f2eb62e6f30299d5a"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/owner-encryption-checklist-2026-10-17.md",
+      "bytes": 5775,
+      "sha256": "c4ede22cef740bcdf999820da7abc2294c1cf9a0cc7ebc073808bae937bc1403"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/p004-host-record-mount-probe.md",
+      "bytes": 3982,
+      "sha256": "ac0b074f247e0f91ab7ce24244b5c41dcb3eaac6b97c9b9156b276f285c268b5"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/reference-target-proposal-2026-10-17.md",
+      "bytes": 16176,
+      "sha256": "5cd337d07239bedb516ae1ff8440162e8dc7eb7eb3f6223829d7ba338959edf5"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/plan.md",
+      "bytes": 36713,
+      "sha256": "9528d9ca6fde0f6dba2a351ab3c2a58eb002f682e453e9b7a3824031a66c52bf"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/spec.md",
+      "bytes": 68347,
+      "sha256": "ab88595c1f3e068f995abf3de6c158e42732d17be9a091b35204af7ff987eaa6"
+    },
+    {
+      "path": "tooling/performance/README.md",
+      "bytes": 2158,
+      "sha256": "bd235d6d8aed4cd7475a368ff07c0285e9897f40e3e33d208e27cb2789a8141c"
+    },
+    {
+      "path": "tooling/performance/S05-05b-synthetic-experiment-profile-2026-10-17.md",
+      "bytes": 5119,
+      "sha256": "edffb0719ca0f6ace7286b83df2d870a02245b33bc67d228cb68199afa9339e1"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/report.md",
+      "bytes": 2810,
+      "sha256": "fe1b6fce8c63a18695484e21b71a674e4894886415898dc60ceaf08c45fa5199"
+    },
+    {
+      "path": "tooling/performance/postgres_query_comparison.py",
+      "bytes": 17573,
+      "sha256": "21bcdb374acad5b63e2e29439b3e74752dafddc5733379b80d78784630994936"
+    },
+    {
+      "path": "tooling/performance/test_postgres_query_comparison.py",
+      "bytes": 4675,
+      "sha256": "b9d979a5645906b4e17ff3b1430c86be09d86d5f6f31604a08c979a7614e5e75"
+    }
+  ],
+  "benchmark_runner_sha256": "21bcdb374acad5b63e2e29439b3e74752dafddc5733379b80d78784630994936",
+  "benchmark_runner_sha256_expected_by_runs": "a3f1cce6c578f83dc62f0e051aa359d573449a2f00239cec38e914d002896a5c",
+  "benchmark_evidence_files": [
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/query-shapes.json",
+      "bytes": 1168,
+      "sha256": "ea29f64f61d04252de46afb9a0cdce2fe3ff58e3b64399555abdb96822ae2c45"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/repeatability-summary.json",
+      "bytes": 10260,
+      "sha256": "5ddc6ae642a1da460571b5d0ac6da71d699e61d3bd5213a102c90463ce92d294"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/report.md",
+      "bytes": 2810,
+      "sha256": "fe1b6fce8c63a18695484e21b71a674e4894886415898dc60ceaf08c45fa5199"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-01/comparison-summary.json",
+      "bytes": 66053,
+      "sha256": "0227f64624f2cc4803900b31a78cfbb1ccbf3fa75871126b53f01648610517c6"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-01/raw-plans.tar.gz",
+      "bytes": 336086,
+      "sha256": "2a2b6b20286d78350a0680e5461c3d6a593c2bf3ce88a9ee05d99961fba659fe"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-01/run-metadata.json",
+      "bytes": 1834,
+      "sha256": "9112c8e49336fabcc090e4505f1cb1eb50b2db72b859c8ca2394e152aa8596ec"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-01/scenario-matrix.json",
+      "bytes": 1740,
+      "sha256": "b3cfefd5623d0e76cbd30677439655f0c242f2bdaf8cf3e68483fd3209a48d60"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-02/comparison-summary.json",
+      "bytes": 66139,
+      "sha256": "1a420ec5d3df27ce8349b82ba717dc0ea3532f2e5dd4f5dd32e1138f8f39c471"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-02/raw-plans.tar.gz",
+      "bytes": 338558,
+      "sha256": "dfc83faa97960cb6ec21e34ca5e761eaeddcc7321e682b43efddcf7988950a1c"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-02/run-metadata.json",
+      "bytes": 1834,
+      "sha256": "754b8f0752a28ae3a8dc916403cf14196b278900178b6ccadd0d76b85bf0105b"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-02/scenario-matrix.json",
+      "bytes": 1740,
+      "sha256": "b3cfefd5623d0e76cbd30677439655f0c242f2bdaf8cf3e68483fd3209a48d60"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-03/comparison-summary.json",
+      "bytes": 66076,
+      "sha256": "1a7a96e46987c50ee033e513bfaf2559a0df6031505bf997a3e146c56008d0d8"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-03/raw-plans.tar.gz",
+      "bytes": 335158,
+      "sha256": "4cbe94fe10e67cb0fdd3a1ec0ef439452d324d66f3431b5208b61c009079d9b4"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-03/run-metadata.json",
+      "bytes": 1834,
+      "sha256": "a64cc242aabd3e06ed5a20b270ffa2999da5f3ddb001bf0aa5d032399fd625a6"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/run-03/scenario-matrix.json",
+      "bytes": 1740,
+      "sha256": "b3cfefd5623d0e76cbd30677439655f0c242f2bdaf8cf3e68483fd3209a48d60"
+    },
+    {
+      "path": "tooling/performance/evidence/S05-05b-2026-10-17/runtime-inventory.json",
+      "bytes": 284,
+      "sha256": "a09a006a9fab680981d70fdd0a820c11c49ebd98b1477abf7556038bd346776a"
+    }
+  ],
+  "additional_evidence_files": [
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17/report.json",
+      "bytes": 4507,
+      "sha256": "59a19499d1079c6602c1d7594067bf9c7208dbf0486a909d4195aa3a15da442d"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17/run-metadata.json",
+      "bytes": 1265,
+      "sha256": "9c7f98e65dd48e4336deab09316fff887ba913f08daf16bb0d4e8d8168ed65c5"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/cleanup-reconciliation.json",
+      "bytes": 914,
+      "sha256": "e0f6659206aeb6778a48360f9d59a06b282f726fc952202f954513913c1205b4"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/commands.jsonl",
+      "bytes": 1494,
+      "sha256": "e0877582aabbb6ee910e7c1e870ec467d3c3c8a2223c7a9d646842ed575c38fb"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/followup-report.md",
+      "bytes": 2038,
+      "sha256": "59ec61eb19ccc07f4c3fb1487c8c1645c71387c06c072c94dc2c20122eb0563e"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/docker-network-create.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/docker-network-create.stdout.log",
+      "bytes": 65,
+      "sha256": "67d8ac4e6e8cc5741350ba6f083a3e0ab75022abe9586b17d26c379c827ded66"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/network-remove.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/network-remove.stdout.log",
+      "bytes": 28,
+      "sha256": "7eff18ecf69ac74585a860f561c56e1930d1e4ecb2568f6af25fc87f772e86f2"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/probe-image-build.stderr.log",
+      "bytes": 3834,
+      "sha256": "663d53d56a0c65a53bb69ccf806b839a0c351a6f4f47f62679aea1dcde649772"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/probe-image-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-diagnostics.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-diagnostics.stdout.log",
+      "bytes": 21590,
+      "sha256": "dd1e06a5fe6ac73f5dd5a817b8e9e6ce01a7ab1ebd8df9e392ffd23944668235"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-start.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-start.stdout.log",
+      "bytes": 65,
+      "sha256": "f9fd3a5c377b9597a96ec6bf49f8ae5c8de0172c96022c7f5d4c56693691ae66"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-stop.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/rabbit-stop.stdout.log",
+      "bytes": 80,
+      "sha256": "9717930d6bf23f67b83ccf06b024d02260260fbce972a758118fb3cacdd27338"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/single-reconnect-probe.stderr.log",
+      "bytes": 5200,
+      "sha256": "366f2b24eb015d0d50ce5563b399bc658e4b71a080a6b427b342d2f9ecee1663"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/logs/single-reconnect-probe.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17T20-15Z-reconnect-followup/run-metadata.json",
+      "bytes": 3213,
+      "sha256": "fa0273868749ee5be1c0a7d262429f96099a6a50a6c7e6b7c669c75e343b2ff8"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/commands.jsonl",
+      "bytes": 1741,
+      "sha256": "442644547791b3cf89bb5d1b123d0b3b07597c522ce8121c2a4c580ce4e486dd"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/followup-report.md",
+      "bytes": 3649,
+      "sha256": "1619a3c63c9583fff1b4c6c00abd1c1b87dc879284014f0a9c36c148976ad377"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/docker-network-create.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/docker-network-create.stdout.log",
+      "bytes": 65,
+      "sha256": "97889afdc80733904b8a00fe14aee1badc625d231d7d0c8dcd15fed27b73e32f"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/network-remove.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/network-remove.stdout.log",
+      "bytes": 28,
+      "sha256": "c37315756a6b3752e0d73c28d3df92b3ffbc8af5ffec2ca39d6f16bab5617047"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-container-remove.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-container-remove.stdout.log",
+      "bytes": 24,
+      "sha256": "e1e99f1c7088eff560e12fc5f53db8a0a3fd3ba31fc74944fda70f327f10656d"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-image-build.stderr.log",
+      "bytes": 1785,
+      "sha256": "29a9a83e01d90b4dc81ab8926a8227f1e6815eee927337dc7967690d3bfca40c"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-image-build.stdout.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-image-remove.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/probe-image-remove.stdout.log",
+      "bytes": 125,
+      "sha256": "a4de6a5f467d29df5b52aaed22861e9e46b2988f612666f80dba021d9c0d7d2b"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/rabbit-container-remove.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/rabbit-container-remove.stdout.log",
+      "bytes": 25,
+      "sha256": "1553a54ebfdcae853c5be043738ebd0b0c56545be43847f6f0d6ba38a47f3b32"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/rabbit-start.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/rabbit-start.stdout.log",
+      "bytes": 65,
+      "sha256": "9c9a90d189745986aaa6116bef9dfcaa97a0e988a7708a17a3c035ff0bce26e9"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/single-reconnect-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/logs/single-reconnect-probe.stdout.log",
+      "bytes": 2641,
+      "sha256": "6f9c145ff0e05ba0efb958cd6b791e83089adddb9c3a2fb8de92741ab8099eca"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/probe-result.json",
+      "bytes": 2641,
+      "sha256": "6f9c145ff0e05ba0efb958cd6b791e83089adddb9c3a2fb8de92741ab8099eca"
+    },
+    {
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/run-metadata.json",
+      "bytes": 1546,
+      "sha256": "d49c63898215d4b68373a6fc847f1d31b2de2f0ee145ee6a245a3f5db31db3a2"
+    }
+  ],
+  "source_snapshot_sha256": "303036b18510d88173b9e62c62377f12b695389523e0f79d9e75549888ae6a39",
+  "note": "Manifest binds the committed Git baseline plus the current uncommitted proposal, corrected P-005 interpretation, the original blocked reconnect attempt and its later cleanup reconciliation, one corrected bounded reconnect observation with complete cleanup, the SQL runner timeout fix, and benchmark evidence. It does not claim a committed source revision.",
+  "source_snapshot_algorithm": "sha256(canonical JSON array of all source_files, benchmark_evidence_files, and additional_evidence_files entries sorted by path; each entry has path, bytes, sha256)"
+}

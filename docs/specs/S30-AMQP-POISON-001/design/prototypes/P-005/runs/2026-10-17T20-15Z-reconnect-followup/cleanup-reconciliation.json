@@ -1,0 +1,32 @@
+{
+  "reconciled_at_utc": "2026-10-17T20:33:07.323247+00:00",
+  "reason": "verified resources from the prior 2026-10-17T20-15Z P-005 run; its old cleanup stopped the broker but did not remove the container or local probe image",
+  "commands": [
+    {
+      "stage": "remove_stale_rabbit_container",
+      "argv": [
+        "docker",
+        "rm",
+        "--force",
+        "p005-rabbit-49279ea241b7"
+      ],
+      "timeout_seconds": 15,
+      "exit_code": 0,
+      "stdout": "p005-rabbit-49279ea241b7\n",
+      "stderr": ""
+    },
+    {
+      "stage": "remove_stale_probe_image",
+      "argv": [
+        "docker",
+        "image",
+        "rm",
+        "p005-reconnect-probe:local"
+      ],
+      "timeout_seconds": 15,
+      "exit_code": 0,
+      "stdout": "Untagged: p005-reconnect-probe:local\nDeleted: sha256:6d736031c72a589aac167dd0578ad608dd82e00926e428829e70e6bf8e18f8be\n",
+      "stderr": ""
+    }
+  ]
+}

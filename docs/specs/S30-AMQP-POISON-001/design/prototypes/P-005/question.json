@@ -1,0 +1,22 @@
+{
+  "id": "P-005",
+  "status": "registered-research-only",
+  "question": "Can a deployment-owned RabbitMQ fencer block a synthetic workload principal from reconnecting, bind its incarnation to broker-generated connection and consumer identities, prove settled drain, and prevent an old handler's protected synthetic effect during a concurrent fence while remaining inhibited on uncertainty?",
+  "scope": {
+    "allowed_environment": "Disposable isolated containers/network, synthetic identities, synthetic messages, synthetic database rows only.",
+    "application_consumer": "Must remain disabled throughout.",
+    "production_changes": "None; no app AMQP consumer, gate, fencer service, deployment or migration implementation.",
+    "deliverable": "Evidence and a proposed integration contract for independent Harness review; no qualification claim."
+  },
+  "fixed_checks": [
+    "Bind workload subject/incarnation and principal/vhost to broker node, broker-generated connection name and broker-generated consumer tag; channel number and client-chosen tags are not identity.",
+    "Block the principal before closing connections; prove a new connection using it is refused, close every existing connection for that principal, and prove an unrelated principal remains connected. The operation-scoped fencer must authorize both block and close.",
+    "After principal blocking, close, and reconnect attempts, establish drain through agreeing /api/connections, /api/channels and /api/consumers observations held for the target's recorded settle interval, or through the selected broker event source.",
+    "Hold a synthetic handler across connection closure; record handler liveness, stale ACK outcome and broker redelivery.",
+    "Make the generation check a conditional write in the same protected database transaction, serialized against the fence generation transition; race the old effect against fencing in both lock orders and preserve zero post-fence stale effects.",
+    "Inject fence timeout, lost reply, stale observation and ambiguous target; require admission to stay inhibited and prohibit drain acknowledgement.",
+    "Attempt quarantine payload read/export with the fencer identity; any success or broad unbounded capability is a failed least-privilege result."
+  ],
+  "decision_rule": "Return facts/evidence and a candidate integration contract. A failed, ambiguous or unavailable check remains unresolved; do not convert the research result into accepted policy, REF-Q qualification, or permission to enable a consumer.",
+  "source_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"
+}

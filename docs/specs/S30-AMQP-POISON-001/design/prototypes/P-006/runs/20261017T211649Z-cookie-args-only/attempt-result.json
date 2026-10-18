@@ -1,0 +1,40 @@
+{
+  "consumer_enabled": false,
+  "container_start_exit_code": 0,
+  "container_start_timed_out": false,
+  "cookie_arguments_added_only": true,
+  "image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "interpretation": "Compared with the immediately preceding P-005-argv baseline, the only broker-run options added were forwarding RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS and RABBITMQ_CTL_ERL_ARGS, each carrying a per-run synthetic -setcookie value. RabbitMQ diagnostics ping succeeded. This is consistent with the cookie arguments resolving this host startup blocker; it does not establish plugin behavior or broader target qualification.",
+  "logs_before_cleanup_exit_code": 0,
+  "logs_before_cleanup_timed_out": false,
+  "persistent_data_mount": null,
+  "plugin_or_fencing_checks_run": false,
+  "published_ports": [],
+  "readiness_polls": [
+    {
+      "attempt": 1,
+      "client_timeout_seconds": 8,
+      "diagnostics_timeout_seconds": 5,
+      "ping_duration_seconds": 2.522,
+      "ping_exit_code": 69,
+      "ping_timed_out": false,
+      "state": "running|0",
+      "state_exit_code": 0
+    },
+    {
+      "attempt": 2,
+      "client_timeout_seconds": 8,
+      "diagnostics_timeout_seconds": 5,
+      "ping_duration_seconds": 2.442,
+      "ping_exit_code": 0,
+      "ping_timed_out": false,
+      "state": "running|0",
+      "state_exit_code": 0
+    }
+  ],
+  "secrets_retained": false,
+  "state_before_cleanup": "running|exit=0",
+  "state_before_cleanup_exit_code": 0,
+  "state_before_cleanup_timed_out": false,
+  "status": "STARTUP_READY"
+}

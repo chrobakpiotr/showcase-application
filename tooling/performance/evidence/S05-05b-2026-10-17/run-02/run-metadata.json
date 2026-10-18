@@ -1,0 +1,46 @@
+{
+  "created_at_utc": "2026-10-17T13:01:06.679642+00:00",
+  "source_sha": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+  "source_worktree_dirty": true,
+  "runner_sha256": "a3f1cce6c578f83dc62f0e051aa359d573449a2f00239cec38e914d002896a5c",
+  "test_sha256": "13ef5234c8e8d23c1bd4b82ee290700bd60a24c924fccdbbb76e40459acd6fb6",
+  "host": {
+    "platform": "macOS-15.8.1-x86_64-i386-64bit-Mach-O",
+    "python": "3.13.16",
+    "docker_server": "29.8.2"
+  },
+  "postgres_image": {
+    "requested": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+    "image_id": "sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+    "repo_digests": [
+      "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722"
+    ]
+  },
+  "warmups_per_query_profile": 3,
+  "measured_read_samples": 25,
+  "measured_write_samples_per_direction": 25,
+  "matrix": {
+    "rows": [
+      10000,
+      100000,
+      1000000
+    ],
+    "parked_selectivities": [
+      0.001,
+      0.01,
+      0.1
+    ],
+    "scenarios_run": 9
+  },
+  "read_query_shapes": [
+    "page-first",
+    "page-offset-500",
+    "count",
+    "oldest"
+  ],
+  "baseline_indexes": "primary key, unique(order_number, dispatch_type), and current due index (status, next_attempt_date, created_date)",
+  "candidate_delta": "CREATE INDEX {index_name} ON {table} (created_date, dispatch_id) INCLUDE (order_number, dispatch_type, attempts, last_error) WHERE status = 'PARKED'",
+  "data_sha256": "f15c22e3001a634e061643a448acc79fc8f5aff48d49cc5749a4cb7c15a3e253",
+  "storage": "ephemeral PostgreSQL container filesystem; no host volumes or network attachment",
+  "cache_note": "Warm-up included before each profile; cache not flushed. Baseline/candidate order alternates by sample. This is warm synthetic query evidence only."
+}

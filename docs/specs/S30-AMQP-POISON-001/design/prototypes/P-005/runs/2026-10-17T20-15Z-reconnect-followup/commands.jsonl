@@ -1,0 +1,7 @@
+{"argv": ["docker", "network", "create", "--internal", "p005-reconnect-e348dc664a60"], "exit_code": 0, "stage": "docker-network-create", "timeout_seconds": 20}
+{"argv": ["docker", "run", "--detach", "--name", "p005-rabbit-49279ea241b7", "--network", "p005-reconnect-e348dc664a60", "--env", "RABBITMQ_DEFAULT_USER=p005admin", "--env", "RABBITMQ_DEFAULT_PASS", "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"], "exit_code": 0, "stage": "rabbit-start", "timeout_seconds": 45}
+{"argv": ["docker", "build", "--file", "/Users/pau/IdeaProjects/showcase-application/docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/Dockerfile.reconnect", "--tag", "p005-reconnect-probe:local", "/Users/pau/IdeaProjects/showcase-application/docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005"], "exit_code": 0, "stage": "probe-image-build", "timeout_seconds": 180}
+{"argv": ["docker", "run", "--rm", "--network", "p005-reconnect-e348dc664a60", "--env", "P005_ADMIN_PASS", "p005-reconnect-probe:local"], "exit_code": 1, "stage": "single-reconnect-probe", "timeout_seconds": 100}
+{"argv": ["docker", "logs", "p005-rabbit-49279ea241b7"], "exit_code": 0, "stage": "rabbit-diagnostics", "timeout_seconds": 15}
+{"argv": ["docker", "stop", "--time", "5", "p005-rabbit-49279ea241b7"], "exit_code": 0, "stage": "rabbit-stop", "timeout_seconds": 15}
+{"argv": ["docker", "network", "rm", "p005-reconnect-e348dc664a60"], "exit_code": 0, "stage": "network-remove", "timeout_seconds": 15}

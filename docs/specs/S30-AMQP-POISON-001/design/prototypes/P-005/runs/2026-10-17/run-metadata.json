@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-17",
+  "status": "diagnostic-evidence-only",
+  "source_baseline_commit": "49ab97f580ad21c67e9378e15448aca9fe365c45",
+  "application_consumer_enabled": false,
+  "application_services_started": false,
+  "persistent_volumes": false,
+  "network": "private Docker --internal network; no host-published service ports",
+  "host": {
+    "os": "macOS 15.8.1 (24H32)",
+    "kernel": "Darwin 24.6.0",
+    "architecture": "x86_64"
+  },
+  "runtime": {
+    "docker_engine": "29.8.2",
+    "rabbitmq": "4.1.8",
+    "rabbitmq_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+    "postgresql": "18.6",
+    "postgres_image": "postgres@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722",
+    "probe_python": "3.13.16",
+    "probe_python_image": "python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "libraries": {
+      "pika": "1.3.2",
+      "psycopg": "3.2.10",
+      "requests": "2.32.5"
+    }
+  },
+  "sha256": {
+    "probe.py": "3c3fc90d9c9f9e800b2ebb08a9f88b9993dd55d21fe6f99b220a1011307366f6",
+    "report.json": "59a19499d1079c6602c1d7594067bf9c7208dbf0486a909d4195aa3a15da442d"
+  },
+  "qualification": "none; this prototype is not REF-Q or PROD-Q evidence"
+}

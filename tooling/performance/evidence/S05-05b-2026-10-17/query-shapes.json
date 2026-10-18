@@ -1,0 +1,15 @@
+{
+  "source": "OrderPlacementDispatchEntityRepository.findParkedProjection / FindParkedDispatchesAdapter",
+  "sql_equivalent_templates": {
+    "page-first": "SELECT dispatch_id, order_number, dispatch_type, attempts, created_date, CASE WHEN last_error = 'ORDER_MISSING' THEN 'ORDER_MISSING' WHEN last_error = 'ATTEMPT_BUDGET_EXHAUSTED' THEN 'ATTEMPT_BUDGET_EXHAUSTED' ELSE 'OTHER' END AS reason_code FROM TABLE_NAME WHERE status = 'PARKED' ORDER BY created_date ASC, dispatch_id ASC LIMIT 20 OFFSET 0",
+    "page-offset-500": "SELECT dispatch_id, order_number, dispatch_type, attempts, created_date, CASE WHEN last_error = 'ORDER_MISSING' THEN 'ORDER_MISSING' WHEN last_error = 'ATTEMPT_BUDGET_EXHAUSTED' THEN 'ATTEMPT_BUDGET_EXHAUSTED' ELSE 'OTHER' END AS reason_code FROM TABLE_NAME WHERE status = 'PARKED' ORDER BY created_date ASC, dispatch_id ASC LIMIT 20 OFFSET 500",
+    "count": "SELECT count(*) FROM TABLE_NAME WHERE status = 'PARKED'",
+    "oldest": "SELECT min(created_date) FROM TABLE_NAME WHERE status = 'PARKED'"
+  },
+  "page_size": 20,
+  "sort": [
+    "created_date ASC",
+    "dispatch_id ASC"
+  ],
+  "primary_case": "n1000000_s100 / page-offset-500"
+}

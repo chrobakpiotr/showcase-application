@@ -1,0 +1,46 @@
+{
+  "attempt_id": "20261017T202943Z-9f3564a897",
+  "created_at_utc": "2026-10-17T20:29:43.999629+00:00",
+  "status": "PASS_FOR_NARROW_OBSERVATION_ONLY",
+  "scope": "single bounded disposable reconnect attempt; no application consumer",
+  "rabbit_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "probe_base_image": "python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+  "rabbit_hostname": "p005-rabbit-followup",
+  "resources": {
+    "network": "p005-reconnect-da923766a3e5",
+    "rabbit_container": "p005-rabbit-5fdec701f640",
+    "probe_container": "p005-probe-ad565a888303",
+    "probe_image": "p005-reconnect-probe:0723ce9f3f80"
+  },
+  "network": "private Docker internal network; no published ports or volumes",
+  "timeouts_seconds": {
+    "network_create": 20,
+    "rabbit_start": 45,
+    "image_build": 180,
+    "probe": 100,
+    "diagnostic_logs": 15,
+    "container_remove": 15,
+    "image_remove": 15,
+    "network_remove": 15
+  },
+  "cleanup": {
+    "complete": true,
+    "checked": true,
+    "errors": []
+  },
+  "completed_at_utc": "2026-10-17T20:30:09.661374+00:00",
+  "host": {
+    "os": "macOS 15.8.1",
+    "architecture": "x86_64"
+  },
+  "docker": {
+    "desktop_version": "29.8.2",
+    "engine_version": "29.8.2",
+    "guest_kernel": "7.0.14-linuxkit",
+    "os": "linux",
+    "architecture": "amd64",
+    "cpus": 8,
+    "memory_bytes": 8322748416
+  },
+  "workload_image_digest": "sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"
+}

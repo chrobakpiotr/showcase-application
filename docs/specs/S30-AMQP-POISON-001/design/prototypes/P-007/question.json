@@ -1,0 +1,26 @@
+{
+  "id": "P-007",
+  "status": "completed-analysis",
+  "result": "BLOCKED_BEFORE_RUNTIME",
+  "question": "Can the existing Candidate C host restore wrapper block a stale-episode restart and provide distinct process-exit, CAS-refusal, broker redelivery/drain, and credential-reuse evidence on the current Docker Desktop target without a new controller or service?",
+  "scope": {
+    "allowed_environment": "Read-only preflight and, only if every start-control prerequisite exists, one disposable Compose project on the inventoried local Docker Desktop target with pinned images and synthetic data.",
+    "application_consumer": "Must remain disabled; no application consumer or application data is used.",
+    "prototype_authorization": "One bounded Candidate C experiment only. Use the existing versioned wrapper. Minimal disposable experiment code is allowed, but no new controller, service, daemon, privilege proxy, VM, or infrastructure. If no stale-episode start block exists, stop before runtime and report BLOCKED.",
+    "controller_boundary": "Identify the wrapper identity and Docker/process-manager privileges. Docker daemon access by another host user is a bypass unless separately prevented; do not claim controller exclusivity without evidence.",
+    "production_changes": "None; no consumer enablement, accepted-spec change, Harness change, FileVault action, purchase, push, PR, or merge.",
+    "deliverable": "One registration, a bounded preflight/run report, and separate findings for process exit, stale-episode restart denial, broker drain/redelivery, database CAS refusal, and old-credential reuse. No aggregate PASS or qualification claim."
+  },
+  "fixed_checks": [
+    "Before starting any container, identify the exact current wrapper command, normal launch paths, controller identity/permissions, and the stale-episode refusal. restart: no is not a start authorization guard.",
+    "If the wrapper or start-block mechanism is absent, or the test needs a new privileged controller/service, stop before runtime, record BLOCKED, and recommend deferring S30-06.",
+    "If preflight permits runtime, use one isolated disposable Compose project, unique run identifiers, bounded subprocess timeouts, and cleanup only resources created by this run.",
+    "Report process termination and stale-episode start refusal separately. Capture exact container identity, state/PID, restart policy/count, daemon events, and the refusal response.",
+    "In a separate CAS scenario, hold a synthetic handler before its protected write; advance the generation; then permit its write attempt and record whether the CAS rejects it. Do not use process termination as CAS evidence.",
+    "In a separate broker scenario, terminate the container with a synthetic delivery unacknowledged; inspect connections, channels, consumers, unacknowledged count, and redelivery after a bounded settle interval.",
+    "Define credential interpretation before runtime: if old credentials authenticate outside the stopped container, access revocation is UNSATISFIED. Do not relax the requirement after observing the result.",
+    "Record every check independently. Process exit alone is not drain; no result qualifies REF-Q, PROD-Q, or S30-06."
+  ],
+  "decision_rule": "Proceed only if existing wrapper/start-control proof exists and the run needs no new privileged service. Otherwise report BLOCKED before runtime and recommend deferring S30-06. Any stale-credential reconnect means the access-revocation requirement remains unsatisfied pending a separate scope decision.",
+  "source_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"
+}

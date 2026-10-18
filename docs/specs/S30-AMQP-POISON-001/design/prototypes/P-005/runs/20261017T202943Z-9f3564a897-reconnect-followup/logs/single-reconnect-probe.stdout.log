@@ -1,0 +1,64 @@
+{
+  "client_versions": {
+    "pika": "1.3.2",
+    "requests": "2.32.5"
+  },
+  "delete_actor": {
+    "authority": "administrator-tagged management session",
+    "principal": "p005admin"
+  },
+  "limitations": [
+    "One immediate single-node synthetic observation only; no principal block or reconnect refusal was attempted.",
+    "The old connection was closed by its client. DELETE of its stale broker identifier was an administrator action, not a fencer action.",
+    "Channel numbers may be reused and are recorded for diagnostics, not treated as identity.",
+    "This does not prove settled drain, eliminate the inspect/delete race, or qualify the fencer or target."
+  ],
+  "rabbitmq_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "stages": {
+    "after_old_client_close": {
+      "channels_api_absent": true,
+      "connections_api_absent": true,
+      "consumers_api_absent": true
+    },
+    "new_channel_usable_after_stale_delete": {
+      "channel_open": true,
+      "published_and_read_payload": "synthetic-channel-check",
+      "tuple_after_delete": {
+        "broker_node": "rabbit@140f0f4d635c",
+        "channel_number": 1,
+        "client_display_name": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+        "connection_name": "172.18.0.3:50512 -> 172.18.0.2:5672",
+        "consumer_queue": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+        "consumer_tag": "amq.ctag-OrpbUY0z7njAK8KkSj2sOA",
+        "principal": "p005admin",
+        "vhost": "/"
+      }
+    },
+    "old_incarnation": {
+      "broker_node": "rabbit@140f0f4d635c",
+      "channel_number": 1,
+      "client_display_name": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+      "connection_name": "172.18.0.3:50508 -> 172.18.0.2:5672",
+      "consumer_queue": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+      "consumer_tag": "amq.ctag-U5-GM7iiiD7cyBJ4H8wo4Q",
+      "pika_returned_consumer_tag": "amq.ctag-U5-GM7iiiD7cyBJ4H8wo4Q",
+      "principal": "p005admin",
+      "vhost": "/"
+    },
+    "same_principal_reconnect": {
+      "broker_node": "rabbit@140f0f4d635c",
+      "channel_number": 1,
+      "client_display_name": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+      "connection_name": "172.18.0.3:50512 -> 172.18.0.2:5672",
+      "consumer_queue": "p005-reconnect-2461d8f000744e14b8e4ffbb8e22c9c6",
+      "consumer_tag": "amq.ctag-OrpbUY0z7njAK8KkSj2sOA",
+      "pika_returned_consumer_tag": "amq.ctag-OrpbUY0z7njAK8KkSj2sOA",
+      "principal": "p005admin",
+      "vhost": "/"
+    },
+    "stale_old_identifier_delete": {
+      "status": 404
+    }
+  },
+  "status": "observed"
+}

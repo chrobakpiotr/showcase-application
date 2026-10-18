@@ -1,0 +1,5 @@
+unknown flag: --name
+
+Usage:  docker inspect [OPTIONS] NAME|ID [NAME|ID...]
+
+Run 'docker inspect --help' for more information

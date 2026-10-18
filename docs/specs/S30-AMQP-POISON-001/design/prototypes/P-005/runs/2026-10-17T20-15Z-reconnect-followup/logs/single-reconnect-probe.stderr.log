@@ -1,0 +1,99 @@
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connection.py", line 239, in _new_conn
+    sock = connection.create_connection(
+        (self._dns_host, self.port),
+    ...<2 lines>...
+        socket_options=self.socket_options,
+    )
+  File "/usr/local/lib/python3.13/site-packages/urllib3/util/connection.py", line 60, in create_connection
+    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+               ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/socket.py", line 983, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno -3] Temporary failure in name resolution
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connectionpool.py", line 499, in _make_request
+    conn.request(
+    ~~~~~~~~~~~~^
+        method,
+        ^^^^^^^
+    ...<6 lines>...
+        enforce_content_length=enforce_content_length,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connection.py", line 567, in request
+    self.endheaders()
+    ~~~~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.13/http/client.py", line 1381, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/http/client.py", line 1141, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "/usr/local/lib/python3.13/http/client.py", line 1085, in send
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connection.py", line 398, in connect
+    self.sock = self._new_conn()
+                ~~~~~~~~~~~~~~^^
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connection.py", line 246, in _new_conn
+    raise NameResolutionError(self.host, self, e) from e
+urllib3.exceptions.NameResolutionError: HTTPConnection(host='p005-rabbit-followup', port=15672): Failed to resolve 'p005-rabbit-followup' ([Errno -3] Temporary failure in name resolution)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/site-packages/requests/adapters.py", line 644, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "/usr/local/lib/python3.13/site-packages/urllib3/connectionpool.py", line 847, in urlopen
+    retries = retries.increment(
+        method, url, error=new_e, _pool=self, _stacktrace=sys.exc_info()[2]
+    )
+  File "/usr/local/lib/python3.13/site-packages/urllib3/util/retry.py", line 555, in increment
+    raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+urllib3.exceptions.MaxRetryError: HTTPConnectionPool(host='p005-rabbit-followup', port=15672): Max retries exceeded with url: /api/overview (Caused by NameResolutionError("HTTPConnection(host='p005-rabbit-followup', port=15672): Failed to resolve 'p005-rabbit-followup' ([Errno -3] Temporary failure in name resolution)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/probe/reconnect-probe.py", line 133, in main
+    api_get(session, "/overview")
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/probe/reconnect-probe.py", line 20, in api_get
+    response = session.get(API + path, timeout=TIMEOUT)
+  File "/usr/local/lib/python3.13/site-packages/requests/sessions.py", line 602, in get
+    return self.request("GET", url, **kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/site-packages/requests/sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+  File "/usr/local/lib/python3.13/site-packages/requests/sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+  File "/usr/local/lib/python3.13/site-packages/requests/adapters.py", line 677, in send
+    raise ConnectionError(e, request=request)
+requests.exceptions.ConnectionError: HTTPConnectionPool(host='p005-rabbit-followup', port=15672): Max retries exceeded with url: /api/overview (Caused by NameResolutionError("HTTPConnection(host='p005-rabbit-followup', port=15672): Failed to resolve 'p005-rabbit-followup' ([Errno -3] Temporary failure in name resolution)"))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/probe/reconnect-probe.py", line 214, in <module>
+    main()
+    ~~~~^^
+  File "/probe/reconnect-probe.py", line 137, in main
+    raise TimeoutError("RabbitMQ management API readiness deadline expired")
+TimeoutError: RabbitMQ management API readiness deadline expired

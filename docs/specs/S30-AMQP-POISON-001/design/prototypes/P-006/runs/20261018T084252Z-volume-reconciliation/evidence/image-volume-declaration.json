@@ -1,0 +1,7 @@
+{
+  "config_volumes": {
+    "/var/lib/rabbitmq": {}
+  },
+  "image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "image_id": "sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"
+}

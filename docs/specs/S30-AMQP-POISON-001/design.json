@@ -121,6 +121,79 @@
         "approach": "Candidate only; after durably recording the new INHIBITED episode, the wrapper freezes new registrations at the gate barrier, obtains the complete barrier-generation inventory of app instance incarnations and broker connection identities, and durably stores that inventory with the episode in the independent host-control record. It denies restore if the inventory cannot be proven complete. The wrapper then blocks external admission, drains app instances and closes Rabbit consumer channels, and stops every app and gate issuer process. Before restoring any store it verifies all inventoried instances and issuers are stopped, broker connections are closed, and the local supervisor/restart policy cannot start stale processes during the restore window. It restarts the gate through a protected wrapper-controlled path bound to the exact host-record episode in sticky INHIBITED mode and reconciles restored stores. After a gate-Redis restore, it treats every restored registration and drain ACK as stale and requires new durable fencing proof through the audited operator tool for the union of the host-record barrier inventory and any registration recovered from Redis, bound to the exact deployment, instance, broker connection, and episode. This covers instances omitted by an older snapshot. This candidate does not allow the fresh-app-ACK alternative on that path: apps are stopped and the gate protocol does not define registration during PAUSE. Broker-observed closure alone is insufficient and stopping a container is not proof. Only after proofs and durable audited RESUME does it release the host inhibit and start apps. Missing/stale startup binding or any uncertain inventory denies restore or admission. This avoids per-permit mount polling but shifts the proof burden to process-manager fencing, startup binding, and crash recovery; wrapper bypass, root compromise, and full-host rollback remain excluded."
       }
       ]
+    },
+    {
+      "id": "P-005",
+      "question": "Can a deployment-owned RabbitMQ fencer block a synthetic workload principal from reconnecting, bind its incarnation to broker-generated connection and consumer identities, prove settled drain, and prevent an old handler's protected synthetic effect during a concurrent fence while remaining inhibited on uncertainty?",
+      "rationale": "The current decision evidence establishes that RabbitMQ's built-in close permission is broader than the required operation-scoped capability and that client connection names are untrusted. Harness review identified additional required evidence: block the principal before close, use broker-generated connection/consumer identities rather than channel numbers or client tags, prove drain from agreeing broker sources or events, and race a transactional conditional effect against the fence. This is a disposable research prototype only; it does not implement the application consumer or authorize admission.",
+      "decision_criteria": [
+        "The operation-scoped fencer blocks the registered Rabbit principal before close, refuses a reconnect using it, closes every existing connection under it, and leaves unrelated principals untouched; its authority covers both block and close.",
+        "The registration binds authenticated workload incarnation and principal/vhost to broker node, broker-generated connection name and broker-generated consumer tag. Channel numbers and client-chosen tags are diagnostic only; ambiguity refuses fencing.",
+        "Drain is acknowledged only when /api/connections, /api/channels and /api/consumers agree continuously for a target-recorded settle interval, or a selected broker event source proves the equivalent terminal state.",
+        "A handler already executing when the broker connection closes remains a live process; its stale ACK is rejected and its unacked synthetic delivery is redelivered.",
+        "The protected effect uses a conditional write in the same database transaction as the generation check, serialized with the fence generation transition. Concurrent tests cover both effect-first and fence-first orderings; no stale effect commits after fence completion.",
+        "Fencer timeout, lost response, stale observation, or uncertain close result leaves admission inhibited and cannot be converted to a drain acknowledgement.",
+        "The fencer identity cannot read or export quarantine payloads; any broad management authority is recorded as a limitation and prevents a least-privilege pass claim.",
+        "The application AMQP consumer remains disabled; all broker messages and protected effects are synthetic and isolated from application data.",
+        "Evidence records exact RabbitMQ image digest, broker/client versions, commands, raw observations, and limitations; no result qualifies REF-Q or PROD-Q."
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "A fixed-operation isolated fencer service mediates RabbitMQ, holds the broker credential, blocks new authentication/use for the registered principal, resolves an authenticated workload registration to the broker node, broker-generated connection name and broker-generated consumer tag, closes every existing connection under that principal, and confirms settled drain. Its capability covers both principal block and exact close. The prototype must expose residual administrator authority and cannot claim least privilege unless the service boundary and negative tests prove the accepted deployment capability."
+        },
+        {
+          "id": "B",
+          "approach": "A broker-side authorization extension exposes block-principal, inspect-exact and close-principal-connections operations with operation-scoped authorization and an independently authenticated workload-to-connection/consumer registration. The prototype may model this only if the extension is not available locally; a model is not broker evidence and leaves the candidate unqualified."
+        }
+      ]
+    },
+    {
+      "id": "P-006",
+      "question": "Can a disposable RabbitMQ broker-side plugin fence one registered consumer incarnation with narrow authority and serialize principal revocation against in-progress authentication and session registration?",
+      "rationale": "Harness closed P-005's integration-boundary review and accepted this candidate for a bounded experiment. P-005's completed reconnect run remains immutable diagnostic evidence only. This experiment isolates the unresolved broker capability: a unique principal per incarnation, a scoped operation, an authoritative PostgreSQL fence generation, and a deterministic authentication race. It is a scratch prototype only; no application fencer, consumer, gate, or framework is implemented or enabled.",
+      "decision_criteria": [
+        "Use the pinned RabbitMQ 4.1.8 image and synthetic identities/data only; compare a per-incarnation principal revoked by native user deletion against the disposable plugin candidate, without treating the administrator baseline as an acceptable fencer identity.",
+        "The named deployment provisioner and its credential are separate from the mTLS fencer identity; record the provisioner's actual privileges and keep any broader bootstrap authority outside the fencer. The fencer resolves only an immutable registered incarnation-to-principal mapping and cannot create users, change mappings, enumerate users, read message bodies, or alter topology/permissions.",
+        "The plugin accepts only fence(incarnation_id, expected_generation, request_id) and produces FENCED, GENERATION_MISMATCH, UNKNOWN_INCARNATION, PARTIAL, or FAILED; transport timeout/error is UNKNOWN to the caller.",
+        "FENCED is accepted only with exact matching incarnation_id, expected_generation, request_id, a revocation record, and zero sessions after reconciliation; every other result, mismatched echo, or nonzero count yields no drain acknowledgement and leaves the synthetic admission coordinator INHIBITED.",
+        "A request_id is bound to the complete request tuple; exact replay with the same tuple returns the original revocation record, while reuse with a different incarnation_id or expected_generation is rejected. Lower generations never report success; PARTIAL or FAILED never roll revocation back.",
+        "With rabbitmq_auth_backend_cache disabled or explicitly invalidated, a TCP proxy deterministically pauses the old principal's handshake after connection.start-ok, before connection.open, and before the first channel opens while fencing runs; after exact FENCED no old session may survive or reconnect, and the new principal remains usable.",
+        "PostgreSQL fence_generation is the only authority for protected synthetic business effects. The sequence is close admission, advance the database generation, fence the broker principal, verify drain, then audited resume; a conditional synthetic effect is rejected if fencing won serialization and any effect that won first commits before the generation advance.",
+        "For the single-node experiment only, reconcile the broker's session state after revocation and record the observation method; this is diagnostic evidence, not an accepted production drain interval or cluster-wide proof.",
+        "All spike source and runtime artifacts remain disposable and isolated; no application AMQP consumer, production fencer, gate change, shared framework extension, migration, or REF-Q/PROD-Q/S30-06 qualification claim results from this prototype."
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Baseline: one RabbitMQ principal per consumer incarnation, revoked through native user deletion by a separately held test provisioner/admin credential. This demonstrates the behavior available from RabbitMQ's documented built-in revocation and is not a least-privilege fencer design."
+        },
+        {
+          "id": "B",
+          "approach": "Disposable, version-pinned broker-side plugin exposes only the incarnation-scoped fence operation, serializes revocation against authentication/session registration, and returns the typed idempotent result. Compare it with A using the same synthetic handshake schedule and negative-authorization tests."
+        }
+      ]
+    },
+    {
+      "id": "P-007",
+      "question": "Can the existing Candidate C host restore wrapper block a stale-episode restart and provide distinct process-exit, CAS-refusal, broker redelivery/drain, and credential-reuse evidence on the current Docker Desktop target without a new controller or service?",
+      "rationale": "One bounded synthetic feasibility attempt was requested after the RabbitMQ plugin was deselected. The experiment must first identify an existing executable wrapper and stale-episode start guard. If either is absent, or an authorized Docker user can bypass the wrapper, stop before starting a container and report the blocker; do not build control infrastructure.",
+      "decision_criteria": [
+        "Before runtime, identify the exact existing wrapper command, controlled launch paths, controller identity/permissions, and stale-episode refusal. restart: no is not a start authorization guard; explicitly document the Docker-user bypass boundary.",
+        "If there is no existing wrapper/start-block mechanism, or proof requires a new privileged service, mark the run BLOCKED before runtime and recommend deferring S30-06.",
+        "If preflight permits the run, use only one isolated disposable Compose project, pinned synthetic images/data, unique run labels/names, bounded commands, and cleanup limited to this run.",
+        "Report process termination and stale-episode restart refusal separately; capture container state/PID, restart policy/count, daemon events, and the controller's refusal for the old episode.",
+        "In a separate CAS scenario, hold a synthetic handler before its protected write, advance the database generation, then allow the write attempt and record the CAS refusal. This result must not depend on killing the handler.",
+        "In a separate broker scenario, kill the consumer container with a synthetic delivery unacknowledged; inspect connections, channels, consumers, unacknowledged count, and redelivery after a bounded settle interval. Container exit alone is not drain evidence.",
+        "Before the run, define credential-test interpretation: if the old Rabbit credential authenticates outside the stopped container, access revocation is UNSATISFIED. Do not weaken that criterion or assume secret isolation after observing the result.",
+        "Record each result independently; no aggregate PASS, production claim, consumer enablement, accepted-spec change, Harness change, purchase, or remote Git operation is in scope."
+      ],
+      "candidates": [
+        {
+          "id": "A",
+          "approach": "Candidate C process isolation using only the already-existing versioned host restore wrapper and its current start-control mechanism. No new controller, service, daemon, VM, or privilege proxy is allowed."
+        }
+      ]
     }
   ],
   "verification_contract": "required"

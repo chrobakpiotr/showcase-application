@@ -1,0 +1,2063 @@
+{
+  "n10000_s001": {
+    "profile": {
+      "rows": 10000,
+      "selectivity": 0.001,
+      "parked_rows": 10
+    },
+    "candidate_index_bytes": 548864,
+    "raw_plan_directory": "raw-plans/n10000_s001",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.041,
+          "p95_ms": 0.05159999999999998,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.025,
+          "p95_ms": 0.03379999999999998,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 34.49612403100776,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.039,
+          "p95_ms": 0.10219999999999985,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.022,
+          "p95_ms": 0.026999999999999996,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 73.58121330724067,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.026,
+          "p95_ms": 0.029,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.026,
+          "p95_ms": 0.03,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -3.4482758620689564,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.029,
+          "p95_ms": 0.036999999999999984,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.019,
+          "p95_ms": 0.026799999999999984,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 27.56756756756758,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 29.471,
+          "p95_ms": 35.7652,
+          "median_shared_hit_blocks": 16471,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 33931.66163347019
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 21.652,
+          "p95_ms": 27.733799999999984,
+          "median_shared_hit_blocks": 14175,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 46185.10992056161
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 34.158,
+          "p95_ms": 40.13519999999999,
+          "median_shared_hit_blocks": 18514,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 29275.718718894546
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 22.051,
+          "p95_ms": 24.669199999999996,
+          "median_shared_hit_blocks": 14175,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 45349.417259988215
+        }
+      }
+    }
+  },
+  "n10000_s010": {
+    "profile": {
+      "rows": 10000,
+      "selectivity": 0.01,
+      "parked_rows": 100
+    },
+    "candidate_index_bytes": 606208,
+    "raw_plan_directory": "raw-plans/n10000_s010",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.105,
+          "p95_ms": 0.14259999999999998,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.03,
+          "p95_ms": 0.0338,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 76.29733520336605,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.103,
+          "p95_ms": 0.19499999999999998,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.047,
+          "p95_ms": 0.05,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 74.35897435897435,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.046,
+          "p95_ms": 0.048799999999999996,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.046,
+          "p95_ms": 0.08699999999999987,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -78.27868852458991,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.05,
+          "p95_ms": 0.05859999999999999,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.021,
+          "p95_ms": 0.023799999999999998,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 59.38566552901024,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 29.184,
+          "p95_ms": 35.544599999999996,
+          "median_shared_hit_blocks": 16860,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 34265.35087719298
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 23.867,
+          "p95_ms": 28.291599999999992,
+          "median_shared_hit_blocks": 13363,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 41898.8561612268
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 34.387,
+          "p95_ms": 41.157399999999996,
+          "median_shared_hit_blocks": 18941,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 29080.757262919127
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 24.521,
+          "p95_ms": 27.1768,
+          "median_shared_hit_blocks": 13363,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 40781.371069695364
+        }
+      }
+    }
+  },
+  "n10000_s100": {
+    "profile": {
+      "rows": 10000,
+      "selectivity": 0.1,
+      "parked_rows": 1000
+    },
+    "candidate_index_bytes": 581632,
+    "raw_plan_directory": "raw-plans/n10000_s100",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.68,
+          "p95_ms": 0.778,
+          "median_shared_hit_blocks": 18,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.033,
+          "p95_ms": 0.0416,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 94.65295629820051,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.748,
+          "p95_ms": 0.8008,
+          "median_shared_hit_blocks": 18,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.182,
+          "p95_ms": 0.2562,
+          "median_shared_hit_blocks": 6,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 68.006993006993,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.245,
+          "p95_ms": 0.33119999999999994,
+          "median_shared_hit_blocks": 7,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.246,
+          "p95_ms": 0.35839999999999994,
+          "median_shared_hit_blocks": 7,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -8.212560386473433,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.248,
+          "p95_ms": 0.3227999999999999,
+          "median_shared_hit_blocks": 7,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.024,
+          "p95_ms": 0.03,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 90.70631970260223,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 27.289,
+          "p95_ms": 29.813399999999998,
+          "median_shared_hit_blocks": 15999,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 36644.80193484554
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 22.348,
+          "p95_ms": 26.869999999999997,
+          "median_shared_hit_blocks": 12744,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 44746.73348845534
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 31.631,
+          "p95_ms": 35.632799999999996,
+          "median_shared_hit_blocks": 18044,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 31614.555341279127
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 22.634,
+          "p95_ms": 25.293400000000002,
+          "median_shared_hit_blocks": 12744,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 44181.320137845716
+        }
+      }
+    }
+  },
+  "n100000_s001": {
+    "profile": {
+      "rows": 100000,
+      "selectivity": 0.001,
+      "parked_rows": 100
+    },
+    "candidate_index_bytes": 958464,
+    "raw_plan_directory": "raw-plans/n100000_s001",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.106,
+          "p95_ms": 0.1628,
+          "median_shared_hit_blocks": 5,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.03,
+          "p95_ms": 0.043199999999999975,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 73.46437346437348,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.106,
+          "p95_ms": 0.11380000000000001,
+          "median_shared_hit_blocks": 5,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.047,
+          "p95_ms": 0.10179999999999984,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 10.544815465729505,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.048,
+          "p95_ms": 0.0881999999999999,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.048,
+          "p95_ms": 0.07299999999999994,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 17.233560090702927,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.05,
+          "p95_ms": 0.08699999999999991,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.021,
+          "p95_ms": 0.022,
+          "median_shared_hit_blocks": 2,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 74.7126436781609,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 34.087,
+          "p95_ms": 43.07339999999999,
+          "median_shared_hit_blocks": 18842,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 29336.69727462082
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 25.43,
+          "p95_ms": 33.127399999999994,
+          "median_shared_hit_blocks": 17085,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 39323.63350373574
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 41.268,
+          "p95_ms": 50.2214,
+          "median_shared_hit_blocks": 21000,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 24231.850344092276
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 25.921,
+          "p95_ms": 32.40959999999999,
+          "median_shared_hit_blocks": 17085,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 38578.758535550325
+        }
+      }
+    }
+  },
+  "n100000_s010": {
+    "profile": {
+      "rows": 100000,
+      "selectivity": 0.01,
+      "parked_rows": 1000
+    },
+    "candidate_index_bytes": 1114112,
+    "raw_plan_directory": "raw-plans/n100000_s010",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.686,
+          "p95_ms": 0.7698,
+          "median_shared_hit_blocks": 19,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.034,
+          "p95_ms": 0.043999999999999984,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 94.28422967004416,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.718,
+          "p95_ms": 0.7728,
+          "median_shared_hit_blocks": 19,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.183,
+          "p95_ms": 0.2728,
+          "median_shared_hit_blocks": 6,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 64.69979296066252,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.243,
+          "p95_ms": 0.3292,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.246,
+          "p95_ms": 0.36279999999999996,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -10.206561360874836,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.247,
+          "p95_ms": 0.36,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.024,
+          "p95_ms": 0.03299999999999999,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 90.83333333333334,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 34.161,
+          "p95_ms": 53.31119999999996,
+          "median_shared_hit_blocks": 19326,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 29273.14774157665
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 33.243,
+          "p95_ms": 53.95879999999994,
+          "median_shared_hit_blocks": 19215,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 30081.5209216978
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 39.894,
+          "p95_ms": 63.03799999999998,
+          "median_shared_hit_blocks": 21437,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 25066.426028976788
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 33.396,
+          "p95_ms": 53.095999999999954,
+          "median_shared_hit_blocks": 19163,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 29943.705833033895
+        }
+      }
+    }
+  },
+  "n100000_s100": {
+    "profile": {
+      "rows": 100000,
+      "selectivity": 0.1,
+      "parked_rows": 10000
+    },
+    "candidate_index_bytes": 1646592,
+    "raw_plan_directory": "raw-plans/n100000_s100",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 6.367,
+          "p95_ms": 6.7648,
+          "median_shared_hit_blocks": 166,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.036,
+          "p95_ms": 0.04619999999999999,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 99.31705298013244,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 6.563,
+          "p95_ms": 6.759599999999999,
+          "median_shared_hit_blocks": 166,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.187,
+          "p95_ms": 0.24279999999999996,
+          "median_shared_hit_blocks": 6,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 96.40807148351975,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 2.215,
+          "p95_ms": 2.4064,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 2.202,
+          "p95_ms": 2.3587999999999996,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 1.97805851063832,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 2.205,
+          "p95_ms": 2.3674,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.026,
+          "p95_ms": 0.03439999999999999,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 98.5469291205542,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 33.089,
+          "p95_ms": 39.2726,
+          "median_shared_hit_blocks": 18670,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 30221.523769228443
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 32.826,
+          "p95_ms": 40.51659999999999,
+          "median_shared_hit_blocks": 18646,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 30463.65685736916
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 38.501,
+          "p95_ms": 52.08159999999998,
+          "median_shared_hit_blocks": 20821,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 25973.351341523598
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 33.158,
+          "p95_ms": 42.38739999999998,
+          "median_shared_hit_blocks": 18646,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 30158.634417033598
+        }
+      }
+    }
+  },
+  "n1000000_s001": {
+    "profile": {
+      "rows": 1000000,
+      "selectivity": 0.001,
+      "parked_rows": 1000
+    },
+    "candidate_index_bytes": 1024000,
+    "raw_plan_directory": "raw-plans/n1000000_s001",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.747,
+          "p95_ms": 0.8211999999999998,
+          "median_shared_hit_blocks": 19,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.034,
+          "p95_ms": 0.044199999999999975,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 94.61763273258644,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.867,
+          "p95_ms": 0.9809999999999999,
+          "median_shared_hit_blocks": 19,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.187,
+          "p95_ms": 0.2686,
+          "median_shared_hit_blocks": 6,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 72.6197757390418,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.247,
+          "p95_ms": 0.31759999999999994,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.255,
+          "p95_ms": 0.3489999999999999,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -9.886649874055413,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 0.256,
+          "p95_ms": 0.39859999999999984,
+          "median_shared_hit_blocks": 8,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.025,
+          "p95_ms": 0.03619999999999999,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 90.9182137481184,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 38.614,
+          "p95_ms": 47.9954,
+          "median_shared_hit_blocks": 20762,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 25897.342932615116
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 38.797,
+          "p95_ms": 46.852599999999995,
+          "median_shared_hit_blocks": 20701,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 25775.188803257985
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 45.233,
+          "p95_ms": 50.7604,
+          "median_shared_hit_blocks": 23014,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 22107.7531890434
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 29.689,
+          "p95_ms": 34.715799999999994,
+          "median_shared_hit_blocks": 17941,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 33682.50867324598
+        }
+      }
+    }
+  },
+  "n1000000_s010": {
+    "profile": {
+      "rows": 1000000,
+      "selectivity": 0.01,
+      "parked_rows": 10000
+    },
+    "candidate_index_bytes": 1654784,
+    "raw_plan_directory": "raw-plans/n1000000_s010",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 6.289,
+          "p95_ms": 6.521199999999999,
+          "median_shared_hit_blocks": 166,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.037,
+          "p95_ms": 0.051399999999999973,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 99.21180150892474,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 6.53,
+          "p95_ms": 6.670400000000001,
+          "median_shared_hit_blocks": 166,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.19,
+          "p95_ms": 0.27580000000000005,
+          "median_shared_hit_blocks": 6,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 95.86531542336292,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 2.198,
+          "p95_ms": 2.3292,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 2.19,
+          "p95_ms": 2.322,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 0.3091190108191694,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 2.252,
+          "p95_ms": 2.3796,
+          "median_shared_hit_blocks": 53,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.027,
+          "p95_ms": 0.07079999999999997,
+          "median_shared_hit_blocks": 3,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 97.02471003530003,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 38.096,
+          "p95_ms": 38.8048,
+          "median_shared_hit_blocks": 21506,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 26249.47501049979
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 37.549,
+          "p95_ms": 39.4414,
+          "median_shared_hit_blocks": 21503,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 26631.867692881304
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 44.05,
+          "p95_ms": 46.15299999999999,
+          "median_shared_hit_blocks": 23631,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 22701.475595913736
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 37.837,
+          "p95_ms": 39.3944,
+          "median_shared_hit_blocks": 21503,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 26429.156645611438
+        }
+      }
+    }
+  },
+  "n1000000_s100": {
+    "profile": {
+      "rows": 1000000,
+      "selectivity": 0.1,
+      "parked_rows": 100000
+    },
+    "candidate_index_bytes": 8151040,
+    "raw_plan_directory": "raw-plans/n1000000_s100",
+    "reads": {
+      "page-first": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 32.693,
+          "p95_ms": 46.9696,
+          "median_shared_hit_blocks": 1704,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.046,
+          "p95_ms": 0.06619999999999997,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 99.85905777353864,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "page-offset-500": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 33.016,
+          "p95_ms": 35.934200000000004,
+          "median_shared_hit_blocks": 1704,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.205,
+          "p95_ms": 0.3161999999999999,
+          "median_shared_hit_blocks": 7,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 99.12005832883436,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "count": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 21.376,
+          "p95_ms": 21.7716,
+          "median_shared_hit_blocks": 496,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 21.469,
+          "p95_ms": 21.843,
+          "median_shared_hit_blocks": 496,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": -0.3279501736206828,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      },
+      "oldest": {
+        "baseline": {
+          "sample_count": 25,
+          "p50_ms": 21.703,
+          "p95_ms": 22.2406,
+          "median_shared_hit_blocks": 496,
+          "median_shared_read_blocks": 0
+        },
+        "candidate": {
+          "sample_count": 25,
+          "p50_ms": 0.033,
+          "p95_ms": 0.038799999999999994,
+          "median_shared_hit_blocks": 4,
+          "median_shared_read_blocks": 0
+        },
+        "p95_improvement_percent": 99.82554427488468,
+        "sample_order": [
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate",
+          "candidate-then-baseline",
+          "baseline-then-candidate"
+        ]
+      }
+    },
+    "writes": {
+      "baseline": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 37.268,
+          "p95_ms": 43.0076,
+          "median_shared_hit_blocks": 20639,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 26832.67146077063
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 37.025,
+          "p95_ms": 38.6916,
+          "median_shared_hit_blocks": 20643,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 27008.777852802163
+        }
+      },
+      "candidate": {
+        "park": {
+          "sample_count": 25,
+          "p50_ms": 43.184,
+          "p95_ms": 45.13419999999999,
+          "median_shared_hit_blocks": 23811,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 23156.724712856612
+        },
+        "unpark": {
+          "sample_count": 25,
+          "p50_ms": 37.037,
+          "p95_ms": 39.1366,
+          "median_shared_hit_blocks": 20643,
+          "median_shared_read_blocks": 0,
+          "batch_rows": 1000,
+          "median_rows_per_second": 27000.027000027
+        }
+      }
+    }
+  }
+}

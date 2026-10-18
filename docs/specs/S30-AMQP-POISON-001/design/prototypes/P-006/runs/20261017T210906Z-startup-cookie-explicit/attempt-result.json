@@ -1,0 +1,12 @@
+{
+  "broker_image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "consumer_enabled": false,
+  "container_start": "docker run returned 0; docker inspect reported running",
+  "data_mount": null,
+  "network": "p006-20261017t210906z",
+  "published_ports": [],
+  "readiness": "docker exec rabbitmq-diagnostics -q ping timed out after 10s",
+  "reason": "Readiness could not be established. Container and network were removed. Broker logs were not collected before container removal; no cause is inferred.",
+  "status": "BLOCKED",
+  "synthetic_cookie": "passed only through process environment; value not retained"
+}

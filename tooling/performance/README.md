@@ -27,9 +27,13 @@ record.
 
 The fixture is synthetic query sensitivity evidence only. It does not qualify
 an application deployment, define production traffic or SLOs, or authorize a
-query/index/migration change. S05-05b still requires an accepted workload and
-latency target, correctness evidence, write-overhead measurement, and migration
-rollback/forward-fix review.
+query/index/migration change. The proposed S05-05b comparison profile is in
+[`S05-05b-synthetic-experiment-profile-2026-10-17.md`](S05-05b-synthetic-experiment-profile-2026-10-17.md).
+Run it with `python3 tooling/performance/postgres_query_comparison.py`; it
+compares the current baseline with one partial covering-index candidate on
+identical synthetic datasets, including write overhead. Its selection
+thresholds apply only to choosing a benchmark candidate, never to production.
+Any migration still needs correctness and rollback/forward-fix review.
 
 Run its dependency-free helper tests with:
 

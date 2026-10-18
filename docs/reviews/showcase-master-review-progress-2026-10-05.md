@@ -1,14 +1,14 @@
-# Showcase master review progress — updated 2026-10-17
+# Showcase master review progress — updated 2026-10-18
 
 This is a source-bound implementation handoff for the Showcase slice of the
 master review plan. It is not a whole-repository audit, evaluator approval,
 production qualification, or evidence that another agent's work is complete.
 
 S05 slice estimate: **85%**, carried forward from its 2026-10-10 assessment,
-using equal task weighting across the ten listed S05 tasks (7 DONE, 2
-PARTIAL/IN REVIEW, 1 BLOCKED; partial values estimated at 70–80%). This update
-does not reassess those S05 task estimates and is not a percentage for the
-combined Showcase+Harness+Benchmark master plan.
+using equal task weighting across the ten listed S05 tasks. The current table
+shows eight DONE, one DEFERRED (S05-04), and one PARTIAL / external update
+pending (S05-07). The percentage is not recomputed here and is not a percentage
+for the combined Showcase+Harness+Benchmark master plan.
 
 ## Verification-v2 completion — 2026-10-17
 
@@ -44,20 +44,30 @@ the verification-v2 CI path; it does not change the S05 progress estimate.
 | S05-02 — duplicate Rabbit testcase evidence | DONE | `baaaef7`; regression reproducer and validator guard. `python3 -m unittest discover -s tooling/scripts/tests` passed 50 tests. |
 | S05-03a — order summary log privacy | DONE | `f7526d3`; focused `LogOrderAdapterTest` passed, including sensitive-field and exception-marker checks. |
 | S05-03b — dispatch/mock log privacy | DONE | `52e1837`; capture tests and bounded inventory in `S05-03b-log-privacy-inventory-2026-10-05.md`. Focused persistence, Camel, Kafka and AWS tests passed. `61aa560` applies formatter-only changes to seven AWS/Camel/Kafka test files; persistence plus AWS/Camel/Kafka Spotless checks now all pass in the Java 25 `/workspace` builder container. |
-| S05-04 — S30-06 scope revision | IN REVIEW — design blocked | Accepted D1–D5 and the scoped Candidate C contract amendment remain unchanged; REF-Q and PROD-Q are separate, and S30-06 remains OPEN. Fresh read-only scope and architecture reviews on 2026-10-10 confirmed Candidate C is a direction, not a closed design. They identified unresolved restore freshness/anti-rollback authority, per-instance identity and exact Rabbit connection fencing, PG/Redis cross-store recovery, permit/admission linearization, accepted module/API ownership, and remaining 06b retry/parking/ordering rules. The `restart: "no"` probe in `8f5675a` covers only a disposable worker's stop/controller-exit behavior, not daemon restart or REF-Q integration. The design gate remains OPEN: no hash-bound verification contract or gate PASS exists, and implementation tasks/consumer enablement remain unauthorized. No production qualification is claimed. The evidence-to-gap map is in [`design-evidence-coverage-matrix-2026-10-17.md`](../specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md); the review synthesis and next evidence sequence remain in [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md). See also [`spec.md`](../specs/S30-AMQP-POISON-001/spec.md), [`plan.md`](../specs/S30-AMQP-POISON-001/plan.md), and [`revision-proposal-2026-10-05.md`](../specs/S30-AMQP-POISON-001/revision-proposal-2026-10-05.md). |
+| S05-04 — S30-06 scope revision | DEFERRED — design gate OPEN | Master deferred implementation after P-007 preflight closed BLOCKED before runtime. Qualification remains NOT QUALIFIED. No wrapper/start guard exists, Docker access bypasses an absent wrapper, and the RabbitMQ plugin was not selected. Accepted requirements are unchanged; consumer stays disabled. See [P-007](../specs/S30-AMQP-POISON-001/design/prototypes/P-007/README.md) and the [deferral decision](../specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md). Re-entry requires a concrete target/control mechanism or an owner-approved REF-Q scope revision; do not initiate further searches or experiments before then. |
 | S05-05a — PostgreSQL measurement fixture | DONE | `0c1f4e2` records the successful PostgreSQL 18.6/Docker 29.8.2 run, source and image digests, ten query summaries, and all 60 raw JSON plans in `tooling/performance/evidence/S05-05a-2026-10-05/`. Three helper tests and artifact-count checks pass. This is reproducible synthetic sensitivity evidence, not production workload qualification or an SLO. |
-| S05-05b — query/index comparison | BLOCKED | The 05a fixture now has reproducible synthetic evidence, but this comparison still requires an accepted representative workload/latency target. No query or index change is authorized by the synthetic sensitivity reports alone. |
+| S05-05b — query/index comparison | DONE — retain baseline | [`S05-05b-synthetic-experiment-profile-2026-10-17.md`](../../tooling/performance/S05-05b-synthetic-experiment-profile-2026-10-17.md) defines the 10k/100k/1m × 0.1%/1%/10% synthetic matrix and repository-derived parked projection/page/count/oldest shapes. Three fresh-container runs used 25 read samples and 25 write rounds per direction. The preselected 1m/10%-PARKED offset page showed median p95 improvement of 99.1% in this experiment, but the sample count makes p95 unstable; do not generalize it as a guarantee. The partial index caused a repeatable >10% PENDING→PARKED write-throughput loss in every scenario, so retain current indexes, make no Liquibase change, and do not search for more indexes within this task. This is benchmark-selection evidence, not a production SLO. The fixture tables are UNLOGGED and the write-throughput metric is derived from EXPLAIN ANALYZE UPDATE elapsed time, not durable end-to-end writes; this does not reopen the experiment. Full report and compressed raw plans: [`evidence/S05-05b-2026-10-17/`](../../tooling/performance/evidence/S05-05b-2026-10-17/). |
 | S05-06 — parked-dispatch UI | DONE | `513c7df` adds a read-only parked-dispatch page on the existing ORDER_READ endpoint, with safe reason labels, age/attempt details, refresh and responsive states. 33 focused Angular tests, app/spec/E2E TypeScript compilation, ESLint, formatting, Playwright discovery and the backend ORDER_READ/deny-mutation security test passed. The Compose/Keycloak browser test passed: anonymous endpoint access returned 401; an ORDER_READ viewer loaded the page; no redrive control appeared; viewport widths 320/768/1024/1440 had no horizontal overflow. |
-| S05-07 — status and handbook delta | PARTIAL | This file consolidates task evidence and the accepted S30-06 scope revision. Current main and Agentic SDD CI evidence is recorded above for pushed SHA `9455e8a36c1694998b0a521fe48099f71c45585c`; both workflows pass. The source-linked delta remains in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md), and the designated owner still must apply it to the separate handbook. This repository update does not infer or change external handbook state. Historical workflow evidence and the older-branch failure are recorded below in the prior snapshot and [`docs/ci/showcase-master-review-ci-evidence-2026-10-05.md`](../ci/showcase-master-review-ci-evidence-2026-10-05.md). |
+| S05-07 — status and handbook delta | REPO DELTA READY — external update pending | Source-linked S30 target/design proposal and S05-05b profile/results are staged in [`external-handbook-delta-2026-10-06.md`](external-handbook-delta-2026-10-06.md). The separate handbook owner must apply the changes to the S30-06 reference-target/DR section and S05-05b synthetic query/index methodology section, then verify against the source commit and evidence. This repo record does not infer or change external handbook state. |
 | S05-08 — accepted-risk expiry guard | DONE | `a0f12b9`; six standard-library tests passed. The temporary exact PURL+advisory suppression for `GHSA-6688-9rhm-gjv2` was removed after `deddce1` upgraded Swagger UI WebJar to `5.33.2`. `9455e8a` refreshed the build-input digest, and current main's OWASP DependencyCheck passed in CI run `38811281347`; the advisory is no longer an open accepted risk. |
 
 The master handover's original review baseline was `50c18f9`; the current
 Showcase `main` snapshot is `9455e8a36c1694998b0a521fe48099f71c45585c`.
-S05-04 remains IN REVIEW because the S30-06 design gate is open. S05-05b
-remains BLOCKED pending an accepted representative workload and latency target.
-S05-07 remains PARTIAL until the designated owner applies this source-linked
-delta to the separate handbook; no external handbook state is inferred. The
+S05-04 is DEFERRED by Master; its S30-06 design gate remains OPEN and qualification is NOT QUALIFIED. S05-05b has a
+completed synthetic comparison with the baseline retained and no production
+SLO claim. S05-07 remains PARTIAL until the designated owner applies this
+source-linked delta to the separate handbook; no external handbook state is inferred. The
 completed SDD-OBS-001 execution slice does not resolve those independent items.
+
+## Remaining independent Showcase plan items — 2026-10-18
+
+| Item | Status | Next action / owner |
+|---|---|---|
+| S05-04 / S30-06 | DEFERRED; design gate OPEN; NOT QUALIFIED | No further research or implementation until a concrete target/control mechanism is available or the owner accepts a scoped REF-Q revision. Consumer stays disabled. |
+| S05-07 / external handbook | REPO DELTA READY — external update pending | Master/handbook owner applies and verifies the updated source-linked delta. Showcase must not claim external synchronization complete. |
+| S05-05b | DONE — retain baseline | Closed; do not search for more indexes under this task. |
+
+No other unfinished, independent Showcase engineering task is identified in the current S05 plan snapshot. Recommended next action: hand the refreshed S05-07 delta and S30-06 deferral status to the handbook owner; then select the next unblocked Showcase code improvement from the current product backlog. This keeps implementation work in the deliverable current environment and does not reopen S30-06.
 
 ## External handbook delta for its owner
 

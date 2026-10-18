@@ -1,4 +1,4 @@
-# External handbook delta — Showcase master review — updated 2026-10-17
+# External handbook delta — Showcase master review — updated 2026-10-18
 
 Prepared for the designated owner of the separate handbook. This is a
 source-bound handoff from the Showcase repository; it does not update that
@@ -25,13 +25,54 @@ and fresh evidence against the intended handbook revision.
   Do not imply that ordinary logs replace the separate audit trail.
 - **S30-06 reference scope:** accepted D1–D5 and the narrow Candidate C
   contract delta are recorded in the current `spec.md` and `plan.md`.
+  Master has deferred implementation: realization is **DEFERRED**,
+  qualification **NOT QUALIFIED**, the design gate **OPEN**, and the consumer
+  disabled. This changes scheduling only; all accepted requirements remain in
+  force. P-007 closed as preflight analysis **BLOCKED before runtime** because
+  no existing restore wrapper or stale-episode start guard was found, while
+  this shell identity can access Docker directly. Process termination,
+  old-episode restart refusal, Rabbit drain/redelivery, stale-generation CAS,
+  and credential reuse remain separate **NOT RUN** results. No plugin was
+  selected and no controller/service was built. Resume only when a concrete
+  target/control mechanism exists or the owner accepts a scoped REF-Q revision;
+  do not initiate further searches or experiments before that. See the
+  [decision record](../specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md)
+  and [P-007 report](../specs/S30-AMQP-POISON-001/design/prototypes/P-007/runs/2026-10-18-preflight-blocked/run-report.md).
   REF-Q and PROD-Q remain separate; S30-06 remains OPEN. The design gate is
   still OPEN because its hash-bound verification contract, independent grills,
   and exact-target evidence have not passed. Fresh read-only architecture and
   scope reviews on 2026-10-10 confirm Candidate C is a direction, not a closed
   design: restore freshness/anti-rollback, per-instance identity and exact
   Rabbit connection fencing, PG/Redis cross-store recovery, and permit/start
-  linearization still need decisions and falsification evidence. Remaining
+  linearization still need decisions and falsification evidence. The original
+  design-only P-005 probe observed RabbitMQ 4.1.8 connection close and immediate
+  reconnect through administrator-authenticated DELETEs (`p005admin`); the
+  fencer identity itself did not close connections. It also observed live
+  old-handler behavior, stale synthetic PostgreSQL generation rejection, and
+  ACK failure/redelivery. The timeout injection showed transport timeout only:
+  `admission_open` was hard-set false before the request, so no admission
+  reaction was tested. After-close drain was not tested across all three APIs;
+  only `/api/connections` was re-read. The separately tested administrator-tagged
+  fencer could list users even though queue payload GET was denied; this is
+  broader than the accepted least-privilege boundary, so no fencer candidate
+  passes and the target remains NOT QUALIFIED. The original successful
+  reconnect sample recorded zero channels/consumers for both connections, so
+  channel identity across reconnect was unverified there. A corrected one-shot follow-up opened a channel and broker-generated consumer
+  on both same-principal incarnations; its detailed report is under the P-005
+  run directory. The [corrected follow-up report](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/20261017T202943Z-9f3564a897-reconnect-followup/followup-report.md) is one immediate single-node observation only; it does not establish a settled interval. The workload-to-Rabbit-principal mapping was a synthetic
+  fixture, not Keycloak provisioning. Harness review also requires principal
+  blocking before close, broker-generated consumer identity, settled agreement
+  among the three drain APIs or an event source, and a concurrent conditional-
+  write/fence test. See the P-005 errata for exact boundaries; the bounded
+  follow-up does not test principal blocking or close the read/delete TOCTOU gap.
+  See the
+  [P-005 research report](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/README.md)
+  and its bound [run result](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17/report.json).
+  The 45–48 ms host-record observation remains a visibility result only;
+  durability, integrity, path permissions and anti-rollback have separate
+  unproven evidence rows in the [owner checklist](../specs/S30-AMQP-POISON-001/evidence/owner-encryption-checklist-2026-10-17.md).
+  Direct/provider restore, wrapper bypass and full-host rollback remain outside
+  the proposed REF-Q guarantee. Remaining
   06b retry, parking, invalid-identity, retention and ordering rules also stay
   open. The review synthesis is in
   [`design-readiness-followup-2026-10-10.md`](../specs/S30-AMQP-POISON-001/evidence/design-readiness-followup-2026-10-10.md).
@@ -47,7 +88,8 @@ and fresh evidence against the intended handbook revision.
   synthetic fixtures and all 60 JSON plans. The evidence is described in
   [`S05-05a-postgres-query-measurement-2026-10-05.md`](S05-05a-postgres-query-measurement-2026-10-05.md).
   These are warm-run query-shape observations, not production traffic or an
-  accepted SLO; S05-05b still needs an accepted workload and latency target.
+  accepted SLO. The later S05-05b synthetic profile and three-run comparison
+  are linked below.
 - **Parked-dispatch UI:** `513c7df` adds a read-only page on the existing
   ORDER_READ endpoint, with bounded safe reason labels, age/attempt details,
   refresh, empty/error/loading states, and no redrive control. The focused
@@ -110,9 +152,26 @@ and fresh evidence against the intended handbook revision.
   prior accepted-risk entry forward as an open risk.
 - **Remaining master-plan limits:** S30-06 remains OPEN with its design gate
   open; REF-Q is distinct from PROD-Q and no production qualification is
-  claimed. S05-05b remains blocked on an accepted representative workload and
-  latency target. S05-07 remains partial until the designated owner applies
-  this source-linked delta to the separate handbook.
+  claimed. S05-05b now has an explicitly synthetic experiment profile and
+  comparison runner; results do not define a production workload or SLO. S05-07
+  remains partial until the designated owner applies this source-linked delta
+  to the separate handbook.
+
+## New source-bound handoff — 2026-10-17
+
+The following repository deltas are ready for the separate handbook owner.
+The git source is currently the unmodified baseline
+`49ab97f580ad21c67e9378e15448aca9fe365c45`; the related proposal/profile and
+runner changes are local and uncommitted. Apply them only after receiving the
+resulting commit SHA and checking the listed evidence hashes.
+
+| Handbook section to update | Showcase source | Required status/limitation |
+|---|---|---|
+| S30-06 reference target; restore/fencing/drain; REF-Q versus PROD-Q | [`reference-target-proposal-2026-10-17.md`](../specs/S30-AMQP-POISON-001/evidence/reference-target-proposal-2026-10-17.md), accepted [`spec.md`](../specs/S30-AMQP-POISON-001/spec.md), [P-005](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/README.md), [P-007](../specs/S30-AMQP-POISON-001/design/prototypes/P-007/README.md), and [deferral decision](../specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md) | **DEFERRED / NOT QUALIFIED / design gate OPEN.** No wrapper/start guard exists; Docker daemon access exposes a bypass; P-007 stopped before runtime. Its runtime outcomes remain NOT RUN. Keep accepted requirements unchanged, consumer disabled, and do not claim REF-Q/PROD-Q. |
+| S05-05a/05b synthetic database methodology and index evaluation | [`S05-05b-synthetic-experiment-profile-2026-10-17.md`](../../tooling/performance/S05-05b-synthetic-experiment-profile-2026-10-17.md), [`postgres_query_comparison.py`](../../tooling/performance/postgres_query_comparison.py), and [`evidence/S05-05b-2026-10-17/report.md`](../../tooling/performance/evidence/S05-05b-2026-10-17/report.md) with three compressed raw-plan archives | Synthetic only. The preselected offset-page case showed median p95 improvement 99.1% across three 25-sample runs; p95 is unstable at this sample count and this is an experiment observation, not a guarantee. Repeatable >10% PARKED-entry write-throughput regressions violate the guardrail. Decision: retain baseline, make no migration, and do not search for more indexes within S05-05b. The bounds are not production SLOs. The compared tables are UNLOGGED, and write throughput is derived from EXPLAIN ANALYZE UPDATE execution time; it is not durable end-to-end throughput. This limitation does not change the retain-baseline decision. |
+| S05-07 status | This delta plus the master progress record | State exactly: **repo delta ready, external update pending**. Do not call external handbook synchronization complete until its owner updates and verifies the separate document. |
+
+Source-binding note: the Showcase source SHA is `49ab97f580ad21c67e9378e15448aca9fe365c45` plus the pending local diff. The runner, S30 target proposal, scoped design revision, P-005 question/probe/result/errata/both reconnect follow-ups, owner checklist, profile, report and benchmark evidence are SHA-bound in `tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json`; the source remains uncommitted. P-007 and the 2026-10-18 deferral decision were added after that manifest was generated and are not covered by it; their current content remains local pending the owner’s review. `graphify update .` completed and its report says it was built from current HEAD `49ab97f5`; this records the base commit, not an independent digest of the dirty diff. Graphify also reported missing optional HCL/SQL parser dependencies, so Terraform/SQL symbols were not included. Apply handbook changes only after receiving a committed source SHA and verifying the manifest hashes. No external handbook was modified by this change.
 
 ## Historical workflow status and limits — through 2026-10-07
 

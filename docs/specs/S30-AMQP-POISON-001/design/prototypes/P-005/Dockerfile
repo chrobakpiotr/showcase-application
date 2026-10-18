@@ -1,0 +1,5 @@
+FROM python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+RUN pip install --no-cache-dir pika==1.3.2 psycopg[binary]==3.2.10 requests==2.32.5
+WORKDIR /probe
+COPY probe.py /probe/probe.py
+CMD ["python", "/probe/probe.py"]

@@ -1,0 +1,112 @@
+{
+  "claims": {
+    "admission_closed_before_fence": true,
+    "admission_stays_closed_after_uncertain_fence": true,
+    "fence_http_status": 204,
+    "fencer_can_list_users": true,
+    "fencer_quarantine_get_status": 401,
+    "fencer_quarantine_read_denied": true,
+    "injected_fence_timeout": "timeout",
+    "new_connection_survives_exact_close": true,
+    "old_connection_closed_no_channels": true,
+    "old_handler_process_still_running_after_fence": true,
+    "protected_effect_count": 1,
+    "stale_broker_connection_delete_status": 404,
+    "stale_registration_did_not_close_reconnected_connection": true,
+    "synthetic_identity_map_matches_old_observed_principal": true,
+    "synthetic_identity_map_rejects_cross_instance_connection": true
+  },
+  "client_versions": {
+    "pika": "1.3.2",
+    "psycopg": "3.2.10",
+    "requests": "2.32.5"
+  },
+  "image": "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0",
+  "limitations": [
+    "Synthetic test only; no Showcase application listener, production consumer, gate service, or application database was started.",
+    "The workload-subject to Rabbit-username map was preconfigured synthetic input; the test does not prove Keycloak-to-broker provisioning or secret isolation.",
+    "RabbitMQ 4.1.8 management API exposes a broker-generated live connection `name` separately from `user_provided_name`; fencing by the former was safe across this immediate reconnect test, while the latter is a spoofable diagnostic label. This does not prove non-reuse over long periods, clustered-node stability, or race-free inspect/close on all deployments.",
+    "RabbitMQ administrator-tagged fencer could list users even with empty AMQP resource permissions; quarantine read was denied, but the management authority is broader than least privilege.",
+    "Timeout was injected with a response-holding local TCP sink to exercise caller fail-closed behavior, not a broker outage or production fencer implementation.",
+    "The PostgreSQL row-generation fence was a synthetic transaction boundary, not Showcase 06b implementation or an accepted business contract."
+  ],
+  "observations": [
+    {
+      "new": {
+        "channels": 0,
+        "name": "172.18.0.4:47544 -> 172.18.0.2:5672",
+        "node": "rabbit@5c99ecfff33f",
+        "peer_host": "172.18.0.4",
+        "peer_port": 47544,
+        "state": "running",
+        "user": "workload_b",
+        "user_provided_name": "s30-p005-new-256cd692684f48ec9874d8362770e115",
+        "vhost": "/"
+      },
+      "old": {
+        "channels": 0,
+        "name": "172.18.0.4:47536 -> 172.18.0.2:5672",
+        "node": "rabbit@5c99ecfff33f",
+        "peer_host": "172.18.0.4",
+        "peer_port": 47536,
+        "state": "running",
+        "user": "workload_a",
+        "user_provided_name": "s30-p005-old-995ae59fb1d64089817af755a0d557d0",
+        "vhost": "/"
+      },
+      "old_channels": [
+        {
+          "connection": "172.18.0.4:47536 -> 172.18.0.2:5672",
+          "number": 1
+        }
+      ],
+      "old_consumers": [
+        {
+          "channel": 1,
+          "consumer_tag": "ctag1.0e3ab195e3e44afba39f5a8ed6cad4c4",
+          "queue": "p005-synthetic"
+        }
+      ],
+      "stage": "before_fence"
+    },
+    {
+      "ack": "ConnectionClosedByBroker",
+      "business_effect": "STALE_GENERATION expected=1 received=0",
+      "consumer_loop_exit": "ConnectionWrongStateError",
+      "delivery_tag": 1,
+      "handler_started": true,
+      "redelivered_original": false,
+      "stage": "old_handler_after_fence"
+    },
+    {
+      "body": "synthetic-event-1",
+      "redelivered": true,
+      "stage": "fresh_redelivery"
+    },
+    {
+      "new_connection_same_display_name": {
+        "channels": 0,
+        "name": "172.18.0.4:33838 -> 172.18.0.2:5672",
+        "node": "rabbit@5c99ecfff33f",
+        "peer_host": "172.18.0.4",
+        "peer_port": 33838,
+        "state": "running",
+        "user": "workload_b",
+        "user_provided_name": "s30-p005-reuse-887b42f8b6894a589b5a4ffad4915530",
+        "vhost": "/"
+      },
+      "old_registration_observation": {
+        "channels": 0,
+        "name": "172.18.0.4:47550 -> 172.18.0.2:5672",
+        "node": "rabbit@5c99ecfff33f",
+        "peer_host": "172.18.0.4",
+        "peer_port": 47550,
+        "state": "running",
+        "user": "workload_a",
+        "user_provided_name": "s30-p005-reuse-887b42f8b6894a589b5a4ffad4915530",
+        "vhost": "/"
+      },
+      "stage": "reconnect_name_reuse"
+    }
+  ]
+}

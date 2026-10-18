@@ -1,0 +1,6 @@
+{"argv": ["docker", "network", "create", "--internal", "p006-20261017t210906z"], "exit_code": 0, "stage": "docker-network-create", "timeout_seconds": 20}
+{"argv": ["docker", "run", "--detach", "--name", "p006-rabbit-20261017t210906z", "--network", "p006-20261017t210906z", "--network-alias", "rabbitmq", "--env", "RABBITMQ_DEFAULT_USER=p006admin", "--env", "RABBITMQ_DEFAULT_PASS", "--env", "RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS", "--env", "RABBITMQ_CTL_ERL_ARGS", "rabbitmq@sha256:fa4df769f34a62672437ec24b7cc697d1a518dbed410a71a0ff2a53b527a6ed0"], "exit_code": 0, "stage": "rabbit-start", "timeout_seconds": 45}
+{"argv": ["docker", "inspect", "--format", "{{.State.Status}}", "p006-rabbit-20261017t210906z"], "exit_code": 0, "stage": "rabbit-state-poll", "timeout_seconds": 8}
+{"argv": ["docker", "exec", "p006-rabbit-20261017t210906z", "rabbitmq-diagnostics", "-q", "ping"], "exit_code": null, "recording": "subprocess.TimeoutExpired; no output returned", "stage": "rabbit-readiness", "timed_out": true, "timeout_seconds": 10}
+{"argv": ["docker", "rm", "--force", "p006-rabbit-20261017t210906z"], "exit_code": 0, "stage": "rabbit-container-remove", "timeout_seconds": 15}
+{"argv": ["docker", "network", "rm", "p006-20261017t210906z"], "exit_code": 0, "stage": "network-remove", "timeout_seconds": 15}

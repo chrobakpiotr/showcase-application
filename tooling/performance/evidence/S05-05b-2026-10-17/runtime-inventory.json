@@ -1,0 +1,12 @@
+{
+  "ServerVersion": "29.8.2",
+  "OperatingSystem": "Docker Desktop",
+  "OSType": "linux",
+  "Architecture": "x86_64",
+  "KernelVersion": "7.0.14-linuxkit",
+  "NCPU": 8,
+  "MemTotal": 8322744320,
+  "Driver": "overlayfs",
+  "CgroupVersion": "2",
+  "DockerRootDir": "/var/lib/docker"
+}
