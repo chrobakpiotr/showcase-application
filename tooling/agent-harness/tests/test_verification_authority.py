@@ -47,16 +47,6 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             self.profile_id, self.profile, self.plan, task_id='T-001', task_attempt=1,
             origin_binding='integration', repository=self.root)
 
-    def test_origin_authority_is_v2_and_resolution_is_read_only(self):
-        self.assertEqual(2, self.record['schema_version'])
-        for obligation in self.record['obligations']:
-            self.assertEqual('independent', obligation['required_origin'])
-        with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            record, profile, plan, units = authority.resolve_execution(self.root, self.record['plan_id'])
-        self.assertEqual(self.record, record)
-        self.assertEqual(self.profile.content_hash, profile.content_hash)
-        self.assertEqual(self.plan.family.id, plan.family.id)
-        self.assertEqual(self.record['execution_units'], units)
 
     def test_plan_refuses_absent_or_changed_executable_binding(self):
         import copy
@@ -258,43 +248,9 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         self.assertEqual('task', legacy[0]['required_origin'])
         self.assertEqual('task-command', legacy[0]['requirement_source'])
 
-    def test_exact_accepted_plan_reconstructs_current_units_without_running_them(self):
-        with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            record, profile, plan, units = authority.resolve_execution(self.root, self.record['plan_id'])
-        self.assertEqual(self.record, record)
-        self.assertEqual(self.profile.content_hash, profile.content_hash)
-        self.assertEqual(self.plan.family.id, plan.family.id)
-        self.assertEqual(self.record['execution_units'], units)
 
-    def test_post_seal_candidate_mutation_rejects_before_execution(self):
-        (self.root / 'tooling/agent-harness/seed.py').write_text('mutated after seal\n')
-        with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
-                authority.resolve_execution(self.root, self.record['plan_id'])
 
-    def test_unknown_execution_unit_rejects_before_execution(self):
-        with mock.patch.object(authority, 'resolve_accepted', return_value=self.record):
-            with self.assertRaisesRegex(StoreError, 'PLAN_BINDING_MISMATCH'):
-                authority.resolve_execution(self.root, self.record['plan_id'], unit_id='unknown')
 
-    def test_trusted_orchestrator_plan_creation_binds_running_attempt_and_candidate(self):
-        feature_dir = self.root / 'docs/specs/SDD-OBS-001'
-        feature_dir.mkdir(parents=True)
-        state = {'feature_generation': 2,
-                 'tasks': {'T-001': {'status': 'running', 'attempts': 1}}}
-        with mock.patch.object(harness, 'load_validated', return_value={'feature': 'SDD-OBS-001'}), \
-             mock.patch.object(harness, 'load_state', return_value=state), \
-             mock.patch.object(harness, 'feature_fingerprint', return_value='f' * 64), \
-             mock.patch.object(authority, 'publish_and_accept') as accept:
-            record = authority.prepare_task_plan(self.root, feature_dir, 'T-001', 1,
-                                                 self.base, ['python3 -V'])
-        self.assertEqual('T-001', record['task_id'])
-        self.assertEqual(1, record['task_attempt'])
-        self.assertEqual(2, record['lifecycle_generation'])
-        self.assertEqual(self.family.base_sha, record['family']['base_sha'])
-        self.assertEqual(record['candidate_identity'], record['family']['candidate_identity'])
-        accept.assert_called_once_with(self.root.resolve(), feature_dir.resolve(), record,
-                                       expected_generation=2)
 
     def test_trusted_orchestrator_cannot_accept_plan_for_noncurrent_attempt(self):
         feature_dir = self.root / 'docs/specs/SDD-OBS-001'

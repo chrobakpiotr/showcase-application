@@ -95,8 +95,8 @@ class VerificationCommandTest(unittest.TestCase):
             from verification.supervisor import SupervisorError, VerificationSupervisor
             store = VerificationStore(root, control_root=root / 'control')
             backend = SwapAfterPlanBackend()
-            with mock.patch.object(command.verification_sandbox, 'resolve_executable',
-                                   side_effect=resolve), \
+            with mock.patch('agent_harness.sandbox.resolve_executable',
+                            side_effect=resolve), \
                  mock.patch.object(command.verification_sandbox, 'build_plan',
                                    side_effect=qualified_plan), \
                  mock.patch.object(backend.process_backend, 'launch') as launch, \
@@ -159,7 +159,7 @@ class VerificationCommandTest(unittest.TestCase):
                                    return_value='Darwin'), \
                  mock.patch.object(command.verification_sandbox.shutil, 'which',
                                    side_effect=AssertionError('backend lookup bypassed shared resolver')), \
-                 mock.patch.object(command.verification_sandbox, 'resolve_executable', side_effect=resolve):
+                 mock.patch('agent_harness.sandbox.resolve_executable', side_effect=resolve):
                 status = command.verification_sandbox.doctor()
                 self.assertTrue(status['backend_status']['docker-container']['discovered'])
                 self.assertFalse(status['backend_status']['docker-container']['qualified'])

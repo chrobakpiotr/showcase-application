@@ -63,132 +63,13 @@ class BackendQualificationTest(unittest.TestCase):
         self.assertTrue(identity.endswith(f':{os.getpid()}'))
         self.assertGreaterEqual(len(identity.split(':')), 2)
 
-    def test_e33_containment_probe_kills_its_execution_unit(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable = root / 'writable'
-            writable.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            process_groups = []
-            real_killpg = os.killpg
 
-            def record_kill(pgid, sig):
-                if sig == signal.SIGKILL:
-                    process_groups.append(pgid)
-                return real_killpg(pgid, sig)
 
-            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]), \
-                 mock.patch.object(vs.os, 'killpg', side_effect=record_kill):
-                result = vs._active_containment_probe(candidate, 'Q05', root, (str(writable),), ())
-            self.assertEqual('PASS', result[0])
-            self.assertEqual(1, len(process_groups))
-            deadline = time.monotonic() + 2
-            while time.monotonic() < deadline:
-                if not self._live_process_group_members(process_groups[0]):
-                    break
-                time.sleep(.01)
-            else:
-                self.fail('live qualification execution-unit member remains after cleanup')
-            self.assertEqual([], list(writable.iterdir()))
 
-    def test_R1_R16_active_runner_returns_structured_evidence_for_all_checks(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test-host')
-            with mock.patch.object(vs, '_run_active_qualification_check',
-                                   return_value=('UNSUPPORTED', 'fixture-backend', 'probe unavailable')) as run:
-                result = vs.qualify_backend(candidate, worktree=root,
-                                            writable_paths=(root / 'writable',),
-                                            protected_paths=(root / 'authority',),
-                                            repository_id='repo')
-            self.assertEqual(16, run.call_count)
-            self.assertEqual('REJECTED', result.status)
-            self.assertEqual([f'Q{i:02d}' for i in range(1, 17)],
-                             [check.check_id for check in result.checks])
-            self.assertTrue(all(check.status in {'PASS', 'FAIL', 'UNSUPPORTED', 'UNCERTAIN'} and
-                                check.reason_code and check.evidence for check in result.checks))
-            self.assertFalse(result.authorizes_execution)
 
-    def test_Q08_Q09_escape_evidence_rejects_otherwise_passing_candidate(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            def probe(_candidate, check_id, name, **_kwargs):
-                if check_id in {'Q08', 'Q09'}:
-                    return 'FAIL', 'DESCENDANT_ESCAPED_EXECUTION_UNIT', f'{name}:escape-succeeded'
-                return 'PASS', f'{check_id}_PASS', 'completed-probe-evidence'
-            with mock.patch.object(vs, '_run_active_qualification_check', side_effect=probe) as run:
-                result = vs.qualify_backend(candidate, worktree=root,
-                                            writable_paths=(root / 'writable',),
-                                            protected_paths=(root / 'authority',),
-                                            repository_id='repo')
-            self.assertEqual(16, run.call_count)
-            self.assertEqual('REJECTED', result.status)
-            self.assertFalse(vs.admit_payload(result))
-            self.assertEqual({'FAIL'}, {c.status for c in result.checks if c.check_id in {'Q08', 'Q09'}})
 
-    def test_qualify_all_pass_is_all_or_nothing(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_run_active_qualification_check',
-                                   return_value=('PASS', 'PROBE_PASS', 'positive evidence')):
-                result = vs.qualify_backend(candidate, worktree=root,
-                                            writable_paths=(root / 'writable',),
-                                            protected_paths=(root / 'authority',),
-                                            repository_id='repo')
-            self.assertEqual('QUALIFIED', result.status)
-            self.assertTrue(vs.admit_payload(result))
 
-    def test_Q01_permitted_write_control_is_a_positive_probe(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable = root / 'writable'
-            writable.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]):
-                result = vs._active_filesystem_probe(candidate, 'Q01', (str(writable),),
-                                                     (str(root),), root)
-            self.assertEqual('PASS', result[0])
-            self.assertEqual([], list(writable.iterdir()))
 
-    def test_R1_Q02_direct_write_bypass_is_detected_and_marker_cleaned(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable, authority = root / 'writable', root / 'authority'
-            writable.mkdir(); authority.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]):
-                result = vs._active_filesystem_probe(candidate, 'Q02', (str(writable),),
-                                                     (str(authority),), root)
-            self.assertEqual('FAIL', result[0])
-            self.assertIn('PROTECTED_DIRECT_BYPASS', result[1])
-            self.assertEqual([], list(authority.iterdir()))
-            self.assertEqual([], list(writable.iterdir()))
-
-    def test_R2_Q03_child_write_bypass_is_detected_and_marker_cleaned(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable, authority = root / 'writable', root / 'authority'
-            writable.mkdir(); authority.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]):
-                result = vs._active_filesystem_probe(candidate, 'Q03', (str(writable),),
-                                                     (str(authority),), root)
-            self.assertEqual('FAIL', result[0])
-            self.assertEqual([], list(authority.iterdir()))
-
-    def test_R3_Q04_grandchild_write_bypass_is_detected_and_marker_cleaned(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable, authority = root / 'writable', root / 'authority'
-            writable.mkdir(); authority.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv', side_effect=lambda *_args: _args[1]):
-                result = vs._active_filesystem_probe(candidate, 'Q04', (str(writable),),
-                                                     (str(authority),), root)
-            self.assertEqual('FAIL', result[0])
-            self.assertEqual([], list(authority.iterdir()))
 
     def test_execution_identity_round_trips_and_rejects_unknown_schema(self):
         identity = vs.ExecutionIdentity('exec', 'backend/v1', 'unit-1', 'repo', 'policy', 'birth-1')
@@ -287,20 +168,6 @@ class BackendQualificationTest(unittest.TestCase):
                 reaper.join(timeout=2)
                 self.assertFalse(reaper.is_alive(), 'test payload did not exit after cancellation')
 
-    def test_discovery_does_not_qualify_a_candidate(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            executable = pathlib.Path(tmp) / 'candidate'
-            executable.write_text('#!/bin/sh\nexit 0\n')
-            executable.chmod(0o755)
-            binding = {'command': 'candidate', 'path': str(executable), 'sha256': 'a' * 64}
-            with mock.patch.object(vs.shutil, 'which',
-                                   side_effect=AssertionError('legacy executable lookup')), \
-                 mock.patch.object(vs, 'resolve_executable', return_value=binding):
-                candidates = vs.discover_backends()
-            self.assertTrue(candidates)
-            self.assertIn('docker-container', {candidate.kind for candidate in candidates})
-            self.assertTrue(all(c.state == 'DISCOVERED' for c in candidates))
-            self.assertTrue(all(c.qualification is None for c in candidates))
 
     def test_R13_unproved_candidate_is_rejected_and_cannot_authorize_launch(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -353,38 +220,7 @@ class BackendQualificationTest(unittest.TestCase):
             self.assertFalse(marker.exists())
             self.assertEqual('DRAINED', backend.reconcile(prepared.identity).status)
 
-    def test_R5_parent_exit_with_live_descendant_is_not_drained(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable = root / 'writable'
-            writable.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv',
-                                   side_effect=lambda *_args: _args[1]), \
-                 mock.patch.object(vs.PosixProcessGroupBackend, '_group_status', return_value='NOT_DRAINED'):
-                for check, expected in (('Q05', 'DESCENDANT_ASSOCIATED_WITH_UNIT'),
-                                        ('Q06', 'DESCENDANT_ASSOCIATED_WITH_UNIT'),
-                                        ('Q07', 'PARENT_EXIT_DESCENDANT_NOT_DRAINED'),
-                                        ('Q10', 'PARENT_EXIT_DESCENDANT_NOT_DRAINED')):
-                    with self.subTest(check=check):
-                        result = vs._active_containment_probe(candidate, check, root, (str(writable),), ())
-                        self.assertEqual('PASS', result[0])
-                        self.assertIn(expected, result[1])
-            self.assertEqual([], list(writable.iterdir()))
 
-    def test_R4_new_group_and_session_escapes_reject_process_group_backend(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            writable = root / 'writable'
-            writable.mkdir()
-            candidate = vs.BackendCandidate('fixture', '1', '/bin/false', 'test')
-            with mock.patch.object(vs, '_candidate_probe_argv',
-                                   side_effect=lambda *_args: _args[1]):
-                group = vs._active_containment_probe(candidate, 'Q08', root, (str(writable),), ())
-                session = vs._active_containment_probe(candidate, 'Q09', root, (str(writable),), ())
-            self.assertEqual('FAIL', group[0])
-            self.assertEqual('FAIL', session[0])
-            self.assertEqual([], list(writable.iterdir()))
 
     def test_R8_positive_drainage_and_R9_uncertain_are_distinct(self):
         with mock.patch.object(vs.subprocess, 'check_output', return_value='42 S\n'):

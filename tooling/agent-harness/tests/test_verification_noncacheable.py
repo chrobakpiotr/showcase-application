@@ -197,7 +197,7 @@ class NoncacheableExecutionTest(unittest.TestCase):
         backend = PayloadBackend(self.store)
         supervisor = VerificationSupervisor(self.store)
         supervisor.inject_crash_at = 'after-drained'
-        with mock.patch('verification.executor.VerificationSupervisor', return_value=supervisor):
+        with mock.patch('agent_harness.verification.executor.VerificationSupervisor', return_value=supervisor):
             result = self.run_gate('recover', backend)
         self.assertNotEqual('PASS', result.outcome)
         self.assertEqual(1, backend.events.count('launch'))

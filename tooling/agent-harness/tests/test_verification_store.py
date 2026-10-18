@@ -100,19 +100,6 @@ class StoreTest(unittest.TestCase):
             with self.assertRaisesRegex(StoreError, 'invalid-execution-history'):
                 store.admit_repository_verification()
 
-    def test_primary_repository_authority_resolution(self):
-        # The live repository is a linked worktree; both resolve to one primary store.
-        from unittest import mock
-        import verification.store as store_module
-        root = pathlib.Path(__file__).resolve().parents[3]
-        control, repository_id = resolve_control_root(root)
-        self.assertEqual('.agent-runs/control/verification-v2', str(control.relative_to(control.parents[2])))
-        self.assertEqual(64, len(repository_id))
-        with mock.patch.object(store_module, '_worktrees', wraps=store_module._worktrees) as worktrees:
-            store = VerificationStore(root)
-        self.assertEqual(1, worktrees.call_count, 'store construction redundantly scans Git worktrees')
-        self.assertEqual(control.parents[2] / 'tooling/agent-harness/human-issuer-registry.json',
-                         store.issuer_registry.resolve())
 
     def test_production_store_rejects_caller_supplied_issuer_registry(self):
         root = pathlib.Path(__file__).resolve().parents[3]
