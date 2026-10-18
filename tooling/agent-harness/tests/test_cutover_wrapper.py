@@ -24,7 +24,7 @@ PROFILES = HARNESS / 'verification-profiles'
 
 ALIASES = ('trust', 'machine_outcomes', 'verification.model', 'verification.serialization', 'verification.profile',
            'verification.fingerprint', 'verification.planner', 'verification.candidate', 'verification.human_grants',
-           'verification.workspace', 'verification.supervisor')
+           'verification.workspace', 'verification.supervisor', 'state_snapshots')
 
 
 class WrapperBindingTest(unittest.TestCase):
@@ -171,6 +171,21 @@ class WrapperBindingTest(unittest.TestCase):
         out = subprocess.run([sys.executable, str(HARNESS / 'trust.py'), 'classify', '.agent-runs/x.log'],
                              capture_output=True, text=True, check=True).stdout
         self.assertIn('untrusted', out)
+
+    def test_eval_engine_delegates_to_library_with_showcase_suites_and_repo(self):
+        showcase_eval = importlib.import_module('eval')
+        from agent_harness import eval_runner
+
+        repo = HARNESS.parents[1]
+        self.assertEqual(HARNESS / 'evals', showcase_eval.DEFAULT_SUITES)
+        path, suite, args = HARNESS / 'evals/baseline.json', {'name': 'baseline'}, object()
+        with mock.patch.object(eval_runner, 'run_suite', return_value='library-result') as run_suite:
+            self.assertEqual('library-result', showcase_eval.run_suite(path, suite, args))
+        run_suite.assert_called_once_with(path, suite, args, anchor=repo)
+
+        with mock.patch.object(eval_runner, 'main') as main:
+            showcase_eval.main(['list'])
+        main.assert_called_once_with(['list'], suites_dir=HARNESS / 'evals', anchor=repo)
 
 
 if __name__ == '__main__':

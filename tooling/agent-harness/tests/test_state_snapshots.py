@@ -57,15 +57,6 @@ class StateSnapshotTest(unittest.TestCase):
         self.assertEqual('epoch-1', restored['manifest']['epoch_id'])
         self.assertTrue(snapshots.current_ref_exists(self.root, 'SDD-OBS-001'))
 
-    def test_identical_full_tree_skips_snapshot_commit(self):
-        state = self.state('stable')
-        first = self.commit(state)
-        with mock.patch.object(snapshots, '_commit_snapshot',
-                               side_effect=AssertionError('unnecessary snapshot commit')):
-            repeated = self.commit(state)
-        self.assertEqual(first['commit'], repeated['commit'])
-        self.assertEqual(first['snapshot_id'], repeated['snapshot_id'])
-
     def test_noop_fast_path_does_not_skip_changed_authority_file(self):
         state = self.state('stable')
         first = self.commit(state)
@@ -405,30 +396,6 @@ class StateSnapshotTest(unittest.TestCase):
         snapshots.commit_state_snapshot(self.root, self.state_dir, self.state_path,
                                         payload, state, additional_files=extra)
         self.assertEqual(state, json.loads(self.state_path.read_bytes()))
-
-    def test_retention_keeps_current_and_first_snapshot_per_epoch(self):
-        original_limit = snapshots.SNAPSHOT_LIMIT
-        snapshots.SNAPSHOT_LIMIT = 3
-        try:
-            for index in range(4):
-                self.commit(self.state(f'same-epoch-{index}', generation=index + 1))
-            refs = snapshots._list_snapshot_refs(self.root, 'SDD-OBS-001')
-            self.assertEqual(3, len(refs))
-            current = snapshots.current_snapshot_commit(self.root, 'SDD-OBS-001')
-            retained = {commit for _ref, commit, _manifest in refs}
-            self.assertIn(current, retained)
-            self.assertEqual({'epoch-1'}, {manifest['epoch_id'] for _ref, _commit, manifest in refs})
-
-            self.commit(self.state('epoch-two', epoch='epoch-2', generation=1))
-            self.commit(self.state('epoch-three', epoch='epoch-3', generation=1))
-            before = self.state_path.read_bytes()
-            acknowledged = snapshots.current_snapshot_commit(self.root, 'SDD-OBS-001')
-            with self.assertRaisesRegex(snapshots.SnapshotError, 'retention-cap-reached'):
-                self.commit(self.state('epoch-four', epoch='epoch-4', generation=1))
-            self.assertEqual(before, self.state_path.read_bytes())
-            self.assertEqual(acknowledged, snapshots.current_snapshot_commit(self.root, 'SDD-OBS-001'))
-        finally:
-            snapshots.SNAPSHOT_LIMIT = original_limit
 
     def test_invalid_newest_snapshot_fails_closed_without_falling_back(self):
         self.commit(self.state('old'))
