@@ -175,7 +175,7 @@ Source-binding note: the Showcase source SHA is `49ab97f580ad21c67e9378e15448aca
 
 ## Harness 0.14.0 adoption delta (2026-10-20; repository source)
 
-Source: Showcase adoption of `agent-harness` v0.14.0, release SHA `cc9d33a4feac3f1462e7fe65cdabec3389a70f3a`; adoption commit and exact-commit CI are to be recorded in the repository handover after completion. This is an external-handbook delta only; it does not mark the separate handbook synchronized.
+Source: Showcase adoption commit `89382cd24e3c8cd61dca6e6d9d4fb04f529b2a0e`, pinned to `agent-harness` v0.14.0 release SHA `cc9d33a4feac3f1462e7fe65cdabec3389a70f3a`; its exact-commit main CI run 39333226560 passed. This is an external-handbook delta only; it does not mark the separate handbook synchronized.
 
 - Showcase agent launches now use the pinned library `AgentCliBackend`. The adapter preserves Showcase policy, explicit model selection, and an operational `--agent-timeout` (default 1800 seconds). Orchestration runs the library preflight for the ready batch before starting any task attempt and has no fallback that skips it; launch rechecks launch conditions.
 - Process outcome, output publication, and task-result acceptance remain distinct. Credential-shaped or oversized output may be withheld while preserving process outcome, exit code, drain, usage, and a withholding reason. Truncated or withheld output is not parsed as a complete task result. Stderr is consumed from the bounded library artifact rather than independently written by Showcase.
@@ -184,7 +184,7 @@ Source: Showcase adoption of `agent-harness` v0.14.0, release SHA `cc9d33a4feac3
 - A real no-model preflight refused before creating or consuming an attempt. This is an operational readiness gate, not a production SLO. The 0.13.0 rollback restores the entire compatible pin, shims, qualification pin, orchestrator, and associated tests.
 - S30-06 remains `DEFERRED / NOT QUALIFIED`; the application AMQP consumer remains disabled. Dependency Review was skipped on push-triggered CI and remains a recorded coverage gap.
 
-External handbook owner: apply this delta only after the committed adoption SHA and its exact-commit CI evidence are available and reviewed. Repository documentation being current does not mean the external handbook is synchronized.
+External handbook owner: apply this delta against the committed adoption SHA and exact-commit CI evidence. Repository documentation being current does not mean the external handbook is synchronized.
 
 ## Historical workflow status and limits — through 2026-10-07
 
