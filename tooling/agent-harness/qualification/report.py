@@ -1,4 +1,4 @@
-"""Create exact-job qualification reports; report validation is delegated to Harness v0.11."""
+"""Create exact-job qualification reports; report validation is delegated to Harness v0.13."""
 from __future__ import annotations
 
 import argparse
@@ -27,7 +27,7 @@ DEFAULT_WORKLOAD_IMAGE = (
 POLICY_FILES = ('docs/specs/AH5-04B-QUAL-001/spec.md',
                 'docs/specs/AH5-04B-QUAL-001/verification-contract.json')
 _SAFE_ID = re.compile(r'[^A-Za-z0-9._:/@+-]+')
-PINNED_HARNESS_VERSION = '0.12.0'
+PINNED_HARNESS_VERSION = '0.13.0'
 
 
 def policy_digest(spec_path: pathlib.Path, verification_contract_path: pathlib.Path) -> str:
