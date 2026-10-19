@@ -112,8 +112,8 @@ Prefer measured simplification/improvement using `python3 tooling/agent-harness/
 
 ## Git mutation policy
 
-- The owner has authorized ordinary direct pushes to the configured branch; do not ask again before a normal push. This does not authorize force-push, bypassing branch protections, changing repository security settings, or publishing a release/tag. If branch protection blocks a normal push, report the specific blocker.
-- Do not force-push, bypass branch protections, change repository security settings, or publish a release/tag unless separately and explicitly authorized.
+- The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.
+- Do not force-push, rewrite history, change repository security settings, or publish a release/tag unless separately and explicitly authorized.
 - Do not create or switch branches unless required by the active harness/task protocol.
 - A local commit is allowed only when explicitly requested by the human or required by the accepted task protocol.
 - Never amend, squash, rewrite, or delete existing history unless explicitly authorized.
