@@ -173,6 +173,19 @@ resulting commit SHA and checking the listed evidence hashes.
 
 Source-binding note: the Showcase source SHA is `49ab97f580ad21c67e9378e15448aca9fe365c45` plus the pending local diff. The runner, S30 target proposal, scoped design revision, P-005 question/probe/result/errata/both reconnect follow-ups, owner checklist, profile, report and benchmark evidence are SHA-bound in `tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json`; the source remains uncommitted. P-007 and the 2026-10-18 deferral decision were added after that manifest was generated and are not covered by it; their current content remains local pending the owner’s review. `graphify update .` completed and its report says it was built from current HEAD `49ab97f5`; this records the base commit, not an independent digest of the dirty diff. Graphify also reported missing optional HCL/SQL parser dependencies, so Terraform/SQL symbols were not included. Apply handbook changes only after receiving a committed source SHA and verifying the manifest hashes. No external handbook was modified by this change.
 
+## Harness 0.14.0 adoption delta (2026-10-20; repository source)
+
+Source: Showcase adoption of `agent-harness` v0.14.0, release SHA `cc9d33a4feac3f1462e7fe65cdabec3389a70f3a`; adoption commit and exact-commit CI are to be recorded in the repository handover after completion. This is an external-handbook delta only; it does not mark the separate handbook synchronized.
+
+- Showcase agent launches now use the pinned library `AgentCliBackend`. The adapter preserves Showcase policy, explicit model selection, and an operational `--agent-timeout` (default 1800 seconds). Orchestration runs the library preflight for the ready batch before starting any task attempt and has no fallback that skips it; launch rechecks launch conditions.
+- Process outcome, output publication, and task-result acceptance remain distinct. Credential-shaped or oversized output may be withheld while preserving process outcome, exit code, drain, usage, and a withholding reason. Truncated or withheld output is not parsed as a complete task result. Stderr is consumed from the bounded library artifact rather than independently written by Showcase.
+- Historical run directories remain readable through the adapter. New execution provenance records requested/resolved model and library process facts without rewriting historical data.
+- On the recorded macOS Claude Code `2.1.289` / explicit `claude-sonnet-5-5` configuration, real-CLI checks observed denied-command enforcement, reviewer write denial including Bash, and evidence-root write denial. These checks cover only that host, CLI, model, and launch configuration; they do not establish behavior on other providers or environments.
+- A real no-model preflight refused before creating or consuming an attempt. This is an operational readiness gate, not a production SLO. The 0.13.0 rollback restores the entire compatible pin, shims, qualification pin, orchestrator, and associated tests.
+- S30-06 remains `DEFERRED / NOT QUALIFIED`; the application AMQP consumer remains disabled. Dependency Review was skipped on push-triggered CI and remains a recorded coverage gap.
+
+External handbook owner: apply this delta only after the committed adoption SHA and its exact-commit CI evidence are available and reviewed. Repository documentation being current does not mean the external handbook is synchronized.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job

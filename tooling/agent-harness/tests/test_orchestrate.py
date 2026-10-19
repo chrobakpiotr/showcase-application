@@ -1,6 +1,5 @@
 import argparse
 import hashlib
-import hashlib
 import importlib.util
 import json
 import os
@@ -66,9 +65,110 @@ class OrchestrateTest(unittest.TestCase):
         return argparse.Namespace(
             provider='codex', evaluator_provider='claude', review_provider=None,
             model='builder-model', evaluator_model='eval-model', review_model=None,
-            reasoning='medium', max_turns=30, max_budget_usd=None,
+            reasoning='medium', max_turns=30, max_budget_usd=None, agent_timeout=1800,
             owner_prefix='orch', run_id='testrun123456', verification_timeout=900, verification_sandbox='off'
         )
+
+    def test_runner_command_passes_model_and_agent_timeout(self):
+        packet = self.root / 'packet.json'
+        worktree = self.root / 'task-worktree'
+        packet.write_text('{}')
+        worktree.mkdir()
+        cmd = orchestrate.runner_command(packet, worktree,
+            orchestrate.ProviderChoice('claude', 'review-model'), self.args())
+        self.assertEqual('review-model', cmd[cmd.index('--model') + 1])
+        self.assertEqual('1800', cmd[cmd.index('--agent-timeout') + 1])
+
+    def test_preflight_refusal_leaves_the_whole_ready_batch_unstarted(self):
+        feature, doc = self.feature()
+        state = {
+            'tasks': {
+                'T-001': {'status': 'pending', 'attempts': 0},
+                'T-900': {'status': 'pending', 'attempts': 0},
+            }
+        }
+        before = json.loads(json.dumps(state))
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'required_reviewers': []}))
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        preflighted = []
+
+        with mock.patch.object(orchestrate.h, 'load_state', return_value=state), \
+             mock.patch.object(orchestrate.h, 'ready_ids', return_value=['T-001', 'T-900']), \
+             mock.patch.object(orchestrate, 'prior_feedback', return_value=None), \
+             mock.patch.object(orchestrate.h, 'active_task_contract',
+                               side_effect=lambda _feature, _doc, task_id, **_kw:
+                               next(task for task in doc['tasks'] if task['id'] == task_id)), \
+             mock.patch.object(orchestrate.h, 'write_packet', return_value=packet), \
+             mock.patch.object(orchestrate.h, 'worktree_path', return_value=worktree), \
+             mock.patch.object(orchestrate.h, 'cmd_worktree_create'), \
+             mock.patch.object(orchestrate, 'preflight_task_launches',
+                               side_effect=lambda task, *_args, **_kwargs:
+                               (preflighted.append(task['id']),
+                                (_ for _ in ()).throw(RuntimeError('preflight refused: sandbox unavailable'))
+                                if task['id'] == 'T-900' else None)), \
+             mock.patch.object(orchestrate.h, 'cmd_start') as start:
+            with self.assertRaisesRegex(RuntimeError, 'preflight refused: sandbox unavailable'):
+                orchestrate.start_ready_batch(feature, doc, self.args())
+
+        self.assertEqual(['T-001', 'T-900'], preflighted)
+        start.assert_not_called()
+        self.assertEqual(before, state)
+
+    def test_preflight_runner_requires_explicit_success_and_surfaces_refusal_reason(self):
+        with mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                [], 0, stdout='preflight: ok\n', stderr='')) as run:
+            orchestrate.invoke_preflight(['python', 'runner.py'])
+        self.assertEqual(['python', 'runner.py', '--preflight'], run.call_args.args[0])
+
+        for reason in ('no model for codex', 'preflight refused: sandbox unavailable',
+                       'preflight refused: evidence root is writable'):
+            with self.subTest(reason=reason), mock.patch.object(
+                    orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                        [], 2, stdout='', stderr=f'ERROR: {reason}\n')):
+                with self.assertRaisesRegex(RuntimeError, reason.replace(' ', r'\ ')):
+                    orchestrate.invoke_preflight(['python', 'runner.py'])
+
+    def test_preflight_covers_builder_and_reviewer_models_with_their_actual_permissions(self):
+        feature, doc = self.feature()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'required_reviewers': ['security-reviewer']}))
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        commands = []
+        with mock.patch.object(orchestrate, 'invoke_preflight', side_effect=commands.append):
+            orchestrate.preflight_task_launches(
+                doc['tasks'][0], packet, worktree,
+                orchestrate.choice_for_role('builder', self.args()), self.args(), None,
+            )
+
+        self.assertEqual(2, len(commands))
+        self.assertEqual('builder-model', commands[0][commands[0].index('--model') + 1])
+        self.assertEqual('review-model' if self.args().review_model else 'eval-model',
+                         commands[1][commands[1].index('--model') + 1])
+        self.assertEqual('security-reviewer', commands[1][commands[1].index('--profile') + 1])
+        self.assertIn('--sandbox', commands[1])
+        self.assertEqual('read-only', commands[1][commands[1].index('--sandbox') + 1])
+        self.assertEqual('1800', commands[0][commands[0].index('--agent-timeout') + 1])
+
+    def test_verification_resume_preflights_only_its_read_only_review_launches(self):
+        feature, doc = self.feature()
+        packet = self.root / 'packet.json'
+        packet.write_text(json.dumps({'required_reviewers': ['security-reviewer']}))
+        worktree = self.root / 'task-worktree'
+        worktree.mkdir()
+        commands = []
+        with mock.patch.object(orchestrate, 'invoke_preflight', side_effect=commands.append):
+            orchestrate.preflight_task_launches(
+                doc['tasks'][0], packet, worktree,
+                orchestrate.choice_for_role('builder', self.args()), self.args(), None,
+                verification_resume=True,
+            )
+
+        self.assertEqual(1, len(commands))
+        self.assertEqual('security-reviewer', commands[0][commands[0].index('--profile') + 1])
+        self.assertIn('--review-existing', commands[0])
 
     def _control_binding(self, contents=b'#!/bin/sh\nexit 0\n'):
         executable = self.root / 'bound-control-python'

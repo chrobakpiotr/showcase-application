@@ -63,6 +63,10 @@ class TaskOutcome:
     rework_tasks: list[str] | None = None
 
 
+class AgentPreflightRefused(RuntimeError):
+    """The provider launch did not pass its pre-attempt readiness gate."""
+
+
 def die(message: str) -> None:
     print(f'ERROR: {message}', file=sys.stderr)
     raise SystemExit(2)
@@ -143,6 +147,7 @@ def runner_command(
         '--provider', choice.provider,
         '--worktree', str(worktree),
         '--max-turns', str(args.max_turns),
+        '--agent-timeout', str(args.agent_timeout),
         '--verification-timeout', str(args.verification_timeout),
         '--verification-sandbox', args.verification_sandbox,
         '--orchestration-id', args.run_id,
@@ -180,6 +185,74 @@ def invoke_runner(cmd: list[str]) -> pathlib.Path:
     if not path.exists():
         raise RuntimeError(f'runner evidence path does not exist: {path}')
     return path
+
+
+def invoke_preflight(cmd: list[str]) -> None:
+    """Require explicit runner preflight success before any task attempt starts."""
+    try:
+        proc = subprocess.run([*cmd, '--preflight'], text=True, capture_output=True, check=False)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(f'agent preflight unavailable: {type(exc).__name__}') from exc
+    if proc.returncode == 0 and proc.stdout.strip() == 'preflight: ok':
+        return
+    detail = proc.stderr.strip() or proc.stdout.strip() or f'exit={proc.returncode}'
+    if detail.startswith('ERROR: '):
+        detail = detail[len('ERROR: '):]
+    if proc.returncode == 0:
+        raise RuntimeError(f'agent preflight returned an invalid response: {detail[-4000:]}')
+    raise RuntimeError(detail[-4000:])
+
+
+def preflight_task_launches(
+    task: dict[str, Any], packet: pathlib.Path, worktree: pathlib.Path,
+    choice: ProviderChoice, args: argparse.Namespace, feedback: pathlib.Path | None,
+    *, verification_resume: bool = False,
+) -> None:
+    """Preflight every provider/profile launch that may follow this task start."""
+    packet_doc = load_result(packet)
+    launches: list[tuple[ProviderChoice, str | None, bool, bool]] = []
+    if not verification_resume:
+        launches.append((choice, None, False, True))
+    if task['role'] == 'builder':
+        for profile in [str(item) for item in packet_doc.get('required_reviewers', [])]:
+            # A normal start has a clean worktree; a verification resume reviews its existing candidate.
+            launches.append((review_choice(args), profile, verification_resume, False))
+
+    for launch_choice, profile, review_existing, defer_verification in launches:
+        command = runner_command(
+            packet, worktree, launch_choice, args,
+            profile=profile, review_existing=review_existing,
+            feedback_file=feedback if profile is None else None,
+            defer_verification=defer_verification,
+        )
+        try:
+            invoke_preflight(command)
+        except RuntimeError as exc:
+            raise AgentPreflightRefused(str(exc)) from exc
+
+
+def prepare_ready_task_for_preflight(
+    feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
+    args: argparse.Namespace, feedback: pathlib.Path | None,
+) -> tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]:
+    """Prepare reusable inputs without claiming the task or incrementing its attempt."""
+    state = h.load_state(feature_dir, doc)
+    if task_id not in h.ready_ids(doc, state, feature_dir):
+        raise RuntimeError(f'{task_id} is no longer ready before provider preflight')
+    task = h.active_task_contract(feature_dir, doc, task_id, state=state)
+    packet = h.write_packet(doc, task, feature_dir, state=state)
+    worktree = h.worktree_path(str(doc.get('feature', feature_dir.name)), task_id)
+    resume = isinstance(state['tasks'][task_id].get('verification_resume_pending'), dict)
+    if resume:
+        if not worktree.is_dir() or worktree.is_symlink():
+            raise RuntimeError('verification resume worktree is unavailable before provider preflight')
+    else:
+        h.cmd_worktree_create(argparse.Namespace(feature_dir=feature_dir, task_id=task_id))
+    preflight_task_launches(
+        task, packet, worktree, choice_for_role(task['role'], args), args, feedback,
+        verification_resume=resume,
+    )
+    return task, worktree, packet, feedback
 
 
 @contextlib.contextmanager
@@ -591,9 +664,15 @@ def start_ready_batch(
     state = h.load_state(feature_dir, doc)
     ids = h.ready_ids(doc, state, feature_dir)
     started: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
+    prepared: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
     try:
+        # Preflight the whole ready batch before the first cmd_start so a refusal
+        # cannot consume an attempt for an earlier task in the same batch.
         for task_id in ids:
             feedback = prior_feedback(feature_dir, doc, task_id)
+            prepared.append(prepare_ready_task_for_preflight(feature_dir, doc, task_id, args, feedback))
+        for task, worktree, packet, feedback in prepared:
+            task_id = task['id']
             owner = owner_for(args, task_id)
             h.cmd_start(argparse.Namespace(feature_dir=feature_dir, task_id=task_id, owner=owner))
             task = h.active_task_contract(feature_dir, doc, task_id)
@@ -739,6 +818,8 @@ def main() -> None:
     p.add_argument('--reasoning', choices=('low', 'medium', 'high', 'xhigh'), default='medium')
     p.add_argument('--max-turns', type=int, default=30)
     p.add_argument('--max-budget-usd', type=float)
+    p.add_argument('--agent-timeout', type=int, default=1800,
+                   help='Agent execution timeout in seconds (default 1800; valid range 1..86400)')
     p.add_argument('--verification-timeout', type=int, default=900, help='Per-command timeout for outer deterministic verification')
     p.add_argument('--verification-sandbox', choices=('auto', 'required', 'off'), default='auto')
     p.add_argument('--owner-prefix', default='orchestrator')
@@ -755,6 +836,8 @@ def main() -> None:
         return
     if args.max_rounds < 1:
         die('--max-rounds must be positive')
+    if not 1 <= args.agent_timeout <= 86400:
+        die('--agent-timeout must be 1..86400 seconds')
     if args.verification_timeout < 1:
         die('--verification-timeout must be positive')
 
@@ -814,7 +897,18 @@ def main() -> None:
             write_orchestration_manifest(manifest_path, doc, args, status='blocked', task_statuses=statuses)
             die(f'DAG is not complete but no task is ready: {statuses}')
         print(f'ROUND {round_no}: ready={ready} run_id={args.run_id}')
-        started = start_ready_batch(feature_dir, doc, args)
+        try:
+            started = start_ready_batch(feature_dir, doc, args)
+        except AgentPreflightRefused as exc:
+            current = h.load_state(feature_dir, doc)
+            current_statuses = {tid: entry['status'] for tid, entry in current['tasks'].items()}
+            write_orchestration_manifest(
+                manifest_path, doc, args, status='blocked', blocked_reason='preflight-refused',
+                preflight_error=str(exc)[:2000], task_statuses=current_statuses,
+                rounds=round_no - 1, recovered_stale_leases=recovered_total,
+                completed_at=telemetry.iso_now(),
+            )
+            die(f'agent preflight refused before task start: {exc}')
 
         outcomes: list[TaskOutcome] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(started)) as pool:
