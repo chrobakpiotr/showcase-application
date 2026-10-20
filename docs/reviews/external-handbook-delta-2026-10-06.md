@@ -188,6 +188,33 @@ Source: Showcase adoption commit `89382cd24e3c8cd61dca6e6d9d4fb04f529b2a0e`, pin
 
 External handbook owner: apply this delta against the committed adoption SHA and exact-commit CI evidence. Repository documentation being current does not mean the external handbook is synchronized.
 
+## Harness 0.15.0 adoption delta (2026-10-20; repository source)
+
+Showcase adopted agent-harness v0.15.0 release SHA
+`717f4bab01c692963e6b66b680a947b45734226f` in commit
+`68d22c7865bfabdae5c6ce793fa02f18ce27e4ec`. The release extracts the
+validation portion of `verification_contract.py`; it does not change its
+behavior. The Showcase compatibility shim binds `repository`, `constitution`,
+`repo_root` and `is_active` when each validation function is called, preserving
+the consumer's current configuration rather than capturing it at import time.
+Showcase retains `generate`, `prompt`, `repo_root` and
+`is_active_feature_dir`; `generate` remains a separate, unchanged launch path.
+
+The 0.15.0 pin and shim passed the full Agentic SDD test command locally in the
+pinned Python 3.13.16 image (924 tests). On the exact adoption commit, [main
+CI run 39410269402](https://github.com/chrobakpiotr/showcase-application/actions/runs/39410269402),
+[Agentic SDD CI run
+39410269444](https://github.com/chrobakpiotr/showcase-application/actions/runs/39410269444),
+[CodeQL run
+39410269457](https://github.com/chrobakpiotr/showcase-application/actions/runs/39410269457),
+[Scorecard run
+39410269454](https://github.com/chrobakpiotr/showcase-application/actions/runs/39410269454),
+and [Graph Update run
+39410279276](https://github.com/chrobakpiotr/showcase-application/actions/runs/39410279276)
+succeeded. Dependency Review was skipped for the push event and is not counted
+as a completed check. This repository delta does not mark the external
+handbook synchronized.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
