@@ -177,12 +177,14 @@ Source-binding note: the Showcase source SHA is `49ab97f580ad21c67e9378e15448aca
 
 Source: Showcase adoption commit `89382cd24e3c8cd61dca6e6d9d4fb04f529b2a0e`, pinned to `agent-harness` v0.14.0 release SHA `cc9d33a4feac3f1462e7fe65cdabec3389a70f3a`; its exact-commit main CI run 39333226560 passed. This is an external-handbook delta only; it does not mark the separate handbook synchronized.
 
-- Showcase agent launches now use the pinned library `AgentCliBackend`. The adapter preserves Showcase policy, explicit model selection, and an operational `--agent-timeout` (default 1800 seconds). Orchestration runs the library preflight for the ready batch before starting any task attempt and has no fallback that skips it; launch rechecks launch conditions.
-- Process outcome, output publication, and task-result acceptance remain distinct. Credential-shaped or oversized output may be withheld while preserving process outcome, exit code, drain, usage, and a withholding reason. Truncated or withheld output is not parsed as a complete task result. Stderr is consumed from the bounded library artifact rather than independently written by Showcase.
-- Historical run directories remain readable through the adapter. New execution provenance records requested/resolved model and library process facts without rewriting historical data.
-- On the recorded macOS Claude Code `2.1.289` / explicit `claude-sonnet-5-5` configuration, real-CLI checks observed denied-command enforcement, reviewer write denial including Bash, and evidence-root write denial. These checks cover only that host, CLI, model, and launch configuration; they do not establish behavior on other providers or environments.
-- A real no-model preflight refused before creating or consuming an attempt. This is an operational readiness gate, not a production SLO. The 0.13.0 rollback restores the entire compatible pin, shims, qualification pin, orchestrator, and associated tests.
-- S30-06 remains `DEFERRED / NOT QUALIFIED`; the application AMQP consumer remains disabled. Dependency Review was skipped on push-triggered CI and remains a recorded coverage gap.
+- `agent-harness` v0.14.0 (AH5-12b): the runner's agent launch goes through `agent_harness.execution.AgentCliBackend`, one launch path.
+  - Before launch, the model is resolved explicitly (`--model` or configuration; otherwise the run is refused). `--agent-timeout` defaults to 1800 seconds. `--preflight` checks a run without launching; the orchestrator calls it before starting an attempt, so refusal does not use an attempt. Launch checks the material conditions again.
+  - The run's own sandbox must block writes into the evidence directory. The directory must be unreachable by agent writes through real paths and symlinks. A primary checkout is refused with instructions to use a linked worktree.
+  - Reviewer runs are read-only, including Claude's Bash.
+  - Credential-shaped output or output over 8 MiB is withheld. `withheld.json` records the reason without the content; the real process outcome is preserved, and withheld output never produces a task result.
+  - Claude restrictions were confirmed live only for Claude Code 2.1.289 on the tested macOS host (agent-benchmark `ab5-07-report.md`, commit `091ccb1`). The Showcase `denied_commands` list and reviewer tool set were confirmed only by Showcase's real-CLI check at adoption.
+- Sources: `docs/specs/AH5-12/packet.md` and `docs/specs/release-0.14.0/packet.md` in `agent-harness`.
+- Dependency Review was skipped on push-triggered CI and remains a recorded coverage gap. S30-06 remains `DEFERRED / NOT QUALIFIED`; the application AMQP consumer remains disabled.
 
 External handbook owner: apply this delta against the committed adoption SHA and exact-commit CI evidence. Repository documentation being current does not mean the external handbook is synchronized.
 
