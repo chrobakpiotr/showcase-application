@@ -215,6 +215,39 @@ succeeded. Dependency Review was skipped for the push event and is not counted
 as a completed check. This repository delta does not mark the external
 handbook synchronized.
 
+## Harness 0.16.0 adoption delta (2026-10-23; repository source)
+
+Showcase adopted agent-harness v0.16.0 release SHA
+`fc4ad6471b9dcec65a17e61ab0975c1de14f79dc` in commit
+`1b22802d52f59c1629e20edbc7ec7aaf09761d79` (parent
+`36497846b0e23121ff1d094412b23be5eb19c998`). This release moves shared
+feature-document validation, state paths and identity checks, and the single
+state writer into the library. The Showcase `harness.py` is the release shim;
+it builds a `FeaturePolicy` per call, binding Showcase's repository base,
+active-feature predicate, protocol files, reviewer/profile policy, contract
+validation, criterion IDs, and `.agent-state` location. The binding is not
+captured at module import. `save_state` delegates to the library; Showcase has
+no second state writer. Lifecycle transitions, admission, recovery, and CLI
+remain Showcase-owned in this release.
+
+Validation evidence: the complete Agentic SDD test suite passed in the pinned
+`python:3.13.16-slim` image at digest
+`sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f`
+(924 tests). The `test_harness` module passed all 255 cases through the shim.
+Consumer-path tests cover real Git worktrees sharing lifecycle state and its
+cross-process lock, fail-closed behavior when the lock is unavailable, and a
+lifecycle mutation holding the repository lock through state commit. A
+disposable-clone rollback restored the adoption parent's tree exactly:
+`4afaea1b02a54dba2dea98de9f1a4088fb04c8c2`.
+
+The exact-commit GitHub workflows are recorded in the companion
+[`0.16.0 adoption handover`](showcase-handover-ah5-14a-adoption-2026-10-23.md).
+The direct push was authorized; GitHub reported that the push bypassed the
+pull-request requirement, two required status checks, and verified-signature
+requirement. Those bypasses are not counted as passed controls. Dependency
+Review was skipped for the push event and is not counted as completed. This
+repository delta does not mark the external handbook synchronized.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
