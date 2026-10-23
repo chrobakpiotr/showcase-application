@@ -37,18 +37,40 @@ Rollback was exercised in a disposable clone by reverting the adoption commit.
 The resulting tree exactly matched the parent tree:
 `4afaea1b02a54dba2dea98de9f1a4088fb04c8c2`.
 
-Exact-commit CI for `1b22802d52f59c1629e20edbc7ec7aaf09761d79`:
+Exact-commit CI for `1b22802d52f59c1629e20edbc7ec7aaf09761d79` was superseded
+by the documentation-only follow-up push while its main CI backend job was
+still running. Its [main CI run
+40028006466](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006466)
+did report the frontend `npm audit --audit-level=high` failure before the
+backend job completed; do not treat that run as a completed aggregate. The
+separate [Agentic SDD CI
+40028006489](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006489),
+[CodeQL 40028006492](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006492),
+[Scorecard 40028006483](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006483),
+and [Graph Update
+40028011696](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028011696)
+passed.
 
-- CI: [run 40028006466](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006466) — in progress at handover preparation. The frontend job failed `npm audit --audit-level=high`: five findings (one low, four high) were reported in unchanged frontend dependencies (`@modelcontextprotocol/server`, `vite`, `zod`). The adoption commit does not modify frontend manifests or lockfiles; the proposed automated fix requires breaking Angular major upgrades. Other CI jobs were still running.
-- Agentic SDD CI: [run 40028006489](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006489) — in progress at handover preparation; its protocol, examples and behavioral-evaluation jobs had passed, while harness tests were still running.
-- CodeQL: [run 40028006492](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006492) — success.
-- Scorecard: [run 40028006483](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028006483) — success.
-- Graph Update: [run 40028011696](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028011696) — success.
-- Dependency Review was skipped for the push event; it is not counted as passed.
+The only later source change was this documentation handover. Its main CI
+[run 40028926864](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028926864)
+completed with overall conclusion `failure`; all jobs passed except the frontend build/audit/lint/test job and its dependent aggregate gate;
+the audit reports five findings (one low, four high) in unchanged frontend
+dependencies (`@modelcontextprotocol/server`, `vite`, `zod`). The adoption
+does not modify frontend manifests or lockfiles, and the suggested automated
+fix requires breaking Angular major upgrades. Backend, PostgreSQL and
+RabbitMQ checks, Playwright, OWASP, Trivy, SBOM, infrastructure validation,
+PIT, repository guards and documentation links passed. The descendant's
+[Agentic SDD CI 40028926902](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028926902),
+[CodeQL 40028926851](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028926851),
+and [Scorecard 40028926914](https://github.com/chrobakpiotr/showcase-application/actions/runs/40028926914)
+passed. Dependency Review was skipped for the push event; it is not counted
+as passed.
 
 The direct push was authorized. GitHub reported bypass of the PR requirement,
 two required status checks, and verified-commit-signature requirement. These
-bypasses are recorded separately from test and CI results.
+bypasses are recorded separately from test and CI results. The original
+adoption commit and the documentation-only commit `31bab531abd8dff3a147ce040c1b4a94016d99d9`
+were both accepted through direct push with those same bypass categories.
 
 ## Coordination and limits
 
