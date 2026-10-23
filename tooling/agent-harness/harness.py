@@ -33,10 +33,12 @@ import trust  # noqa: E402
 import verification_contract as vc  # noqa: E402
 import state_snapshots  # noqa: E402
 import state_recovery  # noqa: E402
+from agent_harness import feature as _feature  # noqa: E402
+from agent_harness import feature_state as _state  # noqa: E402
 
 STATE_DIR = pathlib.Path('.agent-state')
 WORKTREE_ROOT_SUFFIX = '-agent-worktrees'
-VALID_ROLES = {'architect', 'builder', 'evaluator', 'integration', 'specialist'}
+VALID_ROLES = _feature.VALID_ROLES
 RISK_TO_REVIEWERS = {
     'architecture': ('architecture-reviewer',),
     'api': ('architecture-reviewer',),
@@ -50,17 +52,17 @@ RISK_TO_REVIEWERS = {
     'frontend': ('frontend-reviewer',),
     'performance': ('performance-reviewer',),
 }
-FEATURE_ID_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]*$')
-TASK_ID_RE = re.compile(r'^T-[A-Z0-9][A-Z0-9._-]*$')
-PROFILE_RE = re.compile(r'^[a-z][a-z0-9-]*$')
-AC_RE = re.compile(r'\bAC-[A-Z0-9._-]+\b')
-DEFAULT_LEASE_TTL_SECONDS = 1800
-DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 60
-VALID_TEST_POLICIES = {'legacy', 'risk-driven'}
-VALID_TEST_MODES = {'red-green-refactor', 'existing-suite', 'not-applicable'}
+FEATURE_ID_RE = _feature.FEATURE_ID_RE
+TASK_ID_RE = _feature.TASK_ID_RE
+PROFILE_RE = _feature.PROFILE_RE
+AC_RE = _feature.AC_RE
+DEFAULT_LEASE_TTL_SECONDS = _feature.DEFAULT_LEASE_TTL_SECONDS
+DEFAULT_HEARTBEAT_INTERVAL_SECONDS = _feature.DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+VALID_TEST_POLICIES = _feature.VALID_TEST_POLICIES
+VALID_TEST_MODES = _feature.VALID_TEST_MODES
 # Bump only when persisted lifecycle state semantics/schema become incompatible.
 # Implementation and documentation changes are recorded separately for audit.
-STATE_SCHEMA_VERSION = 1
+STATE_SCHEMA_VERSION = _feature.STATE_SCHEMA_VERSION
 
 VERIFICATION_BLOCKAGE_OUTCOMES = frozenset({
     'busy', 'stale-input', 'environment-blocked', 'needs-human',
@@ -86,6 +88,23 @@ BRIDGE_CLASSIFICATIONS = {'AUTOMATICALLY_PROVEN', 'HUMAN_ATTESTED', 'AMBIGUOUS'}
 
 
 PacketIdentity = namedtuple('PacketIdentity', ('scheme', 'value'))
+
+
+
+def _policy() -> _feature.FeaturePolicy:
+    """AH5-14a: Showcase's policy for the library's feature documents and state, built per call so tests that
+    patch this module's names (STATE_DIR, feature_repo_base, protocol_files, reviewers, ...) reach the library."""
+    return _feature.FeaturePolicy(
+        repo_base=lambda path: feature_repo_base(path),
+        is_active=lambda path: is_active_feature_dir(path),
+        protocol_files=lambda path: protocol_files(path),
+        profile_path=lambda root, profile: root / 'docs' / 'agentic-sdd' / 'agents' / f'{profile}.md',
+        reviewers=lambda task: reviewers(task),
+        validate_contract=lambda path: vc.validate_contract(path),
+        criterion_ids=lambda path: vc.criterion_ids(path),
+        state_dir=STATE_DIR,
+        legacy_feature_path=lambda root, name: root / 'docs' / 'specs' / name,
+    )
 
 
 def canonical_packet_payload_sha256(packet: dict[str, Any]) -> str:
@@ -155,65 +174,25 @@ except ImportError:  # pragma: no cover - lifecycle authority requires cross-pro
     fcntl = None
 
 
-def die(message: str, code: int = 2) -> None:
-    print(f'ERROR: {message}', file=sys.stderr)
-    raise SystemExit(code)
+die = _feature.die
 
 
-def load_json(path: pathlib.Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding='utf-8'))
-    except FileNotFoundError:
-        die(f'missing file: {path}')
-    except json.JSONDecodeError as exc:
-        die(f'invalid JSON in {path}: {exc}')
-    if not isinstance(value, dict):
-        die(f'expected JSON object in {path}')
-    return value
+load_json = _feature.load_json
 
 
-def feature_files(feature_dir: pathlib.Path) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
-    return feature_dir / 'spec.md', feature_dir / 'plan.md', feature_dir / 'tasks.json'
+feature_files = _feature.feature_files
 
 
-def task_index(doc: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    return {t['id']: t for t in doc.get('tasks', []) if isinstance(t, dict) and isinstance(t.get('id'), str)}
+task_index = _feature.task_index
 
 
-def repo_root() -> pathlib.Path:
-    proc = subprocess.run(
-        ['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True, check=False
-    )
-    if proc.returncode != 0:
-        die('this command must run inside a Git repository')
-    return pathlib.Path(proc.stdout.strip()).resolve()
+repo_root = _feature.repo_root
 
 
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+sha256_bytes = _feature.sha256_bytes
 
 
-def feature_fingerprint(feature_dir: pathlib.Path) -> str:
-    digest = hashlib.sha256()
-    paths = list(feature_files(feature_dir))
-    paths.extend([
-        feature_dir / 'design.json',
-        feature_dir / 'design' / 'gate.json',
-        feature_dir / 'verification-contract.json',
-        feature_dir / 'wayfinder-handoff.json',
-    ])
-    for path in paths:
-        if not path.exists():
-            continue
-        try:
-            name = str(path.relative_to(feature_dir))
-        except ValueError:
-            name = path.name
-        digest.update(name.encode())
-        digest.update(b'\0')
-        digest.update(path.read_bytes())
-        digest.update(b'\0')
-    return digest.hexdigest()
+feature_fingerprint = _feature.feature_fingerprint
 
 
 def feature_repo_base(feature_dir: pathlib.Path) -> pathlib.Path:
@@ -259,86 +238,25 @@ def protocol_files(feature_dir: pathlib.Path) -> list[pathlib.Path]:
 
 
 def protocol_fingerprint(feature_dir: pathlib.Path) -> str:
-    root = feature_repo_base(feature_dir)
-    digest = hashlib.sha256()
-    for path in protocol_files(feature_dir):
-        try:
-            rel = path.relative_to(root)
-        except ValueError:
-            rel = path
-        digest.update(str(rel).encode())
-        digest.update(b'\0')
-        digest.update(path.read_bytes())
-        digest.update(b'\0')
-    return digest.hexdigest()
+    return _feature.protocol_fingerprint(feature_dir, policy=_policy())
 
 
-def protocol_version(feature_dir: pathlib.Path) -> int:
-    """Compatibility contract for persisted task lifecycle state."""
-    return STATE_SCHEMA_VERSION
+protocol_version = _feature.protocol_version
 
 
-def safe_relative_pattern(pattern: str) -> bool:
-    if not pattern or pathlib.PurePath(pattern).is_absolute():
-        return False
-    normalized = pattern.replace('\\', '/').strip()
-    if normalized in {'.', './', '*', '**', '**/*'}:
-        return False
-    segments = [part for part in normalized.split('/') if part not in {'', '.'}]
-    if not segments or '..' in segments:
-        return False
-    forbidden_roots = {'.git', '.agent-state', '.agent-runs'}
-    return segments[0] not in forbidden_roots
+safe_relative_pattern = _feature.safe_relative_pattern
 
 
-def builder_pattern_has_concrete_root(pattern: str) -> bool:
-    normalized = pattern.replace('\\', '/').lstrip('./')
-    first = normalized.split('/', 1)[0]
-    return bool(first) and not any(char in first for char in '*?[')
+builder_pattern_has_concrete_root = _feature.builder_pattern_has_concrete_root
 
 
-def pattern_static_prefix(pattern: str) -> str:
-    normalized = pattern.replace('\\', '/').lstrip('./')
-    parts: list[str] = []
-    for part in normalized.split('/'):
-        if any(char in part for char in '*?['):
-            break
-        if part:
-            parts.append(part)
-    return '/'.join(parts)
+pattern_static_prefix = _feature.pattern_static_prefix
 
 
-def patterns_may_overlap(left: str, right: str) -> bool:
-    # Conservative by design: false positives force an explicit dependency, while false negatives
-    # would let two builders race on the same file. Exact paths are handled precisely; glob-vs-glob
-    # uses the non-wildcard prefix as the safe approximation.
-    import fnmatch
-
-    left_glob = any(char in left for char in '*?[')
-    right_glob = any(char in right for char in '*?[')
-    if not left_glob and not right_glob:
-        return left == right
-    if not left_glob:
-        return fnmatch.fnmatch(left, right)
-    if not right_glob:
-        return fnmatch.fnmatch(right, left)
-    lp = pattern_static_prefix(left)
-    rp = pattern_static_prefix(right)
-    if not lp or not rp:
-        return True
-    return lp == rp or lp.startswith(rp + '/') or rp.startswith(lp + '/')
+patterns_may_overlap = _feature.patterns_may_overlap
 
 
-def transitive_dependencies(idx: dict[str, dict[str, Any]], tid: str) -> set[str]:
-    found: set[str] = set()
-    stack = list(idx.get(tid, {}).get('depends_on', []))
-    while stack:
-        dep = stack.pop()
-        if dep in found:
-            continue
-        found.add(dep)
-        stack.extend(idx.get(dep, {}).get('depends_on', []))
-    return found
+transitive_dependencies = _feature.transitive_dependencies
 
 
 def is_active_feature_dir(feature_dir: pathlib.Path) -> bool:
@@ -351,353 +269,35 @@ def is_active_feature_dir(feature_dir: pathlib.Path) -> bool:
 
 
 def design_gate_errors(feature_dir: pathlib.Path, spec: pathlib.Path, plan: pathlib.Path) -> list[str]:
-    config_path = feature_dir / 'design.json'
-    if not config_path.exists():
-        return []
-    errors: list[str] = []
-    try:
-        config = json.loads(config_path.read_text(encoding='utf-8'))
-    except json.JSONDecodeError as exc:
-        return [f'invalid JSON in {config_path}: {exc}']
-    if not isinstance(config, dict):
-        return ['design.json must contain a JSON object']
-    required = config.get('required_for_orchestration', True)
-    if not isinstance(required, bool):
-        errors.append('design.json.required_for_orchestration must be boolean')
-        return errors
-    for field in ('grill', 'prototype', 'architecture_grill'):
-        value = config.get(field, 'auto')
-        if value not in {'auto', 'always', 'off'}:
-            errors.append(f'design.json.{field} must be one of auto/always/off')
-    if not required or not is_active_feature_dir(feature_dir):
-        return errors
-    gate_path = feature_dir / 'design' / 'gate.json'
-    if not gate_path.exists():
-        errors.append('design preflight gate is required before orchestration; run tooling/agent-harness/design.py')
-        return errors
-    try:
-        gate = json.loads(gate_path.read_text(encoding='utf-8'))
-    except json.JSONDecodeError as exc:
-        errors.append(f'invalid JSON in {gate_path}: {exc}')
-        return errors
-    if not isinstance(gate, dict):
-        return errors + ['design/gate.json must contain a JSON object']
-    if gate.get('schema_version') != 1:
-        errors.append('design/gate.json schema_version must be 1')
-    if gate.get('feature') != feature_dir.name:
-        errors.append('design/gate.json feature must match feature directory')
-    if gate.get('decision') != 'pass':
-        errors.append('design/gate.json decision must be pass')
-    expected = {
-        'spec_sha256': sha256_bytes(spec.read_bytes()),
-        'plan_sha256': sha256_bytes(plan.read_bytes()),
-        'design_config_sha256': sha256_bytes(config_path.read_bytes()),
-    }
-    for field, digest in expected.items():
-        if gate.get(field) != digest:
-            errors.append(f'design preflight gate is stale: {field} no longer matches current input')
-    stages = gate.get('stages')
-    if not isinstance(stages, dict):
-        errors.append('design/gate.json stages must be an object')
-    else:
-        for stage in ('spec_grill', 'prototype', 'architecture_grill'):
-            record = stages.get(stage)
-            if not isinstance(record, dict) or record.get('status') not in {'pass', 'skipped', 'waived'}:
-                errors.append(f'design/gate.json stage {stage} must be pass/skipped/waived')
-    return errors
+    return _feature.design_gate_errors(feature_dir, spec, plan, policy=_policy())
 
 
-def master_implementation_closure_errors(feature_dir: pathlib.Path, spec: pathlib.Path,
-                                         plan: pathlib.Path) -> list[str]:
-    """Validate an explicit human implementation-authority closure.
-
-    This does not rewrite, waive, or reinterpret design/gate.json. It is a
-    narrowly scoped route for continuing implementation when a human has
-    explicitly frozen a non-passing design history and authorized the
-    implementation contract separately.
-    """
-    path = feature_dir / 'design' / 'master-closure.json'
-    if not path.exists():
-        return ['fresh canonical design gate is required; no master implementation closure exists']
-    try:
-        record = json.loads(path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError):
-        return ['master implementation closure is unreadable or invalid JSON']
-    expected = {
-        'spec_sha256': sha256_bytes(spec.read_bytes()),
-        'plan_sha256': sha256_bytes(plan.read_bytes()),
-        'design_config_sha256': sha256_bytes((feature_dir / 'design.json').read_bytes()),
-    }
-    required = {
-        'schema_version': 1,
-        'feature': feature_dir.name,
-        'authority': 'master-closure',
-        'status': 'implementation-authorized',
-        'canonical_design_gate': 'not-pass',
-        'authority_runs': 16,
-    }
-    errors = [f'master implementation closure {key} must equal {value!r}'
-              for key, value in required.items() if record.get(key) != value]
-    inputs = record.get('inputs')
-    if not isinstance(inputs, dict):
-        errors.append('master implementation closure inputs must be an object')
-    else:
-        for key, value in expected.items():
-            if inputs.get(key) != value:
-                errors.append(f'master implementation closure is stale: inputs.{key} does not match')
-    if record.get('verification_contract_authorized') is not True:
-        errors.append('master implementation closure must authorize post-implementation contract refresh')
-    if record.get('commit_authorized') is not True:
-        errors.append('master implementation closure must authorize coherent implementation commits')
-    return errors
+master_implementation_closure_errors = _feature.master_implementation_closure_errors
 
 
 def validate(feature_dir: pathlib.Path) -> list[str]:
-    errors: list[str] = []
-    spec, plan, tasks_path = feature_files(feature_dir)
-    for path in (spec, plan, tasks_path):
-        if not path.exists():
-            errors.append(f'missing required file: {path}')
-    if errors:
-        return errors
-
-    gate_errors = design_gate_errors(feature_dir, spec, plan)
-    if gate_errors:
-        closure_errors = master_implementation_closure_errors(feature_dir, spec, plan)
-        if closure_errors:
-            errors.extend(gate_errors)
-            errors.extend(closure_errors)
-    errors.extend(vc.validate_contract(feature_dir))
-
-    try:
-        doc = json.loads(tasks_path.read_text(encoding='utf-8'))
-    except json.JSONDecodeError as exc:
-        return [f'invalid JSON in {tasks_path}: {exc}']
-    if not isinstance(doc, dict):
-        return ['tasks.json must contain a JSON object']
-
-    feature = doc.get('feature')
-    if not isinstance(feature, str) or not feature.strip():
-        errors.append('tasks.json.feature must be a non-empty string')
-    else:
-        if not FEATURE_ID_RE.fullmatch(feature):
-            errors.append(f'tasks.json.feature has unsafe/invalid format: {feature!r}')
-        if feature != feature_dir.name:
-            errors.append(f'tasks.json.feature must match feature directory name: {feature!r} != {feature_dir.name!r}')
-
-    test_policy = doc.get('test_policy', 'legacy')
-    if test_policy not in VALID_TEST_POLICIES:
-        errors.append(f'test_policy must be one of {sorted(VALID_TEST_POLICIES)}')
-
-    max_parallel = doc.get('max_parallel', 4)
-    if not isinstance(max_parallel, int) or not 1 <= max_parallel <= 8:
-        errors.append('max_parallel must be an integer between 1 and 8')
-    max_rework = doc.get('max_rework_attempts', 2)
-    if not isinstance(max_rework, int) or not 0 <= max_rework <= 5:
-        errors.append('max_rework_attempts must be an integer between 0 and 5')
-
-    lease_ttl = doc.get('lease_ttl_seconds', DEFAULT_LEASE_TTL_SECONDS)
-    if not isinstance(lease_ttl, int) or not 60 <= lease_ttl <= 86400:
-        errors.append('lease_ttl_seconds must be an integer between 60 and 86400')
-    heartbeat_interval = doc.get('heartbeat_interval_seconds', DEFAULT_HEARTBEAT_INTERVAL_SECONDS)
-    if not isinstance(heartbeat_interval, int) or not 5 <= heartbeat_interval <= 300:
-        errors.append('heartbeat_interval_seconds must be an integer between 5 and 300')
-    if isinstance(lease_ttl, int) and isinstance(heartbeat_interval, int) and heartbeat_interval * 2 >= lease_ttl:
-        errors.append('heartbeat_interval_seconds must be less than half of lease_ttl_seconds')
-
-    tasks = doc.get('tasks')
-    if not isinstance(tasks, list) or not tasks:
-        return errors + ['tasks.json must contain a non-empty tasks array']
-
-    ids: list[str] = []
-    required = (
-        'id', 'title', 'objective', 'role', 'depends_on', 'allowed_paths',
-        'risk_tags', 'acceptance_criteria', 'verification'
-    )
-    list_fields = ('depends_on', 'allowed_paths', 'risk_tags', 'acceptance_criteria', 'verification')
-    for i, task in enumerate(tasks):
-        where = f'tasks[{i}]'
-        if not isinstance(task, dict):
-            errors.append(f'{where} must be an object')
-            continue
-        for name in required:
-            if name not in task:
-                errors.append(f'{where} missing {name}')
-        tid = task.get('id')
-        if isinstance(tid, str):
-            ids.append(tid)
-            if not TASK_ID_RE.fullmatch(tid):
-                errors.append(f'{where}.id has invalid format: {tid!r}')
-        else:
-            errors.append(f'{where}.id must be a string')
-        if not isinstance(task.get('title'), str) or not task.get('title', '').strip():
-            errors.append(f'{where}.title must be a non-empty string')
-        if not isinstance(task.get('objective'), str) or not task.get('objective', '').strip():
-            errors.append(f'{where}.objective must be a non-empty string')
-        if task.get('role') not in VALID_ROLES:
-            errors.append(f'{where}.role must be one of {sorted(VALID_ROLES)}')
-        if 'agent_profile' in task:
-            profile = task.get('agent_profile')
-            if not isinstance(profile, str) or not PROFILE_RE.fullmatch(profile):
-                errors.append(f'{where}.agent_profile must match {PROFILE_RE.pattern}')
-        for name in list_fields:
-            if name in task and not isinstance(task[name], list):
-                errors.append(f'{where}.{name} must be an array')
-        patterns = task.get('allowed_paths', []) if isinstance(task.get('allowed_paths'), list) else []
-        for pattern in patterns:
-            if not isinstance(pattern, str) or not safe_relative_pattern(pattern):
-                errors.append(f'{where}.allowed_paths contains unsafe path pattern: {pattern!r}')
-            elif task.get('role') == 'builder' and not builder_pattern_has_concrete_root(pattern):
-                errors.append(f'{where}.builder allowed_paths must start with a concrete repo path: {pattern!r}')
-        for risk in task.get('risk_tags', []) if isinstance(task.get('risk_tags'), list) else []:
-            if not isinstance(risk, str) or not risk.strip():
-                errors.append(f'{where}.risk_tags must contain non-empty strings')
-        criteria = task.get('acceptance_criteria', []) if isinstance(task.get('acceptance_criteria'), list) else []
-        if not criteria:
-            errors.append(f'{where}.acceptance_criteria must not be empty')
-        for command in task.get('verification', []) if isinstance(task.get('verification'), list) else []:
-            if not isinstance(command, str) or not command.strip():
-                errors.append(f'{where}.verification must contain non-empty command strings')
-        if task.get('role') == 'builder' and test_policy == 'risk-driven':
-            mode = task.get('test_mode')
-            seam = task.get('test_seam')
-            if mode not in VALID_TEST_MODES:
-                errors.append(f'{where}.test_mode must be one of {sorted(VALID_TEST_MODES)} when test_policy=risk-driven')
-            if not isinstance(seam, str) or not seam.strip():
-                errors.append(f'{where}.test_seam must explain the observable seam or why tests are not applicable')
-
-    duplicates = sorted({x for x in ids if ids.count(x) > 1})
-    if duplicates:
-        errors.append(f'duplicate task ids: {duplicates}')
-
-    known = set(ids)
-    idx = task_index(doc)
-    for tid, task in idx.items():
-        for dep in task.get('depends_on', []):
-            if not isinstance(dep, str):
-                errors.append(f'{tid} has a non-string dependency')
-            elif dep not in known:
-                errors.append(f'{tid} depends on unknown task {dep}')
-            elif dep == tid:
-                errors.append(f'{tid} depends on itself')
-
-    visiting: set[str] = set()
-    visited: set[str] = set()
-
-    def visit(tid: str, chain: list[str]) -> None:
-        if tid in visiting:
-            errors.append('dependency cycle: ' + ' -> '.join(chain + [tid]))
-            return
-        if tid in visited or tid not in idx:
-            return
-        visiting.add(tid)
-        for dep in idx[tid].get('depends_on', []):
-            if isinstance(dep, str):
-                visit(dep, chain + [tid])
-        visiting.remove(tid)
-        visited.add(tid)
-
-    for tid in idx:
-        visit(tid, [])
-
-    spec_criteria = set(AC_RE.findall(spec.read_text(encoding='utf-8')))
-    verification_criteria = vc.criterion_ids(feature_dir)
-    accepted_criteria = spec_criteria | verification_criteria
-    for tid, task in idx.items():
-        for criterion in task.get('acceptance_criteria', []):
-            if not isinstance(criterion, str):
-                errors.append(f'{tid} has a non-string acceptance criterion')
-            elif criterion not in accepted_criteria:
-                errors.append(f'{tid} references criterion absent from spec.md and verification-contract.json: {criterion}')
-
-        profiles = [task.get('agent_profile') or task.get('role'), *reviewers(task)]
-        for profile in profiles:
-            if not isinstance(profile, str) or not PROFILE_RE.fullmatch(profile):
-                continue
-            profile_path = feature_repo_base(feature_dir) / 'docs' / 'agentic-sdd' / 'agents' / f'{profile}.md'
-            if not profile_path.exists():
-                errors.append(f'{tid} selects missing agent profile: {profile} ({profile_path})')
-
-    # Detect write collisions only for tasks that can actually be concurrent (neither depends on the other).
-    ancestors = {tid: transitive_dependencies(idx, tid) for tid in idx}
-    for pos, a in enumerate(tasks):
-        if not isinstance(a, dict) or not isinstance(a.get('id'), str):
-            continue
-        for b in tasks[pos + 1:]:
-            if not isinstance(b, dict) or not isinstance(b.get('id'), str):
-                continue
-            aid, bid = a['id'], b['id']
-            if aid in ancestors.get(bid, set()) or bid in ancestors.get(aid, set()):
-                continue
-            if a.get('role') == b.get('role') == 'builder':
-                overlaps = sorted(
-                    {f'{left} <-> {right}' for left in a.get('allowed_paths', []) for right in b.get('allowed_paths', [])
-                     if isinstance(left, str) and isinstance(right, str) and patterns_may_overlap(left, right)}
-                )
-                if overlaps:
-                    errors.append(f'parallel builders {aid} and {bid} have overlapping allowed_paths {overlaps}')
-
-    evaluators = [t for t in tasks if isinstance(t, dict) and t.get('role') == 'evaluator']
-    builders = [t for t in tasks if isinstance(t, dict) and t.get('role') == 'builder']
-    if builders and not evaluators:
-        errors.append('at least one evaluator task is required when builder tasks exist')
-    if evaluators and builders:
-        covered = set().union(*(set(t.get('depends_on', [])) for t in evaluators))
-        uncovered = sorted(t['id'] for t in builders if t.get('id') not in covered)
-        if uncovered:
-            errors.append(f'builder tasks not directly covered by an evaluator dependency: {uncovered}')
-        evaluator_criteria = set().union(*(set(t.get('acceptance_criteria', [])) for t in evaluators))
-        uncovered_criteria = sorted(accepted_criteria - evaluator_criteria)
-        if uncovered_criteria:
-            errors.append(f'spec acceptance criteria not covered by an evaluator (including verification-contract criteria): {uncovered_criteria}')
-
-    integrations = [t for t in tasks if isinstance(t, dict) and t.get('role') == 'integration']
-    if integrations and evaluators:
-        evaluator_ids = {t['id'] for t in evaluators}
-        for task in integrations:
-            if not evaluator_ids.intersection(task.get('depends_on', [])):
-                errors.append(f'integration task {task.get("id")} must depend on an evaluator')
-
-    return errors
+    return _feature.validate(feature_dir, policy=_policy())
 
 
 def state_key(feature_dir: pathlib.Path) -> str:
-    return sha256_bytes(f'{git_common_dir(feature_dir)}\0{feature_dir.name}'.encode())[:20]
+    return _state.state_key(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
 
 def git_common_dir(feature_dir: pathlib.Path) -> pathlib.Path:
     """Return Git's canonical common directory for this checkout/worktree."""
-    result = subprocess.run(
-        ['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'],
-        cwd=feature_repo_base(feature_dir), capture_output=True, text=True, check=False,
-    )
-    if result.returncode != 0:
-        die('cannot resolve the common Git directory for lifecycle state')
-    common = pathlib.Path(result.stdout.strip()).resolve()
-    if not common.is_dir():
-        die(f'Git common directory does not exist: {common}')
-    return common
+    return _state.git_common_dir(feature_dir, policy=_policy())
 
 
 def runtime_state_dir(feature_dir: pathlib.Path) -> pathlib.Path:
-    if STATE_DIR.is_absolute():
-        return STATE_DIR
-    # Store lifecycle state next to the common Git directory so all linked worktrees
-    # resolve the same location while preserving <main-checkout>/.agent-state.
-    common = git_common_dir(feature_dir)
-    return common.parent / STATE_DIR
+    return _state.runtime_state_dir(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
 
 def state_path(feature_dir: pathlib.Path) -> pathlib.Path:
-    return runtime_state_dir(feature_dir) / f'{feature_dir.name}-{state_key(feature_dir)}.json'
+    return _state.state_path(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
 
 def lock_path(feature_dir: pathlib.Path) -> pathlib.Path:
-    # Snapshots capture the complete repository authority tree. One lock prevents
-    # cross-feature commits from producing a torn snapshot.
-    if fcntl is None:
-        die('LIFECYCLE_LOCK_UNAVAILABLE: cross-process lifecycle locking is required')
-    return state_snapshots.lifecycle_lock_path(feature_repo_base(feature_dir))
+    return _state.lock_path(feature_dir, policy=_policy(), locking=fcntl)
 
 
 def recover_prepared_state_locked(feature_dir: pathlib.Path) -> None:
@@ -1200,37 +800,11 @@ def _read_state_unlocked_pure(feature_dir: pathlib.Path, doc: dict[str, Any]) ->
 
 
 def validate_state_identity(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
-    expected = feature_fingerprint(feature_dir)
-    if state.get('fingerprint') != expected:
-        die('feature spec/plan/tasks fingerprint differs; refusing lifecycle state adoption/migration')
-    if state.get('feature', feature_dir.name) != doc.get('feature', feature_dir.name):
-        die('runtime state logical feature identity differs from tasks.json; refusing lifecycle state adoption/migration')
-    expected_ids = set(task_index(doc))
-    tasks = state.get('tasks')
-    if not isinstance(tasks, dict) or set(tasks) != expected_ids:
-        die('runtime state task set differs from tasks.json; refusing lifecycle state adoption/migration')
+    _state.validate_state_identity(feature_dir, doc, state, fingerprint=lambda path: feature_fingerprint(path))
 
 
 def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state: dict[str, Any]) -> None:
-    validate_state_identity(feature_dir, doc, state)
-    expected = feature_fingerprint(feature_dir)
-    expected_version = protocol_version(feature_dir)
-    stored_version = state.get('protocol_version')
-    if stored_version is None and state.get('state_version') == 2:
-        die(
-            'runtime state predates explicit protocol versioning; run '
-            f'`harness.py migrate-state {feature_dir}` to validate and upgrade it'
-        )
-    if stored_version != expected_version:
-        die(
-            f'runtime state protocol/schema version {stored_version!r} is incompatible with '
-            f'current version {expected_version}; use `harness.py migrate-state {feature_dir}` '
-            'when a supported migration exists, otherwise revise/re-plan deliberately'
-        )
-    expected_ids = set(task_index(doc))
-    actual_ids = set(state.get('tasks', {}))
-    if expected_ids != actual_ids:
-        die('runtime state task set differs from tasks.json; reset the feature state')
+    _state.validate_loaded_state(feature_dir, doc, state, fingerprint=lambda path: feature_fingerprint(path))
 
 
 def cmd_migrate_state(args: argparse.Namespace) -> None:
@@ -1853,38 +1427,24 @@ def terminalize_verification_execution(repository: pathlib.Path, terminal: dict,
 
 
 def legacy_state_name(feature_dir: pathlib.Path) -> str:
-    # Historical key: SHA-256 of the main checkout's resolved feature path.
-    repo_root = git_common_dir(feature_dir).parent
-    main_feature = repo_root / 'docs' / 'specs' / feature_dir.name
-    name = f'{feature_dir.name}-{sha256_bytes(str(main_feature.resolve()).encode())[:20]}.json'
-    return name
+    return _state.legacy_state_name(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
 
 def main_legacy_state_path(feature_dir: pathlib.Path) -> pathlib.Path:
     """Old main-checkout file; the only legacy snapshot safe to adopt automatically."""
-    root = git_common_dir(feature_dir).parent
-    return root / '.agent-state' / legacy_state_name(feature_dir)
+    return _state.main_legacy_state_path(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
 
 def save_state(feature_dir: pathlib.Path, state: dict[str, Any], *,
                additional_files: dict[str, tuple[bytes, int]] | None = None,
                remove_files: set[str] | None = None) -> None:
-    """Write a complete authority snapshot before atomically replacing state.
+    """Write a complete authority snapshot before atomically replacing state (the library's single writer).
 
     Lifecycle callers hold the shared repository lock for the whole mutation.
     """
-    state_dir = runtime_state_dir(feature_dir)
-    path = state_path(feature_dir)
-    try:
-        payload = json.dumps(state, indent=2, sort_keys=True, allow_nan=False).encode('utf-8') + b'\n'
-        state_snapshots.commit_state_snapshot(
-            feature_repo_base(feature_dir), state_dir, path, payload, state,
-            additional_files=additional_files,
-            remove_files=remove_files,
-            fault_injector=_state_snapshot_fault_injector,
-        )
-    except state_snapshots.SnapshotError as exc:
-        die(f'LIFECYCLE_SNAPSHOT_FAILED: {exc}')
+    _state.save_state(feature_dir, state, additional_files=additional_files, remove_files=remove_files,
+                      policy=_policy(), fault_injector=_state_snapshot_fault_injector,
+                      common_dir=lambda path: git_common_dir(path))
 
 
 def completion_authority_dir(feature_dir: pathlib.Path, kind: str, task_id: str) -> pathlib.Path:
@@ -3629,12 +3189,7 @@ def validate_completion_proofs(evidence: dict[str, Any], task: dict[str, Any],
 
 
 def load_validated(feature_dir: pathlib.Path) -> dict[str, Any]:
-    errors = validate(feature_dir)
-    if errors:
-        for error in errors:
-            print(f'FAIL: {error}', file=sys.stderr)
-        die('feature is invalid')
-    return load_json(feature_dir / 'tasks.json')
+    return _feature.load_validated(feature_dir, policy=_policy())
 
 
 def cmd_validate(args: argparse.Namespace) -> None:
