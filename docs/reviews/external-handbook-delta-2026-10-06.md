@@ -355,6 +355,13 @@ that 21 CI command outputs matched after masking and rollback passed.
 Showcase's exact adoption CI status and disposable-clone rollback result are recorded in the
 [adoption handover](showcase-handover-ah5-14b2-adoption-2026-10-24.md).
 
+The evidence-correction commit `4d51618a5b05a57dee427596280d66804421ccc7`
+passed CI (40133724720), Agentic SDD CI (40133724686), CodeQL (40133724715),
+and OpenSSF Scorecard (40133724707) on that exact SHA. Dependency Review was
+skipped for the push. The direct-push bypasses of protected-ref, PR, two
+expected status checks, and verified-signature requirements were not passed
+controls. No additional workflows were started solely for documentation.
+
 Benchmark remains on v0.14.0; no re-pin or live trial is required for this
 release. Dependency Review `SKIPPED` remains a coverage gap. S30-06 remains
 `DEFERRED / NOT QUALIFIED` with its consumer disabled. The external handbook

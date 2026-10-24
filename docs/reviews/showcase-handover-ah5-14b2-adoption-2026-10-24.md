@@ -113,6 +113,41 @@ including a mutated Gradle input whose callback refusal maps to
   workspace test names or assign missing results to the sandbox-doctor module.
   This is not an all-green result.
 
+## Follow-up verification of the evidence-correction commit
+
+The documentation-only correction commit `4d51618a5b05a57dee427596280d66804421ccc7`
+was checked by its existing push workflows; no workflow was manually rerun.
+All four workflows completed successfully for that exact SHA:
+
+| Workflow | Run | Result |
+|---|---:|---|
+| CI | [40133724720](https://github.com/chrobakpiotr/showcase-application/actions/runs/40133724720) | success |
+| Agentic SDD CI | [40133724686](https://github.com/chrobakpiotr/showcase-application/actions/runs/40133724686) | success |
+| CodeQL | [40133724715](https://github.com/chrobakpiotr/showcase-application/actions/runs/40133724715) | success |
+| OpenSSF Scorecard | [40133724707](https://github.com/chrobakpiotr/showcase-application/actions/runs/40133724707) | success |
+
+Dependency Review was skipped for this push and is not a passed control. The
+direct push was accepted with bypasses of the protected-ref rule, PR
+requirement, two expected required status checks, and verified-signature
+requirement; none is reported as passed.
+
+The exact push report for `4d51618a5b05a57dee427596280d66804421ccc7` was:
+
+```text
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   4d51618a5b05a57dee427596280d66804421ccc7
+```
+
 ## Rollback and ownership handover
 
 Rollback of the complete code set was rehearsed in disposable clone `/tmp/showcase-018-rollback-final`. Reverting test correction `ac552f0`, RetryControl adoption `422cc0c`, then lifecycle/incident adoption `dfbcbbd` restored exact tree `d7097d50c068ce7f2bb5cff2d95c3cdf166b9010`; `git diff --exit-code` passed. The restored pin is `137b0ba057c4d69c94fc1d8b04b0af8d3b0b039e`; old `harness.py` SHA-256 is `0674b00bd623e9cb72c049b6d527a0682faee9e69d9b16cfe603e81a85a206e4`, and the old wrapper test SHA-256 is `2bc7bdfe04ac4420d04d86d9be178cf298b81604c3d7c23182249ff9c2accc72`.
