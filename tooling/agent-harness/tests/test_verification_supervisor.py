@@ -29,6 +29,19 @@ from human_grant_fixture import signed_test_grant, trusted_test_store
 
 
 class SupervisorTest(unittest.TestCase):
+    def test_showcase_retry_controls_use_supported_api_and_preserve_digests(self):
+        from verification.retry_controls import RETRY_CONTROLS
+        from agent_harness.retry_control import RetryControl
+
+        controls = {control.control_id: control for control in RETRY_CONTROLS}
+        self.assertEqual({
+            'critical-postgres-gate-disables-gradle-test-retry-v1':
+                'ba34b24749900a92c69b12b024e171fe3920343aced5fb05e8b76984d8b0707d',
+            'critical-rabbit-gate-disables-gradle-test-retry-v1':
+                'dd476704327344e29951c4a579b687f4a0c6e61a60bad8f5e20bb38c73397afc',
+        }, {control_id: control.inputs_digest() for control_id, control in controls.items()})
+        self.assertTrue(all(isinstance(control, RetryControl) for control in controls.values()))
+
     def test_safe_prelaunch_abort_proof_is_bound_to_exact_terminal(self):
         terminal = {'execution_id': 'execution-1', 'receipt_hash': 'a' * 64,
                     'started_hash': 'b' * 64}
@@ -922,6 +935,10 @@ gradle.projectsEvaluated {
                 sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
             terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
             self.assertTrue(terminal['retry_policy_proof']['retry_free'])
+            if declaration != 'no-internal-retries':
+                control = store.retry_controls[declaration]
+                self.assertEqual(control.inputs_digest(),
+                                 terminal['retry_policy_proof']['control_evidence']['registered_inputs_sha256'])
             self.assertEqual(['no-internal-retries'], terminal['retry_policy_proof']['retry_controls'])
 
     def test_vc009_10b_retry_free_boolean_cannot_override_declaration_facts(self):

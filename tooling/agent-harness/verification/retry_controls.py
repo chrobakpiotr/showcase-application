@@ -13,9 +13,12 @@ import re
 import shlex
 import stat
 
-from agent_harness.verification.retry import RetryControl
-from agent_harness.verification.serialization import canonical
-from agent_harness.verification.supervisor import SupervisorError
+from agent_harness.retry_control import RetryControl
+
+
+class RetryControlPolicyError(RuntimeError):
+    """Showcase adapter refusal mapped by agent-harness to retry-policy-violation."""
+
 
 _RETRY_CONTROL_BINDINGS = {
     'critical-postgres-gate-disables-gradle-test-retry-v1': (
@@ -130,14 +133,6 @@ for _retry_inputs in _RETRY_CONTROL_INPUT_SHA256.values():
 _NO_RETRY_COMMAND = 'python3 -c pass'
 
 
-def _retry_control_inputs_digest(control_id):
-    inputs = _RETRY_CONTROL_INPUT_SHA256.get(control_id)
-    if inputs is None:
-        return None
-    return hashlib.sha256(canonical({'control_id': control_id,
-                                     'inputs': dict(sorted(inputs.items()))})).hexdigest()
-
-
 def _read_regular_worktree_file(root: pathlib.Path, relative: str) -> bytes:
     """Read a candidate policy input without traversing symlinks."""
     current = root
@@ -147,22 +142,22 @@ def _read_regular_worktree_file(root: pathlib.Path, relative: str) -> bytes:
         try:
             info = current.lstat()
         except OSError:
-            raise SupervisorError('retry-policy-violation') from None
+            raise RetryControlPolicyError('retry-policy-violation') from None
         if stat.S_ISLNK(info.st_mode):
-            raise SupervisorError('retry-policy-violation')
+            raise RetryControlPolicyError('retry-policy-violation')
     if info is None or not stat.S_ISREG(info.st_mode):
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
     try:
         fd = os.open(current, os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
-                raise SupervisorError('retry-policy-violation')
+                raise RetryControlPolicyError('retry-policy-violation')
             with os.fdopen(fd, 'rb', closefd=False) as stream:
                 return stream.read()
         finally:
             os.close(fd)
     except OSError:
-        raise SupervisorError('retry-policy-violation') from None
+        raise RetryControlPolicyError('retry-policy-violation') from None
 
 
 def _gradle_user_home_has_init_scripts(execution_run_dir: pathlib.Path) -> bool:
@@ -192,7 +187,7 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
         if not root.is_dir():
             raise ValueError()
     except (OSError, ValueError, RuntimeError):
-        raise SupervisorError('retry-policy-violation') from None
+        raise RetryControlPolicyError('retry-policy-violation') from None
     config_path = 'apps/ecommerce/backend/ecommerce.gradle'
     wrapper_path = command.removeprefix('./')
     try:
@@ -201,15 +196,15 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
                        for relative in registered_inputs}
         if any(hashlib.sha256(input_bytes[path]).hexdigest() != expected
                for path, expected in registered_inputs.items()):
-            raise SupervisorError('retry-policy-violation')
+            raise RetryControlPolicyError('retry-policy-violation')
         config_bytes = input_bytes[config_path]
         wrapper_bytes = input_bytes[wrapper_path]
         if hashlib.sha256(wrapper_bytes).hexdigest() != _RETRY_CONTROL_WRAPPER_SHA256[controls[0]]:
-            raise SupervisorError('retry-policy-violation')
+            raise RetryControlPolicyError('retry-policy-violation')
         config = config_bytes.decode('utf-8')
         wrapper = wrapper_bytes.decode('utf-8')
-    except (UnicodeDecodeError, SupervisorError):
-        raise SupervisorError('retry-policy-violation') from None
+    except (UnicodeDecodeError, RetryControlPolicyError):
+        raise RetryControlPolicyError('retry-policy-violation') from None
 
     gate_property = 'criticalPostgresGate' if 'postgres' in controls[0] else 'criticalRabbitGate'
     enabled_name = 'criticalPostgresGateEnabled' if 'postgres' in controls[0] else 'criticalRabbitGateEnabled'
@@ -223,11 +218,11 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
         'outputs.cacheIf { false }',
     )
     if any(config.count(line) != 1 for line in expected_lines):
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
     if (len(re.findall(r'\bretry\s*\{', config)) != 1 or
             len(re.findall(r'\bmaxRetries\b', config)) != 1 or
             len(re.findall(r'\bfailOnPassedAfterRetry\b', config)) != 1):
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
 
     gradle_files = []
     excluded = {'.git', '.gradle', 'build', 'node_modules', '.agent-runs', '.agent-state'}
@@ -237,35 +232,35 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
             if name in excluded:
                 continue
             if (pathlib.Path(parent) / name).is_symlink():
-                raise SupervisorError('retry-policy-violation')
+                raise RetryControlPolicyError('retry-policy-violation')
             retained_dirs.append(name)
         dirs[:] = retained_dirs
         for name in files:
             if name.endswith('.gradle') or name.endswith('.gradle.kts'):
                 path = pathlib.Path(parent) / name
                 if path.is_symlink():
-                    raise SupervisorError('retry-policy-violation')
+                    raise RetryControlPolicyError('retry-policy-violation')
                 gradle_files.append(path)
                 if len(gradle_files) > 512:
-                    raise SupervisorError('retry-policy-violation')
+                    raise RetryControlPolicyError('retry-policy-violation')
     registered_gradle_files = {
         relative for relative in registered_inputs
         if relative.endswith(('.gradle', '.gradle.kts'))
     }
     discovered_gradle_files = {path.relative_to(root).as_posix() for path in gradle_files}
     if discovered_gradle_files != registered_gradle_files:
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
     config_file = root / config_path
     for path in gradle_files:
         if path == config_file:
             continue
         try:
             other = _read_regular_worktree_file(root, path.relative_to(root).as_posix()).decode('utf-8')
-        except (OSError, UnicodeDecodeError, SupervisorError):
-            raise SupervisorError('retry-policy-violation') from None
+        except (OSError, UnicodeDecodeError, RetryControlPolicyError):
+            raise RetryControlPolicyError('retry-policy-violation') from None
         if (re.search(r'\bretry\s*\{|\bmaxRetries\b|\bfailOnPassedAfterRetry\b', other) or
                 'strictEvidenceGateEnabled' in other):
-            raise SupervisorError('retry-policy-violation')
+            raise RetryControlPolicyError('retry-policy-violation')
 
     gradle_property = f'-P{gate_property}'
     expected_gradle_invocations = 2 if 'postgres' in controls[0] else 1
@@ -282,20 +277,20 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
                 continue
             if (not tokens or tokens[0] != './gradlew' or tokens.count('./gradlew') != 1 or
                     ':application:ecommerce:test' not in tokens):
-                raise SupervisorError('retry-policy-violation')
+                raise RetryControlPolicyError('retry-policy-violation')
             if any(token in forbidden_configuration_options or
                    token.startswith(('--init-script=', '--settings-file=', '--build-file=',
                                      '--project-dir=', '--include-build=', '-I', '-c', '-b', '-p'))
                    for token in tokens):
-                raise SupervisorError('retry-policy-violation')
+                raise RetryControlPolicyError('retry-policy-violation')
             properties = [token for token in tokens if token.startswith(gradle_property + '=')]
             if properties != [gradle_property + '=true']:
-                raise SupervisorError('retry-policy-violation')
+                raise RetryControlPolicyError('retry-policy-violation')
             gradle_commands.append(tokens)
     except ValueError:
-        raise SupervisorError('retry-policy-violation') from None
+        raise RetryControlPolicyError('retry-policy-violation') from None
     if len(gradle_commands) != expected_gradle_invocations:
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
     return {
         'schema_version': 1,
         'control_id': controls[0],
@@ -304,7 +299,7 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
         'config_path': config_path,
         'config_sha256': hashlib.sha256(config_bytes).hexdigest(),
         'wrapper_sha256': hashlib.sha256(wrapper_bytes).hexdigest(),
-        'registered_inputs_sha256': _retry_control_inputs_digest(controls[0]),
+        'registered_inputs_sha256': control.inputs_digest(),
         'strict_max_retries': 0,
         'fail_on_passed_after_retry': True,
     }
@@ -313,9 +308,9 @@ def _registered_gradle_retry_evidence(worktree: pathlib.Path, control) -> dict:
 def _check_run_dir(backend_run_dir: pathlib.Path, environment) -> None:
     if environment and any(key in environment for key in
                            ('GRADLE_USER_HOME', 'GRADLE_OPTS', 'JAVA_OPTS')):
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
     if _gradle_user_home_has_init_scripts(backend_run_dir):
-        raise SupervisorError('retry-policy-violation')
+        raise RetryControlPolicyError('retry-policy-violation')
 
 
 RETRY_CONTROLS = tuple(

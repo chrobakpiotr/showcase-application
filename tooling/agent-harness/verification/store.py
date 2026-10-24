@@ -15,7 +15,6 @@ from verification.retry_controls import (  # noqa: F401  (Showcase's registry, f
     _RETRY_CONTROL_INPUT_SHA256,
     _RETRY_CONTROL_WRAPPER_SHA256,
     RETRY_CONTROLS,
-    _retry_control_inputs_digest,
 )
 
 HARNESS = pathlib.Path(__file__).resolve().parents[1]
