@@ -248,6 +248,59 @@ requirement. Those bypasses are not counted as passed controls. Dependency
 Review was skipped for the push event and is not counted as completed. This
 repository delta does not mark the external handbook synchronized.
 
+## Harness 0.17.0 adoption delta (2026-10-24; repository source)
+
+Showcase adopted agent-harness v0.17.0 release SHA
+`137b0ba057c4d69c94fc1d8b04b0af8d3b0b039e` in commit
+`87e4ad688b17970dbd0afdc660d4a04ed6d0351e`. This release extracts the
+lifecycle lock, state loading, completion-record readers, and the integrity
+checks those operations require. It does not change behavior. The release
+wrapper is mode `100755` with SHA-256
+`0674b00bd623e9cb72c049b6d527a0682faee9e69d9b16cfe603e81a85a206e4`.
+Showcase builds `StateAccess` per call. The binding passes the consumer's live
+lock, common Git directory, fingerprints, save/load functions, pure state
+reader, verification store, fault injector, incident lookup, and recovery-epoch
+refusal callback. `_authority_transaction` is the same object for the library
+and Showcase completion publishers. The incident producer is unchanged; the
+separate fail-closed lookup correction remains pending a later Harness release
+and a distinct Showcase adoption commit.
+
+The complete Agentic SDD suite passed locally in the pinned Python 3.13.16
+image: 924 tests. Exact-commit CI run
+[40076326938](https://github.com/chrobakpiotr/showcase-application/actions/runs/40076326938)
+failed on the pre-existing frontend audit and a Docker Hub `503 Service
+Unavailable` while E2E pulled Keycloak. Backend, PostgreSQL/RabbitMQ, PIT,
+OWASP, SBOM, Trivy, infrastructure validation, repository guards and docs
+links passed. E2E was rerun on that same SHA and passed. Dependency Review was
+skipped for the push event.
+
+Follow-up commit `792dfade2775b9d3d6cef5b4020380d84fd1a2c4` updates the
+frontend lockfile to remove the reported high findings without a forced
+Angular major upgrade. The full [CI run
+40077527346](https://github.com/chrobakpiotr/showcase-application/actions/runs/40077527346),
+[Agentic SDD CI run
+40077527344](https://github.com/chrobakpiotr/showcase-application/actions/runs/40077527344),
+[CodeQL run
+40077527462](https://github.com/chrobakpiotr/showcase-application/actions/runs/40077527462),
+and [Scorecard run
+40077527301](https://github.com/chrobakpiotr/showcase-application/actions/runs/40077527301)
+passed. Frontend audit reports zero vulnerabilities; lint, 488 tests, build,
+E2E and the aggregate quality gate passed. Dependency Review was skipped and
+is not counted as passed.
+
+Rollback rehearsal in a disposable clone reverted the adoption commit and
+restored the exact parent tree `8ba523182e136b660500ffe3cb8b8484ae5c3897`,
+including the full 0.16.0 pin `fc4ad6471b9dcec65a17e61ab0975c1de14f79dc`
+and previous `harness.py` SHA
+`06333e930bbbf5b71a8d7442bc31010aa04a71b17aa96065b544efb67602ff1a`.
+
+The owner authorized the direct pushes. For each pushed commit GitHub reported
+bypasses for the PR requirement, two expected required status checks, and
+verified-signature requirement. These bypasses are not passed controls. The
+full handoff and binding details are in the [Showcase 0.17.0 adoption
+handover](showcase-handover-ah5-14b1-adoption-2026-10-24.md). Benchmark remains
+on v0.14.0. The external handbook is still unsynchronized.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
