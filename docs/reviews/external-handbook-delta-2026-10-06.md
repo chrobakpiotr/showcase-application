@@ -301,6 +301,56 @@ full handoff and binding details are in the [Showcase 0.17.0 adoption
 handover](showcase-handover-ah5-14b1-adoption-2026-10-24.md). Benchmark remains
 on v0.14.0. The external handbook is still unsynchronized.
 
+## Harness 0.18.0 adoption delta (2026-10-24; repository source)
+
+Showcase adopted agent-harness v0.18.0 at full release SHA
+`6d1c69a170dee8638b5535aed3f9aadb57845ba6`. The lifecycle/incident-adapter
+cutover is commit `dfbcbbd8baa5ff74d54631869da13b0d50ad210f`; the separate
+RetryControl API adoption is `422cc0c4e00717c16bc0a6023c214afbd8473b3c`; the
+follow-up test-only assertion correction is
+`ac552f0097214e339124a7f21b64174b2c0c4e3b`. The first exact-head Agentic SDD
+run on `422cc0c` failed due to a misplaced assertion; it also caused eval A007
+to fail. The assertion correction was verified with 101 A007 tests and 5/5
+focused retry tests locally. On exact head `ac552f0`, main CI
+[40104353741](https://github.com/chrobakpiotr/showcase-application/actions/runs/40104353741),
+Agentic SDD [40104353595](https://github.com/chrobakpiotr/showcase-application/actions/runs/40104353595),
+CodeQL [40104353607](https://github.com/chrobakpiotr/showcase-application/actions/runs/40104353607),
+and Scorecard [40104353720](https://github.com/chrobakpiotr/showcase-application/actions/runs/40104353720)
+all succeeded. Main CI's frontend audit/lint/tests, Playwright, backend, infra,
+OWASP, Trivy, SBOM, PIT, repository guards, docs links, and aggregate gate
+passed. Dependency Review was skipped on push and is not a passed control.
+GitHub accepted the direct pushes while reporting bypasses of the protected-ref
+rule, PR requirement, two expected required status checks, and verified-signature
+requirement. These are not passed controls.
+
+The lifecycle shim delegates the 14b-2 transitions to Harness. The shared
+`_authority_transaction` remains the same library object used by Showcase
+completion publishers. The required `task_workspace_snapshot`,
+`restore_task_workspace`, and `restore_attempt_authorization` bindings and the
+refuse-only recovery-epoch hook remain Showcase-owned. The separately reported
+incident adapter now accepts only `None` as “no incident” and refuses invalid
+lookup results before they can be treated as absence; the incident producer is
+unchanged. Retry controls use the supported
+`agent_harness.retry_control.RetryControl`, `inputs_digest()`, and a consumer-local
+callback error mapped by Harness to `retry-policy-violation`. Both registered
+control digests match their pre-adoption evidence.
+
+Harness's accepted 14b-2 candidate evidence remains 295/299, not all green.
+The four known unpassed cases are the two baseline failures
+`test_harness.HarnessTest.test_register_manual_observation_serializes_scope_resolution_with_lifecycle_mutation`
+and
+`test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs`,
+plus environment-only `test_verification_workspace` and
+`test_verification_sandbox_doctor`. Base and wrapped results and 21 CI command
+outputs were identical; rollback rehearsal passed. Showcase's exact adoption CI
+status and disposable-clone rollback result are recorded in the
+[adoption handover](showcase-handover-ah5-14b2-adoption-2026-10-24.md).
+
+Benchmark remains on v0.14.0; no re-pin or live trial is required for this
+release. Dependency Review `SKIPPED` remains a coverage gap. S30-06 remains
+`DEFERRED / NOT QUALIFIED` with its consumer disabled. The external handbook
+remains unsynchronized.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
