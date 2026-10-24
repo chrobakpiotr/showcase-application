@@ -317,8 +317,8 @@ class VerificationLifecycleTest(unittest.TestCase):
             observation_path = telemetry.record_manual(
                 repo=fixture['root'], feature='TST-MANUAL', role='evaluator',
                 provider='manual', checkpoint=checkpoint, verdict='PASS',
-                report=fixture['report_path'].relative_to(fixture['root']).as_posix(),
-                attestation=fixture['attestation_path'].relative_to(fixture['root']).as_posix(),
+                report=fixture['report_path'].relative_to(fixture['root'].resolve()).as_posix(),
+                attestation=fixture['attestation_path'].relative_to(fixture['root'].resolve()).as_posix(),
             )
             observation = __import__('json').loads(observation_path.read_text(encoding='utf-8'))
             state = control_harness.load_state(
