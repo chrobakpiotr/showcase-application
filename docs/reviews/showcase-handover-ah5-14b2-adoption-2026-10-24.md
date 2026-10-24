@@ -130,19 +130,19 @@ remains unsynced.
 GitHub accepted the two adoption commits and reported these bypasses verbatim:
 
 ```text
-remote: Bypassed rule violations for refs/heads/main:        
-remote: 
-remote: - Cannot update this protected ref.        
-remote: 
-remote: - Changes must be made through a pull request.        
-remote: 
-remote: - 2 of 2 required status checks are expected.        
-remote: 
-remote: - Commits must have verified signatures.        
-remote:   Found 2 violations:        
-remote: 
-remote:   422cc0c4e00717c16bc0a6023c214afbd8473b3c        
-remote:   dfbcbbd8baa5ff74d54631869da13b0d50ad210f        
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+remote: - Commits must have verified signatures.
+remote:   Found 2 violations:
+remote:
+remote:   422cc0c4e00717c16bc0a6023c214afbd8473b3c
+remote:   dfbcbbd8baa5ff74d54631869da13b0d50ad210f
 ```
 
 None of those bypassed requirements is represented as a passed control.
@@ -151,18 +151,37 @@ None of those bypassed requirements is represented as a passed control.
 The later test-only correction push was also accepted with this report:
 
 ```text
-remote: Bypassed rule violations for refs/heads/main:        
-remote: 
-remote: - Cannot update this protected ref.        
-remote: 
-remote: - Changes must be made through a pull request.        
-remote: 
-remote: - 2 of 2 required status checks are expected.        
-remote: 
-remote: - Commits must have verified signatures.        
-remote:   Found 1 violation:        
-remote: 
-remote:   ac552f0097214e339124a7f21b64174b2c0c4e3b        
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   ac552f0097214e339124a7f21b64174b2c0c4e3b
 ```
 
 Those bypasses are not passed controls.
+
+The documentation-only handover push at `182c105ced3b957aae529ba35ba52938995eee9d` was accepted with this report:
+
+```text
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   182c105ced3b957aae529ba35ba52938995eee9d
+```
+
+These bypasses are not passed controls.
