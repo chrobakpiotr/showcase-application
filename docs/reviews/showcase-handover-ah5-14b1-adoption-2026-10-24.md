@@ -56,16 +56,39 @@ passed. Frontend audit reports zero vulnerabilities; lint, all 488 frontend
 tests, build, E2E and the aggregate quality gate passed. Dependency Review was
 skipped for both push events and is not counted as passed.
 
-The pushes were accepted under the owner's direct-push authorization. For
-both commits, GitHub reported these exact bypass categories:
+The pushes were accepted under the owner's direct-push authorization. GitHub
+reported the following exact bypasses for each Showcase push:
 
 ```text
-Bypassed rule violations for refs/heads/main:
-- Cannot update this protected ref.
-- Changes must be made through a pull request.
-- 2 of 2 required status checks are expected.
-- Commits must have verified signatures.
-  Found 1 violation: <pushed commit SHA>
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote: - Changes must be made through a pull request.
+remote: - 2 of 2 required status checks are expected.
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   87e4ad688b17970dbd0afdc660d4a04ed6d0351e
+
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote: - Changes must be made through a pull request.
+remote: - 2 of 2 required status checks are expected.
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   792dfade2775b9d3d6cef5b4020380d84fd1a2c4
+
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote: - Changes must be made through a pull request.
+remote: - 2 of 2 required status checks are expected.
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   e8df24f39aa80b6b13b4feae96bc80bf8ef4cf72
 ```
 
 These bypasses are not passed controls.
