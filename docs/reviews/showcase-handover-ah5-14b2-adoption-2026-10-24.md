@@ -92,19 +92,26 @@ including a mutated Gradle input whose callback refusal maps to
   passed control. GitHub accepted direct pushes while reporting bypasses of the
   protected-ref rule, PR requirement, two expected required status checks, and
   verified-signature requirement; those are not passed controls.
-- Harness's accepted AH5-14b-2 evidence is 295/299 through the shim; the four
-  known unpassed cases are:
+- Harness's historical AH5-14b-2 report states 295/299 through the shim and
+  reports identical base/wrapped summaries of 921 ok, 2 FAIL, and 2 ERROR.
+  Showcase does not have the preserved AH5-14 rehearsal packet or raw logs
+  needed to reconcile those counts. The two named baseline failures are:
   1. `test_harness.HarnessTest.test_register_manual_observation_serializes_scope_resolution_with_lifecycle_mutation`;
-  2. `test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs`;
-  3. the environment-only `test_verification_workspace` cases;
-  4. the environment-only `test_verification_sandbox_doctor` cases.
+  2. `test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs`.
 
-  The first two are established baseline failures in Harness
-  `docs/specs/AH5-12/packet.md`; both failed on both sides in the AH5-14b-2
-  rehearsal. The latter two are environment-only failures in the local macOS
-  copy. Harness records identical base/wrapped test results (921 ok, 2 FAIL,
-  2 ERROR), identical 21-command CI outputs after masking, and successful
-  rollback in `docs/specs/AH5-14/packet.md`. This is not an all-green result.
+  Both are documented as established baseline failures in Harness
+  `docs/specs/AH5-12/packet.md`, and were reported to fail on both sides of the
+  AH5-14b-2 rehearsal. The historical report also mentions environment-only
+  `test_verification_workspace` cases, but their exact test identifiers and
+  results are not preserved here. `test_verification_sandbox_doctor` does not
+  collect as a test identifier and is not counted as an unpassed test; the
+  available record does not establish whether this was a command/discovery
+  error or an undocumented case, nor how it relates to the reported totals.
+  Therefore the reported 295/299 and 921/2/2 summaries remain historical
+  Harness claims, not a fully reconciled count. The unreconciled portion of
+  the denominator/results is explicitly unconfirmed. Do not infer missing
+  workspace test names or assign missing results to the sandbox-doctor module.
+  This is not an all-green result.
 
 ## Rollback and ownership handover
 

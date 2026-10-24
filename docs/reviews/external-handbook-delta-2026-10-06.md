@@ -335,15 +335,24 @@ unchanged. Retry controls use the supported
 callback error mapped by Harness to `retry-policy-violation`. Both registered
 control digests match their pre-adoption evidence.
 
-Harness's accepted 14b-2 candidate evidence remains 295/299, not all green.
-The four known unpassed cases are the two baseline failures
+Harness's historical 14b-2 report states 295/299 and identical base/wrapped
+summaries of 921 ok, 2 FAIL, and 2 ERROR; Showcase does not hold the preserved
+AH5-14 rehearsal packet or raw logs needed to reconcile those totals. The two
+named baseline failures are
 `test_harness.HarnessTest.test_register_manual_observation_serializes_scope_resolution_with_lifecycle_mutation`
 and
-`test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs`,
-plus environment-only `test_verification_workspace` and
-`test_verification_sandbox_doctor`. Base and wrapped results and 21 CI command
-outputs were identical; rollback rehearsal passed. Showcase's exact adoption CI
-status and disposable-clone rollback result are recorded in the
+`test_verification_completion_boundary.OriginCompletionBoundaryTest.test_real_plan_acceptance_cannot_be_completed_with_legacy_proofs`.
+The report also mentions environment-only `test_verification_workspace` cases,
+but their exact identifiers and results are not preserved here.
+`test_verification_sandbox_doctor` does not collect as a test identifier and
+is not counted as an unpassed test. Available evidence does not establish
+whether it represents a command/discovery error or an undocumented case, or
+how it relates to the reported totals. The 295/299 and 921/2/2 figures remain
+historical Harness claims; the unreconciled portion of the denominator/results
+is explicitly unconfirmed. Do not infer missing workspace test names or assign
+missing results to the sandbox-doctor module. The historical report states
+that 21 CI command outputs matched after masking and rollback passed.
+Showcase's exact adoption CI status and disposable-clone rollback result are recorded in the
 [adoption handover](showcase-handover-ah5-14b2-adoption-2026-10-24.md).
 
 Benchmark remains on v0.14.0; no re-pin or live trial is required for this
