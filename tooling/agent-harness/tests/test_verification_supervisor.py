@@ -935,10 +935,6 @@ gradle.projectsEvaluated {
                 sandbox_mode='required', critical=True, retry_controls=('no-internal-retries',))
             terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
             self.assertTrue(terminal['retry_policy_proof']['retry_free'])
-            if declaration != 'no-internal-retries':
-                control = store.retry_controls[declaration]
-                self.assertEqual(control.inputs_digest(),
-                                 terminal['retry_policy_proof']['control_evidence']['registered_inputs_sha256'])
             self.assertEqual(['no-internal-retries'], terminal['retry_policy_proof']['retry_controls'])
 
     def test_vc009_10b_retry_free_boolean_cannot_override_declaration_facts(self):
@@ -1061,6 +1057,10 @@ gradle.projectsEvaluated {
             terminal = json.loads(next(store.executions.glob('*/terminal.json')).read_text())
             self.assertEqual([declaration], terminal['retry_policy_proof']['retry_controls'])
             self.assertTrue(terminal['retry_policy_proof']['retry_free'])
+            if declaration != 'no-internal-retries':
+                control = store.retry_controls[declaration]
+                self.assertEqual(control.inputs_digest(),
+                                 terminal['retry_policy_proof']['control_evidence']['registered_inputs_sha256'])
 
     def _copy_registered_retry_inputs(self, root, control_id):
         source_root = pathlib.Path(__file__).resolve().parents[3]
