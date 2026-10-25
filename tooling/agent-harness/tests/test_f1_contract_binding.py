@@ -8,6 +8,7 @@ import contextlib
 import io
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import unittest
@@ -291,23 +292,26 @@ class ContractBindingTest(unittest.TestCase):
 
     def test_unreadable_inputs_refuse_start_and_complete(self):
         constitution = self.root / 'docs/agentic-sdd/constitution.md'
-        try:
-            constitution.chmod(0)
-            before = self.state_bytes()
+        original_read = vc._impl._read
+
+        def read_with_unreadable_constitution(path):
+            if pathlib.Path(path).resolve() == constitution.resolve():
+                raise PermissionError('test unreadable input')
+            return original_read(path)
+
+        before = self.state_bytes()
+        with mock.patch.object(vc._impl, '_read', side_effect=read_with_unreadable_constitution):
             err = self.refused(self.start)
-            self.assertIn('verification contract currency cannot be established: constitution_sha256 unreadable '
-                          '(PermissionError)', err)
-            self.assertEqual(before, self.state_bytes())
-            constitution.chmod(0o644)
-            self.start()
-            evidence = self.evidence()
-            constitution.chmod(0)
-            before = self.state_bytes()
+        self.assertIn('verification contract currency cannot be established: constitution_sha256 unreadable '
+                      '(PermissionError)', err)
+        self.assertEqual(before, self.state_bytes())
+        self.start()
+        evidence = self.evidence()
+        before = self.state_bytes()
+        with mock.patch.object(vc._impl, '_read', side_effect=read_with_unreadable_constitution):
             self.assertIn('constitution_sha256 unreadable (PermissionError)',
                           self.refused(lambda: self.complete(evidence)))
-            self.assertEqual(before, self.state_bytes())
-        finally:
-            constitution.chmod(0o644)
+        self.assertEqual(before, self.state_bytes())
 
     def test_an_attempt_without_a_recorded_binding_cannot_complete_normally(self):
         self.start()
