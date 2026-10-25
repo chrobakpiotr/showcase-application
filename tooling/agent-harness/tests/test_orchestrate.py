@@ -116,6 +116,41 @@ class OrchestrateTest(unittest.TestCase):
         start.assert_not_called()
         self.assertEqual(before, state)
 
+    def test_a_failure_after_a_committed_start_rolls_back_exactly_that_start(self):
+        """agent-harness 0.19.1: each committed start is undone by the identity its own cmd_start returned, whether
+        a later start in the batch fails or a lookup right after the start does."""
+        feature, doc = self.feature()
+        packet = self.root / 'packet.json'
+        worktree = self.root / 'worktree'
+        identity = {'task': 'T-001', 'attempt': 3, 'claimed_at': '2026-10-25T00:00:00+00:00'}
+        for failing in ('second start', 'lookup after the first start'):
+            with self.subTest(failing=failing):
+                def start(args):
+                    if args.task_id == 'T-900':
+                        raise RuntimeError('second start failed')
+                    return identity
+
+                def contract(_feature, _doc, task_id, **_kw):
+                    if failing == 'lookup after the first start' and task_id == 'T-001' and start_mock.called:
+                        raise RuntimeError('lookup failed')
+                    return next(task for task in doc['tasks'] if task['id'] == task_id)
+                with mock.patch.object(orchestrate.h, 'ready_ids', return_value=['T-001', 'T-900']), \
+                     mock.patch.object(orchestrate, 'prior_feedback', return_value=None), \
+                     mock.patch.object(orchestrate, 'prepare_ready_task_for_preflight',
+                                       side_effect=lambda _f, _d, task_id, *_a: (contract(None, None, task_id),
+                                                                                  worktree, packet, None)), \
+                     mock.patch.object(orchestrate.h, 'active_task_contract', side_effect=contract), \
+                     mock.patch.object(orchestrate.h, 'worktree_path', return_value=worktree), \
+                     mock.patch.object(orchestrate.h, 'resolve_active_packet', return_value={'path': str(packet)}), \
+                     mock.patch.object(orchestrate.h, 'cmd_start', side_effect=start) as start_mock, \
+                     mock.patch.object(orchestrate.h, 'rollback_unexecuted_start') as rollback:
+                    with self.assertRaisesRegex(RuntimeError, 'second start failed|lookup failed'):
+                        orchestrate.start_ready_batch(feature, doc, self.args())
+                self.assertEqual(1, rollback.call_count)
+                args, kwargs = rollback.call_args
+                self.assertEqual('T-001', args[2])
+                self.assertEqual({'attempt': 3, 'claimed_at': '2026-10-25T00:00:00+00:00'}, kwargs)
+
     def test_preflight_runner_requires_explicit_success_and_surfaces_refusal_reason(self):
         with mock.patch.object(orchestrate.subprocess, 'run', return_value=subprocess.CompletedProcess(
                 [], 0, stdout='preflight: ok\n', stderr='')) as run:

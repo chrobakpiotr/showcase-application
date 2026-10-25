@@ -6,6 +6,7 @@ import pathlib
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 
@@ -27,6 +28,9 @@ class ReplanInfrastructureTest(unittest.TestCase):
         subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
                         'commit', '--allow-empty', '-q', '-m', 'base'], cwd=self.root, check=True)
         harness.STATE_DIR = self.root / '.agent-state'
+        repository = mock.patch.object(harness.vc, 'REPO', self.root)  # F1: the fixture repository is the tooling's
+        repository.start()
+        self.addCleanup(repository.stop)
         roles = self.root / 'docs/agentic-sdd/agents'
         roles.mkdir(parents=True)
         (roles / 'builder.md').write_text('# builder\n')

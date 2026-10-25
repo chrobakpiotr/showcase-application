@@ -1512,6 +1512,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
             if isinstance(active_verification_resume, dict):
                 entry['verification_resume_pending'] = active_verification_resume
             entry.pop('start_origin_status', None)
+            entry.pop('start_origin_contract_binding', None)
             for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
                 entry.pop(key, None)
             recovered.append(task_id)
@@ -1604,6 +1605,10 @@ def cmd_resume_verification(args: argparse.Namespace) -> None:
         entry['status'] = 'failed'
         entry.pop('control_outcome', None)
     print(f'VERIFICATION_RESUME_READY {args.task_id} attempt={plan["task_attempt"]} plan={plan_id}')
+
+
+def cmd_invalidate_verification_resume(args: argparse.Namespace) -> None:
+    return _transitions.cmd_invalidate_verification_resume(args, ns=_NS)
 
 
 def cmd_recover_verification(args: argparse.Namespace) -> None:
@@ -2309,9 +2314,9 @@ def cmd_authorize_retry(args: argparse.Namespace) -> None:
         die('RETRY_AUTHORIZATION_INVALID: --reason must be non-empty')
     with locked_state(args.feature_dir, doc) as state:
         entry = state['tasks'][args.task_id]
-        attempts = int(entry.get('attempts', 0))
+        attempts = _transitions.last_executed_attempt(entry)  # the attempt being retried (not a rolled-back one)
         maximum = 1 + int(doc.get('max_rework_attempts', 2))
-        if entry.get('status') != 'failed' or attempts < maximum:
+        if entry.get('status') != 'failed' or _transitions.attempts_counted(entry) < maximum:
             die('RETRY_AUTHORIZATION_INVALID: task must be failed with exhausted normal attempts')
         existing = entry.get('retry_authorizations', [])
         if not isinstance(existing, list):
@@ -2907,7 +2912,11 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
         evidence_doc = json.loads(evidence_path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError) as exc:
         die(f'COMPLETION_EVIDENCE_INVALID: {exc}')
+    # F1: a new repaired completion needs the attempt's contract binding, as `complete` does; a replay of an already
+    # published repair (below) creates no new completion and is resolved from its immutable record.
+    observed_contract = _transitions.observed_contract_binding(args.feature_dir, ns=_NS)
     with locked_state(args.feature_dir, doc) as state:
+        contract_binding = _transitions.require_unchanged_contract(args.feature_dir, observed_contract, ns=_NS)
         entry = state['tasks'].get(args.task_id)
         if not entry:
             die(f'unknown task {args.task_id}')
@@ -2956,6 +2965,8 @@ def cmd_complete_repair(args: argparse.Namespace) -> None:
         attempt = entry.get('attempts')
         if type(attempt) is not int or attempt < 1:
             die('COMPLETION_REPAIR_ATTEMPT_INVALID: existing attempt is absent')
+        _transitions.require_attempt_contract(args.feature_dir, args.task_id, entry, contract_binding,
+                                              unbound_without_contract=False, ns=_NS)  # no new completion unbound
         active = resolve_active_packet(args.feature_dir, doc, args.task_id, state=state)
         task = active_task_contract(args.feature_dir, doc, args.task_id, state=state)
         binding_errors = validate_completion_binding(evidence_doc, args.feature_dir, args.task_id, entry, active)
@@ -3734,35 +3745,91 @@ def cmd_worktree_create(args: argparse.Namespace) -> None:
     print(target)
 
 
-def cmd_start(args: argparse.Namespace) -> None:
+def cmd_start(args: argparse.Namespace) -> dict[str, Any]:
     return _transitions.cmd_start(args, ns=_NS)
 
-def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str) -> None:
-    """Undo a start that failed before a provider process was launched.
+def rollback_unexecuted_start(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str, reason: str,
+                              *, attempt: int, claimed_at: str) -> None:
+    """Undo a start that failed before a provider process was launched (`attempt`, `claimed_at`: the start the caller
+    made, as `cmd_start` returned it).
 
-    This does not consume rework budget and only succeeds for a clean task worktree.
+    The attempt keeps its number and history, marked rolled back; it does not consume rework budget and only succeeds
+    for a clean task worktree with no heartbeat since its start.
     """
-    return _transitions.rollback_unexecuted_start(feature_dir, doc, task_id, owner, reason, ns=_NS)
+    return _transitions.rollback_unexecuted_start(feature_dir, doc, task_id, owner, reason, attempt=attempt,
+                                                  claimed_at=claimed_at, ns=_NS)
+
+
+def _git_ref(repository: pathlib.Path, ref: str) -> str | None:
+    proc = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', f'{ref}^{{commit}}'], cwd=repository,
+                          capture_output=True, text=True, check=False)
+    return proc.stdout.strip() if proc.returncode == 0 and proc.stdout.strip() else None
 
 
 def cmd_worktree_remove(args: argparse.Namespace) -> None:
+    """Remove a task worktree and its branch, keeping the branch's commits under an archive ref (F1 recovery).
+
+    Two transactions, so the record is durable before anything is removed and a rerun finishes a partial removal:
+    1. the ref `refs/attempts/<feature>/<task>/<attempt>/<sha>` is created only if absent (never overwritten), must
+       point at the exact tip, and is recorded in the attempt's `archived_attempt_refs`;
+    2. the worktree is removed (refused while it has uncommitted changes: the ref keeps commits, not files) and the
+       branch deleted with the archived tip as the expected old value.
+    """
     doc = load_validated(args.feature_dir)
     feature = str(doc.get('feature', args.feature_dir.name))
     target = worktree_path(feature, args.task_id)
     branch = f'agent/{feature}/{args.task_id}'
-    if not target.exists():
+    repository = feature_repo_base(args.feature_dir)
+
+    def require_clean() -> None:
+        if target.exists() and changed_paths(target):
+            die(f'WORKTREE_REMOVE_REFUSED: {target} has uncommitted changes; checkpoint, fail or release the attempt '
+                'first')
+
+    if not target.exists() and _git_ref(repository, f'refs/heads/{branch}') is None:
         die(f'worktree path does not exist: {target}')
-    from verification.store import StoreError
-    try:
-        with lifecycle_state_lock(args.feature_dir):
-            if not target.exists():
-                die(f'worktree path does not exist: {target}')
-            subprocess.run(['git', 'worktree', 'remove', str(target)], check=True)
-            if subprocess.run(['git', 'show-ref', '--verify', '--quiet', f'refs/heads/{branch}']).returncode == 0:
-                subprocess.run(['git', 'branch', '-D', branch], check=True)
-    except StoreError as exc:
-        fail_on_verification_store_error(exc)
-    print(f'REMOVED {target} and local branch {branch}')
+    require_clean()
+    archive = tip = None
+    with locked_state(args.feature_dir, doc) as state:
+        entry = state['tasks'].get(args.task_id)
+        if not isinstance(entry, dict):
+            die(f'unknown task {args.task_id}')
+        require_clean()
+        tip = _git_ref(repository, f'refs/heads/{branch}')
+        if tip is not None:
+            attempt = entry.get('attempts')
+            if type(attempt) is not int or attempt < 0:
+                die('WORKTREE_REMOVE_REFUSED: the attempt number is unavailable for the archive ref')
+            archive = f'refs/attempts/{feature}/{args.task_id}/{attempt}/{tip}'
+            if _git_ref(repository, archive) is None:
+                created = subprocess.run(['git', 'update-ref', '--no-deref', archive, tip, '0' * 40],
+                                         cwd=repository, capture_output=True, text=True, check=False)
+                if created.returncode != 0:
+                    die(f'WORKTREE_REMOVE_REFUSED: archive ref {archive} could not be created; nothing removed')
+            if _git_ref(repository, archive) != tip:
+                die(f'WORKTREE_REMOVE_REFUSED: archive ref {archive} does not point at {tip}; nothing removed')
+            records = entry.setdefault('archived_attempt_refs', [])
+            if not any(item.get('ref') == archive for item in records if isinstance(item, dict)):
+                records.append({'ref': archive, 'commit': tip, 'attempt': attempt, 'branch': branch,
+                                'archived_at': utc_now().isoformat()})
+    with locked_state(args.feature_dir, doc):
+        require_clean()
+        if tip is not None and (_git_ref(repository, archive) != tip or
+                                _git_ref(repository, f'refs/heads/{branch}') not in {tip, None}):
+            die(f'WORKTREE_REMOVE_REFUSED: {branch} or {archive} changed since it was archived; nothing further '
+                'removed')
+        if target.exists():
+            removed = subprocess.run(['git', 'worktree', 'remove', str(target)], cwd=repository,
+                                     capture_output=True, text=True, check=False)
+            if removed.returncode != 0:
+                die(f'WORKTREE_REMOVE_FAILED: {removed.stderr.strip()}; the archive ref is recorded, rerun to finish')
+        if tip is not None and _git_ref(repository, f'refs/heads/{branch}') is not None:
+            deleted = subprocess.run(['git', 'update-ref', '-d', f'refs/heads/{branch}', tip], cwd=repository,
+                                     capture_output=True, text=True, check=False)
+            if deleted.returncode != 0:
+                die(f'WORKTREE_REMOVE_FAILED: {branch} not deleted ({deleted.stderr.strip()}); the archive ref is '
+                    'recorded, rerun to finish')
+    print(f'REMOVED {target}' + (f' and local branch {branch}; commits kept at {archive}' if archive else ''))
 
 
 
@@ -4040,6 +4107,15 @@ def parser() -> argparse.ArgumentParser:
                    help='Recovery evidence or operator note that the blocked precondition is repaired')
     s.add_argument('--by', required=True, help='Operator attribution for the auditable verification resume')
     s.set_defaults(func=cmd_resume_verification)
+
+    s = sub.add_parser('invalidate-verification-resume',
+                       help='End a pending verification resume (F1 recovery); a new attempt is an ordinary start')
+    s.add_argument('feature_dir', type=pathlib.Path)
+    s.add_argument('task_id')
+    s.add_argument('--resume', required=True, help='Identity of the pending resume (sha256:...), as refusals print it')
+    s.add_argument('--reason', required=True, help='Why the pending resume no longer applies')
+    s.add_argument('--by', required=True, help='Operator attribution')
+    s.set_defaults(func=cmd_invalidate_verification_resume)
 
     s = sub.add_parser('human-resolve')
     s.add_argument('feature_dir', type=pathlib.Path)

@@ -664,6 +664,9 @@ def start_ready_batch(
     state = h.load_state(feature_dir, doc)
     ids = h.ready_ids(doc, state, feature_dir)
     started: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
+    # agent-harness 0.19.1: each committed start, as its cmd_start returned it (attempt and claim time), recorded at
+    # once so a later failure in this batch undoes exactly the starts this batch made.
+    committed: list[tuple[str, str, dict[str, Any]]] = []
     prepared: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
     try:
         # Preflight the whole ready batch before the first cmd_start so a refusal
@@ -674,18 +677,20 @@ def start_ready_batch(
         for task, worktree, packet, feedback in prepared:
             task_id = task['id']
             owner = owner_for(args, task_id)
-            h.cmd_start(argparse.Namespace(feature_dir=feature_dir, task_id=task_id, owner=owner))
+            identity = h.cmd_start(argparse.Namespace(feature_dir=feature_dir, task_id=task_id, owner=owner))
+            committed.append((task_id, owner, identity))
             task = h.active_task_contract(feature_dir, doc, task_id)
             worktree = h.worktree_path(str(doc.get('feature', feature_dir.name)), task_id)
             packet = pathlib.Path(h.resolve_active_packet(feature_dir, doc, task_id)['path'])
             started.append((task, worktree, packet, feedback))
     except BaseException as exc:
-        for task, worktree, packet, feedback in reversed(started):
-            owner = owner_for(args, task['id'])
+        for task_id, owner, identity in reversed(committed):
             try:
-                h.rollback_unexecuted_start(feature_dir, doc, task['id'], owner, f'batch start aborted: {exc}')
-            except BaseException:
-                pass
+                h.rollback_unexecuted_start(feature_dir, doc, task_id, owner, f'batch start aborted: {exc}',
+                                            attempt=identity['attempt'], claimed_at=identity['claimed_at'])
+            except BaseException as rollback_error:  # refused or failed: the start stays for controlled recovery
+                detail = 'refused (reason above)' if isinstance(rollback_error, SystemExit) else repr(rollback_error)
+                print(f'START_ROLLBACK_NOT_DONE {task_id}: {detail}', file=sys.stderr)
         raise
     return started
 

@@ -63,6 +63,36 @@ def validate_contract(feature_dir: pathlib.Path, *, require: bool | None = None)
                                    constitution=CONSTITUTION, is_active=lambda path: is_active_feature_dir(path))
 
 
+def _git_path(cwd: pathlib.Path, *args: str) -> pathlib.Path | None:
+    # The repository is the one at `cwd`: Git's environment overrides (as in hooks) must not substitute another.
+    env = {key: value for key, value in os.environ.items()
+           if key not in {'GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_CEILING_DIRECTORIES'}}
+    try:
+        proc = subprocess.run(['git', '-C', str(cwd), 'rev-parse', '--path-format=absolute', *args],
+                              capture_output=True, text=True, check=False, env=env)
+    except OSError:
+        return None
+    return pathlib.Path(proc.stdout.strip()).resolve() if proc.returncode == 0 and proc.stdout.strip() else None
+
+
+def binding_repo_root(feature_dir: pathlib.Path) -> pathlib.Path:
+    """F1: the configured repository (`REPO`), confirmed as the feature's own by the Git common directory (worktrees of
+    one repository share it). No fallback to the current directory's repository; authoring keeps `repo_root()`."""
+    root = _git_path(REPO, '--show-toplevel')
+    if root is None:
+        raise _impl.RepositoryUnconfirmed(f'{REPO} is not a Git checkout')
+    common, feature_common = _git_path(REPO, '--git-common-dir'), _git_path(feature_dir, '--git-common-dir')
+    if common is None or feature_common is None or common != feature_common:
+        raise _impl.RepositoryUnconfirmed(f'{feature_dir} is not in the repository of {REPO}')
+    return root
+
+
+def contract_binding(feature_dir: pathlib.Path, *, require: bool | None = None) -> tuple[list[str], dict[str, Any] | None]:
+    return _impl.contract_binding(feature_dir, require=require, repo_root=lambda: binding_repo_root(feature_dir),
+                                  repository=REPO,
+                                  constitution=CONSTITUTION, is_active=lambda path: is_active_feature_dir(path))
+
+
 def prompt(feature_dir: pathlib.Path, worktree: pathlib.Path) -> str:
     root = repo_root()
     rel = feature_dir.resolve().relative_to(root)
