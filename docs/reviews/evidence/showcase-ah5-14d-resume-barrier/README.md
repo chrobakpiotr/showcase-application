@@ -49,6 +49,15 @@ handoff. Independent review and acceptance remain Harness responsibilities.
 No active lifecycle state, provider trial, telemetry diff, production pin, or
 production Harness code was changed.
 
+## Evidence push
+
+The evidence packet was pushed to Showcase `main` in
+`f8a63af848180327e4002f842e88cc9756aa7d09`. GitHub accepted the direct push
+and reported these bypasses for that commit: protected-ref update blocked by
+rules, pull request required, 2 of 2 required status checks expected, and
+verified commit signature required (one violation: this commit). These are
+bypasses, not passed controls.
+
 ## Integrity
 
 `SHA256SUMS` covers the preserved target log, mutation log, and patch.
