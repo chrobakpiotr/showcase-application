@@ -367,6 +367,57 @@ release. Dependency Review `SKIPPED` remains a coverage gap. S30-06 remains
 `DEFERRED / NOT QUALIFIED` with its consumer disabled. The external handbook
 remains unsynchronized.
 
+## Harness 0.19.1 adoption delta (2026-10-25; repository source)
+
+Showcase adopted agent-harness v0.19.1 at full release SHA
+`226d70a9e68ee3278475f8748d19c53aab383648`. The adoption commit is
+`b07fbf575e490bee42149a4b64e442cad737269a`; a separate test-fixture correction
+is `51a12875d37b12616187a044f8b563c900367dc9` (final code checkpoint).
+Showcase pins the release SHA, copies the 0.19.1 `harness.py` and
+`verification_contract.py` shims and the F1 binding, resume-recovery, and
+start-rollback tests, and applies both the F1 fixture patch and the
+`start_ready_batch` identity patch.
+
+`cmd_start` returns `attempt` and `claimed_at` from its committed transaction.
+The Showcase batch caller records that pair immediately and passes it to
+`rollback_unexecuted_start`; it does not read the latest attempt afterward.
+Coverage distinguishes a preflight refusal (no attempt, no rollback) from a
+later batch-start failure (rollback only the earlier starts made by that batch).
+Rollback preserves attempt history, permits a new attempt without consuming
+execution budget, and refuses to affect a newer attempt on replay.
+
+On final code checkpoint `51a12875d37b12616187a044f8b563c900367dc9`, Agentic
+SDD CI [40205004617](https://github.com/chrobakpiotr/showcase-application/actions/runs/40205004617)
+passed: the harness suite ran **976 tests, OK**. Main CI
+[40205004562](https://github.com/chrobakpiotr/showcase-application/actions/runs/40205004562),
+CodeQL
+[40205004564](https://github.com/chrobakpiotr/showcase-application/actions/runs/40205004564),
+and OpenSSF Scorecard
+[40205004659](https://github.com/chrobakpiotr/showcase-application/actions/runs/40205004659)
+also succeeded. Frontend audit/lint/tests, backend, Playwright, infra, OWASP,
+Trivy, SBOM, PIT, repository guards, and documentation links passed.
+Dependency Review was skipped for push and is not a passed control.
+
+The initial CI run on `b07fbf5` exposed one permission-fixture failure: a
+`chmod(0)` test remained readable in the CI runner. The test now injects a
+`PermissionError` at the reader boundary for the constitution path; production
+validation is unchanged. Both the start/complete and inherited resume test
+cases passed locally, and the complete suite passed on the final code
+checkpoint. Intel macOS local verification remains partial because the pinned
+`cryptography==49.0.0` has no Intel macOS wheel. Linux CI used the pinned
+dependency and is the full-suite evidence.
+
+Rollback of the complete committed adoption is to exact parent
+`dfdd68075b9178a82d7568ce3f4f23d70d8ed10e`, which pins v0.18.0 at
+`6d1c69a170dee8638b5535aed3f9aadb57845ba6` and restores the prior shims, tests,
+and orchestrator caller. Revert test-only commit `51a1287` first, then adoption
+commit `b07fbf5`.
+
+GitHub accepted both direct pushes while reporting bypasses of the protected-ref
+rule, PR requirement, two expected required status checks, and verified-signature
+requirement. These bypasses are not passed controls. The external handbook
+remains unsynchronized; this section is a repository-side delta only.
+
 ## Historical workflow status and limits — through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
