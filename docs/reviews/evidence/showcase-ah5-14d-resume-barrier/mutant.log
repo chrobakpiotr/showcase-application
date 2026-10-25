@@ -1,0 +1,24 @@
+BARRIER_CALL_REMOVED=CONFIRMED
+F
+======================================================================
+FAIL: test_verification_resume_refuses_live_repository_ownership_without_mutation (test_harness.HarnessTest.test_verification_resume_refuses_live_repository_ownership_without_mutation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/showcase/tooling/agent-harness/tests/test_harness.py", line 253, in test_verification_resume_refuses_live_repository_ownership_without_mutation
+    self.assertEqual([], entered_lifecycle_lock,
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     'the explicit repository barrier must refuse before lifecycle locking')
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [] != [True]
+
+Second list contains 1 additional elements.
+First extra element 0:
+True
+
+- []
++ [True] : the explicit repository barrier must refuse before lifecycle locking
+
+----------------------------------------------------------------------
+Ran 1 test in 0.255s
+
+FAILED (failures=1)
