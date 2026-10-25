@@ -1,0 +1,28 @@
+test_verification_lifecycle (unittest.loader._FailedTest.test_verification_lifecycle) ... ERROR
+OrchestrateTests (unittest.loader._FailedTest.OrchestrateTests) ... ERROR
+
+======================================================================
+ERROR: test_verification_lifecycle (unittest.loader._FailedTest.test_verification_lifecycle)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_verification_lifecycle
+Traceback (most recent call last):
+  File "/Users/pau/.local/share/uv/python/cpython-3.13.16-macos-x86_64-none/lib/python3.13/unittest/loader.py", line 141, in loadTestsFromName
+    module = __import__(module_name)
+  File "/private/tmp/showcase-ah5-14d-review-20261025/tooling/agent-harness/tests/test_verification_lifecycle.py", line 19, in <module>
+    import test_verification_supervisor
+  File "/private/tmp/showcase-ah5-14d-review-20261025/tooling/agent-harness/tests/test_verification_supervisor.py", line 28, in <module>
+    from human_grant_fixture import signed_test_grant, trusted_test_store
+  File "/private/tmp/showcase-ah5-14d-review-20261025/tooling/agent-harness/tests/human_grant_fixture.py", line 7, in <module>
+    from cryptography.hazmat.primitives import serialization
+ModuleNotFoundError: No module named 'cryptography'
+
+
+======================================================================
+ERROR: OrchestrateTests (unittest.loader._FailedTest.OrchestrateTests)
+----------------------------------------------------------------------
+AttributeError: module 'test_orchestrate' has no attribute 'OrchestrateTests'. Did you mean: 'OrchestrateTest'?
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.000s
+
+FAILED (errors=2)

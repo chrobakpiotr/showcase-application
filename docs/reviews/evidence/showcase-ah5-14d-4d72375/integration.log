@@ -1,0 +1,15 @@
+test_the_shim_keeps_only_delegates_and_none_recurses (test_lifecycle_recovery_binding.RecoveryBindingTest.test_the_shim_keeps_only_delegates_and_none_recurses) ... ok
+test_the_start_rollback_restores_the_grant_through_the_library (test_lifecycle_recovery_binding.RecoveryBindingTest.test_the_start_rollback_restores_the_grant_through_the_library) ... ok
+test_reopen_snapshots_the_descendants_through_the_library (test_lifecycle_recovery_binding.RecoveryBindingTest.test_reopen_snapshots_the_descendants_through_the_library) ... [agent/TST-001/T-001 e5c2245] agent checkpoint TST-001 T-001
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+ok
+test_a_failed_prune_restores_the_workspace_through_the_library (test_lifecycle_recovery_binding.RecoveryBindingTest.test_a_failed_prune_restores_the_workspace_through_the_library) ... [agent/TST-001/T-001 01438ac] agent checkpoint TST-001 T-001
+ 1 file changed, 1 insertion(+)
+ create mode 100644 a.txt
+ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 34.094s
+
+OK

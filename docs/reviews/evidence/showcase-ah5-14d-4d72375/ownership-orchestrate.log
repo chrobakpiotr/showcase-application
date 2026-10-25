@@ -1,0 +1,7 @@
+test_busy_verification_lock_is_manifested_before_any_outcome_mutation (test_orchestrate.OrchestrateTest.test_busy_verification_lock_is_manifested_before_any_outcome_mutation) ... ERROR: VERIFICATION_OWNERSHIP_BLOCKED: busy
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 3.266s
+
+OK
