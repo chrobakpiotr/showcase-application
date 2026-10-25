@@ -1,0 +1,384 @@
+From 070b3b5e80886179f4e2d63b1c38d11dc760c69e Mon Sep 17 00:00:00 2001
+From: Local Patch Preparation <local-patch@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 23:26:58 +0100
+Subject: [PATCH] fix: fail on unresolved dependency snapshot warnings
+
+---
+ README.md                 |   1 +
+ __tests__/config.test.ts  |  15 +++++
+ __tests__/main.test.ts    | 113 +++++++++++++++++++++++++++++++++++++-
+ __tests__/summary.test.ts |   1 +
+ action.yml                |   4 ++
+ dist/index.js             | Bin 5655958 -> 5656665 bytes
+ dist/index.js.map         | Bin 6600095 -> 6600868 bytes
+ scripts/create_summary.ts |   1 +
+ src/config.ts             |   4 ++
+ src/main.ts               |  27 +++++++--
+ src/schemas.ts            |   1 +
+ 11 files changed, 159 insertions(+), 8 deletions(-)
+
+diff --git a/README.md b/README.md
+index 6b2a487..986c5fe 100644
+--- a/README.md
++++ b/README.md
+@@ -129,6 +129,7 @@ All configuration options are optional.
+ | `deny-groups`                          | Any number of groups (namespaces) to block in a PR.                                                                                                                                                                                                                                                                                                                | Namespace(s) in [purl](https://github.com/package-url/purl-spec) format (no package name, no version number) | empty         |
+ | `retry-on-snapshot-warnings`\*         | Enable or disable retrying the action every 10 seconds while waiting for dependency submission actions to complete.                                                                                                                                                                                                                                                | `true`, `false`                                                                                              | `false`       |
+ | `retry-on-snapshot-warnings-timeout`\* | Maximum amount of time (in seconds) to retry the action while waiting for dependency submission actions to complete.                                                                                                                                                                                                                                               | Any positive integer                                                                                         | 120           |
++| `fail-on-snapshot-warnings`           | Fail when snapshot warnings remain after retrying, rather than evaluating an incomplete dependency comparison.                                                                                                                                                                                                                                                                       | `true`, `false`                                                                                              | `false`       |
+ | `warn-only`+                           | When set to `true`, the action will log all vulnerabilities as warnings regardless of the severity, and the action will complete with a `success` status. This overrides the `fail-on-severity` option.                                                                                                                                                            | `true`, `false`                                                                                              | `false`       |
+ | `show-openssf-scorecard`               | When set to `true`, the action will output information about all the known OpenSSF Scorecard scores for the dependencies changed in this pull request.                                                                                                                                                                                                             | `true`, `false`                                                                                              | `true`        |
+ | `warn-on-openssf-scorecard-level`      | When `show-openssf-scorecard-levels` is set to `true`, this option lets you configure the threshold for when a score is considered too low and gets a :warning: warning in the CI.                                                                                                                                                                                 | Any positive integer                                                                                         | 3             |
+diff --git a/__tests__/config.test.ts b/__tests__/config.test.ts
+index 83a0345..d3842c9 100644
+--- a/__tests__/config.test.ts
++++ b/__tests__/config.test.ts
+@@ -26,6 +26,21 @@ test('it defaults to false for warn-only', async () => {
+   expect(config.warn_only).toEqual(false)
+ })
+ 
++test('it defaults to false for fail-on-snapshot-warnings', async () => {
++  const config = await readConfig()
++  expect(
++    (config as unknown as Record<string, unknown>).fail_on_snapshot_warnings
++  ).toEqual(false)
++})
++
++test('it reads fail-on-snapshot-warnings', async () => {
++  setInput('fail-on-snapshot-warnings', 'true')
++  const config = await readConfig()
++  expect(
++    (config as unknown as Record<string, unknown>).fail_on_snapshot_warnings
++  ).toEqual(true)
++})
++
+ test('it defaults to empty allow/deny lists ', async () => {
+   const config = await readConfig()
+ 
+diff --git a/__tests__/main.test.ts b/__tests__/main.test.ts
+index aee135f..53194a3 100644
+--- a/__tests__/main.test.ts
++++ b/__tests__/main.test.ts
+@@ -10,7 +10,8 @@ import * as fs from 'fs'
+ import * as core from '@actions/core'
+ import {DefaultArtifactClient} from '@actions/artifact'
+ import type {SpyInstance} from 'jest-mock'
+-import {handleLargeSummary} from '../src/main'
++import {getComparison, handleLargeSummary} from '../src/main'
++import * as dependencyGraph from '../src/dependency-graph'
+ 
+ jest.mock('ansi-styles', () => ({
+   __esModule: true,
+@@ -24,7 +25,7 @@ jest.mock('ansi-styles', () => ({
+     bold: {open: '', close: ''}
+   }
+ }))
+-jest.mock('../src/dependency-graph', () => ({}))
++jest.mock('../src/dependency-graph', () => ({compare: jest.fn()}))
+ jest.mock('@actions/core', () => {
+   const summary = {
+     addRaw: jest.fn().mockReturnThis(),
+@@ -162,3 +163,111 @@ describe('handleLargeSummary', () => {
+     )
+   })
+ })
++
++describe('snapshot warnings', () => {
++  beforeEach(() => {
++    process.env.GITHUB_REPOSITORY = 'owner/repository'
++  })
++
++  const compareMock = dependencyGraph.compare as jest.MockedFunction<
++    typeof dependencyGraph.compare
++  >
++
++  afterEach(() => {
++    jest.useRealTimers()
++    compareMock.mockReset()
++  })
++
++  test('fails closed when warnings remain and retry is disabled', async () => {
++    compareMock.mockResolvedValue({
++      changes: [],
++      snapshot_warnings: 'snapshot missing'
++    })
++
++    await expect(
++      getComparison('base-sha', 'head-sha', undefined, true)
++    ).rejects.toThrow(/snapshot.*incomplete/i)
++    expect(compareMock).toHaveBeenCalledTimes(1)
++  })
++
++  test('fails closed when warnings remain after retry timeout', async () => {
++    jest.useFakeTimers()
++    const retryUntil = Date.now() + 5_000
++    compareMock.mockResolvedValue({
++      changes: [],
++      snapshot_warnings: 'snapshot missing'
++    })
++
++    const result = getComparison(
++      'base-sha',
++      'head-sha',
++      {retryUntil, retryDelay: 10},
++      true
++    )
++    const assertion = expect(result).rejects.toThrow(/snapshot.*incomplete/i)
++    await jest.advanceTimersByTimeAsync(10_000)
++
++    await assertion
++    expect(compareMock).toHaveBeenCalledTimes(2)
++  })
++
++  test('evaluates the warning-free comparison returned after retry', async () => {
++    jest.useFakeTimers()
++    const retryUntil = Date.now() + 20_000
++    const first = {changes: [], snapshot_warnings: 'snapshot pending'}
++    const resolved = {
++      changes: [
++        {
++          change_type: 'added' as const,
++          manifest: 'package.json',
++          ecosystem: 'npm',
++          name: 'example',
++          version: '1.0.0',
++          package_url: 'pkg:npm/example@1.0.0',
++          license: null,
++          source_repository_url: null,
++          vulnerabilities: [
++            {
++              severity: 'high' as const,
++              advisory_ghsa_id: 'GHSA-test-test-test',
++              advisory_summary: 'test advisory',
++              advisory_url: 'https://example.test/advisory'
++            }
++          ]
++        }
++      ],
++      snapshot_warnings: ''
++    }
++    compareMock.mockResolvedValueOnce(first).mockResolvedValueOnce(resolved)
++
++    const result = getComparison(
++      'base-sha',
++      'head-sha',
++      {retryUntil, retryDelay: 10},
++      true
++    )
++    const assertion = expect(result).resolves.toBe(resolved)
++    await jest.advanceTimersByTimeAsync(10_000)
++
++    await assertion
++    expect(compareMock).toHaveBeenCalledTimes(2)
++    expect(resolved.changes[0]?.vulnerabilities[0]?.severity).toBe('high')
++  })
++
++  test('preserves API errors as failures', async () => {
++    compareMock.mockRejectedValue(
++      new Error('dependency graph API returned 403')
++    )
++
++    await expect(
++      getComparison('base-sha', 'head-sha', undefined, true)
++    ).rejects.toThrow('dependency graph API returned 403')
++  })
++
++  test('keeps default behavior when fail-on-snapshot-warnings is false', async () => {
++    const response = {changes: [], snapshot_warnings: 'snapshot missing'}
++    compareMock.mockResolvedValue(response)
++
++    await expect(getComparison('base-sha', 'head-sha')).resolves.toBe(response)
++  })
++})
+diff --git a/__tests__/summary.test.ts b/__tests__/summary.test.ts
+index 44b92f5..665591e 100644
+--- a/__tests__/summary.test.ts
++++ b/__tests__/summary.test.ts
+@@ -45,6 +45,7 @@ const defaultConfig: ConfigurationOptions = {
+   comment_summary_in_pr: true,
+   retry_on_snapshot_warnings: false,
+   retry_on_snapshot_warnings_timeout: 120,
++  fail_on_snapshot_warnings: false,
+   warn_only: false,
+   warn_on_openssf_scorecard_level: 3,
+   show_openssf_scorecard: false,
+diff --git a/action.yml b/action.yml
+index 5f6cf73..7473e75 100644
+--- a/action.yml
++++ b/action.yml
+@@ -67,6 +67,10 @@ inputs:
+   retry-on-snapshot-warnings-timeout:
+     description: Number of seconds to wait before stopping snapshot retries.
+     required: false
++  fail-on-snapshot-warnings:
++    description: Fail the action if snapshot warnings remain after the configured retries.
++    required: false
++    default: 'false'
+   warn-only:
+     description: When set to `true` this action will always complete with success, overriding the `fail-on-severity` parameter.
+     required: false
+diff --git a/dist/index.js b/dist/index.js
+index 2da57a506bca32ba8fc714566f3561f962df53fb..7d638316817b2002071e6cc061acf2cd8296c863 100644
+GIT binary patch
+delta 764
+zcmZY5O>7cD6bJA?5tdfuLxBpdjzImWSc@xuRH?1B6m7d}sm7R?$Oaa=weGI4U>Z+G
+z6RswcI0rp+k6vmkCLE1N<I#&;Oo%aFd-3j{)C5frzvR6)FEjJrtJiI7d!udLn$w2M
+zvXRyv=~6|hYAQ*Q|MF%^Bevj!M4YV1QZXl&x?x2&D(j+d(ER-=`lcQZ#z{$1)<kt#
+zmGtV0X55u3s-l+J_O{#4Hh;}>&5u>n!gk(@cJH1>rq|{N8CkS&G+)bh0~;gXM2>FN
+z!YrRogiww!--3M_froPSciuhk(eFlp?wB#Ezi<rv^NHQNUw(0UM)NbWE~`aZEv#dJ
+zx*|Uz)xVuYQ483>nrz4uB=(ekHip=z4@)C#BNufxf7kEzyW*svsU@X6)*X~3LcE{;
+zG~8_bYtqpyK1=0oz4~M)^4#n+%#H=D&<8fy2X=4(2TtgR0oV^NH~?<&fERpl5DtMK
+z0uY2jI1C{O!w?L^5jYA2jzI*X5Q7mo4kzFwoPtp}4RJUFV{jJ6A<;5B=N>0}qp^np
+zKDe7U0(`XP3-X!1-f>F^@j|ATQ*5GXcHTQ1!YU8vAqf}YB3y#YFacNKDx_c%uE7*c
+n!*xi*49r3X<{%3<;3mw&0xW_6BHV%{$iXt)ZV9V*vOoR+=lnj`
+
+delta 500
+zcmXxfIV?kQ0D$r6eV|IcDpmJc6i=O{O118*B$6(Y&UDc-iKK(UB6*2Fu`~uNNr!G0
+z>2B?$NsWdkMhU(M!*BbRFQ3k<u5R<H$8bDz7?(84&9P0)g$*I$(Q1tu_ffh`IlI;>
+zm&rz@J=rNP^=iF%`gG}(Xi^fT3$I-%MWnyPtb8RO#9d(6EeiK4>wjkw;XR!t^L*kn
+ziGx?4S-d1Hn#^D-xGz4OvXsgd&vV5xsGx=hTIisM0Y;c$MmZ`_2@9%VMKx+*LoFoO
+zQ3nU=(EukJ;X)Id(SlaAp&cFQL>IczgI>7NhkgvegFy^sbH(APSA08UefHEL`_<Wk
+zQx1lH7ta$h86)sw6k{021ST;BAEq$_KV}iY9Oe<k0zwF55ldLc3Rba(b!=c0Ti8Yf
+LJK02R_wD@$9@*`8
+
+diff --git a/dist/index.js.map b/dist/index.js.map
+index 87e80840130481412bf48172ccb2130d40d00324..a9a728b87c7dec388b85651bcb8948985205e67c 100644
+GIT binary patch
+delta 983
+zcmZwDJ4{ny6bJBJ`lRK9mWsS8Toj}rPeo7!q=JYd(()8&X)oncn&5418<iM?M3b73
+zXduQjIEaZcE}9a87Y7p<7;r#i96Pv)aS@G+F8(V@d=0<kdz|y-f4+MkW)%-MXBE*K
+zCW@{oipl0wDmh`{et9H;8t-y?+0~{pDQ9eTwERV-U$E<Y6KFY$(_f33BQY}v37`Na
+zs6Z{p%$nli8JmvW&+ve8Qq!fKv8jGN@QEWsHO^lya`W7el89wm16oJ~9q47tbkgDr
+zihi>yGyUfRLeLlTOME@=6~j&2d--(_D^O;+Dogk=Q5fkIN8`(&7!FQ!1i~R#C7qvQ
+zJn;`xbLe9~%g!j_M+M(_htwqrfzX&g+$RJjpX3eE{2OB$&G`*#nsm5S^3VW##8Jib
+zR8`7f4RkZW%y(*%wRG!il8X52Oie}yYoNK6ZZ)}ed1`u6R+>m|2Q$&t_x0I-)}_;M
+z3bW9wD=crT_pyULHU1NerUqF$xvK_pC>mti|AwHqa-*@RSqzBMh$wj`F!u$Yc##kN
+zoQ?NM9{kj}7#3^!{L3^x$jr2vYqC&u-KpJ9siD>)lTluEvY-w@Jbr1^=Pip*?ea@5
+zS`Q$p!OJu>nZ(p`_ZYh^DC4&zt+7LqjWq_zkOBrULMoVG2c*GHNQVr_ge=GgGwgyK
+z$ORtqU^nc6d?<juPzV+%f@0VQB~S`wP!1JP3H#vyRKY>0h8l?HJq)#Q1nQt38sMnB
+zvDP?MPwfh8B1P5K!mTM|YHPmi(^wsft^FmPm6um_*3T`!{lb#n8d<U*gC=N(<In;p
+zpcPKSDQJV!&<<yy18iW2PUwPe=z(77gR{^N126~<aKaF{zzqTngGXMnkG%7I2iBFL
+A#sB~S
+
+delta 664
+zcmYk!J5Q5g7{>AR_|m>UrBG0;=&Mycpe^-K4_Kf@MMcDl2nsz=?PMGp2L}@ql;o{R
+z6C*5ljDrqNCMJT)V;l^FiHRYhpMWo*F;O>h@Gm6B;kR7(b=}Xu&$ym`nQ^^(5RymD
+z4!^Tpd_5hnIHi2sVd{Y?qu(v%CDYV*>pfxTbS5d!mb|8Picy=*L>#M|`<87vY|Cj|
+zF57b3mdCcd^Og~tSiS1;n(yXXQNNosmc9S}{a8!qtT~6&s-{^fR1MU@2R}?*sIGha
+zStmzS*e#QJ)g-;K;Gq6Jrd~3-qdc<kSb61ZR&`6}L!?et;!&UU<Wxu&+Cv@xRhDyV
+zUOukmgA%t}+ob$$$dq64sQ+)-kd|nmLBA=eTYh=}X_U^3Mz7A_P)~}L#G*m~^$4N?
+zjR>I$%~+2OXu(E=u?el%j4iOR726QOcI-eKc48NHV-MP~7yA%J3>}DLKMvp^4k3ZV
+zID(@%hE5zu5?$y<k4`M6?se&aKb>{yhbsNEk3>z?S5l=kdT|0LaSDAnjWallew@Pq
+p&SMZ4kikU^;Sz>%86z0Q6<oy_#*sx1c@!{#BCg@OPL)cf;XjGb{e%Dj
+
+diff --git a/scripts/create_summary.ts b/scripts/create_summary.ts
+index 32775e5..d505bcf 100644
+--- a/scripts/create_summary.ts
++++ b/scripts/create_summary.ts
+@@ -33,6 +33,7 @@ const defaultConfig: ConfigurationOptions = {
+   comment_summary_in_pr: true,
+   retry_on_snapshot_warnings: false,
+   retry_on_snapshot_warnings_timeout: 120,
++  fail_on_snapshot_warnings: false,
+   warn_only: false,
+   warn_on_openssf_scorecard_level: 3,
+   show_openssf_scorecard: true,
+diff --git a/src/config.ts b/src/config.ts
+index 9bba050..afd2cee 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -47,6 +47,9 @@ function readInlineConfig(): ConfigurationOptionsPartial {
+   const retry_on_snapshot_warnings_timeout = getOptionalNumber(
+     'retry-on-snapshot-warnings-timeout'
+   )
++  const fail_on_snapshot_warnings = getOptionalBoolean(
++    'fail-on-snapshot-warnings'
++  )
+   const warn_only = getOptionalBoolean('warn-only')
+   const show_openssf_scorecard = getOptionalBoolean('show-openssf-scorecard')
+   const warn_on_openssf_scorecard_level = getOptionalNumber(
+@@ -73,6 +76,7 @@ function readInlineConfig(): ConfigurationOptionsPartial {
+     comment_summary_in_pr,
+     retry_on_snapshot_warnings,
+     retry_on_snapshot_warnings_timeout,
++    fail_on_snapshot_warnings,
+     warn_only,
+     show_openssf_scorecard,
+     warn_on_openssf_scorecard_level,
+diff --git a/src/main.ts b/src/main.ts
+index a23fc00..bba9c8e 100644
+--- a/src/main.ts
++++ b/src/main.ts
+@@ -33,13 +33,14 @@ async function delay(ms: number): Promise<void> {
+   return new Promise(resolve => setTimeout(resolve, ms))
+ }
+ 
+-async function getComparison(
++export async function getComparison(
+   baseRef: string,
+   headRef: string,
+   retryOpts?: {
+     retryUntil: number
+     retryDelay: number
+-  }
++  },
++  failOnSnapshotWarnings = false
+ ): ReturnType<typeof dependencyGraph.compare> {
+   const comparison = await dependencyGraph.compare({
+     owner: github.context.repo.owner,
+@@ -52,14 +53,27 @@ async function getComparison(
+     core.info(comparison.snapshot_warnings)
+     if (retryOpts !== undefined) {
+       if (retryOpts.retryUntil < Date.now()) {
+-        core.info(`Retry timeout exceeded. Proceeding...`)
+-        return comparison
++        if (!failOnSnapshotWarnings) {
++          core.info(`Retry timeout exceeded. Proceeding...`)
++          return comparison
++        }
++        core.info(`Retry timeout exceeded.`)
+       } else {
+         core.info(`Retrying in ${retryOpts.retryDelay} seconds...`)
+         await delay(retryOpts.retryDelay * 1000)
+-        return getComparison(baseRef, headRef, retryOpts)
++        return getComparison(
++          baseRef,
++          headRef,
++          retryOpts,
++          failOnSnapshotWarnings
++        )
+       }
+     }
++    if (failOnSnapshotWarnings) {
++      throw new Error(
++        `Dependency review snapshot incomplete: ${comparison.snapshot_warnings}`
++      )
++    }
+   }
+ 
+   return comparison
+@@ -136,7 +150,8 @@ async function run(): Promise<void> {
+               Date.now() + config.retry_on_snapshot_warnings_timeout * 1000,
+             retryDelay: 10
+           }
+-        : undefined
++        : undefined,
++      config.fail_on_snapshot_warnings
+     )
+ 
+     const changes = comparison.changes
+diff --git a/src/schemas.ts b/src/schemas.ts
+index 077377d..e5dd41c 100644
+--- a/src/schemas.ts
++++ b/src/schemas.ts
+@@ -113,6 +113,7 @@ export const ConfigurationOptionsSchema = z
+     head_ref: z.string().optional(),
+     retry_on_snapshot_warnings: z.boolean().default(false),
+     retry_on_snapshot_warnings_timeout: z.number().default(120),
++    fail_on_snapshot_warnings: z.boolean().default(false),
+     show_openssf_scorecard: z.boolean().optional().default(true),
+     warn_on_openssf_scorecard_level: z.number().default(3),
+     show_patched_versions: z.boolean().default(false),
+-- 
+2.39.5 (Apple Git-154)
+

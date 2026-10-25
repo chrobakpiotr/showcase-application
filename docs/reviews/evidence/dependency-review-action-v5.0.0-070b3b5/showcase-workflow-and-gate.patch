@@ -1,0 +1,181 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 0702ede..a84e62f 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -247,8 +247,8 @@ jobs:
+           if-no-files-found: ignore
+ 
+   dependency-review:
+-    name: Dependency review (new/changed dependencies on PRs)
+-    if: github.event_name == 'pull_request'
++    name: Dependency review (new/changed dependencies on PRs and pushes)
++    if: github.event_name == 'pull_request' || github.event_name == 'push'
+     runs-on: ubuntu-latest
+     permissions:
+       contents: read
+@@ -257,14 +257,27 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+ 
+-      # Fails the PR check if a newly introduced/changed dependency (any ecosystem: Gradle, npm,
++      # Fails PR and push checks if a newly introduced/changed dependency (any ecosystem: Gradle, npm,
+       # Docker base image, ...) carries a known vulnerability or an incompatible license, without
+       # waiting for the full OWASP DependencyCheck/SBOM jobs which scan the whole dependency tree
+-      # regardless of what actually changed in this PR.
++      # regardless of what actually changed in the comparison range.
++      - name: Validate push dependency comparison refs
++        if: github.event_name == 'push'
++        env:
++          BASE_SHA: ${{ github.event.before }}
++          HEAD_SHA: ${{ github.sha }}
++        run: python3 tooling/scripts/validate_dependency_review_push_refs.py
++
++      # Push review compares dependency snapshots at before and after; it does not evaluate every intermediate commit.
+       - name: Run dependency review
+-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
++        uses: chrobakpiotr/dependency-review-action@070b3b5e80886179f4e2d63b1c38d11dc760c69e # local candidate; publish only after owner decision
+         with:
+           fail-on-severity: high
++          fail-on-snapshot-warnings: true
++          retry-on-snapshot-warnings: true
++          retry-on-snapshot-warnings-timeout: 120
++          base-ref: ${{ github.event_name == 'push' && github.event.before || '' }}
++          head-ref: ${{ github.event_name == 'push' && github.sha || '' }}
+ 
+   sbom:
+     name: CycloneDX SBOM generation
+diff --git a/tooling/scripts/tests/test_validate_dependency_review_push_refs.py b/tooling/scripts/tests/test_validate_dependency_review_push_refs.py
+new file mode 100644
+index 0000000..929ba9e
+--- /dev/null
++++ b/tooling/scripts/tests/test_validate_dependency_review_push_refs.py
+@@ -0,0 +1,28 @@
++import unittest
++
++from tooling.scripts.validate_dependency_review_push_refs import validate_push_refs
++
++
++class ValidateDependencyReviewPushRefsTest(unittest.TestCase):
++    def test_accepts_full_nonzero_before_and_head_shas(self):
++        validate_push_refs("1" * 40, "a" * 40)
++
++    def test_rejects_zero_before_sha(self):
++        with self.assertRaisesRegex(ValueError, "nonzero full before SHA"):
++            validate_push_refs("0" * 40, "a" * 40)
++
++    def test_rejects_missing_or_abbreviated_before_sha(self):
++        for base_sha in ("", "abcd"):
++            with self.subTest(base_sha=base_sha):
++                with self.assertRaisesRegex(ValueError, "nonzero full before SHA"):
++                    validate_push_refs(base_sha, "a" * 40)
++
++    def test_rejects_invalid_head_sha(self):
++        for head_sha in ("", "0" * 40, "xyz" * 13 + "x"):
++            with self.subTest(head_sha=head_sha):
++                with self.assertRaisesRegex(ValueError, "nonzero full head SHA"):
++                    validate_push_refs("1" * 40, head_sha)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tooling/scripts/tests/test_verify_ci_quality_gate.py b/tooling/scripts/tests/test_verify_ci_quality_gate.py
+index 45d9afe..0a2dac0 100644
+--- a/tooling/scripts/tests/test_verify_ci_quality_gate.py
++++ b/tooling/scripts/tests/test_verify_ci_quality_gate.py
+@@ -20,10 +20,29 @@ class VerifyCiQualityGateTest(unittest.TestCase):
+     def test_pull_request_requires_every_job_including_dependency_review(self):
+         self.assertEqual([], gate.evaluate("pull_request", self.successful_results()))
+ 
+-    def test_push_allows_dependency_review_to_be_skipped(self):
++    def test_push_rejects_skipped_dependency_review(self):
+         results = self.successful_results()
+         results[gate.DEPENDENCY_REVIEW_KEY] = "skipped"
+-        self.assertEqual([], gate.evaluate("push", results))
++        errors = gate.evaluate("push", results)
++        self.assertTrue(any("push requires success" in error for error in errors))
++
++    def test_dependency_review_push_uses_complete_event_sha_range(self):
++        workflow = (REPOSITORY / ".github/workflows/ci.yml").read_text()
++        self.assertIn(
++            "if: github.event_name == 'pull_request' || github.event_name == 'push'",
++            workflow,
++        )
++        self.assertIn("BASE_SHA: ${{ github.event.before }}", workflow)
++        self.assertIn("HEAD_SHA: ${{ github.sha }}", workflow)
++        self.assertIn(
++            "base-ref: ${{ github.event_name == 'push' && github.event.before || '' }}",
++            workflow,
++        )
++        self.assertIn(
++            "head-ref: ${{ github.event_name == 'push' && github.sha || '' }}",
++            workflow,
++        )
++        self.assertIn("fail-on-snapshot-warnings: true", workflow)
+ 
+     def test_workflow_dispatch_allows_dependency_review_to_be_skipped(self):
+         results = self.successful_results()
+diff --git a/tooling/scripts/validate_dependency_review_push_refs.py b/tooling/scripts/validate_dependency_review_push_refs.py
+new file mode 100644
+index 0000000..69ac401
+--- /dev/null
++++ b/tooling/scripts/validate_dependency_review_push_refs.py
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python3
++
++"""Reject push events without a valid, comparable before/after SHA range."""
++
++from __future__ import annotations
++
++import os
++import re
++import sys
++
++_FULL_SHA = re.compile(r"[0-9a-f]{40}\Z")
++_ZERO_SHA = "0" * 40
++
++
++def validate_push_refs(base_sha: str, head_sha: str) -> None:
++    if not _FULL_SHA.fullmatch(base_sha) or base_sha == _ZERO_SHA:
++        raise ValueError("push dependency review requires a nonzero full before SHA")
++    if not _FULL_SHA.fullmatch(head_sha) or head_sha == _ZERO_SHA:
++        raise ValueError("push dependency review requires a nonzero full head SHA")
++
++
++def main() -> int:
++    try:
++        validate_push_refs(
++            os.environ.get("BASE_SHA", ""),
++            os.environ.get("HEAD_SHA", ""),
++        )
++    except ValueError as error:
++        print(f"::error::{error}")
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tooling/scripts/verify_ci_quality_gate.py b/tooling/scripts/verify_ci_quality_gate.py
+index d673d55..d1bf13f 100755
+--- a/tooling/scripts/verify_ci_quality_gate.py
++++ b/tooling/scripts/verify_ci_quality_gate.py
+@@ -36,15 +36,15 @@ def evaluate(event_name: str, results: Mapping[str, str]) -> list[str]:
+             errors.append(f"{display_name}: expected success, got {result or '<missing>'}")
+ 
+     dependency_review = results.get(DEPENDENCY_REVIEW_KEY, "")
+-    if event_name == "pull_request":
++    if event_name in {"pull_request", "push"}:
+         if dependency_review != "success":
+             errors.append(
+-                "Dependency review: pull_request requires success, "
++                f"Dependency review: {event_name} requires success, "
+                 f"got {dependency_review or '<missing>'}"
+             )
+-    elif event_name in {"push", "workflow_dispatch"} and dependency_review not in {"success", "skipped"}:
++    elif event_name == "workflow_dispatch" and dependency_review not in {"success", "skipped"}:
+         errors.append(
+-            "Dependency review: non-PR run allows only success/skipped, "
++            "Dependency review: workflow_dispatch allows only success/skipped, "
+             f"got {dependency_review or '<missing>'}"
+         )
+ 

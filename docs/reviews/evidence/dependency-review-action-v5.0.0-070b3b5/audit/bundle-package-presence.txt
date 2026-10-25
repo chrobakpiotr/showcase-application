@@ -1,0 +1,28 @@
+Source map: `dist/index.js.map` from candidate commit 070b3b5e80886179f4e2d63b1c38d11dc760c69e.
+@actions/artifact: 40 matching module paths
+  .././node_modules/@actions/artifact/lib/artifact.js
+  .././node_modules/@actions/artifact/lib/generated/google/protobuf/timestamp.js
+  .././node_modules/@actions/artifact/lib/generated/google/protobuf/wrappers.js
+@actions/github: 4 matching module paths
+  .././node_modules/@actions/github/lib/context.js
+  .././node_modules/@actions/github/lib/github.js
+  .././node_modules/@actions/github/lib/internal/utils.js
+@actions/http-client: 6 matching module paths
+  .././node_modules/@actions/artifact/node_modules/@actions/http-client/lib/auth.js
+  .././node_modules/@actions/artifact/node_modules/@actions/http-client/lib/index.js
+  .././node_modules/@actions/artifact/node_modules/@actions/http-client/lib/proxy.js
+@babel/core: 0 matching module paths
+brace-expansion: 1 matching module paths
+  .././node_modules/brace-expansion/dist/commonjs/index.js
+browserslist: 0 matching module paths
+handlebars: 0 matching module paths
+http-cache-semantics: 0 matching module paths
+js-yaml: 0 matching module paths
+undici: 96 matching module paths
+  .././node_modules/undici/index.js
+  .././node_modules/undici/lib/api/abort-signal.js
+  .././node_modules/undici/lib/api/api-connect.js
+zod: 10 matching module paths
+  .././node_modules/zod/lib/ZodError.js
+  .././node_modules/zod/lib/errors.js
+  .././node_modules/zod/lib/external.js

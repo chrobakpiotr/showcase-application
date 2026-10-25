@@ -1,0 +1,8 @@
+baseline_exit=1
+candidate_exit=1
+baseline_summary={'info': 0, 'low': 1, 'moderate': 3, 'high': 6, 'critical': 1, 'total': 11}
+candidate_summary={'info': 0, 'low': 1, 'moderate': 3, 'high': 6, 'critical': 1, 'total': 11}
+finding_package_set_identical=True
+finding_details_byte_semantics_identical=True
+lock_sha256_baseline=8d5034b0305a959a83ee92edd46e732e9e3056793e490ebc97087035bfb46819
+lock_sha256_candidate=8d5034b0305a959a83ee92edd46e732e9e3056793e490ebc97087035bfb46819

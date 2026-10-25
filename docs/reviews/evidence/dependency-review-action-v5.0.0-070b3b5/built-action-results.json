@@ -1,0 +1,27 @@
+{
+  "unresolvedWarningFailClosed": {
+    "status": 1,
+    "output": "snapshot unavailable\n::error::Dependency review snapshot incomplete: snapshot unavailable\n",
+    "comparisonPath": "/repos/owner/repository/dependency-graph/compare/1111111111111111111111111111111111111111...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=5"
+  },
+  "defaultModeKeepsUpstreamBehavior": {
+    "status": 0,
+    "output": "snapshot unavailable\n::debug::Filtered Changes: []\n::debug::Config Deny Packages: {\"fail_on_severity\":\"high\",\"fail_on_scopes\":[\"runtime\"],\"allow_ghsas\":[],\"deny_packages\":[],\"deny_groups\":[],\"license_check\":false,\"vulnerability_check\":true,\"base_ref\":\"1111111111111111111111111111111111111111\",\"head_ref\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"retry_on_snapshot_warnings\":false,\"retry_on_snapshot_warnings_timeout\":120,\"fail_on_snapshot_warnings\":false,\"show_openssf_scorecard\":false,\"warn_on_openssf_scorecard_level\":3,\"show_patched_versions\":false,\"comment_summary_in_pr\":\"never\",\"warn_only\":false}\n::group::Vulnerabilities\nDependency review did not detect any vulnerable packages with severity level \"high\" or higher.\n::endgroup::\n::group::Denied\nDependency review did not detect any denied packages\n::endgroup::\n::group::Dependency Changes\n::endgroup::\n",
+    "comparisonPath": "/repos/owner/repository/dependency-graph/compare/1111111111111111111111111111111111111111...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=5"
+  },
+  "existingHighSeverityGate": {
+    "status": 1,
+    "output": "::debug::Filtered Changes: [{\"change_type\":\"added\",\"manifest\":\"package.json\",\"ecosystem\":\"npm\",\"name\":\"example\",\"version\":\"1.0.0\",\"package_url\":\"pkg:npm/example@1.0.0\",\"license\":null,\"source_repository_url\":null,\"vulnerabilities\":[{\"severity\":\"high\",\"advisory_ghsa_id\":\"GHSA-test-test-test\",\"advisory_summary\":\"controlled fixture advisory\",\"advisory_url\":\"https://example.test/advisory\"}]}]\n::debug::Config Deny Packages: {\"fail_on_severity\":\"high\",\"fail_on_scopes\":[\"runtime\"],\"allow_ghsas\":[],\"deny_packages\":[],\"deny_groups\":[],\"license_check\":false,\"vulnerability_check\":true,\"base_ref\":\"1111111111111111111111111111111111111111\",\"head_ref\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"retry_on_snapshot_warnings\":false,\"retry_on_snapshot_warnings_timeout\":120,\"fail_on_snapshot_warnings\":true,\"show_openssf_scorecard\":false,\"warn_on_openssf_scorecard_level\":3,\"show_patched_versions\":false,\"comment_summary_in_pr\":\"never\",\"warn_only\":false}\n::debug::No advisory data available for GHSA-test-test-test\n::group::Vulnerabilities\n\u001b[1mpackage.json » example@1.0.0\u001b[22m – controlled fixture advisory \u001b[31m(high severity)\u001b[39m\n  ↪ https://example.test/advisory\n::error::Dependency review detected vulnerable packages.\n::endgroup::\n::group::Dependency Changes\nFile: \u001b[1mpackage.json\u001b[22m\n\u001b[32m+ example@1.0.0\u001b[39m\n::endgroup::\n",
+    "comparisonPath": "/repos/owner/repository/dependency-graph/compare/1111111111111111111111111111111111111111...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=5"
+  },
+  "unavailableBaseApiFailure": {
+    "status": 1,
+    "output": "::error::Dependency review could not obtain dependency data for the specified owner, repository, or revision range.\n",
+    "comparisonPath": "/repos/owner/repository/dependency-graph/compare/1111111111111111111111111111111111111111...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=5"
+  },
+  "apiPermissionFailure": {
+    "status": 1,
+    "output": "::error::Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled, see https://github.com/owner/repository/settings/security_analysis\n",
+    "comparisonPath": "/repos/owner/repository/dependency-graph/compare/1111111111111111111111111111111111111111...aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?per_page=5"
+  }
+}

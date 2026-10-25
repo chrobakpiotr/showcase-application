@@ -1,0 +1,86 @@
+
+> dependency-review-action@5.0.0 test
+> jest --runInBand __tests__/main.test.ts
+
+(node:62561) PromiseRejectionHandledWarning: Promise rejection was handled asynchronously (rejection id: 4)
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL __tests__/main.test.ts (5.02 s)
+  handleLargeSummary
+    ✓ returns original summary when under size threshold (3 ms)
+    ✓ uploads artifact and returns minimal summary when summary is too large (4 ms)
+    ✓ returns truncated summary and replaces buffer when artifact upload fails (2 ms)
+  snapshot warnings
+    ✕ fails closed when warnings remain and retry is disabled (2 ms)
+    ✕ fails closed when warnings remain after retry timeout (4 ms)
+    ✓ evaluates the warning-free comparison returned after retry (2 ms)
+    ✓ preserves API errors as failures (1 ms)
+    ✓ keeps default behavior when fail-on-snapshot-warnings is false (1 ms)
+
+  ● snapshot warnings › fails closed when warnings remain and retry is disabled
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"changes": [], "snapshot_warnings": "snapshot missing"}
+
+      185 |     })
+      186 |
+    > 187 |     await expect(
+          |                 ^
+      188 |       getComparison('base-sha', 'head-sha', undefined, true)
+      189 |     ).rejects.toThrow(/snapshot.*incomplete/i)
+      190 |     expect(compareMock).toHaveBeenCalledTimes(1)
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at __tests__/main.test.ts:187:17
+      at __tests__/main.test.ts:41:71
+      at Object.<anonymous>.__awaiter (__tests__/main.test.ts:37:12)
+      at Object.<anonymous> (__tests__/main.test.ts:181:78)
+
+  ● snapshot warnings › fails closed when warnings remain after retry timeout
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"changes": [], "snapshot_warnings": "snapshot missing"}
+
+      205 |       true
+      206 |     )
+    > 207 |     const assertion = expect(result).rejects.toThrow(/snapshot.*incomplete/i)
+          |                             ^
+      208 |     await jest.advanceTimersByTimeAsync(10_000)
+      209 |
+      210 |     await assertion
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at __tests__/main.test.ts:207:29
+      at __tests__/main.test.ts:41:71
+      at Object.<anonymous>.__awaiter (__tests__/main.test.ts:37:12)
+      at Object.<anonymous> (__tests__/main.test.ts:193:76)
+
+  ● snapshot warnings › fails closed when warnings remain after retry timeout
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"changes": [], "snapshot_warnings": "snapshot missing"}
+
+      205 |       true
+      206 |     )
+    > 207 |     const assertion = expect(result).rejects.toThrow(/snapshot.*incomplete/i)
+          |                             ^
+      208 |     await jest.advanceTimersByTimeAsync(10_000)
+      209 |
+      210 |     await assertion
+
+      at expect (node_modules/expect/build/index.js:113:15)
+      at __tests__/main.test.ts:207:29
+      at __tests__/main.test.ts:41:71
+      at Object.<anonymous>.__awaiter (__tests__/main.test.ts:37:12)
+      at Object.<anonymous> (__tests__/main.test.ts:193:76)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 6 passed, 8 total
+Snapshots:   0 total
+Time:        5.27 s
+Ran all test suites matching /__tests__\/main.test.ts/i.

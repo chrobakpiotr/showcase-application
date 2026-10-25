@@ -1,0 +1,12 @@
+Bundle reproduction verification — 2026-10-25
+
+Method: fresh clone of actions/dependency-review-action, fetch the preserved local bundle by exact commit, detach checkout FETCH_HEAD.
+
+Expected commit: 070b3b5e80886179f4e2d63b1c38d11dc760c69e
+Observed commit: 070b3b5e80886179f4e2d63b1c38d11dc760c69e
+Expected parent: a1d282b36b6f3519aa1f3fc636f609c47dddb294
+Observed parent: a1d282b36b6f3519aa1f3fc636f609c47dddb294
+Checkout: clean (`git status --porcelain` empty)
+Result: PASS. The candidate can be reconstructed from the stored bundle without storing a complete upstream checkout in Showcase.
+
+The reconstruction clone is temporary and is not part of this evidence package.
