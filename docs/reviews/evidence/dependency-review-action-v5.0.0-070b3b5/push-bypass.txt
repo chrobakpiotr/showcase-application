@@ -1,0 +1,16 @@
+Direct push of the evidence-only commit `59c29ed6c75decb4c53f9999f02f3bae099d31da` to `main` was accepted. Exact GitHub remote response:
+
+remote: Bypassed rule violations for refs/heads/main:
+remote:
+remote: - Cannot update this protected ref.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 2 of 2 required status checks are expected.
+remote:
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:
+remote:   59c29ed6c75decb4c53f9999f02f3bae099d31da
+
+These are reported bypasses, not passed controls. The commit contains only the dependency-review evidence package; it does not change the active workflow.
