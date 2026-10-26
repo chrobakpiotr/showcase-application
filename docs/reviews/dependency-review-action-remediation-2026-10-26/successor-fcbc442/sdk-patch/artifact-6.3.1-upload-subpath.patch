@@ -1,0 +1,47 @@
+diff --git a/lib/upload.d.ts b/lib/upload.d.ts
+new file mode 100644
+index 0000000..ab2aefc
+--- /dev/null
++++ b/lib/upload.d.ts
+@@ -0,0 +1,3 @@
++import {UploadArtifactOptions, UploadArtifactResponse} from './internal/shared/interfaces.js'
++/** Uploads an artifact without importing the download client. */
++export declare function uploadArtifact(name: string, files: string[], rootDirectory: string, options?: UploadArtifactOptions): Promise<UploadArtifactResponse>
+diff --git a/lib/upload.js b/lib/upload.js
+new file mode 100644
+index 0000000..195246f
+--- /dev/null
++++ b/lib/upload.js
+@@ -0,0 +1,17 @@
++import {warning} from '@actions/core'
++import {isGhes} from './internal/shared/config.js'
++import {uploadArtifact as uploadArtifactInternal} from './internal/upload/upload-artifact.js'
++import {GHESNotSupportedError} from './internal/shared/errors.js'
++
++/** Uploads an artifact without importing the download client. */
++export async function uploadArtifact(name, files, rootDirectory, options) {
++  try {
++    if (isGhes()) {
++      throw new GHESNotSupportedError()
++    }
++    return uploadArtifactInternal(name, files, rootDirectory, options)
++  } catch (error) {
++    warning(`Artifact upload failed with error: ${error}.\n\nErrors can be temporary, so please try again and optionally run the action with debug mode enabled for more information.\n\nIf the error persists, please check whether Actions is operating normally at [https://githubstatus.com](https://www.githubstatus.com).`)
++    throw error
++  }
++}
+diff --git a/package.json b/package.json
+index 2f0179b..63b65ea 100644
+--- a/package.json
++++ b/package.json
+@@ -17,6 +17,10 @@
+     ".": {
+       "types": "./lib/artifact.d.ts",
+       "import": "./lib/artifact.js"
++    },
++    "./upload": {
++      "types": "./lib/upload.d.ts",
++      "import": "./lib/upload.js"
+     }
+   },
+   "directories": {
