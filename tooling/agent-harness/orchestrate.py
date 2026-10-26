@@ -766,16 +766,18 @@ def stop_on_repository_admission_blockage(
 
 
 def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace) -> None:
-    state = h.load_state(feature_dir, doc)
+    unresolved = h.unresolved_state_marker(feature_dir)
+    state = None if unresolved else h.load_state(feature_dir, doc)
     print(
         f'feature={doc["feature"]} max_parallel={doc.get("max_parallel", 4)} '
         f'lease_ttl={h.lease_ttl_seconds(doc)}s heartbeat={h.heartbeat_interval_seconds(doc)}s'
+        f'{" lifecycle=recovery-required task-state=unknown" if unresolved else ""}'
     )
     for planned in doc['tasks']:
         # A completed task packet is immutable historical evidence.  A later
         # feature replan must not make it a prerequisite for routing current
         # work; use the validated current DAG contract for completed rows.
-        task = (planned if state.get('tasks', {}).get(planned['id'], {}).get('status') == 'completed'
+        task = (planned if unresolved or state.get('tasks', {}).get(planned['id'], {}).get('status') == 'completed'
                 else h.active_task_contract(feature_dir, doc, planned['id']))
         choice = choice_for_role(task['role'], args)
         reviews = h.reviewers(task) if task['role'] == 'builder' else []
@@ -783,7 +785,7 @@ def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Na
         reviewer_text = ','.join(reviews) or '-'
         print(
             f'{task["id"]:7} role={task["role"]:11} provider={choice.provider:6} '
-            f'deps={deps:24} reviewers={reviewer_text}'
+            f'deps={deps:24} reviewers={reviewer_text}{" state=unknown" if unresolved else ""}'
         )
 
 

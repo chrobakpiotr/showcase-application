@@ -1,5 +1,7 @@
 import argparse
+import contextlib
 import hashlib
+import io
 import importlib.util
 import json
 import os
@@ -78,6 +80,20 @@ class OrchestrateTest(unittest.TestCase):
             orchestrate.ProviderChoice('claude', 'review-model'), self.args())
         self.assertEqual('review-model', cmd[cmd.index('--model') + 1])
         self.assertEqual('1800', cmd[cmd.index('--agent-timeout') + 1])
+
+    def test_plan_remains_read_only_and_marks_task_state_unknown_for_unresolved_history(self):
+        feature, doc = self.feature()
+        output = io.StringIO()
+        with mock.patch.object(orchestrate.h, 'unresolved_state_marker', return_value=True), \
+                mock.patch.object(orchestrate.h, 'load_state', side_effect=AssertionError('must not read lifecycle state')):
+            with contextlib.redirect_stdout(output):
+                orchestrate.print_plan(feature, doc, self.args())
+        rendered = output.getvalue()
+        self.assertIn('lifecycle=recovery-required', rendered)
+        self.assertIn('state=unknown', rendered)
+        self.assertIn('T-001', rendered)
+        self.assertIn('T-900', rendered)
+        self.assertFalse(orchestrate.h.state_path(feature).exists())
 
     def test_preflight_refusal_leaves_the_whole_ready_batch_unstarted(self):
         feature, doc = self.feature()
