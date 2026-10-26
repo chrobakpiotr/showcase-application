@@ -14,6 +14,7 @@ import os
 import pathlib
 import re
 import sys
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -23,6 +24,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 STATE = REPO / '.agent-state' / 'control-plane'
 SAFE_ID_RE = re.compile(r'^[A-Za-z0-9._-]+$')
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+import repository_state_lock  # noqa: E402
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -169,12 +173,28 @@ def fetch_jira(base_url: str, key: str, email_env: str, token_env: str) -> dict[
 
 def save_snapshot(item: dict[str, Any]) -> pathlib.Path:
     key = str(item.get('key') or item.get('id') or 'item')
-    if not SAFE_ID_RE.fullmatch(key):
+    source = str(item.get('source') or 'tracker')
+    if not SAFE_ID_RE.fullmatch(key) or not SAFE_ID_RE.fullmatch(source):
         die(f'unsafe normalized tracker key: {key!r}')
-    STATE.mkdir(parents=True, exist_ok=True)
-    path = STATE / f'{item.get("source", "tracker")}-{key}.json'
-    path.write_text(json.dumps(item, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-    return path
+    with repository_state_lock.lifecycle_lock(REPO):
+        STATE.mkdir(parents=True, exist_ok=True)
+        path = STATE / f'{source}-{key}.json'
+        fd, temporary = tempfile.mkstemp(prefix=path.name + '.', dir=STATE)
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                stream.write(json.dumps(item, indent=2, sort_keys=True) + '\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, path)
+            directory_fd = os.open(STATE, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        return path
 
 
 def render_intent(item: dict[str, Any]) -> str:

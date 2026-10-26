@@ -17,6 +17,7 @@ import json
 import os
 import pathlib
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -34,6 +35,7 @@ import design as d  # noqa: E402
 import telemetry  # noqa: E402
 import trust  # noqa: E402
 import verification_contract as vc  # noqa: E402
+import repository_state_lock  # noqa: E402
 
 MAP_FILE = 'wayfinder.json'
 RESULT_SCHEMA = HERE / 'schemas' / 'wayfinder-result.schema.json'
@@ -103,17 +105,103 @@ def state_root(epic: str) -> pathlib.Path:
 
 
 @contextlib.contextmanager
+def _lifecycle_lock(root: pathlib.Path) -> Iterator[None]:
+    with repository_state_lock.lifecycle_lock(root):
+        yield
+
+
+def _ensure_map_lock(root: pathlib.Path) -> pathlib.Path:
+    """Bootstrap map.lock under lifecycle only; never wait for map.lock while holding lifecycle."""
+    repo = state_repo_root()
+    if repo is None:
+        die('Wayfinder claim mutation requires a Git repository')
+    state_parent = repo / '.agent-state'
+    directories = (state_parent, state_parent / 'wayfinder', root)
+    with _lifecycle_lock(repo):
+        for directory in directories:
+            try:
+                info = directory.lstat()
+            except FileNotFoundError:
+                directory.mkdir(mode=0o700)
+                info = directory.lstat()
+            if not stat.S_ISDIR(info.st_mode):
+                die(f'WAYFINDER_LOCK_UNSAFE: lock directory is not a real directory: {directory}')
+
+        lock_path = root / 'map.lock'
+        try:
+            fd = os.open(lock_path, os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o644)
+        except FileExistsError:
+            pass
+        else:
+            try:
+                os.fchmod(fd, 0o644)
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            directory_fd = os.open(root, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        _validate_map_lock(lock_path, None)
+    return lock_path
+
+
+def _validate_map_lock(path: pathlib.Path, fd: int | None) -> tuple[int, int]:
+    try:
+        path_info = path.lstat()
+        fd_info = os.fstat(fd) if fd is not None else path_info
+    except OSError as exc:
+        die(f'WAYFINDER_LOCK_UNSAFE: cannot inspect persistent map lock: {exc}')
+    if (not stat.S_ISREG(path_info.st_mode) or not stat.S_ISREG(fd_info.st_mode) or
+            stat.S_IMODE(path_info.st_mode) != 0o644 or stat.S_IMODE(fd_info.st_mode) != 0o644 or
+            path_info.st_size != 0 or fd_info.st_size != 0 or path_info.st_nlink != 1 or fd_info.st_nlink != 1 or
+            (path_info.st_dev, path_info.st_ino) != (fd_info.st_dev, fd_info.st_ino)):
+        die('WAYFINDER_LOCK_UNSAFE: map.lock must remain the same empty regular 0644 file')
+    return path_info.st_dev, path_info.st_ino
+
+
+@contextlib.contextmanager
+def locked_claim_state(epic: str) -> Iterator[None]:
+    """Lock order: bootstrap under lifecycle, release; then map.lock, then lifecycle."""
+    root = state_root(epic)
+    repo = state_repo_root()
+    if repo is None:
+        die('Wayfinder claim mutation requires a Git repository')
+    if repository_state_lock.lifecycle_lock_held(repo):
+        die('WAYFINDER_LOCK_ORDER_INVALID: map.lock cannot be acquired while lifecycle is held')
+
+    lock_path = _ensure_map_lock(root)
+    try:
+        before = lock_path.lstat()
+        lock_fd = os.open(lock_path, os.O_RDWR | getattr(os, 'O_NOFOLLOW', 0))
+    except OSError as exc:
+        die(f'WAYFINDER_LOCK_UNSAFE: cannot open persistent map lock: {exc}')
+    try:
+        expected = _validate_map_lock(lock_path, lock_fd)
+        if (before.st_dev, before.st_ino) != expected:
+            die('WAYFINDER_LOCK_UNSAFE: map.lock changed while opening')
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        if _validate_map_lock(lock_path, lock_fd) != expected:
+            die('WAYFINDER_LOCK_UNSAFE: map.lock was replaced while acquiring its lock')
+        with _lifecycle_lock(repo):
+            yield
+    finally:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
+
+
+@contextlib.contextmanager
 def locked_map(map_dir: pathlib.Path) -> Iterator[dict[str, Any]]:
-    current = load_map(map_dir)
-    root = state_root(str(current['epic']))
-    root.mkdir(parents=True, exist_ok=True)
-    lock_path = root / 'map.lock'
-    with lock_path.open('a+', encoding='utf-8') as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+    epic = map_dir.resolve().name
+    with locked_claim_state(epic):
         doc = load_map(map_dir)
+        if doc.get('epic') != epic:
+            die(f'Wayfinder map identity changed: expected {epic}, found {doc.get("epic")}')
         yield doc
         atomic_json(map_path(map_dir), doc)
-        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 def iso_now() -> str:
@@ -273,7 +361,7 @@ def claim_path(epic: str, decision_id: str) -> pathlib.Path:
     return state_root(epic) / 'claims' / decision_id
 
 
-def active_claim(doc: dict[str, Any], decision_id: str) -> dict[str, Any] | None:
+def _active_claim_unlocked(doc: dict[str, Any], decision_id: str) -> dict[str, Any] | None:
     # Status/frontier are useful even on an unpacked example outside a Git checkout. In that case
     # there cannot be meaningful live local claims, so treat claim-awareness as unavailable rather
     # than making a read-only preview fail. Mutating claim operations remain Git-repo-only.
@@ -296,27 +384,35 @@ def active_claim(doc: dict[str, Any], decision_id: str) -> dict[str, Any] | None
     return claim if isinstance(claim, dict) else None
 
 
+def active_claim(doc: dict[str, Any], decision_id: str) -> dict[str, Any] | None:
+    root = state_repo_root()
+    if root is None:
+        return None
+    with locked_claim_state(str(doc['epic'])):
+        return _active_claim_unlocked(doc, decision_id)
+
+
 def acquire_claim(doc: dict[str, Any], decision_id: str, owner: str) -> None:
     path = claim_path(str(doc['epic']), decision_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    ttl = int(doc.get('claim_ttl_seconds', 1800))
-    try:
+    with locked_claim_state(str(doc['epic'])):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ttl = int(doc.get('claim_ttl_seconds', 1800))
+        if path.exists():
+            claim = _active_claim_unlocked(doc, decision_id)
+            if claim:
+                die(f'{decision_id} is already claimed by {claim.get("owner")} until {claim.get("expires_at")}')
         path.mkdir()
-    except FileExistsError:
-        claim = active_claim(doc, decision_id)
-        if claim:
-            die(f'{decision_id} is already claimed by {claim.get("owner")} until {claim.get("expires_at")}')
-        path.mkdir()
-    now = dt.datetime.now(dt.timezone.utc)
-    atomic_json(path / 'claim.json', {
-        'owner': owner,
-        'claimed_at': now.isoformat(),
-        'expires_at': (now + dt.timedelta(seconds=ttl)).isoformat(),
-    })
+        now = dt.datetime.now(dt.timezone.utc)
+        atomic_json(path / 'claim.json', {
+            'owner': owner,
+            'claimed_at': now.isoformat(),
+            'expires_at': (now + dt.timedelta(seconds=ttl)).isoformat(),
+        })
 
 
 def release_claim(doc: dict[str, Any], decision_id: str) -> None:
-    shutil.rmtree(claim_path(str(doc['epic']), decision_id), ignore_errors=True)
+    with locked_claim_state(str(doc['epic'])):
+        shutil.rmtree(claim_path(str(doc['epic']), decision_id), ignore_errors=True)
 
 
 def downstream_count(doc: dict[str, Any], decision_id: str) -> int:
@@ -618,18 +714,21 @@ def add_ledger_entry(doc: dict[str, Any], raw: dict[str, Any], source_decision: 
 
 
 def apply_result(map_dir: pathlib.Path, decision_id: str, result: dict[str, Any], *, allow_needs_human: bool = False) -> None:
-    current = load_map(map_dir)
-    known_fog = {f.get('id') for f in current.get('fog', []) if isinstance(f, dict)}
-    unknown_fog = sorted(set(result.get('fog_resolved', [])) - known_fog)
-    if unknown_fog:
-        die(f'wayfinder result references unknown fog ids: {unknown_fog}')
+    epic = map_dir.resolve().name
     artifact = map_dir / 'decisions' / f'{decision_id}.json'
-    if artifact.exists():
-        history = map_dir / 'decisions' / 'history'
-        history.mkdir(parents=True, exist_ok=True)
-        stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
-        shutil.copy2(artifact, history / f'{decision_id}-{stamp}.json')
-    with locked_map(map_dir) as doc:
+    with locked_claim_state(epic):
+        doc = load_map(map_dir)
+        if doc.get('epic') != epic:
+            die(f'Wayfinder map identity changed: expected {epic}, found {doc.get("epic")}')
+        known_fog = {f.get('id') for f in doc.get('fog', []) if isinstance(f, dict)}
+        unknown_fog = sorted(set(result.get('fog_resolved', [])) - known_fog)
+        if unknown_fog:
+            die(f'wayfinder result references unknown fog ids: {unknown_fog}')
+        if artifact.exists():
+            history = map_dir / 'decisions' / 'history'
+            history.mkdir(parents=True, exist_ok=True)
+            stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+            shutil.copy2(artifact, history / f'{decision_id}-{stamp}.json')
         idx = decision_index(doc)
         item = idx.get(decision_id)
         if not item:
@@ -669,7 +768,8 @@ def apply_result(map_dir: pathlib.Path, decision_id: str, result: dict[str, Any]
             item['blocked_summary'] = result['summary']
             item['blocked_at'] = iso_now()
         doc['updated_at'] = iso_now()
-    atomic_json(artifact, result)
+        atomic_json(map_path(map_dir), doc)
+        atomic_json(artifact, result)
 
 
 def repo_base_for_map(map_dir: pathlib.Path, doc: dict[str, Any]) -> str:
@@ -756,14 +856,18 @@ def chart(map_dir: pathlib.Path, args: argparse.Namespace) -> dict[str, Any]:
         validate_result(result, allow_empty_decision=True)
         if result['status'] != 'pass':
             return result
-        with locked_map(map_dir) as current:
+        with locked_claim_state(str(doc['epic'])):
+            current = load_map(map_dir)
+            if current.get('epic') != doc['epic']:
+                die(f'Wayfinder map identity changed: expected {doc["epic"]}, found {current.get("epic")}')
             for raw in result['new_decisions']:
                 new_item = normalize_new_decision(current, raw, 'D-CHART')
                 if new_item:
                     new_item['depends_on'] = []
                     current['decisions'].append(new_item)
             current['updated_at'] = iso_now()
-        atomic_json(map_dir / 'decisions' / f'chart-{args.run_id}.json', result)
+            atomic_json(map_path(map_dir), current)
+            atomic_json(map_dir / 'decisions' / f'chart-{args.run_id}.json', result)
         return result
     finally:
         d.remove_worktree(wt)

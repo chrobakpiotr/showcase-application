@@ -1,5 +1,6 @@
 import argparse
 import datetime as dt
+import fcntl
 import importlib.util
 import json
 import os
@@ -8,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 
 MODULE_PATH = pathlib.Path(__file__).resolve().parents[1] / 'wayfinder.py'
@@ -38,6 +40,56 @@ def base_map():
 
 
 class WayfinderTest(unittest.TestCase):
+    def _assert_operation_waits_for_wayfinder_lock(self, root, operation, state_assertion):
+        lock_path = root / '.agent-state' / 'wayfinder' / 'EPIC-001' / 'map.lock'
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        lock_holder = subprocess.Popen(
+            [sys.executable, '-c', (
+                'import fcntl, pathlib, sys; '
+                'path = pathlib.Path(sys.argv[1]); '
+                'f = path.open("a+"); fcntl.flock(f.fileno(), fcntl.LOCK_EX); '
+                'print("LOCKED", flush=True); sys.stdin.readline(); '
+                'fcntl.flock(f.fileno(), fcntl.LOCK_UN)'
+            ), str(lock_path)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        try:
+            self.assertEqual('LOCKED', lock_holder.stdout.readline().strip())
+            started = threading.Event()
+            finished = threading.Event()
+            errors = []
+
+            def invoke():
+                started.set()
+                try:
+                    operation()
+                except BaseException as exc:
+                    errors.append(exc)
+                finally:
+                    finished.set()
+
+            worker = threading.Thread(target=invoke)
+            worker.start()
+            self.assertTrue(started.wait(2))
+            self.assertFalse(finished.wait(0.15), 'operation bypassed the held Wayfinder map lock')
+            state_assertion()
+            lock_holder.stdin.write('\n')
+            lock_holder.stdin.flush()
+            self.assertTrue(finished.wait(3), 'operation did not continue after releasing map lock')
+            worker.join(timeout=1)
+            self.assertEqual([], errors)
+        finally:
+            if lock_holder.poll() is None:
+                lock_holder.stdin.write('\n')
+                lock_holder.stdin.flush()
+                lock_holder.wait(timeout=3)
+            if lock_holder.stdout:
+                lock_holder.stdout.close()
+            if lock_holder.stderr:
+                lock_holder.stderr.close()
+            if lock_holder.stdin:
+                lock_holder.stdin.close()
+
     def test_valid_map(self):
         self.assertEqual([], wayfinder.validate_map(base_map()))
 
@@ -92,6 +144,7 @@ class WayfinderTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
             subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
             old = os.getcwd(); os.chdir(root)
             try:
                 doc = base_map()
@@ -104,7 +157,170 @@ class WayfinderTest(unittest.TestCase):
                 self.assertIsNone(wayfinder.active_claim(doc, 'D-001'))
                 self.assertEqual(['D-001'], [x['id'] for x in wayfinder.frontier(doc, include_claimed=True)])
             finally:
-                os.chdir(old)
+                os.chdir(old); wayfinder.REPO = prior_repo
+
+    def test_expired_claim_cleanup_through_active_claim_frontier_and_status_uses_map_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
+            old = os.getcwd(); os.chdir(root)
+            try:
+                doc = base_map()
+                claim_dir = wayfinder.claim_path(doc['epic'], 'D-001')
+                claim_dir.mkdir(parents=True)
+                expired = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=1)
+                (claim_dir / 'claim.json').write_text(json.dumps({'owner': 'old', 'expires_at': expired.isoformat()}))
+                for name, operation in (
+                    ('active_claim', lambda: wayfinder.active_claim(doc, 'D-001')),
+                    ('frontier', lambda: wayfinder.frontier(doc)),
+                    ('print_status', lambda: wayfinder.print_status(doc)),
+                ):
+                    with self.subTest(caller=name):
+                        if not claim_dir.exists():
+                            claim_dir.mkdir(parents=True)
+                            (claim_dir / 'claim.json').write_text(
+                                json.dumps({'owner': 'old', 'expires_at': expired.isoformat()}))
+                        self._assert_operation_waits_for_wayfinder_lock(
+                            root,
+                            operation,
+                            lambda: self.assertTrue(claim_dir.exists(), 'stale claim was removed under another writer lock'),
+                        )
+                        self.assertFalse(claim_dir.exists(), f'{name} did not clean the expired claim')
+            finally:
+                os.chdir(old); wayfinder.REPO = prior_repo
+
+    def test_claim_creation_and_release_use_map_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
+            old = os.getcwd(); os.chdir(root)
+            try:
+                doc = base_map()
+                claim_dir = wayfinder.claim_path(doc['epic'], 'D-001')
+                self._assert_operation_waits_for_wayfinder_lock(
+                    root,
+                    lambda: wayfinder.acquire_claim(doc, 'D-001', 'worker-a'),
+                    lambda: self.assertFalse(claim_dir.exists(), 'claim appeared while another writer held map lock'),
+                )
+                self.assertTrue((claim_dir / 'claim.json').is_file())
+                self._assert_operation_waits_for_wayfinder_lock(
+                    root,
+                    lambda: wayfinder.release_claim(doc, 'D-001'),
+                    lambda: self.assertTrue(claim_dir.exists(), 'claim was removed while another writer held map lock'),
+                )
+                self.assertFalse(claim_dir.exists())
+            finally:
+                os.chdir(old); wayfinder.REPO = prior_repo
+
+    def test_waiting_for_map_lock_releases_lifecycle_lock_first(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
+            old = os.getcwd(); os.chdir(root)
+            try:
+                doc = base_map()
+                lock_path = wayfinder.state_root(doc['epic']) / 'map.lock'
+                lock_path.parent.mkdir(parents=True, exist_ok=True)
+                lock_path.touch(mode=0o644)
+                lock_holder = subprocess.Popen(
+                    [sys.executable, '-c', (
+                        'import fcntl, pathlib, sys; f=pathlib.Path(sys.argv[1]).open("r+"); '
+                        'fcntl.flock(f.fileno(), fcntl.LOCK_EX); print("LOCKED", flush=True); '
+                        'sys.stdin.readline(); fcntl.flock(f.fileno(), fcntl.LOCK_UN)'
+                    ), str(lock_path)],
+                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
+                try:
+                    self.assertEqual('LOCKED', lock_holder.stdout.readline().strip())
+                    started = threading.Event()
+                    finished = threading.Event()
+                    worker = threading.Thread(target=lambda: (started.set(), wayfinder.active_claim(doc, 'D-001'), finished.set()))
+                    worker.start()
+                    self.assertTrue(started.wait(2))
+                    self.assertFalse(finished.wait(0.15), 'reader did not wait for map.lock')
+
+                    acquired_lifecycle = threading.Event()
+                    contender = threading.Thread(target=lambda: self._acquire_and_release_lifecycle(root, acquired_lifecycle))
+                    contender.start()
+                    self.assertTrue(acquired_lifecycle.wait(1),
+                                    'operation waited for map.lock while still holding the lifecycle lock')
+                    lock_holder.stdin.write('\n'); lock_holder.stdin.flush()
+                    self.assertTrue(finished.wait(3))
+                    worker.join(timeout=1); contender.join(timeout=1)
+                finally:
+                    if lock_holder.poll() is None:
+                        lock_holder.stdin.write('\n'); lock_holder.stdin.flush(); lock_holder.wait(timeout=3)
+                    if lock_holder.stdout: lock_holder.stdout.close()
+                    if lock_holder.stderr: lock_holder.stderr.close()
+                    if lock_holder.stdin: lock_holder.stdin.close()
+            finally:
+                os.chdir(old); wayfinder.REPO = prior_repo
+
+    @staticmethod
+    def _acquire_and_release_lifecycle(root, acquired):
+        import repository_state_lock
+        with repository_state_lock.lifecycle_lock(root):
+            acquired.set()
+
+    def test_map_writer_holds_lifecycle_across_atomic_replace_and_lock_inode_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
+            old = os.getcwd(); os.chdir(root)
+            try:
+                map_dir = root / 'docs' / 'wayfinder' / 'EPIC-001'; map_dir.mkdir(parents=True)
+                (map_dir / 'wayfinder.json').write_text(json.dumps(base_map()))
+                doc = wayfinder.load_map(map_dir)
+                lock_path = wayfinder._ensure_map_lock(wayfinder.state_root(doc['epic']))
+                identity_before = (lock_path.stat().st_dev, lock_path.stat().st_ino)
+                original = lock_path.read_bytes()
+                lifecycle_path = wayfinder.h.state_snapshots.lifecycle_lock_path(root)
+                with lifecycle_path.open('a+') as lifecycle:
+                    fcntl.flock(lifecycle.fileno(), fcntl.LOCK_EX)
+                    started = threading.Event(); finished = threading.Event(); errors = []
+                    def update_map():
+                        started.set()
+                        try:
+                            wayfinder.cmd_manual_resolve(map_dir, 'D-001', 'Selected', 'Test fixture')
+                        except BaseException as exc:
+                            errors.append(exc)
+                        finally:
+                            finished.set()
+                    worker = threading.Thread(target=update_map); worker.start()
+                    self.assertTrue(started.wait(2))
+                    self.assertFalse(finished.wait(0.15), 'map writer did not wait for lifecycle lock')
+                    self.assertEqual(base_map(), json.loads((map_dir / 'wayfinder.json').read_text()))
+                    fcntl.flock(lifecycle.fileno(), fcntl.LOCK_UN)
+                    self.assertTrue(finished.wait(3)); worker.join(timeout=1)
+                    self.assertEqual([], errors)
+                self.assertEqual('closed', wayfinder.load_map(map_dir)['decisions'][0]['status'])
+                self.assertEqual(identity_before, (lock_path.stat().st_dev, lock_path.stat().st_ino))
+                self.assertEqual(original, lock_path.read_bytes())
+            finally:
+                os.chdir(old); wayfinder.REPO = prior_repo
+
+    def test_map_lock_symlink_is_refused_without_following_or_replacing_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo = wayfinder.REPO; wayfinder.REPO = root
+            old = os.getcwd(); os.chdir(root)
+            try:
+                doc = base_map()
+                lock_path = wayfinder.state_root(doc['epic']) / 'map.lock'
+                lock_path.parent.mkdir(parents=True)
+                target = pathlib.Path(tmp) / 'target'; target.write_text('leave unchanged')
+                lock_path.symlink_to(target)
+                with self.assertRaises(SystemExit):
+                    wayfinder.active_claim(doc, 'D-001')
+                self.assertEqual('leave unchanged', target.read_text())
+                self.assertTrue(lock_path.is_symlink())
+            finally:
+                os.chdir(old); wayfinder.REPO = prior_repo
 
     def test_manual_resolve_can_close_needs_human_ticket(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,5 +1,9 @@
 import importlib.util
+import json
 import pathlib
+import subprocess
+import tempfile
+import threading
 import unittest
 from unittest import mock
 
@@ -11,6 +15,43 @@ spec.loader.exec_module(cp)
 
 
 class ControlPlaneTest(unittest.TestCase):
+    def test_snapshot_writer_uses_shared_lifecycle_lock_for_directory_temp_and_rename(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp) / 'repo'; root.mkdir()
+            subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
+            prior_repo, prior_state = cp.REPO, cp.STATE
+            cp.REPO = root
+            cp.STATE = root / '.agent-state' / 'control-plane'
+            acquired = threading.Event(); release = threading.Event()
+            finished = threading.Event(); errors = []
+            def lifecycle_writer():
+                with cp.repository_state_lock.lifecycle_lock(root):
+                    acquired.set()
+                    release.wait(3)
+            def save():
+                try:
+                    cp.save_snapshot({'source': 'github', 'key': 'GH-1', 'title': 'A task'})
+                except BaseException as exc:
+                    errors.append(exc)
+                finally:
+                    finished.set()
+            holder = threading.Thread(target=lifecycle_writer); holder.start()
+            try:
+                self.assertTrue(acquired.wait(2))
+                saver = threading.Thread(target=save); saver.start()
+                self.assertFalse(finished.wait(0.15), 'snapshot writer bypassed the lifecycle lock')
+                self.assertFalse(cp.STATE.exists(), 'snapshot directory was created before lock acquisition')
+                release.set()
+                self.assertTrue(finished.wait(3))
+                saver.join(timeout=1)
+                self.assertEqual([], errors)
+                output = cp.STATE / 'github-GH-1.json'
+                self.assertEqual({'source': 'github', 'key': 'GH-1', 'title': 'A task'}, json.loads(output.read_text()))
+                self.assertEqual([output.name], [entry.name for entry in cp.STATE.iterdir()])
+            finally:
+                release.set(); holder.join(timeout=2)
+                cp.REPO, cp.STATE = prior_repo, prior_state
+
     def test_github_issue_normalizes_to_read_only_intent(self):
         item = cp.normalize_github({
             'number': 42, 'title': 'Add cart', 'state': 'open', 'body': 'Need a cart',
