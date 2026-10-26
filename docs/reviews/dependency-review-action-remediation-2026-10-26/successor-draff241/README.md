@@ -1,5 +1,10 @@
 # Dependency Review successor candidate: `e5a71f4`
 
+> **SUPERSEDED — DO NOT APPLY.** Its workflow patch and pin are historical and
+> do not identify the current candidate. Use the corrected workflow patch in
+> [the upload-only remediation package](../upload-only-prototype/README.md).
+> This directory is retained as historical evidence.
+
 Status: **blocked; local candidate only**. No fork, PR, upstream push, or
 active Showcase workflow change was made. The exact source commit is
 `e5a71f45eff47b9e465b8cb2e6dcd460ad645276`, parent

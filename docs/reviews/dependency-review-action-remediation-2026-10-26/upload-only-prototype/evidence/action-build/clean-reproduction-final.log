@@ -1,0 +1,42 @@
+
+added 695 packages, and audited 696 packages in 11s
+
+165 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+> dependency-review-action@5.0.0 patch:artifact-sdk
+> node scripts/apply-artifact-sdk-patch.mjs
+
+Applied and verified the pinned build-time @actions/artifact upload patch.
+
+> dependency-review-action@5.0.0 build
+> tsc -p tsconfig.build.json
+
+
+> dependency-review-action@5.0.0 prepackage
+> npm run patch:artifact-sdk && node scripts/clean-dist.mjs
+
+
+> dependency-review-action@5.0.0 patch:artifact-sdk
+> node scripts/apply-artifact-sdk-patch.mjs
+
+Verified the exact build-time @actions/artifact upload patch.
+
+> dependency-review-action@5.0.0 package
+> ncc build src/main.ts --source-map --no-source-map-register && node scripts/generate-dist-licenses.mjs --write && node scripts/generate-dist-licenses.mjs --check
+
+ncc: Version 0.38.4
+ncc: Compiling file index.js into ESM
+ncc: Using typescript@5.9.2 (local user-provided)
+    0kB  dist/package.json
+  667kB  dist/835.index.js
+  790kB  dist/835.index.js.map
+ 5575kB  dist/index.js
+ 6578kB  dist/index.js.map
+ 6578kB  dist/index.js.map
+13610kB  [16373ms] - ncc 0.38.4
+Mapped 125 bundled package identities across 127 installation paths; 0 do not include full license text.
+Mapped 125 bundled package identities across 127 installation paths; 0 do not include full license text.
+Generated distribution exactly matches the committed dist tree.

@@ -1,5 +1,11 @@
 # Dependency Review fail-closed candidate package
 
+> **SUPERSEDED — DO NOT APPLY.** The workflow proposal archived with this
+> historical `070b3b5` candidate pins the obsolete SHA. Use the current
+> candidate and corrected workflow patch in
+> [the upload-only remediation package](../../dependency-review-action-remediation-2026-10-26/upload-only-prototype/README.md).
+> This archive is retained only as historical evidence.
+
 Status: local candidate evidence for owner decision. No public fork, PR, release, Showcase workflow modification, or active pin was created.
 
 ## Exact source
