@@ -1,0 +1,17 @@
+5c05e9fdc822e5cfdf9fa74ffa16ba6ff5a42da7a82e74843ca3df61d3a9f46a  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/AUDIT-RESOLUTION.md
+57ee81486093df8820381fa02494b95eee86d52627e2da17f07720f0fed7a7ed  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/README.md
+62ea3bed555f928f3ac3e45eb889d634c3b3403abfc734fcc6a49bd234114863  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/built-action-results.json
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/built-action.log
+e85002030a1fa527cfc6817643fcb71ed5308fea2b2d5a61b71aa84dac72d95f  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/bundle-reconstruction.txt
+a602aa3a339f6377969e8b0cc258df2699b0a272a37791e943c4eab04c6a3016  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/commits.txt
+20f481b389d2785a3606e42a7c81d4dd9f125ff91c1e86f4f282ae2c0c132fe0  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/dependency-review-action-successor.bundle
+596a6031f6930c093cd82854bb623105c27e8457a2bd9904a7b62dd04fc4090c  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/dependency-review-action-successor.patch.gz
+b44ddd8c7c0a9bca2cae946c9e88552e03ba14fe62f330d19995e89f51113ea9  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/npm-audit-baseline-070b.json
+439750bedcc8ac2919366ec298f3985c3ac7aaef5df31c54fd9f4da07001e2d0  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/npm-audit-final.json
+439750bedcc8ac2919366ec298f3985c3ac7aaef5df31c54fd9f4da07001e2d0  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/npm-audit-runtime-final.json
+e071fdea09cf14bd9aba43942ca3698c927fa96b8efb47bf939f0b6e3d332195  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/npm-package-tree.txt
+a87819b432415e165945b85cf5f2e6d0159298da199d08bc4cdf0db18602329d  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/npm-run-all.log
+62ea3bed555f928f3ac3e45eb889d634c3b3403abfc734fcc6a49bd234114863  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/reconstructed-built-action-results.json
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/reconstructed-built-action.log
+e2d602e52944742f3aabf3710bd044e898e4804e12b377586e4e6f873b6b17fc  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/reconstructed-npm-run-all.log
+7e38f9a2c3a810680d14c8059bd1c54f894587c68a9d97e0a01939ea4cbac5a0  docs/reviews/dependency-review-action-remediation-2026-10-26/successor-e8b2ba3/test-built-action.js

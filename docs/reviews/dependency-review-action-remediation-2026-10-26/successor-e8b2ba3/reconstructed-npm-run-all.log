@@ -1,0 +1,567 @@
+
+> dependency-review-action@5.0.0 all
+> npm run build && npm run format && npm run lint && npm run package && npm test
+
+
+> dependency-review-action@5.0.0 build
+> tsc -p tsconfig.build.json
+
+
+> dependency-review-action@5.0.0 format
+> prettier --write '**/*.ts'
+
+__tests__/config.test.ts 177ms (unchanged)
+__tests__/deny.test.ts 60ms (unchanged)
+__tests__/dependency-graph.test.ts 9ms (unchanged)
+__tests__/external-config.test.ts 15ms (unchanged)
+__tests__/filter.test.ts 23ms (unchanged)
+__tests__/fixtures/create-test-change.ts 10ms (unchanged)
+__tests__/fixtures/create-test-vulnerability.ts 4ms (unchanged)
+__tests__/licenses.test.ts 32ms (unchanged)
+__tests__/main.test.ts 43ms (unchanged)
+__tests__/purl.test.ts 21ms (unchanged)
+__tests__/schemas.test.ts 10ms (unchanged)
+__tests__/scorecard.test.ts 6ms (unchanged)
+__tests__/spdx.test.ts 24ms (unchanged)
+__tests__/summary.test.ts 83ms (unchanged)
+__tests__/test-helpers.ts 4ms (unchanged)
+scripts/create_summary.ts 10ms (unchanged)
+src/comment-pr.ts 11ms (unchanged)
+src/config.ts 19ms (unchanged)
+src/deny.ts 5ms (unchanged)
+src/dependency-graph.ts 5ms (unchanged)
+src/filter.ts 7ms (unchanged)
+src/git-refs.ts 5ms (unchanged)
+src/licenses.ts 18ms (unchanged)
+src/main.ts 51ms (unchanged)
+src/purl.ts 9ms (unchanged)
+src/schemas.ts 27ms (unchanged)
+src/scorecard.ts 9ms (unchanged)
+src/spdx-satisfies.d.ts 2ms (unchanged)
+src/spdx.ts 5ms (unchanged)
+src/summary.ts 71ms (unchanged)
+src/utils.ts 6ms (unchanged)
+types/spdx-license-satisfies.d.ts 2ms (unchanged)
+
+> dependency-review-action@5.0.0 lint
+> eslint src/**/*.ts
+
+
+> dependency-review-action@5.0.0 package
+> ncc build src/main.ts --source-map --license licenses.txt
+
+ncc: Version 0.38.4
+ncc: Compiling file index.js into ESM
+ncc: Using typescript@5.9.2 (local user-provided)
+    0kB  dist/package.json
+   23kB  dist/licenses.txt
+   40kB  dist/sourcemap-register.cjs
+  667kB  dist/835.index.js
+  790kB  dist/835.index.js.map
+ 5676kB  dist/index.js
+ 6699kB  dist/index.js.map
+ 6699kB  dist/index.js.map
+13895kB  [16760ms] - ncc 0.38.4
+
+> dependency-review-action@5.0.0 test
+> node --experimental-vm-modules ./node_modules/jest/bin/jest.js
+
+(node:75043) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/spdx.test.ts (26.598 s)
+  satisfiesAny
+    ✓ should return true for ("MIT", "MIT") (9 ms)
+    ✓ should return true for ("MIT OR Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return true for ("(MIT AND ISC) OR Apache-2.0", "MIT,Apache-2.0") (1 ms)
+    ✓ should return false for ("MIT AND Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT AND BSD-3-Clause", "MIT,Apache-2.0") (1 ms)
+    ✓ should return false for ("MIT OR", "MIT,Apache-2.0")
+    ✓ should return false for ("", "MIT,Apache-2.0") (1 ms)
+    ✓ should return false for ("MIT OR (Apache-2.0 AND ISC)", "")
+    ✓ should return false for ("MIT AND (ISC", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT OR ISC", "MiT")
+    ✓ should return false for ("MIT AND OTHER", "MIT")
+    ✓ should return true for ("MIT OR OTHER", "MIT,LicenseRef-clearlydefined-OTHER") (1 ms)
+  satisfiesAll
+    ✓ should return true for ("MIT", "MIT")
+    ✓ should return false for ("Apache-2.0", "MIT,ISC,Apache-2.0")
+    ✓ should return true for ("MIT AND Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return true for ("(MIT OR ISC) AND Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT OR BSD-3-Clause", "MIT,Apache-2.0")
+    ✓ should return false for ("BSD-3-Clause OR ISC", "MIT,Apache-2.0")
+    ✓ should return true for ("(MIT AND ISC) OR Apache-2.0", "MIT,ISC")
+    ✓ should return false for ("MIT OR", "MIT,Apache-2.0")
+    ✓ should return false for ("", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT OR (Apache-2.0 AND ISC)", "") (1 ms)
+    ✓ should return false for ("MIT AND (ISC", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT OR ISC", "MiT")
+    ✓ should return false for ("MIT AND OTHER", "MIT")
+    ✓ should return true for ("MIT AND OTHER", "MIT,LicenseRef-clearlydefined-OTHER")
+  satisfies
+    ✓ should return true for ("MIT", "MIT")
+    ✓ should return false for ("Apache-2.0", "MIT")
+    ✓ should return true for ("MIT OR Apache-2.0", "MIT")
+    ✓ should return true for ("MIT OR Apache-2.0", "Apache-2.0")
+    ✓ should return false for ("MIT OR Apache-2.0", "BSD-3-Clause")
+    ✓ should return true for ("MIT OR Apache-2.0", "Apache-2.0,BSD-3-Clause") (1 ms)
+    ✓ should return true for ("MIT AND Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return true for ("MIT OR Apache-2.0", "MIT,Apache-2.0")
+    ✓ should return true for ("ISC OR (MIT AND Apache-2.0)", "MIT,Apache-2.0")
+    ✓ should return false for ("MIT", "MiT")
+    ✓ should return false for ("MIT AND (ISC OR", "MIT")
+    ✓ should return false for ("MIT OR ISC OR Apache-2.0", "") (25 ms)
+    ✓ should return false for ("", "BSD-3-Clause,ISC,MIT") (1 ms)
+    ✓ should return true for ("MIT OR OTHER", "MIT,LicenseRef-clearlydefined-OTHER")
+    ✓ should return true for ("(Apache-2.0 AND OTHER) OR (MIT AND OTHER)", "Apache-2.0,LicenseRef-clearlydefined-OTHER") (5 ms)
+  isValid
+    ✓ should return true for ("MIT") (1 ms)
+    ✓ should return true for ("MIT AND BSD-3-Clause")
+    ✓ should return true for ("(MIT AND ISC) OR BSD-3-Clause") (1 ms)
+    ✓ should return false for ("NOASSERTION")
+    ✓ should return false for ("Foobar") (2 ms)
+    ✓ should return false for ("")
+    ✓ should return true for ("MIT AND OTHER") (1 ms)
+  cleanInvalidSPDX
+    ✓ should return MIT for ("MIT")
+    ✓ should return LicenseRef-clearlydefined-OTHER for ("OTHER") (1 ms)
+    ✓ should return LicenseRef-clearlydefined-OTHER for ("LicenseRef-clearlydefined-OTHER")
+    ✓ should return LicenseRef-clearlydefined-OTHER AND MIT for ("OTHER AND MIT") (1 ms)
+    ✓ should return MIT AND LicenseRef-clearlydefined-OTHER for ("MIT AND OTHER")
+    ✓ should return MIT AND SomethingElse-OTHER for ("MIT AND SomethingElse-OTHER")
+
+(node:75044) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/purl.test.ts (27.011 s)
+  ✓ parsePURL returns an error if the purl does not start with "pkg:" (11 ms)
+  ✓ parsePURL returns an error if the purl does not contain a type
+  ✓ parsePURL returns an error if the purl does not contain a namespace or name (1 ms)
+  ✓ parsePURL returns a PURL with the correct values in the happy case (2 ms)
+  ✓ parsePURL table test (4 ms)
+  ✓ purlsMatch matches identical PURLs (1 ms)
+  ✓ purlsMatch matches when namespace separator is percent-encoded
+  ✓ purlsMatch matches scoped npm packages regardless of encoding
+  ✓ purlsMatch does not match different packages
+  ✓ purlsMatch does not match different types
+  ✓ purlsMatch matches packages without namespaces (1 ms)
+  ✓ purlsMatch is case-insensitive for GitHub Actions
+  ✓ purlsMatch is case-insensitive for scoped npm packages
+  ✓ purlsMatch is case-insensitive for GitHub Actions with file paths
+
+(node:75040) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/licenses.test.ts (27.853 s)
+  ✓ it adds license outside the allow list to forbidden changes (43 ms)
+  ✓ it adds license inside the deny list to forbidden changes (11 ms)
+  ✓ it handles allowed complex licenses (2 ms)
+  ✓ it handles complex licenses not all on the allow list
+  ✓ it does not add license outside the allow list to forbidden changes if it is in removed changes (1 ms)
+  ✓ it does not add license inside the deny list to forbidden changes if it is in removed changes (1 ms)
+  ✓ it adds license outside the allow list to forbidden changes if it is in both added and removed changes (1 ms)
+  ✓ it adds all licenses to unresolved if it is unable to determine the validity (1 ms)
+  ✓ it does not filter out changes that are on the exclusions list (1 ms)
+  ✓ it excludes scoped npm packages when namespace separator is percent-encoded (1 ms)
+  ✓ it does not fail when the packages dont have a valid PURL (1 ms)
+  ✓ it does filters out changes if they are not on the exclusions list (1 ms)
+  ✓ it does not fail if there is a license expression in the allow list
+  GH License API fallback
+    ✓ it calls licenses endpoint if atleast one of the changes has null license and valid source_repository_url (2 ms)
+    ✓ it does not call licenses API endpoint for change with null license and invalid source_repository_url  (1 ms)
+    ✓ it does not call licenses API endpoint if licenses for all changes are present
+    ✓ it does not call licenses API if the package is excluded (1 ms)
+    ✓ it checks namespaces when doing exclusions (1 ms)
+
+(node:75045) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/filter.test.ts (27.955 s)
+  ✓ it properly filters changes by severity (55 ms)
+  ✓ it properly filters changes by scope (2 ms)
+  ✓ it properly handles undefined advisory IDs
+  ✓ it properly filters changes with allowed vulnerabilities (28 ms)
+  ✓ it properly filters only allowed vulnerabilities (4 ms)
+  ✓ does not drop dependencies when filtering by GHSA
+  ✓ it properly filters multiple GHSAs (1 ms)
+  ✓ it filters out GHSA dependencies (4 ms)
+
+(node:75041) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/config.test.ts (29.412 s)
+  ✓ it defaults to low severity (15 ms)
+  ✓ it reads custom configs (3 ms)
+  ✓ it defaults to false for warn-only (1 ms)
+  ✓ it defaults to false for fail-on-snapshot-warnings (1 ms)
+  ✓ it reads fail-on-snapshot-warnings (1 ms)
+  ✓ it defaults to empty allow/deny lists  (1 ms)
+  ✓ it raises an error if both an allow and denylist are specified (112 ms)
+  ✓ it raises an error if an empty allow list is specified (13 ms)
+  ✓ it successfully parses allow-dependencies-licenses (16 ms)
+  ✓ it raises an error when an invalid package-url is used for allow-dependencies-licenses (2 ms)
+  ✓ it raises an error when a nameless package-url is used for allow-dependencies-licenses (1 ms)
+  ✓ it raises an error when an invalid package-url is used for deny-packages (2 ms)
+  ✓ it raises an error when a nameless package-url is used for deny-packages (1 ms)
+  ✓ it raises an error when an argument to deny-groups is missing a namespace (1 ms)
+  ✓ it raises an error when given an unknown severity (1 ms)
+  ✓ it uses the given refs when the event is not a pull request (1 ms)
+  ✓ it raises an error when no refs are provided and the event is not a pull request (2 ms)
+  ✓ it uses the given refs even when the event is pull_request (15 ms)
+  ✓ it uses the given refs even when the event is pull_request_target (2 ms)
+  ✓ it uses the event refs when the event is pull_request and no refs are provided in config (3 ms)
+  ✓ it uses the event refs when the event is pull_request_target and no refs are provided in config (1 ms)
+  ✓ it uses the given refs even when the event is merge_group (1 ms)
+  ✓ it uses the event refs when the event is merge_group and no refs are provided in config (1 ms)
+  ✓ it defaults to runtime scope (1 ms)
+  ✓ it parses custom scopes preference (2 ms)
+  ✓ it raises an error when given invalid scope (1 ms)
+  ✓ it defaults to an empty GHSA allowlist (24 ms)
+  ✓ it successfully parses GHSA allowlist (1 ms)
+  ✓ it defaults to checking licenses
+  ✓ it parses the license-check input (1 ms)
+  ✓ it defaults to checking vulnerabilities (1 ms)
+  ✓ it parses the vulnerability-check input (1 ms)
+  ✓ it is not possible to disable both checks (2 ms)
+  ✓ it parses the comment-summary-in-pr input (21 ms)
+  licenses that are not valid SPDX licenses
+    ✓ it raises an error for invalid licenses in allow-licenses (1 ms)
+    ✓ it raises an error for invalid licenses in deny-licenses (1 ms)
+
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::Fetching advisory data for GHSA-35jh-r3h4-6jhm
+::debug::Fetching advisory data for GHSA-29mw-wpgm-hmr9
+::debug::Found 0 vulnerability entries for GHSA-35jh-r3h4-6jhm
+::debug::Found 0 vulnerability entries for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::No advisory data available for GHSA-35jh-r3h4-6jhm
+::debug::No advisory data available for GHSA-29mw-wpgm-hmr9
+::debug::found 3 unknown licenses
+::debug::2 licenses could not be validated
+::debug::found 0 unknown licenses
+::debug::0 licenses could not be validated
+::debug::found 0 unknown licenses
+::debug::1 licenses could not be validated
+::debug::found 0 unknown licenses
+::debug::0 licenses could not be validated
+::debug::found 0 unknown licenses
+::debug::0 licenses could not be validated
+::debug::found 0 unknown licenses
+::debug::0 licenses could not be validated
+::debug::Fetching advisory data for GHSA-test-multi
+::debug::Found 2 vulnerability entries for GHSA-test-multi
+::debug::Added patch info for Microsoft.NetCore.App.Runtime.linux-arm (nuget): 8.0.21 for range >= 8.0.0, <= 8.0.20
+::debug::Added patch info for Microsoft.NetCore.App.Runtime.linux-arm (nuget): 9.0.10 for range >= 9.0.0, <= 9.0.9
+::debug::Looking up patch for Microsoft.NetCore.App.Runtime.linux-arm@8.0.1 (nuget) in GHSA-test-multi
+::debug::Found patch version 8.0.21 for Microsoft.NetCore.App.Runtime.linux-arm@8.0.1
+::debug::Looking up patch for Microsoft.NetCore.App.Runtime.linux-arm@9.0.1 (nuget) in GHSA-test-multi
+::debug::Found patch version 9.0.10 for Microsoft.NetCore.App.Runtime.linux-arm@9.0.1
+::debug::Fetching advisory data for GHSA-4rr6-2v9v-wcpc
+::debug::Found 1 vulnerability entries for GHSA-4rr6-2v9v-wcpc
+::debug::Added patch info for RestSharp (nuget): 112.0.0 for range >= 107.0.0-preview.1, < 112.0.0
+::debug::Looking up patch for RestSharp@111.4.1 (nuget) in GHSA-4rr6-2v9v-wcpc
+::debug::Found patch version 112.0.0 for RestSharp@111.4.1
+::debug::Fetching advisory data for GHSA-vc5p-v9hr-52mj
+::debug::Found 1 vulnerability entries for GHSA-vc5p-v9hr-52mj
+::debug::Added patch info for org.apache.logging.log4j:log4j-core (maven): 2.25.3 for range >= 2.0-beta9, < 2.25.3
+::debug::Looking up patch for org.apache.logging.log4j:log4j-core@2.12.4 (maven) in GHSA-vc5p-v9hr-52mj
+::debug::Coerced range ">= 2.0-beta9 < 2.25.3" to ">= 2.0.0 < 2.25.3" for range matching
+::debug::Found patch version 2.25.3 for org.apache.logging.log4j:log4j-core@2.12.4
+::debug::Fetching advisory data for GHSA-test-1234
+::debug::Found 1 vulnerability entries for GHSA-test-1234
+::debug::Added patch info for test-package (npm): 9.0.0 for range >= 8.0.0, < 9.0.0
+::debug::Looking up patch for test-package@8.0 (npm) in GHSA-test-1234
+::debug::Coerced version "8.0" to "8.0.0" for range matching
+::debug::Found patch version 9.0.0 for test-package@8.0
+::debug::Fetching advisory data for GHSA-test-5678
+::debug::Found 1 vulnerability entries for GHSA-test-5678
+::debug::Added patch info for test-package (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Looking up patch for test-package@invalid-version-string (npm) in GHSA-test-5678
+::debug::No matching patch found for test-package@invalid-version-string. Available entries (showing up to 1 of 1): npm:test-package >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Fetching advisory data for GHSA-r9w3-57w2-gch2
+::debug::Found 1 vulnerability entries for GHSA-r9w3-57w2-gch2
+::debug::Added patch info for github.com/ory/hydra (go): 2.3.1-0.20260320110106-0b84568fffcc for range < 2.3.1-0.20260320110106-0b84568fffcc
+::debug::Looking up patch for github.com/ory/hydra@2.1.0-pre.2 (go) in GHSA-r9w3-57w2-gch2
+::debug::Found patch version 2.3.1-0.20260320110106-0b84568fffcc for github.com/ory/hydra@2.1.0-pre.2
+::debug::Fetching advisory data for GHSA-test-0000
+::debug::Fetching advisory data for GHSA-test-0001
+::debug::Fetching advisory data for GHSA-test-0002
+::debug::Fetching advisory data for GHSA-test-0003
+::debug::Fetching advisory data for GHSA-test-0004
+::debug::Fetching advisory data for GHSA-test-0005
+::debug::Fetching advisory data for GHSA-test-0006
+::debug::Fetching advisory data for GHSA-test-0007
+::debug::Fetching advisory data for GHSA-test-0008
+::debug::Fetching advisory data for GHSA-test-0009
+(node:75039) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+::debug::Found 1 vulnerability entries for GHSA-test-0000
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-test-0010
+::debug::Found 1 vulnerability entries for GHSA-test-0001
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-test-0011
+::debug::Found 1 vulnerability entries for GHSA-test-0002
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-test-0012
+::debug::Found 1 vulnerability entries for GHSA-test-0003
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-test-0013
+::debug::Found 1 vulnerability entries for GHSA-test-0004
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-test-0014
+::debug::Found 1 vulnerability entries for GHSA-test-0005
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0006
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0007
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0008
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0009
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0010
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0011
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0012
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0013
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-test-0014
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Looking up patch for package-0@1.0.0 (npm) in GHSA-test-0000
+::debug::No matching patch found for package-0@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-1@1.0.0 (npm) in GHSA-test-0001
+::debug::No matching patch found for package-1@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-2@1.0.0 (npm) in GHSA-test-0002
+::debug::No matching patch found for package-2@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-3@1.0.0 (npm) in GHSA-test-0003
+::debug::No matching patch found for package-3@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-4@1.0.0 (npm) in GHSA-test-0004
+::debug::No matching patch found for package-4@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-5@1.0.0 (npm) in GHSA-test-0005
+::debug::No matching patch found for package-5@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-6@1.0.0 (npm) in GHSA-test-0006
+::debug::No matching patch found for package-6@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-7@1.0.0 (npm) in GHSA-test-0007
+::debug::No matching patch found for package-7@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-8@1.0.0 (npm) in GHSA-test-0008
+::debug::No matching patch found for package-8@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-9@1.0.0 (npm) in GHSA-test-0009
+::debug::No matching patch found for package-9@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-10@1.0.0 (npm) in GHSA-test-0010
+::debug::No matching patch found for package-10@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-11@1.0.0 (npm) in GHSA-test-0011
+::debug::No matching patch found for package-11@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-12@1.0.0 (npm) in GHSA-test-0012
+::debug::No matching patch found for package-12@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-13@1.0.0 (npm) in GHSA-test-0013
+::debug::No matching patch found for package-13@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-14@1.0.0 (npm) in GHSA-test-0014
+::debug::No matching patch found for package-14@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0000
+::debug::Fetching advisory data for GHSA-vary-0001
+::debug::Fetching advisory data for GHSA-vary-0002
+::debug::Fetching advisory data for GHSA-vary-0003
+::debug::Fetching advisory data for GHSA-vary-0004
+::debug::Fetching advisory data for GHSA-vary-0005
+::debug::Fetching advisory data for GHSA-vary-0006
+::debug::Fetching advisory data for GHSA-vary-0007
+::debug::Fetching advisory data for GHSA-vary-0008
+::debug::Fetching advisory data for GHSA-vary-0009
+::debug::Found 1 vulnerability entries for GHSA-vary-0005
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0010
+::debug::Found 1 vulnerability entries for GHSA-vary-0007
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0011
+::debug::Found 1 vulnerability entries for GHSA-vary-0001
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0012
+::debug::Found 1 vulnerability entries for GHSA-vary-0004
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0013
+::debug::Found 1 vulnerability entries for GHSA-vary-0002
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0014
+::debug::Found 1 vulnerability entries for GHSA-vary-0010
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0015
+::debug::Found 1 vulnerability entries for GHSA-vary-0012
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0016
+::debug::Found 1 vulnerability entries for GHSA-vary-0008
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0017
+::debug::Found 1 vulnerability entries for GHSA-vary-0000
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0018
+::debug::Found 1 vulnerability entries for GHSA-vary-0003
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Fetching advisory data for GHSA-vary-0019
+::debug::Found 1 vulnerability entries for GHSA-vary-0009
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0011
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0006
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0019
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0013
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0015
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0016
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0014
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0018
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Found 1 vulnerability entries for GHSA-vary-0017
+::debug::Added patch info for test (npm): 2.0.0 for range >= 1.0.0, < 2.0.0
+::debug::Looking up patch for package-0@1.0.0 (npm) in GHSA-vary-0000
+::debug::No matching patch found for package-0@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-1@1.0.0 (npm) in GHSA-vary-0001
+::debug::No matching patch found for package-1@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-2@1.0.0 (npm) in GHSA-vary-0002
+::debug::No matching patch found for package-2@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-3@1.0.0 (npm) in GHSA-vary-0003
+::debug::No matching patch found for package-3@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-4@1.0.0 (npm) in GHSA-vary-0004
+::debug::No matching patch found for package-4@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-5@1.0.0 (npm) in GHSA-vary-0005
+::debug::No matching patch found for package-5@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-6@1.0.0 (npm) in GHSA-vary-0006
+::debug::No matching patch found for package-6@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-7@1.0.0 (npm) in GHSA-vary-0007
+::debug::No matching patch found for package-7@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-8@1.0.0 (npm) in GHSA-vary-0008
+::debug::No matching patch found for package-8@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-9@1.0.0 (npm) in GHSA-vary-0009
+::debug::No matching patch found for package-9@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-10@1.0.0 (npm) in GHSA-vary-0010
+::debug::No matching patch found for package-10@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-11@1.0.0 (npm) in GHSA-vary-0011
+::debug::No matching patch found for package-11@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-12@1.0.0 (npm) in GHSA-vary-0012
+::debug::No matching patch found for package-12@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-13@1.0.0 (npm) in GHSA-vary-0013
+::debug::No matching patch found for package-13@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-14@1.0.0 (npm) in GHSA-vary-0014
+::debug::No matching patch found for package-14@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-15@1.0.0 (npm) in GHSA-vary-0015
+::debug::No matching patch found for package-15@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-16@1.0.0 (npm) in GHSA-vary-0016
+::debug::No matching patch found for package-16@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-17@1.0.0 (npm) in GHSA-vary-0017
+::debug::No matching patch found for package-17@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-18@1.0.0 (npm) in GHSA-vary-0018
+::debug::No matching patch found for package-18@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+::debug::Looking up patch for package-19@1.0.0 (npm) in GHSA-vary-0019
+::debug::No matching patch found for package-19@1.0.0. Available entries (showing up to 1 of 1): npm:test >= 1.0.0, < 2.0.0 -> 2.0.0
+PASS __tests__/summary.test.ts (30.573 s)
+  ✓ prints headline as h1 (13 ms)
+  ✓ does not add deprecation warning for deny-licenses option if not set (1 ms)
+  ✓ adds deprecation warning for deny-licenses option if set (1 ms)
+  ✓ returns minimal summary formatted for posting as a PR comment (4 ms)
+  ✓ only includes "No vulnerabilities or license issues found"-message if both are configured and nothing was found
+  ✓ only includes "No vulnerabilities found"-message if "license_check" is set to false and nothing was found (1 ms)
+  ✓ only includes "No license issues found"-message if "vulnerability_check" is set to false and nothing was found
+  ✓ groups dependencies with empty manifest paths together (1 ms)
+  ✓ does not include status section if nothing was found (1 ms)
+  ✓ includes count and status icons for all findings
+  ✓ uses checkmarks for license issues if only vulnerabilities were found (1 ms)
+  ✓ uses checkmarks for vulnerabilities if only license issues were found (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - only includes section if any vulnerabilities found (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - includes all vulnerabilities (2 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - includes advisory url if available (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - groups vulnerabilities of a single package (39 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - prints severity statement if above low (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - does not print severity statement if it is set to "low" (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - does not include patched version column by default
+  ✓ addChangeVulnerabilitiesToSummary() - includes patched version column when enabled (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - skips patched version on GHES even when enabled (13 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - works normally on GHES when patched versions disabled (2 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - works normally on GHES with default (no third arg)
+  ✓ addLicensesToSummary() - does not include entire section if no license issues found (1 ms)
+  ✓ addLicensesToSummary() - includes all license issues in table
+  ✓ addLicenseToSummary() - adds one table per manifest (1 ms)
+  ✓ addLicensesToSummary() - does not include specific license type sub-section if nothing is found
+  ✓ addLicensesToSummary() - includes list of configured allowed licenses (1 ms)
+  ✓ addLicensesToSummary() - includes configured denied license
+  ✓ addLicensesToSummary() - includes allowed dependency licences (16 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles multiple version ranges for same package (42 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles RestSharp GHSA-4rr6-2v9v-wcpc case (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles GHSA-vc5p-v9hr-52mj maven range (2 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles version coercion for non-strict semver versions (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles invalid versions in fail-open mode (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - handles GHSA-r9w3-57w2-gch2 go pseudo-version range (1 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - respects concurrency limit for API calls (63 ms)
+  ✓ addChangeVulnerabilitiesToSummary() - completes all tasks even with varying durations (86 ms)
+
+(node:75042) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS __tests__/main.test.ts (32.001 s)
+  handleLargeSummary
+    ✓ returns original summary when under size threshold (10 ms)
+    ✓ uploads artifact and returns minimal summary when summary is too large (5 ms)
+    ✓ returns truncated summary and replaces buffer when artifact upload fails (3 ms)
+  snapshot warnings
+    ✓ fails closed when warnings remain and retry is disabled (43 ms)
+    ✓ fails closed when warnings remain after retry timeout (80 ms)
+    ✓ evaluates the warning-free comparison returned after retry (2 ms)
+    ✓ preserves API errors as failures (2 ms)
+    ✓ keeps default behavior when fail-on-snapshot-warnings is false (1 ms)
+
+PASS __tests__/deny.test.ts (18.613 s)
+  ✓ denies packages from the deny packages list (8 ms)
+  ✓ denies packages only for the specified version from deny packages list (2 ms)
+  ✓ if no specified version from deny packages list, it will treat package as wildcard and deny all versions (1 ms)
+  ✓ denies packages from the deny group list (2 ms)
+  ✓ denies packages that match the deny group list exactly (2 ms)
+  ✓ denies packages using the namespace from the name when there's no package_url (2 ms)
+  ✓ allows packages not defined in the deny packages and groups list (1 ms)
+  ✓ deny packages does not prevent removal of denied packages (108 ms)
+
+PASS __tests__/schemas.test.ts (18.855 s)
+  ✓ configuration preserves required, optional, default, coercion, and unknown-key behavior (14 ms)
+  ✓ configuration retains explicit false and rejects invalid severity and invalid field types (23 ms)
+  ✓ API response schemas preserve defaults and reject malformed records (4 ms)
+
+::debug::Getting deps.dev data for type-is 1.6.18
+PASS __tests__/scorecard.test.ts (19.257 s)
+  ✓ Get scorecard from API (255 ms)
+  ✓ Get project URL from deps.dev API (99 ms)
+  ✓ Handles Actions special case (25 ms)
+
+PASS __tests__/external-config.test.ts (20.304 s)
+  ✓ it reads an external config file (101 ms)
+  ✓ raises an error when the config file was not found (83 ms)
+  ✓ it parses options from both sources (4 ms)
+  ✓ in case of conflicts, the inline config is the source of truth (2 ms)
+  ✓ it uses the default values when loading external files (4 ms)
+  ✓ it accepts an external configuration filename (2 ms)
+  ✓ it raises an error when given an unknown severity in an external config file (3 ms)
+  ✓ it supports comma-separated lists (2 ms)
+  ✓ it reads a config file hosted in another repo (3 ms)
+
+PASS __tests__/dependency-graph.test.ts (18.9 s)
+  ✓ it properly catches RequestError type (260 ms)
+
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+Test Suites: 12 passed, 12 total
+Tests:       200 passed, 200 total
+Snapshots:   0 total
+Time:        50.466 s
+Ran all test suites.

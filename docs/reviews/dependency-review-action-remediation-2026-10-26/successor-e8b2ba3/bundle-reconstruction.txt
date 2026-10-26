@@ -1,0 +1,19 @@
+Bundle reconstruction record
+============================
+
+Upstream baseline: a1d282b36b6f3519aa1f3fc636f609c47dddb294
+Original patch commit: 070b3b5e80886179f4e2d63b1c38d11dc760c69e
+Final candidate: e8b2ba3ed218373c1be262aca4c89bf7320a1e07
+
+In a fresh repository, fetched the official upstream baseline, verified and fetched the preserved 070b3b5 bundle, checked out 070b3b5, then verified and fetched dependency-review-action-successor.bundle. Final detached HEAD was e8b2ba3 and the checkout was clean.
+
+The successor bundle declares 070b3b5 as its required prerequisite; standalone verification before fetching the original bundle correctly reports that missing prerequisite. After fetching the original bundle, both bundle verifications succeed. No missing history was guessed or replaced.
+
+From the reconstructed checkout:
+- `npm ci --ignore-scripts --no-audit --no-fund`: success, 695 packages installed.
+- `npm run all`: exit 0; 12 suites, 200 tests passed. Jest emitted one worker graceful-exit warning on this replay; the original candidate run had no such warning. See both raw logs.
+- Rebuilt distribution hashes match the candidate exactly:
+  - `dist/index.js`: `40844ca93067b353938a08645cd93d6781697431c787a2d0bfd7f7d1011f221c`
+  - `dist/index.js.map`: `9799da1b0ec9370398a397c497486691e3747f2eae7ae37a028f3886d72fe26f`
+  - `package-lock.json`: `c85fb3e005460de7066ea430578c6b127f2527a266b7b426515ab861fba457c9`
+- The built-action scenario runner reproduced all seven results in `reconstructed-built-action-results.json`.

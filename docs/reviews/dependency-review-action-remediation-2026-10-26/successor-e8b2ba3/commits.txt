@@ -1,0 +1,3 @@
+e8b2ba3ed218373c1be262aca4c89bf7320a1e07 fix: remediate dependency review action findings
+dd83ffdbc7e1247dc2278c0a8094e437273ee3cb fix: migrate validation schemas to zod 4
+b995247dadfa9b24e0613e0b3dae713e895f6f94 chore: apply compatible dependency audit fixes
