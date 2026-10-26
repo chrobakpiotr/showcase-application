@@ -1,0 +1,35 @@
+inspection_date=2026-10-26
+showcase_head_at_search=5394efc17bedf8cf55f4a938924684685b252dde
+harness_version=0.20.0
+harness_sha=82d8b08c744346724e5edac1343bbb0c14c7f274
+scope=read-only; no recovery, state write, snapshot/ref write, or lock-file replacement
+
+searched_sources:
+- active 0.20.0 binding paths: canonical state and historical main-checkout state paths
+- registered worktrees; AH5-04B-QUAL-001 T-002/T-003/T-004 use the main repository .git common dir
+- refs/agent-state and refs/agent-state-snapshots, plus matching reflog files
+- Git history for exact state filenames and checked-in feature evidence paths
+- feature evidence directories, matching .agent-runs paths, and completion-capture paths
+
+SDD-001:
+- canonical state .agent-state/SDD-001-f6b35fe4b93daa844e43.json: absent
+- historical state .agent-state/SDD-001-367b903b22a2b2d09da2.json: absent
+- feature ref and matching snapshot refs/reflogs: none found
+- checked-in docs/specs/SDD-001/evidence: no files
+- matching feature-specific .agent-runs/completion-capture records: none found
+- generic baseline/evaluation output includes task listing only; no lifecycle start/attempt/lease
+- conclusion: authoritative lifecycle history not found; whether a lifecycle attempt ever started is undetermined
+
+AH5-04B-QUAL-001:
+- canonical state .agent-state/AH5-04B-QUAL-001-78d1b1144c2d9d80a74d.json: absent
+- historical state .agent-state/AH5-04B-QUAL-001-c4b0109a14a66accb4e6.json: absent
+- feature ref and matching snapshot refs/reflogs: none found
+- matching feature-specific .agent-runs/completion-capture directory: none found
+- Git history contains task checkpoints (including T-002, T-003, T-004, T-005, T-006, T-900), a
+  T-006 failed-attempt commit, orchestration refresh, and preserved qualification evidence. Some
+  evidence refers to completion-capture paths, but those paths are not present in this checkout.
+- conclusion: past task work/execution activity is evidenced, but authoritative lifecycle attempt
+  identity and current lease/ownership are not recoverable from the searched sources
+
+No evidence supports the claim that either feature never started. No state was reconstructed from
+specifications, task declarations, checkpoint commit messages, or completion statements.

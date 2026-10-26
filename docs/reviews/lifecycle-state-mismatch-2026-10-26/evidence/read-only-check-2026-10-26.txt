@@ -1,0 +1,26 @@
+inspection_date=2026-10-26
+harness_version= 0.20.0
+harness_sha= 82d8b08c744346724e5edac1343bbb0c14c7f274
+showcase_head= 5394efc17bedf8cf55f4a938924684685b252dde
+repo_root= $CHECKOUT
+git_common_dir= $CHECKOUT/.git
+runtime_state_root= $CHECKOUT/.agent-state
+lifecycle_lock_file= $CHECKOUT/.git/agent-state-lifecycle.lock regular= True
+lifecycle_lock_acquired= yes
+repository_state_status= state-mismatch snapshot_ref= refs/agent-state/current snapshot_commit= d41f0aa9e6b8d6f5d011024bb5c29ac647f7c9cd snapshot_id= sha256:a41561484b8bc99dc14718468a93f549f27d0ee03134587083984df122279f91 created_at= 2026-10-18T20:13:12.181088+00:00
+repository_snapshot_files= 61 actual_files= 62 missing= [] unexpected= ['wayfinder/EPIC-001/map.lock'] changed= []
+extra_lock= .agent-state/wayfinder/EPIC-001/map.lock size= 0 mode= 0o644 mtime_epoch= 1792493065 symlink= False
+feature= SDD-001 state_status= state-mismatch recovery_required= True canonical= .agent-state/SDD-001-f6b35fe4b93daa844e43.json canonical_exists= False legacy= .agent-state/SDD-001-367b903b22a2b2d09da2.json legacy_exists= False feature_ref_exists= False
+feature= AH5-04B-QUAL-001 state_status= state-mismatch recovery_required= True canonical= .agent-state/AH5-04B-QUAL-001-78d1b1144c2d9d80a74d.json canonical_exists= False legacy= .agent-state/AH5-04B-QUAL-001-c4b0109a14a66accb4e6.json legacy_exists= False feature_ref_exists= False
+feature= SDD-OBS-001 state_status= state-mismatch recovery_required= True canonical= .agent-state/SDD-OBS-001-3f8ff1257c272596a44e.json canonical_exists= True legacy= .agent-state/SDD-OBS-001-c33b198360b406accab4.json legacy_exists= False feature_ref_exists= True
+ feature_snapshot_commit= 3ee61db4250951f3eeeed45d5cc38632f8aa6adb snapshot_id= sha256:9fef3f025e24145b62f9f6dccc54ff6763288fa052b2b6bf53d26e640bb671f8 state_revision= 97cd33bafdeb18d1d7756f632aef936696c3e20ccd9d1eb0a50c7b2e5b881a37 state_bytes_match= True
+ feature_snapshot_tasks= 11 status_counts= {'completed': 11} running= 0 tasks_with_lease_fields= 0 verification_authority_present= False
+sdd_obs_fingerprint_persisted= 1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3 head_inputs_fingerprint= 1aa4a8d7b27b21ae70e052da269fab175be87f33595599f45d53713c50c845c3
+sdd_obs_fingerprint_worktree= d001b2ce41eba5ea0ef7801703fa5c19deef1c171693f189e38b70f609ac61f9 matches_persisted= False
+prepared_snapshot_refs= 0
+verification_lock_file= $CHECKOUT/.agent-runs/control/verification-v2/lock regular= True
+verification_records= 0 open_or_uncertain= 0
+active_harness_processes= 0
+active_wayfinder_processes= 0
+wayfinder_map_lock_acquired_read_only= yes
+wayfinder_lock_unchanged= True
