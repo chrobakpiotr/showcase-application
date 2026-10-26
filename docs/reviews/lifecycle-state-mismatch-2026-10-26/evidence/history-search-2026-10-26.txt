@@ -7,6 +7,7 @@ scope=read-only; no recovery, state write, snapshot/ref write, or lock-file repl
 searched_sources:
 - active 0.20.0 binding paths: canonical state and historical main-checkout state paths
 - registered worktrees; AH5-04B-QUAL-001 T-002/T-003/T-004 use the main repository .git common dir
+- exact current and historical binding filenames across all 55 registered worktrees
 - refs/agent-state and refs/agent-state-snapshots, plus matching reflog files
 - Git history for exact state filenames and checked-in feature evidence paths
 - feature evidence directories, matching .agent-runs paths, and completion-capture paths
@@ -30,6 +31,24 @@ AH5-04B-QUAL-001:
   evidence refers to completion-capture paths, but those paths are not present in this checkout.
 - conclusion: past task work/execution activity is evidenced, but authoritative lifecycle attempt
   identity and current lease/ownership are not recoverable from the searched sources
+
+Relevant Git commits (task/work history only; not lifecycle state):
+- 218bfa12d00c6d14998cbd994243af9450b21bfe — 2026-10-07, T-001 q01-q10 probes
+- 8d0b9eb979488070f51aacb75d6d5ed737399bd3 — 2026-10-07, T-001 q01-q10 probes
+- f5a16dbe7b3bae9a86c6520814618c0965f72185 — 2026-10-07, T-002 q11-q16 probes
+- a518d9fef6ae457f031dd83116dcd129ff2fa12d — 2026-10-07, T-004 checkpoint
+- 46eb5401080526805eb50b49d4ebe0902bbcd9d6 — 2026-10-07, T-005 checkpoint
+- ed313f9383e9fc47da609dae612d93437d360034 — 2026-10-07, T-002 checkpoint
+- 5d16f024e05a264c4b38676890fd7e2b6af67d9e — 2026-10-07, T-005 checkpoint
+- a4f9422ba1d478d676d5ee11e6109b9463252470 — 2026-10-07, T-006 failed-attempt checkpoint
+- 872736b55a6f6785d17b660a96aacb79f563b805 — 2026-10-07, T-003 checkpoint
+- 6829309daff58760969784bfc587bd1c1a9fbcf2 — 2026-10-08, orchestration refresh
+- 778456228b9e2e8e58f90d68622fa2a1f28ee591 — 2026-10-08, T-003 checkpoint
+- 317785afdd225c89de93d2e1c9ecf62b7c892fcd — 2026-10-08, T-004 checkpoint
+- 0d9dedae8096e8a41e42bc6a329652420b25af46 — 2026-10-08, T-005 checkpoint
+- c19bdb884d6fc709f3ad8f8d44710a9f522da905 — 2026-10-08, T-006 checkpoint
+- 989df8647a6d9d65642226d4f3e702e8d52e0430 — 2026-10-08, T-900 checkpoint
+- 502571873982980d39e6bec9f50853f2cc78ee26 — 2026-10-10, T-004 checkpoint
 
 No evidence supports the claim that either feature never started. No state was reconstructed from
 specifications, task declarations, checkpoint commit messages, or completion statements.
