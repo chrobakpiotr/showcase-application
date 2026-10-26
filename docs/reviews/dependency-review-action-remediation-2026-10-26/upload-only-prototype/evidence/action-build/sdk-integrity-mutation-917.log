@@ -1,0 +1,16 @@
+Pristine exact tarball runner exit: 0
+Applied and verified the pinned build-time @actions/artifact upload patch.
+Outside-prior-guards mutation exit: 1
+file:///private/tmp/dependency-review-action-remediation/scripts/apply-artifact-sdk-patch.mjs:63
+  throw new Error(
+        ^
+
+Error: @actions/artifact is neither the exact pristine package nor the exact patched package
+    at file:///private/tmp/dependency-review-action-remediation/scripts/apply-artifact-sdk-patch.mjs:63:9
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0
+Restored patched tree runner exit: 0
+Verified the exact build-time @actions/artifact upload patch.

@@ -1,49 +1,45 @@
-# DRA-F1 upload-only prototype results
+# Dependency Review Action candidate 4665869 — results
 
-Status: isolated local candidate committed for review; no public fork, release, Showcase workflow change, or live GitHub upload. The local action-repository CI workflow includes the build-time patch and distribution checks described below; no GitHub Actions run was performed.
+Status: isolated, locally verified candidate awaiting independent review and an owner decision for publication. No public fork, PR, release, GitHub workflow run, or live upload occurred.
 
-## Base and limitation
+## Identity
 
-- Action base commit: `e5a71f45eff47b9e465b8cb2e6dcd460ad645276`.
-- Runtime dependency: `@actions/artifact@6.3.1`.
-- Exact npm tarball SHA-256: `3917e287b36403f9fe7cda27a56e84f83be2ad5a8602d8d9e0bdc713645d1a91`.
-- Registry integrity: `sha512-DBXgdB9T4yj2KSe0tFg+MTi9T5se+16bdrFQh+3Y6Nq1lZ3gYQk1BjHoTof+7Zf36bEAlfVMf+8ifRKeyGJugQ==`.
-- The exact package exports only `.`; it has no supported upload-only import. The action prototype was built with the small proposed `@actions/artifact/upload` export applied locally to the exact tarball files. A clean install of the unmodified registry package cannot build this action source.
-- Patch is tracked at `patches/artifact-6.3.1-upload-subpath.patch` (SHA-256 `b0d88441a5ccab1e699ee228ebbd4dec6888092aa2cc3db213b754f2f00d33ab`). It adds an `./upload` export and declaration/module around the existing upload implementation. The wrapper preserves the exact 6.3.1 `DefaultArtifactClient.uploadArtifact` checks, arguments, result, GHES error, warning text and rejection behavior; it deliberately returns the upload promise without `await`, matching the existing method. It applies only to an exact clean extraction of the npm tarball and fails closed on any changed inputs. Adoption still requires a separately authorized released action candidate.
+- Action base: `e5a71f45eff47b9e465b8cb2e6dcd460ad645276`.
+- Previous candidate: `02d0eeb7c27cf1fda771371db948b7b0a6150885`.
+- Current candidate: `4665869fdfe9557a437e61fdc9667b82e5bb414d` (direct child of `917c181a7432178a2415d6683c3ce8de27e3349b`); it adds an orphan-map regression test only.
+- Showcase workflow patch base: `5394efc17bedf8cf55f4a938924684685b252dde`.
+- Candidate uses exact pin: `chrobakpiotr/dependency-review-action@4665869fdfe9557a437e61fdc9667b82e5bb414d`.
 
-## Prototype behavior and packaging
+## DRA-F1–F5 amendments
 
-- `src/main.ts` calls upload-only API for the existing >1 MiB summary path. Summary body, threshold, artifact name, retention, truncated fallback and upload error handling are unchanged.
-- Unit tests cover under-limit no-upload; oversized-summary upload arguments; upload failure warning/truncation; fail-closed warnings without retry and after timeout; warning-free retry result; API errors; and default mode.
-- A local upload call without runner credentials reached the SDK upload implementation and refused because the runtime token was unavailable. This was not a real GitHub upload; the wrapper-warning semantics are verified against the exact source in `lib/internal/client.js`.
-- Clean ESM package: 125 package identities, 127 installation paths, 0 unresolved notices. The inventory is derived from every recursively discovered JavaScript source map under `dist`, not only `index.js.map`; the lazy `835.index.js` chunk contributes `apache-arrow@21.2.0`, `flatbuffers@25.9.23`, and `tslib@2.8.1`.
-- Every executable JavaScript file in `dist` must have a paired source map. The regression test uses a nested lazy-only source, verifies its map is inventoried, and verifies packaging refuses when that map is absent. The build uses ncc `--no-source-map-register`, so the unmapped CJS diagnostic helper is not distributed; runtime stack locations therefore remain bundled JavaScript locations rather than being remapped by that helper.
-- All maps have zero entries for `@actions/artifact/lib/internal/download`, `unzip-stream`, `binary`, `buffers`, and `chainsaw`. `dist/index.js` still contains the literal `unzip-stream` in the SDK package manifest embedded for user-agent version lookup; no module source/code for that package is bundled.
-- `apache-arrow` includes its exact-package `NOTICE.txt`; `flatbuffers` and `tslib` use their exact package license files. `@protobuf-ts/runtime@2.11.1` is compound-licensed: its package README assigns BSD-3-Clause to `protobufjs-utf8.js` and `goog-varint.js`, and Apache-2.0 to the remainder. The generated notice includes the package Apache license and both exact-tarball BSD source notices.
-- `binary`, `chainsaw`, and `buffers` are absent from the prototype; their notices are omitted.
-- `@nodable/entities@3.1.0` remains. Its exact tarball files under upstream `Entity/` match tag `v3.1.0`, commit `b89ecb0d419969e2989b74c5304bc9b66931727e`; the MIT `LICENSE` is at the repository root. Its SHA-256 is `750cb3fb6362804957ef52caaf9b5c824015be44d494637330d7cd8834d31d40`; Git blob `561468f111a66df52cc0f1934642bb9fdd22a212`. Package/tarball/source/hash evidence is in `license-supplements/@nodable/entities-3.1.0/evidence.json`.
-- Generator no longer derives copyright from `author` or copies another package's license text. Empty license files and unresolved source/readme entries fail the package check. Tests require every bundled identity to have a sourced notice and reject `NOASSERTION`/incomplete markers in the successful artifact.
-- Two clean package runs after the review corrections were byte-identical across the complete `dist` tree. Final SHA-256:
-  - `dist/835.index.js`: `bb0896df297917a8e6cc6ec70e1209204898a6c7fd1a1a672a1816213c3b1a5c`
-  - `dist/835.index.js.map`: `847c45ba6fb436818f6ac62988093447d70971cdc9f9d3c7edda1aa35cfdc20f`
-  - `dist/index.js`: `24d3b98d08ffdd60deee73f1d2ab9ad230269ca1c71532cbcdb4c5f78796f13a`
-  - `dist/index.js.map`: `38bdb55c110e2dd5e9c21e72f9180a6d839f30b0d167b9ebf0ba1c0b88fac306`
-  - `dist/licenses.txt`: `c8c7f5ac2769c40c066745bde8e2accc0aada77ff604d27a33ec5a3c714317e3`
-  - `dist/package.json`: `3ca9d4afd21425087cf31893b8f9f63c81b0b8408db5e343ca76e5f8aa26ab9a`
+**Distribution.** A narrow allowlist recognizes JS files and their maps, plus `licenses.txt` and `package.json` only at the distribution root. The package metadata must equal the exact expected ESM metadata. Unknown `.wasm`, `.node`, `.json`, and any other unclassified files cause refusal. Every executable JS must have a corresponding map, and orphan maps cause refusal. Tests include a nested lazy-only dependency, missing-map refusal, orphan-map refusal, and refusals for unknown `.wasm`, `.node`, and `.json` artifacts. Identity counts derive from all recursively found maps.
 
-## Checks
+**Licenses.** The full inventory contains 125 package identities and 127 installation paths. The lazy chunk contributes `apache-arrow@21.2.0`, `flatbuffers@25.9.23`, and `tslib@2.8.1`; exact locked package license files are included, along with Arrow's exact `NOTICE.txt`. `@protobuf-ts/runtime@2.11.1` declares Apache-2.0 AND BSD-3-Clause. Its exact README declarations are quoted verbatim; the two CommonJS files actually present in the bundle are verified by map membership and have their exact BSD source headers/digests recorded. The distinction between the README's `build/es2015` source references and the bundled corresponding `build/commonjs` files is explanatory metadata outside the quoted license text. `@nodable/entities@3.1.0` source mapping under upstream `Entity/` and the root LICENSE are tied to the exact tag and digests in its supplement evidence.
 
-- `npm run build`: PASS.
-- `npm run lint`: PASS.
-- `npm run format-check`: PASS.
-- `npm run package`: PASS, repeat build matched above hashes.
-- `npm test`: 15 suites, 209 tests passed after clean `npm ci` (parallel runner); no Jest worker warning in this run. The earlier warning remains unexplained.
-- `npm audit --json`: 0 vulnerabilities (0 critical, high, moderate, low, informational); exit 0.
-- `git diff --check`: PASS.
-- No GitHub workflow run, artifact upload, or private-repository 403 scenario was tested.
+**SDK patch integrity.** `@actions/artifact@6.3.1` is verified against the exact registry tarball and lockfile SRI. The manifest walks all paths deterministically using code-unit ordering, records directory/file types and content digests, rejects symlinks/other types and unexpected files, and checks that post-patch differences are exactly declared. Tests prove stable ordering under different locale collators and refuse a modified `lib/internal/upload/retention.js`, outside the prior five guards.
 
-## DRA-F2 and remaining decision
+**Clean distribution.** CI snapshots the committed output, starts from an empty `dist/`, rebuilds, and compares complete filesystem trees including new, removed and ignored files. `git archive` of the candidate commits the exact distribution for independent comparison.
 
-- Historical workflow patch in the old `070b3b5` package does not pin `e5a71f4`; the prior handoff's contrary statement is corrected here and in `AUDIT-RESOLUTION.md`.
-- The durable Showcase evidence package carries the current generated workflow patch pinned to the final candidate SHA, with an exact owner/repository/SHA assertion, the push-ref validator test in CI, and results from applying and testing the patch in a clean Showcase checkout.
-- Existing `minimatch@10.2.5` override conflicts with `readdir-glob@1.1.3`'s declared `^5.1.0`. Checked compatibility is limited to the candidate action suites, bundle scenarios, and build; exhaustive pattern compatibility is not established.
+**Automated test.** The outside-prior-guards mutation is part of the regular Jest suite run by CI. The previous manual mutation log is retained as historical evidence, not described as automated proof.
+
+## Build and audit
+
+The local build patch adds the project-only `@actions/artifact/upload` subpath while reusing the exact 6.3.1 upload implementation. It preserves the existing upload arguments, return behavior, GHES refusal and errors. `dist` code and source maps are unchanged from 02d; 917-to-466 changes only the test tree, while 02d-to-917 changed the license inventory and validation/build tooling.
+
+Clean npm install installed 695 packages and reported zero vulnerabilities. The lockfile is unchanged from the prior reviewed candidate. The package audit result is zero findings at all severities. No automatic `npm audit fix` or new dependency upgrade was used. The inherited `minimatch@10.2.5` override still conflicts with `readdir-glob@1.1.3`'s declared `^5.1.0`; compatibility was checked only by the existing candidate tests/scenarios, not exhaustively across the range.
+
+Successful final candidate checks:
+
+- build, format check, lint, package and test suite passed;
+- 15 suites / 216 tests, zero failures;
+- 125 package identities / 127 paths / zero unresolved license notices;
+- two package builds byte-identical across the complete `dist/` tree;
+- clean rebuilt `dist/` equals the committed tree;
+- SDK patch refuses a modified file outside the previous five-file guard set;
+- fresh Showcase copy at the stated base: 12 aggregate-gate tests and 4 push-ref tests pass; exact pin mutation is rejected; YAML parses; patch applies cleanly.
+
+## Remaining integration limits
+
+The Jest parallel-worker warning seen in an earlier run remains unexplained; the final run did not show it, which does not identify its cause. The 02d archive had seven AppleDouble `._*` sidecars (six actual file matches); the preserved old archive remains historical. The preserved 917 and current 466 archives are generated with `git archive` and have no such sidecars.
+
+No GitHub-hosted runner, GitHub artifact upload, private-repository 403 case, or live GHES server was tested. These require post-publication integration evidence. The current workflow remains unchanged.

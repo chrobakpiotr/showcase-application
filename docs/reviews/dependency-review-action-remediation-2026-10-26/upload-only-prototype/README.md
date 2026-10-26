@@ -1,54 +1,40 @@
-# DRA-F1 upload-only action candidate
+# Dependency Review Action candidate `4665869`
 
-Local candidate for independent Harness review. No fork, release, or active
-Showcase workflow change has been published. The 344eebb review correctly
-blocked publication: its generator and test had missed dependencies found only
-in the lazy chunk. Earlier reviews e8b2ba3 and e5a71f4 also missed that chunk;
-their earlier conclusions are not evidence of complete distribution coverage.
+Status: **independent local review PASS; awaiting owner decision on publication and activation**. No public fork, release, pull request, GitHub Actions run, or active Showcase workflow change was made.
 
-## Candidate identity
+## Identity and preserved history
 
-- Base action commit: `e5a71f45eff47b9e465b8cb2e6dcd460ad645276`.
-- Prior reviewed candidate: `344eebb3ee65af6364f3be7cf17cbfcc1fc3c243`.
-- Current candidate: `02d0eeb7c27cf1fda771371db948b7b0a6150885`, a follow-up commit on top of the prior candidate.
-- Full changes are reconstructable with `action-candidate.patch.gz` (decompress with `gzip -cd`); `candidate-dist.tar.gz` contains the exact built bundle, source map and licenses.
-- The old candidate patch and dist remain as `action-candidate-344eebb.patch.gz` and `evidence/action-build/candidate-dist-344eebb.tar.gz`.
+- Action base: `e5a71f45eff47b9e465b8cb2e6dcd460ad645276`.
+- Previous candidate: `02d0eeb7c27cf1fda771371db948b7b0a6150885`.
+- Current candidate: `4665869fdfe9557a437e61fdc9667b82e5bb414d`, parent `917c181a7432178a2415d6683c3ce8de27e3349b`.
+- `action-candidate.patch.gz` reconstructs the current candidate from the action base; `evidence/action-build/candidate-dist.tar.gz` is made from the exact committed `dist/` tree.
+- Prior 02d and 917 artifacts remain unchanged under their `-02d0eeb` and `-917c181` filenames; current files describe 4665869. They are historical evidence only.
+- `HISTORICAL-CANDIDATES.md` marks older proposals superseded without editing files covered by their original manifests. Historical SHA manifests verify after restoration.
 
-## Build patch
+## Amendments and finding disposition
 
-`@actions/artifact@6.3.1` only exports its root entry. The candidate adds the local `@actions/artifact/upload` subpath at build time. The exact registry tarball is preserved at `sdk-patch/actions-artifact-6.3.1.tgz` with SHA-256 `3917e287b36403f9fe7cda27a56e84f83be2ad5a8602d8d9e0bdc713645d1a91` and the lockfile SRI in `PROTOTYPE-RESULTS.md`.
+- **F1 — distribution inventory: CLOSED locally.** An explicit artifact allowlist admits paired JS/maps plus only the exact auxiliary root files `dist/licenses.txt` and `dist/package.json` with the expected metadata. Unknown `.wasm`, `.node`, `.json`, or other artifacts are refused. Every executable JS requires a map; orphan maps are refused. Tests cover all three unknown extensions, missing/orphan maps, and a dependency present only in a nested lazy chunk. Inventory counts are calculated from all recursive maps. The current distribution contains 125 package identities across 127 installation paths, with no unresolved notices.
+- **F2 — historical evidence and workflow pin: CLOSED locally.** Historical README bytes were restored and old SHA256SUMS verify. Superseded warnings live in the separate index. The new workflow patch is generated against Showcase base `5394efc17bedf8cf55f4a938924684685b252dde`, pins `chrobakpiotr/dependency-review-action@4665869fdfe9557a437e61fdc9667b82e5bb414d`, and includes the ref-validation test in CI. A one-character SHA mutation fails the exact-pin test. The full action patch reconstructs tree `b65da4515dd146ddf7b2323762c0f20be6f22244`, exactly matching the candidate.
+- **F3 — license provenance: CLOSED locally.** `apache-arrow@21.2.0`, `flatbuffers@25.9.23`, and `tslib@2.8.1` use files from their exact locked package versions; Arrow's NOTICE is included. For `@protobuf-ts/runtime@2.11.1`, the package README's BSD declarations are retained verbatim. The bundled `build/commonjs/protobufjs-utf8.js` and `goog-varint.js` files are each verified in the source map and their exact leading notices and SHA-256 values are recorded. The README's `build/es2015` references are preserved as licensing text; a separate explanation maps them to corresponding bundled CommonJS outputs. `@nodable/entities` evidence records the upstream `Entity/` source mapping and exact tag/license digest.
+- **F4 — SDK package integrity: CLOSED locally.** The build runner compares a deterministic code-unit-ordered manifest of the entire exact `@actions/artifact@6.3.1` package: paths, entry types and file digests. It rejects missing/unexpected entries and accepts only the exact pristine or declared patched tree. A CI test mutates `lib/internal/upload/retention.js`, outside the former five guards, and confirms refusal. Locale-dependent ordering has a regression test.
+- **F5 — automated proof: CLOSED locally.** The outside-prior-guards mutation runs as part of the ordinary Jest suite invoked by the action CI workflow; the earlier manual log remains historical evidence. Documentation distinguishes the automated test from that manual run.
+- **F6 — source-map helper: CLOSED for this candidate.** Clean packaging starts with an empty `dist/`; the exact committed distribution contains only accounted JS, maps and the two approved auxiliary files. The full-tree comparison detects changed, removed, new and ignored output.
+- **F7 — earlier archive/test observations: partly closed.** The old 02d archive had seven AppleDouble `._*` sidecars; six corresponding actual files matched. The preserved 917 archive and current 466 archive are generated with `git archive` from tracked `dist/`, so they contain no AppleDouble sidecars. A previous parallel Jest worker warning had unknown cause; the current full run did not emit it, which does not establish its cause. This is not a demonstrated correctness issue.
 
-The checked-in patch and runner are in `sdk-patch/`. The exact registry tarball SHA-256 is `3917e287b36403f9fe7cda27a56e84f83be2ad5a8602d8d9e0bdc713645d1a91`; its npm lock SRI is also checked. A deterministic manifest hashes every path and file in the SDK package, records directories, rejects symlinks/other entry types, and only accepts the exact pristine tarball tree or exact patched tree. The clean tarball manifest is `0ed106103645a77c0728220c3b29b2bbb3f961327c86b3b3f72c4d9f732a81f0`; patched tree is `0582ee4ad2911d33b93c99981c8f23b96ffaf0283835f00ae262435c88aa38f4`. A clean `npm ci --ignore-scripts` is followed by `npm run patch:artifact-sdk`. A mutation to `lib/internal/upload/retention.js`, outside the previous five-file guards, is refused. There is no runtime patching or SDK download in the action bundle.
+## SDK build-time patch
 
-The added wrapper follows `DefaultArtifactClient.uploadArtifact` from the exact package: same upload implementation, argument order, result promise, GHES check/error, warning text and rejection behavior. It deliberately does not `await` the internal upload promise, matching upstream's existing method.
+The candidate's local `@actions/artifact/upload` subpath is applied only during a clean build from exact `@actions/artifact@6.3.1`; it is not an official upstream API. The SDK tarball SHA-256 is `3917e287b36403f9fe7cda27a56e84f83be2ad5a8602d8d9e0bdc713645d1a91`, matching the lockfile integrity. The patch adds the local export and wrapper around the existing upload implementation; it preserves the 6.3.1 arguments, results, GHES refusal and errors. The action runtime uses committed `dist/` and does not patch or download the SDK.
 
-## DRA findings addressed in current candidate
-
-- **DRA-F1:** recursive inventory reads every `dist/**/*.js.map`, requires a map for each executable JavaScript file, rejects orphan maps, and refuses if a map is absent. The regression uses a nested lazy-only dependency and asserts missing-map refusal. The count is derived, not hard-coded: 125 package identities across 127 installed paths. Lazy chunk `dist/835.index.js` adds `apache-arrow@21.2.0`, `flatbuffers@25.9.23`, and `tslib@2.8.1`. Arrow's exact tarball `NOTICE.txt` and `LICENSE.txt` are included; FlatBuffers and tslib use their exact package license files.
-- **Compound license:** `@protobuf-ts/runtime@2.11.1` declares `(Apache-2.0 AND BSD-3-Clause)`. Its exact locked tarball README scopes BSD to `build/es2015/protobufjs-utf8.js` and `goog-varint.js`; the remaining runtime is Apache-2.0. The notice includes the Apache license and both exact-tarball BSD source headers and digests.
-- **@nodable/entities provenance:** package files map to the upstream `Entity/` directory, while its tag's MIT `LICENSE` is at repository root. The generator and test check that mapping against the locked installed package bytes. Evidence remains in `license-supplements/@nodable/entities-3.1.0/`.
-- **DRA-F3:** full SDK package manifest comparison checks every path, digest, and entry type, including additions and changes outside the former five guards.
-- **DRA-F4:** CI snapshots versioned `dist` with `git archive`, builds after `prepackage` clears the output directory, then compares full filesystem trees. This detects changed, deleted, new, and Git-ignored generated files.
-- **Source-map helper:** ncc builds with `--no-source-map-register`. Thus every distributed executable JavaScript file has a corresponding map; runtime stack traces are not remapped to TypeScript locations.
-- **DRA-F2:** the current workflow patch pins this exact full SHA, tests the owner/repository/SHA line, and runs the push-ref validator tests in CI. A one-character pin mutation causes the gate test to fail. The previous workflow patch remains archived as `showcase-workflow-and-gate-344eebb.patch.gz`.
-- **DRA-F5:** the Zod validation schema is unchanged. The existing evidence describes Zod 4's stricter rejection of timeout `Infinity`; the older 96-case comparison was not repeated because this patch did not change schemas or dependencies.
+The complete package audit found zero vulnerabilities (critical/high/moderate/low/info), with the exact lockfile unchanged from 02d. This is an audit result for that resolved tree, not a compatibility claim for all dependency ranges. In particular, inherited `minimatch@10.2.5` is outside `readdir-glob@1.1.3`'s declared `^5.1.0`; checked compatibility is limited to the existing candidate tests and scenarios.
 
 ## Verification
 
-- On a clean `npm ci --ignore-scripts`: build, format check, lint, package and full tests passed. The suite ran **15 suites / 209 tests**. `npm audit --json` reports **0 info, 0 low, 0 moderate, 0 high, 0 critical**. Full logs are in `evidence/action-build/`.
-- Two package runs were byte-identical across the complete `dist` tree. After commit, `git archive HEAD dist` plus a clean build compared exactly with versioned dist.
-- Full-candidate patch from base `e5a71f4` reconstructs a tree identical to candidate `02d0eeb`.
-- The literal `unzip-stream` remains only in embedded SDK metadata used for user-agent version lookup; no code for it, `binary`, `buffers`, or `chainsaw` appears in any source map.
-- The earlier Jest worker warning remains unexplained. The final full test run did not emit it; this does not explain prior occurrences.
+- Clean `npm ci --ignore-scripts`: 695 packages installed, zero audit findings.
+- `npm run build`, format check, lint, package and full test suite: passed. Full suite: **15 suites, 216 tests, 0 failures**. The build/package log shows 125 identities, 127 install paths and zero unresolved notices.
+- Two package runs were byte-identical over all of `dist/`; committed `dist/` matches a clean rebuild. The code bundle and source maps are unchanged from 02d; only `dist/licenses.txt` differs from 02d. The 917-to-466 amendment adds only an orphan-map test.
+- SDK pristine-tree and patched-tree checks pass; automated mutation outside the former five guarded files is refused.
+- Final workflow patch pins 4665869 and applies cleanly to a fresh checkout of the declared Showcase base. **12 aggregate-gate tests + 4 push-ref tests pass**, Ruby YAML parsing succeeds, `git diff --check` passes, and the required full owner/repo/SHA appears in `uses:`. The one-character pin mutation is detected.
+- Independent review by an agent other than the author passed the exact local candidate and workflow patch. Its finding map is in the parent `INDEPENDENT-REVIEW.md`.
+- No real GitHub runner, artifact upload, private-repository 403 path, or live GHES server was exercised. Local evidence does not verify those integrations.
 
-Harness independent review of the changed scope is pending. Previous review PASS results for unchanged behavior remain historical evidence, not a PASS for candidate `02d0eeb`.
-
-## Workflow patch
-
-`showcase-workflow-and-gate.patch.gz` (decompress with `gzip -cd`) is generated from clean Showcase base `322434255e381a5d9e19d54ceb6826da4d4cea07` and pins `chrobakpiotr/dependency-review-action@02d0eeb7c27cf1fda771371db948b7b0a6150885`. In a second clean copy it passed 12 aggregate-gate tests, 4 push-ref tests, YAML parsing, a valid SHA-range invocation, `git diff --check`, and the one-character pin mutation check.
-
-The active Showcase workflow remains unchanged. No GitHub Actions run, actual artifact upload, private-repository 403, or real GitHub-hosted runner was tested. The action fork and workflow cutover still require the owner's separate publication instruction.
-
-Verify this package with `shasum -a 256 -c SHA256SUMS` from this directory.
-
-Raw build, packaging, audit and source-tree reconstruction logs are under `evidence/action-build/`; clean-copy workflow test output is under `evidence/workflow/`. See `PROTOTYPE-RESULTS.md` for detailed results, `AUDIT-RESOLUTION.md` for scope caveats, and `reproduction-commands.txt` for exact reproduction steps.
+The action SHA256SUMS in this directory cover the current source patch, candidate identity, archive, test logs, SDK patch material and workflow patch. Verify with `shasum -a 256 -c SHA256SUMS` from this directory. The local independent review passed; publication and activation still require an owner decision.

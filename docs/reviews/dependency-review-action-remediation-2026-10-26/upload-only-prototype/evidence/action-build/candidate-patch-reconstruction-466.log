@@ -1,0 +1,5 @@
+Base commit: e5a71f45eff47b9e465b8cb2e6dcd460ad645276
+Patch applied with git apply --check, then git apply.
+Reconstructed index tree: b65da4515dd146ddf7b2323762c0f20be6f22244
+Candidate commit tree: b65da4515dd146ddf7b2323762c0f20be6f22244
+Staged reconstructed tree diff against candidate commit: empty

@@ -2,34 +2,34 @@ Action candidate reproduction (clean worktree at e5a71f45eff47b9e465b8cb2e6dcd46
   gzip -cd action-candidate.patch.gz | git apply --check
   gzip -cd action-candidate.patch.gz | git apply
   git add -A
-  git write-tree  # must equal 0bb3d0b33dfe857f4af54fa960937469eca339f5
+  git write-tree  # must equal b65da4515dd146ddf7b2323762c0f20be6f22244
   npm ci --ignore-scripts
   npm run patch:artifact-sdk
   npm run build
   npm run format-check
   npm run lint
   npm run package
-  npm test
+  npm test -- --runInBand
   npm audit --json
 
-The SDK patch runner validates the lockfile's exact version, resolved URL and
-integrity, the patch SHA, and a deterministic whole-package manifest. It
-accepts only the verified pristine or patched package tree. The final suite
-also mutates lib/internal/upload/retention.js, outside the former five-file
-checks, and confirms refusal. `evidence/action-build/clean-reproduction-final.log`
-records fresh npm ci through clean build and exact committed-dist comparison;
-`package-repeat.log` records the repeat package build.
+The SDK patch runner validates the exact lockfile version, registry URL and
+integrity, patch SHA, and deterministic whole-package manifest. It accepts
+only the verified pristine or patched package tree. Jest tests mutate
+lib/internal/upload/retention.js, outside the former five-file checks, and
+confirm refusal. The final suite and clean dist reproduction logs are under
+evidence/action-build/.
 
 Showcase workflow patch reproduction (clean worktree at
-322434255e381a5d9e19d54ceb6826da4d4cea07):
+5394efc17bedf8cf55f4a938924684685b252dde):
   gzip -cd showcase-workflow-and-gate.patch.gz | git apply --check
   gzip -cd showcase-workflow-and-gate.patch.gz | git apply
-  PYTHONPATH=. python3 tooling/scripts/tests/test_verify_ci_quality_gate.py -v
+  python3 -m unittest tooling/scripts/tests/test_verify_ci_quality_gate.py -v
   PYTHONPATH=. python3 tooling/scripts/tests/test_validate_dependency_review_push_refs.py -v
+  BASE_SHA=<nonzero full SHA> HEAD_SHA=<candidate SHA> python3 tooling/scripts/validate_dependency_review_push_refs.py
   ruby -ryaml -e 'YAML.load_file(".github/workflows/ci.yml")'
   git diff --check
 
-The exact-pin assertion was mutation-checked by changing one SHA character in
-the workflow; the test failed as expected. See `evidence/workflow/`.
-`SHA256SUMS` covers the durable package files. The active workflow was not
-changed and no GitHub Actions workflow run or artifact upload was performed.
+A one-character mutation of the owner/repository/full-SHA pin is rejected by
+the gate test. See evidence/workflow/clean-copy-tests-466.log and
+pin-mutation-466.log. `SHA256SUMS` covers the durable package files. The active
+Showcase workflow was not changed; no GitHub Actions run or upload occurred.

@@ -1,7 +1,8 @@
 Action base: e5a71f45eff47b9e465b8cb2e6dcd460ad645276
-Prior reviewed candidate (DRA-F1 still open): 344eebb3ee65af6364f3be7cf17cbfcc1fc3c243
-Current local candidate: 02d0eeb7c27cf1fda771371db948b7b0a6150885
-Current candidate parent: 344eebb3ee65af6364f3be7cf17cbfcc1fc3c243
-Showcase base for workflow patch: 322434255e381a5d9e19d54ceb6826da4d4cea07
-Workflow pin: chrobakpiotr/dependency-review-action@02d0eeb7c27cf1fda771371db948b7b0a6150885
-Candidate is local only; no fork, release, or GitHub workflow run was created.
+Prior reviewed candidate: 02d0eeb7c27cf1fda771371db948b7b0a6150885 (superseded by this candidate)
+Immediate parent: 917c181a7432178a2415d6683c3ce8de27e3349b
+Current local candidate: 4665869fdfe9557a437e61fdc9667b82e5bb414d
+Showcase base for workflow patch: 5394efc17bedf8cf55f4a938924684685b252dde
+Workflow pin: chrobakpiotr/dependency-review-action@4665869fdfe9557a437e61fdc9667b82e5bb414d
+Candidate is local only; no fork, release, pull request, or active GitHub workflow change was created.
+Candidate tree: b65da4515dd146ddf7b2323762c0f20be6f22244

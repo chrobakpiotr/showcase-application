@@ -1,0 +1,7 @@
+Action base: e5a71f45eff47b9e465b8cb2e6dcd460ad645276
+Prior reviewed candidate: 02d0eeb7c27cf1fda771371db948b7b0a6150885 (reviewed with amendments; superseded by this candidate)
+Current local candidate: 917c181a7432178a2415d6683c3ce8de27e3349b
+Current candidate parent: 02d0eeb7c27cf1fda771371db948b7b0a6150885
+Showcase base for workflow patch: 5394efc17bedf8cf55f4a938924684685b252dde
+Workflow pin: chrobakpiotr/dependency-review-action@917c181a7432178a2415d6683c3ce8de27e3349b
+Candidate is local only; no fork, release, pull request, or active GitHub workflow change was created.
