@@ -60,6 +60,100 @@ class HarnessTest(unittest.TestCase):
             ])
         self.assertEqual(2, rejected.exception.code)
 
+    def test_unknown_state_marker_refuses_start_with_consistent_snapshot_without_new_authority(self):
+        from contextlib import redirect_stderr, redirect_stdout
+        from io import StringIO
+
+        other = self.feature()
+        other_doc = harness.load_validated(other)
+        harness.save_state(other, harness.initial_state(other, other_doc))
+        target = self.feature(feature_id='SDD-001')
+        target_doc = harness.load_validated(target)
+        self.assertEqual('consistent', harness.state_snapshots.current_repository_state_status(
+            self.root, harness.runtime_state_dir(target)))
+        self.assertEqual('absent', harness.state_snapshot_status(target))
+        self.assertFalse(harness.state_path(target).exists())
+
+        common = harness.state_snapshots.common_dir(self.root)
+        registry_dir = self.root.resolve() / 'protected-registry'
+        registry_dir.mkdir(mode=0o700)
+        registry_dir.chmod(0o700)
+        registry = registry_dir / 'unknown-state.json'
+        registry.write_text(json.dumps({
+            'schema_version': 1,
+            'repository_sha256': harness.sha256_bytes(os.fsencode(str(common))),
+            'features': sorted(harness.unknown_state_registry.UNKNOWN_STATE_FEATURES),
+        }), encoding='utf-8')
+        registry.chmod(0o600)
+        ref_before = subprocess.check_output(
+            ['git', 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/agent-state'],
+            cwd=self.root, text=True)
+        files_before = self._runtime_state_files()
+        patch_registry = mock.patch.object(harness.unknown_state_registry, '_REGISTRY_PATH_OVERRIDE', registry)
+        patch_repo = mock.patch.object(harness, 'REPO', self.root)
+        with patch_registry, patch_repo:
+            self.assertTrue(harness.state_recovery_required(target))
+            err = StringIO()
+            with redirect_stderr(err), self.assertRaises(SystemExit):
+                harness.cmd_start(argparse.Namespace(feature_dir=target, task_id='T-001', owner='agent'))
+            self.assertIn('STATE_RECOVERY_REQUIRED', err.getvalue())
+            self.assertFalse(harness.state_path(target).exists())
+
+            status = StringIO()
+            with redirect_stdout(status):
+                harness.cmd_status(argparse.Namespace(feature_dir=target, json=True))
+            result = json.loads(status.getvalue())
+            self.assertEqual('unresolved-state-marker', result['recovery_reason'])
+            self.assertIsNone(result['incident_id'])
+
+        self.assertEqual(files_before, self._runtime_state_files())
+        self.assertEqual(ref_before, subprocess.check_output(
+            ['git', 'for-each-ref', '--format=%(refname) %(objectname)', 'refs/agent-state'],
+            cwd=self.root, text=True))
+
+    def test_invalid_unknown_state_registry_refuses_closed(self):
+        from contextlib import redirect_stderr
+        from io import StringIO
+
+        feature = self.feature(feature_id='AH5-04B-QUAL-001')
+        registry_dir = self.root.resolve() / 'protected-registry'
+        registry_dir.mkdir(mode=0o700)
+        registry_dir.chmod(0o700)
+        registry = registry_dir / 'unknown-state.json'
+        registry.write_text('{invalid', encoding='utf-8')
+        registry.chmod(0o600)
+        with mock.patch.object(harness.unknown_state_registry, '_REGISTRY_PATH_OVERRIDE', registry), \
+                mock.patch.object(harness, 'REPO', self.root):
+            err = StringIO()
+            with redirect_stderr(err), self.assertRaises(SystemExit):
+                harness.state_recovery_required(feature)
+            self.assertIn('STATE_RECOVERY_REGISTRY_INVALID', err.getvalue())
+            before = self._runtime_state_files()
+            err = StringIO()
+            with redirect_stderr(err), self.assertRaises(SystemExit):
+                harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='agent'))
+            self.assertIn('STATE_RECOVERY_REGISTRY_INVALID', err.getvalue())
+            self.assertEqual(before, self._runtime_state_files())
+
+    def test_missing_registry_does_not_clear_the_builtin_unresolved_feature_marker(self):
+        feature = self.feature(feature_id='SDD-001')
+        missing_registry = self.root.resolve() / 'no-registry' / 'unknown-state.json'
+        with mock.patch.object(harness.unknown_state_registry, '_REGISTRY_PATH_OVERRIDE', missing_registry), \
+                mock.patch.object(harness, 'REPO', self.root):
+            self.assertFalse(missing_registry.parent.exists())
+            self.assertTrue(harness.state_recovery_required(feature))
+            before = self._runtime_state_files()
+            with self.assertRaises(SystemExit):
+                harness.cmd_start(argparse.Namespace(feature_dir=feature, task_id='T-001', owner='agent'))
+            self.assertEqual(before, self._runtime_state_files())
+
+    def _runtime_state_files(self):
+        root = self.root / '.agent-state'
+        if not root.exists():
+            return {}
+        return {path.relative_to(root).as_posix(): (path.read_bytes(), path.stat().st_mode & 0o777)
+                for path in root.rglob('*') if path.is_file() and not path.is_symlink()}
+
     def test_trusted_task_history_derives_attempts_from_lifecycle_state_only(self):
         trusted_task_history = harness.trusted_task_history
         resolve_manual_review_scope = harness.resolve_manual_review_scope
@@ -452,9 +546,9 @@ class HarnessTest(unittest.TestCase):
         self.assertEqual(resume, entry['verification_resume_pending'])
         self.assertNotIn('verification_resume_active', entry)
 
-    def feature(self, tasks=None, spec_text=None, *, root=None):
+    def feature(self, tasks=None, spec_text=None, *, root=None, feature_id='TST-001'):
         repo = root or self.root
-        feature = repo / 'docs' / 'specs' / 'TST-001'
+        feature = repo / 'docs' / 'specs' / feature_id
         feature.mkdir(parents=True)
         roles = repo / 'docs' / 'agentic-sdd' / 'agents'
         roles.mkdir(parents=True, exist_ok=True)
@@ -467,12 +561,12 @@ class HarnessTest(unittest.TestCase):
         }:
             (roles / f'{profile}.md').write_text(f'# {profile}\n', encoding='utf-8')
         (feature / 'spec.md').write_text(
-            spec_text or '# TST-001\n\n- AC-001: works\n- AC-002: is independently verified\n',
+            spec_text or f'# {feature_id}\n\n- AC-001: works\n- AC-002: is independently verified\n',
             encoding='utf-8',
         )
         (feature / 'plan.md').write_text('# plan\n', encoding='utf-8')
         doc = {
-            'feature': 'TST-001',
+            'feature': feature_id,
             'max_parallel': 4,
             'max_rework_attempts': 2,
             'tasks': tasks or [
@@ -483,7 +577,7 @@ class HarnessTest(unittest.TestCase):
                 },
                 {
                     'id': 'T-900', 'title': 'Evaluate', 'objective': 'Falsify it', 'role': 'evaluator',
-                    'depends_on': ['T-001'], 'allowed_paths': ['docs/specs/TST-001/evidence/**'],
+                    'depends_on': ['T-001'], 'allowed_paths': [f'docs/specs/{feature_id}/evidence/**'],
                     'risk_tags': ['evaluation'], 'acceptance_criteria': ['AC-001', 'AC-002'],
                     'verification': ['./gradlew test'],
                 },

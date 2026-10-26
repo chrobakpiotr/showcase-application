@@ -27,12 +27,14 @@ import threading
 from typing import Any, Iterator
 
 HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parents[1]
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import trust  # noqa: E402
 import verification_contract as vc  # noqa: E402
 import state_snapshots  # noqa: E402
 import state_recovery  # noqa: E402
+import unknown_state_registry  # noqa: E402
 from agent_harness import feature as _feature  # noqa: E402
 from agent_harness import feature_state as _state  # noqa: E402
 from agent_harness import feature_access as _access  # noqa: E402
@@ -313,6 +315,28 @@ def git_common_dir(feature_dir: pathlib.Path) -> pathlib.Path:
     return _state.git_common_dir(feature_dir, policy=_policy())
 
 
+def unresolved_state_marker(feature_dir: pathlib.Path) -> bool:
+    """Check the protected host registry only for features in this Harness repository."""
+    try:
+        active_common = state_snapshots.common_dir(REPO)
+        feature_common = state_snapshots.common_dir(feature_repo_base(feature_dir))
+        if active_common != feature_common:
+            return False
+        return unknown_state_registry.is_unresolved(REPO, feature_dir.name)
+    except unknown_state_registry.RegistryError as exc:
+        die(f'STATE_RECOVERY_REGISTRY_INVALID: {exc}')
+    except state_snapshots.SnapshotError as exc:
+        if feature_dir.name in unknown_state_registry.UNKNOWN_STATE_FEATURES:
+            die(f'STATE_RECOVERY_REGISTRY_INVALID: repository identity unavailable ({exc})')
+        return False
+
+
+def refuse_unresolved_state_mutation(feature_dir: pathlib.Path) -> None:
+    if unresolved_state_marker(feature_dir):
+        die(f'STATE_RECOVERY_REQUIRED: {feature_dir.name} has unresolved lifecycle history; '
+            'mutating lifecycle operations are disabled pending a separate recovery decision')
+
+
 def runtime_state_dir(feature_dir: pathlib.Path) -> pathlib.Path:
     return _state.runtime_state_dir(feature_dir, policy=_policy(), common_dir=lambda path: git_common_dir(path))
 
@@ -330,6 +354,7 @@ def recover_prepared_state_locked(feature_dir: pathlib.Path) -> None:
 
     The caller must hold the repository-wide lifecycle lock.
     """
+    refuse_unresolved_state_mutation(feature_dir)
     _access.recover_prepared_state_locked(feature_dir, access=_state_access())
 
 
@@ -338,6 +363,7 @@ def lifecycle_state_lock(feature_dir: pathlib.Path, *,
                          allowed_reservation: tuple[str, str] | None = None,
                          allow_unvalidated_state: bool = False) -> Any:
     """Hold repository verifier admission through the lifecycle mutation (the library's)."""
+    refuse_unresolved_state_mutation(feature_dir)
     return _access.lifecycle_state_lock(feature_dir, repository_admission_id=repository_admission_id,
                                         allowed_reservation=allowed_reservation,
                                         allow_unvalidated_state=allow_unvalidated_state, access=_state_access())
@@ -348,6 +374,7 @@ def initial_state(feature_dir: pathlib.Path, doc: dict[str, Any], *, project_com
 
 
 def load_state(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
+    refuse_unresolved_state_mutation(feature_dir)
     return _access.load_state(feature_dir, doc, access=_state_access())
 
 
@@ -381,6 +408,8 @@ def state_snapshot_status(feature_dir: pathlib.Path) -> str:
 
 
 def state_recovery_required(feature_dir: pathlib.Path) -> bool:
+    if unresolved_state_marker(feature_dir):
+        return True
     return _access.state_recovery_required(feature_dir, access=_state_access())
 
 
@@ -447,6 +476,7 @@ def state_recovery_epoch_required(feature_dir: pathlib.Path, incident: dict[str,
 
 
 def _load_state_unlocked(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
+    refuse_unresolved_state_mutation(feature_dir)
     return _access._load_state_unlocked(feature_dir, doc, access=_state_access())
 
 
@@ -457,6 +487,7 @@ def cmd_recover_state(args: argparse.Namespace) -> None:
     The owner can re-run and independently evaluate work in the new epoch.
     """
     feature_dir = pathlib.Path(args.feature_dir).resolve()
+    refuse_unresolved_state_mutation(feature_dir)
     doc = load_validated(feature_dir)
     if (not isinstance(args.epoch_id, str) or not FEATURE_ID_RE.fullmatch(args.epoch_id) or
             not isinstance(args.operator, str) or not args.operator.strip() or
@@ -603,6 +634,7 @@ def cmd_recover_state(args: argparse.Namespace) -> None:
 def cmd_restore_state(args: argparse.Namespace) -> None:
     """Restore only the exact, verified current Git snapshot into a missing state root."""
     feature_dir = pathlib.Path(args.feature_dir).resolve()
+    refuse_unresolved_state_mutation(feature_dir)
     repository = feature_repo_base(feature_dir)
     if not isinstance(args.operator, str) or not args.operator.strip() or len(args.operator) > 256:
         die('STATE_RESTORE_INVALID: provide an operator provenance label')
@@ -641,6 +673,7 @@ def cmd_restore_state(args: argparse.Namespace) -> None:
 def cmd_discard_prepared_snapshot(args: argparse.Namespace) -> None:
     """Audited owner action for abandoning an unacknowledged prepared write."""
     feature_dir = pathlib.Path(args.feature_dir).resolve()
+    refuse_unresolved_state_mutation(feature_dir)
     repository = feature_repo_base(feature_dir)
     if not isinstance(args.operator, str) or not args.operator.strip() or len(args.operator) > 256:
         die('STATE_SNAPSHOT_DISCARD_INVALID: provide an operator provenance label')
@@ -663,6 +696,7 @@ def cmd_discard_prepared_snapshot(args: argparse.Namespace) -> None:
 
 def _read_state_unlocked_pure(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
     """Validate and read authority without adopting, migrating, cleaning, or writing it."""
+    refuse_unresolved_state_mutation(feature_dir)
     return _access._read_state_unlocked_pure(feature_dir, doc, access=_state_access())
 
 
@@ -676,6 +710,7 @@ def validate_loaded_state(feature_dir: pathlib.Path, doc: dict[str, Any], state:
 
 def cmd_migrate_state(args: argparse.Namespace) -> None:
     """Validate and explicitly adopt a legacy state under the current semantic version."""
+    refuse_unresolved_state_mutation(args.feature_dir)
     doc = load_validated(args.feature_dir)
     runtime_state_dir(args.feature_dir).mkdir(parents=True, exist_ok=True)
     with lifecycle_state_lock(args.feature_dir, allow_unvalidated_state=True) as lock:
@@ -934,6 +969,7 @@ def save_state(feature_dir: pathlib.Path, state: dict[str, Any], *,
 
     Lifecycle callers hold the shared repository lock for the whole mutation.
     """
+    refuse_unresolved_state_mutation(feature_dir)
     _state.save_state(feature_dir, state, additional_files=additional_files, remove_files=remove_files,
                       policy=_policy(), fault_injector=_state_snapshot_fault_injector,
                       common_dir=lambda path: git_common_dir(path))
@@ -1138,6 +1174,7 @@ def effective_task_status(feature_dir: pathlib.Path, task_id: str,
 
 
 def remove_state_locked(feature_dir: pathlib.Path) -> None:
+    refuse_unresolved_state_mutation(feature_dir)
     _access.remove_state_locked(feature_dir, access=_state_access())
 
 
@@ -1146,6 +1183,7 @@ fail_on_verification_store_error = _access.fail_on_verification_store_error
 
 def locked_state(feature_dir: pathlib.Path, doc: dict[str, Any], *,
                  admission_guard: bool = True) -> Any:
+    refuse_unresolved_state_mutation(feature_dir)
     return _access.locked_state(feature_dir, doc, admission_guard=admission_guard, access=_state_access())
 
 
@@ -3198,6 +3236,9 @@ def cmd_reopen(args: argparse.Namespace) -> None:
 
 def cmd_status(args: argparse.Namespace) -> None:
     doc = load_validated(args.feature_dir)
+    if unresolved_state_marker(args.feature_dir):
+        _cmd_status_locked(args, doc)
+        return
     with lock_path(args.feature_dir).open('a+', encoding='utf-8') as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         try:
@@ -3212,6 +3253,8 @@ def _cmd_status_locked(args: argparse.Namespace, doc: dict[str, Any]) -> None:
         incident = state_recovery_incident(args.feature_dir)
         result = {'feature': doc.get('feature', args.feature_dir.name),
                   'lifecycle_status': 'recovery-required',
+                  'recovery_reason': ('unresolved-state-marker' if unresolved_state_marker(args.feature_dir)
+                                      else 'state-recovery-required'),
                   'state_path': str(state_path(args.feature_dir)),
                   'feature_fingerprint': feature_fingerprint(args.feature_dir),
                   'incident_id': incident.get('incident_id') if incident else None,
@@ -3221,7 +3264,7 @@ def _cmd_status_locked(args: argparse.Namespace, doc: dict[str, Any]) -> None:
         if args.json:
             print(json.dumps(result, indent=2, sort_keys=True))
         else:
-            print(f"RECOVERY_REQUIRED {result['feature']}: authoritative state is absent; no task status is inferred")
+            print(f"RECOVERY_REQUIRED {result['feature']}: lifecycle history is unresolved; no task status is inferred")
         return
     state = _read_state_unlocked_pure(args.feature_dir, doc)
     bridge_records = []

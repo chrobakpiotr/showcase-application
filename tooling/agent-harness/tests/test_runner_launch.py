@@ -1,5 +1,6 @@
 """AH5-12b: runner.py launches through agent_harness.execution (library-owned; runs in a Showcase checkout)."""
 import contextlib
+import argparse
 import importlib.util
 import io
 import json
@@ -250,16 +251,35 @@ class RunnerLaunchTest(unittest.TestCase):
         """Rows 2-3: the flags claude_command passed, as validated options; reviewers cannot write."""
         args = mock.Mock(provider='claude', max_turns=7, max_budget_usd=1.5)
         schema = {'$schema': 'x', 'type': 'object'}
-        builder = runner.agent_cli_options(args, False, schema)
-        reviewer = runner.agent_cli_options(args, True, schema)
+        builder = runner.agent_cli_options(args, False, schema, worktree=self.worktree)
+        reviewer = runner.agent_cli_options(args, True, schema, worktree=self.worktree)
         self.assertEqual({'type': 'object'}, builder['output_schema'])
         self.assertEqual(['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash'], builder['tools'])
         self.assertEqual(('read-only', ['Read', 'Glob', 'Grep', 'Bash']), (reviewer['sandbox_mode'], reviewer['tools']))
         for options in (builder, reviewer):
-            self.assertEqual((runner.DENIED_BASH, runner.CLAUDE_DENY_READ, 7, 1.5, True, 'dontAsk'),
-                             tuple(options[k] for k in ('denied_commands', 'deny_read', 'max_turns',
-                                                        'max_budget_usd', 'restricted', 'permission_mode')))
+            self.assertEqual(runner.DENIED_BASH, options['denied_commands'])
+            self.assertEqual((7, 1.5, True, 'dontAsk'),
+                             tuple(options[k] for k in ('max_turns', 'max_budget_usd', 'restricted', 'permission_mode')))
+            self.assertIn(str(runner.unknown_state_registry.registry_path(self.worktree).parent), options['deny_read'])
             execution.AgentCliBackend('claude', 'x', cli_options=options)  # the library accepts them
+
+    def test_provider_commands_keep_unresolved_state_registry_outside_agent_write_access(self):
+        marker_dir = runner.unknown_state_registry.registry_path(self.worktree).parent
+        codex_args = argparse.Namespace(print_command=True, sandbox='workspace-write', model='m', reasoning=None)
+        codex = runner.codex_command(codex_args, 'prompt', self.worktree, self.root / 'result.json')
+        self.assertIn('sandbox_workspace_write.writable_roots=[]', codex)
+        self.assertNotIn(str(marker_dir), codex)
+
+        claude_args = argparse.Namespace(print_command=True, review_existing=False, profile='builder', max_turns=2,
+                                         max_budget_usd=None, model='m')
+        claude = runner.claude_command(claude_args, 'prompt', self.worktree,
+                                       schema_path=runner.TASK_RESULT_SCHEMA_PATH)
+        settings = json.loads(claude[claude.index('--settings') + 1])
+        self.assertIn(str(marker_dir), settings['sandbox']['filesystem']['denyRead'])
+        self.assertIn(str(marker_dir), settings['sandbox']['filesystem']['denyWrite'])
+        denied = claude[claude.index('--disallowedTools') + 1:claude.index('--settings')]
+        for tool in ('Read', 'Edit', 'Write'):
+            self.assertTrue(any(item.startswith(f'{tool}(//') and '/unknown-state/**)' in item for item in denied))
 
 
 if __name__ == '__main__':

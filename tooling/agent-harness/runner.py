@@ -38,6 +38,7 @@ import telemetry  # noqa: E402
 from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
 import verification_sandbox  # noqa: E402
 import trust  # noqa: E402
+import unknown_state_registry  # noqa: E402
 from agent_harness import task_runner as _checks  # noqa: E402
 from agent_harness import contract as _contract, execution as _execution  # noqa: E402
 
@@ -164,7 +165,8 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, str]:
     die(f'no model for {args.provider}: pass --model or configure DEFAULT_MODELS; refusing before the attempt starts')
 
 
-def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_schema: dict[str, Any]) -> dict[str, Any]:
+def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_schema: dict[str, Any],
+                      worktree: pathlib.Path | None = None) -> dict[str, Any]:
     """The flags codex_command/claude_command pass, as the library's validated launch options."""
     if args.provider == 'codex':
         options = {'sandbox_mode': args.sandbox, 'output_schema': output_schema, 'strict': True,
@@ -173,9 +175,14 @@ def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_sche
             options['reasoning'] = args.reasoning
         return options
     tools = ['Read', 'Glob', 'Grep', 'Bash'] if read_only_run else ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash']
+    marker_dir = (unknown_state_registry.registry_path(worktree).parent if worktree is not None else None)
+    deny_read = list(CLAUDE_DENY_READ)
+    denied_tools = list(DENIED_BASH)
+    if marker_dir is not None:
+        deny_read.append(str(marker_dir))
     options = {'sandbox_mode': 'read-only' if read_only_run else 'workspace-write',
                'output_schema': strip_meta_schema(output_schema), 'restricted': True, 'permission_mode': 'dontAsk',
-               'tools': tools, 'denied_commands': list(DENIED_BASH), 'deny_read': list(CLAUDE_DENY_READ),
+               'tools': tools, 'denied_commands': denied_tools, 'deny_read': deny_read,
                'max_turns': args.max_turns}
     if args.max_budget_usd is not None:
         options['max_budget_usd'] = args.max_budget_usd
@@ -248,6 +255,7 @@ def codex_command(
         '--config', 'approval_policy="never"',
         '--config', 'web_search="disabled"',
         '--config', 'sandbox_workspace_write.network_access=false',
+        '--config', 'sandbox_workspace_write.writable_roots=[]',
         '--output-schema', str(schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')),
         '--output-last-message', str(result),
     ]
@@ -259,7 +267,12 @@ def codex_command(
     return cmd
 
 
-def claude_sandbox_settings() -> str:
+def claude_sandbox_settings(marker_dir: pathlib.Path | None = None) -> str:
+    deny_read = list(CLAUDE_DENY_READ)
+    deny_write: list[str] = []
+    if marker_dir is not None:
+        deny_read.append(str(marker_dir))
+        deny_write.append(str(marker_dir))
     settings = {
         'sandbox': {
             'enabled': True,
@@ -267,7 +280,8 @@ def claude_sandbox_settings() -> str:
             'autoAllowBashIfSandboxed': True,
             'allowUnsandboxedCommands': False,
             'filesystem': {
-                'denyRead': list(CLAUDE_DENY_READ)
+                'denyRead': deny_read,
+                'denyWrite': deny_write,
             },
             'network': {'allowedDomains': []},
         }
@@ -298,7 +312,10 @@ def claude_command(
     read_only_profile = args.review_existing or bool(args.profile and args.profile.endswith('-reviewer'))
     tools = 'Read,Glob,Grep,Bash' if read_only_profile else 'Read,Edit,Write,Glob,Grep,Bash'
     allowed = ['Read', 'Glob', 'Grep'] if read_only_profile else ['Read', 'Edit', 'Write', 'Glob', 'Grep']
-    denied_bash = DENIED_BASH
+    marker_dir = unknown_state_registry.registry_path(worktree).parent
+    absolute_pattern = '//' + marker_dir.as_posix().lstrip('/') + '/**'
+    denied_tools = list(DENIED_BASH)
+    denied_tools.extend(f'{tool}({absolute_pattern})' for tool in ('Read', 'Edit', 'Write'))
     cmd = [
         'claude', '--restricted', '--strict-mcp-config', '-p', prompt,
         '--output-format', 'json',
@@ -307,8 +324,8 @@ def claude_command(
         '--permission-mode', 'dontAsk',
         '--tools', tools,
         '--allowedTools', *allowed,
-        '--disallowedTools', *denied_bash,
-        '--settings', claude_sandbox_settings(),
+        '--disallowedTools', *denied_tools,
+        '--settings', claude_sandbox_settings(marker_dir),
         '--max-turns', str(args.max_turns),
     ]
     if args.max_budget_usd is not None:
@@ -501,7 +518,7 @@ def main() -> None:
         die(f'provider task-result schema is blocked: {exc}')
 
     model, model_source = resolve_model(args)
-    options = agent_cli_options(args, read_only_run, json.loads(output_schema_bytes))
+    options = agent_cli_options(args, read_only_run, json.loads(output_schema_bytes), worktree=worktree)
     backend = _execution.AgentCliBackend(args.provider, prompt, env=dict(os.environ), cli_options=options)
     invocation_id = uuid.uuid4().hex
     request = agent_request(args, packet, model, options, invocation_id)
