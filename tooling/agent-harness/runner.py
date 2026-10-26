@@ -175,7 +175,7 @@ def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_sche
             options['reasoning'] = args.reasoning
         return options
     tools = ['Read', 'Glob', 'Grep', 'Bash'] if read_only_run else ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash']
-    marker_dir = (unknown_state_registry.registry_path(worktree).parent if worktree is not None else None)
+    marker_dir = (unknown_state_registry.registry_path(REPO).parent if worktree is not None else None)
     deny_read = list(CLAUDE_DENY_READ)
     denied_tools = list(DENIED_BASH)
     if marker_dir is not None:
@@ -312,10 +312,11 @@ def claude_command(
     read_only_profile = args.review_existing or bool(args.profile and args.profile.endswith('-reviewer'))
     tools = 'Read,Glob,Grep,Bash' if read_only_profile else 'Read,Edit,Write,Glob,Grep,Bash'
     allowed = ['Read', 'Glob', 'Grep'] if read_only_profile else ['Read', 'Edit', 'Write', 'Glob', 'Grep']
-    marker_dir = unknown_state_registry.registry_path(worktree).parent
-    absolute_pattern = '//' + marker_dir.as_posix().lstrip('/') + '/**'
+    marker_dir = unknown_state_registry.registry_path(REPO).parent
     denied_tools = list(DENIED_BASH)
-    denied_tools.extend(f'{tool}({absolute_pattern})' for tool in ('Read', 'Edit', 'Write'))
+    if marker_dir is not None:
+        absolute_pattern = '//' + marker_dir.as_posix().lstrip('/') + '/**'
+        denied_tools.extend(f'{tool}({absolute_pattern})' for tool in ('Read', 'Edit', 'Write'))
     cmd = [
         'claude', '--restricted', '--strict-mcp-config', '-p', prompt,
         '--output-format', 'json',

@@ -238,9 +238,12 @@ class RunnerTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp:
             preview_root = pathlib.Path(tmp)
-            with mock.patch.object(runner, 'RUNS', preview_root):
+            with mock.patch.object(runner, 'RUNS', preview_root), \
+                    mock.patch.object(runner.unknown_state_registry, 'registry_path',
+                                      wraps=runner.unknown_state_registry.registry_path) as registry_path:
                 cmd, version = runner.preview_command(
                     args, 'prompt', preview_root, preview_root / 'result.json', '2.1.289 (Claude Code)')
+            registry_path.assert_called_once_with(runner.REPO)
             self.assertEqual('2.1.289 (Claude Code)', version)
             schema = json.loads(cmd[cmd.index('--json-schema') + 1])
             self.assertFalse(schema['additionalProperties'])
