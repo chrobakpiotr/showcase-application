@@ -1,0 +1,6 @@
+Action base: e5a71f45eff47b9e465b8cb2e6dcd460ad645276
+Final local candidate SHA: 344eebb3ee65af6364f3be7cf17cbfcc1fc3c243
+Final candidate parent: 55c9bd3ad4e394f7496ea3b0e7c1c81927c84085 (documentation-only status correction)
+Prior candidate code commit: 1b5f002cd1934a4fa5fd4784315762c348b384cf
+Showcase base for workflow patch: 34f8b26561eab0a2d9926e94902fea498b1e23fb
+Candidate is local only; no fork, release, or GitHub workflow run was created.

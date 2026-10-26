@@ -1,0 +1,24 @@
+Action reproduction (clean worktree checked out at e5a71f45eff47b9e465b8cb2e6dcd460ad645276):
+  gzip -cd action-candidate.patch.gz | git apply --check
+  gzip -cd action-candidate.patch.gz | git apply
+  git add -A
+  git diff --cached --exit-code 344eebb3ee65af6364f3be7cf17cbfcc1fc3c243 --
+  git reset
+  npm ci --ignore-scripts
+  npm run patch:artifact-sdk
+  npm run build
+  npm run lint
+  npm run format-check
+  npm run package
+  npm test
+  npm audit --json
+
+The SDK patch runner checks the exact locked version, tarball URL and integrity, source file hashes, patch SHA-256, and the exact clean or fully patched state. It rejects changed or partially patched inputs. The action reproduction log records the first clean package run; package-repeat.log records the second. Their resulting dist hashes match.
+
+Showcase workflow patch reproduction (fresh checkout at 34f8b26561eab0a2d9926e94902fea498b1e23fb):
+  gzip -cd showcase-workflow-and-gate.patch.gz | git apply --check
+  gzip -cd showcase-workflow-and-gate.patch.gz | git apply
+  python3 -m unittest tooling/scripts/tests/test_verify_ci_quality_gate.py -v
+  PYTHONPATH=. python3 tooling/scripts/tests/test_validate_dependency_review_push_refs.py -v
+  ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci.yml")'
+  git diff --check

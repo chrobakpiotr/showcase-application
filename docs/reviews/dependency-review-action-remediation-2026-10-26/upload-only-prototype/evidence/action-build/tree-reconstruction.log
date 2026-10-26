@@ -1,0 +1,14 @@
+Reconstructed source tree matches the final candidate commit.
+Unstaged changes after reset:
+M	.eslintrc.json
+M	.github/workflows/ci.yml
+M	AUDIT-RESOLUTION.md
+M	__tests__/dist-licenses.test.ts
+M	__tests__/main.test.ts
+M	dist/index.js
+M	dist/index.js.map
+M	dist/licenses.txt
+M	package.json
+M	scripts/generate-dist-licenses.mjs
+M	src/main.ts
+Rebuilt dist matches the final candidate commit.
