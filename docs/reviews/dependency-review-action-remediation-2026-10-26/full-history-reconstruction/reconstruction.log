@@ -1,0 +1,58 @@
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: is subject to change. To configure the initial branch name to use in all
+hint: of your new repositories, which will suppress this warning, call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+hint:
+hint: Disable this message with "git config set advice.defaultBranchName false"
+Initialized empty Git repository in /workspace/scratch/75908afa2f00/dra-closeout/script-validation/upstream.git/
+From https://github.com/actions/dependency-review-action
+ * branch            a1d282b36b6f3519aa1f3fc636f609c47dddb294 -> FETCH_HEAD
+Cloning into '/workspace/scratch/75908afa2f00/dra-closeout/script-validation/candidate'...
+Note: switching to 'fcbc44201b365daec4da85a4cf73adde8b82609c'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+/workspace/scratch/75908afa2f00/dra-closeout/script-validation/dependency-review-action-full-history.bundle is okay
+The bundle contains this ref:
+fcbc44201b365daec4da85a4cf73adde8b82609c HEAD
+The bundle records a complete history.
+The bundle uses this hash algorithm: sha1
+Cloning into '/workspace/scratch/75908afa2f00/dra-closeout/script-validation/replay'...
+Note: switching to 'fcbc44201b365daec4da85a4cf73adde8b82609c'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+af37008c51bc8d31af2f6877f9134b29490685bd2d17eb8289b5c11edd8e076f  /workspace/scratch/75908afa2f00/dra-closeout/script-validation/dependency-review-action-full-history.bundle
+PASS: exact candidate and tree; 1986 commits; fresh replay fsck exit 0.
