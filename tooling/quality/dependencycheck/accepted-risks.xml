@@ -1,3 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+    <suppress until="2026-11-12Z">
+        <notes><![CDATA[
+        Approved by repository owner on 2026-10-29. Owner: PC. Review/expiry: 2026-11-12.
+        Exact DOMPurify 3.4.16 and only CVE-2026-116802. Swagger UI 5.33.2 sanitizes
+        strings in default HTML mode without IN_PLACE, SAFE_FOR_TEMPLATES,
+        RETURN_DOM, RETURN_DOM_FRAGMENT, XHTML mode, or node-removing hooks.
+        Verified released Swagger UI 5.34.0 still bundles 3.4.16.
+        Remove when a verified fixed WebJar is available, or on configuration change.
+        ]]></notes>
+        <packageUrl>pkg:javascript/DOMPurify@3.4.16</packageUrl>
+        <vulnerabilityName>CVE-2026-116802</vulnerabilityName>
+    </suppress>
+    <suppress until="2026-11-12Z">
+        <notes><![CDATA[
+        Approved by repository owner on 2026-10-29. Owner: PC. Review/expiry: 2026-11-12.
+        Exact DOMPurify 3.4.16 and only CVE-2026-116803. Swagger UI 5.33.2 sanitizes
+        strings in default HTML mode without IN_PLACE, SAFE_FOR_TEMPLATES,
+        RETURN_DOM, RETURN_DOM_FRAGMENT, XHTML mode, or node-removing hooks.
+        Verified released Swagger UI 5.34.0 still bundles 3.4.16.
+        Remove when a verified fixed WebJar is available, or on configuration change.
+        ]]></notes>
+        <packageUrl>pkg:javascript/DOMPurify@3.4.16</packageUrl>
+        <vulnerabilityName>CVE-2026-116803</vulnerabilityName>
+    </suppress>
+    <suppress until="2026-11-12Z">
+        <notes><![CDATA[
+        Approved by repository owner on 2026-10-29. Owner: PC. Review/expiry: 2026-11-12.
+        Exact DOMPurify 3.4.16 and only CVE-2026-116804. Swagger UI 5.33.2 sanitizes
+        strings in default HTML mode without IN_PLACE, SAFE_FOR_TEMPLATES,
+        RETURN_DOM, RETURN_DOM_FRAGMENT, XHTML mode, or node-removing hooks.
+        Verified released Swagger UI 5.34.0 still bundles 3.4.16.
+        Remove when a verified fixed WebJar is available, or on configuration change.
+        ]]></notes>
+        <packageUrl>pkg:javascript/DOMPurify@3.4.16</packageUrl>
+        <vulnerabilityName>CVE-2026-116804</vulnerabilityName>
+    </suppress>
 </suppressions>

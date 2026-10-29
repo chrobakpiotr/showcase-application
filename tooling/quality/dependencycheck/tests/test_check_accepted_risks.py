@@ -15,14 +15,25 @@ def document(until="2026-11-03Z", notes=None, package_url=r"^pkg:javascript/DOMP
 
 
 class AcceptedRiskValidationTest(unittest.TestCase):
-    def test_checked_in_accepted_risks_are_empty_after_dependency_remediation(self):
+    def test_checked_in_risks_match_owner_approved_scope_and_expire(self):
         accepted_risks_path = Path(__file__).parents[1] / "accepted-risks.xml"
         root = ET.parse(accepted_risks_path).getroot()
         suppressions = [element for element in root.iter()
                         if element.tag.rsplit("}", 1)[-1] == "suppress"]
-        self.assertEqual([], suppressions)
-        result = validate_document(accepted_risks_path.read_text(encoding="utf-8"), dt.date(2026, 10, 15))
-        self.assertEqual([], result.errors)
+        ns = {"dc": "https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd"}
+        self.assertEqual(3, len(suppressions))
+        self.assertEqual(
+            {"CVE-2026-116802", "CVE-2026-116803", "CVE-2026-116804"},
+            {item.findtext("dc:vulnerabilityName", namespaces=ns) for item in suppressions},
+        )
+        for item in suppressions:
+            self.assertEqual("2026-11-12Z", item.get("until"))
+            package = item.find("dc:packageUrl", ns)
+            self.assertEqual("pkg:javascript/DOMPurify@3.4.16", package.text)
+            self.assertNotEqual("true", package.get("regex"))
+        xml_text = accepted_risks_path.read_text(encoding="utf-8")
+        self.assertEqual([], validate_document(xml_text, dt.date(2026, 10, 29)).errors)
+        self.assertEqual(3, len(validate_document(xml_text, dt.date(2026, 11, 13)).errors))
 
     def test_warns_inside_review_window_and_passes_before_expiry(self):
         result = validate_document(document(), dt.date(2026, 10, 20), warn_days=30)
