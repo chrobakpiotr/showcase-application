@@ -442,6 +442,19 @@ jobs:
       # Builds the real app image but uses a disposable, E2E-only dependency topology.
       # Observability UIs/log shipping are intentionally excluded because they do not
       # participate in the browser contract under test.
+      - name: Pull disposable E2E dependency images
+        run: |
+          for attempt in 1 2 3; do
+            if docker compose -f "$E2E_COMPOSE_FILE" pull --ignore-buildable; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::E2E dependency image pull failed after 3 attempts"
+              exit 1
+            fi
+            sleep "$((attempt * 10))"
+          done
+
       - name: Start disposable E2E application stack
         run: docker compose -f "$E2E_COMPOSE_FILE" up -d --build
 
