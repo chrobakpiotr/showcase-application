@@ -1,0 +1,52 @@
+name: Install private Harness
+description: Install the pinned Harness without exposing checkout credentials to pip.
+inputs:
+  token:
+    description: Read-only token scoped to chrobakpiotr/agent-harness
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Resolve pinned Harness
+      id: harness
+      shell: bash
+      env:
+        HARNESS_READ_TOKEN: ${{ inputs.token }}
+      run: |
+        if [ -z "$HARNESS_READ_TOKEN" ]; then
+          echo "::error::Set HARNESS_READ_TOKEN with Contents: read access to chrobakpiotr/agent-harness. Fork pull requests do not receive this secret."
+          exit 1
+        fi
+        python3 - <<'PYTHON'
+        import os
+        import re
+        from pathlib import Path
+        requirements = Path("tooling/agent-harness/requirements.txt").read_text().splitlines()
+        pins = [match.group(1) for line in requirements
+                if (match := re.fullmatch(r"agent-harness\[grants\] @ git\+https://github\.com/chrobakpiotr/agent-harness\.git@([0-9a-f]{40})", line))]
+        if len(pins) != 1:
+            raise SystemExit("Expected exactly one full-SHA agent-harness dependency")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            print(f"sha={pins[0]}", file=output)
+        PYTHON
+
+    - name: Checkout pinned private Harness
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: chrobakpiotr/agent-harness
+        ref: ${{ steps.harness.outputs.sha }}
+        token: ${{ inputs.token }}
+        path: .ci/agent-harness
+        persist-credentials: false
+
+    - name: Install from local checkout
+      shell: bash
+      env:
+        HARNESS_SHA: ${{ steps.harness.outputs.sha }}
+      run: |
+        test "$(git -C .ci/agent-harness rev-parse HEAD)" = "$HARNESS_SHA"
+        # Keep pip's VCS commit identity; credentials are not available to pip.
+        config_key="url.file://$GITHUB_WORKSPACE/.ci/agent-harness.insteadOf"
+        trap 'git config --global --unset-all "$config_key" || true' EXIT
+        git config --global "$config_key" https://github.com/chrobakpiotr/agent-harness.git
+        python3 -m pip install -r tooling/agent-harness/requirements.txt
