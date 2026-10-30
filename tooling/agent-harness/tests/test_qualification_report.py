@@ -264,8 +264,8 @@ class QualificationReportTest(unittest.TestCase):
 
         repo_root = pathlib.Path(__file__).resolve().parents[3]
         requirements = (repo_root / 'tooling/agent-harness/requirements.txt').read_text()
-        self.assertIn('@ebf9a704791f5f1a583afeb577556326e30ae46b', requirements)
-        self.assertEqual('0.21.1', agent_harness.__version__)
+        self.assertIn('@dfcf6f0ca3605cf475e7934994a840b938c3b5cc', requirements)
+        self.assertEqual('0.21.2', agent_harness.__version__)
         workflow = (repo_root / '.github/workflows/verification-sandbox-qualification.yml').read_text()
         refs = re.findall(r'^\s+uses:\s+([^@\s]+)@([0-9a-f]{40})\b', workflow, re.MULTILINE)
         self.assertEqual({
@@ -284,13 +284,13 @@ class QualificationReportTest(unittest.TestCase):
     def test_checker_uses_the_installed_pinned_module_and_rejects_other_versions(self):
         import qualification.report as report_module
 
-        self.assertEqual('0.21.1', report_module.HARNESS_VERSION)
+        self.assertEqual('0.21.2', report_module.HARNESS_VERSION)
         self.assertEqual(
             [sys.executable, '-m', 'agent_harness', 'qualification', '--check', 'report.json'],
             _checker_command('qualification', '--check', 'report.json'),
         )
         with mock.patch.object(report_module, 'HARNESS_VERSION', '0.4.0'):
-            with self.assertRaisesRegex(RuntimeError, 'requires agent-harness 0.21.1'):
+            with self.assertRaisesRegex(RuntimeError, 'requires agent-harness 0.21.2'):
                 _checker_command('qualification')
 
 
