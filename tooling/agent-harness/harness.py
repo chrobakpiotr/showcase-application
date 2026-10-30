@@ -41,6 +41,7 @@ from agent_harness import feature_access as _access  # noqa: E402
 from agent_harness import lifecycle_checks as _checks  # noqa: E402
 from agent_harness import feature_transitions as _transitions  # noqa: E402
 from agent_harness import verification_admission as _admission  # noqa: E402
+from agent_harness import lifecycle_recovery as _recovery  # noqa: E402
 
 STATE_DIR = pathlib.Path('.agent-state')
 WORKTREE_ROOT_SUFFIX = '-agent-worktrees'
@@ -633,65 +634,14 @@ def cmd_recover_state(args: argparse.Namespace) -> None:
 
 def cmd_restore_state(args: argparse.Namespace) -> None:
     """Restore only the exact, verified current Git snapshot into a missing state root."""
-    feature_dir = pathlib.Path(args.feature_dir).resolve()
-    refuse_unresolved_state_mutation(feature_dir)
-    repository = feature_repo_base(feature_dir)
-    if not isinstance(args.operator, str) or not args.operator.strip() or len(args.operator) > 256:
-        die('STATE_RESTORE_INVALID: provide an operator provenance label')
-    if re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', args.expected_snapshot_commit or '') is None:
-        die('STATE_RESTORE_INVALID: expected snapshot commit must be a full Git object ID')
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        try:
-            try:
-                pending = state_snapshots._prepared_refs(repository)
-                if pending:
-                    details = ', '.join(f'{feature}:{commit}' for _ref, feature, commit in pending)
-                    die('STATE_RESTORE_PREPARED_SNAPSHOT: state is absent, so ordinary lifecycle recovery '
-                        f'cannot run; inspect the prepared commit and invoke discard-prepared-snapshot '
-                        f'with --expected-prepared-commit <commit> after confirming it was unacknowledged '
-                        f'(pending: {details})')
-            except state_snapshots.SnapshotError as exc:
-                die(f'STATE_RESTORE_UNAVAILABLE: {exc}')
-            try:
-                snapshot = state_snapshots.read_current_repository_snapshot(repository)
-            except state_snapshots.SnapshotError as exc:
-                die(f'STATE_RESTORE_UNAVAILABLE: {exc}')
-            if snapshot['commit'] != args.expected_snapshot_commit:
-                die('STATE_RESTORE_STALE: current snapshot changed after operator inspection')
-            try:
-                state_snapshots.restore_current_snapshot(repository, feature_dir.name)
-            except state_snapshots.SnapshotError as exc:
-                die(f'STATE_RESTORE_FAILED: {exc}')
-            if state_snapshot_status(feature_dir) != 'consistent':
-                die('STATE_RESTORE_POSTCHECK_FAILED: restored state differs from the current snapshot')
-            print(f'RESTORED {feature_dir.name} snapshot={snapshot["commit"]} operator={args.operator.strip()}')
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    refuse_unresolved_state_mutation(pathlib.Path(args.feature_dir).resolve())
+    return _recovery.cmd_restore_state(args, ns=_NS)
 
 
 def cmd_discard_prepared_snapshot(args: argparse.Namespace) -> None:
     """Audited owner action for abandoning an unacknowledged prepared write."""
-    feature_dir = pathlib.Path(args.feature_dir).resolve()
-    refuse_unresolved_state_mutation(feature_dir)
-    repository = feature_repo_base(feature_dir)
-    if not isinstance(args.operator, str) or not args.operator.strip() or len(args.operator) > 256:
-        die('STATE_SNAPSHOT_DISCARD_INVALID: provide an operator provenance label')
-    with lock_path(feature_dir).open('a+', encoding='utf-8') as lock:
-        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
-        try:
-            try:
-                result = state_snapshots.discard_prepared_snapshot(
-                    repository, runtime_state_dir(feature_dir), feature_dir.name,
-                    args.expected_prepared_commit, args.operator)
-            except state_snapshots.SnapshotError as exc:
-                die(f'STATE_SNAPSHOT_DISCARD_FAILED: {exc}')
-            action = 'ALREADY_DISCARDED' if result['already_discarded'] == 'true' else 'DISCARDED'
-            print(f'{action} {feature_dir.name} prepared={result["prepared_commit"]} '
-                  f'audit={result["audit_ref"]} audit_commit={result["audit_commit"]} '
-                  f'operator={result["operator"]}')
-        finally:
-            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+    refuse_unresolved_state_mutation(pathlib.Path(args.feature_dir).resolve())
+    return _recovery.cmd_discard_prepared_snapshot(args, ns=_NS)
 
 
 def _read_state_unlocked_pure(feature_dir: pathlib.Path, doc: dict[str, Any]) -> dict[str, Any]:
@@ -870,79 +820,7 @@ def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id:
     consumption is consumed here, then terminalized as a safe prelaunch abort;
     it is never released back into a launchable state.
     """
-    from verification.authority import (build_launch_consumption_record,
-        validate_plan_admission_record, validate_plan_launch_reservation)
-    from verification.store import StoreError, VerificationStore
-    repository = pathlib.Path(repository).resolve(strict=True)
-    plan = resolve_accepted_verification_plan(repository, plan_id)
-    feature_dir = repository / 'docs' / 'specs' / plan['feature_id']
-    doc = load_validated(feature_dir)
-    store = VerificationStore(repository)
-    with lifecycle_state_lock(feature_dir, repository_admission_id=execution_id,
-                                   allowed_reservation=(plan_id, unit_id)):
-        state = _read_state_unlocked_pure(feature_dir, doc)
-        authority = state.get('verification_authority')
-        if not isinstance(authority, dict) or authority.get('accepted_plan_id') != plan_id:
-            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
-        reservation = authority.get('launch_reservations', {}).get(unit_id)
-        consumption = authority.get('launch_consumptions', {}).get(unit_id)
-        admission = authority.get('admissions', {}).get(unit_id)
-        admission_hash = authority.get('admission_hashes', {}).get(unit_id)
-        if (not isinstance(reservation, dict) or reservation.get('status') != 'launch_reserved' or
-                not isinstance(admission, dict) or type(admission_hash) is not str or
-                (consumption is not None and (not isinstance(consumption, dict) or
-                    consumption.get('status') != 'launch_consumed' or
-                    consumption.get('reservation_id') != reservation.get('reservation_id')))):
-            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
-        bound_admission = store.load_admission_record(admission['admission_id'],
-                                                      expected_hash=admission_hash)
-        units = [item for item in plan.get('execution_units', [])
-                 if isinstance(item, dict) and item.get('unit_id') == unit_id]
-        if len(units) != 1:
-            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
-        validate_plan_admission_record(bound_admission, plan, units[0])
-        validate_plan_launch_reservation(reservation, bound_admission)
-        if consumption is None:
-            # A crash after admission/reservation but before the consumption CAS
-            # still burns this exact launch right. The supervisor will record an
-            # ABORTED receipt and no backend launch marker can follow.
-            import uuid
-            transition_id = str(uuid.uuid4())
-            recovered_consumption = build_launch_consumption_record(
-                bound_admission, reservation, transition_id=transition_id)
-            recovered_consumption, consumption_hash = store.publish_launch_consumption_record(
-                recovered_consumption)
-            transition_id = _append_lifecycle_transition(state, feature_dir,
-                operation='launch-consumed-for-safe-abort', task_id=plan['task_id'],
-                attempt=plan['task_attempt'], generation=plan['lifecycle_generation'],
-                predecessor_ids=[reservation['transition_id']],
-                record_refs=[{'record_id': recovered_consumption['consumption_id'],
-                              'sha256': consumption_hash}], transition_id=transition_id)
-            if recovered_consumption['transition_id'] != transition_id:
-                raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
-            authority = dict(authority)
-            consumption = {'consumption_id': recovered_consumption['consumption_id'],
-                'sha256': consumption_hash, 'reservation_id': reservation['reservation_id'],
-                'transition_id': transition_id, 'status': 'launch_consumed'}
-            authority['launch_consumptions'] = {**authority.get('launch_consumptions', {}),
-                                                unit_id: consumption}
-            state['verification_authority'] = authority
-            save_state(feature_dir, state)
-        bound_consumption = store.load_launch_consumption_record(
-            consumption.get('consumption_id'), admission=bound_admission,
-            reservation=reservation, expected_hash=consumption.get('sha256'))
-        if (bound_consumption.get('transition_id') != consumption.get('transition_id') or
-                bound_consumption.get('consumption_id') != consumption.get('consumption_id')):
-            raise StoreError('VERIFICATION_LAUNCH_AUTHORITY_ABSENT')
-        return {'schema_version': 1, 'execution_id': execution_id,
-            'reservation_id': reservation['reservation_id'],
-            'consumption_id': consumption['consumption_id'], 'plan_id': plan_id,
-            'unit_id': unit_id, 'obligation_ids': list(units[0]['obligation_ids']),
-            'admission_id': admission['admission_id'], 'admission_sha256': admission_hash,
-            'reservation_transition_id': reservation['transition_id'],
-            'consumption_transition_id': consumption['transition_id'],
-            'plan_acceptance_transition_id': authority['plan_acceptance_transition_id'],
-            'lifecycle_generation': plan['lifecycle_generation']}
+    return _recovery.recover_prelaunch_authority(repository, plan_id, unit_id, execution_id=execution_id, ns=_NS)
 
 
 def terminalize_verification_execution(repository: pathlib.Path, terminal: dict, *,
@@ -1228,47 +1106,7 @@ def recover_stale_leases(feature_dir: pathlib.Path, doc: dict[str, Any], *, reas
     The checkpoint is never exposed to dependents because the task remains failed until re-executed
     and completed successfully.
     """
-    recovered: list[str] = []
-    now = utc_now()
-    with locked_state(feature_dir, doc) as state:
-        for task_id, entry in state['tasks'].items():
-            if not lease_expired(entry, now=now):
-                continue
-            if isinstance(entry.get('completion_repair_claim'), dict):
-                entry['status'] = 'correction_required'
-                entry.setdefault('completion_repair_claim_history', []).append({
-                    **entry.pop('completion_repair_claim'), 'recovered_at': now.isoformat(),
-                    'recovery_reason': reason,
-                })
-                for key in ('owner', 'heartbeat_at', 'lease_expires_at', 'claimed_at'):
-                    entry.pop(key, None)
-                recovered.append(task_id)
-                continue
-            active_verification_resume = entry.pop('verification_resume_active', None)
-            if is_unrecovered_partial_claim(entry):
-                die(f'CLAIM_RECOVERY_REQUIRED: {task_id} is a stranded exceptional claim; attest with recover-claim before lease recovery')
-            task = active_task_contract(feature_dir, doc, task_id, state=state)
-            if not task:
-                continue
-            feature = str(doc.get('feature', feature_dir.name))
-            target = worktree_path(feature, task_id)
-            stale_commit = None
-            if target.exists():
-                stale_commit = checkpoint_worktree(doc, task, target, label='stale-lease')
-            entry.update({
-                'status': 'failed',
-                'last_failure': reason,
-                'lease_recovered_at': now.isoformat(),
-                'last_attempt_commit': stale_commit,
-            })
-            if isinstance(active_verification_resume, dict):
-                entry['verification_resume_pending'] = active_verification_resume
-            entry.pop('start_origin_status', None)
-            entry.pop('start_origin_contract_binding', None)
-            for key in ('owner', 'heartbeat_at', 'lease_expires_at'):
-                entry.pop(key, None)
-            recovered.append(task_id)
-    return recovered
+    return _recovery.recover_stale_leases(feature_dir, doc, reason=reason, ns=_NS)
 
 
 def assert_repository_verification_drained(feature_dir: pathlib.Path) -> None:
@@ -1285,64 +1123,7 @@ def ready_ids(doc: dict[str, Any], state: dict[str, Any], feature_dir: pathlib.P
 
 def cmd_resume_verification(args: argparse.Namespace) -> None:
     """Durably schedule exact-plan verification again without a new builder attempt."""
-    doc = load_validated(args.feature_dir)
-    reason = args.reason if isinstance(args.reason, str) else ''
-    operator = str(getattr(args, 'by', '') or '').strip()
-    if (args.task_id not in task_index(doc) or not reason.strip() or len(reason.encode('utf-8')) > 1024 or
-            any(ord(char) < 32 and char not in '\t\n' for char in reason) or
-            not operator or len(operator.encode('utf-8')) > 256 or
-            any(ord(char) < 32 for char in operator)):
-        die('VERIFICATION_RESUME_INVALID: task, reason, and operator are required')
-    assert_repository_verification_drained(args.feature_dir)
-    target = worktree_path(str(doc.get('feature', args.feature_dir.name)), args.task_id)
-    if not target.is_dir() or target.is_symlink():
-        die('VERIFICATION_RESUME_INVALID: the exact task worktree is unavailable')
-    with locked_state(args.feature_dir, doc) as state:
-        entry = state.get('tasks', {}).get(args.task_id)
-        if (not isinstance(entry, dict) or entry.get('status') != 'escalated' or
-                entry.get('control_outcome') != 'verification-blocked'):
-            die('VERIFICATION_RESUME_INVALID: task is not stopped on verification-blocked')
-        authority = state.get('verification_authority')
-        plan_id = authority.get('accepted_plan_id') if isinstance(authority, dict) else None
-        generation = state.get('feature_generation', 1)
-        if not isinstance(plan_id, str) or authority.get('generation') != generation:
-            die('VERIFICATION_RESUME_INVALID: current accepted plan is unavailable')
-        try:
-            plan = resolve_accepted_verification_plan(
-                target, plan_id, allowed_task_statuses={'escalated'})
-        except Exception as exc:
-            die(f'VERIFICATION_RESUME_INVALID: accepted plan could not be reconstructed ({type(exc).__name__})')
-        if (plan.get('feature_id') != doc.get('feature') or plan.get('task_id') != args.task_id or
-                plan.get('task_attempt') != entry.get('attempts') or
-                plan.get('lifecycle_generation') != generation):
-            die('VERIFICATION_RESUME_INVALID: accepted plan does not bind this exact attempt')
-        resume_history = entry.get('verification_resume_history', [])
-        if not isinstance(resume_history, list):
-            die('VERIFICATION_RESUME_INVALID: resume history is malformed')
-        prior_resume = resume_history[-1] if resume_history else None
-        if prior_resume is not None and not isinstance(prior_resume, dict):
-            die('VERIFICATION_RESUME_INVALID: latest resume history entry is malformed')
-        prior_result_path = (prior_resume.get('prior_result_path') if prior_resume else
-                             entry.get('last_failure_evidence'))
-        prior_result_sha256 = prior_builder_result_digest(
-            args.feature_dir, entry, args.task_id, prior_result_path)
-        if prior_resume is not None and prior_result_sha256 != prior_resume.get('prior_result_sha256'):
-            die('VERIFICATION_RESUME_INVALID: prior builder result changed since the previous resume')
-        history = entry.setdefault('verification_resume_history', [])
-        if not isinstance(history, list):
-            die('VERIFICATION_RESUME_INVALID: resume history is malformed')
-        resume = {'plan_id': plan_id, 'task_attempt': entry['attempts'],
-                  'lifecycle_generation': generation,
-                  'reason_sha256': hashlib.sha256(reason.encode('utf-8')).hexdigest(),
-                  'prior_result_sha256': prior_result_sha256,
-                  'prior_result_path': prior_result_path,
-                  'operator': operator,
-                  'requested_at': utc_now().isoformat()}
-        history.append(dict(resume))
-        entry['verification_resume_pending'] = resume
-        entry['status'] = 'failed'
-        entry.pop('control_outcome', None)
-    print(f'VERIFICATION_RESUME_READY {args.task_id} attempt={plan["task_attempt"]} plan={plan_id}')
+    return _recovery.cmd_resume_verification(args, ns=_NS)
 
 
 def cmd_invalidate_verification_resume(args: argparse.Namespace) -> None:
@@ -1351,17 +1132,7 @@ def cmd_invalidate_verification_resume(args: argparse.Namespace) -> None:
 
 def cmd_recover_verification(args: argparse.Namespace) -> None:
     """Recover verifier journals and clear only proven-dead unstarted admissions."""
-    from verification.store import StoreError, VerificationStore, repository_lock
-    from verification.supervisor import VerificationSupervisor
-    try:
-        store = VerificationStore(pathlib.Path(args.repo))
-        results = VerificationSupervisor(store).recover()
-        with repository_lock(store.root):
-            store.admit_repository_verification()
-    except (OSError, StoreError, RuntimeError, ValueError) as exc:
-        die(f'VERIFICATION_RECOVERY_UNAVAILABLE: {type(exc).__name__}', code=5)
-    print(json.dumps([{'execution_id': item.execution_id, 'state': item.state.value,
-                       'reason_code': item.reason_code} for item in results], indent=2))
+    return _recovery.cmd_recover_verification(args, ns=_NS)
 
 
 validate_verification_resume = _checks.validate_verification_resume
@@ -1765,194 +1536,7 @@ def cmd_claim(args: argparse.Namespace) -> None:
 
 def cmd_recover_claim(args: argparse.Namespace) -> None:
     """Human-attest that an already committed exceptional claim never began execution."""
-    doc = load_validated(args.feature_dir)
-    task = task_index(doc).get(args.task_id)
-    if task is None:
-        die(f'unknown task {args.task_id}')
-    reason = str(args.reason or '').strip()
-    operator = str(args.by or '').strip()
-    if not bool(getattr(args, 'attest_no_execution_started', False)):
-        die('CLAIM_RECOVERY_ATTESTATION_REQUIRED: pass --attest-no-execution-started')
-    if not reason or not operator:
-        die('CLAIM_RECOVERY_INVALID: --reason and --by must be non-empty')
-    if args.attempt != 4:
-        die('CLAIM_RECOVERY_INVALID: recovery is limited to the historical attempt-4 partial-claim incident')
-    packet_path = args.feature_dir / 'packets' / f'{args.task_id}.json'
-    try:
-        packet = json.loads(packet_path.read_text(encoding='utf-8'))
-    except (OSError, json.JSONDecodeError) as exc:
-        die(f'CLAIM_RECOVERY_PACKET_INVALID: existing immutable packet is unavailable: {exc}')
-    if not isinstance(packet, dict) or not packet_matches_semantic_contract(packet, doc, task, args.feature_dir):
-        die('CLAIM_RECOVERY_PACKET_INVALID: existing packet does not match the current semantic task contract')
-    with locked_state(args.feature_dir, doc) as state:
-        entry = state['tasks'].get(args.task_id)
-        if not isinstance(entry, dict):
-            die('CLAIM_RECOVERY_INVALID: lifecycle entry is malformed')
-        existing = entry.get('claim_recovery')
-        if existing is not None:
-            if (not isinstance(existing, dict) or existing.get('recovery_version') != 1 or
-                    existing.get('semantic_contract_sha256') != semantic_task_contract_sha256(args.feature_dir, doc, task) or
-                    existing.get('packet_identity') != packet.get('packet_sha256')):
-                die('CLAIM_RECOVERY_CONFLICT: stored recovery evidence no longer matches current contract/packet')
-            assertion = (existing.get('attempt'), existing.get('authorization_id'), existing.get('owner'),
-                         existing.get('reason'), existing.get('operator_provenance'), existing.get('attestation'))
-            requested = (args.attempt, args.authorization, args.owner, reason, operator, 'no_execution_started')
-            if assertion == requested:
-                print(f'ALREADY_RECOVERED {args.task_id} attempt={args.attempt}')
-                return
-            die('CLAIM_RECOVERY_CONFLICT: a different recovery assertion already exists for this attempt')
-        if entry.get('status') != 'running' or entry.get('attempts') != args.attempt:
-            die('CLAIM_RECOVERY_INVALID: exact current running status and attempt must match')
-        if entry.get('owner') != args.owner:
-            die('CLAIM_RECOVERY_INVALID: exact current owner does not match')
-        if not is_unrecovered_partial_claim(entry):
-            die('CLAIM_RECOVERY_INVALID: lifecycle entry is not an identified historical partial claim')
-        claimed_at = parse_timestamp(entry.get('claimed_at'))
-
-        def evidence_attempt(field: str, value: Any) -> tuple[str, int | None]:
-            """Return (classification, attempt) for legacy and attempt-bound evidence."""
-            if not value:
-                return 'absent', None
-            explicit = entry.get(f'{field}_attempt')
-            if explicit is None and isinstance(value, dict):
-                explicit = value.get('attempt')
-            if isinstance(explicit, int) and not isinstance(explicit, bool):
-                return ('current' if explicit == args.attempt else 'previous'), explicit
-            # Legacy release markers delimit the prior attempt when they precede this
-            # claim and are semantically paired with its failure/checkpoint record.
-            if field == 'released_at':
-                released_at = parse_timestamp(value)
-                if (released_at is not None and claimed_at is not None and released_at < claimed_at and
-                        entry.get('last_failure') and entry.get('last_attempt_commit')):
-                    return 'previous', int(entry.get('attempts', 0)) - 1
-            if field in ('last_attempt_commit', 'last_failure'):
-                release_attempt = entry.get('released_at_attempt')
-                released_at = parse_timestamp(entry.get('released_at'))
-                if (isinstance(release_attempt, int) and release_attempt < args.attempt and
-                        released_at is not None and claimed_at is not None and released_at < claimed_at):
-                    return 'previous', release_attempt
-                # A legacy release/failure bundle is attributable to the preceding
-                # attempt only when the release boundary and claim ordering agree.
-                if (release_attempt is None and released_at is not None and claimed_at is not None and
-                        released_at < claimed_at and entry.get('last_failure') and entry.get('last_attempt_commit') and
-                        int(entry.get('attempts', 0)) == args.attempt):
-                    return 'previous', int(entry.get('attempts', 0)) - 1
-            return 'ambiguous', None
-
-        evidence_fields = (
-            'checkpoint_commit', 'last_attempt_commit', 'completion_marker', 'execution_started_at',
-            'execution_journal', 'verification_started_at', 'verification_journal', 'started_at',
-            'completed_at', 'failed_at', 'released_at', 'lease_recovered_at', 'start_rollback_reason',
-            'last_failure_evidence', 'last_failure',
-        )
-        for field in evidence_fields:
-            value = entry.get(field)
-            classification, _ = evidence_attempt(field, value)
-            if classification in ('current', 'ambiguous'):
-                code = 'CURRENT_ATTEMPT' if classification == 'current' else 'AMBIGUOUS'
-                die(f'CLAIM_RECOVERY_{code}_EVIDENCE: lifecycle {field}')
-        if entry.get('worktree'):
-            die('CLAIM_RECOVERY_AMBIGUOUS_EVIDENCE: worktree')
-        evidence_root = git_common_dir(args.feature_dir).parent / '.agent-runs' / str(doc.get('feature', args.feature_dir.name))
-        if evidence_root.exists():
-            for evidence_path in evidence_root.rglob('*.json'):
-                try:
-                    evidence = json.loads(evidence_path.read_text(encoding='utf-8'))
-                except (OSError, json.JSONDecodeError):
-                    die(f'CLAIM_RECOVERY_CONFLICT: malformed runtime evidence {evidence_path}')
-                if not isinstance(evidence, dict):
-                    die(f'CLAIM_RECOVERY_CONFLICT: ambiguous runtime evidence {evidence_path}')
-                if evidence.get('task') == args.task_id:
-                    runtime_attempt = evidence.get('attempt')
-                    if not isinstance(runtime_attempt, int) or isinstance(runtime_attempt, bool):
-                        die('CLAIM_RECOVERY_AMBIGUOUS_EVIDENCE: runtime record')
-                    if runtime_attempt == args.attempt:
-                        die('CLAIM_RECOVERY_CURRENT_ATTEMPT_EVIDENCE: runtime record')
-        grants = entry.get('retry_authorizations')
-        if not isinstance(grants, list):
-            die('CLAIM_RECOVERY_INVALID: authorization ledger is malformed')
-        matching = [g for g in grants if isinstance(g, dict) and g.get('id') == args.authorization]
-        if len(matching) != 1:
-            die('CLAIM_RECOVERY_INVALID: exact authorization ID must occur once in this task ledger')
-        grant = matching[0]
-        expected_binding = retry_binding(args.feature_dir, doc, args.task_id, 3, state=state)
-        binding = grant.get('binding')
-        if (grant.get('version') != 2 or not isinstance(binding, dict) or binding != expected_binding or
-                binding.get('binding_version') != 2 or binding.get('expected_status') != 'failed' or
-                binding.get('expected_attempts') != args.attempt - 1 or
-                binding.get('repository') != str(git_common_dir(args.feature_dir)) or
-                binding.get('feature') != str(doc.get('feature', args.feature_dir.name)) or
-                binding.get('task') != args.task_id or
-                binding.get('protocol_version') != protocol_version(args.feature_dir) or
-                grant.get('consumed_at') is None or grant.get('consumed_attempt') != args.attempt or
-                entry.get('active_retry_authorization') != args.authorization):
-            die('CLAIM_RECOVERY_INVALID: V2 grant must bind failed attempt 3 and be consumed into attempt 4')
-        if (not isinstance(grant.get('reason'), str) or not grant['reason'].strip() or
-                not isinstance(grant.get('provenance'), str) or not grant['provenance']):
-            die('CLAIM_RECOVERY_INVALID: authorization provenance is malformed')
-        issued_at = parse_timestamp(grant.get('issued_at'))
-        consumed_at = parse_timestamp(grant.get('consumed_at'))
-        if issued_at is None or consumed_at is None or consumed_at < issued_at:
-            die('CLAIM_RECOVERY_INVALID: authorization issue/consumption history is malformed')
-        supersessions = entry.get('retry_authorization_supersessions', [])
-        if not isinstance(supersessions, list) or any(
-                not isinstance(rel, dict) or not isinstance(rel.get('supersedes'), str) or
-                not isinstance(rel.get('authorization_id'), str) or
-                not isinstance(rel.get('reason'), str) or not rel['reason'].strip() or
-                not isinstance(rel.get('provenance'), str) or not rel['provenance'] or
-                parse_timestamp(rel.get('issued_at')) is None or rel.get('supersedes') == rel.get('authorization_id')
-                for rel in supersessions):
-            die('CLAIM_RECOVERY_INVALID: supersession history is malformed or ambiguous')
-        superseded_ids = {rel['supersedes'] for rel in supersessions}
-        if len(superseded_ids) != len(supersessions):
-            die('CLAIM_RECOVERY_INVALID: supersession history is malformed or ambiguous')
-        superseding_grants = [g for g in grants if isinstance(g, dict) and g.get('supersedes') == args.authorization]
-        grant_supersedes = grant.get('supersedes')
-        lineage = []
-        if grant_supersedes is not None:
-            lineage = [rel for rel in supersessions if rel.get('supersedes') == grant_supersedes and
-                       rel.get('authorization_id') == args.authorization]
-            old_grants = [g for g in grants if isinstance(g, dict) and g.get('id') == grant_supersedes]
-            old = old_grants[0] if len(old_grants) == 1 else {}
-            old_binding = old.get('binding') if isinstance(old.get('binding'), dict) else {}
-            old_required = {'repository', 'feature', 'task', 'expected_status', 'expected_attempts',
-                            'feature_fingerprint', 'packet_sha256', 'protocol_version'}
-            same_old_identity = all(old_binding.get(key) == expected_binding.get(key)
-                                    for key in ('repository', 'feature', 'task', 'protocol_version'))
-            valid_old = (
-                old.get('version') == 1 and set(old_binding) == old_required and same_old_identity and
-                old_binding.get('expected_status') == 'failed' and old_binding.get('expected_attempts') == 3 and
-                isinstance(old_binding.get('feature_fingerprint'), str) and
-                re.fullmatch(r'[0-9a-f]{64}', old_binding['feature_fingerprint']) is not None and
-                isinstance(old_binding.get('packet_sha256'), str) and
-                re.fullmatch(r'[0-9a-f]{64}', old_binding['packet_sha256']) is not None and
-                isinstance(old.get('reason'), str) and bool(old['reason'].strip()) and
-                isinstance(old.get('provenance'), str) and bool(old['provenance']) and
-                parse_timestamp(old.get('issued_at')) is not None and old.get('consumed_at') is None
-            )
-            if (len(lineage) != 1 or len(old_grants) != 1 or not valid_old or superseding_grants):
-                die('CLAIM_RECOVERY_INVALID: authorization supersession history is malformed or ambiguous')
-        if (args.authorization in superseded_ids or
-                any(rel.get('authorization_id') == args.authorization for rel in supersessions) != bool(lineage)):
-            die('CLAIM_RECOVERY_INVALID: authorization is superseded or involved in a supersession')
-        allowed_legacy_ids = {grant_supersedes} if lineage else set()
-        if any(not isinstance(g, dict) or
-               (g.get('version') != 2 and not (g.get('version') == 1 and g.get('id') in allowed_legacy_ids)) or
-               (g is not grant and g.get('consumed_at') is not None) for g in grants):
-            die('CLAIM_RECOVERY_INVALID: mixed/legacy or conflicting consumed authorization history')
-        if any(g.get('consumed_at') is None and g is not grant and g.get('id') not in superseded_ids for g in grants):
-            die('CLAIM_RECOVERY_INVALID: another effective unconsumed authorization is ambiguous')
-        now = utc_now()
-        entry['claim_recovery'] = {
-            'task': args.task_id, 'attempt': args.attempt, 'authorization_id': args.authorization,
-            'owner': args.owner, 'reason': reason, 'operator_provenance': operator,
-            'attestation': 'no_execution_started',
-            'semantic_contract_sha256': semantic_task_contract_sha256(args.feature_dir, doc, task),
-            'packet_identity': packet['packet_sha256'], 'recovered_at': now.isoformat(),
-            'recovery_version': 1,
-        }
-        refresh_lease(entry, doc, now=now)
-    print(f'RECOVERED_CLAIM {args.task_id} attempt={args.attempt} owner={args.owner}')
+    return _recovery.cmd_recover_claim(args, ns=_NS)
 
 
 def owner_guard(entry: dict[str, Any], owner: str) -> None:
@@ -2322,15 +1906,7 @@ def cmd_replan_task(args: argparse.Namespace) -> None:
 
 def restore_attempt_authorization(entry: dict[str, Any]) -> None:
     """Return a consumed human grant when a start is rolled back before provider execution."""
-    if entry.pop('active_human_resume', None) is not None:
-        entry['human_resume_grants'] = int(entry.get('human_resume_grants', 0)) + 1
-    retry_id = entry.pop('active_retry_authorization', None)
-    if retry_id is not None:
-        for grant in entry.get('retry_authorizations', []):
-            if isinstance(grant, dict) and grant.get('id') == retry_id:
-                grant['consumed_at'] = None
-                grant.pop('consumed_attempt', None)
-                break
+    return _recovery.restore_attempt_authorization(entry, ns=_NS)
 
 
 def changed_paths(worktree: pathlib.Path) -> list[str]:
@@ -3062,40 +2638,11 @@ def ensure_task_workspace_clean(feature: str, task_id: str) -> None:
 
 
 def task_workspace_snapshot(feature: str, task_id: str) -> dict[str, str | bool | None]:
-    target = worktree_path(feature, task_id)
-    branch = f'agent/{feature}/{task_id}'
-    branch_result = subprocess.run(
-        ['git', 'rev-parse', '--verify', f'refs/heads/{branch}'],
-        capture_output=True, text=True, check=False,
-    )
-    branch_commit = branch_result.stdout.strip() if branch_result.returncode == 0 else None
-    worktree_commit = None
-    if target.exists():
-        worktree_commit = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'], cwd=target, capture_output=True, text=True, check=True,
-        ).stdout.strip()
-    return {'branch_commit': branch_commit, 'worktree_commit': worktree_commit}
+    return _recovery.task_workspace_snapshot(feature, task_id, ns=_NS)
 
 
 def restore_task_workspace(feature: str, task_id: str, snapshot: dict[str, str | bool | None]) -> None:
-    target = worktree_path(feature, task_id)
-    branch = f'agent/{feature}/{task_id}'
-    branch_commit = snapshot.get('branch_commit')
-    worktree_commit = snapshot.get('worktree_commit')
-    branch_ref = subprocess.run(
-        ['git', 'rev-parse', '--verify', f'refs/heads/{branch}'],
-        capture_output=True, text=True, check=False,
-    )
-    current_branch_commit = branch_ref.stdout.strip() if branch_ref.returncode == 0 else None
-    if branch_commit and current_branch_commit is None:
-        subprocess.run(['git', 'branch', branch, str(branch_commit)], check=True)
-    if worktree_commit and not target.exists():
-        if branch_commit == worktree_commit and current_branch_commit in {None, branch_commit}:
-            subprocess.run(['git', 'worktree', 'add', str(target), branch], check=True)
-        else:
-            # Preserve the exact completed worktree snapshot if another process recreated or
-            # advanced its branch while rollback was in progress.
-            subprocess.run(['git', 'worktree', 'add', '--detach', str(target), str(worktree_commit)], check=True)
+    return _recovery.restore_task_workspace(feature, task_id, snapshot, ns=_NS)
 
 
 def human_resolution_identity(explicit: str | None) -> str:
@@ -3581,12 +3128,7 @@ def cmd_heartbeat(args: argparse.Namespace) -> None:
 
 
 def cmd_recover_stale(args: argparse.Namespace) -> None:
-    doc = load_validated(args.feature_dir)
-    recovered = recover_stale_leases(args.feature_dir, doc, reason=args.reason)
-    if recovered:
-        print('RECOVERED ' + ','.join(recovered))
-    else:
-        print('NO_STALE_LEASES')
+    return _recovery.cmd_recover_stale(args, ns=_NS)
 
 
 
@@ -3943,6 +3485,7 @@ def parser() -> argparse.ArgumentParser:
 # operation (a missing name or a non-callable recovery binding refuses the import).
 _NS = _transitions.bind(_transitions.ModuleNamespace(globals()))
 _admission.bind(_NS)
+_recovery.bind(_NS)
 
 
 if __name__ == '__main__':
