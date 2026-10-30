@@ -2,6 +2,7 @@
 
 This repository is an agent-friendly Java 25 / Spring Boot modular monolith built around hexagonal architecture.
 This file is intentionally a **map**, not a manual. Follow links and load only the context required by the task.
+It applies repository-wide; use the [documentation map](docs/README.md) for task-specific entry pages and authoritative sources.
 
 ## Read order
 
@@ -22,7 +23,9 @@ This file is intentionally a **map**, not a manual. Follow links and load only t
 - `modules/adapters/security/` - security boundary.
 - `modules/adapters/ai/` - AI integrations behind ports.
 - `modules/adapters/aws/`, `modules/adapters/camel/`, `modules/adapters/mail/` - infrastructure adapters.
-- `tooling/` - deploy/runtime/config contracts (AsyncAPI, Docker, Kubernetes/Helm, Terraform, etc.).
+- `tooling/` - development, quality and Agentic SDD tooling; start at [Tooling](tooling/README.md).
+- `infra/` - Docker, Kubernetes/Helm and Terraform runtime/deployment configuration; start at [Infrastructure](infra/README.md).
+- `contracts/` - machine-readable integration contracts; start at [Contracts](contracts/README.md).
 - `docs/adr/` - architecture decision log.
 
 ## Repository graph
@@ -54,6 +57,7 @@ Run the smallest relevant checks first, then the full repository gates before in
 ```
 
 For repository-wide release confidence, also rely on the existing CI jobs for dependency review, OWASP DependencyCheck, CycloneDX SBOM, Docker/Compose, Kubernetes/Helm, Terraform, AsyncAPI, container scanning, and frontend validation.
+Use the checked-in [CI workflow](.github/workflows/ci.yml), [Agentic SDD workflow](.github/workflows/agentic-sdd.yml) and scripts they invoke for current commands and gate composition. Listed commands are guidance, not a claim that they ran for the current change; record actual results and unrun checks in the task evidence.
 
 ## Agent roles
 
