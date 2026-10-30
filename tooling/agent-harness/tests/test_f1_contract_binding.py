@@ -445,11 +445,24 @@ class CompleteRepairBindingTest(th.CanonicalCompletionRepairTests):
 
 
     def test_f1_complete_repair_refuses_an_unbound_attempt_even_without_a_contract(self):
-        """The strict policy is the shim's argument (its fixtures all have a contract; the library test covers the
-        no-contract branch of `require_attempt_contract`)."""
-        import inspect
-        self.assertIn('unbound_without_contract=False', inspect.getsource(harness.cmd_complete_repair))
-
+        """The strict policy: a repair checks its attempt with `unbound_without_contract=False` (its fixtures all have a
+        contract; the library test covers the no-contract branch of `require_attempt_contract`). Since AH5-14e-1 the
+        command is the library's; this runs a real repair through the shim and checks that the library command and the
+        attempt check were called, with the shim's own namespace and the strict policy."""
+        from agent_harness import feature_transitions as ft
+        from agent_harness import lifecycle_commands as lc
+        feature, doc, _, _, _, path = self._setup_repair()
+        self.set_binding(feature, doc, vc.contract_binding(feature)[1])
+        with mock.patch.object(lc, 'cmd_complete_repair', side_effect=lc.cmd_complete_repair, autospec=True) as command, \
+                mock.patch.object(ft, 'require_attempt_contract', side_effect=ft.require_attempt_contract,
+                                  autospec=True) as check:
+            self._complete(feature, path)
+        self.assertEqual(1, command.call_count)
+        self.assertIs(harness._NS, command.call_args.kwargs['ns'])
+        self.assertEqual(1, check.call_count)
+        self.assertIs(False, check.call_args.kwargs['unbound_without_contract'])
+        self.assertIs(harness._NS, check.call_args.kwargs['ns'])
+        self.assertEqual('completed', harness.load_state(feature, doc)['tasks']['T-A']['status'])
 
 def load_tests(loader, tests, pattern):
     """Only this module's own tests; the inherited repair tests run in `test_harness`."""

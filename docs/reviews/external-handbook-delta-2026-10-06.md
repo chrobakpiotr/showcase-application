@@ -472,3 +472,7 @@ T-008 branch failed with stale inventory and harness-test errors; the branch
 was seven commits behind current `main`, and those failures do not change the
 successful main results. See the detailed
 [`CI evidence record`](../ci/showcase-master-review-ci-evidence-2026-10-05.md).
+
+## 2026-10-30 — Harness 0.22.0 repository adoption
+
+AH5-14e-1 moves 50 lifecycle command functions behind the consumer's live namespace. Showcase retains marker policy, layout, writer bindings and its CLI; operational state remains outside the lifecycle snapshot. Exact dependency pin: 5efdb1de0d3992f27f157f439e7737e41ba4d5c4. The shim and binding/F1 tests are paired with that release. Parser/dispatch/doctor migration remains separate. See `harness-0.22.0-adoption-2026-10-30.md` for evidence and paired pin/shim rollback. Repository adoption does not repeat acknowledgement or change the Mac checkout. External handbook synchronization is still pending.
