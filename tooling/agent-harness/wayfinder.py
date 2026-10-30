@@ -36,6 +36,7 @@ import telemetry  # noqa: E402
 import trust  # noqa: E402
 import verification_contract as vc  # noqa: E402
 import repository_state_lock  # noqa: E402
+import operational_state  # noqa: E402
 
 MAP_FILE = 'wayfinder.json'
 RESULT_SCHEMA = HERE / 'schemas' / 'wayfinder-result.schema.json'
@@ -101,7 +102,7 @@ def state_root(epic: str) -> pathlib.Path:
     root = state_repo_root()
     if root is None:
         die('Wayfinder claim mutation requires a Git repository')
-    return root / '.agent-state' / 'wayfinder' / epic
+    return operational_state.directory(root, 'wayfinder', epic)
 
 
 @contextlib.contextmanager
@@ -115,17 +116,9 @@ def _ensure_map_lock(root: pathlib.Path) -> pathlib.Path:
     repo = state_repo_root()
     if repo is None:
         die('Wayfinder claim mutation requires a Git repository')
-    state_parent = repo / '.agent-state'
-    directories = (state_parent, state_parent / 'wayfinder', root)
     with _lifecycle_lock(repo):
-        for directory in directories:
-            try:
-                info = directory.lstat()
-            except FileNotFoundError:
-                directory.mkdir(mode=0o700)
-                info = directory.lstat()
-            if not stat.S_ISDIR(info.st_mode):
-                die(f'WAYFINDER_LOCK_UNSAFE: lock directory is not a real directory: {directory}')
+        operational_state.refuse_legacy_claims(repo, root.name)
+        operational_state.ensure_directory(repo, 'wayfinder', root.name)
 
         lock_path = root / 'map.lock'
         try:
@@ -185,6 +178,7 @@ def locked_claim_state(epic: str) -> Iterator[None]:
         if _validate_map_lock(lock_path, lock_fd) != expected:
             die('WAYFINDER_LOCK_UNSAFE: map.lock was replaced while acquiring its lock')
         with _lifecycle_lock(repo):
+            operational_state.refuse_legacy_claims(repo, epic)
             yield
     finally:
         try:
@@ -368,7 +362,7 @@ def _active_claim_unlocked(doc: dict[str, Any], decision_id: str) -> dict[str, A
     root = state_repo_root()
     if root is None:
         return None
-    path = root / '.agent-state' / 'wayfinder' / str(doc['epic']) / 'claims' / decision_id
+    path = claim_path(str(doc['epic']), decision_id)
     payload = path / 'claim.json'
     if not payload.exists():
         return None

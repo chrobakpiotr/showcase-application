@@ -19,9 +19,9 @@ class ControlPlaneTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp) / 'repo'; root.mkdir()
             subprocess.run(['git', 'init', '-q'], cwd=root, check=True)
-            prior_repo, prior_state = cp.REPO, cp.STATE
+            prior_repo = cp.REPO
             cp.REPO = root
-            cp.STATE = root / '.agent-state' / 'control-plane'
+            state = cp.operational_state.directory(root, 'control-plane')
             acquired = threading.Event(); release = threading.Event()
             finished = threading.Event(); errors = []
             def lifecycle_writer():
@@ -40,17 +40,17 @@ class ControlPlaneTest(unittest.TestCase):
                 self.assertTrue(acquired.wait(2))
                 saver = threading.Thread(target=save); saver.start()
                 self.assertFalse(finished.wait(0.15), 'snapshot writer bypassed the lifecycle lock')
-                self.assertFalse(cp.STATE.exists(), 'snapshot directory was created before lock acquisition')
+                self.assertFalse(state.exists(), 'snapshot directory was created before lock acquisition')
                 release.set()
                 self.assertTrue(finished.wait(3))
                 saver.join(timeout=1)
                 self.assertEqual([], errors)
-                output = cp.STATE / 'github-GH-1.json'
+                output = state / 'github-GH-1.json'
                 self.assertEqual({'source': 'github', 'key': 'GH-1', 'title': 'A task'}, json.loads(output.read_text()))
-                self.assertEqual([output.name], [entry.name for entry in cp.STATE.iterdir()])
+                self.assertEqual([output.name], [entry.name for entry in state.iterdir()])
             finally:
                 release.set(); holder.join(timeout=2)
-                cp.REPO, cp.STATE = prior_repo, prior_state
+                cp.REPO = prior_repo
 
     def test_github_issue_normalizes_to_read_only_intent(self):
         item = cp.normalize_github({
@@ -101,3 +101,4 @@ class ControlPlaneTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

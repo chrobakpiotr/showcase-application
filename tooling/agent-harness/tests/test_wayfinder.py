@@ -41,7 +41,7 @@ def base_map():
 
 class WayfinderTest(unittest.TestCase):
     def _assert_operation_waits_for_wayfinder_lock(self, root, operation, state_assertion):
-        lock_path = root / '.agent-state' / 'wayfinder' / 'EPIC-001' / 'map.lock'
+        lock_path = wayfinder.operational_state.directory(root, 'wayfinder', 'EPIC-001') / 'map.lock'
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         lock_holder = subprocess.Popen(
             [sys.executable, '-c', (

@@ -22,11 +22,11 @@ from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-STATE = REPO / '.agent-state' / 'control-plane'
 SAFE_ID_RE = re.compile(r'^[A-Za-z0-9._-]+$')
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 import repository_state_lock  # noqa: E402
+import operational_state  # noqa: E402
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -177,16 +177,16 @@ def save_snapshot(item: dict[str, Any]) -> pathlib.Path:
     if not SAFE_ID_RE.fullmatch(key) or not SAFE_ID_RE.fullmatch(source):
         die(f'unsafe normalized tracker key: {key!r}')
     with repository_state_lock.lifecycle_lock(REPO):
-        STATE.mkdir(parents=True, exist_ok=True)
-        path = STATE / f'{source}-{key}.json'
-        fd, temporary = tempfile.mkstemp(prefix=path.name + '.', dir=STATE)
+        state = operational_state.ensure_directory(REPO, 'control-plane')
+        path = state / f'{source}-{key}.json'
+        fd, temporary = tempfile.mkstemp(prefix=path.name + '.', dir=state)
         try:
             with os.fdopen(fd, 'w', encoding='utf-8') as stream:
                 stream.write(json.dumps(item, indent=2, sort_keys=True) + '\n')
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, path)
-            directory_fd = os.open(STATE, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+            directory_fd = os.open(state, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
             try:
                 os.fsync(directory_fd)
             finally:
@@ -265,3 +265,4 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
+
