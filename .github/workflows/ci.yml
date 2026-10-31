@@ -83,9 +83,82 @@ jobs:
           test "$count" -gt 0
           echo "Validated $count shell scripts"
 
+  # The three Gradle invocations of the backend job run as separate jobs so the push's wall clock is the longest of
+  # them (about 5 minutes) instead of their sum (about 11.5). Each is a required result of the CI quality gate.
+  backend-postgres-gate:
+    name: Backend critical Postgres gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # setup-gradle v6 already uses Enhanced Caching by default.
+          # This optional secret additionally enables encrypted configuration-cache persistence.
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Verify required Postgres recovery/concurrency tests
+        run: tooling/scripts/verify-critical-postgres-tests.sh
+
+      - name: Publish isolated critical PostgreSQL evidence
+        if: always() && hashFiles('apps/ecommerce/backend/build/critical-postgres-results/**') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: critical-postgres-evidence
+          path: apps/ecommerce/backend/build/critical-postgres-results/
+          retention-days: 14
+          if-no-files-found: error
+
+  backend-rabbitmq-gate:
+    name: Backend critical RabbitMQ gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          # setup-gradle v6 already uses Enhanced Caching by default.
+          # This optional secret additionally enables encrypted configuration-cache persistence.
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Verify critical RabbitMQ republish/redelivery evidence
+        run: tooling/scripts/verify-critical-rabbitmq-tests.sh
+
+      - name: Publish isolated critical RabbitMQ evidence
+        if: always() && hashFiles('apps/ecommerce/backend/build/critical-rabbitmq-results/**') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: critical-rabbitmq-evidence
+          path: apps/ecommerce/backend/build/critical-rabbitmq-results/
+          retention-days: 14
+          if-no-files-found: error
+
   backend:
     name: Backend build, quality gates & tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -107,30 +180,6 @@ jobs:
 
       - name: Verify Java formatting
         run: ./gradlew spotlessJavaCheck
-
-      - name: Verify required Postgres recovery/concurrency tests
-        run: tooling/scripts/verify-critical-postgres-tests.sh
-
-      - name: Publish isolated critical PostgreSQL evidence
-        if: always() && hashFiles('apps/ecommerce/backend/build/critical-postgres-results/**') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: critical-postgres-evidence
-          path: apps/ecommerce/backend/build/critical-postgres-results/
-          retention-days: 14
-          if-no-files-found: error
-
-      - name: Verify critical RabbitMQ republish/redelivery evidence
-        run: tooling/scripts/verify-critical-rabbitmq-tests.sh
-
-      - name: Publish isolated critical RabbitMQ evidence
-        if: always() && hashFiles('apps/ecommerce/backend/build/critical-rabbitmq-results/**') != ''
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: critical-rabbitmq-evidence
-          path: apps/ecommerce/backend/build/critical-rabbitmq-results/
-          retention-days: 14
-          if-no-files-found: error
 
       - name: Build, verify quality gates and run tests
         run: >
@@ -515,6 +564,8 @@ jobs:
     needs:
       - documentation
       - repository-guards
+      - backend-postgres-gate
+      - backend-rabbitmq-gate
       - backend
       - mutation-testing
       - dependency-check
@@ -541,6 +592,8 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           DOCUMENTATION_RESULT: ${{ needs['documentation'].result }}
           REPOSITORY_GUARDS_RESULT: ${{ needs['repository-guards'].result }}
+          BACKEND_POSTGRES_GATE_RESULT: ${{ needs['backend-postgres-gate'].result }}
+          BACKEND_RABBITMQ_GATE_RESULT: ${{ needs['backend-rabbitmq-gate'].result }}
           BACKEND_RESULT: ${{ needs['backend'].result }}
           MUTATION_TESTING_RESULT: ${{ needs['mutation-testing'].result }}
           DEPENDENCY_CHECK_RESULT: ${{ needs['dependency-check'].result }}

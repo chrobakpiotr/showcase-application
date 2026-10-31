@@ -4388,11 +4388,15 @@ class HarnessTest(unittest.TestCase):
         self.assertTrue(harness.validate_evidence(evidence, require_pass=True))
 
 
-class CompletionCorrectionTest(unittest.TestCase):
-    """M4 RED-first coverage for completion evidence and exhausted repair."""
+class CompletionCorrectionFixture:
+    """Fixtures and helpers shared by the completion-correction suites (M4, M4.2, M4.3). Not a TestCase: the M4.2 and
+    M4.3 suites inherit these helpers without re-running `CompletionCorrectionTest`'s own tests under their names (they
+    used to run three times on the same fixture)."""
 
     setUp = HarnessTest.setUp
+
     tearDown = HarnessTest.tearDown
+
     feature = HarnessTest.feature
 
     def completion_fixture(self, *, status='running', attempts=1):
@@ -4514,101 +4518,12 @@ class CompletionCorrectionTest(unittest.TestCase):
         path.write_text(json.dumps(evidence), encoding='utf-8')
         return path
 
-    def test_m4_01_missing_required_vc_rejects_completion_red(self):
-        feature, doc = self.completion_fixture()
-        evidence = self.evidence_doc(feature, doc, mutate=lambda e: e['criterion_results'].pop('VC-009'))
-        path = self.write_evidence(evidence)
-        with self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-
-    def test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red(self):
-        feature, doc = self.completion_fixture()
-        def incomplete(e):
-            e['criterion_results']['VC-009'] = {'status': 'INCOMPLETE', 'proof_ids': []}
-        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=incomplete))
-        with self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-
-    def test_m4_03_complete_required_vc_proof_accepts_completion(self):
-        feature, doc = self.completion_fixture()
-        self.assert_stale_checkpoint_refused(feature, doc)
-        path = self.write_evidence(self.evidence_doc(feature, doc))
-        harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-        self.assertEqual('completed', harness.load_state(feature, doc)['tasks']['T-A']['status'])
-
-    def test_completion_rejects_checkpoint_not_descending_from_dependency(self):
-        feature, doc = self.completion_fixture()
-        accepted_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
-                                       capture_output=True, text=True, check=True).stdout.strip()
-        subprocess.run(['git', 'checkout', '-q', '-b', 'fixture/dependency'], cwd=self.root, check=True)
-        (self.root / 'dependency-only.txt').write_text('dependency checkpoint\n')
-        subprocess.run(['git', 'add', 'dependency-only.txt'], cwd=self.root, check=True)
-        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
-                        'commit', '-q', '-m', 'dependency checkpoint'], cwd=self.root, check=True)
-        dependency_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
-                                              capture_output=True, text=True, check=True).stdout.strip()
-        subprocess.run(['git', 'checkout', '-q', '--detach', accepted_base], cwd=self.root, check=True)
-
-        state = harness.load_state(feature, doc)
-        state['tasks']['T-A'].update({'status': 'completed', 'checkpoint_commit': dependency_checkpoint})
-        state['tasks']['T-B'].update({'status': 'running', 'attempts': 1, 'owner': 'worker-a',
-                                      'checkpoint_commit': accepted_base})
-        state['tasks']['T-B']['contract_binding'] = harness.vc.contract_binding(feature)[1]
-        harness.save_state(feature, state)
-        evidence = HarnessTest.passing_completion_evidence(
-            self, feature, doc, 'T-B', 1, accepted_base)
-        path = self.write_evidence(evidence)
-
-        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(
-                feature_dir=feature, task_id='T-B', owner='worker-a', evidence=str(path)))
-
-        self.assertIn('COMPLETION_STALE_BASE', error.getvalue())
-        self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-B']['status'])
-        self.assertEqual([], harness.completion_records(feature, 'T-B'))
-
-    def test_m4_04_missing_required_ac_rejects_completion_red(self):
-        feature, doc = self.completion_fixture()
-        def missing(e):
-            e['criterion_results'].pop('AC-001')
-            e['proofs'][0]['criteria'].remove('AC-001')
-        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=missing))
-        with self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-
     def _assert_binding_rejected(self, mutate):
         import shutil
         shutil.rmtree(self.root / 'docs/specs/TST-001', ignore_errors=True)
         shutil.rmtree(self.root / '.agent-state', ignore_errors=True)
         feature, doc = self.completion_fixture()
         path = self.write_evidence(self.evidence_doc(feature, doc, mutate=mutate))
-        with self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-
-    def test_m4_05_stale_revision_rejects_completion(self):
-        self._assert_binding_rejected(lambda e: e.update(packet_revision='sha256:' + '0' * 64))
-
-    def test_m4_06_stale_fingerprint_rejects_completion(self):
-        self._assert_binding_rejected(lambda e: e.update(contract_fingerprint='0' * 64))
-
-    def test_m4_07_wrong_attempt_rejects_completion(self):
-        self._assert_binding_rejected(lambda e: e.update(attempt=2))
-
-    def test_m4_08_wrong_checkpoint_rejects_completion(self):
-        self._assert_binding_rejected(lambda e: e.update(checkpoint='f' * 40))
-
-    def test_m4_02_string_only_vc_claim_without_command_proof_rejects_red(self):
-        feature, doc = self.completion_fixture()
-        def no_command_proof(e):
-            e['criterion_results']['VC-009'] = {'status': 'PASS', 'proof_ids': []}
-        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=no_command_proof))
-        with self.assertRaises(SystemExit):
-            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
-
-    def test_m4_02_claimed_result_hash_must_match_harness_output(self):
-        feature, doc = self.completion_fixture()
-        path = self.write_evidence(self.evidence_doc(
-            feature, doc, mutate=lambda e: e['proofs'][0].update(result_sha256='a' * 64)))
         with self.assertRaises(SystemExit):
             harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
 
@@ -4690,6 +4605,99 @@ class CompletionCorrectionTest(unittest.TestCase):
             harness.cmd_complete_repair(argparse.Namespace(feature_dir=feature, task_id='T-A', owner=owner,
                                                            evidence=str(path)))
         return harness.load_state(feature, doc)
+
+
+class CompletionCorrectionTest(CompletionCorrectionFixture, unittest.TestCase):
+    """M4 RED-first coverage for completion evidence and exhausted repair."""
+
+    def test_m4_01_missing_required_vc_rejects_completion_red(self):
+        feature, doc = self.completion_fixture()
+        evidence = self.evidence_doc(feature, doc, mutate=lambda e: e['criterion_results'].pop('VC-009'))
+        path = self.write_evidence(evidence)
+        with self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+
+    def test_m4_02_vc_named_but_incomplete_proof_rejects_completion_red(self):
+        feature, doc = self.completion_fixture()
+        def incomplete(e):
+            e['criterion_results']['VC-009'] = {'status': 'INCOMPLETE', 'proof_ids': []}
+        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=incomplete))
+        with self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+
+    def test_m4_03_complete_required_vc_proof_accepts_completion(self):
+        feature, doc = self.completion_fixture()
+        self.assert_stale_checkpoint_refused(feature, doc)
+        path = self.write_evidence(self.evidence_doc(feature, doc))
+        harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+        self.assertEqual('completed', harness.load_state(feature, doc)['tasks']['T-A']['status'])
+
+    def test_completion_rejects_checkpoint_not_descending_from_dependency(self):
+        feature, doc = self.completion_fixture()
+        accepted_base = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                       capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(['git', 'checkout', '-q', '-b', 'fixture/dependency'], cwd=self.root, check=True)
+        (self.root / 'dependency-only.txt').write_text('dependency checkpoint\n')
+        subprocess.run(['git', 'add', 'dependency-only.txt'], cwd=self.root, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '-q', '-m', 'dependency checkpoint'], cwd=self.root, check=True)
+        dependency_checkpoint = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=self.root,
+                                              capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run(['git', 'checkout', '-q', '--detach', accepted_base], cwd=self.root, check=True)
+
+        state = harness.load_state(feature, doc)
+        state['tasks']['T-A'].update({'status': 'completed', 'checkpoint_commit': dependency_checkpoint})
+        state['tasks']['T-B'].update({'status': 'running', 'attempts': 1, 'owner': 'worker-a',
+                                      'checkpoint_commit': accepted_base})
+        state['tasks']['T-B']['contract_binding'] = harness.vc.contract_binding(feature)[1]
+        harness.save_state(feature, state)
+        evidence = HarnessTest.passing_completion_evidence(
+            self, feature, doc, 'T-B', 1, accepted_base)
+        path = self.write_evidence(evidence)
+
+        with contextlib.redirect_stderr(io.StringIO()) as error, self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(
+                feature_dir=feature, task_id='T-B', owner='worker-a', evidence=str(path)))
+
+        self.assertIn('COMPLETION_STALE_BASE', error.getvalue())
+        self.assertEqual('running', harness.load_state(feature, doc)['tasks']['T-B']['status'])
+        self.assertEqual([], harness.completion_records(feature, 'T-B'))
+
+    def test_m4_04_missing_required_ac_rejects_completion_red(self):
+        feature, doc = self.completion_fixture()
+        def missing(e):
+            e['criterion_results'].pop('AC-001')
+            e['proofs'][0]['criteria'].remove('AC-001')
+        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=missing))
+        with self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+
+    def test_m4_05_stale_revision_rejects_completion(self):
+        self._assert_binding_rejected(lambda e: e.update(packet_revision='sha256:' + '0' * 64))
+
+    def test_m4_06_stale_fingerprint_rejects_completion(self):
+        self._assert_binding_rejected(lambda e: e.update(contract_fingerprint='0' * 64))
+
+    def test_m4_07_wrong_attempt_rejects_completion(self):
+        self._assert_binding_rejected(lambda e: e.update(attempt=2))
+
+    def test_m4_08_wrong_checkpoint_rejects_completion(self):
+        self._assert_binding_rejected(lambda e: e.update(checkpoint='f' * 40))
+
+    def test_m4_02_string_only_vc_claim_without_command_proof_rejects_red(self):
+        feature, doc = self.completion_fixture()
+        def no_command_proof(e):
+            e['criterion_results']['VC-009'] = {'status': 'PASS', 'proof_ids': []}
+        path = self.write_evidence(self.evidence_doc(feature, doc, mutate=no_command_proof))
+        with self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
+
+    def test_m4_02_claimed_result_hash_must_match_harness_output(self):
+        feature, doc = self.completion_fixture()
+        path = self.write_evidence(self.evidence_doc(
+            feature, doc, mutate=lambda e: e['proofs'][0].update(result_sha256='a' * 64)))
+        with self.assertRaises(SystemExit):
+            harness.cmd_complete(argparse.Namespace(feature_dir=feature, task_id='T-A', owner='worker-a', evidence=str(path)))
 
     def test_m4_09_correction_preserves_historical_completion(self):
         feature, doc = self._completed_fixture()
@@ -4936,7 +4944,7 @@ class CompletionCorrectionTest(unittest.TestCase):
         self.assertEqual(5, state['tasks']['T-A']['attempts'])
 
 
-class CanonicalCompletionRepairTests(CompletionCorrectionTest):
+class CanonicalCompletionRepairTests(CompletionCorrectionFixture, unittest.TestCase):
     """M4.2 C2 protocol tests use only disposable fixture repositories."""
 
     def setUp(self):
@@ -5424,7 +5432,7 @@ class CanonicalCompletionRepairTests(CompletionCorrectionTest):
         self.assertIn('T-B', harness.ready_ids(doc, state, feature))
 
 
-class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionTest):
+class LegacyRepairCheckpointBindingProtocolTests(CompletionCorrectionFixture, unittest.TestCase):
     """Focused M4.3 test coverage; uses only disposable fixture repositories."""
 
     def setUp(self):

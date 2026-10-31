@@ -54,10 +54,15 @@ runs:
         # commit, the `rev-parse` check above and the version check below. Credentials are not available
         # to pip; the remaining pins (cryptography) install from requirements.txt unchanged.
         python3 -m pip install --no-deps ".ci/agent-harness[grants]"
-        python3 -m pip install -r <(grep -v '^agent-harness' tooling/agent-harness/requirements.txt)
+        grep -v '^agent-harness' tooling/agent-harness/requirements.txt > "$RUNNER_TEMP/requirements-without-harness.txt"
+        test -s "$RUNNER_TEMP/requirements-without-harness.txt"
+        python3 -m pip install -r "$RUNNER_TEMP/requirements-without-harness.txt"
+        python3 -m pip check
         python3 - <<'PYTHON'
-        import json, os, subprocess
-        import agent_harness
+        import json, os, subprocess, sysconfig
+        import agent_harness, cryptography
+        assert cryptography.__version__ == '49.0.0', cryptography.__version__  # the Showcase pin, not resolved by pip here
+        assert agent_harness.__file__.startswith(sysconfig.get_paths()['purelib']), agent_harness.__file__
         git = lambda *a: subprocess.run(['git', '-C', '.ci/agent-harness', *a], check=True, capture_output=True, text=True).stdout
         commit = git('rev-parse', 'HEAD').strip()
         assert commit == os.environ['HARNESS_SHA'], commit

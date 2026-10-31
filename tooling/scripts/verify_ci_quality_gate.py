@@ -10,6 +10,8 @@ from collections.abc import Mapping
 REQUIRED_RESULTS = (
     ("Documentation links", "DOCUMENTATION_RESULT"),
     ("Repository guards", "REPOSITORY_GUARDS_RESULT"),
+    ("Backend critical Postgres gate", "BACKEND_POSTGRES_GATE_RESULT"),
+    ("Backend critical RabbitMQ gate", "BACKEND_RABBITMQ_GATE_RESULT"),
     ("Backend build, quality gates & tests", "BACKEND_RESULT"),
     ("Domain mutation testing (PIT)", "MUTATION_TESTING_RESULT"),
     ("OWASP dependency vulnerability scan", "DEPENDENCY_CHECK_RESULT"),

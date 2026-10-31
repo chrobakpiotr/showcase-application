@@ -16,7 +16,14 @@ class EvalTest(unittest.TestCase):
             self.assertEqual([],ev.validate_suite(json.loads(path.read_text())),msg=str(path))
     def test_ci_runs_discovery_and_enforces_linux_benchmark_environment(self):
         workflow=(REPO_ROOT/'.github/workflows/agentic-sdd.yml').read_text()
-        self.assertIn('python3 -m unittest discover -s tooling/agent-harness/tests -v',workflow)
+        # The suite runs as independent unittest processes; the runner script itself reconciles its summed test
+        # count with `unittest discover` and fails on any non-zero unit exit (including 5, "no tests ran").
+        self.assertIn('run: JOBS=4 tooling/scripts/run-harness-tests-parallel.sh',workflow)
+        runner=(REPO_ROOT/'tooling/scripts/run-harness-tests-parallel.sh').read_text()
+        self.assertIn("unittest.defaultTestLoader.discover('$tests').countTestCases()",runner)
+        self.assertIn('[ "$ran" = "$expected" ] ||',runner)
+        self.assertIn("awk -F'\\t' '$1 != 0'",runner)
+        self.assertIn('export PYTHONDONTWRITEBYTECODE=1',runner)
         harness_job=workflow.split('  harness-tests:',1)[1].split('\n  examples-validation:',1)[0]
         behavioral_job=workflow.split('  behavioral-evaluations:',1)[1].split('\n  agentic-sdd-gate:',1)[0]
         trusted_python='python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f'

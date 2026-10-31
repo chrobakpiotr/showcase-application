@@ -42,6 +42,31 @@ class VerifyCiQualityGateTest(unittest.TestCase):
         errors = gate.evaluate("push", results)
         self.assertTrue(any("Backend build" in error for error in errors))
 
+    def test_each_backend_gate_is_required_on_its_own(self):
+        for key, name in (("BACKEND_POSTGRES_GATE_RESULT", "Backend critical Postgres gate"),
+                          ("BACKEND_RABBITMQ_GATE_RESULT", "Backend critical RabbitMQ gate")):
+            with self.subTest(key):
+                results = self.successful_results()
+                results[key] = "failure"
+                errors = gate.evaluate("push", results)
+                self.assertTrue(any(name in error for error in errors), errors)
+                del results[key]
+                self.assertTrue(any("<missing>" in error for error in gate.evaluate("push", results)))
+
+    def test_the_workflow_wires_every_required_result(self):
+        """Every required key is passed to the gate step by ci.yml from a job the gate `needs`."""
+        import pathlib
+        import re
+        workflow = (pathlib.Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml").read_text()
+        gate_job = workflow[workflow.index("  ci-quality-gate:"):]
+        for display_name, key in gate.REQUIRED_RESULTS + ((None, gate.DEPENDENCY_REVIEW_KEY),):
+            with self.subTest(key):
+                match = re.search(rf"{key}: \$\{{\{{ needs\['([a-z0-9-]+)'\]\.result \}}\}}", gate_job)
+                self.assertIsNotNone(match, key)
+                self.assertRegex(gate_job, rf"needs:\n(      - [a-z0-9-]+\n)*      - {match.group(1)}\n")
+                if key.startswith("BACKEND"):
+                    self.assertIn(f"    name: {display_name}\n", workflow)
+
     def test_required_skipped_job_fails_closed(self):
         results = self.successful_results()
         results["E2E_RESULT"] = "skipped"
