@@ -70,8 +70,8 @@ if [ -n "$failed" ]; then
     # One annotation per failed unit (visible in the checks UI and through the API without the raw log): the failing
     # test names and the last exception/assertion line of the first failure. Newlines are encoded as %0A.
     names=$(grep -E '^(FAIL|ERROR): ' "$log" | cut -c1-200 | head -8)
-    first=$(grep -E '^[A-Za-z_.]*(Error|Exception|Exit)[:(]|^AssertionError' "$log" | head -1 | cut -c1-400)
-    message=$(printf '%s\n%s' "$names" "$first" | sed ':a;N;$!ba;s/\n/%0A/g')
+    first=$(awk '/^(ERROR|FAIL): /{n++} n==1' "$log" | grep -v '^=\{20\}\|^-\{20\}' | head -40 | cut -c1-300)
+    message=$(printf '%s\n%s' "$names" "$first" | cut -c1-3800 | sed ':a;N;$!ba;s/\n/%0A/g')
     echo "::error title=harness unit exit $status ($unit)::$message"
   done
   exit 1
