@@ -44,3 +44,21 @@ Final focused suite: 29 tests OK, exit 0 (5.543 seconds). Independent reviewer
 `/root/review_operational_paths`: PASS for revised code/test scope; independently reran six
 operational-state tests. The linked-worktree finding is closed. Exact-commit CI remains required
 before live activation. No Mac changes here.
+
+## Follow-up 2026-10-31: repository-wide legacy-claim refusal
+
+An independent review of 75c0fdd against the Contract above (Banjo Skills demonstration 4,
+fresh context, no access to this verification record) observed that `refuse_legacy_claims`
+checked only `.agent-state/wayfinder/<epic>/claims`, so a legacy claim under one epic did not
+refuse starting another epic in the new store. The owner's reading of "Any legacy claim entry
+... refuses operation" is repository-wide: old and new writers must not coexist. The check now
+walks every epic directory under `.agent-state/wayfinder/` with the same lstat discipline
+(symlinks and non-directories refuse as UNSAFE) and names the offending epic in the error.
+Two regression tests added (other-epic claim; symlinked claims directory in another epic).
+
+Verification: `tests.test_operational_state`, `tests.test_wayfinder`, `tests.test_control_plane`
+run with `PYTHONPATH=<agent-harness checkout at 5efdb1d>/src:.:tests PYTHONDONTWRITEBYTECODE=1
+python3 -m unittest` from `tooling/agent-harness`: 31 tests OK, exit 0 (29 prior + 2 new). The
+Harness was used from its pinned source tree, not a wheel install (package index unavailable in
+the review environment). The second review observation, raw `RuntimeError`/`CalledProcessError`
+instead of the `die(...)` path, is accurate and left unchanged as cosmetic.

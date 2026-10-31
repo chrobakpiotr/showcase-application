@@ -42,6 +42,24 @@ class OperationalStateTest(unittest.TestCase):
         self.assertTrue(old.exists())
         self.assertFalse(ops.root(self.repo).exists())
 
+    def test_legacy_claim_under_another_epic_also_refuses(self):
+        other = self.repo / '.agent-state/wayfinder/EPIC-001/claims/D-001'
+        other.mkdir(parents=True)
+        with locks.lifecycle_lock(self.repo):
+            with self.assertRaisesRegex(RuntimeError, 'REQUIRE_MIGRATION: EPIC-001'):
+                ops.refuse_legacy_claims(self.repo, 'EPIC-002')
+        self.assertTrue(other.exists())
+        self.assertFalse(ops.root(self.repo).exists())
+
+    def test_legacy_claims_symlink_in_other_epic_is_unsafe(self):
+        (self.repo / '.agent-state/wayfinder/EPIC-001').mkdir(parents=True)
+        outside = self.repo / 'outside'
+        outside.mkdir()
+        (self.repo / '.agent-state/wayfinder/EPIC-001/claims').symlink_to(outside, target_is_directory=True)
+        with locks.lifecycle_lock(self.repo):
+            with self.assertRaisesRegex(RuntimeError, 'LEGACY_CLAIMS_UNSAFE'):
+                ops.refuse_legacy_claims(self.repo, 'EPIC-002')
+
     def test_symlink_and_unlocked_creation_refuse(self):
         with self.assertRaisesRegex(RuntimeError, 'LOCK_REQUIRED'):
             ops.ensure_directory(self.repo, 'control-plane')
