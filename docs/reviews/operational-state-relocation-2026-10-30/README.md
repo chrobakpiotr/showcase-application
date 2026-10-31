@@ -47,7 +47,7 @@ before live activation. No Mac changes here.
 
 ## Follow-up 2026-10-31: repository-wide legacy-claim refusal
 
-An independent review of 75c0fdd against the Contract above (Banjo Skills demonstration 4,
+An independent review of 75c0fdd against the Contract above (Banjo Sniffs demonstration 4,
 fresh context, no access to this verification record) observed that `refuse_legacy_claims`
 checked only `.agent-state/wayfinder/<epic>/claims`, so a legacy claim under one epic did not
 refuse starting another epic in the new store. The owner's reading of "Any legacy claim entry
