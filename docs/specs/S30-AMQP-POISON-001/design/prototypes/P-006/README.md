@@ -1,4 +1,4 @@
-# P-006 — disposable per-incarnation broker-fence spike
+# P-006 - disposable per-incarnation broker-fence spike
 
 Status: **registered research; startup comparison is diagnostic with cause unknown; cookie-args-only startup reached readiness; P-006 fencing probes have not run**.
 The P-005 reconnect series and report remain unchanged. P-006 startup comparison reports and exact/reconstructed command records are kept under `runs/`; startup readiness is now observed only with explicit cookie args, while no P-006 acceptance probe has executed. P-006 answers the
@@ -10,7 +10,7 @@ concludes that startup is not presently blocking and defines the narrow
 principal-revocation candidate and its deciding experiment. It is proposal
 material only; the P-006 acceptance checks have not run.
 
-## Startup diagnostic status — 2026-10-18
+## Startup diagnostic status - 2026-10-18
 
 Startup is **not currently blocking the proposed fencer experiment**: the
 P-006 cookie-args-only comparison reached RabbitMQ diagnostic readiness on

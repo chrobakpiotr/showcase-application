@@ -1,10 +1,10 @@
-# S30-06 prototype review evidence — 2026-10-05
+# S30-06 prototype review evidence - 2026-10-05
 
 These are disposable design experiments, not service implementation and not a
 design-gate PASS. `design.json` predeclares P-001 through P-003 and their
 criteria. The reproduction code uses only local/container fixtures.
 
-## P-001 — leader fence and Redis epoch
+## P-001 - leader fence and Redis epoch
 
 `gate-fencing-probe.py` reproduces the PostgreSQL row-lock and Redis epoch
 primitives. A later comparative scratch run measured 2.80 seconds waiting for
@@ -18,7 +18,7 @@ therefore sticky inhibit plus reconciliation before admission. Independent
 prototype evaluation marked P-001 **needs more evidence**; neither lock
 candidate is selected by these measurements.
 
-## P-002 — command result retention
+## P-002 - command result retention
 
 `p002-command-retention-prototype.py` is a SQLite model. It exercises exact
 retry, changed state-transition rejection under the original envelope,
@@ -51,7 +51,7 @@ before retiring a key. This is a proposed decision, pending privacy,
 key-custody, backup, and restore review. The SQLite model does not qualify that
 decision.
 
-## P-003 — permit and identity state model
+## P-003 - permit and identity state model
 
 `p003-permit-state-model.py` is a pure Python model. It compares the accepted
 five-second offline-permit window with immediate fail-closed behavior for an
@@ -210,7 +210,7 @@ It confirms only broker observation and one non-racy exact-ID close/reconnect
 schedule. Production and Kubernetes provisioning evidence and the security/
 06b stale-handler gaps remain open.
 
-## P-003 identity-signature model correction — 2026-10-05
+## P-003 identity-signature model correction - 2026-10-05
 
 The earlier P-003 model intentionally included a counterexample showing that
 its identity-token authorization helper decoded claims without validating the
@@ -240,7 +240,7 @@ OIDC/JWKS, key rotation, broker-bound registration/drain, durable replay state,
 and the runtime five-second handler-start bound remain unproven. The model
 does not select either P-003 candidate.
 
-## P-003 supplemental Keycloak token/JWKS configuration probe — 2026-10-05
+## P-003 supplemental Keycloak token/JWKS configuration probe - 2026-10-05
 
 A digest-pinned Keycloak 26.7.5 container and isolated minimal realm issued
 separate tokens: the workload token had `aud=gate-service`,

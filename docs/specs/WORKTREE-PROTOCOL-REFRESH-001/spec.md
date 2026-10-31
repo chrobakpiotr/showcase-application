@@ -1,4 +1,4 @@
-# WORKTREE-PROTOCOL-REFRESH-001 — refresh task worktrees from current protocol
+# WORKTREE-PROTOCOL-REFRESH-001 - refresh task worktrees from current protocol
 
 ## Objective
 

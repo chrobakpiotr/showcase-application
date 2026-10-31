@@ -1,4 +1,4 @@
-# S30-06 independent design grill — 2026-10-05d
+# S30-06 independent design grill - 2026-10-05d
 
 Baseline: `88b745b`. Fresh architecture, messaging, and security rereviews
 examined the P-002 command-ID retry and re-key refinement. **Disposition:

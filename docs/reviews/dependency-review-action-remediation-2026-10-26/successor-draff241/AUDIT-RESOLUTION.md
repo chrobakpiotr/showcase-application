@@ -42,7 +42,7 @@ which is a stricter validation result. Invalid option tests assert both the
 Zod issue path and `Invalid option` message. The migration does not relax
 validation to obtain a passing build.
 
-## Generated bundle license inventory — unresolved item
+## Generated bundle license inventory - unresolved item
 
 `npm run package` starts from a clean `dist`, rebuilds the ESM bundle, and
 derives license notices from the generated source map's actual package

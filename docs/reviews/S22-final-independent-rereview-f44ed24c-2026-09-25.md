@@ -1,4 +1,4 @@
-# S22 independent adversarial re-review — f44ed24c — 2026-09-25
+# S22 independent adversarial re-review - f44ed24c - 2026-09-25
 
 Reviewed checkpoint: `f44ed24c56d97d56a6bd1f54b745b4322dda626d`.
 Previous failed checkpoint: `4a21132104a37a1dbd21e3ea1d80e2c84108b85e`.
@@ -9,7 +9,7 @@ The previous RF1 capture-completion failure now recovers into a refund. However,
 
 ## Independence and checkpoint proof
 
-The evaluator followed the constitution, evaluator role, `.codex/agents/evaluator.toml`, accepted Q01–Q06 spec/plan, timeline spec, relevant ADRs, previous independent report and follow-up. Historical evidence supplied hypotheses; it was not counted as fresh execution evidence. This evaluator made no production, repository test, spec, contract, threshold or Git-history changes. Independent experiments and additional evidence reside under `/tmp`. This report is the only new non-ignored repository file.
+The evaluator followed the constitution, evaluator role, `.codex/agents/evaluator.toml`, accepted Q01-Q06 spec/plan, timeline spec, relevant ADRs, previous independent report and follow-up. Historical evidence supplied hypotheses; it was not counted as fresh execution evidence. This evaluator made no production, repository test, spec, contract, threshold or Git-history changes. Independent experiments and additional evidence reside under `/tmp`. This report is the only new non-ignored repository file.
 
 First Git commands returned:
 
@@ -28,9 +28,9 @@ All Java gates used `/Users/pichroba/.sdkman/candidates/java/25.0.4-jbr` (Java 2
 
 ## Findings, ordered by severity
 
-### RF1-C — MEDIUM: stale recovery owner initiates refund after capture ownership takeover
+### RF1-C - MEDIUM: stale recovery owner initiates refund after capture ownership takeover
 
-Location: `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/reconciliation/PaymentReconciliationScheduler.java:83–111`.
+Location: `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/reconciliation/PaymentReconciliationScheduler.java:83-111`.
 
 `recoverCapturePaymentPendingCompletion` validates owner A during preparation. After that method returns, the scheduler checks the durable order and invokes the ordinary `refundPayment(orderNumber)` overload without capture-recovery ownership context. A takeover between those operations does not prevent A from preparing a new refund operation, invoking the real showcase refund adapter and committing `REFUNDED`.
 
@@ -90,7 +90,7 @@ PATH=/Users/pichroba/.sdkman/candidates/java/25.0.4-jbr/bin:$PATH \
 
 Evidence: `/tmp/s22-f44-independent.log`, `/tmp/s22-f44-followup.log`, original XML preserved under `/tmp/s22-f44-first-results/xml/`, follow-up XML under `/tmp/s22-f44-results/xml/`. No fix was attempted.
 
-## RF1 A–E result matrix
+## RF1 A-E result matrix
 
 | Check | Result | Fresh evidence |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ The identity experiments are domain fault-injection tests of the port contract. 
 | F2 operation-ID collision | PASS | Strict PostgreSQL sequential and concurrent cross-shipment collision cases pass; canonical identity remains immutable and concurrent collision has one winner. |
 | F3 component lifecycle | PASS | Two fresh Chrome Headless experiments use the current component and actual root service with an HTTP testing backend. Unknown response and destruction while request is in flight both retain original operation ID/expected state after recreation. Success clears identity; 409 clears it and refreshes; ambiguous responses retain it; another shipment's pending operation stays independent. |
 
-## C01, Q01–Q06 and S22-09 matrix
+## C01, Q01-Q06 and S22-09 matrix
 
 | Contract | Assessment |
 | --- | --- |
@@ -125,7 +125,7 @@ The identity experiments are domain fault-injection tests of the port contract. 
 | Q06 | No violation reproduced within local guarantees. Strict PostgreSQL covers concurrent enqueue, payload conflict, SENT preservation, enqueue/delivery overlap and durable placement dispatch ownership. Real RabbitMQ tests cover repeat publish and commit-before-ACK-loss with one durable logical receipt. External exactly-once is not established. |
 | S22-09 authorization | PASS within local evidence: anonymous timeline request gets 401, ORDER_WRITE-only gets 403, ORDER_READ passes the authorization boundary. Source retains the existing order matcher. |
 | S22-09 scope and safe data | PASS: real PostgreSQL exact-order test includes `%` and `_`, delimiter near misses and sensitive content exclusion; projection selects only safe fields. No claim token, LAST_ERROR, notification contents/recipient or tracking number is returned. |
-| S22-09 semantics and query | PASS: FAILED projects UNKNOWN; cancellation/compensation projects REJECTED. Independent 106-entry equal-timestamp test verifies deterministic ordering, repeated pages, 100-entry and single-entry boundaries. Thread-scoped Hibernate statement inspection observes exactly one SQL statement per page (108 across the initial two pages plus 106 one-entry pages). Controller bounds are page 0–10,000 and size 1–100. |
+| S22-09 semantics and query | PASS: FAILED projects UNKNOWN; cancellation/compensation projects REJECTED. Independent 106-entry equal-timestamp test verifies deterministic ordering, repeated pages, 100-entry and single-entry boundaries. Thread-scoped Hibernate statement inspection observes exactly one SQL statement per page (108 across the initial two pages plus 106 one-entry pages). Controller bounds are page 0-10,000 and size 1-100. |
 | S22-09 UI and history | Read-only fetch/refresh; no redrive added. The timeline remains a current-state projection. Timestamp fallback can be creation time rather than the exact transition time. |
 
 ## Fresh mandatory gates
@@ -141,7 +141,7 @@ Logs below are `/tmp/s22-f44-<name>-resumed.log`. The mandatory runs were not re
 | 5 | `./gradlew :adapter:ecommerce-frontend:test --no-daemon` | PASS: 466 Chrome tests; lint passes. Reported statements/branches/functions/lines coverage 100% (1,191/1,191 statements; 333/333 branches; 370/370 functions; 1,062/1,062 lines). Log: `frontend`. |
 | 6 | `./gradlew :domain:pitest --no-daemon` | PASS: 438/438 mutants KILLED, threshold 100%. Fresh XML/HTML verified against the pre-run marker; source/JDK/target metadata in `/tmp/s22-f44-pit-evidence.json`. Log: `pit`. |
 | 7 | `python3 tooling/agent-harness/spec_inventory.py docs/specs --check docs/specs/INVENTORY.md` | PASS: inventory current. Log: `inventory`. |
-| 8 | `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS: 32 executable specs; 5 explicitly document-only. Q01–Q06 and timeline are document-only, so validation is not behavioral evidence for them. Log: `harness`. |
+| 8 | `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS: 32 executable specs; 5 explicitly document-only. Q01-Q06 and timeline are document-only, so validation is not behavioral evidence for them. Log: `harness`. |
 | 9 | `python3 tooling/scripts/verify_required_status_policy.py` | PASS: stable aggregate workflow names match local policy. Log: `policy`. |
 | 10 | `python3 tooling/scripts/check_markdown_links.py` | PASS: 184 files before this report; 185 files including this report. Log: `links` and final-report link log. |
 | 11 | `python3 tooling/scripts/check_no_legacy_java_date.py` | PASS. Log: `date`. |

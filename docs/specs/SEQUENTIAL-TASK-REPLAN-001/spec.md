@@ -1,4 +1,4 @@
-# SEQUENTIAL-TASK-REPLAN-001 — safe sequential packet replans
+# SEQUENTIAL-TASK-REPLAN-001 - safe sequential packet replans
 
 ## Objective
 

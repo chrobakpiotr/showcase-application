@@ -1,13 +1,13 @@
 # SDD-OBS-001 Architecture Grill round 2 resolution
 
-Status: RESOLVED — pending fresh Architecture Grill round 3
+Status: RESOLVED - pending fresh Architecture Grill round 3
 
 Round-2 result: `needs-human`
 Blocking architecture decisions: 2
 AG-03: confirmed resolved
 Prototype recommendation: none
 
-## R2-AG-01 — supervisor/containment and worktree recovery ownership
+## R2-AG-01 - supervisor/containment and worktree recovery ownership
 
 Decision:
 
@@ -96,7 +96,7 @@ quarantined for explicit human reconciliation.
 This makes a surviving/escaped descendant a contained worktree-liveness problem, never authority-store
 corruption or an excuse for unsafe worktree cleanup.
 
-## R2-AG-02 — crash-atomic critical failure fence
+## R2-AG-02 - crash-atomic critical failure fence
 
 Decision:
 

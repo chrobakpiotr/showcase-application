@@ -41,7 +41,7 @@ does not imply the others:
 | Transport encryption | Separate TLS configuration and peer-validation evidence for app and audited-tool RabbitMQ connections. TLS does not establish at-rest encryption. |
 
 The prior P-004 observation that a directory-mounted atomic replacement became
-visible in 45–48 ms establishes only visibility on that test. It does not
+visible in 45-48 ms establishes only visibility on that test. It does not
 establish crash durability, integrity/authenticity, permissions, anti-rollback
 or encryption. Test and report those properties independently.
 

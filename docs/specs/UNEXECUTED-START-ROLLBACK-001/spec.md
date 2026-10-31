@@ -1,4 +1,4 @@
-# UNEXECUTED-START-ROLLBACK-001 — preserve attempt-binding consistency
+# UNEXECUTED-START-ROLLBACK-001 - preserve attempt-binding consistency
 
 ## Objective
 

@@ -1,4 +1,4 @@
-# S30-06 independent design grill — 2026-10-05
+# S30-06 independent design grill - 2026-10-05
 
 Baseline: local HEAD `7a62a4c`. Two fresh independent reviews were requested
 after the 2026-10-05 protocol-candidate updates: architecture and security.

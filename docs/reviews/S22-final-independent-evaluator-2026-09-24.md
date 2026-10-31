@@ -1,20 +1,20 @@
-# S22 final independent evaluation — 2026-09-24
+# S22 final independent evaluation - 2026-09-24
 
 Reviewed SHA: `1ee1e89ca64588c31d7e4a28792cdd606a6d54b9`.
 
-Mode: independent adversarial evaluator, not implementation. Fresh context began with `AGENTS.md`, constitution, evaluator role, Q01–Q06 spec, Q01–Q06 plan, then recovery-timeline spec, in that order. Source was inspected before accepting test evidence; tests were inspected before accepting documentation. No builder conversation was inherited. The old A1 review and specification status tables were treated as leads, not proof. The worktree initially matched the requested SHA and was clean.
+Mode: independent adversarial evaluator, not implementation. Fresh context began with `AGENTS.md`, constitution, evaluator role, Q01-Q06 spec, Q01-Q06 plan, then recovery-timeline spec, in that order. Source was inspected before accepting test evidence; tests were inspected before accepting documentation. No builder conversation was inherited. The old A1 review and specification status tables were treated as leads, not proof. The worktree initially matched the requested SHA and was clean.
 
 Only this tracked review artifact was created. Production code, repository tests, acceptance criteria, quality thresholds and Git history were not changed. Additional tests and their outputs were placed in disposable `/tmp` locations. No item is marked CLOSED by this review.
 
 ## Findings, ordered by severity
 
-### F1 — High: cancellation can finish before a stale worker prepares and captures payment
+### F1 - High: cancellation can finish before a stale worker prepares and captures payment
 
 **Verified fact:** an independent PostgreSQL counterexample leaves the outbox terminal `CANCELLED` and payment `CAPTURED`. A subsequent placement poll and another cancellation request do not refund it. No fulfillment command is sent. This violates AC-Q01-CANCEL and the accepted goal of correct final money/cancellation state after lease loss. It also exposes a gap in the cancellation waiting/finalization protocol.
 
 Relevant baseline locations:
 
-- `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java:169` checks ownership, then calls capture at line 174 outside that arbitration transaction. Lines 177–180 return after ownership loss without establishing compensation.
+- `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestrator.java:169` checks ownership, then calls capture at line 174 outside that arbitration transaction. Lines 177-180 return after ownership loss without establishing compensation.
 - `modules/application/orchestration/src/main/java/com/cp/ecommerce/application/order/CancelOrderService.java:105` considers payment recovery pending only when a created pending payment or pending refund exists. An unprepared capture is invisible here. Already-terminal cancellation returns without redoing financial recovery.
 - `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/payment/PreparePaymentProviderOperationAdapter.java:49` prepares capture without participation in the placement/cancellation ownership decision.
 
@@ -39,22 +39,22 @@ expected: REFUNDED
 
 **Evaluator inference:** the missing coordination is before durable payment preparation, not the already-tested late-response window after capture. Existing `shouldNotRefundLateCaptureAfterHealthyTakeover` pauses after calling the real capture method, so it cannot detect this case. This finding alone determines the final FAIL verdict. No claim of an actual real-provider charge is made; the reproduced durable financial state uses the repository's showcase provider.
 
-### F2 — Medium: simultaneous identical shipment commands do not both obtain the canonical replay
+### F2 - Medium: simultaneous identical shipment commands do not both obtain the canonical replay
 
 **Verified fact:** two transactions advancing the same `DISPATCHED` shipment with the same operation ID and expected status can both observe no operation record. One returns `IN_TRANSIT`; the other throws `ObjectOptimisticLockingFailureException`. There remains one canonical operation and one state transition, so this is a replay-result violation, not evidence of duplicate stock mutation.
 
 Relevant locations:
 
-- `modules/domain/src/main/java/com/cp/ecommerce/domain/shipment/usecase/ManageShipmentUseCase.java:93` reads shipment state, then checks operation history at line 98, and saves shipment before operation history at lines 129–130.
+- `modules/domain/src/main/java/com/cp/ecommerce/domain/shipment/usecase/ManageShipmentUseCase.java:93` reads shipment state, then checks operation history at line 98, and saves shipment before operation history at lines 129-130.
 - `modules/adapters/persistence/src/main/java/com/cp/ecommerce/adapter/persistence/shipment/SaveShipmentAdapter.java:42` flushes the optimistic shipment update. The losing identical command fails before canonical operation replay can occur.
 
 Executed test: `IndependentShipmentReplayTest.concurrentIdenticalCommandsMustBothReturnTheCanonicalReplay`. A barrier after both real `findOperation` reads makes the interleaving deterministic. It invokes the actual transactional `ShipmentWorkflow` against PostgreSQL. All three runner executions produced one `Shipment` and one optimistic-lock exception.
 
 **Evaluator inference:** this contradicts AC-Q04-FINGERPRINT's “same ID + same payload replays” behavior for concurrent duplicate requests. A later separate retry can potentially recover the canonical result; that does not make the observed identical concurrent invocation a successful replay. The existing global-ID collision test exercises **different shipments/payloads**, where one loser is intended, rather than this identical-command case. No particular HTTP status is inferred from the service-level exception.
 
-### F3 — Medium: an unresolved browser shipment operation is forgotten on navigation
+### F3 - Medium: an unresolved browser shipment operation is forgotten on navigation
 
-**Verified fact:** the pending operation map belongs to `ShipmentsComponent` itself (`apps/ecommerce/frontend/src/app/shipments/shipments.component.ts:41`). Recreating the component after an unknown response creates a different operation ID at lines 134–138. The refined browser counterexample leaves the refreshed shipment `PENDING`, so a changed shipment status cannot be mistaken for resolution of the original request.
+**Verified fact:** the pending operation map belongs to `ShipmentsComponent` itself (`apps/ecommerce/frontend/src/app/shipments/shipments.component.ts:41`). Recreating the component after an unknown response creates a different operation ID at lines 134-138. The refined browser counterexample leaves the refreshed shipment `PENDING`, so a changed shipment status cannot be mistaken for resolution of the original request.
 
 Executed in actual Chrome Headless with Angular TestBed, from a disposable copy of baseline frontend source:
 
@@ -91,7 +91,7 @@ These variables were supplied to each Java command, not committed to configurati
 | Independent Python sweep calling `verify_ci_quality_gate.evaluate` | **PASS: 210 negative cases rejected**, three all-success event cases accepted, unknown event rejected. Tested missing key, empty, failure, cancelled, skipped, neutral and timed_out for every mandatory job across push/PR/manual events. |
 | `python3 tooling/scripts/check_no_legacy_java_date.py`; `python3 tooling/scripts/check_controlled_time.py` | **PASS**, existing guard scope unchanged. |
 | `python3 tooling/scripts/check_markdown_links.py` | **PASS**, initially 181 files; checked again after report creation. |
-| `python3 tooling/agent-harness/harness.py validate-all docs/specs` | **PASS** for executable specs; Q01–Q06 and timeline correctly reported document-only. This is not behavioral acceptance evidence for those two specs. |
+| `python3 tooling/agent-harness/harness.py validate-all docs/specs` | **PASS** for executable specs; Q01-Q06 and timeline correctly reported document-only. This is not behavioral acceptance evidence for those two specs. |
 | `for script in tooling/scripts/*.sh; do bash -n "$script" || exit; done`; `git diff --check` | **PASS.** |
 | Frontend: `npm test -- --no-progress --browsers=ChromeHeadless` | Initial sandbox prevented Karma binding port 9876. Authorized rerun **PASS: 464 tests**, coverage statements 1185/1185, branches 334/334, functions 368/368, lines 1057/1057. Log `/tmp/s22-frontend-authorized.log`. |
 | Frontend: `./node_modules/.bin/ng lint` | **PASS**, no `--fix`. Log `/tmp/s22-frontend-lint.log`. |
@@ -110,17 +110,17 @@ Fresh isolated evidence files:
 
 Generated reports/logs and `/tmp` reproducers are local evidence, not additional committed review artifacts. Essential reproduction code is preserved below so the findings do not depend solely on temporary files surviving.
 
-## C01 and Q01–Q06 verdict matrix
+## C01 and Q01-Q06 verdict matrix
 
 Area PASS means no violation reproduced within the stated evaluated scope; it does not erase other failed areas or upgrade the external-provider contract.
 
 | Area | Verdict | Evidence and boundaries |
 | --- | --- | --- |
 | C01 | PASS | `if: always()` aggregate depends on all declared jobs; strict result evaluator rejects missing/failed/cancelled/unexpectedly-skipped mandatory jobs. PR dependency review required; non-PR skip explicitly allowed. Guards and syntax checks run in CI and passed locally. 210 additional negative combinations rejected. Remote ruleset deployment not verified. |
-| Q01 | **FAIL — F1** | Healthy takeover, DECLINED replay, claim-time backoff and stable fulfillment identity have passing source/test/broker evidence. Cancellation between ownership check and durable payment preparation leaves terminal cancellation charged. |
+| Q01 | **FAIL - F1** | Healthy takeover, DECLINED replay, claim-time backoff and stable fulfillment identity have passing source/test/broker evidence. Cancellation between ownership check and durable payment preparation leaves terminal cancellation charged. |
 | Q02 | PASS, with provider limitations below | Atomic prepare rollback, canonical fingerprints, same-ID capture lost-response replay, owner-aware completion, stale-owner rejection, manual-review preservation and durable refund-to-RMA continuation passed applicable PostgreSQL/module tests. Remote I/O is outside prepare transaction. Proof is for the showcase/fake-provider contract, not a real payment provider or durable external refund ledger. |
-| Q03 | **FAIL — F1 cross-workflow gap** | Stale finalizer fencing, HTTP/live recovery exclusion, fresh per-record claim time, WAITING_FOR_REFUND budget handling, and terminal transition + notification rollback passed existing tests. F1 shows cancellation can nevertheless become terminal before a stale unprepared capture becomes visible; terminal replay does not repair it. |
-| Q04 | **FAIL — F2, F3** | Global operation-ID collision protection, immutable fingerprints, historical replay, shared legacy/operation-aware transactional service and dispatch rules inspected. Legacy multi-SKU rollback passed PostgreSQL. Concurrent identical commands throw instead of replaying; unresolved browser identity does not survive component recreation. Operation-aware later-SKU rollback relies on the shared boundary, not a separate new evaluator DB test. Deprecation header uses `@1790035200`, with no invented Sunset. |
+| Q03 | **FAIL - F1 cross-workflow gap** | Stale finalizer fencing, HTTP/live recovery exclusion, fresh per-record claim time, WAITING_FOR_REFUND budget handling, and terminal transition + notification rollback passed existing tests. F1 shows cancellation can nevertheless become terminal before a stale unprepared capture becomes visible; terminal replay does not repair it. |
+| Q04 | **FAIL - F2, F3** | Global operation-ID collision protection, immutable fingerprints, historical replay, shared legacy/operation-aware transactional service and dispatch rules inspected. Legacy multi-SKU rollback passed PostgreSQL. Concurrent identical commands throw instead of replaying; unresolved browser identity does not survive component recreation. Operation-aware later-SKU rollback relies on the shared boundary, not a separate new evaluator DB test. Deprecation header uses `@1790035200`, with no invented Sunset. |
 | Q05 | PASS | Locked order allocation subtracts persisted active monetary amounts, excluding REJECTED; A/B/reject-A/C/D, generated rejection patterns, mixed active states, historical allocation preservation and concurrent conservation passed PostgreSQL. Stable SKU sorting is local to entitlement calculation, not global order-item fingerprint reordering. Historical over-entitlement fails explicitly rather than silently rewriting amounts. |
 | Q06 | PASS within local dispatch/receipt guarantees | Stable event keys, insert-once native SQL, conflicting payload rejection, concurrent enqueue, enqueue/delivery overlap and SENT non-regression passed. Durable placement dispatch has stable IDs, lease ownership and token-fenced completion. SMTP and Camel each make one adapter attempt. Real broker owner-loss republish and consumer-commit/ACK-loss redelivery converged on one durable receipt. External duplicates under SMTP ambiguity remain explicitly allowed. |
 
@@ -133,7 +133,7 @@ Area PASS means no violation reproduced within the stated evaluated scope; it do
 | Sensitive-field exclusion | PASS | SQL/result models omit claims, errors, notification recipient/subject/body, tracking and provider secrets; seeded secret-value exclusion test passed. Safe raw status appears only in generated summary. |
 | UNKNOWN versus REJECTED | PASS | FAILED reconciliation/notification/dispatch maps to UNKNOWN; cancellation/compensation maps to REJECTED. No generic external failure is treated as provider rejection. |
 | One bounded SQL query / no N+1 | PASS | Adapter makes one native UNION ALL query, binds order once and sets offset/limit; maps scalar rows without lazy entity traversal. Fresh mock query-count test passed and real PostgreSQL executes the query. No independent runtime SQL-counter/load profile was added. |
-| Deterministic ordering / pagination | PASS | SQL orders by timestamp descending, source/type/reference ascending; controller bounds page 0–10,000 and size 1–100, avoiding integer offset overflow. Source and fresh unit tests checked. Equal-timestamp multi-source paging remains an additional proposed stress test. |
+| Deterministic ordering / pagination | PASS | SQL orders by timestamp descending, source/type/reference ascending; controller bounds page 0-10,000 and size 1-100, avoiding integer offset overflow. Source and fresh unit tests checked. Equal-timestamp multi-source paging remains an additional proposed stress test. |
 | Actual PostgreSQL schema | PASS | All seven durable source tables explicitly qualified with `test_db`; real migrated PostgreSQL UNION query passed at this SHA. |
 | Frontend read-only showcase | PASS | Successful placement calls timeline GET; refresh repeats GET. The timeline adds no redrive/retry mutation control. Fresh frontend rendering/error/refresh tests passed. Existing order placement is outside this read-only projection. |
 | No event-sourcing claim | PASS | Spec, controller/adapter comments and UI describe current durable recovery projection/snapshot timing, not a complete historical event log. |
@@ -175,7 +175,7 @@ These are proposals, not claims of tests executed or findings established.
 - Testcontainers context shutdown emitted scheduler connection warnings after containers closed in some runs; accepted critical XML had no skipped/failed cases. These logs are not used to excuse failed tests.
 - Pagination is a current-state offset projection, not a snapshot-consistent cross-request event history. Timestamp fallback to creation time is not an exact transition timestamp.
 
-## Reproduction appendix — disposable files only
+## Reproduction appendix - disposable files only
 
 Run from the reviewed repository root after selecting Java 25 and with Docker available. The following reconstructs the exact two evaluator tests without editing repository source. Cancellation setup/helpers come from the baseline test file; its original three test methods are left unannotated. The only production-method interception is the explicit barrier calling through to the real implementation.
 

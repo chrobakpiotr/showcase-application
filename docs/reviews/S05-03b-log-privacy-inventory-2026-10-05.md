@@ -1,4 +1,4 @@
-# S05-03b — order dispatch and mock log privacy inventory
+# S05-03b - order dispatch and mock log privacy inventory
 
 **Status:** implementation evidence for the bounded Showcase review task. This is not a repository-wide log privacy certification.
 

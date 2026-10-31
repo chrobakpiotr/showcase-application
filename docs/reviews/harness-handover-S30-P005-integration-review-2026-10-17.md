@@ -1,4 +1,4 @@
-# Harness handover — P-005 integration boundary review
+# Harness handover - P-005 integration boundary review
 
 Date: 2026-10-17
 Status: proposal for review; no fencer implementation or contract change is requested.
@@ -129,8 +129,8 @@ revocation baseline. Verify:
    users, read message bodies, change topology/permissions, close the new
    incarnation, or name an arbitrary principal.
 2. A small TCP proxy deterministically holds the old principal's AMQP handshake
-   at each boundary—after `connection.start-ok`, before `connection.open`, and
-   before the first channel opens—while `fence` runs. After an exact `FENCED`
+   at each boundary - after `connection.start-ok`, before `connection.open`, and
+   before the first channel opens - while `fence` runs. After an exact `FENCED`
    response, all old handshakes/sessions must be refused or gone, the echoed
    request tuple must match, and the new principal's channel and consumer must
    remain usable.

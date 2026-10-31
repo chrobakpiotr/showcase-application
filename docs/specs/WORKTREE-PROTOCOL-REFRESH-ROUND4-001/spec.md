@@ -1,4 +1,4 @@
-# WORKTREE-PROTOCOL-REFRESH-ROUND4-001 — preserve orchestration base authority
+# WORKTREE-PROTOCOL-REFRESH-ROUND4-001 - preserve orchestration base authority
 
 ## Objective
 

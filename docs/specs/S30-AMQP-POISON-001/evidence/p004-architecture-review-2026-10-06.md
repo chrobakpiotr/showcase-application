@@ -1,4 +1,4 @@
-# P-004 independent architecture review — 2026-10-06
+# P-004 independent architecture review - 2026-10-06
 
 Commit reviewed: `d52f5b7` (`docs(s30): record P-004 mount prototype evidence`).
 Disposition: **P-004 is better constrained, still blocked; no mechanism is

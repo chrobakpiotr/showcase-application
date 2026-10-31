@@ -1,4 +1,4 @@
-# P-003 renewable-lease abstract model — 2026-10-05
+# P-003 renewable-lease abstract model - 2026-10-05
 
 The deterministic local model captures only the accepted lease state semantics:
 

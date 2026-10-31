@@ -1,4 +1,4 @@
-# S30-08e parked-dispatch query measurement — 2026-10-04
+# S30-08e parked-dispatch query measurement - 2026-10-04
 
 ## Scope
 

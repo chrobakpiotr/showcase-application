@@ -13,9 +13,9 @@ Independent report: [`docs/reviews/S22-final-independent-rereview-1d5314fd-2026-
   refund reservation/provider I/O;
 - takeover immediately before authorization also fails closed;
 - authorization committed before takeover remains safe and does not create a second refund;
-- RF1 A–E all pass in freshly executed independent scope;
+- RF1 A-E all pass in freshly executed independent scope;
 - retained F1/F2/F3 regressions pass;
-- C01 + Q01–Q06 + S22-09 matrix passes within documented guarantees;
+- C01 + Q01-Q06 + S22-09 matrix passes within documented guarantees;
 - mandatory persistence, PostgreSQL, RabbitMQ, frontend, PIT and aggregate gates pass;
 - domain PIT: 440/440 killed;
 - aggregate: 1,743 Java tests / 399 suites, zero failures/errors/skips.

@@ -1,4 +1,4 @@
-# FAILED-TASK-REPLAN-001 — safe packet replan after human resolution
+# FAILED-TASK-REPLAN-001 - safe packet replan after human resolution
 
 ## Objective
 

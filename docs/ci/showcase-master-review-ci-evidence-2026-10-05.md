@@ -1,4 +1,4 @@
-# Showcase master-review CI evidence — 2026-10-05
+# Showcase master-review CI evidence - 2026-10-05
 
 These read-only workflow results qualify the pushed baseline SHA
 `50c18f947031f1b7bd8e8c6276b2a98b9b46ab98` only. They do not qualify later
@@ -37,7 +37,7 @@ local commits made after `50c18f9`. A fresh CI run is required to qualify any
 later pushed source. The workflow view also showed routine `ubuntu-latest`
 runner migration notices; they did not fail either aggregate gate.
 
-## Follow-up run and local fixes — 2026-10-06
+## Follow-up run and local fixes - 2026-10-06
 
 [CI run #155](https://github.com/chrobakpiotr/showcase-application/actions/runs/37377073436)
 for pushed SHA `91d4671bd8da` failed. The backend job failed its Java formatting
@@ -71,7 +71,7 @@ missing-artifact failure. Existing evidence is still uploaded with
 its evidence. The CI quality-gate unit suite includes a regression check for
 both conditions and passes locally.
 
-## Follow-up run #157 and local remediations — 2026-10-06
+## Follow-up run #157 and local remediations - 2026-10-06
 
 [CI run #157](https://github.com/chrobakpiotr/showcase-application/actions/runs/37500376240)
 completed with the aggregate gate **FAILURE** for pushed SHA `e83d25704835`.
@@ -105,7 +105,7 @@ that result. Run #158 below qualifies the frontend audit and E2E fixes on
 `34384e9d2d12`.
 
 
-## Follow-up run #158 — final CI result for frontend and E2E fixes
+## Follow-up run #158 - final CI result for frontend and E2E fixes
 
 [CI run #158](https://github.com/chrobakpiotr/showcase-application/actions/runs/37506509814)
 for pushed SHA `34384e9d2d12` completed **FAILURE** after 12m 11s. The only
@@ -123,7 +123,7 @@ was not yet in the accepted-risk file. The external handbook delta remains for i
 owner. This run does not qualify production or resolve S30-06 design decisions.
 
 
-## Local OWASP accepted-risk follow-up — 2026-10-06
+## Local OWASP accepted-risk follow-up - 2026-10-06
 
 At the user's direction, this local follow-up adds a separate time-limited
 accepted-risk entry for `GHSA-6688-9rhm-gjv2`, scoped to the exact
@@ -142,13 +142,13 @@ This is local verification only; CI run #158 predates this addition and still
 records its original failure. A fresh CI run is required to qualify the new
 suppression.
 
-## Latest publicly observable workflows — 2026-10-06
+## Latest publicly observable workflows - 2026-10-06
 
 The GitHub Actions API currently reports the main [CI workflow](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052634), [CodeQL](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052647), and [Scorecard](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052662) successful for pushed SHA `a6fac3c33376`. Every required main CI job succeeded, including backend, frontend, Playwright E2E, and OWASP DependencyCheck; dependency review was skipped because this was a push event. This confirms the accepted-risk suppression on that SHA. The separate [Agentic SDD CI workflow](https://github.com/chrobakpiotr/showcase-application/actions/runs/37512052591) failed on the same SHA: its protocol-validation job failed at “Verify committed specification inventory,” and its quality gate failed as a consequence. The other Agentic SDD jobs succeeded.
 
 The inventory failure reproduces locally because the S30-AMQP-POISON-001 status text changed on `a6fac3c` without regenerating `docs/specs/INVENTORY.md`. Refreshing that generated entry in local commit `98e733a` makes the inventory check pass. On the local follow-up, the protocol workflow's doctor, inventory, validate-all, required-status, verification-contract, orchestration-plan, trust, and telemetry commands also pass under Python 3.13. This correction is unpushed and therefore does not change the failed workflow result; a fresh CI run is still required. GitHub job-log download returned HTTP 403, so the failure attribution above is based on the public job-step result and exact local reproduction, not downloaded runner logs.
 
-## Current main verification — 2026-10-10
+## Current main verification - 2026-10-10
 
 The latest observed remote `main` SHA is `830c5e6702a059f94b96ed8ebd4959b92b2d7d62`. Its [CI run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027408), [Agentic SDD CI run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027482), [CodeQL run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027494), and [OpenSSF Scorecard run](https://github.com/chrobakpiotr/showcase-application/actions/runs/38047027409) all completed successfully. The main CI run passed backend build, quality gates and tests; critical PostgreSQL and RabbitMQ checks; frontend build, audit, lint and tests; Playwright E2E; OWASP DependencyCheck; CycloneDX SBOM; Trivy; PIT; infrastructure validation; repository guards; and documentation links. Dependency Review was skipped because the event was a push. All five Agentic SDD jobs passed, including protocol validation, behavioral evaluations, examples, harness tests and the aggregate gate. CodeQL passed both Java/Kotlin and JavaScript/TypeScript analyses; Scorecard passed.
 

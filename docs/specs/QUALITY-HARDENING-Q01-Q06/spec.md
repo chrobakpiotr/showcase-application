@@ -1,4 +1,4 @@
-# QUALITY-HARDENING-Q01-Q06 — correctness before stronger claims
+# QUALITY-HARDENING-Q01-Q06 - correctness before stronger claims
 
 Status: **CLOSED**
 
@@ -59,7 +59,7 @@ Key implementation corrections now reflected by the contract:
 - S22-08d2 makes the external boundary explicit: SMTP is at-least-once when outcome is ambiguous, the stable `Message-ID` is correlation only, and Camel's local `file:` route is showcase handoff evidence rather than a provider-level exactly-once guarantee. See `docs/runbooks/order-placement-external-delivery.md`.
 - Q06 AMQP evidence uses real PostgreSQL plus RabbitMQ: a broker-accepted publish can be repeated after placement owner loss under the same `operationId`, and a committed consumer receipt can be redelivered after connection loss before ACK. Both paths converge on one durable fulfillment receipt and preserve captured-payment state; broker acceptance is not consumer business commit.
 
-## Independent closure — 2026-09-25
+## Independent closure - 2026-09-25
 
 Fresh independent adversarial evaluation of exact checkpoint
 `1d5314fd6d2f009d851161356b2382fcf83db6cf` returned **PASS**. The evaluator reproduced the previous RF1-C takeover
@@ -107,7 +107,7 @@ when a required verification job did not actually succeed.
 7. Tests use Clock plus barriers/latches for ordering; sleeps/timeouts are watchdogs,
    not the oracle.
 
-## C01 — fail-closed CI quality gate
+## C01 - fail-closed CI quality gate
 
 ### AC-C01-AGGREGATE
 The `CI quality gate` succeeds only if all required CI jobs succeeded. A failed,
@@ -126,7 +126,7 @@ This repository change prepares a stable aggregate status only. Changing GitHub
 required-status/ruleset configuration is a separate human-authorized action after
 the status name has been observed on a real PR.
 
-## Q01 — placement ownership loss and DECLINED replay
+## Q01 - placement ownership loss and DECLINED replay
 
 Failure timeline:
 
@@ -181,7 +181,7 @@ Placement-tail scope note:
 - AI triage/duplicate detection are read-only human-in-the-loop side effects and are
   outside the durable-effect protocol.
 
-## Q02 — payment reconciliation protocol
+## Q02 - payment reconciliation protocol
 
 Protocol shape:
 
@@ -217,7 +217,7 @@ parameters is an explicit conflict, including terminal replay paths.
 A remotely completed refund has a durable continuation that can finish the associated
 RMA state and notification after restart without a second user click.
 
-## Q03 — cancellation ownership covers real finalization
+## Q03 - cancellation ownership covers real finalization
 
 ### AC-Q03-TOKEN
 The cancellation recovery token (or equivalent ownership generation) is checked at
@@ -236,7 +236,7 @@ Two workers plus an expired lease permit one takeover; stale terminal success/fa
 cannot overwrite the new owner. Claim time is evaluated when each record is actually
 claimed, not once for an entire slow batch.
 
-## Q04 — shipment atomicity and operation identity
+## Q04 - shipment atomicity and operation identity
 
 ### AC-Q04-ATOMIC
 Legacy and operation-aware shipment advance both use one transactional application
@@ -261,7 +261,7 @@ Legacy compatibility remains explicit. If the `Deprecation` HTTP field is emitte
 uses RFC 9745 date Structured Field syntax; Sunset comes from an agreed compatibility
 policy, not an arbitrary fixture.
 
-## Q05 — refund entitlement conservation
+## Q05 - refund entitlement conservation
 
 ### AC-Q05-CONSERVATION
 For every accepted sequence of return request/reject/retry, total completed + reserved
@@ -281,7 +281,7 @@ fingerprints are not changed by globally reordering order items.
 Already persisted/refunded historical data is handled by forward migration or explicit
 reconciliation; it is not silently recalculated under a new allocation order.
 
-## Q06 — atomic notification enqueue and explicit event identity
+## Q06 - atomic notification enqueue and explicit event identity
 
 ### AC-Q06-EVENT-KEY
 Notification producers provide a stable business event key derived from aggregate,

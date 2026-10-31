@@ -1,4 +1,4 @@
-# Provisional independent finding — Q15/Q16 restart probes
+# Provisional independent finding - Q15/Q16 restart probes
 
 Date: 2026-10-07
 Reviewer: `/root/docker_evidence_review` (independent evaluator agent; provisional review only)

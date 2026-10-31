@@ -1,4 +1,4 @@
-# P-004 Candidate C follow-up review — 2026-10-06
+# P-004 Candidate C follow-up review - 2026-10-06
 
 **Disposition:** documentation recommendation is internally consistent after
 the user's direction to advance Candidate C as the recommended REF-Q working

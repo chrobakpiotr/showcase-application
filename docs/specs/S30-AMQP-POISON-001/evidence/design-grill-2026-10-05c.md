@@ -1,4 +1,4 @@
-# S30-06 independent design grill — 2026-10-05c
+# S30-06 independent design grill - 2026-10-05c
 
 Baseline: `7e2e30a`. Fresh architecture, messaging, and security reviews were
 run after the Gradle ownership correction and AsyncAPI finding correction.

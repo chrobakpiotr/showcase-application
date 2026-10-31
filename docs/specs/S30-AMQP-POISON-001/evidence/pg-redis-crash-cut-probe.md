@@ -5,8 +5,8 @@ This does not qualify the gate service, HA, or production storage.
 
 ## Question and setup
 
-Does the proposed order—commit PostgreSQL `RECOVERY_REQUIRED`, then atomically
-write Redis pause state/result/audit and wait for local AOF fsync—remain
+Does the proposed order - commit PostgreSQL `RECOVERY_REQUIRED`, then atomically
+write Redis pause state/result/audit and wait for local AOF fsync - remain
 fail-closed if the process stops before PostgreSQL records the Redis outcome?
 Can a subsequent PostgreSQL lease takeover install a higher Redis leader epoch,
 reject a delayed lower-epoch mutation, and leave permit admission denied?

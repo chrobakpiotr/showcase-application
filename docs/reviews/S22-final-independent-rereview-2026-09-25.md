@@ -1,4 +1,4 @@
-# S22 final independent re-review — 2026-09-25
+# S22 final independent re-review - 2026-09-25
 
 Reviewed checkpoint: `4a21132104a37a1dbd21e3ea1d80e2c84108b85e`.
 
@@ -10,11 +10,11 @@ The first commands were `git rev-parse HEAD` and `git status --short`: exact req
 
 Production code, accepted contracts, repository tests, thresholds and Git history were not changed. Independent test sources and Gradle injection live in `/tmp`; this report is the review artifact. The supplied request ended at “Also attempt at least one o”; clarification was requested while the explicitly stated evaluation continued.
 
-## RF1 — HIGH: capture completion failure strands a cancelled order with captured payment
+## RF1 - HIGH: capture completion failure strands a cancelled order with captured payment
 
 **Reproduced fact:** `IndependentLateCaptureTest.captureFinalizationFailureMustStillEventuallyRefundCancelledOrder` leaves `OUTBOX_EVENT=CANCELLED`, payment `CAPTURED`, and capture reconciliation `COMPLETED`. Another placement poll and repeated cancellation do not refund it. No fulfillment is sent.
 
-This violates AC-Q01-CANCEL and the Q01–Q06 goal of correct final durable money/cancellation state after ownership loss and partial failure. It crosses Q02 recovery and Q03 terminal cancellation; it is not a claim about an actual external provider charge.
+This violates AC-Q01-CANCEL and the Q01-Q06 goal of correct final durable money/cancellation state after ownership loss and partial failure. It crosses Q02 recovery and Q03 terminal cancellation; it is not a claim about an actual external provider charge.
 
 Deterministic sequence against PostgreSQL 18.6 and the real application/payment adapters:
 
@@ -45,10 +45,10 @@ The injected exception models a narrow local failure seam; it does not replace t
 
 Root cause in the reviewed checkpoint:
 
-- `OrderPlacementSagaOrchestrator.java:174–180`: compensation is reached only after `capturePayment` returns normally.
-- `ManagePaymentUseCase.java:132–143`: capture persistence precedes separately completed reconciliation; an exception at completion prevents return to the hook.
-- `OrderPlacementSagaOrchestrator.java:118–126`: generic failure tries to release the old placement claim. The cancellation winner makes that token-fenced update a no-op.
-- `PaymentReconciliationScheduler.java:67–93`: capture recovery closes capture reconciliation without a cancellation-aware compensation continuation.
+- `OrderPlacementSagaOrchestrator.java:174-180`: compensation is reached only after `capturePayment` returns normally.
+- `ManagePaymentUseCase.java:132-143`: capture persistence precedes separately completed reconciliation; an exception at completion prevents return to the hook.
+- `OrderPlacementSagaOrchestrator.java:118-126`: generic failure tries to release the old placement claim. The cancellation winner makes that token-fenced update a no-op.
+- `PaymentReconciliationScheduler.java:67-93`: capture recovery closes capture reconciliation without a cancellation-aware compensation continuation.
 - `CancelOrderService.java:84`: already-terminal cancellation returns without financial side effects.
 
 Thus the compensation obligation is still dependent on a surviving successful call stack, rather than a durable continuation covering this window. No repair was attempted.
@@ -79,13 +79,13 @@ The fixture still uses real PostgreSQL and real transactional `recoveryOutPort.c
 | Contract | Assessment |
 | --- | --- |
 | C01 | Aggregate uses `if: always()` and explicit required `needs` results; no permissive continue-on-error found. Independent 210-case sweep rejects missing/empty/failed/cancelled/skipped/neutral/timed_out mandatory results across three events. PR-only dependency-review exception is explicit. 27 verifier tests pass, including stale/empty/retry evidence rejection. Critical helpers erase prior isolated results, record start markers, reject missing/skipped/failed/unexpected suites, and bind evidence to SHA/manifest. Strict backend gates disable retry/cache reuse. Inventory correctly leaves the two document-only specs outside executable harness validation. Remote required-status deployment was not verified. |
-| Q01 | FAIL — RF1. Fresh tests otherwise cover healthy takeover, active/expired claims and late-capture control. Source revalidates PENDING due time under lock and fences workflow writes. Stable fulfillment operation identity is separate from claim identity. |
-| Q02 | FAIL at cancellation-aware recovery boundary — RF1. Source prepares payment+reconciliation in a short transaction before provider I/O. Critical tests cover atomic preparation rollback, response loss with stable key, immutable terminal parameters, owner recovery, stale rejection, manual-review monotonicity and RMA continuation. UNKNOWN is not assumed REJECTED. |
-| Q03 | FAIL at terminal-cancellation economic boundary — RF1. Fresh critical tests cover recovery ownership, takeover, terminal/notification rollback and stale finalizer exclusion. WAITING_FOR_REFUND uses waiting rather than execution failure bookkeeping. Current HTTP and scheduler use shared finalization arbitration. |
+| Q01 | FAIL - RF1. Fresh tests otherwise cover healthy takeover, active/expired claims and late-capture control. Source revalidates PENDING due time under lock and fences workflow writes. Stable fulfillment operation identity is separate from claim identity. |
+| Q02 | FAIL at cancellation-aware recovery boundary - RF1. Source prepares payment+reconciliation in a short transaction before provider I/O. Critical tests cover atomic preparation rollback, response loss with stable key, immutable terminal parameters, owner recovery, stale rejection, manual-review monotonicity and RMA continuation. UNKNOWN is not assumed REJECTED. |
+| Q03 | FAIL at terminal-cancellation economic boundary - RF1. Fresh critical tests cover recovery ownership, takeover, terminal/notification rollback and stale finalizer exclusion. WAITING_FOR_REFUND uses waiting rather than execution failure bookkeeping. Current HTTP and scheduler use shared finalization arbitration. |
 | Q04 | No violation reproduced in evaluated scope. Both service entrypoints are transactional; operation-aware mutation locks shipment before state/history lookup, persists state/history before side effects, and rolls all back on failure. Single-shipment lock followed by global insert-once ID does not require the conflicting shipment row; cross-shipment ID losers conflict. New commit/rollback follower tests pass. Legacy reads state before delegating; concurrent different legacy commands are not promised identical-ID replay. Direct domain calls require a caller transaction; production controller routes through ShipmentWorkflow, and historical-upgrade test was corrected to that boundary. |
 | Q05 | No violation reproduced. Locked order allocation subtracts persisted active monetary amounts, excludes rejected claims, and preserves existing snapshots. Fresh PostgreSQL tests cover known uneven-cent rejection sequence, generated rejection patterns, historical allocations, concurrent requests and approval/rejection. Payment refund reservations subtract both refunded and pending amounts under the payment row lock. |
 | Q06 | No violation reproduced within accepted local guarantees. Stable explicit event keys, native insert-once, immutable payload validation, SENT non-regression and enqueue/delivery overlap are covered by fresh PostgreSQL tests. Dispatch claims/token fencing and stable SMTP/Camel identity were inspected. Real RabbitMQ republish and commit/ACK-loss tests establish one durable logical receipt, not arbitrary external exactly-once execution. |
-| S22-09 | No violation reproduced. ORDER_READ matcher and negative/positive security tests; literal equality/prefix query for `%`/`_`; safe response fields; FAILED maps to UNKNOWN; cancellation/compensation to REJECTED; explicit `test_db` tables; one bounded UNION ALL; deterministic timestamp/source/type/reference sorting. Controller restricts page 0–10,000 and size 1–100. UI fetch/refresh is read-only, with no redrive. Projection is current state, not event history. |
+| S22-09 | No violation reproduced. ORDER_READ matcher and negative/positive security tests; literal equality/prefix query for `%`/`_`; safe response fields; FAILED maps to UNKNOWN; cancellation/compensation to REJECTED; explicit `test_db` tables; one bounded UNION ALL; deterministic timestamp/source/type/reference sorting. Controller restricts page 0-10,000 and size 1-100. UI fetch/refresh is read-only, with no redrive. Projection is current state, not event history. |
 
 ## Fresh commands and evidence
 
@@ -100,7 +100,7 @@ Java commands used installed JBR/OpenJDK 25.0.4 through `JAVA_HOME` and `PATH`; 
 | `./gradlew :adapter:ecommerce-frontend:test --no-daemon` | PASS: 466 Chrome tests; 100% reported statements/branches/functions/lines; lint passes. The repository wrapper runs `ng lint --fix`; subsequent Git checks confirm it changed no tracked source. Log `s22-rereview-frontend.log`. |
 | `./gradlew :domain:pitest --no-daemon` | PASS: 429/429 KILLED, threshold 100%. Fresh XML/HTML verified with `verify_pit_report.py`, source SHA/JDK/target metadata written. Freshness marker was the gate-runner script created before this invocation. Log `s22-rereview-pit.log`. |
 | `python3 tooling/agent-harness/spec_inventory.py docs/specs --check docs/specs/INVENTORY.md` | PASS. |
-| `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS for executable specs; Q01–Q06/timeline explicitly document-only, not behavioral verification. |
+| `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS for executable specs; Q01-Q06/timeline explicitly document-only, not behavioral verification. |
 | `python3 tooling/scripts/verify_required_status_policy.py` | PASS. Local policy/name validation only. |
 | `python3 tooling/scripts/check_markdown_links.py` | PASS, including this report. |
 | `python3 tooling/scripts/check_no_legacy_java_date.py` | PASS. |

@@ -1,4 +1,4 @@
-# RECOVERY-TIMELINE-001 — read-only order recovery timeline
+# RECOVERY-TIMELINE-001 - read-only order recovery timeline
 
 Status: **CLOSED**
 
@@ -11,7 +11,7 @@ Baseline:
 docs(order): define external delivery guarantees
 ```
 
-## Independent closure — 2026-09-25
+## Independent closure - 2026-09-25
 
 Fresh independent evaluation of `1d5314fd6d2f009d851161356b2382fcf83db6cf` returned **PASS** for S22-09:
 authorization, exact order scoping, sensitive-field exclusion, deterministic ordering,
@@ -58,12 +58,12 @@ No new recovery table, audit event store, or migration is introduced.
 
 External/UI state is deliberately small:
 
-- `ACCEPTED` — durable work was accepted/created;
-- `PENDING` — retryable/in-progress durable work;
-- `COMPLETED` — durable success evidence exists;
-- `UNKNOWN` — durable record says failure/ambiguity but does not prove provider rejection;
-- `REJECTED` — durable cancellation/compensation evidence;
-- `MANUAL_REVIEW` — automatic recovery is intentionally parked.
+- `ACCEPTED` - durable work was accepted/created;
+- `PENDING` - retryable/in-progress durable work;
+- `COMPLETED` - durable success evidence exists;
+- `UNKNOWN` - durable record says failure/ambiguity but does not prove provider rejection;
+- `REJECTED` - durable cancellation/compensation evidence;
+- `MANUAL_REVIEW` - automatic recovery is intentionally parked.
 
 Provider ambiguity is never rewritten as rejection.
 

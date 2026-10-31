@@ -11,7 +11,7 @@
 
 ## Evidence and rollback
 
-- Full Agentic SDD command in the pinned `python:3.13.16-slim` image at digest `sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f`: `python3 -m unittest discover -s tooling/agent-harness/tests -v` — 924 tests passed.
+- Full Agentic SDD command in the pinned `python:3.13.16-slim` image at digest `sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f`: `python3 -m unittest discover -s tooling/agent-harness/tests -v` - 924 tests passed.
 - `git diff --check` passed before the adoption commit.
 - Rollback was rehearsed in a disposable shared clone: reverting the adoption commit produced tree `5ef8ade5b833f56767231c7db3a57dddfae56574`, identical to the 0.14.0 parent tree.
 - Graphify was refreshed after the adoption commit; `graphify-out/GRAPH_REPORT.md` records source commit `68d22c78`. Terraform and SQL parsers were unavailable, and Graphify reported partial syntax extraction for some Gradle files; this graph is navigation data only.

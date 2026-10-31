@@ -19,7 +19,7 @@ BODY_SIZE, CODE_SIZE, LEADING = 9, 8, 12
 
 
 def ascii_text(value: str) -> str:
-    value = value.replace("->", " to ").replace("→", " to ").replace("—", "-").replace("–", "-")
+    value = value.replace("->", " to ").replace("→", " to ").replace(" - ", "-").replace("-", "-")
     value = value.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
     return unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
 

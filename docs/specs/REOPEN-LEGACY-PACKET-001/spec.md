@@ -1,4 +1,4 @@
-# REOPEN-LEGACY-PACKET-001 — reopen without resolving unrelated legacy packets
+# REOPEN-LEGACY-PACKET-001 - reopen without resolving unrelated legacy packets
 
 ## Objective
 

@@ -1,4 +1,4 @@
-# P-006 storage and cleanup errata — 2026-10-18
+# P-006 storage and cleanup errata - 2026-10-18
 
 The pinned RabbitMQ image declares `VOLUME /var/lib/rabbitmq`. Prior P-006 reports saying “no volume” or “no persistent volumes” meant no explicit mount was supplied; Docker still created an anonymous volume. The prior `docker rm --force` commands did not remove that anonymous volume. The P-006 historical reports are retained; see the [volume reconciliation report](20261018T084252Z-volume-reconciliation/run-report.md) for the six volumes attributable by run timestamp and the 107 remaining unassigned dangling volumes.
 

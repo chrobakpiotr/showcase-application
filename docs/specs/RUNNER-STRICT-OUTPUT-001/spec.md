@@ -1,4 +1,4 @@
-# RUNNER-STRICT-OUTPUT-001 — provider schema projection for task results
+# RUNNER-STRICT-OUTPUT-001 - provider schema projection for task results
 
 ## Objective
 

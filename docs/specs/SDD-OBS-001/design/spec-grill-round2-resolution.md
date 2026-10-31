@@ -1,6 +1,6 @@
 # SDD-OBS-001 Spec Grill round 2 resolution
 
-Status: RESOLVED — pending fresh Spec Grill round 3 confirmation
+Status: RESOLVED - pending fresh Spec Grill round 3 confirmation
 
 Round-2 result: `needs-human`
 Blocking questions: 11

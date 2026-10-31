@@ -1,4 +1,4 @@
-# REOPEN-EXHAUSTED-DESCENDANTS-001 — invalidate stale descendants at retry exhaustion
+# REOPEN-EXHAUSTED-DESCENDANTS-001 - invalidate stale descendants at retry exhaustion
 
 ## Objective
 

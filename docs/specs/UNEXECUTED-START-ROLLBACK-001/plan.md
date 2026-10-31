@@ -1,4 +1,4 @@
-# Plan — UNEXECUTED-START-ROLLBACK-001
+# Plan - UNEXECUTED-START-ROLLBACK-001
 
 Keep the change in `tooling/agent-harness/harness.py` and its tests. First add
 red behavioral tests for rollback's attempt-binding invariant and for the

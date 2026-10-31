@@ -10,16 +10,16 @@
 
 | Check | Status | Evidence |
 |---|---|---|
-| Q01-IDENTITY — Stable fulfillment operation identity propagates through incoming/outgoing/message contract | **PASS** | SendMessageInPort / SendOrderMessageOutPort / OrderMessage inspected structurally. |
-| Q01-FULFILLMENT-REPLAY — Broker accepts fulfillment, worker loses lease, takeover/retry still causes one logical fulfillment | **PASS** | Behavioral counterexample-like tests found: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java |
-| Q02-ATOMIC-PREPARE — Capture/refund durable prepare boundary exists before provider I/O | **PASS** | PreparePaymentProviderOperationAdapter inspected for capture/refund prepare paths. |
-| Q02-ORPHAN-PENDING — Historical persisted PENDING without reconciliation intent is repaired before provider I/O | **PASS** | Matching tests: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationRecoveryPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/SagaCompensationRecoveryPostgresIntegrationTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/metrics/RecoveryMetricsTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/notification/ManageNotificationDeliveryAdapterTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/PreparePaymentProviderOperationAdapterTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentRemainingProtocolRedTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseMutationTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseTest.java |
-| Q02-PROVIDER-COMMIT-TIMEOUT — Provider committed but response was lost; replay with same identity does not perform second provider mutation | **GAP** | No test clearly models provider commit + lost/timeout response + replay with stable result and no second provider mutation. |
-| Q02-PROVIDER-FINGERPRINT — Same provider operation identity rejects conflicting immutable parameters | **PASS** | MockPaymentGatewayAdapter inspected for stateful fingerprint ledger and conflict exception. |
-| Q02-FENCED-COMPLETE — Scheduler success finalization is claim-aware; unfenced completion cannot steal active claim | **FAIL** | PaymentReconciliationArbitrator / Scheduler / ManagePaymentReconciliationAdapter inspected. |
-| Q02-POSTGRES-EVIDENCE — Real PostgreSQL evidence exists for payment preparation / fencing / recovery | **PASS** | Relevant PostgreSQL integration tests: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentOperationPreparationPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentPartialRefundPostgresIntegrationTest.java |
-| Q02-TX-BOUNDARY — DB prepare is transactional and provider/network mutation is not executed inside prepare transaction | **REVIEW** | @Transactional in prepare adapter=True; provider/network-like token in prepare adapter=True. |
-| QUALITY — Critical focused tests + Critical PostgreSQL verification | **PASS** | This review script re-ran focused A1 evidence and tooling/scripts/verify-critical-postgres-tests.sh before report generation. |
+| Q01-IDENTITY - Stable fulfillment operation identity propagates through incoming/outgoing/message contract | **PASS** | SendMessageInPort / SendOrderMessageOutPort / OrderMessage inspected structurally. |
+| Q01-FULFILLMENT-REPLAY - Broker accepts fulfillment, worker loses lease, takeover/retry still causes one logical fulfillment | **PASS** | Behavioral counterexample-like tests found: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/order/outbox/OrderPlacementSagaOrchestratorTest.java |
+| Q02-ATOMIC-PREPARE - Capture/refund durable prepare boundary exists before provider I/O | **PASS** | PreparePaymentProviderOperationAdapter inspected for capture/refund prepare paths. |
+| Q02-ORPHAN-PENDING - Historical persisted PENDING without reconciliation intent is repaired before provider I/O | **PASS** | Matching tests: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OrderCancellationRecoveryPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/OutboxMultiWorkerClaimPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/SagaCompensationRecoveryPostgresIntegrationTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/metrics/RecoveryMetricsTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/notification/ManageNotificationDeliveryAdapterTest.java, modules/adapters/persistence/src/test/java/com/cp/ecommerce/adapter/persistence/payment/PreparePaymentProviderOperationAdapterTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentRemainingProtocolRedTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseMutationTest.java, modules/domain/src/test/java/com/cp/ecommerce/domain/payment/usecase/ManagePaymentUseCaseTest.java |
+| Q02-PROVIDER-COMMIT-TIMEOUT - Provider committed but response was lost; replay with same identity does not perform second provider mutation | **GAP** | No test clearly models provider commit + lost/timeout response + replay with stable result and no second provider mutation. |
+| Q02-PROVIDER-FINGERPRINT - Same provider operation identity rejects conflicting immutable parameters | **PASS** | MockPaymentGatewayAdapter inspected for stateful fingerprint ledger and conflict exception. |
+| Q02-FENCED-COMPLETE - Scheduler success finalization is claim-aware; unfenced completion cannot steal active claim | **FAIL** | PaymentReconciliationArbitrator / Scheduler / ManagePaymentReconciliationAdapter inspected. |
+| Q02-POSTGRES-EVIDENCE - Real PostgreSQL evidence exists for payment preparation / fencing / recovery | **PASS** | Relevant PostgreSQL integration tests: apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentOperationPreparationPostgresIntegrationTest.java, apps/ecommerce/backend/src/test/java/com/cp/ecommerce/application/PaymentPartialRefundPostgresIntegrationTest.java |
+| Q02-TX-BOUNDARY - DB prepare is transactional and provider/network mutation is not executed inside prepare transaction | **REVIEW** | @Transactional in prepare adapter=True; provider/network-like token in prepare adapter=True. |
+| QUALITY - Critical focused tests + Critical PostgreSQL verification | **PASS** | This review script re-ran focused A1 evidence and tooling/scripts/verify-critical-postgres-tests.sh before report generation. |
 
 ## Adversarial counterexamples
 
@@ -37,9 +37,9 @@
 
 ### Recommended order
 
-1. `A1-F1` — behavioral fulfillment broker-accept/takeover duplicate counterexample.
-2. `A1-P1` — stateful provider commit+timeout replay counterexample.
-3. `A1-PG1` — PostgreSQL orphan-PENDING repair / refund-prepare atomic rollback / fenced-success evidence.
+1. `A1-F1` - behavioral fulfillment broker-accept/takeover duplicate counterexample.
+2. `A1-P1` - stateful provider commit+timeout replay counterexample.
+3. `A1-PG1` - PostgreSQL orphan-PENDING repair / refund-prepare atomic rollback / fenced-success evidence.
 
 Do **not** start A2/Q03 until these A1 gaps are either proven covered by existing tests or established as RED and fixed.
 
@@ -82,6 +82,6 @@ Do **not** start A2/Q03 until these A1 gaps are either proven covered by existin
 
 ### Final verdict
 
-**A1 / Q01-Q02 SEMANTICALLY CLOSED — READY FOR A2 / Q03.**
+**A1 / Q01-Q02 SEMANTICALLY CLOSED - READY FOR A2 / Q03.**
 
 The next package is A2/Q03 cancellation + redrive. No A2 implementation is included in this closure.

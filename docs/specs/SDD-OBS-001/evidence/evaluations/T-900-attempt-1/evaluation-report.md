@@ -1,4 +1,4 @@
-# T-900 independent evaluation — attempt 1
+# T-900 independent evaluation - attempt 1
 
 **Result: PASS.** The corrected accepted candidate composition passed all nine exact packet verification commands. No implementation finding remains. The evaluator-only test updates address stale test assumptions and preserve guard sensitivity; no production source was changed.
 
@@ -33,7 +33,7 @@ Raw command, stdout, stderr, exit code, and result artifacts are retained in `ve
 - Made E33 cleanup assert absence of live process-group members, not disappearance of a zombie-only group. The test still refuses a live descendant. Focused E33 module passes 29 tests. `_group_status` tests prove zombie-only is drained, live is not drained, and unavailable process inspection remains fail-closed.
 - Two mutation probes independently disabled the zombie and live-member guards; each caused the focused test to fail (exit 1). The disposable mutant was restored to the production module hash recorded in `verification/21-e33-mutations/`.
 - Same-image diagnostic confirms Q05 PASS means process-group association, not drainage. After cleanup, only a zombie remained; `_group_status` returned `UNCERTAIN` because the slim image has no `/bin/ps`, preserving fail-closed behavior. See `verification/19-e33-status-diagnostic/`.
-- Historical failed runs and their causes are preserved under verification directories 11–21 and are superseded by the final exact run. They are not used as passing evidence.
+- Historical failed runs and their causes are preserved under verification directories 11-21 and are superseded by the final exact run. They are not used as passing evidence.
 
 ## Verdict and lifecycle
 

@@ -1,4 +1,4 @@
-# Plan — RUNNER-STRICT-OUTPUT-001
+# Plan - RUNNER-STRICT-OUTPUT-001
 
 1. Load and hash the canonical task-result schema. Derive a provider projection
    only for an explicit provider/CLI compatibility profile; fail closed for
@@ -29,7 +29,7 @@ packets, or lifecycle history.
 
 - T-001: implement strict provider projections, canonical result validation,
   provenance and regression tests.
-- T-900: independently evaluate T-001 against AC-001–AC-008 and rerun its
+- T-900: independently evaluate T-001 against AC-001-AC-008 and rerun its
   declared checks.
 
 ## Risks and mitigations

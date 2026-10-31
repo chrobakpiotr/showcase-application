@@ -8,11 +8,11 @@ Status: **FIXES IMPLEMENTED + TESTED / INDEPENDENT RE-REVIEW PENDING**
 
 The independent evaluator reported three reproducible violations:
 
-- F1 HIGH — cancellation could become terminal before a stale placement worker
+- F1 HIGH - cancellation could become terminal before a stale placement worker
   prepared/captured payment, leaving CANCELLED + CAPTURED.
-- F2 MEDIUM — two concurrent identical shipment commands could yield one canonical
+- F2 MEDIUM - two concurrent identical shipment commands could yield one canonical
   result plus one optimistic-lock exception instead of two canonical replays.
-- F3 MEDIUM — an unresolved browser shipment operation identity lived only inside
+- F3 MEDIUM - an unresolved browser shipment operation identity lived only inside
   the component and was lost on navigation/component recreation.
 
 This follow-up stays inside the accepted master-plan scope. It does not mark the

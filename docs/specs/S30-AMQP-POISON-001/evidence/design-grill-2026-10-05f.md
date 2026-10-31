@@ -1,4 +1,4 @@
-# S30-06 quarantine metadata follow-up — 2026-10-05f
+# S30-06 quarantine metadata follow-up - 2026-10-05f
 
 Baseline: `4cafe58`. This checkpoint records the independent messaging review
 of the concrete quarantine metadata-v1 proposal. **Metadata policy

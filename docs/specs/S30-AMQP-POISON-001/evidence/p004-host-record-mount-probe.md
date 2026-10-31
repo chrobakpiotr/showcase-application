@@ -1,4 +1,4 @@
-# S30-06 P-004 host-control propagation prototype — 2026-10-06
+# S30-06 P-004 host-control propagation prototype - 2026-10-06
 
 Status: **bounded local evidence; candidate A recommended for the next
 architecture review, not selected as an accepted implementation design.**

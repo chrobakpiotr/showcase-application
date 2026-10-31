@@ -1,4 +1,4 @@
-# Plan — WORKTREE-PROTOCOL-REFRESH-001
+# Plan - WORKTREE-PROTOCOL-REFRESH-001
 
 Factor the path set used by `execution_base` so refresh and base creation cannot
 drift. When preparing a new worktree, first retain the current dependency merge

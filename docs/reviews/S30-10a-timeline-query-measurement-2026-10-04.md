@@ -1,4 +1,4 @@
-# S30-10a recovery-timeline query measurement — 2026-10-04
+# S30-10a recovery-timeline query measurement - 2026-10-04
 
 Source snapshot: **`04fc26c227d0be488bdf880e6063a7942c941d69`**. This is a
 disposable PostgreSQL cardinality-sensitivity experiment for the S30-10 timeline
@@ -49,7 +49,7 @@ seam but is not a standalone byte-for-byte reproducer of its seed setup.
 | Query execution, three runs (ms) | 517.924, 472.877, 475.262 | 456.689, 456.177, 459.219 |
 | Planning, three runs (ms) | 2.144, 0.774, 0.718 | 0.660, 0.737, 0.653 |
 | Notification shared hit/read blocks, three runs | 5700/10700, 5982/10418, 6264/10136 | 6546/9854, 6828/9572, 7110/9290 |
-| Sort | in-memory quicksort, about 32 KB | in-memory quicksort, about 32–36 KB |
+| Sort | in-memory quicksort, about 32 KB | in-memory quicksort, about 32-36 KB |
 | Temporary blocks read/written | 0/0 | 0/0 |
 
 The union produced 203 matching timeline rows before pagination: 200

@@ -1,4 +1,4 @@
-# Plan — WORKTREE-PROTOCOL-REFRESH-ROUND4-001
+# Plan - WORKTREE-PROTOCOL-REFRESH-ROUND4-001
 
 The round-3 implementation is the immutable baseline for this feature. Keep
 its task-specific committed-HEAD snapshot separate from the synthetic snapshot

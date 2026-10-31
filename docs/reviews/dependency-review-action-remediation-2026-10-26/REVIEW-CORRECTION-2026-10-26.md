@@ -1,10 +1,10 @@
-# Dependency Review Action review correction — 2026-10-26
+# Dependency Review Action review correction - 2026-10-26
 
 This addendum is outside the checksum manifests for the historical review reports
 and the `successor-fcbc442` evidence package. It corrects their current status
 without changing any previously checksummed artifact.
 
-## N1 — review ownership and current verdict
+## N1 - review ownership and current verdict
 
 Harness's independent review of action candidate
 `fcbc44201b365daec4da85a4cf73adde8b82609c` is recorded on the
@@ -20,7 +20,7 @@ Harness review accurately described its state when written, but is superseded by
 the later Harness review above. Both historical files remain unchanged and their
 original SHA-256 entries remain valid.
 
-## N2 — current digest mapping
+## N2 - current digest mapping
 
 The old whole-package manifest values in the checksummed
 `successor-fcbc442/AUDIT-RESOLUTION.md` (`0ed106…` pristine and `0582ee…`
@@ -44,7 +44,7 @@ The audit JSON and clean-build/dist evidence are inherited from `4665869`, not
 freshly rerun for the test-only `fcbc442` commit. `SHA256SUMS` in the successor
 directory contains the authoritative checksums for every listed package file.
 
-## N3 — provenance, test count, and Jest warning
+## N3 - provenance, test count, and Jest warning
 
 The `@nodable/entities@3.1.0` supplement maps package files to the upstream
 repository's `Entity/` directory; the corresponding MIT `LICENSE` is at the
@@ -65,7 +65,7 @@ parallel Jest worker warning is resolved. Harness reports the warning as
 reproducible under parallel execution, with cause unknown; `--runInBand` is not
 evidence about worker behavior.
 
-## D1 — bundle history and replay boundary
+## D1 - bundle history and replay boundary
 
 The candidate bundle contains the `fcbc442…` ref and `git bundle verify`
 succeeds. A clean clone from the bundle checks out the exact candidate SHA.

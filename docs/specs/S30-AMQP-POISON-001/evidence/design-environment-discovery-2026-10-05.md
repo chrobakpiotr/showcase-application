@@ -1,4 +1,4 @@
-# S30-06 deployment and capacity discovery — 2026-10-05
+# S30-06 deployment and capacity discovery - 2026-10-05
 
 Disposition: **BLOCKING EVIDENCE NOT PRESENT**. This repository cannot qualify
 the external restore inhibit or choose a production permit-issuance load

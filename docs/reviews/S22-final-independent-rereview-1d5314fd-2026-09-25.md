@@ -1,4 +1,4 @@
-# S22 independent adversarial re-review — 1d5314fd — 2026-09-25
+# S22 independent adversarial re-review - 1d5314fd - 2026-09-25
 
 Reviewed checkpoint: `1d5314fd6d2f009d851161356b2382fcf83db6cf`.
 
@@ -12,7 +12,7 @@ No product findings. One independent fixture assertion was corrected because it 
 
 ## Independence and scope
 
-The evaluator did not implement this checkpoint. Accepted repository policy, Q01–Q06 spec/plan, recovery timeline spec, evaluator role/configuration, relevant ADRs, AsyncAPI and delivery runbook were read. Historical FAIL reports supplied counterexample hypotheses, not passing evidence. Existing independent fixtures were inspected, copied to new temporary paths, extended at the authorization boundary and freshly executed against this checkpoint. No builder result is counted as a fresh gate.
+The evaluator did not implement this checkpoint. Accepted repository policy, Q01-Q06 spec/plan, recovery timeline spec, evaluator role/configuration, relevant ADRs, AsyncAPI and delivery runbook were read. Historical FAIL reports supplied counterexample hypotheses, not passing evidence. Existing independent fixtures were inspected, copied to new temporary paths, extended at the authorization boundary and freshly executed against this checkpoint. No builder result is counted as a fresh gate.
 
 Initial Git proof returned the exact reviewed SHA, empty `git status --short`, and no symbolic HEAD (detached). No active `docs/wayfinder/` or standalone S22 master-plan file was present. The available roadmap and accepted feature artifacts supplied context. Both active features are explicitly document-only; no task DAG, design gate or verification contract was fabricated.
 
@@ -43,20 +43,20 @@ mode=afterPrepare staleRefundCalls=1 stalePayment=REFUNDED currentOwnerCompleted
 
 The one call in the final row executes authorization committed before takeover; it is not a stale owner creating a new refund intent after ownership loss. Across each case, total successful refund calls are one for 10.00, with no extra refund when B continues.
 
-## Fresh RF1 A–E matrix
+## Fresh RF1 A-E matrix
 
 | Case | Result | Fresh evidence |
 | --- | --- | --- |
-| A — original durable late capture | PASS | `completionFailureRecoveryOne` pauses placement before prepare, expires placement ownership, runs real cancellation to CANCELLED, resumes durable capture, fails capture completion once, makes reconciliation due and runs the real scheduler. Final payment REFUNDED, capture reconciliation COMPLETED, order CANCELLED, fulfillment 0. `exactPrepareGapMustRefund` separately passes without the injected completion outage. |
-| B — continuation failure after CAPTURED | PASS | `refundFailureRemainsRetryable`: one provider-entry failure before delegation leaves capture reconciliation PENDING with recorded error and released claim. Current-owner retry finishes REFUNDED + COMPLETED. Attempted amounts `[10.00, 10.00]`; only the second reaches the real provider adapter. |
-| B — continuation failure after PARTIALLY_REFUNDED | PASS after fixture correction | `partialRefundFailureRemainsRetryable`: initial partial refund 3.00, then attempted remaining refunds `[7.00, 7.00]`. First attempt throws before provider execution; second succeeds. Final REFUNDED + COMPLETED and zero fulfillment for the cancelled order. |
-| C — takeover after owner-aware capture recovery | PASS | `staleContinuationCannotRefundAfterTakeover`: real arbitrator transfers A to distinct B. A makes 0 refund-provider calls, 0 reservation calls; no refund or refund-reconciliation row exists after A returns. Payment remains CAPTURED. B's capture claim remains PENDING with attempts 2 and no stale failure/error mutation; B completes via the real scheduler. |
-| C — takeover immediately before authorization | PASS | `takeoverImmediatelyBeforeRefundPreparation`: identical guarantees when takeover occurs at entry to the owner-aware whole-order refund use case, immediately before transactional preparation/owner validation. A provider calls 0; no refund reservation/row. B finishes. |
-| C — authorization committed before takeover | PASS | `takeoverAfterCommittedRefundIntent`: validation and reservation report the same PostgreSQL transaction ID; refund and reconciliation rows exist before provider entry, with no active transaction there. B takes capture ownership at provider entry. A executes the already-authorized refund once for 10.00, cannot close B's capture claim, and B then completes capture reconciliation without another refund. |
-| D — terminal/idempotent financial states | PASS | Already REFUNDED causes 0 additional refund calls. PARTIALLY_REFUNDED 3.00 of 10.00 refunds only 7.00. Healthy non-cancelled recovered capture remains CAPTURED and completes reconciliation with 0 refunds. Cancelled-order scenarios remain CANCELLED and do not fulfill. |
-| E — immutable identity and outcomes | PASS in tested scope | Independent domain fault injection rejects changed terminal amount and method after owner-aware prepare, mismatched recovery operation IDs, and mismatched capture context on whole-order refund before provider mutation. Deferred DECLINED remains pending for scheduler completion. Technical/unknown capture failure propagates without persisting DECLINED or completing reconciliation. Fresh PostgreSQL and domain gates retain canonical identity/replay coverage. |
+| A - original durable late capture | PASS | `completionFailureRecoveryOne` pauses placement before prepare, expires placement ownership, runs real cancellation to CANCELLED, resumes durable capture, fails capture completion once, makes reconciliation due and runs the real scheduler. Final payment REFUNDED, capture reconciliation COMPLETED, order CANCELLED, fulfillment 0. `exactPrepareGapMustRefund` separately passes without the injected completion outage. |
+| B - continuation failure after CAPTURED | PASS | `refundFailureRemainsRetryable`: one provider-entry failure before delegation leaves capture reconciliation PENDING with recorded error and released claim. Current-owner retry finishes REFUNDED + COMPLETED. Attempted amounts `[10.00, 10.00]`; only the second reaches the real provider adapter. |
+| B - continuation failure after PARTIALLY_REFUNDED | PASS after fixture correction | `partialRefundFailureRemainsRetryable`: initial partial refund 3.00, then attempted remaining refunds `[7.00, 7.00]`. First attempt throws before provider execution; second succeeds. Final REFUNDED + COMPLETED and zero fulfillment for the cancelled order. |
+| C - takeover after owner-aware capture recovery | PASS | `staleContinuationCannotRefundAfterTakeover`: real arbitrator transfers A to distinct B. A makes 0 refund-provider calls, 0 reservation calls; no refund or refund-reconciliation row exists after A returns. Payment remains CAPTURED. B's capture claim remains PENDING with attempts 2 and no stale failure/error mutation; B completes via the real scheduler. |
+| C - takeover immediately before authorization | PASS | `takeoverImmediatelyBeforeRefundPreparation`: identical guarantees when takeover occurs at entry to the owner-aware whole-order refund use case, immediately before transactional preparation/owner validation. A provider calls 0; no refund reservation/row. B finishes. |
+| C - authorization committed before takeover | PASS | `takeoverAfterCommittedRefundIntent`: validation and reservation report the same PostgreSQL transaction ID; refund and reconciliation rows exist before provider entry, with no active transaction there. B takes capture ownership at provider entry. A executes the already-authorized refund once for 10.00, cannot close B's capture claim, and B then completes capture reconciliation without another refund. |
+| D - terminal/idempotent financial states | PASS | Already REFUNDED causes 0 additional refund calls. PARTIALLY_REFUNDED 3.00 of 10.00 refunds only 7.00. Healthy non-cancelled recovered capture remains CAPTURED and completes reconciliation with 0 refunds. Cancelled-order scenarios remain CANCELLED and do not fulfill. |
+| E - immutable identity and outcomes | PASS in tested scope | Independent domain fault injection rejects changed terminal amount and method after owner-aware prepare, mismatched recovery operation IDs, and mismatched capture context on whole-order refund before provider mutation. Deferred DECLINED remains pending for scheduler completion. Technical/unknown capture failure propagates without persisting DECLINED or completing reconciliation. Fresh PostgreSQL and domain gates retain canonical identity/replay coverage. |
 
-E's isolated domain tests establish port/use-case behavior; they do not substitute for PostgreSQL ownership evidence in A–D. All independent Java experiments use `-PcriticalPostgresGate=true` and explicit `maxRetries = 0`. There is no automatic retry masking.
+E's isolated domain tests establish port/use-case behavior; they do not substitute for PostgreSQL ownership evidence in A-D. All independent Java experiments use `-PcriticalPostgresGate=true` and explicit `maxRetries = 0`. There is no automatic retry masking.
 
 ## Retained regressions and contract matrix
 
@@ -76,12 +76,12 @@ E's isolated domain tests establish port/use-case behavior; they do not substitu
 | Q06 | PASS within documented local guarantees: strict PostgreSQL enqueue/delivery overlap, insert-once/conflicting payload behavior, SENT preservation and dispatch ownership. Real RabbitMQ republish after owner loss and receipt-commit-before-ACK-loss redelivery converge on one durable receipt. |
 | S22-09 authorization | PASS: fresh security tests reject anonymous timeline reads with 401 and ORDER_WRITE-only reads with 403; ORDER_READ crosses the authorization boundary. |
 | S22-09 exact scope / safe fields | PASS: independent migrated PostgreSQL wildcard and delimiter near-miss tests exclude other orders and sensitive contents. SQL/DTO inspection excludes claim tokens, LAST_ERROR, notification recipient/subject/body and shipment tracking number. |
-| S22-09 ordering / bounded query | PASS: independent 106-entry equal-timestamp fixture checks pages of 100 and 1 and repeated ordering. Thread-local SQL inspection counts one statement per page (108 for the initial two pages plus 106 single-entry pages). Source uses one UNION ALL and scalar projection, without N+1 entity traversal. Controller bounds page 0–10,000 and size 1–100; fresh controller tests pass. |
+| S22-09 ordering / bounded query | PASS: independent 106-entry equal-timestamp fixture checks pages of 100 and 1 and repeated ordering. Thread-local SQL inspection counts one statement per page (108 for the initial two pages plus 106 single-entry pages). Source uses one UNION ALL and scalar projection, without N+1 entity traversal. Controller bounds page 0-10,000 and size 1-100; fresh controller tests pass. |
 | S22-09 semantics / UI | PASS: FAILED maps to UNKNOWN rather than REJECTED; cancellation/compensation maps to REJECTED. UI fetch/refresh is read-only. Current-state projection and fallback timestamp limits remain explicit. |
 
 ## Every mandatory gate
 
-Java gates used `JAVA_HOME=/Users/pichroba/.sdkman/candidates/java/25.0.4-jbr` with that installation's `bin` first in PATH. Logs are `/tmp/s22-1d-<name>.log`. Results/timing for gates 2–13 are preserved in `/tmp/s22-1d-gates.json`. Successful heavy gates were not rerun. Ordinary compile/static-analysis cache reuse is reported rather than described as uncached execution.
+Java gates used `JAVA_HOME=/Users/pichroba/.sdkman/candidates/java/25.0.4-jbr` with that installation's `bin` first in PATH. Logs are `/tmp/s22-1d-<name>.log`. Results/timing for gates 2-13 are preserved in `/tmp/s22-1d-gates.json`. Successful heavy gates were not rerun. Ordinary compile/static-analysis cache reuse is reported rather than described as uncached execution.
 
 | # | Command | Result |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ Java gates used `JAVA_HOME=/Users/pichroba/.sdkman/candidates/java/25.0.4-jbr` w
 | 5 | `./gradlew :adapter:ecommerce-frontend:test --no-daemon` | PASS: 466 Chrome tests. Coverage statements 1,191/1,191; branches 333/333; functions 370/370; lines 1,062/1,062. Lint gate passes; no tracked frontend changes. Log `frontend`. |
 | 6 | `./gradlew :domain:pitest --no-daemon` | PASS: 440/440 mutants KILLED, threshold 100%. Fresh XML/HTML verified with pre-run marker and source/JDK/config metadata. Log `pit`; metadata `/tmp/s22-1d-pit-evidence.json`. |
 | 7 | `python3 tooling/agent-harness/spec_inventory.py docs/specs --check docs/specs/INVENTORY.md` | PASS: inventory current. Log `inventory`. |
-| 8 | `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS: 32 executable specs; 5 explicitly document-only. Q01–Q06/timeline are document-only, so this is not behavioral proof for them. Log `harness`. |
+| 8 | `python3 tooling/agent-harness/harness.py validate-all docs/specs` | PASS: 32 executable specs; 5 explicitly document-only. Q01-Q06/timeline are document-only, so this is not behavioral proof for them. Log `harness`. |
 | 9 | `python3 tooling/scripts/verify_required_status_policy.py` | PASS: local policy matches stable aggregate workflow names. Log `policy`. |
 | 10 | `python3 tooling/scripts/check_markdown_links.py` | PASS: 185 files before this report; 186 including this report. Logs `links` and `links-final`. |
 | 11 | `python3 tooling/scripts/check_no_legacy_java_date.py` | PASS. Log `date`. |

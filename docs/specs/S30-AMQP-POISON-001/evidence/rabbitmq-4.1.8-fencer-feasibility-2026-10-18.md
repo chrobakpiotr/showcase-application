@@ -36,35 +36,35 @@ open, channel/consumer creation, revocation, and connection shutdown.
 1. **Connection registration precedes authentication.** The AMQP 0-9-1 reader
    joins its process to the node-local connection group before sending
    `connection.start` and before receiving `connection.start_ok`:
-   [`rabbit_reader.erl` 1166–1186](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1166-L1186),
-   [`rabbit_networking.erl` 465–482](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_networking.erl#L465-L482).
+   [`rabbit_reader.erl` 1166-1186](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1166-L1186),
+   [`rabbit_networking.erl` 465-482](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_networking.erl#L465-L482).
 
 2. **Authentication is a pluggable callback.** `connection.start_ok` selects
    an auth mechanism and calls its `handle_response`; the resulting user is
    put into reader state before `connection.tune` is sent:
-   [`rabbit_reader.erl` 1218–1247 and 1504–1545](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1218-L1247),
-   [`rabbit_auth_mechanism.erl` 35–51](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit_common/src/rabbit_auth_mechanism.erl#L35-L51),
-   [`rabbit_access_control.erl` 169–213](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_access_control.erl#L169-L213).
+   [`rabbit_reader.erl` 1218-1247 and 1504-1545](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1218-L1247),
+   [`rabbit_auth_mechanism.erl` 35-51](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit_common/src/rabbit_auth_mechanism.erl#L35-L51),
+   [`rabbit_access_control.erl` 169-213](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_access_control.erl#L169-L213).
 
 3. **Vhost authorization is later, at `connection.open`.** The reader calls
    `check_vhost_access`, sends `connection.open_ok`, changes to running, and
    only then emits `connection_created`:
-   [`rabbit_reader.erl` 1294–1334](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1294-L1334),
-   [`rabbit_access_control.erl` 293–314](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_access_control.erl#L293-L314).
+   [`rabbit_reader.erl` 1294-1334](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_reader.erl#L1294-L1334),
+   [`rabbit_access_control.erl` 293-314](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_access_control.erl#L293-L314).
    Channel opening and consumer operations occur after that connection is
    running; channel creation and consumer registration are separate steps in
-   [`rabbit_channel.erl` 1140–1153 and 1324 onward](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_channel.erl#L1140-L1153).
+   [`rabbit_channel.erl` 1140-1153 and 1324 onward](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_channel.erl#L1140-L1153).
 
 4. **Native user deletion revokes and then notifies.** The internal backend
    deletes the user from the configured broker database and emits
    `user_deleted` afterwards:
-   [`rabbit_auth_backend_internal.erl` 294–312](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_auth_backend_internal.erl#L294-L312),
-   [`rabbit_db_user.erl` 1001–1045](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_db_user.erl#L1001-L1045).
+   [`rabbit_auth_backend_internal.erl` 294-312](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_auth_backend_internal.erl#L294-L312),
+   [`rabbit_db_user.erl` 1001-1045](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_db_user.erl#L1001-L1045).
    The tracking event handler forwards that event; the tracking process then
    finds its tracked connections and asks their reader processes to shut down:
-   [`rabbit_connection_tracking_handler.erl` 44–61](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_connection_tracking_handler.erl#L44-L61),
-   [`rabbit_connection_tracking.erl` 62–80, 126–134, and 178–181](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_connection_tracking.erl#L62-L80),
-   [`rabbit_networking.erl` 522–540](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_networking.erl#L522-L540).
+   [`rabbit_connection_tracking_handler.erl` 44-61](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_connection_tracking_handler.erl#L44-L61),
+   [`rabbit_connection_tracking.erl` 62-80, 126-134, and 178-181](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_connection_tracking.erl#L62-L80),
+   [`rabbit_networking.erl` 522-540](https://github.com/rabbitmq/rabbitmq-server/blob/63fdc3ff539d9119894bfbf10c0139e5a0e2279d/deps/rabbit/src/rabbit_networking.erl#L522-L540).
    Tracking entries are created from `connection_created` events, after
    `connection.open_ok`; the user-deletion handler closes the currently
    tracked set. These source steps do not establish a barrier that includes

@@ -1,4 +1,4 @@
-# S30-06 design-gate and release blockers — 2026-10-05
+# S30-06 design-gate and release blockers - 2026-10-05
 
 Disposition: **NEEDS_MORE_DESIGN; no implementation authorization**. This
 register separates the evidence needed to accept a design from the later

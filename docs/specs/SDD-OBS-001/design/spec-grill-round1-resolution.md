@@ -1,6 +1,6 @@
 # SDD-OBS-001 Spec Grill round 1 resolution
 
-Status: RESOLVED — pending fresh Spec Grill confirmation
+Status: RESOLVED - pending fresh Spec Grill confirmation
 
 Round-1 result: `needs-human`
 Prototype recommendation: none

@@ -1,4 +1,4 @@
-# Showcase Harness shim adoption rule — 2026-10-26
+# Showcase Harness shim adoption rule - 2026-10-26
 
 This is the consumer-side rule for future Harness shim cutovers. It supplements
 the release-specific adoption packet; it does not authorize a cutover.

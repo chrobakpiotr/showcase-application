@@ -1,4 +1,4 @@
-# P-002 cross-store MAC rotation model — 2026-10-05
+# P-002 cross-store MAC rotation model - 2026-10-05
 
 The stdlib-only model in
 [`p002-cross-store-mac-rotation-model.py`](p002-cross-store-mac-rotation-model.py)

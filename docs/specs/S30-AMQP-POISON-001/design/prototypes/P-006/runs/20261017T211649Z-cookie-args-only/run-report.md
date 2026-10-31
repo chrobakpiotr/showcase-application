@@ -1,4 +1,4 @@
-# P-006 explicit-cookie startup comparison — STARTUP READY
+# P-006 explicit-cookie startup comparison - STARTUP READY
 
 - Status: **STARTUP READY**. Using the P-005 startup argv as the baseline, this run added only two forwarded environment arguments: `RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS` and `RABBITMQ_CTL_ERL_ARGS`, each containing a per-run synthetic `-setcookie` value. The actual secret values are not in the argv log or artifacts.
 - The pinned broker image started on an isolated internal network, with no published ports or data mount. The repeated `rabbitmq-diagnostics -q -t 5 ping` check succeeded on poll 2, within the 90-second deadline.

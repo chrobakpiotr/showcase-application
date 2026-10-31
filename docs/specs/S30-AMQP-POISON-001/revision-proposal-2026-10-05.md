@@ -1,6 +1,6 @@
-# S30-06 scope revision proposal — reference and production qualification
+# S30-06 scope revision proposal - reference and production qualification
 
-**Status:** D1–D5 accepted by the user on 2026-10-06 and incorporated into `spec.md`; this document remains the decision rationale/change record, not a design-gate PASS or implementation authorization. D7 production ownership remains unresolved. No consumer is enabled.
+**Status:** D1-D5 accepted by the user on 2026-10-06 and incorporated into `spec.md`; this document remains the decision rationale/change record, not a design-gate PASS or implementation authorization. D7 production ownership remains unresolved. No consumer is enabled.
 
 ## Recommendation and completion semantics
 
@@ -71,7 +71,7 @@ Also inject failures after inhibit, after drain, during restore/reconcile, after
 
 Direct DB-console restore, direct volume replacement, provider-managed PITR, full-host rollback, unlisted clone/import, and emergency procedures bypassing the wrapper are **unsupported and unqualified**; this proposal does not claim they are blocked. If any must be supported, the host-file option is insufficient and external monotonic control must be qualified before design PASS.
 
-### P-004 decision memo — process quiescence for REF-Q
+### P-004 decision memo - process quiescence for REF-Q
 
 **Status:** on 2026-10-06, the user selected Candidate C as the recommended working design for REF-Q. This resolves which P-004 alternative to advance; it does not by itself amend the accepted `spec.md`, pass the design gate, authorize implementation, or qualify REF-Q. P-004 and the design gate remain OPEN. The independent architecture review and grill found no remaining contract blocker to advancing Candidate C; neither review supplies exact-target qualification evidence.
 
@@ -132,9 +132,9 @@ Accepted REF-PERFORMANCE guardrails: no lost valid receipt; duplicate receipt st
 
 Distinct from 30-day quarantine retention and its one-hour retrieval check. Let T be actual event time, R recorded time, epsilon the qualified maximum absolute event/deletion clock error, and W the maximum scheduling and physical-deletion lag after the minimum-retention threshold across primary, replicas, WAL/AOF, snapshots, exports, clones and restores. W includes scheduler delay, executor downtime/retry and physical deletion of every copy. Backups inherit the earliest event deadline. Logical inaccessibility is not physical deletion.
 
-**A — accepted.** Retain at least 365 days, then physically delete every copy within a bounded execution window W measured from the minimum-retention threshold. Schedule no earlier than the conservative event-time upper bound `R + epsilon + 365 days`; only a deletion executor with clock error bounded by epsilon and scheduling/execution lag bounded by W can claim maximum actual age `365 days + 2*epsilon + W`. Backups inherit the earliest event deadline, even when that forces earlier deletion of a newer full-broker snapshot. The accepted REF-Q candidate bounds epsilon <= 1 s and W <= 1 h yield <= 365 days + 1 h + 2 s; these bounds qualify only after measurement for every copy. A missed bound means unqualified and requires incident handling.
+**A - accepted.** Retain at least 365 days, then physically delete every copy within a bounded execution window W measured from the minimum-retention threshold. Schedule no earlier than the conservative event-time upper bound `R + epsilon + 365 days`; only a deletion executor with clock error bounded by epsilon and scheduling/execution lag bounded by W can claim maximum actual age `365 days + 2*epsilon + W`. Backups inherit the earliest event deadline, even when that forces earlier deletion of a newer full-broker snapshot. The accepted REF-Q candidate bounds epsilon <= 1 s and W <= 1 h yield <= 365 days + 1 h + 2 s; these bounds qualify only after measurement for every copy. A missed bound means unqualified and requires incident handling.
 
-**B — hard maximum 365 days.** Delete every copy by T + 365 days. Given a qualified clock error epsilon and bounded scheduling/execution lag W, schedule no later than `R - epsilon + 365 days - W`. This can delete up to `2*epsilon + W` early; the policy owner must accept that interval. At proposed reference bounds it can lose up to 1 h + 2 s of the one-year record. If any provider cannot prove physical deletion by the hard deadline across primary, replicas, WAL/AOF, snapshots, exports, clones and restores, B is infeasible. Mixed snapshots may require early expiry; do not retain audit fields to preserve indefinite dedup tombstones.
+**B - hard maximum 365 days.** Delete every copy by T + 365 days. Given a qualified clock error epsilon and bounded scheduling/execution lag W, schedule no later than `R - epsilon + 365 days - W`. This can delete up to `2*epsilon + W` early; the policy owner must accept that interval. At proposed reference bounds it can lose up to 1 h + 2 s of the one-year record. If any provider cannot prove physical deletion by the hard deadline across primary, replicas, WAL/AOF, snapshots, exports, clones and restores, B is infeasible. Mixed snapshots may require early expiry; do not retain audit fields to preserve indefinite dedup tombstones.
 
 Policy B was the alternative for an external hard deletion deadline and was not selected. The user accepted A and the stated conditional REF-Q bounds.
 
@@ -181,7 +181,7 @@ The S30-06 design gate remains OPEN. This change does not create a verification 
 
 ## Evidence/review sequence after decisions
 
-1. Record D1–D5 in spec/plan and align the design candidate; keep the independent verification contract and design gate pending independent authorship/review.
+1. Record D1-D5 in spec/plan and align the design candidate; keep the independent verification contract and design gate pending independent authorship/review.
 2. Run a fresh grill against the revised scope, resolve contradictions, then obtain design PASS with explicit REF-Q/PROD-Q criteria. No implementation tasks before PASS.
 3. Implement the reference overlay, wrapper, gate and listener only from accepted packets. Use disposable queues/synthetic messages; keep live consumers disabled.
 4. Test restore crash cuts, cross-store fencing/lost replies, real listener ACK/confirm/return/drain, quarantine TLS/ACL/size/TTL/audit/deletion, 06b stale-owner transactions, and capacity. Retain SHA, image digests, host resources and results.

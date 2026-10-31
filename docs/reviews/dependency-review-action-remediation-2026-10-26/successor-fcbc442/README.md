@@ -1,4 +1,4 @@
-# Dependency Review Action successor — `fcbc442`
+# Dependency Review Action successor - `fcbc442`
 
 ## Candidate and status
 
@@ -11,7 +11,7 @@
 - Status: local candidate only; **not independently reviewed by Harness, not published, and not active**.
 
 The commit adds one file only: `__tests__/sdk-patch-runner.test.ts`. Its parent `4665869` had a
-separate independent PASS limited to that earlier candidate. The previous review's F1–F7 scope is
+separate independent PASS limited to that earlier candidate. The previous review's F1-F7 scope is
 not silently transferred to this successor; the new F5 automated regression requires Harness
 review. See [`../N1-CORRECTION.md`](../N1-CORRECTION.md) for the correction to prior reviewer
 attribution.

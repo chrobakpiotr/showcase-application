@@ -1,4 +1,4 @@
-# S05-05b synthetic comparison — 2026-10-17
+# S05-05b synthetic comparison - 2026-10-17
 
 Status: **three-run reference experiment complete; candidate partial index not selected; baseline retained.**
 

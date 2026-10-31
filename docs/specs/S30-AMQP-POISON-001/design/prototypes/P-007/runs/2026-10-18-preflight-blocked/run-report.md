@@ -2,7 +2,7 @@
 
 Date: 2026-10-18
 
-Result: **BLOCKED before runtime — preflight analysis complete; P-007 closed**
+Result: **BLOCKED before runtime - preflight analysis complete; P-007 closed**
 
 Disposition: S30-06 implementation **DEFERRED**; qualification **NOT
 QUALIFIED**; design gate **OPEN**. This disposition does not change accepted

@@ -1,6 +1,6 @@
 # SDD-OBS-001 Architecture Grill round 3 resolution
 
-Status: RESOLVED — pending fresh Architecture Grill round 4 convergence confirmation
+Status: RESOLVED - pending fresh Architecture Grill round 4 convergence confirmation
 
 Round-3 result: `needs-human`
 Blocking architecture decisions: 1
@@ -8,13 +8,13 @@ R2-AG-02: confirmed resolved
 AG-03: confirmed resolved
 Prototype recommendation: none
 
-## R3-AG-01 — repository-wide admission barrier for unresolved executions
+## R3-AG-01 - repository-wide admission barrier for unresolved executions
 
 Decision:
 
 A free process/OS lock is never sufficient evidence that repository verification ownership is free.
 
-Every verification admission path — direct CLI, runner and orchestrator — must use one canonical
+Every verification admission path - direct CLI, runner and orchestrator - must use one canonical
 `admit_repository_verification(...)` operation under the canonical repository verification lock.
 
 The admission sequence is:

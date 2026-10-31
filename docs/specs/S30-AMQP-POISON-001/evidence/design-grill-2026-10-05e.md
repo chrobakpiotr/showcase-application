@@ -1,4 +1,4 @@
-# S30-06 architecture follow-up — 2026-10-05e
+# S30-06 architecture follow-up - 2026-10-05e
 
 Baseline: `70b191a` plus the working-tree-only Gradle dependency clarification
 in [`gate-protocol-candidate.md`](../design/gate-protocol-candidate.md).

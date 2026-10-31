@@ -29,7 +29,7 @@ profile-based; publication retains separate obligation IDs and one-member units.
 This is only the first S30-01 checkpoint. Required origin/capability schema, pre-launch
 admission, receipt and completion origin validation remain open. Extra nodes alone
 must not be described as independent-origin qualification or complete S30-01 acceptance.
-Coalescing is deferred. S30-02–10 remain pending in the supplied dependency order.
+Coalescing is deferred. S30-02-10 remain pending in the supplied dependency order.
 Historical closure evidence and remote configuration remain unchanged.
 
 ## Review recheck and checkpoint evidence
@@ -227,7 +227,7 @@ S30-04b command authorization remains separate, and this does not claim full S30
 
 Then follow S30-02a (non-reusable terminal success), S30-02b (execution outputs),
 S30-03 (qualified-host spike and production wiring), S30-04 (command/profile policy),
-S30-05 (positive-path CI), and final S30-09 closure. S30-06–08 application work follows
+S30-05 (positive-path CI), and final S30-09 closure. S30-06-08 application work follows
 the harness delivery; S30-10 remains dependent on its operational prerequisites.
 
 ## S30-04a implementation and verification
@@ -252,7 +252,7 @@ orchestration/frontend fixes passed the previously failing truth-table method
 
 Remaining S30-04 scope: exact script authorization with security review; verifier
 unit-test execution wiring (existing tests under tooling/scripts/tests are not
-run by the harness discovery command); operational integration with S30-01–03
+run by the harness discovery command); operational integration with S30-01-03
 and positive-path CI under S30-05. This checkpoint repairs selection/input policy
 only and does not claim successful critical-gate execution.
 
@@ -292,7 +292,7 @@ local commit. Builder must report any schema/contract ambiguity before expansion
 ## S30-03a capability spike packet
 
 Independent disposable experiment only: supplied review section9; read existing
-qualification Q01–Q16, supported host discovery and accepted containment rules.
+qualification Q01-Q16, supported host discovery and accepted containment rules.
 Predeclared decision: proceed to production wiring only if one actual available
 backend passes all mandatory active probes under exact canonical roots/policy,
 then permitted marker, prohibited write, descendant launch and drainage payload
@@ -355,7 +355,7 @@ PASS**, 8.619 seconds. Security review follows.
 
 The parallel S30-03a first native qualification run was rejected under tool
 sandbox restrictions. An explicit tool escalation is being checked before
-concluding host capability; both evidence sets will remain distinct. All Q01–Q16
+concluding host capability; both evidence sets will remain distinct. All Q01-Q16
 are rerun because qualification binds the exact execution environment, unlike
 a routine retry of an unchanged product test. No weaker isolation is substituted.
 
@@ -428,7 +428,7 @@ Recorded durable [current-host qualification evidence](S30-03a-qualification-202
 Adding this report artifact is the explicit persistence dependency of the scratch
 experiment packet; disposable prototype code is not promoted into production.
 Evidence SHA256: `6656e41f6a0b6c08407c37024e4e9f68fd57e121586b1a6253319191b9fc2113`.
-Executed via approved unrestricted tool invocation, UTC October 3 22:08:48–58
+Executed via approved unrestricted tool invocation, UTC October 3 22:08:48-58
 (October 4 Warsaw time), with stable source SHA256
 `024d160fd4b1bb9f71f420c005930ad0de67016aa636eb96a2051082698c5dc9`.
 That exact source is retained in Git at `ef648e7:tooling/agent-harness/verification_sandbox.py`;
@@ -1064,7 +1064,7 @@ was **PASS**, and `git diff --check` passed. No production behavior changed.
 
 ## S30-09b task packet: current repository operator reference
 
-Accepted source: master review F10 and section15.4–6. The reviewed Google Drive
+Accepted source: master review F10 and section15.4-6. The reviewed Google Drive
 PDF is external and has no current checked-in source; commit `0695b1d` removed
 the old repository PDF, handbook and generator. Preserve that state and the
 accepted SDD-OBS-001 spec/plan/history. Add a dated current operator reference
@@ -1129,8 +1129,8 @@ accepted-authority positive execution or qualified-host smoke.
 
 ## S30-09c task packet: current master-review re-review
 
-Accepted source: master review sections5–6 and15. Add a new dated, source-SHA-
-bound re-review that maps findings F01–F10 to current implementation evidence,
+Accepted source: master review sections5-6 and15. Add a new dated, source-SHA-
+bound re-review that maps findings F01-F10 to current implementation evidence,
 classifies each as closed, partial or open, and names which broad readiness or
 acceptance claims remain reopened. Keep S22 and SDD-OBS-001 historical closure
 files immutable; do not convert M5.3 Design Gate NOT PASS or
@@ -1149,7 +1149,7 @@ checkpoint re-review, not final master closure; S30-05 positive-path/host
 acceptance and S30-10 remain gated by their dependencies.
 
 S30-09c checkpoint re-review complete at implementation snapshot
-`f732c75da8cacea5d5d74d94b5c6083669af7a2d`. The new matrix classifies F01–F10
+`f732c75da8cacea5d5d74d94b5c6083669af7a2d`. The new matrix classifies F01-F10
 as narrow-addressed, partial or open and records which end-to-end claims remain
 reopened; the evaluator independently returned **PASS**. It preserves the
 historical M5.3 NOT PASS and implementation-authorized facts and limits GitHub
@@ -1190,7 +1190,7 @@ No real plan, grant, verifier payload, backend or `.agent-state` was used.
 The focused spec-inventory check exposed a dependency: adding/updating
 `docs/specs/S30-AMQP-POISON-001/spec.md` leaves the generated
 `docs/specs/INVENTORY.md` stale. Record the existing feature accurately as
-`DRAFT — architecture and contract decisions require review`; do not mark it
+`DRAFT - architecture and contract decisions require review`; do not mark it
 accepted/executable or alter historical feature rows. Update only the generated
 inventory and this report, then rerun the inventory check and `git diff --check`.
 This is a documentation consistency repair; it does not clear any 06a/06b
@@ -1228,7 +1228,7 @@ synthetic million-notification/100,000-shipment schema, both first and later
 pages scanned the notification relation; the wrapped event-key prefix predicate
 did not use its unique index, while each shipment branch used the unique order
 index. The query returned 203 rows before pagination and sorted in memory
-without temporary-block spill. Repeated execution was about 456–518 ms in this
+without temporary-block spill. Repeated execution was about 456-518 ms in this
 container. These figures do not establish production workload or latency.
 Independent performance review: **PASS**, with an auditability caveat: temporary
 test code and raw plans were removed, so the new report is a summarized run
@@ -1356,10 +1356,10 @@ reuse. Apply read-only root, no network, dropped capabilities,
 `no-new-privileges`, bounded `/tmp`, and separate writable/protected scratch
 binds. Allowed durable path: this progress report only.
 
-The macOS Docker Desktop Linux VM provided useful containment primitives. Q01–
+The macOS Docker Desktop Linux VM provided useful containment primitives. Q01 -
 Q10 probes passed at the container execution-unit boundary: protected writes
 failed; descendants survived `setpgid`/`setsid` escape but remained visible to
-`docker top`; terminating the container drained them. Q13–Q15 demonstrated
+`docker top`; terminating the container drained them. Q13-Q15 demonstrated
 container-wide stop/drain and fresh-CLI discovery. This is capability evidence,
 not formal qualification. Q11 was partial because persisted container identity
 was not bound to the harness's exact canonical policy/repository/birth identity;
@@ -1372,7 +1372,7 @@ the stated temporary directory; no repository source or host configuration was
 changed.
 
 Independent read-only review confirmed the distinction between Docker engine
-capability evidence and qualification, and noted that the summarized Q13–Q16
+capability evidence and qualification, and noted that the summarized Q13-Q16
 observations have no retained raw evidence artifact. No qualification claim is
 made.
 
@@ -1422,10 +1422,10 @@ retention. Independent persistence/performance review and `git diff --check`
 precede local commit.
 
 S30-08e complete as synthetic cardinality-sensitivity evidence. With 1,000
-PARKED rows (0.1%), query medians were 2.7–3.5 ms and the planner used the due
+PARKED rows (0.1%), query medians were 2.7-3.5 ms and the planner used the due
 index's status prefix; pages sorted in memory. With 100,000 PARKED rows (10%),
 the planner visited all parked rows through bitmap index/heap scans; medians
-were 37–41 ms. Neither scenario read blocks from storage or spilled sorts to
+were 37-41 ms. Neither scenario read blocks from storage or spilled sorts to
 temporary blocks. These warm-cache numbers do not establish production
 workload, SLA, or an index decision. The report records schema/query shape and
 the missing representative backlog/selectivity and accepted latency objective.
@@ -1545,7 +1545,7 @@ the authenticated HTTP 400 responses for key-only, status-only, blank, and
 The original snapshot table and no-live-CI-check boundary remain intact.
 Markdown links and `git diff --check` passed. Independent re-review returned
 **PASS**. S30-09g was committed locally as `8efaf19`; nothing was pushed.
-## Accepted product decisions — 2026-10-04
+## Accepted product decisions - 2026-10-04
 
 The user accepted the following previously open S30 policy decisions:
 
@@ -1673,7 +1673,7 @@ is logged; the captured-event test also rejects raw JSON leakage. `git diff
 --check` passed.
 Local commit: `e99c324`; nothing was pushed.
 
-## S30-06 gate decisions — 2026-10-04
+## S30-06 gate decisions - 2026-10-04
 
 The user accepted atomic gate-state and audit updates for every authenticated
 PAUSE and RESUME. Each audit entry records the action, validated caller
@@ -1754,7 +1754,7 @@ number. The AMQP Spotless check also passed using the container mounted at the
 stale `/workspace/...` formatter target and failed before inspecting formatting;
 the correctly mounted check is the passing evidence. `git diff --check` passed.
 
-## GitHub CI follow-up — 2026-10-05
+## GitHub CI follow-up - 2026-10-05
 
 Inspected latest remote `main` CI run 149 on `bfa093b0`:
 <https://github.com/chrobakpiotr/showcase-application/actions/runs/37233182787>.
@@ -1769,7 +1769,7 @@ handlers before fulfilling them to the page. Both failing tests passed against
 the local Compose E2E stack. Prettier, focused ESLint, and `git diff --check`
 passed. No push was made, so there is no hosted CI result for this repair.
 
-## S30-06 gate protocol candidate — 2026-10-05
+## S30-06 gate protocol candidate - 2026-10-05
 
 Updated `S30-AMQP-POISON-001` to distinguish accepted policy choices from
 unapproved architecture and implementation. The new
@@ -1815,7 +1815,7 @@ grill and boundary tests remain. Repeated
 `test_spec_inventory.py` (3 tests),
 `test_design.py` (10 tests), Markdown link check, and `git diff --check` pass.
 
-## S30-06 gate fencing capability probe — 2026-10-05
+## S30-06 gate fencing capability probe - 2026-10-05
 
 Added a reproducible disposable probe at
 `docs/specs/S30-AMQP-POISON-001/evidence/gate-fencing-probe.py`. It passed a
@@ -1829,7 +1829,7 @@ not verify service serialization, network partitions, permit issuance,
 cross-store crash behavior, encrypted durable volumes, failover/restore, or
 Rabbit consumption. The run's ephemeral containers were removed.
 
-## S30-06 design prototypes — 2026-10-05
+## S30-06 design prototypes - 2026-10-05
 
 Added the required prototype policy in `design.json` for leader fencing,
 command-retention/idempotency, and permit validation. Disposable P-001
@@ -1870,7 +1870,7 @@ open. Focused `test_design.py` and `test_spec_inventory.py` pass (13 tests);
 their negative fixtures intentionally print error text before the suite
 reports `OK`.
 
-## S30-06 independent gate grills — 2026-10-05
+## S30-06 independent gate grills - 2026-10-05
 
 Fresh architecture, security, and persistence/concurrency reviews each returned
 **NEEDS_MORE_DESIGN / FAIL**. Their blockers converge on the same acceptance
@@ -1889,7 +1889,7 @@ fail-closed backup/restore criteria. These are proposed contracts only. They
 have not received an independent review after these additions and do not
 authorize source/deployment implementation or a design-gate PASS.
 
-## GitHub CI follow-up — 2026-10-05
+## GitHub CI follow-up - 2026-10-05
 
 The pushed [`5ac4c94` application CI run #150](https://github.com/chrobakpiotr/showcase-application/actions/runs/37272209112)
 passed, as did CodeQL and OpenSSF Scorecard. Dependency Review was skipped for
@@ -1946,7 +1946,7 @@ review returned **PASS** for this scoped change. It did not inspect actual
 production-container logs or other raw-payload logging paths. This small
 privacy fix does not change S30-06's design-gated status.
 
-## S30-06 independent design grill follow-up — 2026-10-05
+## S30-06 independent design grill follow-up - 2026-10-05
 
 Fresh architecture and security reviews at `7a62a4c` both returned
 **NEEDS_MORE_DESIGN**. Their actionable blockers and the minimum next design
@@ -1960,7 +1960,7 @@ reads remain unproven. S30-06 stays DRAFT; consumer admission and raw reads
 remain disabled. This review checkpoint is documentation/evidence progress,
 not end-to-end completion.
 
-## Verification and frontend formatting follow-up — 2026-10-05
+## Verification and frontend formatting follow-up - 2026-10-05
 
 `./gradlew test --continue` passed at `7a62a4c` in 10m54s. The subsequent
 `./gradlew build --continue` at `9cdefd2` failed only at
@@ -1978,7 +1978,7 @@ Agentic SDD failed the inventory check repaired in local commit `100f405`.
 The fetched `origin/main` is still `5ac4c94`; no hosted run covers local
 commits. S30-06 remains design-gated as documented above.
 
-## S30-06 P-003 model correction — 2026-10-05
+## S30-06 P-003 model correction - 2026-10-05
 
 Independent security review identified that the disposable P-003 state model
 accepted an identity payload whose JWT signature was invalid. The model now
@@ -2000,7 +2000,7 @@ passed: Spotless, read-only ESLint, and all 477 frontend tests. No aggregate
 root build was repeated because its only failure was this module's formatter
 check and all other build tasks had completed successfully.
 
-## S30-06 platform conformance review — 2026-10-05
+## S30-06 platform conformance review - 2026-10-05
 
 The independent platform review at `484bec4` confirms none of the existing
 Compose, Kubernetes dev, or Helm artifacts is an acceptable quarantine/gate
@@ -2011,7 +2011,7 @@ contract are in
 [`platform-review-2026-10-05.md`](../specs/S30-AMQP-POISON-001/evidence/platform-review-2026-10-05.md).
 This confirms the disabled-by-default boundary; no infrastructure was changed.
 
-## S30-06 P-001 abstract interleaving model — 2026-10-05
+## S30-06 P-001 abstract interleaving model - 2026-10-05
 
 A disposable sequential model now passes 43 assertions around uncertain
 PAUSE/RESUME replies, delayed old-epoch RESUME, retry generation behavior
@@ -2033,7 +2033,7 @@ Independent evaluator and concurrency re-reviews found no further counterexample
 in the covered sequential schedules. P-001 remains **NEEDS_MORE_EVIDENCE**; the
 S30-06 design gate stays open.
 
-## S30-06b stale-handler CAS primitive — 2026-10-05
+## S30-06b stale-handler CAS primitive - 2026-10-05
 
 A disposable PostgreSQL 17.6 probe exercised operation-claim generation CAS:
 handler A claims generation 1, B claims generation 2 and commits its outcome,
@@ -2045,7 +2045,7 @@ production listener was involved. Claim eligibility, lease/retry semantics,
 attempt limits, database outages, external side effects, and real concurrent
 handler fencing remain open, so 06b stays discovery-only.
 
-## S30-06 P-001 live fence bake-off — 2026-10-05
+## S30-06 P-001 live fence bake-off - 2026-10-05
 
 The digest-pinned PostgreSQL/Redis bake-off now compares both predeclared P-001
 candidates under one controlled interleaving. It validates the old owner's
@@ -2076,7 +2076,7 @@ latency. Candidate B's CAS also retains row-level serialization. P-001 remains
 design-gated pending provider failover/restore and the remaining
 P-002/P-003, Rabbit, and platform evidence.
 
-## S30-06 P-001 Redis replication/failover primitive — 2026-10-05
+## S30-06 P-001 Redis replication/failover primitive - 2026-10-05
 
 A digest-pinned Redis 8.10.2 primary/replica probe exercised a network
 partition, manual promotion, AOF restarts, stale guarded writes, and old-primary
@@ -2099,7 +2099,7 @@ the script SHA-256 is
 `2e55eef6c5b7b7eae01a45b5660fb042ad5b8e225af40e3fcaafb74e967fab0f`.
 P-001 remains open.
 
-## S30-06 P-001 coordinated-restore architecture finding — 2026-10-05
+## S30-06 P-001 coordinated-restore architecture finding - 2026-10-05
 
 An independent architecture review confirmed there is no selected trust anchor
 outside both PostgreSQL and Redis rollback domains. The PostgreSQL recovery
@@ -2113,7 +2113,7 @@ operator re-epoch procedure. The review is recorded in
 No option or deployment API is selected yet; P-001 and the S30-06 design gate
 remain open.
 
-## S30-06 P-001 restore-option architecture advice — 2026-10-05
+## S30-06 P-001 restore-option architecture advice - 2026-10-05
 
 An independent architecture review compared the two allowed restore
 safeguards and recommended evaluating an enforced restore-ineligible policy
@@ -2139,7 +2139,7 @@ in [`p001-coordinated-restore-counterexample.md`](../specs/S30-AMQP-POISON-001/e
 the script SHA-256 is
 `1c7af38492d5c6b02f321155be6e2d23712c29650eaff184f04df2be4ff1fefb`.
 
-## S30-06 P-001 restore-inhibit policy model — 2026-10-05
+## S30-06 P-001 restore-inhibit policy model - 2026-10-05
 
 A disposable SQLite state model exercises the restore-ineligible policy
 candidate. It checks paired stale PG/Redis fixture restore, missing control,
@@ -2161,7 +2161,7 @@ five-run stdout SHA-256 is
 `164398fb2fe6a7370fb0f37d9fec1c0c75a57f5dc03644ae77376a58fa52c156`.
 The option and its owner remain unselected; P-001 and S30-06 stay open.
 
-## S30-06 P-002 transactional retry model — 2026-10-05
+## S30-06 P-002 transactional retry model - 2026-10-05
 
 A SQLite-only model stores immutable command tombstones separately from
 actor/reason audit rows. After simulating the one-year audit horizon and
@@ -2181,7 +2181,7 @@ matrix are in
 [`p002-transactional-retry-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-transactional-retry-model.md);
 P-002 and the S30-06 design gate remain open.
 
-## S30-06 P-002 minted-envelope recovery model — 2026-10-05
+## S30-06 P-002 minted-envelope recovery model - 2026-10-05
 
 A separate candidate-B model discards the first issuance response in the
 harness, closes/reopens the issuer database, and recovers identical canonical
@@ -2233,7 +2233,7 @@ The report and executable model are in
 and its adjacent script. Candidate B is not selected; P-002 and the S30-06
 design gate remain open.
 
-## S30-06 P-003 handler/drain race model — 2026-10-05
+## S30-06 P-003 handler/drain race model - 2026-10-05
 
 An abstract deterministic model passes 35 assertions across three legal
 snapshot/PAUSE/start orderings, active-handler completion before channel close,
@@ -2265,7 +2265,7 @@ The evidence is in
 and [`p003-rabbit-prefetch-drain-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p003-rabbit-prefetch-drain-probe.md);
 P-003 and the S30-06 design gate remain open.
 
-## S30-06 P-003 Keycloak token/JWKS configuration probe — 2026-10-05
+## S30-06 P-003 Keycloak token/JWKS configuration probe - 2026-10-05
 
 A disposable Keycloak 26.7.5 realm issued a workload client-credentials token
 with `aud=gate-service`, `azp=gate-workload`, and only `gate-pause`, plus an
@@ -2281,7 +2281,7 @@ untested. Evidence is in
 [`p003-keycloak-token-probe.md`](../specs/S30-AMQP-POISON-001/evidence/p003-keycloak-token-probe.md).
 P-003 and S30-06 remain open.
 
-## S30 review follow-up verification — 2026-10-05
+## S30 review follow-up verification - 2026-10-05
 
 After the P-002 commit-boundary and same-key issuance-recovery evidence was
 added, the repository Markdown link checker passed for 229 files, the
@@ -2290,7 +2290,7 @@ passed every executable specification. S30-AMQP-POISON-001 remains
 document-only by design and is not treated as executable or implementation-
 authorized. GitHub Actions were not queried or modified in this follow-up.
 
-## S30-06 gate protocol refinement — 2026-10-05g
+## S30-06 gate protocol refinement - 2026-10-05g
 
 Independent P-001 review found the out-of-band restore inhibit needed a
 fail-closed release handshake after audited RESUME. The candidate now commits
@@ -2325,7 +2325,7 @@ JSON validation, 13 focused Python tests, spec inventory, all executable SDD
 specs, 34 local Markdown links, and `git diff --check` passed. S30 remains
 document-only with no PASS design gate or source/deployment authorization.
 
-## S30-06 P-003 one-use permit admission model — superseded 2026-10-05
+## S30-06 P-003 one-use permit admission model - superseded 2026-10-05
 
 The subsequent independent design grill found this model diverged from the accepted renewable-lease contract: the checked-in spec allows one installed lease to authorize multiple starts until expiry. Keep these results as historical evidence only; they do not validate P-003.
 
@@ -2351,7 +2351,7 @@ provider evidence remain outstanding. Evidence is in
 [`p003-one-use-admission-model.md`](../specs/S30-AMQP-POISON-001/evidence/p003-one-use-admission-model.md);
 the updated model does not clear P-003 or the S30 design gate.
 
-## S30-06 P-001 RESUME release idempotency model — 2026-10-05
+## S30-06 P-001 RESUME release idempotency model - 2026-10-05
 
 Added a disposable SQLite model for the external inhibit release after PG/Redis
 fixtures carry the same ACTIVE generation and RESUME command. Initial execution
@@ -2370,7 +2370,7 @@ and the release-audit lookup. Provider durability, authenticated control-plane
 ownership, anti-rollback and restore-path enforcement remain open. Evidence is in
 [`p001-resume-release-idempotency-model.md`](../specs/S30-AMQP-POISON-001/evidence/p001-resume-release-idempotency-model.md).
 
-## S30-06 P-002 cross-store MAC rotation model — 2026-10-05
+## S30-06 P-002 cross-store MAC rotation model - 2026-10-05
 
 Added a disposable model for the candidate's `OLD_ONLY → DUAL_WRITE →
 MIGRATING → NEW_ONLY` rotation. It covers old-only tombstones, dual writes,
@@ -2392,7 +2392,7 @@ new-key primary MAC before `NEW_ONLY`. Evidence is in
 [`p002-cross-store-mac-rotation-model.md`](../specs/S30-AMQP-POISON-001/evidence/p002-cross-store-mac-rotation-model.md);
 P-002 and the S30 design gate remain open.
 
-## S30-06 P-003 renewable-lease contract correction — 2026-10-05
+## S30-06 P-003 renewable-lease contract correction - 2026-10-05
 
 The independent whole-design grill identified a contract mismatch in the prior P-003 candidate: it required one freshly issued permit per handler even though the accepted spec defines renewable short leases that may admit multiple starts until expiry. Updated the candidate protocol and design criteria to preserve multi-start lease semantics, nonce-bind and replay-protect renewals, serialize PAUSE with renewal/install/start, and stop new starts at the conservative five-second deadline while active handlers finish. The one-use model is marked superseded and is not counted as P-003 validation.
 
@@ -2400,7 +2400,7 @@ Added [`p003-renewable-lease-model.py`](../specs/S30-AMQP-POISON-001/evidence/p0
 
 Independent re-review of the renewable-lease correction confirmed the mismatch is resolved and found no new protocol/model contradiction. It requested that candidate A in `design.json` explicitly name renewable multi-start lease semantics; that description is now explicit. The reviewer confirmed the remaining P-003 and provider blockers: real app pause/permit races, suspend clock behavior, identity/JWKS/key rotation, broker identity/fencing, and load evidence against a declared envelope.
 
-## S30-06 design-gate and release blocker register — 2026-10-05
+## S30-06 design-gate and release blocker register - 2026-10-05
 
 Added [`design-exit-blockers-2026-10-05.md`](../specs/S30-AMQP-POISON-001/evidence/design-exit-blockers-2026-10-05.md) to separate design-gate decisions/prototype criteria from later production qualification. It names accountable external owners and proof expected for leader/restore fencing, accepted one-year audit retention and clock error bounds, renewable-lease identity/capacity, quarantine clock/storage/access/deletion, and the 06b stale-handler contract/release dependency. It does not infer missing SLOs, restore owners, policy tolerances, or provider behavior.
 
@@ -2408,7 +2408,7 @@ The first independent review found missing P-001 integrated failure evidence; a 
 
 The independent re-review of the blocker register found that P-001/P-002/P-003/quarantine requirements now include the omitted design and release evidence, and that 06b is separated into a design contract dependency versus a later runtime release gate. It asked for a clearer design/runtime clock boundary. The register now specifies the accepted one-second quarantine clock bound and the P-002 timestamp/deletion contract at design time, while keeping deployed provider proof under release; it assumes no audit-retention overrun tolerance. The reviewer confirmed this resolves the boundary without inventing an accepted tolerance. Local Markdown-link and whitespace checks pass.
 
-## S30-06 P-004 host-control mount prototype — 2026-10-06
+## S30-06 P-004 host-control mount prototype - 2026-10-06
 
 The disposable state model passes seven focused assertions for lost/delayed
 notifications, exact episode acknowledgements, restart, partial restore,

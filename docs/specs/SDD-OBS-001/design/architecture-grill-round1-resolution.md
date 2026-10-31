@@ -1,12 +1,12 @@
 # SDD-OBS-001 Architecture Grill round 1 resolution
 
-Status: RESOLVED — pending fresh Architecture Grill round 2
+Status: RESOLVED - pending fresh Architecture Grill round 2
 
 Round-1 result: `needs-human`
 Blocking architecture decisions: 3
 Prototype recommendation: none
 
-## AG-01 — protected canonical verification authority
+## AG-01 - protected canonical verification authority
 
 Decision:
 
@@ -32,7 +32,7 @@ Decision:
 
 This is intentionally stronger than relying on directory separation, hashes or obscurity.
 
-## AG-02 — verification-failure-scoped human authorization
+## AG-02 - verification-failure-scoped human authorization
 
 Decision:
 
@@ -73,7 +73,7 @@ without automatically relaunching the builder or consuming a normal builder rewo
 Lock order is fixed: repository verification lock -> failure/grant validation+consumption -> command
 launch. No second verification lock is acquired underneath task state locks.
 
-## AG-03 — ready-gate dependency rebinding
+## AG-03 - ready-gate dependency rebinding
 
 Decision:
 
@@ -108,12 +108,12 @@ not perform their own replanning/rebinding logic.
 - `tooling/agent-harness/verify.py` is a thin CLI.
 - Core implementation is a small `tooling/agent-harness/verification/` package rather than one large
   module:
-  - `model.py` — immutable profile/gate/plan/evidence types;
-  - `profile.py` — schema validation, mini-glob/applicability and safe probes;
-  - `fingerprint.py` — changed surface, input/artifact manifests and fingerprints;
-  - `planner.py` — required DAG, occurrence mapping, advisory plan and ready-gate evaluation;
-  - `store.py` — canonical control-root resolver, lock, immutable evidence/index/fence/grant records;
-  - `executor.py` — RUN execution lifecycle and ready-gate orchestration.
+  - `model.py` - immutable profile/gate/plan/evidence types;
+  - `profile.py` - schema validation, mini-glob/applicability and safe probes;
+  - `fingerprint.py` - changed surface, input/artifact manifests and fingerprints;
+  - `planner.py` - required DAG, occurrence mapping, advisory plan and ready-gate evaluation;
+  - `store.py` - canonical control-root resolver, lock, immutable evidence/index/fence/grant records;
+  - `executor.py` - RUN execution lifecycle and ready-gate orchestration.
 - A neutral `verification_command.py` owns the existing verification command allowlist plus sandbox
   execution bridge. Both `runner.py` and the verification package depend on it; the verification
   package never imports runner.py.

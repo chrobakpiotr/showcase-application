@@ -1,4 +1,4 @@
-# P-006 P-005-argv baseline replay — BLOCKED
+# P-006 P-005-argv baseline replay - BLOCKED
 
 - Status: **BLOCKED**. This replay used P-005's recorded broker option sequence with the same pinned image and no explicit host/named data mount or published port. The image created an anonymous `/var/lib/rabbitmq` volume; it was removed during reconciliation. Resource names/network are unique to this attempt; credentials are synthetic and passed by environment-variable forwarding.
 - Readiness used repeated `docker exec ... rabbitmq-diagnostics -q -t 5 ping` calls against a 90-second overall deadline, with each exit code and duration recorded in `commands.jsonl` and individual logs. The broker exited before readiness. The retained broker logs show Erlang `auth:init_no_setcookie` failing to read `/var/lib/rabbitmq/.erlang.cookie` (`eacces`).

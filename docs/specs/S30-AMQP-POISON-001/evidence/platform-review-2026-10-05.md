@@ -1,4 +1,4 @@
-# S30-06 deployment-platform review — 2026-10-05
+# S30-06 deployment-platform review - 2026-10-05
 
 Read-only review baseline: `484bec4`. The review compared the accepted
 quarantine and gate-store requirements with the repository's Compose, dev

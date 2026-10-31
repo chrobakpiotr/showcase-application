@@ -1,4 +1,4 @@
-# P-001 RESUME release idempotency model — 2026-10-05
+# P-001 RESUME release idempotency model - 2026-10-05
 
 The stdlib-only model in
 [`p001-resume-release-idempotency-model.py`](p001-resume-release-idempotency-model.py)

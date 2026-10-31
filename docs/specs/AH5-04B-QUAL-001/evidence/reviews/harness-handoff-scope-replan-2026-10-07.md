@@ -1,4 +1,4 @@
-# AH5-04B scope replan — Harness handoff 2026-10-07
+# AH5-04B scope replan - Harness handoff 2026-10-07
 
 The human-provided Harness handoff and the attached Harness review authorize this scoped revision of AH5-04B-QUAL-001:
 

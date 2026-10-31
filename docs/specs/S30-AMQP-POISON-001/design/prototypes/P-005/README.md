@@ -1,4 +1,4 @@
-# P-005 — isolated RabbitMQ fence/handler research
+# P-005 - isolated RabbitMQ fence/handler research
 
 Status: **research evidence only; no candidate selected; no accepted design or target qualification**.
 
@@ -124,7 +124,7 @@ the result.
    commit is durable, and an individually authenticated operator performs
    audited RESUME. Any unknown stays closed.
 
-## Harness review follow-up — not covered by the successful run
+## Harness review follow-up - not covered by the successful run
 
 Harness's 2026-10-17 review refined the proposed boundary. The checked-in report
 predates these additional checks and does not establish them:

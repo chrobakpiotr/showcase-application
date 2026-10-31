@@ -1,4 +1,4 @@
-# Dependency Review Action candidate 4665869 — results
+# Dependency Review Action candidate 4665869 - results
 
 Status: isolated, locally verified candidate awaiting independent review and an owner decision for publication. No public fork, PR, release, GitHub workflow run, or live upload occurred.
 
@@ -10,7 +10,7 @@ Status: isolated, locally verified candidate awaiting independent review and an 
 - Showcase workflow patch base: `5394efc17bedf8cf55f4a938924684685b252dde`.
 - Candidate uses exact pin: `chrobakpiotr/dependency-review-action@4665869fdfe9557a437e61fdc9667b82e5bb414d`.
 
-## DRA-F1–F5 amendments
+## DRA-F1-F5 amendments
 
 **Distribution.** A narrow allowlist recognizes JS files and their maps, plus `licenses.txt` and `package.json` only at the distribution root. The package metadata must equal the exact expected ESM metadata. Unknown `.wasm`, `.node`, `.json`, and any other unclassified files cause refusal. Every executable JS must have a corresponding map, and orphan maps cause refusal. Tests include a nested lazy-only dependency, missing-map refusal, orphan-map refusal, and refusals for unknown `.wasm`, `.node`, and `.json` artifacts. Identity counts derive from all recursively found maps.
 

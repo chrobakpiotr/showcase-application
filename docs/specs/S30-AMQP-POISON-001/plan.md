@@ -1,6 +1,6 @@
-# S30-AMQP-POISON-001 — architecture plan (draft)
+# S30-AMQP-POISON-001 - architecture plan (draft)
 
-Status: **DRAFT — accepted policy; implementation blocked on design-gate evidence**
+Status: **DRAFT - accepted policy; implementation blocked on design-gate evidence**
 
 The user has resolved the product and operations choices recorded in `spec.md`.
 The exact cross-store gate protocol, leader/permit fencing, deployment
@@ -26,14 +26,14 @@ implementation.
 
 Likely code/test seams, subject to task-packet confirmation:
 
-- `modules/adapters/amqp/.../configuration/MessagingConfiguration.java` —
+- `modules/adapters/amqp/.../configuration/MessagingConfiguration.java`  -
   manual acknowledgement, container lifecycle, publisher confirm/return
   wiring; it must not declare the additive quarantine topology.
-- `modules/adapters/amqp/.../order/MessageListener.java` — consume the raw
+- `modules/adapters/amqp/.../order/MessageListener.java` - consume the raw
   broker message, preserve bytes/properties, classify only known permanent
   failures, and coordinate source ACK after the transfer boundary.
 - `apps/ecommerce/backend/src/test/.../RabbitMqFulfillmentDeliveryIntegrationTest.java`
-  — real broker and production-container scenarios; update the critical Rabbit
+ - real broker and production-container scenarios; update the critical Rabbit
   test manifest if required by repository conventions.
 - AMQP adapter tests and relevant application configuration only where
   explicitly packeted.
@@ -141,7 +141,7 @@ D4 data access + retention policy ──────┘             v
                                              E2 independent evaluator + Rabbit gate
 ```
 
-The earlier D1–D4 product-policy decisions are closed. T1–T5 still must not
+The earlier D1-D4 product-policy decisions are closed. T1-T5 still must not
 start until the revised specification passes its design gate and executable
 task packets bind the accepted reference target. T2 and T3 may be implemented
 in separate bounded tasks only if their file ownership is disjoint; otherwise
@@ -149,7 +149,7 @@ one builder owns the listener/configuration seam. E1/E2 cannot be self-review
 by a builder. Security review is required because raw payload crosses into a
 new persisted broker destination.
 
-### D1 — topology names and deployment handoff
+### D1 - topology names and deployment handoff
 
 The current source queue is declared by application bean without DLX arguments
 and the container is manually constructed. Boot listener-factory settings do
@@ -164,7 +164,7 @@ in a deployment-owned conformance gate, and document the externally
 managed production Rabbit handoff. Preserve the original source queue
 declaration exactly. The one-hour verification grace period is accepted.
 
-### D2 — permanent error and commit semantics
+### D2 - permanent error and commit semantics
 
 The 2026-10-04 source audit records the current candidates in the spec's
 "Current error-taxonomy evidence" section: Gson `JsonParseException` is wrapped
@@ -187,7 +187,7 @@ the real PostgreSQL boundary before the conflict can be allowlisted as
 permanent, and test persistence/commit failures as unknown at the listener
 boundary.
 
-### D3 — pause, prefetch, and process lifecycle
+### D3 - pause, prefetch, and process lifecycle
 
 The accepted high-level behavior is to stop new deliveries, let active handlers
 finish, keep readiness down, and require explicit operator resume after process
@@ -403,7 +403,7 @@ admin credentials. The candidate proposes client/role identifiers and token
 claim shape, but these remain unaccepted; per-instance identity binding and
 credential lifecycle still require design and tests.
 
-### D4 — quarantine data controls
+### D4 - quarantine data controls
 
 The user accepted server-authenticated TLS with CA/hostname verification and
 separate broker credentials, encrypted host/storage-class volumes,
@@ -476,9 +476,9 @@ permissions remain disabled until the audited tool is implemented and tested.
 
 ## Decision status
 
-### Master-review scope decisions — 2026-10-06
+### Master-review scope decisions - 2026-10-06
 
-The user accepted D1–D5 in
+The user accepted D1-D5 in
 [`revision-proposal-2026-10-05.md`](revision-proposal-2026-10-05.md). These
 decisions revise qualification scope and the minimum 06b business contract;
 they do not grant implementation authorization or close the S30-06 parent.

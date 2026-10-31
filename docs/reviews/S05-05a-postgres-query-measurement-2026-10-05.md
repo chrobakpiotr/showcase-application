@@ -1,4 +1,4 @@
-# S05-05a PostgreSQL query measurement — 2026-10-05
+# S05-05a PostgreSQL query measurement - 2026-10-05
 
 Source SHA: `4d61341b555e85f6873d0bfdb8278788d77c88cc`. This is repeatable,
 synthetic query-shape evidence for parked-dispatch and recovery-timeline reads.
@@ -18,7 +18,7 @@ It extracted the timeline SQL from the checked-in persistence adapter.
 
 Each of 10 query shapes ran six times with
 `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`. Run 1 is retained separately; the
-reported median uses runs 2–6. PostgreSQL cache was not forcibly flushed, so
+reported median uses runs 2-6. PostgreSQL cache was not forcibly flushed, so
 these are warm-run medians, not cold-cache measurements. Machine-readable
 metadata, seed/config/query files, summaries, and all 60 raw plans are retained
 under [`tooling/performance/evidence/S05-05a-2026-10-05`](../../tooling/performance/evidence/S05-05a-2026-10-05/).
@@ -39,8 +39,8 @@ under [`tooling/performance/evidence/S05-05a-2026-10-05`](../../tooling/performa
 | Timeline offset-150 page | 200 matching notifications / 1,000,000 rows | 423.324 ms |
 
 At the dense synthetic parked distribution, page/count/oldest reads were
-roughly 31–36 ms and work scaled with the matching parked population despite a
-20-row page limit. The synthetic timeline remained roughly 423–451 ms and its
+roughly 31-36 ms and work scaled with the matching parked population despite a
+20-row page limit. The synthetic timeline remained roughly 423-451 ms and its
 raw plans should be inspected before proposing query changes. These figures
 are sensitivity observations on a single local container, without application
 traffic, concurrency, or production storage/network contention.

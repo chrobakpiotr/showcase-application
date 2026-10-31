@@ -1,4 +1,4 @@
-# External handbook delta — Showcase master review — updated 2026-10-18
+# External handbook delta - Showcase master review - updated 2026-10-18
 
 Prepared for the designated owner of the separate handbook. This is a
 source-bound handoff from the Showcase repository; it does not update that
@@ -23,7 +23,7 @@ and fresh evidence against the intended handbook revision.
   focused inventory and capture evidence is in
   [`S05-03b-log-privacy-inventory-2026-10-05.md`](S05-03b-log-privacy-inventory-2026-10-05.md).
   Do not imply that ordinary logs replace the separate audit trail.
-- **S30-06 reference scope:** accepted D1–D5 and the narrow Candidate C
+- **S30-06 reference scope:** accepted D1-D5 and the narrow Candidate C
   contract delta are recorded in the current `spec.md` and `plan.md`.
   Master has deferred implementation: realization is **DEFERRED**,
   qualification **NOT QUALIFIED**, the design gate **OPEN**, and the consumer
@@ -68,7 +68,7 @@ and fresh evidence against the intended handbook revision.
   See the
   [P-005 research report](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/README.md)
   and its bound [run result](../specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-17/report.json).
-  The 45–48 ms host-record observation remains a visibility result only;
+  The 45-48 ms host-record observation remains a visibility result only;
   durability, integrity, path permissions and anti-rollback have separate
   unproven evidence rows in the [owner checklist](../specs/S30-AMQP-POISON-001/evidence/owner-encryption-checklist-2026-10-17.md).
   Direct/provider restore, wrapper bypass and full-host rollback remain outside
@@ -110,7 +110,7 @@ and fresh evidence against the intended handbook revision.
   execution contract, which remains with Harness.
 - **04b reference-target qualification:** the selected report under
   [`evidence/selected/`](../specs/AH5-04B-QUAL-001/evidence/selected/) passes
-  all 26 Q01–Q16/B1–B10 checks and the pinned Harness v0.5.0 checker for the
+  all 26 Q01-Q16/B1-B10 checks and the pinned Harness v0.5.0 checker for the
   exact Docker Desktop Linux guest tuple: Docker Engine 29.8.2, kernel
   7.0.14-linuxkit, workload image digest
   `sha256:9d72651cf7018c1f6a1dd6fd02bd68286631c33620bc0f37b0675b21aab915d5`,
@@ -123,7 +123,7 @@ and fresh evidence against the intended handbook revision.
   and this evidence does not claim production readiness or authorize payload
   execution.
 
-## Current implementation and CI update — 2026-10-17
+## Current implementation and CI update - 2026-10-17
 
 - **SDD-OBS-001 verification-v2 slice:** the current Showcase lifecycle reports
   T-001 through T-009, T-900, and T-990 completed. T-900's corrected repair
@@ -157,7 +157,7 @@ and fresh evidence against the intended handbook revision.
   remains partial until the designated owner applies this source-linked delta
   to the separate handbook.
 
-## New source-bound handoff — 2026-10-17
+## New source-bound handoff - 2026-10-17
 
 The following repository deltas are ready for the separate handbook owner.
 The git source is currently the unmodified baseline
@@ -418,7 +418,7 @@ rule, PR requirement, two expected required status checks, and verified-signatur
 requirement. These bypasses are not passed controls. The external handbook
 remains unsynchronized; this section is a repository-side delta only.
 
-## Historical workflow status and limits — through 2026-10-07
+## Historical workflow status and limits - through 2026-10-07
 
 On pushed `a6fac3c33376`, the main CI aggregate and every required job
 succeeded; dependency review was skipped for this push event. CodeQL and
@@ -473,6 +473,6 @@ was seven commits behind current `main`, and those failures do not change the
 successful main results. See the detailed
 [`CI evidence record`](../ci/showcase-master-review-ci-evidence-2026-10-05.md).
 
-## 2026-10-30 — Harness 0.22.0 repository adoption
+## 2026-10-30 - Harness 0.22.0 repository adoption
 
 AH5-14e-1 moves 50 lifecycle command functions behind the consumer's live namespace. Showcase retains marker policy, layout, writer bindings and its CLI; operational state remains outside the lifecycle snapshot. Exact dependency pin: 5efdb1de0d3992f27f157f439e7737e41ba4d5c4. The shim and binding/F1 tests are paired with that release. Parser/dispatch/doctor migration remains separate. See `harness-0.22.0-adoption-2026-10-30.md` for evidence and paired pin/shim rollback. Repository adoption does not repeat acknowledgement or change the Mac checkout. External handbook synchronization is still pending.

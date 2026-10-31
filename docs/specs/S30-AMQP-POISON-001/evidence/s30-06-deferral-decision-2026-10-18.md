@@ -1,4 +1,4 @@
-# S30-06 deferral decision — 2026-10-18
+# S30-06 deferral decision - 2026-10-18
 
 ## Decision
 

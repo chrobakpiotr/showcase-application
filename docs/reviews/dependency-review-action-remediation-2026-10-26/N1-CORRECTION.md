@@ -1,4 +1,4 @@
-# N1 correction — review ownership and candidate
+# N1 correction - review ownership and candidate
 
 The earlier owner package's statement that the `4665869` review was a Harness review was
 incorrect. The preserved `INDEPENDENT-REVIEW.md` identifies the scope and verdict, but does not

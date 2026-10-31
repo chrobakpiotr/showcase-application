@@ -14,21 +14,21 @@ plugin. The exact source tag is `v4.1.8`, commit
 `63fdc3ff539d9119894bfbf10c0139e5a0e2279d`. The reviewed paths are:
 
 - `deps/rabbit/src/rabbit_reader.erl`: registers a reader before auth at
-  1173; invokes the auth mechanism for `connection.start_ok` at 1218–1247 and
-  1504–1545; checks vhost access at `connection.open`, then sends `open_ok`
-  and emits `connection_created` at 1294–1334.
+  1173; invokes the auth mechanism for `connection.start_ok` at 1218-1247 and
+  1504-1545; checks vhost access at `connection.open`, then sends `open_ok`
+  and emits `connection_created` at 1294-1334.
 - `deps/rabbit_common/src/rabbit_auth_mechanism.erl`: the documented auth
-  mechanism callback is `handle_response/2` at 35–51.
-- `deps/rabbit/src/rabbit_auth_backend_internal.erl` 294–312 and
-  `rabbit_db_user.erl` 1001–1045: native user deletion updates broker user
+  mechanism callback is `handle_response/2` at 35-51.
+- `deps/rabbit/src/rabbit_auth_backend_internal.erl` 294-312 and
+  `rabbit_db_user.erl` 1001-1045: native user deletion updates broker user
   state, then emits `user_deleted`.
-- `deps/rabbit/src/rabbit_connection_tracking_handler.erl` 44–61 and
-  `rabbit_connection_tracking.erl` 62–80, 126–134, 178–181:
+- `deps/rabbit/src/rabbit_connection_tracking_handler.erl` 44-61 and
+  `rabbit_connection_tracking.erl` 62-80, 126-134, 178-181:
   `connection_created` tracking is asynchronous; user deletion closes the
   currently tracked connections. Tracking begins only after `connection.open`
   succeeds. The source does not show a supported hook that serializes this
   lifecycle with an in-progress handshake.
-- `deps/rabbit/src/rabbit_networking.erl` 522–540 shows the core connection
+- `deps/rabbit/src/rabbit_networking.erl` 522-540 shows the core connection
   shutdown path. Calling it from a plugin depends on RabbitMQ internal APIs;
   the plugin guide warns that such APIs can change between releases.
 

@@ -1,4 +1,4 @@
-# Showcase recovery state limitations — 2026-10-25
+# Showcase recovery state limitations - 2026-10-25
 
 This note records the read-only lifecycle status observations available at the AH5-14c adoption
 checkpoint (`b4fd69d33f696a95f56c89a49d47c8047dc5d192`). It is a limitation record for planning

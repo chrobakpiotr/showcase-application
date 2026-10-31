@@ -1,6 +1,6 @@
 # Harness review of Showcase AH5-04B-QUAL-001 T-001…T-005 (2026-10-07)
 
-- Scope: read-only review against the shared contract, the qualification report (ADR 0002) and the B1–B10
+- Scope: read-only review against the shared contract, the qualification report (ADR 0002) and the B1-B10
   definitions (`grading-requirements.md`). Integration (merging the task branches) belongs to Showcase's owner;
   Harness changes nothing in Showcase.
 - Branch shape: T-001 (`11adcca`, base `218bfa1`) and T-002 (`4b8a95e`, base `00c7f1e`) are independent;
@@ -26,7 +26,7 @@ report is `qualified: false` and binds to the same target, policy digest and job
 |---|---|---|
 | T-001 `11adcca` | ok | `chmod 0o777` only inside a `TemporaryDirectory` (owner-only parent), so no other host user reaches it; regression test reproduces the umask failure. |
 | T-002 `4b8a95e` | ok, one condition | Exception messages enter committed evidence: bound their length and keep paths/values that could hold secrets out (constitution rule 11). |
-| T-003 `81e6823` | ok, two points | Limits match B8 (512 MiB no swap, 64 PIDs, 1 vCPU, no network, read-only root, ENOSPC at 256 MiB, 1 MiB host-side output cap with truncation flag). (1) B8's 256 MiB is workspace **plus** `/tmp`; the probe allows 256 MiB + a 16 MiB `/tmp`. (2) On a timeout `proc.kill()` kills the `docker` client, not necessarily the container; B8 requires the sandbox killed — stop the container by ID (or run with `--stop-timeout`/`docker kill`) and take the evidence from container state. |
+| T-003 `81e6823` | ok, two points | Limits match B8 (512 MiB no swap, 64 PIDs, 1 vCPU, no network, read-only root, ENOSPC at 256 MiB, 1 MiB host-side output cap with truncation flag). (1) B8's 256 MiB is workspace **plus** `/tmp`; the probe allows 256 MiB + a 16 MiB `/tmp`. (2) On a timeout `proc.kill()` kills the `docker` client, not necessarily the container; B8 requires the sandbox killed - stop the container by ID (or run with `--stop-timeout`/`docker kill`) and take the evidence from container state. |
 | T-004 `70206b4` | ok, one point | `job_id` = run ID + attempt (whole-token matching keeps `-attempt-1` and `-attempt-10` apart); `contents: read`; job-bound artifact upload. Pin `actions/checkout`, `setup-python`, `upload-artifact` by commit SHA, as the other Showcase workflows do. |
 | T-005 `fe5c639` | ok | Evidence and report consistent with the checker; NOT QUALIFIED stated. |
 

@@ -1,4 +1,4 @@
-# P-006 disposable spike run — BLOCKED before probe execution
+# P-006 disposable spike run - BLOCKED before probe execution
 
 - Status: **BLOCKED**. No plugin, authentication-race, request API, or synthetic effect probe ran.
 - Host: macOS 15.8.1 (build 24H32), x86_64; Docker Desktop client/server 29.8.2; Linux guest x86_64; Docker reports 8 CPUs and about 7.75 GiB memory.
@@ -25,4 +25,4 @@ These official-source facts informed the test design only; they are not run evid
 
 ## Source inspection (not a behavioral pass)
 
-The matching RabbitMQ source tag was inspected in disposable checkout `rabbitmq/rabbitmq-server` v4.1.8 at commit `63fdc3ff539d9119894bfbf10c0139e5a0e2279d`. In `deps/rabbit/src/rabbit_reader.erl`, the AMQP 0-9-1 reader registers its connection process at line 1173 before sending `connection.start`; the `connection_created` event is emitted at lines 1327–1329 only after the `connection.open` path succeeds. This makes the three proxy hold points relevant, but source inspection does not establish that a plugin can close or fence each in-progress state.
+The matching RabbitMQ source tag was inspected in disposable checkout `rabbitmq/rabbitmq-server` v4.1.8 at commit `63fdc3ff539d9119894bfbf10c0139e5a0e2279d`. In `deps/rabbit/src/rabbit_reader.erl`, the AMQP 0-9-1 reader registers its connection process at line 1173 before sending `connection.start`; the `connection_created` event is emitted at lines 1327-1329 only after the `connection.open` path succeeds. This makes the three proxy hold points relevant, but source inspection does not establish that a plugin can close or fence each in-progress state.

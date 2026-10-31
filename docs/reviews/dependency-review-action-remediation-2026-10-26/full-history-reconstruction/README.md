@@ -1,4 +1,4 @@
-# Exact-candidate complete-history reconstruction — 2026-10-29
+# Exact-candidate complete-history reconstruction - 2026-10-29
 
 The historical successor bundle remains unchanged. It replays the candidate tree but omits upstream ancestry. This supplement reconstructs that ancestry without a new action commit or workflow pin.
 

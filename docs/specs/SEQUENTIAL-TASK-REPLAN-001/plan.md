@@ -1,4 +1,4 @@
-# Plan — SEQUENTIAL-TASK-REPLAN-001
+# Plan - SEQUENTIAL-TASK-REPLAN-001
 
 Keep sequential replan eligibility inside `cmd_replan_task`'s existing feature
 state lock. Preserve exact-request idempotency before stale-request rejection.

@@ -1,4 +1,4 @@
-# Plan — QUALITY-HARDENING-Q01-Q06
+# Plan - QUALITY-HARDENING-Q01-Q06
 
 ## Execution principle
 
@@ -31,7 +31,7 @@ A0 changes no production lifecycle code and no database schema. It creates:
 
 GitHub ruleset/required-status configuration is not mutated by A0.
 
-## A1 — Q01 + Q02
+## A1 - Q01 + Q02
 
 ### Allowed areas
 
@@ -72,7 +72,7 @@ short DB prepare transaction
 
 Never hold the payment reconciliation row lock during provider I/O.
 
-## A3 — Q06
+## A3 - Q06
 
 ### Allowed areas
 
@@ -99,7 +99,7 @@ Do not pull S3 export, SQS audit or Kafka analytics into A3 merely for symmetry.
 Prefer a PostgreSQL-native atomic insert-once statement. Do not catch a unique
 constraint and continue using a transaction already marked rollback-only.
 
-## A2 — Q03
+## A2 - Q03
 
 Begins only after A1 has stabilized payment continuation semantics and Q06 provides
 the notification event identity needed by finalization.
@@ -114,13 +114,13 @@ the notification event identity needed by finalization.
 
 The recovery claim token must participate in the actual durable terminal transition.
 
-## A4 — Q05
+## A4 - Q05
 
 Define monetary allocation policy before implementation. Use persisted stable line/unit
 identity or an equivalently deterministic allocation. Test conservation with generated
 sequences plus the known A/B/reject-A/C/D minimal counterexample.
 
-## A5 — Q04
+## A5 - Q04
 
 Unify legacy and operation-aware commands behind one transactional application
 boundary. Persist command fingerprint/result; browser retains uncertain operation ID

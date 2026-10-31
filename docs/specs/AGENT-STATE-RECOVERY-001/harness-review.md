@@ -1,4 +1,4 @@
-# AGENT-STATE-RECOVERY-001 — Harness review packet
+# AGENT-STATE-RECOVERY-001 - Harness review packet
 
 **Status:** Harness accepted with amendments in `agent-harness` commit `2b5ee6a`. Implementation is in progress; no recovery write is authorized until Harness reviews the implementation.
 

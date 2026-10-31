@@ -1,4 +1,4 @@
-# Plan — REOPEN-EXHAUSTED-DESCENDANTS-001
+# Plan - REOPEN-EXHAUSTED-DESCENDANTS-001
 
 Keep the current atomic reopen sequence, but compute retry exhaustion without
 returning early. After validating that no descendant is running and that every

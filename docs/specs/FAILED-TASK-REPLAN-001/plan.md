@@ -1,4 +1,4 @@
-# Plan — FAILED-TASK-REPLAN-001
+# Plan - FAILED-TASK-REPLAN-001
 
 Extend the existing `replan-task` command in `tooling/agent-harness/harness.py`
 with an explicit failed-task path while preserving the existing running-task

@@ -1,7 +1,7 @@
 # S30-06 reference target and integrated restore/fencing test seam
 
 Date: 2026-10-17  
-Status: **proposal only — design gate OPEN, REF-CORRECTNESS NOT QUALIFIED, no consumer enabled**  
+Status: **proposal only - design gate OPEN, REF-CORRECTNESS NOT QUALIFIED, no consumer enabled**  
 Source checkout: `49ab97f580ad21c67e9378e15448aca9fe365c45` plus the local proposal diff.
 
 This packet proposes a concrete target using the currently available Mac and
@@ -76,7 +76,7 @@ outside every service data directory and every service backup set; only the
 versioned host restore wrapper may update it. The path was not created and its
 ACL/read-only mount identity have not been qualified. Existing P-004 trials
 showed an atomic replacement became visible through a directory mount in
-45–48 ms, but did not prove permissions, integrity, anti-rollback or crash
+45-48 ms, but did not prove permissions, integrity, anti-rollback or crash
 durability.
 
 The record contains deployment ID, non-reused recovery episode ID, monotonic

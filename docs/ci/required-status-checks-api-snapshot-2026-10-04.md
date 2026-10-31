@@ -1,4 +1,4 @@
-# Required status checks API snapshot — 2026-10-04
+# Required status checks API snapshot - 2026-10-04
 
 Read-only observation recorded 2026-10-04 from:
 

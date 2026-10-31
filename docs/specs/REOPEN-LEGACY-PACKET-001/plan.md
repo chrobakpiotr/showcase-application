@@ -1,4 +1,4 @@
-# Plan — REOPEN-LEGACY-PACKET-001
+# Plan - REOPEN-LEGACY-PACKET-001
 
 Keep the existing locked reopen transaction. Add a small helper that builds a graph for descendant calculation: resolve each task's active packet contract when state points to an immutable revision; otherwise use that task from the already validated current DAG. Use this graph only to determine descendants. Do not read legacy packet files for tasks that have no active revision.
 

@@ -7,7 +7,7 @@ authorization.
 
 ## Decision
 
-Keep the S30-06 design gate OPEN. The accepted D1–D5 scope decisions and the
+Keep the S30-06 design gate OPEN. The accepted D1-D5 scope decisions and the
 Candidate C direction remain recorded as accepted. They do not resolve the
 mechanism and evidence gaps below. Do not generate implementation tasks, enable
 an AMQP consumer, or claim REF-Q/PROD-Q qualification from this note.
@@ -70,7 +70,7 @@ the formal hash-bound design gate or the independent verification contract.
 
 ## Recommended sequence
 
-1. For P-001–P-004, map each unresolved claim to existing prototype evidence
+1. For P-001-P-004, map each unresolved claim to existing prototype evidence
    and the exact missing counterexample. Reuse passing evidence; do not repeat
    broad suites without a changed code/spec/environment or a specific failed
    criterion.
@@ -111,7 +111,7 @@ the formal hash-bound design gate or the independent verification contract.
 
 - Accepted scope and current open-gate state: `spec.md`, `plan.md`, and
   `revision-proposal-2026-10-05.md`.
-- Candidate restore mechanics and P-001–P-004 questions:
+- Candidate restore mechanics and P-001-P-004 questions:
   `design/gate-protocol-candidate.md`.
 - Per-instance binding limitations and falsification plan:
   `evidence/instance-binding-decision.md`.

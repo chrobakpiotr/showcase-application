@@ -20,7 +20,7 @@ source metadata, PostgreSQL configuration and seed counts, a summary, and every
 raw `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` plan. Run metadata records the
 image tag, local image ID/repository digest, Docker Engine, host, source SHA,
 Java query-source digest, and seed digest. The first run per query is preserved
-separately; the reported median uses runs 2–6. Cache state is not forcibly
+separately; the reported median uses runs 2-6. Cache state is not forcibly
 flushed, so cold-cache performance is not claimed. Keep generated artifacts
 outside the checkout unless a review explicitly requests a source-bound run
 record.

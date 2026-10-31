@@ -1,6 +1,6 @@
-# P-007 — Candidate C wrapper/process-isolation feasibility
+# P-007 - Candidate C wrapper/process-isolation feasibility
 
-Status: **CLOSED — completed preflight analysis; BLOCKED before runtime**.
+Status: **CLOSED - completed preflight analysis; BLOCKED before runtime**.
 Registration and bounded preflight are complete. The experiment did not start a container because the existing host
 restore wrapper and stale-episode start-block mechanism are absent. This is the
 predeclared stop condition in [`question.json`](question.json).

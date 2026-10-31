@@ -1,4 +1,4 @@
-# P-004 process-quiescence alternative review — 2026-10-06
+# P-004 process-quiescence alternative review - 2026-10-06
 
 Disposition: **plausible REF-Q alternative, not selected or proven; P-004 and
 the design gate remain OPEN.** This read-only assessment preserves D2's

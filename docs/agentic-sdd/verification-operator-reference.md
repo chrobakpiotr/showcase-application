@@ -75,18 +75,18 @@ The interface and the accepted M5.3 target contract are not the same as a claim
 that every target capability is operational. Treat these current findings as
 constraints when using or describing verification:
 
-- **F01 — obligation/origin/coalescing gaps:** the accepted target requires
+- **F01 - obligation/origin/coalescing gaps:** the accepted target requires
   distinct obligations, trusted execution origins, and authorized coalescing.
   Current planner/authority behavior does not implement that complete contract;
   single-obligation units do not demonstrate coalescing. Do not infer
   independent-origin qualification from command equality, a repeated command,
   or an origin label.
-- **F02 — non-cacheable success:** the executor now publishes a validated
+- **F02 - non-cacheable success:** the executor now publishes a validated
   terminal `PASS` for a successful non-cacheable run without reusable GREEN
   evidence, and a later attempt runs it again. This bounded executor behavior
   does not by itself provide accepted-plan admission or complete obligation
   coverage; those lifecycle prerequisites remain separate.
-- **F05 — qualification and containment:** production backend qualification is
+- **F05 - qualification and containment:** production backend qualification is
   still blocked. The native macOS probes did not establish descendant
   containment. A separate Docker Desktop capability spike passed its container-
   boundary filesystem and descendant-drain probes, but exact policy/repository/
@@ -96,7 +96,7 @@ constraints when using or describing verification:
   cannot authorize execution. Linux active qualification dispatch is also
   unsupported. A Docker test image or engine capability result alone is not
   production qualification, and no weaker fallback authorizes execution.
-- **F06 — output workspaces:** the implemented source workspace is diagnostic
+- **F06 - output workspaces:** the implemented source workspace is diagnostic
   materialization only; it grants no launch or `PASS` authority. Newly generated
   outputs remain runtime-only and are checked for links/escapes. Qualified
   writable-root policy, read-only Git metadata for Git-dependent gates, and

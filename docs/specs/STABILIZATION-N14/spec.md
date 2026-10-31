@@ -1,4 +1,4 @@
-# N14 — Provider reconciliation for unknown payment/refund outcomes
+# N14 - Provider reconciliation for unknown payment/refund outcomes
 
 ## Checkpoint N14.1
 

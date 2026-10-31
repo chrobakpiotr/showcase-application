@@ -1,4 +1,4 @@
-# Showcase adoption of Harness 0.21.2 — 2026-10-30
+# Showcase adoption of Harness 0.21.2 - 2026-10-30
 
 Base: `34096c06ffd766b489d33a22ef682fbaa2bd25cc`.
 Release pin: `dfcf6f0ca3605cf475e7934994a840b938c3b5cc`, annotated tag `v0.21.2`,

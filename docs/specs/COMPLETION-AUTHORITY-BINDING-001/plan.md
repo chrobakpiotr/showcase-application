@@ -1,4 +1,4 @@
-# Plan — COMPLETION-AUTHORITY-BINDING-001
+# Plan - COMPLETION-AUTHORITY-BINDING-001
 
 Inspect the existing `task_has_effective_completion` and
 `effective_task_status` call paths and use the active immutable packet identity

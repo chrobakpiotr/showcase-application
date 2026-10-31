@@ -1,4 +1,4 @@
-# COMPLETION-AUTHORITY-BINDING-001 — bind terminal completions to active work
+# COMPLETION-AUTHORITY-BINDING-001 - bind terminal completions to active work
 
 ## Objective
 

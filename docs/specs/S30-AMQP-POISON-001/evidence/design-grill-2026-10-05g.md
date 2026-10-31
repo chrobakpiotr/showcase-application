@@ -1,4 +1,4 @@
-# S30-06 gate protocol refinement — 2026-10-05g
+# S30-06 gate protocol refinement - 2026-10-05g
 
 Disposition: **NEEDS_MORE_DESIGN**. This candidate refinement does not create a
 PASS design gate or authorize production source/deployment work.
