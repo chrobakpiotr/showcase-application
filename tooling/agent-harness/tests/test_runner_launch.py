@@ -82,7 +82,12 @@ class RunnerLaunchTest(unittest.TestCase):
                'HOME': str(self.root), 'FAKE_LOG': str(self.log),
                'OPENAI_API_KEY': 'sk-should-never-reach-the-cli'}
         writable = lambda ws: [pathlib.Path(ws).resolve()]
+        # The unresolved-state registry path is derived from REPO's Git common dir. Bind it to the fixture repository:
+        # the real checkout must not be read by a test, and with HOME replaced above Git would not see a CI
+        # container's global `safe.directory` for it (this only passed in one-process runs through a warm
+        # `state_snapshots._common_dir_cached`).
         for patch in (mock.patch.dict(os.environ, env, clear=True),
+                      mock.patch.object(runner, 'REPO', self.repo),
                       mock.patch.object(runner, 'RUNS', self.runs),
                       mock.patch.object(runner, 'render_prompt', return_value='fix the bug ✓'),
                       mock.patch.object(runner, 'validate_packet_integrity'),
