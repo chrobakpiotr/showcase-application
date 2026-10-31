@@ -45,8 +45,22 @@ runs:
         HARNESS_SHA: ${{ steps.harness.outputs.sha }}
       run: |
         test "$(git -C .ci/agent-harness rev-parse HEAD)" = "$HARNESS_SHA"
-        # Keep pip's VCS commit identity; credentials are not available to pip.
-        config_key="url.file://$GITHUB_WORKSPACE/.ci/agent-harness.insteadOf"
-        trap 'git config --global --unset-all "$config_key" || true' EXIT
-        git config --global "$config_key" https://github.com/chrobakpiotr/agent-harness.git
-        python3 -m pip install -r tooling/agent-harness/requirements.txt
+        # Install the verified checkout by path. A pip VCS install through a `url.<file>.insteadOf` rewrite of
+        # this shallow checkout made pip clone with `--filter=blob:none`; the local transport ignores the
+        # filter but the clone still became a promisor clone that fetched every missing blob in its own
+        # `git fetch` subprocess (thousands of fetches, 9-12 minutes per job; see
+        # agent-harness docs/specs/release-0.22.0/ci-followup.md). The pinned commit identity is still
+        # enforced: the single full SHA from requirements.txt, the authenticated checkout of exactly that
+        # commit, the `rev-parse` check above and the version check below. Credentials are not available
+        # to pip; the remaining pins (cryptography) install from requirements.txt unchanged.
+        python3 -m pip install --no-deps ".ci/agent-harness[grants]"
+        python3 -m pip install -r <(grep -v '^agent-harness' tooling/agent-harness/requirements.txt)
+        python3 - <<'PYTHON'
+        import json, os, subprocess
+        import agent_harness
+        git = lambda *a: subprocess.run(['git', '-C', '.ci/agent-harness', *a], check=True, capture_output=True, text=True).stdout
+        commit = git('rev-parse', 'HEAD').strip()
+        assert commit == os.environ['HARNESS_SHA'], commit
+        assert f'__version__ = "{agent_harness.__version__}"' in git('show', 'HEAD:src/agent_harness/__init__.py'), agent_harness.__version__
+        print(json.dumps({'agent_harness': agent_harness.__version__, 'commit': commit}))
+        PYTHON
