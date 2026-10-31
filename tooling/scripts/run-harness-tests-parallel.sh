@@ -65,6 +65,11 @@ cat "$out"/logs/*.log | awk '/^(OK|FAILED)( \(|$)/ { while (match($0, /(failures
   END { printf "failures: %d, errors: %d, skipped: %d\n", s["failures"], s["errors"], s["skipped"] }'
 echo "tests ran: $ran (discovered: $expected); units with non-zero exit: $(printf '%s' "$failed" | grep -c . || true)"
 if [ -n "$failed" ]; then
+  diag=$(printf 'uid=%s home=%s cwd=%s owner(cwd)=%s owner(.git)=%s safe.directory=[%s] common-dir: %s' \
+    "$(id -u)" "$HOME" "$PWD" "$(stat -c %u "$PWD")" "$(stat -c %u "$PWD/.git")" \
+    "$(git config --global --get-all safe.directory 2>&1 | tr '\n' ' ')" \
+    "$(git -C "$PWD" rev-parse --path-format=absolute --git-common-dir 2>&1 | tr '\n' ' ')")
+  echo "::notice title=harness-tests environment::$diag"
   printf '%s\n' "$failed" | while IFS=$'\t' read -r status log unit; do
     echo "::group::exit $status — $unit"; tail -60 "$log"; echo "::endgroup::"
     # One annotation per failed unit (visible in the checks UI and through the API without the raw log): the failing
