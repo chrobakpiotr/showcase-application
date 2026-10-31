@@ -1,21 +1,30 @@
-MIT License
+Copyright (c) 2026 Piotr Chrobak. All rights reserved.
 
-Copyright (c) 2026 Piotr Chrobak
+Effective date: 2026-10-31.
+MIT baseline: 4a719d3e (the `main` revision immediately before this notice; the
+MIT licence was first added on 2026-09-01 in commit c659d4e5).
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Original additions and modifications owned by Piotr Chrobak and first committed
+after the MIT baseline are proprietary, unless explicitly licensed otherwise. No
+permission to use, copy, modify, distribute, sublicense, or sell those additions
+or modifications is granted without prior written permission from the copyright
+holder, except for rights that applicable law grants and that cannot be excluded
+by contract, and for the limited rights the hosting platform's terms grant to its
+users (for this public GitHub repository: viewing and on-platform forking under
+GitHub Terms of Service section D.5). Public availability of the repository does
+not grant an open-source licence to that material; no other right is granted.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This notice does not revoke, replace, or restrict any MIT permissions previously
+granted, regardless of branch, tag, or publication date. Material published under
+MIT, from commit c659d4e5 up to and including the MIT baseline, remains available
+under the MIT License reproduced in LICENSE-MIT. The MIT notice is retained for
+copies and substantial portions of that material in later versions. Material
+committed before 2026-09-01 was published without a licence file and was never
+MIT-licensed; it is covered by this notice.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Third-party material, including dependencies and material identified in the
+repository's dependency manifests, retains its applicable licence. This notice
+does not claim exclusive rights over that material.
+
+No warranty is provided for the proprietary material, to the extent permitted by
+applicable law. The applicable third-party licence disclaimers remain unchanged.
