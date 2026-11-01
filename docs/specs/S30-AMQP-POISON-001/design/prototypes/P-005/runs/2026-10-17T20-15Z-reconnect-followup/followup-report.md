@@ -1,4 +1,4 @@
-# P-005 reconnect follow-up - BLOCKED
+# P-005 reconnect follow-up — BLOCKED
 
 Status: **BLOCKED before AMQP interaction; no reconnect evidence produced.**
 

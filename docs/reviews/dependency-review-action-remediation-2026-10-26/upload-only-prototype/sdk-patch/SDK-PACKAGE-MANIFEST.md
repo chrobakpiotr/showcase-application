@@ -18,7 +18,7 @@ The patch itself is SHA-256
 
 The exact tarball was extracted into a clean tree, the patch applied, and its
 result compared against the installed patched package. A mutation to
-`lib/internal/upload/retention.js` - outside the five prior file guards - was
+`lib/internal/upload/retention.js`—outside the five prior file guards—was
 rejected before build. The runner then accepted the restored exact patched
 tree. Full output is in `../evidence/action-build/sdk-integrity-mutation.log`.
 

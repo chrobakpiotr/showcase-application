@@ -1,4 +1,4 @@
-# T-900 independent evaluation - attempt 2
+# T-900 independent evaluation — attempt 2
 
 **Result: PASS.** All nine declared packet commands pass on the current accepted task composition. The first full-discovery run found two evaluator-test defects; the existing reviewed T-900 test-only corrections were reapplied, the affected module passed 29/29, and the exact full-discovery command then passed 923 tests. No production implementation change was needed.
 

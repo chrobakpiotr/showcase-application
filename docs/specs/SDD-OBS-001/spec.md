@@ -1194,7 +1194,7 @@ Raw verification/provider logs are diagnostic local artifacts only. They are not
 GREEN provenance, are not required for reuse, and may be deleted by normal runtime-retention cleanup
 without invalidating otherwise complete terminal evidence. Reuse authority comes from the terminal
 structured receipt, fingerprints, process exit, sandbox/retry evidence and required produced-artifact
-identity - not from retained raw log bytes.
+identity—not from retained raw log bytes.
 
 The threat model covers accidental corruption, stale files, interrupted publication and writes from
 untrusted/provider worktrees. Content hashes detect accidental/stale mismatch; they are not claimed as
@@ -1374,9 +1374,9 @@ the trusted issuer-registry control repository's `sha1`/`sha256` storage object 
 registry document bytes); `issuer_id` (exact registry key); `authorizer_principal` (exact canonical
 principal bound to that key by the registry); `key_fingerprint` (`sha256:` plus 64 lowercase hex
 digits of SHA-256 over the registered 32 raw Ed25519 public-key bytes); `signature_algorithm` (literal `Ed25519`);
-`authorization_time` (valid UTC Gregorian timestamp exactly `YYYY-MM-DDTHH:MM:SSZ`, seconds `00`-`59`,
+`authorization_time` (valid UTC Gregorian timestamp exactly `YYYY-MM-DDTHH:MM:SSZ`, seconds `00`–`59`,
 with no fractional seconds or offset); `freshness_policy_id` (literal
-`critical-gate-grant-freshness-v1`); `justification` (1-4096 UTF-8 bytes, at least one non-whitespace
+`critical-gate-grant-freshness-v1`); `justification` (1–4096 UTF-8 bytes, at least one non-whitespace
 Unicode scalar, no C0/C1 controls); `current` (object); `fence` (object); and
 `acknowledges_active_fence` (literal JSON boolean `true`).
 The current object has exactly `repository_id`, `feature_id`, `scope_kind`, `task_id`, `attempt`,
@@ -1846,7 +1846,7 @@ manual evaluator, canonical report binding additionally requires exactly one top
 records the later registration time. Delayed registration therefore does not inflate the metric.
 
 If the start event, evaluator completion event, trusted lineage/scope, or chronological ordering cannot
-be established - including a legacy/incomplete first builder history - the metric is `UNKNOWN`; later v2
+be established—including a legacy/incomplete first builder history—the metric is `UNKNOWN`; later v2
 records do not guess or truncate the missing interval.
 
 Verification counts report planned/executed/reused/invalidated/blocked/failed by gate and reason.
@@ -1978,7 +1978,7 @@ CLI exits:
 - `5`: `verification-blocked`;
 - `6`: `verification-owned`.
 
-These values are reserved, distinct transport codes; existing codes 0-3 are unchanged. The semantic
+These values are reserved, distinct transport codes; existing codes 0–3 are unchanged. The semantic
 `machine_category` is the cross-surface contract and the shell exit code is its direct-CLI transport.
 Direct CLI, runner and orchestrator MUST preserve the same `machine_category` and `reason_code` for
 the same authoritative state. Runner and orchestrator structured results carry those fields without
@@ -2239,7 +2239,7 @@ with the exact registration command.
 - M53-AC72 (AC-HANDOFF-12/15, amended M5.3l.4): Restart resolves exact reservation and consumption references from `.agent-state`, validates every binding and ignores unreferenced/newer store records. Recovery CASes expected generation and exact consumption. Consumed state is never automatically relaunched; if non-launch cannot be proven, recovery fails closed/HITL or explicitly authorized execution-specific idempotent handling. Absence of a local process or `execution_started` is not proof of non-start.
 - M53-AC73 (AC-HANDOFF-13, amended M5.3l.4): Aborting an unconsumed reservation requires explicit authoritative `launch_aborted` CAS bound to exact R/generation and trusted proof/reason. Aborting after consumption additionally binds exact consumption identity and trusted proof of physical non-launch. Ambiguous consumed state cannot be aborted as though launch were absent; there is no implicit reset.
 - M53-AC74 (AC-HANDOFF-14, amended M5.3l.4): Reservation terminalization is authoritative generation/CAS bound to exact reservation, admission, plan, and, after consumption, exact consumption identity; completion also binds execution/evidence and obligation coverage. Terminal failure requires exact terminal evidence; safe abort uses AC73. Process death, timeout, lock loss, or store-record presence cannot terminalize/reset. Once terminal, later replan follows normal lifecycle policy and the old R never relaunches.
-- M53-AC75 (AC-HANDOFF-16, amended M5.3l.4): Deterministic lifecycle tests cover attacks A-P and Q-AH below and all C1-C10 crash boundaries. Q permits at most one consumption winner/automatic launch; R replan before ownership conflicts; S pre-consumption crash retains reservation; T ambiguous consumed crash fails closed; U/AF require explicit proven-safe recovery; V/AC ownership loss leaves consumed state; W/AA missing start ack is not proof; X/H exact completion binds and terminalizes exact consumption.
+- M53-AC75 (AC-HANDOFF-16, amended M5.3l.4): Deterministic lifecycle tests cover attacks A–P and Q–AH below and all C1–C10 crash boundaries. Q permits at most one consumption winner/automatic launch; R replan before ownership conflicts; S pre-consumption crash retains reservation; T ambiguous consumed crash fails closed; U/AF require explicit proven-safe recovery; V/AC ownership loss leaves consumed state; W/AA missing start ack is not proof; X/H exact completion binds and terminalizes exact consumption.
 - M53-AC76: The reservation is committed before releasing lifecycle lock, so the admission-commit-to-ownership interval has no authority gap. `execution_started` acknowledgement may be recorded as an exact-reservation, expected-generation lifecycle transition for observability/recovery, but is optional for race closure and cannot be the first barrier against replan. A stale acknowledgement fails CAS and cannot create authority or erase the reservation.
 
 Corrective implementation order is M5.3 accepted protocol → M5.4 generic authority implementation →
@@ -2388,7 +2388,7 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   authorization does not imply independent origin. After grant consumption, normal admission,
   reservation, consumption, single-use launch capability, ownership/drain and terminalization rules
   still apply; recovery cannot create another grant or retry slot.
-- AC-OBS-049: H1-H15 produce the deterministic outcomes specified in the spec: unauthenticated or
+- AC-OBS-049: H1–H15 produce the deterministic outcomes specified in the spec: unauthenticated or
   caller-asserted grants are rejected; exact grant scope and single-use are enforced; manual evidence
   and origin qualification remain separate; crash/replan/replay preserve consumed/stale semantics.
 - AC-OBS-050: Integration plan creation belongs to trusted orchestration/integration control;
@@ -2401,11 +2401,11 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
 - AC-OBS-051: The direct CLI, runner and orchestrator preserve the same `machine_category` and
   `reason_code`: `needs-human` / exit 4, `verification-blocked` / exit 5, and
   `verification-owned` / exit 6. The categories are control dispositions distinct from verifier
-  results; CLI exits 0-3 retain their existing meanings. Human-required fences route to existing
+  results; CLI exits 0–3 retain their existing meanings. Human-required fences route to existing
   HITL handling without retry, blocked preconditions stop launch and expose the reason, and a proven
   active owner/journal is preserved without competing execution. Ambiguous post-consumption journals
   use existing fail-closed recovery semantics rather than assumed ownership.
-- AC-OBS-052: D1-D16 are deterministic: D1/D6 no-plan or base-only authoritative integration run is
+- AC-OBS-052: D1–D16 are deterministic: D1/D6 no-plan or base-only authoritative integration run is
   blocked/exit 5; D2 an unaccepted stored plan is blocked/exit 5; D3 a base alongside a selected plan
   is rejected as `invalid-policy` / `VERIFICATION_CALLER_BASE_FORBIDDEN` / exit 2; D4 an exact
   lifecycle-accepted plan proceeds only through normal admission and launch protocol; D5 plan-bound
@@ -2426,7 +2426,7 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
 - AC-OBS-054: Product/candidate artifacts are produced before sealing and enter final candidate,
   surface, applicability and plan. Verification-only outputs are written only beneath the exact
   per-family/per-attempt verification-v2 runtime artifact root (diagnostic logs under its defined log
-  subtree); gate `produces`/`consumes` apply only to these runtime artifacts. A1-A8 fail closed as
+  subtree); gate `produces`/`consumes` apply only to these runtime artifacts. A1–A8 fail closed as
   specified: ordinary untracked/ignored output, provider-selected runtime directory, and post-seal
   source rewrite change the candidate identity and invalidate old-plan evidence; authorized runtime
   output does not; generated source precedes sealing; runtime output cannot be promoted into the old
@@ -2437,7 +2437,7 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   current context with the same active fence, the lifecycle outcome without a new grant is
   `needs-human` / exit 4 / no launch. An authenticated human may issue one new exact current-context
   grant that additionally binds the exact historical fence/failure/evidence identity and explicit
-  acknowledgement; `.agent-state` validates and consumes it once by CAS. F1-F12 are deterministic:
+  acknowledgement; `.agent-state` validates and consumes it once by CAS. F1–F12 are deterministic:
   same-fingerprint P2/F2 requires human; P1 grant is rejected; new P2 grant may authorize exactly one
   retry; wrong fingerprint/context, replay, omitted historical fence, or caller claim is rejected;
   replan never clears a fence; human authorization does not imply independent origin; consumed grant
@@ -2453,19 +2453,19 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   enabled/non-revoked state and bound registry identity. Private signing keys remain outside repo and
   runtime/control stores and inaccessible to automation. Invalid/unavailable issuer, key, signature,
   scope, freshness, justification or consumed state yields `needs-human` / exit 4 / no launch; `--by`
-  and `--operator` never authenticate. HITL-H1-H10 are deterministic.
+  and `--operator` never authenticate. HITL-H1–H10 are deterministic.
 - AC-OBS-058: Manual task and attempt labels resolve only through trusted task identity and immutable
   attempt history; supplied task and attempt must agree, attempt alone derives task from history, and
   attempt-scoped evidence requires the exact associated reviewed checkpoint in that attempt history.
   Task-only evidence never guesses an attempt. Missing exact attempt/checkpoint yields
-  `verification-blocked` / `MANUAL_EVIDENCE_ATTEMPT_REQUIRED` / exit 5. MANUAL-M1-M6 are
+  `verification-blocked` / `MANUAL_EVIDENCE_ATTEMPT_REQUIRED` / exit 5. MANUAL-M1–M6 are
   deterministic.
 - AC-OBS-059: Trusted privacy preflight precedes durable candidate/final-surface hashing. A
   secret-bearing candidate is unsealable and returns `verification-blocked` /
   `SECRET_BEARING_CANDIDATE_UNSEALABLE` / exit 5; inability to complete the check safely returns
   `CANDIDATE_PRIVACY_PREFLIGHT_UNAVAILABLE` / exit 5. Neither case publishes secret-derived hashes
   or evidence; only policy-permitted safe diagnostics may persist. Runtime secrets remain outside
-  candidate state. SECRET-S1-S6 are deterministic.
+  candidate state. SECRET-S1–S6 are deterministic.
 - AC-OBS-060: Manual evidence can satisfy a plan obligation only when `--plan-id` resolves to the
   exact current lifecycle-accepted plan and the clean reviewed checkpoint is the exact sealed candidate
   identity, including exact HEAD, committed delta against exact base and no staged/unstaged/deleted/
@@ -2477,7 +2477,7 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   and becomes accepted coverage only through `.agent-state` CAS. Missing plan or failed/unprovable
   match is telemetry-only; attempted coverage returns
   `verification-blocked` / `MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED` / exit 5 with no coverage
-  mutation. MANUAL-M7-M10 are deterministic.
+  mutation. MANUAL-M7–M10 are deterministic.
 - AC-OBS-061: Candidate sealing accepts only no-follow directories and single-link regular files;
   rejects symlinks, hard links and special objects without opening unsafe object types; uses the same
   stable, bounded ephemeral bytes for privacy classification and hashing; enforces 256 MiB per-file,
@@ -2540,7 +2540,7 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   `verification-blocked` / `MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED` / exit 5. Invalid chronology
   rejects as `MANUAL_EVIDENCE_CHRONOLOGY_INVALID` / exit 2; valid timestamps with incomplete legacy
   lineage may be accepted but timing is `UNKNOWN`. Manual attestations are provenance only; only
-  `.agent-state` CAS accepts coverage. MANUAL-AUTH-1-6 are deterministic.
+  `.agent-state` CAS accepts coverage. MANUAL-AUTH-1–6 are deterministic.
 - AC-OBS-071: Scoped `lifecycle_generation` changes only for new attempts and explicit replan/
   supersession; repository-wide `state_revision` increases on every successful lifecycle CAS.
   Every CAS has a unique in-domain transition entry containing operation, scope, generation,
@@ -2549,18 +2549,18 @@ excludes T-006's final Showcase-specific profile, completeness, parity and bench
   retry grants and manual attestations bind the exact transition IDs specified above. Recovery
   verifies the complete referenced transition chain and record hashes; unrelated CAS revisions do
   not invalidate a still-current scoped chain, while missing/corrupt/mismatched chain data fails
-  closed. GENERATION-BIND-1-8 are deterministic.
+  closed. GENERATION-BIND-1–8 are deterministic.
 - AC-OBS-072: `candidate-secret-classifier-v1` is fixed by the trusted control policy checkpoint,
   applies the exact path rules, strict UTF-8/NUL rule, credential patterns and high-entropy token rule
   in this spec to the same opened bytes later hashed, and rejects detected secrets before publishing
   any digest. Unreadable, unsupported, unclassifiable or resource-limited input returns
   `verification-blocked` / `CANDIDATE_PRIVACY_PREFLIGHT_UNAVAILABLE` / exit 5 without identity.
-  Scanner version/policy changes require new bound policy authority. SECRET-CLASS-1-8 are
+  Scanner version/policy changes require new bound policy authority. SECRET-CLASS-1–8 are
   deterministic.
 - AC-OBS-073: Manual observation identity is the JCS hash of signed reviewer/report/scope semantics;
   provider labels, report paths, external session IDs and attestation UUIDs cannot create duplicate
   observations. Re-signing the same report and scope is idempotent; display-only provider/session
-  inputs are not stored in accepted observations or used in metrics. MANUAL-IDENTITY-1-4 are
+  inputs are not stored in accepted observations or used in metrics. MANUAL-IDENTITY-1–4 are
   deterministic.
 
 ## Failure modes and edge cases
@@ -2831,45 +2831,45 @@ independent verification contract must add a VC for every case or explicitly gro
 
 | Attack | Required deterministic result | AC |
 |---|---|---|
-| A - Orphan plan | Plan P is materialized and the process crashes before lifecycle binding; restart treats P as non-authoritative. | M53-AC50, M53-AC52, M53-AC54 |
-| B - Newest file | Unreferenced P2 has a newer timestamp than lifecycle-bound P1; P1 remains authoritative. | M53-AC49, M53-AC54 |
-| C - Replan wins | P is prepared for generation G, then replan advances G before bind; P bind fails stale and cannot resurrect G. | M53-AC55 |
-| D - Admission orphan | Admission A is materialized and the process crashes before lifecycle binding; A grants no launch authority. | M53-AC50, M53-AC52, M53-AC57 |
-| E - Launch before bind | Executor receives a prepared but unbound admission; launch is rejected. | M53-AC57 |
-| F - Admission vs replan | Concurrent admission and replan resolve in one lifecycle serialization order; replan respects a winning committed admission. | M53-AC56 |
-| G - Completion vs replan | Concurrent completion and replan resolve in one lifecycle serialization order; stale completion cannot complete superseded state. | M53-AC58 |
-| H - Crash after bind | Lifecycle binding commits but caller receives no response; restart recognizes and validates the committed transition. | M53-AC53, M53-AC54 |
-| I - Missing reference | Lifecycle references missing, corrupt or hash-mismatched record R; recovery fails closed without substitution or execution. | M53-AC53, M53-AC54 |
-| J - Lock inversion | A storage-held path attempting to acquire lifecycle authority is rejected/prohibited; no lifecycle↔storage deadlock order exists. | M53-AC51, M53-AC64 |
-| K - Store claims authority | Valid verification-v2 record not referenced by lifecycle state has zero lifecycle authority. | M53-AC49, M53-AC62 |
-| L - Identical duplicate | Restart derives same immutable identity/content; it safely reuses the record, but authority still requires lifecycle binding. | M53-AC50, M53-AC54 |
-| M - Admission-to-launch handoff | Admission A and `launch_reservation` R commit in one `.agent-state` CAS; after lock release but before executor ownership, replan sees active R, returns conflict/deferred, releases lock, and cannot supersede A/R. | M53-AC66, M53-AC67, M53-AC76 |
-| N - Third-lock cycle | Lifecycle may acquire storage for publication; executor acquires ownership only after both are released; no ownership-held path waits for lifecycle/storage, and replan never waits for ownership under lifecycle lock. | M53-AC68 |
-| O - Stale recovery | Recovery reads generation G/R1, another lifecycle transition advances generation, and recovery's G-derived CAS fails without partial authority. | M53-AC72 |
-| P - Fake newer reservation | Verification-v2 contains an unreferenced record claiming newer reservation/generation; recovery ignores it and resolves only the exact `.agent-state` reference. | M53-AC49, M53-AC54, M53-AC72 |
+| A — Orphan plan | Plan P is materialized and the process crashes before lifecycle binding; restart treats P as non-authoritative. | M53-AC50, M53-AC52, M53-AC54 |
+| B — Newest file | Unreferenced P2 has a newer timestamp than lifecycle-bound P1; P1 remains authoritative. | M53-AC49, M53-AC54 |
+| C — Replan wins | P is prepared for generation G, then replan advances G before bind; P bind fails stale and cannot resurrect G. | M53-AC55 |
+| D — Admission orphan | Admission A is materialized and the process crashes before lifecycle binding; A grants no launch authority. | M53-AC50, M53-AC52, M53-AC57 |
+| E — Launch before bind | Executor receives a prepared but unbound admission; launch is rejected. | M53-AC57 |
+| F — Admission vs replan | Concurrent admission and replan resolve in one lifecycle serialization order; replan respects a winning committed admission. | M53-AC56 |
+| G — Completion vs replan | Concurrent completion and replan resolve in one lifecycle serialization order; stale completion cannot complete superseded state. | M53-AC58 |
+| H — Crash after bind | Lifecycle binding commits but caller receives no response; restart recognizes and validates the committed transition. | M53-AC53, M53-AC54 |
+| I — Missing reference | Lifecycle references missing, corrupt or hash-mismatched record R; recovery fails closed without substitution or execution. | M53-AC53, M53-AC54 |
+| J — Lock inversion | A storage-held path attempting to acquire lifecycle authority is rejected/prohibited; no lifecycle↔storage deadlock order exists. | M53-AC51, M53-AC64 |
+| K — Store claims authority | Valid verification-v2 record not referenced by lifecycle state has zero lifecycle authority. | M53-AC49, M53-AC62 |
+| L — Identical duplicate | Restart derives same immutable identity/content; it safely reuses the record, but authority still requires lifecycle binding. | M53-AC50, M53-AC54 |
+| M — Admission-to-launch handoff | Admission A and `launch_reservation` R commit in one `.agent-state` CAS; after lock release but before executor ownership, replan sees active R, returns conflict/deferred, releases lock, and cannot supersede A/R. | M53-AC66, M53-AC67, M53-AC76 |
+| N — Third-lock cycle | Lifecycle may acquire storage for publication; executor acquires ownership only after both are released; no ownership-held path waits for lifecycle/storage, and replan never waits for ownership under lifecycle lock. | M53-AC68 |
+| O — Stale recovery | Recovery reads generation G/R1, another lifecycle transition advances generation, and recovery's G-derived CAS fails without partial authority. | M53-AC72 |
+| P — Fake newer reservation | Verification-v2 contains an unreferenced record claiming newer reservation/generation; recovery ignores it and resolves only the exact `.agent-state` reference. | M53-AC49, M53-AC54, M53-AC72 |
 
 **LAUNCH-RESERVATION HANDOFF attacks (Q..AH)**
 
 | Attack | Required deterministic result | AC |
 |---|---|---|
-| Q - Duplicate executors | E1 and E2 target R; runtime ownership prevents simultaneous local execution and one `.agent-state` `launch_reserved → launch_consumed` CAS winner provides the only automatic launch right. The loser cannot launch; zero or one automatic physical launch results. | M53-AC69, M53-AC70, AC-LAUNCH-03 |
-| R - Replan before ownership | R is committed and no executor yet owns it; replan observes active R and returns conflict/deferred, preserving A/R. | M53-AC66, M53-AC67 |
-| S - Executor crash pre-launch | Reservation commits and executor dies before known launch; reservation remains active, replan is blocked, and restart recovery is required. | M53-AC71, M53-AC72 |
-| T - Ambiguous crash around launch | Recovery cannot prove physical execution did not start; it fails closed against duplicate execution and requires trusted recovery/HITL or execution-specific idempotency policy. | M53-AC72 |
-| U - Safe abort | Trusted policy proves launch did not occur; exact reservation can be terminalized only through explicit authoritative `launch_aborted` transition with expected-generation CAS. | M53-AC73 |
-| V - Runtime lock disappears | Process death, timeout, or missing ownership guard does not terminalize or remove reservation and does not permit replan. | M53-AC71 |
-| W - Start acknowledgement race | Durable consumption bars relaunch before launch; optional exact-consumption start acknowledgement races by CAS and cannot create a gap; its absence is not proof of non-launch. | M53-AC67, M53-AC76, AC-LAUNCH-09 |
-| X - Completion terminalizes reservation | Exact valid completion/evidence/obligation coverage commits terminal reservation state; subsequent replan observes terminal state and follows normal policy. | M53-AC58, M53-AC74 |
-| Y - Ownership loss before consumption | E1 validates R and loses ownership before the consumption CAS; E1 cannot launch. E2 may attempt the exact consumption CAS; at most one CAS succeeds. | AC-LAUNCH-03, AC-LAUNCH-06 |
-| Z - Ownership loss after consumption before launch | E1 commits consumption, then ownership disappears before known launch; E2 sees consumed state and enters recovery, never a fresh launch. | AC-LAUNCH-07, AC-LAUNCH-08 |
-| AA - Crash after launch before start acknowledgement | Consumption is already durable; missing `execution_started` does not prove non-launch and recovery cannot relaunch automatically. | AC-LAUNCH-08, AC-LAUNCH-09 |
-| AB - Two consumption CAS attempts | E1/E2 race the same R; exactly one expected-generation CAS can consume it and the loser cannot launch. | AC-LAUNCH-03 |
-| AC - Runtime lock loss | Ownership disappears after consumption; lifecycle consumption remains and grants no replacement launch right. | AC-LAUNCH-06, AC-LAUNCH-07 |
-| AD - Stale reservation observation | E2 cached R before E1 consumed it; after acquiring ownership E2 revalidates current `.agent-state` and is rejected from fresh launch. | AC-LAUNCH-07, AC-LAUNCH-12 |
-| AE - Replan after consumption | Active consumed state blocks/defer replan and cannot be erased by replan; only terminalization or explicit safe recovery permits progress. | AC-LAUNCH-11 |
-| AF - Consumed but provably never launched | Trusted recovery proves no physical launch; only an explicit authoritative recovery/abort CAS can terminalize or authorize a successor action. No implicit reset. | AC-LAUNCH-11 |
-| AG - Consumed and ambiguous | Physical launch cannot be proven absent or present; fail closed, requiring HITL or explicitly authorized execution-specific idempotent recovery. | AC-LAUNCH-10 |
-| AH - Completion from wrong consumption | Evidence names a stale or different consumption identity for otherwise matching R; completion CAS rejects it. | AC-LAUNCH-13 |
+| Q — Duplicate executors | E1 and E2 target R; runtime ownership prevents simultaneous local execution and one `.agent-state` `launch_reserved → launch_consumed` CAS winner provides the only automatic launch right. The loser cannot launch; zero or one automatic physical launch results. | M53-AC69, M53-AC70, AC-LAUNCH-03 |
+| R — Replan before ownership | R is committed and no executor yet owns it; replan observes active R and returns conflict/deferred, preserving A/R. | M53-AC66, M53-AC67 |
+| S — Executor crash pre-launch | Reservation commits and executor dies before known launch; reservation remains active, replan is blocked, and restart recovery is required. | M53-AC71, M53-AC72 |
+| T — Ambiguous crash around launch | Recovery cannot prove physical execution did not start; it fails closed against duplicate execution and requires trusted recovery/HITL or execution-specific idempotency policy. | M53-AC72 |
+| U — Safe abort | Trusted policy proves launch did not occur; exact reservation can be terminalized only through explicit authoritative `launch_aborted` transition with expected-generation CAS. | M53-AC73 |
+| V — Runtime lock disappears | Process death, timeout, or missing ownership guard does not terminalize or remove reservation and does not permit replan. | M53-AC71 |
+| W — Start acknowledgement race | Durable consumption bars relaunch before launch; optional exact-consumption start acknowledgement races by CAS and cannot create a gap; its absence is not proof of non-launch. | M53-AC67, M53-AC76, AC-LAUNCH-09 |
+| X — Completion terminalizes reservation | Exact valid completion/evidence/obligation coverage commits terminal reservation state; subsequent replan observes terminal state and follows normal policy. | M53-AC58, M53-AC74 |
+| Y — Ownership loss before consumption | E1 validates R and loses ownership before the consumption CAS; E1 cannot launch. E2 may attempt the exact consumption CAS; at most one CAS succeeds. | AC-LAUNCH-03, AC-LAUNCH-06 |
+| Z — Ownership loss after consumption before launch | E1 commits consumption, then ownership disappears before known launch; E2 sees consumed state and enters recovery, never a fresh launch. | AC-LAUNCH-07, AC-LAUNCH-08 |
+| AA — Crash after launch before start acknowledgement | Consumption is already durable; missing `execution_started` does not prove non-launch and recovery cannot relaunch automatically. | AC-LAUNCH-08, AC-LAUNCH-09 |
+| AB — Two consumption CAS attempts | E1/E2 race the same R; exactly one expected-generation CAS can consume it and the loser cannot launch. | AC-LAUNCH-03 |
+| AC — Runtime lock loss | Ownership disappears after consumption; lifecycle consumption remains and grants no replacement launch right. | AC-LAUNCH-06, AC-LAUNCH-07 |
+| AD — Stale reservation observation | E2 cached R before E1 consumed it; after acquiring ownership E2 revalidates current `.agent-state` and is rejected from fresh launch. | AC-LAUNCH-07, AC-LAUNCH-12 |
+| AE — Replan after consumption | Active consumed state blocks/defer replan and cannot be erased by replan; only terminalization or explicit safe recovery permits progress. | AC-LAUNCH-11 |
+| AF — Consumed but provably never launched | Trusted recovery proves no physical launch; only an explicit authoritative recovery/abort CAS can terminalize or authorize a successor action. No implicit reset. | AC-LAUNCH-11 |
+| AG — Consumed and ambiguous | Physical launch cannot be proven absent or present; fail closed, requiring HITL or explicitly authorized execution-specific idempotent recovery. | AC-LAUNCH-10 |
+| AH — Completion from wrong consumption | Evidence names a stale or different consumption identity for otherwise matching R; completion CAS rejects it. | AC-LAUNCH-13 |
 
 #### Launch protocol acceptance criteria
 

@@ -1,4 +1,4 @@
-# Harness handoff - S30-06 P-005 fencer research - 2026-10-17
+# Harness handoff — S30-06 P-005 fencer research — 2026-10-17
 
 Update 2026-10-17: the original P-005 interpretations have an errata. The first
 reconnect follow-up is preserved as BLOCKED before AMQP; one corrected bounded
@@ -123,7 +123,7 @@ FileVault decision.
 
 ## Separate host-record evidence
 
-The P-004 45-48 ms observation established replacement visibility only.
+The P-004 45–48 ms observation established replacement visibility only.
 Durability, record integrity, path permissions, encryption and anti-rollback
 each remain separate unproven claims. See
 `docs/specs/S30-AMQP-POISON-001/evidence/owner-encryption-checklist-2026-10-17.md`.

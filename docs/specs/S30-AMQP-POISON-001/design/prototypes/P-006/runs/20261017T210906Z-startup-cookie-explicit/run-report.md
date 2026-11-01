@@ -1,4 +1,4 @@
-# P-006 explicit-cookie startup retry - BLOCKED
+# P-006 explicit-cookie startup retry — BLOCKED
 
 - Status: **BLOCKED**. The pinned broker container started (`docker run` exit 0; `docker inspect` reported `running`), but readiness was not established: `docker exec ... rabbitmq-diagnostics -q ping` timed out after 10 seconds. The disposable container and network were removed.
 - This run did not execute the plugin, authentication-race, request API, synthetic effect, or native-deletion comparison probes. It is not evidence for or against the fencer candidate and does not qualify any target.

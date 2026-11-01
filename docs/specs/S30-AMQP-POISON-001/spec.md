@@ -1,6 +1,6 @@
-# S30-AMQP-POISON-001 - fail-closed AMQP poison quarantine (06a)
+# S30-AMQP-POISON-001 — fail-closed AMQP poison quarantine (06a)
 
-Status: **DRAFT - REF-Q scope decisions accepted; S30-06 parent and architecture design gate remain OPEN**
+Status: **DRAFT — REF-Q scope decisions accepted; S30-06 parent and architecture design gate remain OPEN**
 
 The accepted decisions are recorded below. Their implementation protocol is
 not yet approved. See the [gate protocol candidate](design/gate-protocol-candidate.md)
@@ -346,7 +346,7 @@ conformance must prove that the publisher can obtain the required bounded-error
 clock sample; an environment without that capability must keep quarantine
 publication disabled.
 
-## Pause contract - partially accepted
+## Pause contract — partially accepted
 
 Fail-closed handling needs a precise lifecycle decision before implementation.
 Pausing one consumer, all consumers on the container, or shutting down the
@@ -825,7 +825,7 @@ message-age-based backup/export deletion match the accepted policy.
 
 ## S30-06b durable admission and attempt-accounting discovery
 
-Status: **MINIMUM BUSINESS CONTRACT ACCEPTED - implementation design and
+Status: **MINIMUM BUSINESS CONTRACT ACCEPTED — implementation design and
 qualification remain open; no implementation authorization.** This checkpoint
 records current code/evidence and the accepted minimum so 06b can be planned
 without treating delivery count, operation attempts, and receipt state as

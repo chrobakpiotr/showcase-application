@@ -1,4 +1,4 @@
-# Showcase lifecycle state mismatch - read-only diagnosis
+# Showcase lifecycle state mismatch — read-only diagnosis
 
 Date: 2026-10-26. Repository checkpoint: `5394efc17bedf8cf55f4a938924684685b252dde`.
 The inspection used the active Showcase shim and the exact pinned Harness library 0.20.0 at
@@ -15,9 +15,9 @@ were acquired for the read-only inspection.
 
 | Feature | Canonical state path | Historical main-checkout path | Current per-feature ref |
 | --- | --- | --- | --- |
-| `SDD-001` | `.agent-state/SDD-001-f6b35fe4b93daa844e43.json` - absent | `.agent-state/SDD-001-367b903b22a2b2d09da2.json` - absent | `refs/agent-state/SDD-001` - absent |
-| `AH5-04B-QUAL-001` | `.agent-state/AH5-04B-QUAL-001-78d1b1144c2d9d80a74d.json` - absent | `.agent-state/AH5-04B-QUAL-001-c4b0109a14a66accb4e6.json` - absent | `refs/agent-state/AH5-04B-QUAL-001` - absent |
-| `SDD-OBS-001` | `.agent-state/SDD-OBS-001-3f8ff1257c272596a44e.json` - present | `.agent-state/SDD-OBS-001-c33b198360b406accab4.json` - absent | `refs/agent-state/SDD-OBS-001` - present |
+| `SDD-001` | `.agent-state/SDD-001-f6b35fe4b93daa844e43.json` — absent | `.agent-state/SDD-001-367b903b22a2b2d09da2.json` — absent | `refs/agent-state/SDD-001` — absent |
+| `AH5-04B-QUAL-001` | `.agent-state/AH5-04B-QUAL-001-78d1b1144c2d9d80a74d.json` — absent | `.agent-state/AH5-04B-QUAL-001-c4b0109a14a66accb4e6.json` — absent | `refs/agent-state/AH5-04B-QUAL-001` — absent |
+| `SDD-OBS-001` | `.agent-state/SDD-OBS-001-3f8ff1257c272596a44e.json` — present | `.agent-state/SDD-OBS-001-c33b198360b406accab4.json` — absent | `refs/agent-state/SDD-OBS-001` — present |
 
 These locations are computed through `feature_repo_base`, `git_common_dir`, `runtime_state_dir`,
 `state_path`, and `main_legacy_state_path` in the active consumer binding. No alternate worktree-local

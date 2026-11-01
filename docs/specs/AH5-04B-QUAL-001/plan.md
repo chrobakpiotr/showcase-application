@@ -1,6 +1,6 @@
-# Plan - AH5-04B-QUAL-001
+# Plan — AH5-04B-QUAL-001
 
-1. Implement disposable, target-neutral probes for Q01-Q16 and B1-B10. The probes report observations and never turn a failed or unsupported check into a pass.
+1. Implement disposable, target-neutral probes for Q01–Q16 and B1–B10. The probes report observations and never turn a failed or unsupported check into a pass.
 2. Add a small qualification driver that captures exact job/host/kernel/engine/image identity, creates unique raw evidence per check, and emits the additive Harness v0.5.0 report plus a capability report. B10 uses unqualified candidate targets with a null qualification digest during the report's own qualification run; only later qualified results carry the passing report digest. Keep it separate from `verification_sandbox.py` launch/qualification authority; this feature does not add a backend.
 3. Run the complete suite on the observed Docker Desktop Linux guest. Preserve the full failing report if any check fails; do not stop after the first counterexample.
 4. If Docker Desktop does not pass all checks, execute the full suite in a fresh GitHub-hosted Ubuntu job and bind the result to that job's exact image, kernel, Docker Engine, workload digest and policy digest. Do not carry results across jobs.

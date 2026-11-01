@@ -67,6 +67,13 @@ jobs:
       - name: Test verifier unit preflight ordering
         run: python3 -m unittest tooling/scripts/tests/test_verifier_unit_preflight.py -v
 
+      - name: Verify committed evidence checksums
+        # Files bound by SHA256SUMS lists and JSON evidence manifests must keep their exact bytes; known historical
+        # exceptions are listed with reasons in tooling/quality/evidence-checksum-baseline.json (a ratchet).
+        run: |
+          python3 -m unittest tooling/scripts/tests/test_verify_evidence_checksums.py -v
+          python3 tooling/scripts/verify_evidence_checksums.py
+
       - name: Check controlled time usage
         run: |
           python3 tooling/scripts/check_no_legacy_java_date.py

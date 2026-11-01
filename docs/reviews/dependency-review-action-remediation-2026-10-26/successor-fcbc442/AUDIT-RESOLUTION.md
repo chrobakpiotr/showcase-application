@@ -56,7 +56,7 @@ which is a stricter validation result. Invalid option tests assert both the
 Zod issue path and `Invalid option` message. The migration does not relax
 validation to obtain a passing build.
 
-## Generated bundle license inventory - isolated prototype
+## Generated bundle license inventory — isolated prototype
 
 `npm run package` starts from a clean `dist`, rebuilds the ESM bundle, and
 derives license notices from all recursively discovered JavaScript source maps

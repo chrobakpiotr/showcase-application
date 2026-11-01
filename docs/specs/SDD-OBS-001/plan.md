@@ -119,15 +119,15 @@ No second verification/provenance/authorization subsystem is introduced.
 
 The implementation core is a small package:
 
-- `verification/model.py` - immutable profile/gate/plan/evidence/failure/grant types;
-- `verification/profile.py` - versioned schema loading, mini-glob/applicability and safe probes;
-- `verification/fingerprint.py` - changed surface, input/artifact manifests and deterministic hashes;
-- `verification/planner.py` - required DAG, command occurrences, advisory plan and ready-gate evaluation;
-- `verification/store.py` - canonical control-root resolution, storage-local record lock, immutable
+- `verification/model.py` — immutable profile/gate/plan/evidence/failure/grant types;
+- `verification/profile.py` — versioned schema loading, mini-glob/applicability and safe probes;
+- `verification/fingerprint.py` — changed surface, input/artifact manifests and deterministic hashes;
+- `verification/planner.py` — required DAG, command occurrences, advisory plan and ready-gate evaluation;
+- `verification/store.py` — canonical control-root resolution, storage-local record lock, immutable
   terminal evidence, derived index, failure-fence evidence and verification-grant records; it cannot
   independently bind lifecycle authority;
-- `verification/executor.py` - gate execution lifecycle using the neutral command bridge;
-- `verification/supervisor.py` - trusted child lifecycle/containment ownership and durable started/drained execution journal.
+- `verification/executor.py` — gate execution lifecycle using the neutral command bridge;
+- `verification/supervisor.py` — trusted child lifecycle/containment ownership and durable started/drained execution journal.
 
 `verification_command.py` owns the existing strict verification-command allowlist and the invocation
 of `verification_sandbox.py`. It is a neutral dependency of both `runner.py` and
@@ -402,7 +402,7 @@ drainage.
 #### Worktree mutation guard
 
 Every harness path that checkpoints, replaces, reopens, removes or otherwise mutates an agent/
-verification worktree - including stale-lease recovery - must consult canonical verification ownership
+verification worktree—including stale-lease recovery—must consult canonical verification ownership
 before mutation.
 
 Repository execution ownership reconciliation is performed under `lock/` and released before
@@ -826,8 +826,8 @@ registry used for critical-gate retry grants. The registry entry must explicitly
 names the required canonical reviewer principal, and the registry-derived principal for the signing
 key must equal it. This authenticates the reviewer, not the submitting process: automation may
 present a signed report but cannot sign, select an identity, or change signed fields. The report
-snapshot hash and the full derived scope - repository, feature, role, verdict, completion time, task and
-attempt, accepted plan/family/generation, checkpoint, candidate/surface and sorted obligation IDs - are
+snapshot hash and the full derived scope—repository, feature, role, verdict, completion time, task and
+attempt, accepted plan/family/generation, checkpoint, candidate/surface and sorted obligation IDs—are
 bound in the signed envelope together with registry checkpoint/hash, issuer, principal and key
 fingerprint. The envelope is closed JCS UTF-8 JSON with a detached canonical base64url Ed25519
 signature; duplicate, omitted, unknown, noncanonical or mismatched fields reject as
@@ -963,8 +963,8 @@ meaning. The additional control categories and unchanged/allocated CLI transport
 | `verification-blocked` | Required authority/precondition absent or invalid before execution is owned; stop, surface reason, and launch nothing until valid. | `VERIFICATION_EXECUTION_PLAN_REQUIRED`, `SOURCE_CHECKPOINT_MISSING`, `UNSUPPORTED_GIT_OBJECT_FORMAT`, `MANUAL_EVIDENCE_ATTEMPT_REQUIRED`, `MANUAL_EVIDENCE_CANDIDATE_BINDING_REQUIRED`, `MANUAL_EVIDENCE_REPORT_SNAPSHOT_RACE`, `SECRET_BEARING_CANDIDATE_UNSEALABLE`, `CANDIDATE_PRIVACY_PREFLIGHT_UNAVAILABLE`, `CANDIDATE_SEALING_UNSAFE_OBJECT`, `CANDIDATE_SEALING_SNAPSHOT_RACE`, `CANDIDATE_SEALING_SNAPSHOT_UNAVAILABLE`, `VERIFICATION_SANDBOX_CAPABILITY_REQUIRED`, `UNSUPPORTED_LIFECYCLE_STATE_VERSION`, or exact plan/admission mismatch code. | 5 |
 | `verification-owned` | Exact valid execution is authoritatively active/owned elsewhere; preserve owner/journal, do not compete or steal, follow existing recovery/orchestration policy. | `VERIFICATION_EXECUTION_OWNED`. | 6 |
 
-Codes 0-3 keep their existing spec meanings; exit 3 also transports an explicitly terminalized
-`abandoned` attempt. Codes 4-6 are distinct and reserved for the corresponding control outcomes.
+Codes 0–3 keep their existing spec meanings; exit 3 also transports an explicitly terminalized
+`abandoned` attempt. Codes 4–6 are distinct and reserved for the corresponding control outcomes.
 For the same authoritative snapshot, direct CLI, runner and orchestrator preserve the same
 `machine_category` and `reason_code`; runner/orchestrator structured state does not reinterpret
 these categories as generic verifier failure. Shell exit code is direct-CLI transport only. A real
@@ -990,7 +990,7 @@ attempt as abandoned; it maps to exit 3. Process death or unresolved journal alo
 that terminal category and instead follows the existing ownership/recovery precedence above.
 
 Exit codes and machine categories are exactly those in the spec.
-`test_verify.py`, `test_runner.py`, and orchestrator tests cover D1-D16, including unaccepted but
+`test_verify.py`, `test_runner.py`, and orchestrator tests cover D1–D16, including unaccepted but
 well-formed subordinate plan records, omitted selectors, forbidden caller bases, historical plan
 IDs from another generation, exact active ownership, and ambiguous consumed journals. They assert
 the category/reason/CLI transport mapping and prove that blocked/owned/HITL results never cross the
@@ -1143,7 +1143,7 @@ reverse acquisition is allowed.
 
 The canonical run sequence and lifecycle state machine are specified in `spec.md`. M5.4 implements the
 single-use `launch_consumption` CAS, exact claim identity, non-nested ownership/CAS ordering, continuous
-ownership through process/descendant drainage and outcome capture, and C1-C10 crash recovery exactly
+ownership through process/descendant drainage and outcome capture, and C1–C10 crash recovery exactly
 as specified there. This paragraph supersedes any earlier reservation-only instruction below: a
 reservation revalidation by itself never authorizes physical launch, and consumed execution is never
 automatically resumed/relaunched after ownership loss.
@@ -1202,10 +1202,10 @@ newest records or caller response history.
    exact execution recovery; ambiguous launch fails closed pending HITL or explicitly authorized
    execution-specific idempotent recovery. Every transition CASes observed generation and exact
    reservation/consumption; stale CAS fails.
-7. **Race/recovery tests:** cover lifecycle attacks A-P and launch-reservation attacks Q-AH, source/family
+7. **Race/recovery tests:** cover lifecycle attacks A–P and launch-reservation attacks Q–AH, source/family
    publication, all crash windows, missing/corrupt references, identical/conflicting replay, orphan and
    newest-file attacks, execution-before-admission rejection, no-wait-under-lock behavior,
-   consumption-CAS single winner, all C1-C10 crash boundaries, exact claim identity and revalidation,
+   consumption-CAS single winner, all C1–C10 crash boundaries, exact claim identity and revalidation,
    ownership loss before/after consumption, continuous ownership through descendant drainage,
    ambiguous launch fail-closed recovery and completion from the wrong consumption identity,
    lifecycle/store/ownership lock ordering, duplicate-launch exclusion and reservation terminalization.
@@ -1493,7 +1493,7 @@ family identity, so the identity graph remains acyclic.
 | REQUIRED | `tooling/agent-harness/harness.py` or a lifecycle module it owns | Provide the sole canonical `.agent-state` lifecycle transaction API and lock/CAS boundary. Keep scoped `lifecycle_generation` separate from repository `state_revision`; bind exact record ID/hash references and immutable transition IDs for source/family/plan/admission-plus-reservation/launch-consumption/replan/continuation/manual-coverage/completion/start/abort transitions. Enforce the exact predecessor chain and recovery checks in `spec.md`; never stale an unchanged scoped context solely for an unrelated revision increment. Return the one-shot non-persisted launch capability only to the consumption CAS winner; never reconstruct it on restart. Represent active/consumed/terminal reservation state authoritatively. |
 | REQUIRED | Trusted bridge between lifecycle control and verification store | Implement lifecycle-lock → validate → immutable create-once publication → release store lock → lifecycle reference/CAS publication; define stable stale/conflict/integrity errors and never claim cross-directory atomicity. |
 | REQUIRED | `tooling/agent-harness/verification/profile.py` | Safe logical ID mapping; no-follow directory-relative containment; same-open-object regular-file validation/read/hash; race and mutation rejection. |
-| REQUIRED | `tooling/agent-harness/tests/test_harness.py`, `test_orchestrate.py`, `test_runner.py`, `test_verification_store.py`, `test_verification_executor.py`, `test_verification_profile.py`, `test_verify.py` | Lifecycle/publication/replan/admission-reservation-consumption, source resolver and CAS-winner/loser cases, exact-format Git ID validation, retention-ref create-only/replay and `git gc --prune=now` preservation, missing pin/object blocked recovery, closed-origin qualification, task/profile/manual/coalescing bindings, origin immutability, completion-to-exact-consumption binding, profile containment, identity and consumer regression seams. Include M53-AC64/75 and AC-OBS-066-073, all C1-C10 crash/concurrency tests, lifecycle attacks A-P, launch-reservation attacks Q-AH, origin attacks A-H, direct-CLI/outcome attacks D1-D16, sealed-candidate attacks A1-A8, cross-plan/fence attacks F1-F12, exact-command/input-pattern/zero-match cases, fixed-timeout override and timeout-drain cases, manual report replacement/mutation/secret and manual attestation cases MANUAL-AUTH-1-6 and MANUAL-IDENTITY-1-4, lifecycle transition chain cases GENERATION-BIND-1-8, and secret classifier cases SECRET-CLASS-1-8. Assert category/reason/exit mapping and no launch for blocked/HITL/invalid-grant outcomes. |
+| REQUIRED | `tooling/agent-harness/tests/test_harness.py`, `test_orchestrate.py`, `test_runner.py`, `test_verification_store.py`, `test_verification_executor.py`, `test_verification_profile.py`, `test_verify.py` | Lifecycle/publication/replan/admission-reservation-consumption, source resolver and CAS-winner/loser cases, exact-format Git ID validation, retention-ref create-only/replay and `git gc --prune=now` preservation, missing pin/object blocked recovery, closed-origin qualification, task/profile/manual/coalescing bindings, origin immutability, completion-to-exact-consumption binding, profile containment, identity and consumer regression seams. Include M53-AC64/75 and AC-OBS-066–073, all C1–C10 crash/concurrency tests, lifecycle attacks A-P, launch-reservation attacks Q-AH, origin attacks A-H, direct-CLI/outcome attacks D1-D16, sealed-candidate attacks A1-A8, cross-plan/fence attacks F1-F12, exact-command/input-pattern/zero-match cases, fixed-timeout override and timeout-drain cases, manual report replacement/mutation/secret and manual attestation cases MANUAL-AUTH-1–6 and MANUAL-IDENTITY-1–4, lifecycle transition chain cases GENERATION-BIND-1–8, and secret classifier cases SECRET-CLASS-1–8. Assert category/reason/exit mapping and no launch for blocked/HITL/invalid-grant outcomes. |
 | REQUIRED | `tooling/agent-harness/verification/executor.py` | Enforce each final-plan obligation/origin/coalescing; resolve committed admission/reservation, execute the non-nested consumption CAS protocol, reacquire and validate the single runtime-ownership handle, then transfer that same handle and the non-persisted winning capability only to `supervisor.py`; reject any fresh launch from consumed state; bind consumption identity into evidence/completion; reject task-only upgrades, added obligations, post-launch relabeling and unknown origins. |
 | REQUIRED | `tooling/agent-harness/verification/supervisor.py` | Own the physical process-creation boundary and descendant drainage. Require the exact ephemeral capability from the winning `launch_consumption` CAS caller, the transferred sole runtime-ownership handle, and current exact consumption/plan/admission bindings before calling the backend; reject absent, stale, reconstructed or mismatched capabilities; never mint lifecycle authority or launch directly from a stored record. Hold that handle through start, drainage and outcome capture, then return the receipt and handle to executor for bound evidence publication/release; no competing second runtime owner is created. |
 | REQUIRED | `tooling/agent-harness/verify.py` | Gate builder start on pre-builder lifecycle authority; allow authoritative integration `run` only by resolving an exact `--plan-id` and proving its current `.agent-state` lifecycle acceptance and all final-plan/surface bindings; keep `plan --base` advisory; reject caller authority overrides and timeout overrides; preserve the fixed 900-second authoritative timeout; reject historical pre-Execution-Plan attempts from future family-required execution; return the stable machine category/reason/CLI exit mapping. |
@@ -1535,18 +1535,18 @@ Lifecycle serialization tests must implement every case as a deterministic seam 
 
 | Attack | Expected result |
 |---|---|
-| A - Orphan plan | Crash after plan record creation/before lifecycle bind leaves the plan non-authoritative after restart. |
-| B - Newest file | A newer unreferenced plan cannot displace the lifecycle-referenced plan. |
-| C - Replan wins | Generation advance makes stale plan binding fail; prepared plan cannot resurrect old generation. |
-| D - Admission orphan | Admission record without lifecycle binding authorizes no launch. |
-| E - Launch before bind | Executor rejects a prepared/unbound admission before process creation. |
-| F - Admission vs replan | Same lifecycle lock orders both; winning admission and its exact reservation commit together, and active reservation yields deterministic replan conflict/defer before or after ownership. |
-| G - Completion vs replan | Same lifecycle lock orders both; stale completion cannot complete superseded state. |
-| H - Crash after bind | Restart resolves exact committed references and does not create a competing transition. |
-| I - Missing reference | Missing/corrupt/hash-mismatched referenced record fails closed without substitute or completion. |
-| J - Lock inversion | Store-held code cannot acquire lifecycle lock; no reverse order or lock upgrade exists. |
-| K - Store claims authority | Valid unreferenced record has no lifecycle authority. |
-| L - Identical duplicate | Same immutable ID/content may be safely reused, but still needs lifecycle binding. |
+| A — Orphan plan | Crash after plan record creation/before lifecycle bind leaves the plan non-authoritative after restart. |
+| B — Newest file | A newer unreferenced plan cannot displace the lifecycle-referenced plan. |
+| C — Replan wins | Generation advance makes stale plan binding fail; prepared plan cannot resurrect old generation. |
+| D — Admission orphan | Admission record without lifecycle binding authorizes no launch. |
+| E — Launch before bind | Executor rejects a prepared/unbound admission before process creation. |
+| F — Admission vs replan | Same lifecycle lock orders both; winning admission and its exact reservation commit together, and active reservation yields deterministic replan conflict/defer before or after ownership. |
+| G — Completion vs replan | Same lifecycle lock orders both; stale completion cannot complete superseded state. |
+| H — Crash after bind | Restart resolves exact committed references and does not create a competing transition. |
+| I — Missing reference | Missing/corrupt/hash-mismatched referenced record fails closed without substitute or completion. |
+| J — Lock inversion | Store-held code cannot acquire lifecycle lock; no reverse order or lock upgrade exists. |
+| K — Store claims authority | Valid unreferenced record has no lifecycle authority. |
+| L — Identical duplicate | Same immutable ID/content may be safely reused, but still needs lifecycle binding. |
 
 ## Verification strategy
 
@@ -1589,7 +1589,7 @@ Required deterministic adversarial seams:
     supported v2 sandbox backend; required policy reads remain allowed and unsupported protection is environment-blocked;
 26. deterministic EXPECTED-to-PLANNED completeness over the exact post-builder surface catches an omitted applicable profile gate, rejects unknown/unmappable/duplicate/ambiguous gate mappings before launch, and preserves distinct task/criterion obligations for equal commands;
 27. same-identity process crash/recovery accepts only immutable evidence with every exact binding unchanged and never treats it as cross-plan reuse;
-28. P1-P12 policy/evidence traces in the spec produce their prescribed reject, same-identity recovery, fail-closed or historical-only outcomes;
+28. P1–P12 policy/evidence traces in the spec produce their prescribed reject, same-identity recovery, fail-closed or historical-only outcomes;
 26. process-lifetime lock remains held until child descendants exit;
 27. task-level human grant cannot authorize a verification failure;
 28. failure-specific grant is one-shot, crash-after-consume burns it and index rebuild cannot restore it;
@@ -1615,31 +1615,31 @@ Required deterministic adversarial seams:
 47. create-once identical replay is idempotent and different-content collision fails closed;
 48. malformed/future/manual-completion-before-known-builder timestamps reject registration; valid
     timestamps with missing legacy lineage may be accepted but produce UNKNOWN timing;
-49. HITL-H1-H10: unsigned/grant-shaped/unknown/revoked-key grants reject; allowlisted enabled Ed25519
+49. HITL-H1–H10: unsigned/grant-shaped/unknown/revoked-key grants reject; allowlisted enabled Ed25519
     signatures over exact canonical envelopes may qualify only after exact scope and lifecycle CAS;
     unavailable signer remains needs-human/4; automation can request/import/verify but never sign;
-50. MANUAL-M1-M6: task/attempt resolve to trusted history, mismatched parent rejects, attempt-only
+50. MANUAL-M1–M6: task/attempt resolve to trusted history, mismatched parent rejects, attempt-only
     derives task from history, attempt-scoped checkpoint belongs to that exact attempt, no implicit
     latest attempt, and missing exact association is blocked/5 with the specified reason;
-51. MANUAL-AUTH-1-6: unsigned, mismatched-principal, unauthorized-action, stale-registry or
+51. MANUAL-AUTH-1–6: unsigned, mismatched-principal, unauthorized-action, stale-registry or
     report-hash-mismatched manual attestation rejects; the exact profile-named enabled reviewer
     signature may establish provenance but `.agent-state` alone accepts coverage; dirty post-builder
     manual-only applicability blocks before final-plan publication; valid but unprovable legacy
     timing remains UNKNOWN;
-52. SECRET-S1-S6: privacy preflight precedes durable candidate hashing; detected secret candidate is
+52. SECRET-S1–S6: privacy preflight precedes durable candidate hashing; detected secret candidate is
     blocked/5 with no secret-derived persistent identity, ignore rules cannot exclude it, trusted
     runtime secret state stays outside candidate, and safe candidate after removal seals normally;
-53. MANUAL-M7-M10: coverage requires an exact accepted `--plan-id` and a trusted checkpoint-to-plan
+53. MANUAL-M7–M10: coverage requires an exact accepted `--plan-id` and a trusted checkpoint-to-plan
     candidate/surface binding; missing/stale plan or failed/unprovable content/surface match remains
     telemetry-only, while attempted coverage is blocked/5 with no lifecycle coverage mutation.
-54. GENERATION-BIND-1-8: every transition records exact prior/result state revisions, scoped context
+54. GENERATION-BIND-1–8: every transition records exact prior/result state revisions, scoped context
     generation, predecessor IDs and bound record hashes; unrelated CAS does not stale the context;
     replan does; terminal evidence binds its preallocated terminalization transition; restart checks
     only the exact `.agent-state` chain and fails closed on missing/corrupt links.
-55. SECRET-CLASS-1-8: path rules, UTF-8/NUL validation, each credential-pattern, entropy threshold,
+55. SECRET-CLASS-1–8: path rules, UTF-8/NUL validation, each credential-pattern, entropy threshold,
     scanner version/policy-checkpoint drift and scan/resource failure have the exact specified blocked
   or secret-bearing outcomes with no durable digest.
-59. MANUAL-IDENTITY-1-4: identical signed report/scope with altered provider/session labels or a
+59. MANUAL-IDENTITY-1–4: identical signed report/scope with altered provider/session labels or a
     different envelope UUID produces one immutable observation and one metric count; changed signed
     scope produces a distinct observation only after independent scope validation.
 56. CANDIDATE-SEAL-1: FIFO, device, socket, symlink, hard-link, mount-boundary, path/object-swap and

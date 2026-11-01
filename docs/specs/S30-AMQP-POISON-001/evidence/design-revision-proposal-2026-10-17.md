@@ -11,7 +11,7 @@ stays OPEN, and consumers remain disabled.
 
 ## Proposed changes to accepted artifacts
 
-### 1. `spec.md` - REF-CORRECTNESS exact target and eligibility
+### 1. `spec.md` — REF-CORRECTNESS exact target and eligibility
 
 In **Qualification targets and boundaries**, retain the existing profile
 limits and append this target-specific inventory/status paragraph:
@@ -23,7 +23,7 @@ the exact host, guest kernel, engine, Compose version, allocation, image
 digests, storage/encryption observation, and source SHA. REF-PERFORMANCE stays
 the separate 20-vCPU/40-GiB encrypted Linux profile.
 
-### 2. `spec.md` - add the integrated stale-handler scenario
+### 2. `spec.md` — add the integrated stale-handler scenario
 
 Under **Reference disaster-recovery contract**, append a test seam after the
 supported restore-path table:
@@ -41,7 +41,7 @@ validation and close, the TOCTOU gap remains open; a second read is not a fix.
 This amendment does not claim coverage of direct/provider restore, full-host
 rollback, or wrapper bypass; those remain outside REF-Q as already accepted.
 
-### 3. `spec.md` - qualification evidence gate
+### 3. `spec.md` — qualification evidence gate
 
 Under **AC-06A-REF-CORRECTNESS**, add the eligibility clause:
 

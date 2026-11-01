@@ -1,4 +1,4 @@
-# P-005 reconnect follow-up - 2026-10-17T20:29Z
+# P-005 reconnect follow-up — 2026-10-17T20:29Z
 
 Status: `PASS_FOR_NARROW_OBSERVATION_ONLY`. This is one synthetic, single-node
 diagnostic run, not fencer qualification or S30-06 qualification. The exact

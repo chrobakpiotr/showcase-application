@@ -1,0 +1,439 @@
+{
+  "description": "Known non-verifying evidence checksum bindings as of 2026-11-01 (the state before the repository-wide dash replacement ea26196). Checked by tooling/scripts/verify_evidence_checksums.py; entries may only be removed, never added to excuse a new break.",
+  "exceptions": [
+    {
+      "record": "docs/reviews/dependency-review-action-remediation-2026-10-26/OWNER-PACK-SHA256SUMS",
+      "location": "line 1",
+      "path": "OWNER-DECISION.md",
+      "status": "mismatch",
+      "reason": "Superseded owner pack: OWNER-DECISION.md was revised after this pack; OWNER-PACK-SHA256SUMS-2026-10-29 binds the current file."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[0].evidence[0]",
+      "path": "Q01/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[1].evidence[0]",
+      "path": "Q02/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[2].evidence[0]",
+      "path": "Q03/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[3].evidence[0]",
+      "path": "Q04/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[4].evidence[0]",
+      "path": "Q05/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[5].evidence[0]",
+      "path": "Q06/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[6].evidence[0]",
+      "path": "Q07/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[7].evidence[0]",
+      "path": "Q08/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[8].evidence[0]",
+      "path": "Q09/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[9].evidence[0]",
+      "path": "Q10/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[10].evidence[0]",
+      "path": "Q11/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[11].evidence[0]",
+      "path": "Q12/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[12].evidence[0]",
+      "path": "Q13/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[13].evidence[0]",
+      "path": "Q14/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[14].evidence[0]",
+      "path": "Q15/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[15].evidence[0]",
+      "path": "Q16/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[16].evidence[0]",
+      "path": "B1/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[17].evidence[0]",
+      "path": "B2/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[18].evidence[0]",
+      "path": "B3/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[19].evidence[0]",
+      "path": "B4/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[20].evidence[0]",
+      "path": "B5/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[21].evidence[0]",
+      "path": "B6/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[22].evidence[0]",
+      "path": "B7/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[23].evidence[0]",
+      "path": "B8/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[24].evidence[0]",
+      "path": "B9/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop-rerun-2026-10-07-run2/report.json",
+      "location": "$.checks[25].evidence[0]",
+      "path": "B10/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[0].evidence[0]",
+      "path": "Q01/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[1].evidence[0]",
+      "path": "Q02/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[2].evidence[0]",
+      "path": "Q03/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[3].evidence[0]",
+      "path": "Q04/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[4].evidence[0]",
+      "path": "Q05/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[5].evidence[0]",
+      "path": "Q06/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[6].evidence[0]",
+      "path": "Q07/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[7].evidence[0]",
+      "path": "Q08/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[8].evidence[0]",
+      "path": "Q09/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[9].evidence[0]",
+      "path": "Q10/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[10].evidence[0]",
+      "path": "Q11/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[11].evidence[0]",
+      "path": "Q12/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[12].evidence[0]",
+      "path": "Q13/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[13].evidence[0]",
+      "path": "Q14/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[14].evidence[0]",
+      "path": "Q15/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[15].evidence[0]",
+      "path": "Q16/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[16].evidence[0]",
+      "path": "B1/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[17].evidence[0]",
+      "path": "B2/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[18].evidence[0]",
+      "path": "B3/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[19].evidence[0]",
+      "path": "B4/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[20].evidence[0]",
+      "path": "B5/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[21].evidence[0]",
+      "path": "B6/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[22].evidence[0]",
+      "path": "B7/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[23].evidence[0]",
+      "path": "B8/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[24].evidence[0]",
+      "path": "B9/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/AH5-04B-QUAL-001/evidence/docker-desktop/report.json",
+      "location": "$.checks[25].evidence[0]",
+      "path": "B10/probe.json",
+      "status": "missing",
+      "reason": "Qualification report entries relative to the Docker Desktop evidence root, which is not committed."
+    },
+    {
+      "record": "docs/specs/SDD-OBS-001/evidence/handbook/verification/t008-verification.json",
+      "location": "$.content_consistency.root README",
+      "path": "README.md",
+      "status": "mismatch",
+      "reason": "Historical T-008 content check of README.md at that time; README.md was revised later."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[0]",
+      "path": "docs/reviews/external-handbook-delta-2026-10-06.md",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[2]",
+      "path": "docs/reviews/showcase-master-review-progress-2026-10-05.md",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[3]",
+      "path": "docs/specs/S30-AMQP-POISON-001/design.json",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[6]",
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/README.md",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[10]",
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/run-reconnect-followup.py",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[11]",
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/runs/2026-10-18-errata.md",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[12]",
+      "path": "docs/specs/S30-AMQP-POISON-001/design/prototypes/P-005/test_reconnect_runner.py",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "tooling/performance/evidence/S05-05b-2026-10-17/source-manifest.json",
+      "location": "$.source_files[13]",
+      "path": "docs/specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md",
+      "status": "mismatch",
+      "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    }
+  ]
+}

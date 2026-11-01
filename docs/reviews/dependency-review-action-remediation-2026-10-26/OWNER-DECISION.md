@@ -1,4 +1,4 @@
-# Dependency Review Action - decision package status
+# Dependency Review Action — decision package status
 
 ## Current state
 

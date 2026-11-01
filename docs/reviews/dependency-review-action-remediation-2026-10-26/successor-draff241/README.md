@@ -17,7 +17,7 @@ while DRA-F1 remains unresolved.
 
 ## Findings
 
-- **DRA-F1 - open, blocks publication.** The clean ESM rebuild's source map
+- **DRA-F1 — open, blocks publication.** The clean ESM rebuild's source map
   identifies 129 bundled package identities across 131 installation paths.
   The generated license inventory has full available text for 128 identities.
   `buffers@0.1.1`, bundled through `unzip-stream` → `binary`, has no declared
@@ -27,20 +27,20 @@ while DRA-F1 remains unresolved.
   set equality is the completeness check. Resolve the license provenance or
   propose a behaviorally verified dependency replacement before packaging.
   The candidate must not be published with the current incomplete notices.
-- **DRA-F2 - workflow patch regenerated for `e5a71f4`.** The patch pins only
+- **DRA-F2 — workflow patch regenerated for `e5a71f4`.** The patch pins only
   this full SHA and retains push `before → sha`, zero/malformed-base refusal,
   the high threshold, warning retry/fail-closed inputs, and aggregate gate.
   All 16 focused tests pass. A real GitHub run is not represented here.
-- **DRA-F3/F4 - documented.** `AUDIT-RESOLUTION.md` explains the SDK/ESM
+- **DRA-F3/F4 — documented.** `AUDIT-RESOLUTION.md` explains the SDK/ESM
   upgrade path and the undici 5 regression after removing the `undici` override.
   It states that the inherited `minimatch >=9.0.7` override may force an
   incompatible major and that only the exact lockfile/build/tested scenarios
   were checked.
-- **DRA-F5 - addressed.** The two invalid-option tests now assert both the
+- **DRA-F5 — addressed.** The two invalid-option tests now assert both the
   exact Zod issue path and `Invalid option`. The previously reviewed 96-case
   schema comparison was not repeated because schemas and dependencies did
   not change. Zod 4's stricter rejection of timeout `Infinity` is documented.
-- **DRA-F6 - addressed with limits recorded.** A clean build's
+- **DRA-F6 — addressed with limits recorded.** A clean build's
   `dist/index.js` references `sourcemap-register.cjs`, not
   `sourcemap-register.js`; the stale `.js` file is removed by clean packaging.
   `skipLibCheck` was removed after a successful `tsc` run with library checks

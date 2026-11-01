@@ -1,4 +1,4 @@
-# SDD-OBS-001 integration and human-ready handoff - recovery epoch
+# SDD-OBS-001 integration and human-ready handoff — recovery epoch
 
 **Integration result: PASS for the locally evaluated candidate.** T-900 is completed in the recovered lifecycle epoch and its fresh independent report plus 144-criterion crosswalk pass. This is a local review handoff; it does not claim a canonical Design Gate pass, target qualification, production readiness, push, or deployment.
 
