@@ -7,7 +7,12 @@
 # (HarnessTest) into chunks of CHUNK tests. Each process gets the tests directory and the harness directory on
 # PYTHONPATH explicitly (single-process `discover` only gets them implicitly through earlier modules).
 #
-# usage: tooling/scripts/run-harness-tests-parallel.sh [<out dir>]   (JOBS=<n>, default 4; CHUNK=<n>, default 20)
+# Units whose tests hold wall time to an accepted target (EXCLUSIVE, default test_verification_benchmark: median <= 10 s
+# on Linux CI) run alone after the pool has drained, as they did in the single-process run; sharing the CPU with other
+# units made that benchmark measure 15.8 s once (Harness AH5-15 rehearsal, unmodified Showcase on the released side).
+#
+# usage: tooling/scripts/run-harness-tests-parallel.sh [<out dir>]   (JOBS=<n>, default 4; CHUNK=<n>, default 20;
+#        EXCLUSIVE="<unit> ...", default test_verification_benchmark)
 # Exit status: 0 only when every unit exited 0 (status 5, "no tests ran", counts as a failure) and the summed test
 # count equals the discovered count. Logs of every unit are kept in <out dir>/logs.
 set -euo pipefail
@@ -56,7 +61,14 @@ run_unit() {  # $1 unit (one or more unittest names), $2 out dir
   printf '%s\t%s\t%s\n' "$status" "$log" "$1"
 }
 export -f run_unit
-xargs -P "${JOBS:-4}" -d '\n' -I{} bash -c 'run_unit "$1" "$2"' _ {} "$out" < "$out/units.txt" > "$out/exit-codes.tsv"
+printf '%s\n' ${EXCLUSIVE-test_verification_benchmark} > "$out/exclusive-names.txt"
+grep -vxF -f "$out/exclusive-names.txt" "$out/units.txt" > "$out/pool.txt" || true
+grep -xF -f "$out/exclusive-names.txt" "$out/units.txt" > "$out/exclusive.txt" || true
+echo "pool units: $(grep -c . "$out/pool.txt" || true), run alone afterwards: $(tr '\n' ' ' < "$out/exclusive.txt")"
+xargs -P "${JOBS:-4}" -d '\n' -I{} bash -c 'run_unit "$1" "$2"' _ {} "$out" < "$out/pool.txt" > "$out/exit-codes.tsv"
+while IFS= read -r unit; do  # in a child shell, as under xargs: no errexit, so a failing unit is recorded, not fatal
+  bash -c 'run_unit "$1" "$2"' _ "$unit" "$out" >> "$out/exit-codes.tsv"
+done < "$out/exclusive.txt"
 
 failed=$(awk -F'\t' '$1 != 0' "$out/exit-codes.tsv")
 ran=$(cat "$out"/logs/*.log | awk '/^Ran [0-9]+ test/ { n += $2 } END { print n + 0 }')

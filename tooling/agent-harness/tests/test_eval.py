@@ -24,6 +24,9 @@ class EvalTest(unittest.TestCase):
         self.assertIn('[ "$ran" = "$expected" ] ||',runner)
         self.assertIn("awk -F'\\t' '$1 != 0'",runner)
         self.assertIn('export PYTHONDONTWRITEBYTECODE=1',runner)
+        # The accepted planning benchmark times itself against a CI target, so it runs alone after the parallel pool.
+        self.assertIn('printf \'%s\\n\' ${EXCLUSIVE-test_verification_benchmark}',runner)
+        self.assertIn('done < "$out/exclusive.txt"',runner)
         harness_job=workflow.split('  harness-tests:',1)[1].split('\n  examples-validation:',1)[0]
         behavioral_job=workflow.split('  behavioral-evaluations:',1)[1].split('\n  agentic-sdd-gate:',1)[0]
         trusted_python='python:3.13.16-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f'
