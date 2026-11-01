@@ -127,6 +127,14 @@ Prefer measured simplification/improvement using `python3 tooling/agent-harness/
   historical exceptions and their reasons in `tooling/quality/evidence-checksum-baseline.json`. Digests written in prose
   are not checked by it. Third-party tool output kept as evidence is also left as recorded.
 
+## Proprietary skill: Banjo Sniffs
+
+Banjo Sniffs is the owner's paid skill, sold on Agensi, and this repository is public. Never commit the skill itself:
+its `SKILL.md`, references or templates, or text quoted from them, including an installed copy under `.claude/skills/`
+(ignored in `.gitignore`). Reports and handovers written with it are outputs and may be committed when they do not
+quote its instructions. Ideas for improving the skill go to the owner or to `docs/specs/banjo-sniffs/feedback.md` in
+the private agent-harness repository, never into this repository.
+
 ## Git mutation policy
 
 - The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.

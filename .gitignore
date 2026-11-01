@@ -26,3 +26,6 @@ infra/terraform/.terraform.lock.hcl
 docs/specs/*/packets/
 __pycache__/
 *.py[cod]
+
+# Banjo Sniffs is a paid skill: never commit an installed copy
+.claude/skills/banjo-sniffs/
