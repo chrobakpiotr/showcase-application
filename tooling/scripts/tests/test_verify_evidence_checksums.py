@@ -86,6 +86,40 @@ class EvidenceChecksumTest(unittest.TestCase):
         escaped = [b for b in guard.collect(self.root) if b.record == "evidence/escape.json"]
         self.assertEqual(["missing"], [b.status for b in escaped])
 
+    def test_named_and_single_file_checksum_lists_are_read(self):
+        self.write("evidence/archive.tgz", b"tar bytes")
+        self.write("evidence/archive.sha256", f"{sha(b'tar bytes')}  archive.tgz\n".encode())
+        self.write("evidence/overlay-contents.SHA256SUMS", f"{sha(b'other')}  archive.tgz\n".encode())
+        status = {(b.record, b.status) for b in guard.collect(self.root)}
+        self.assertIn(("evidence/archive.sha256", "ok"), status)
+        self.assertIn(("evidence/overlay-contents.SHA256SUMS", "mismatch"), status)
+
+    def test_a_bare_name_in_a_checksum_list_is_not_looked_up_at_the_repository_root(self):
+        self.write("README.md", b"root readme\n")
+        self.write("evidence/SHA256SUMS", f"{sha(b'root readme\n')}  README.md\n".encode())
+        [binding] = [b for b in guard.collect(self.root) if b.record == "evidence/SHA256SUMS"]
+        self.assertEqual("missing", binding.status)  # sha256sum -c would run in evidence/, not at the root
+
+    def test_record_bases_redirect_entries_to_the_tree_they_describe(self):
+        self.write("tools/README.md", b"tool readme\n")
+        self.write("evidence/README.md", b"evidence readme\n")
+        self.write("evidence/overlay.SHA256SUMS", (f"{sha(b'tool readme\n')}  README.md\n"
+                                                    f"{sha(b'spec\n')}  spec.md\n").encode())
+        bases = {"evidence/overlay.SHA256SUMS": ["tools", "docs"]}
+        overlay = {b.path: b.status for b in guard.collect(self.root, bases) if b.record == "evidence/overlay.SHA256SUMS"}
+        self.assertEqual({"README.md": "ok", "spec.md": "ok"}, overlay)
+        default = {b.path: b.status for b in guard.collect(self.root) if b.record == "evidence/overlay.SHA256SUMS"}
+        self.assertEqual({"README.md": "mismatch", "spec.md": "missing"}, default)  # the same-named evidence file
+
+    def test_record_bases_need_a_reason_and_must_name_tracked_records(self):
+        path = self.root / "baseline.json"
+        path.write_text(json.dumps({"exceptions": [], "record_bases": {"evidence/SHA256SUMS": {"bases": ["x"]}}}))
+        with self.assertRaisesRegex(ValueError, "without bases or a reason"):
+            guard.load_baseline(path)
+        path.write_text(json.dumps({"exceptions": [], "record_bases": {
+            "gone/SHA256SUMS": {"bases": ["x"], "reason": "overlay"}}}))
+        self.assertEqual(1, guard.main(["--root", str(self.root), "--baseline", str(path)]))
+
     def test_the_repository_matches_its_baseline(self):
         self.assertEqual(0, guard.main(["--root", str(REPOSITORY)]))
 

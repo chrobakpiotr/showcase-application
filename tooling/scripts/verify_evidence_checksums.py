@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """Fail when a tracked file no longer matches a SHA-256 that committed evidence records for it.
 
-Checked bindings (both resolved relative to the recording file's directory first, then to the repository root, and
-only against files tracked by Git):
-- every `<hash>  <path>` line of a tracked `SHA256SUMS`, `SHA256SUMS-<date>` or `OWNER-PACK-SHA256SUMS[-<date>]`;
+Checked bindings, only against files tracked by Git:
+- every `<hash>  <path>` line of a tracked checksum list: `SHA256SUMS`, `<name>.SHA256SUMS`, `SHA256SUMS-<date>`,
+  `OWNER-PACK-SHA256SUMS[-<date>]` or `<name>.sha256`. A path is resolved relative to the list's directory (where
+  `sha256sum -c` runs); a path with a directory part may also be repository-relative;
 - every JSON object with a `path` string and a `sha256` hex digest (optionally `sha256:`-prefixed) in a tracked
-  `.json` file (closure and evidence manifests, source manifests, verification records).
+  `.json` file (closure and evidence manifests, source manifests, verification records), resolved relative to the
+  record's directory, then to the repository root.
+A record whose entries name files of another tree (for example the contents of an overlay archive) declares the
+directories to search, in order, under `record_bases` in the baseline file. Digests written in prose are not checked.
 
 Evidence is append-only (constitution rule 9). A repository-wide edit (for example a typographic clean-up) must leave
 the bytes of every file such a record binds unchanged; re-hashing the record instead would rewrite the evidence.
 
-Known historical exceptions live in `tooling/quality/evidence-checksum-baseline.json`, each with a reason. The check
-is a ratchet: a binding that is not OK and not in the baseline fails, and a baseline entry that is OK again (or no
-longer exists) fails too, so the list only shrinks deliberately.
+Known historical exceptions live in the baseline file (`BASELINE`), each with a reason. The check is a ratchet: a
+binding that is not OK and not in the baseline fails, and a baseline entry that is OK again (or no longer exists)
+fails too, so the list only shrinks deliberately.
 """
 
 from __future__ import annotations
@@ -24,18 +28,19 @@ import pathlib
 import re
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import NamedTuple
 
-SUMS_NAME = re.compile(r"(?:^|/)(?:OWNER-PACK-)?SHA256SUMS(?:-[0-9-]+)?$")
+SUMS_NAME = re.compile(r"(?:^|/)(?:[^/]*\.)?(?:OWNER-PACK-)?SHA256SUMS(?:-[0-9-]+)?$|\.sha256$")
 SUMS_LINE = re.compile(r"([0-9a-f]{64}) [ *](.+)")
 DIGEST = re.compile(r"(?:sha256:)?([0-9a-f]{64})")
-BASELINE = pathlib.Path("tooling/quality/evidence-checksum-baseline.json")
+BASELINE = pathlib.PurePosixPath("tooling/quality/evidence-checksum-baseline.json")
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
 class Binding(NamedTuple):
     record: str  # the tracked file that records the digest
-    location: str  # `line N` in a sums file, a JSON path in a JSON record
+    location: str  # `line N` in a checksum list, a JSON path in a JSON record
     path: str  # the path as written in the record
     status: str  # ok | mismatch | missing
 
@@ -43,16 +48,20 @@ class Binding(NamedTuple):
         return self.record, self.location, self.path
 
 
+class Baseline(NamedTuple):
+    exceptions: dict[tuple[str, str, str], dict]
+    record_bases: dict[str, list[str]]
+
+
 def tracked_files(root: pathlib.Path) -> set[str]:
     out = subprocess.run(["git", "-C", str(root), "ls-files", "-z"], check=True, capture_output=True).stdout
     return {name for name in out.decode().split("\0") if name}
 
 
-def _resolve(root: pathlib.Path, tracked: set[str], record: str, ref: str) -> str | None:
-    base = pathlib.PurePosixPath(record).parent
-    for candidate in (base / ref, pathlib.PurePosixPath(ref)):
+def _resolve(root: pathlib.Path, tracked: set[str], ref: str, bases: Sequence[str]) -> str | None:
+    for base in bases:
         try:
-            relative = (root / candidate).resolve().relative_to(root).as_posix()
+            relative = (root / base / ref).resolve().relative_to(root).as_posix()
         except ValueError:  # outside the repository
             continue
         if relative in tracked:
@@ -78,47 +87,55 @@ def _json_bindings(value: object, where: str) -> Iterator[tuple[str, str, str]]:
             yield from _json_bindings(child, f"{where}[{index}]")
 
 
-def collect(root: pathlib.Path) -> list[Binding]:
+def collect(root: pathlib.Path, record_bases: dict[str, list[str]] | None = None) -> list[Binding]:
     root = root.resolve()
     tracked = tracked_files(root)
+    record_bases = record_bases or {}
     bindings: list[Binding] = []
     for record in sorted(tracked):
+        here = pathlib.PurePosixPath(record).parent.as_posix()
         if SUMS_NAME.search(record):
             text = (root / record).read_text(encoding="utf-8")
             for number, line in enumerate(text.splitlines(), 1):
                 if match := SUMS_LINE.fullmatch(line.strip()):
-                    target = _resolve(root, tracked, record, match.group(2))
-                    bindings.append(Binding(record, f"line {number}", match.group(2),
-                                            _status(root, target, match.group(1))))
+                    ref = match.group(2)
+                    bases = record_bases.get(record) or ([here, "."] if "/" in ref else [here])
+                    bindings.append(Binding(record, f"line {number}", ref,
+                                            _status(root, _resolve(root, tracked, ref, bases), match.group(1))))
         elif record.endswith(".json"):
             try:
                 document = json.loads((root / record).read_text(encoding="utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 continue
-            for where, path, digest in _json_bindings(document, "$"):
-                target = _resolve(root, tracked, record, path)
+            for where, ref, digest in _json_bindings(document, "$"):
+                target = _resolve(root, tracked, ref, record_bases.get(record) or [here, "."])
                 if target == record:  # a record describing its own (pre-write) content
                     continue
-                bindings.append(Binding(record, where, path, _status(root, target, digest)))
+                bindings.append(Binding(record, where, ref, _status(root, target, digest)))
     return bindings
 
 
-def load_baseline(path: pathlib.Path) -> dict[tuple[str, str, str], dict]:
-    entries = json.loads(path.read_text(encoding="utf-8"))["exceptions"]
-    baseline = {}
-    for entry in entries:
+def load_baseline(path: pathlib.Path) -> Baseline:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    exceptions = {}
+    for entry in document["exceptions"]:
         if not entry.get("reason"):
             raise ValueError(f"baseline entry without a reason: {entry}")
-        baseline[(entry["record"], entry["location"], entry["path"])] = entry
-    return baseline
+        exceptions[(entry["record"], entry["location"], entry["path"])] = entry
+    record_bases = {}
+    for record, entry in document.get("record_bases", {}).items():
+        if not entry.get("reason") or not entry.get("bases"):
+            raise ValueError(f"record_bases entry without bases or a reason: {record}")
+        record_bases[record] = list(entry["bases"])
+    return Baseline(exceptions, record_bases)
 
 
-def evaluate(bindings: list[Binding], baseline: dict[tuple[str, str, str], dict]) -> list[str]:
+def evaluate(bindings: list[Binding], exceptions: dict[tuple[str, str, str], dict]) -> list[str]:
     errors = []
     seen = {}
     for binding in bindings:
         seen[binding.key()] = binding
-        known = baseline.get(binding.key())
+        known = exceptions.get(binding.key())
         if binding.status == "ok":
             if known:
                 errors.append(f"{binding.record} {binding.location} {binding.path}: verifies again; "
@@ -126,19 +143,22 @@ def evaluate(bindings: list[Binding], baseline: dict[tuple[str, str, str], dict]
         elif known is None or known["status"] != binding.status:
             errors.append(f"{binding.record} {binding.location} {binding.path}: {binding.status} "
                           "(a file bound by committed evidence changed or disappeared; restore its exact bytes)")
-    for key in baseline.keys() - seen.keys():
+    for key in exceptions.keys() - seen.keys():
         errors.append(f"{' '.join(key)}: baseline entry no longer matches any recorded binding; remove it")
     return errors
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[2])
+    parser.add_argument("--root", type=pathlib.Path, default=ROOT)
     parser.add_argument("--baseline", type=pathlib.Path)
     args = parser.parse_args(argv)
     root = args.root.resolve()
-    bindings = collect(root)
-    errors = evaluate(bindings, load_baseline(args.baseline or root / BASELINE))
+    baseline = load_baseline(args.baseline or root / BASELINE)
+    unknown = sorted(set(baseline.record_bases) - tracked_files(root))
+    bindings = collect(root, baseline.record_bases)
+    errors = evaluate(bindings, baseline.exceptions)
+    errors += [f"{record}: record_bases names a record that is not tracked; remove it" for record in unknown]
     counts = {status: sum(b.status == status for b in bindings) for status in ("ok", "mismatch", "missing")}
     print(f"evidence checksum bindings: {counts['ok']} ok, {counts['mismatch']} mismatch, "
           f"{counts['missing']} missing (baseline exceptions apply to the last two)")
