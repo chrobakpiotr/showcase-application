@@ -79,16 +79,21 @@ class WayfinderTest(unittest.TestCase):
             worker.join(timeout=1)
             self.assertEqual([], errors)
         finally:
-            if lock_holder.poll() is None:
-                lock_holder.stdin.write('\n')
-                lock_holder.stdin.flush()
-                lock_holder.wait(timeout=3)
-            if lock_holder.stdout:
-                lock_holder.stdout.close()
-            if lock_holder.stderr:
-                lock_holder.stderr.close()
-            if lock_holder.stdin:
-                lock_holder.stdin.close()
+            self._release_and_reap(lock_holder)
+
+    @staticmethod
+    def _release_and_reap(lock_holder):
+        """Release a lock holder the test body did not release, then reap it and close its pipes.
+
+        The body's newline usually released it already. An exiting child closes its stdin before waitpid can report
+        it, so in that window `poll()` is still None and a plain write raised BrokenPipeError after the test itself
+        had passed (seen only under parallel CI load). `communicate()` treats the closed pipe as delivered."""
+        try:
+            lock_holder.communicate(input='\n', timeout=3)
+        except subprocess.TimeoutExpired:
+            lock_holder.kill()
+            lock_holder.communicate()
+            raise
 
     def test_valid_map(self):
         self.assertEqual([], wayfinder.validate_map(base_map()))
@@ -251,11 +256,7 @@ class WayfinderTest(unittest.TestCase):
                     self.assertTrue(finished.wait(3))
                     worker.join(timeout=1); contender.join(timeout=1)
                 finally:
-                    if lock_holder.poll() is None:
-                        lock_holder.stdin.write('\n'); lock_holder.stdin.flush(); lock_holder.wait(timeout=3)
-                    if lock_holder.stdout: lock_holder.stdout.close()
-                    if lock_holder.stderr: lock_holder.stderr.close()
-                    if lock_holder.stdin: lock_holder.stdin.close()
+                    self._release_and_reap(lock_holder)
             finally:
                 os.chdir(old); wayfinder.REPO = prior_repo
 
