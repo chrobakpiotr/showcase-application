@@ -114,6 +114,19 @@ Context trust: accepted constitution/spec/plan/design/verification artifacts and
 
 Prefer measured simplification/improvement using `python3 tooling/agent-harness/eval.py` over adding more agent ceremony. The execution runtime is intentionally repo-native; `docs/agentic-sdd/runtime-choice.md` records why a general orchestration framework is not used for the current local workflow and the triggers that would justify revisiting that choice.
 
+## Writing conventions
+
+- Owner rule (2026-11-01): write a plain hyphen-minus `-` instead of an em dash or an en dash in everything written in
+  this repository (documents, code comments, commit messages).
+- Exception: never change the bytes of a file that committed evidence binds by digest: entries of `SHA256SUMS`-style
+  lists, JSON `{path, sha256}` records, closures, verification contracts, and digests or blob ids written into packets,
+  reviews or reports. Such a file keeps its exact bytes, long dashes included; re-hashing the record instead would
+  rewrite evidence (constitution: never overwrite historical evidence). Before a repository-wide edit, search the tree
+  for each file's SHA-256 and Git blob id and leave every bound file untouched.
+- CI enforces the machine-checkable part: `tooling/scripts/verify_evidence_checksums.py` (Repository guards job), with
+  historical exceptions and their reasons in `tooling/quality/evidence-checksum-baseline.json`. Digests written in prose
+  are not checked by it. Third-party tool output kept as evidence is also left as recorded.
+
 ## Git mutation policy
 
 - The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.
