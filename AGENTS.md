@@ -135,6 +135,20 @@ its `SKILL.md`, references or templates, or text quoted from them, including an 
 quote its instructions. Ideas for improving the skill go to the owner or to `docs/specs/banjo-sniffs/feedback.md` in
 the private agent-harness repository, never into this repository.
 
+## Model and reasoning routing (owner rule, 2026-11-02)
+
+- Give every delegate an explicit tier (small, standard, frontier) and effort (low, medium, high, max): small / low
+  for mechanical checks, standard / medium for bounded work, standard / high for hard work (architecture, security,
+  unclear requirements, concurrency, release reviews). Running tests and builds is tool work, not model work.
+- The frontier tier and max effort need the owner's approval for each named task: ask once while planning, say why
+  standard / high is not enough and list the runs. With nobody to ask, stay within standard / high and record the
+  recommendation in the handoff.
+- Never name a model in rules or documentation. The exception is evidence: review reports and handoffs state the model
+  and effort that actually ran ("unknown" if the runner does not say).
+- At the start of a non-trivial task, suggest to the owner in one line which model and effort fit the main session;
+  the owner switches it.
+- Full rule: `docs/agentic-sdd/model-routing.md` in the private agent-harness repository.
+
 ## Git mutation policy
 
 - The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.
@@ -144,3 +158,6 @@ the private agent-harness repository, never into this repository.
 - Never amend, squash, rewrite, or delete existing history unless explicitly authorized.
 - Before any requested commit, verify the relevant tests and `git diff --check`.
 - After committing, report the commit SHA and working-tree status.
+- Commit identity (owner decision, 2026-11-02): agents commit as `Claude <noreply@anthropic.com>` so the session can
+  sign the commits, and every commit message ends with
+  `Co-Authored-By: Piotr Chrobak <125372205+chrobakpiotr@users.noreply.github.com>`.
