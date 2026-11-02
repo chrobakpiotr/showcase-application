@@ -158,6 +158,7 @@ the private agent-harness repository, never into this repository.
 - Never amend, squash, rewrite, or delete existing history unless explicitly authorized.
 - Before any requested commit, verify the relevant tests and `git diff --check`.
 - After committing, report the commit SHA and working-tree status.
-- Commit identity (owner decision, 2026-11-02): agents commit as `Claude <noreply@anthropic.com>` so the session can
-  sign the commits, and every commit message ends with
+- Commit identity (owner update, 2026-11-02): every agent may commit under its own identity.
+  Do not impersonate another agent or provider. Use commit signing when available; lack of signing capability
+  does not block an otherwise authorized commit or push. Every commit message must still end with
   `Co-Authored-By: Piotr Chrobak <125372205+chrobakpiotr@users.noreply.github.com>`.
