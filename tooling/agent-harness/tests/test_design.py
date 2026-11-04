@@ -245,7 +245,8 @@ class PrototypeSignalTest(unittest.TestCase):
 
     def test_the_candidate_pool_is_covered_by_cancel_launches_on_signal(self):
         import ast
-        tree = ast.parse(pathlib.Path(design.__file__).read_text(encoding='utf-8'))
+        source = getattr(design, '_design', design)  # after AH5-16b the definitions live in agent_harness.design
+        tree = ast.parse(pathlib.Path(source.__file__).read_text(encoding='utf-8'))
         pools = []
         for node in ast.walk(tree):
             if isinstance(node, ast.With):
@@ -255,7 +256,8 @@ class PrototypeSignalTest(unittest.TestCase):
                     pools.append(calls)
         self.assertTrue(pools)
         for calls in pools:
-            self.assertEqual('r.cancel_launches_on_signal', calls[0])
+            expected = 'r.cancel_launches_on_signal' if source is design else 'ns.r.cancel_launches_on_signal'
+            self.assertEqual(expected, calls[0])
 
 
 class LaunchSiteTest(unittest.TestCase):
