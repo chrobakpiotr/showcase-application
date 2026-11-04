@@ -44,6 +44,10 @@ die, sha, load_json, requirement, criterion_ids = (
 CONSTITUTION = _contract_authoring.CONSTITUTION
 
 
+# AH5-17: the lifecycle module, resolved at call time, because `harness` imports this module at its own import.
+lifecycle = lambda: __import__('harness')  # noqa: E731
+
+
 def repo_root() -> pathlib.Path:
     return _contract_authoring.repo_root(ns=_NS)
 

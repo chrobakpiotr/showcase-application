@@ -18,7 +18,7 @@ from agent_harness import lifecycle_recovery as lr
 harness = f1.harness
 MOVED = ('task_workspace_snapshot', 'restore_task_workspace', 'restore_attempt_authorization',
          'recover_stale_leases', 'cmd_recover_stale', 'cmd_recover_claim',
-         'recover_prelaunch_authority', 'cmd_recover_verification', 'cmd_resume_verification',
+         'cmd_recover_verification', 'cmd_resume_verification',
          'cmd_restore_state', 'cmd_discard_prepared_snapshot')
 
 

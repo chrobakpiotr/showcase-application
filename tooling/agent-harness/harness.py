@@ -714,18 +714,6 @@ def consume_verification_launch(repository: pathlib.Path, plan_id: str, unit_id:
     return _admission.consume_verification_launch(repository, plan_id, unit_id, reservation_id=reservation_id, expected_generation=expected_generation, expected_state_revision=expected_state_revision, repository_admission_id=repository_admission_id, ns=_NS)
 
 
-def recover_prelaunch_authority(repository: pathlib.Path, plan_id: str, unit_id: str, *,
-                                execution_id: str) -> dict[str, Any]:
-    """Recover an exact reserved launch as consumed authority for safe abort.
-
-    The caller must have fenced the prior owner or caught a launch-authorizer
-    exception before the supervisor invokes the backend. A reservation without
-    consumption is consumed here, then terminalized as a safe prelaunch abort;
-    it is never released back into a launchable state.
-    """
-    return _recovery.recover_prelaunch_authority(repository, plan_id, unit_id, execution_id=execution_id, ns=_NS)
-
-
 def terminalize_verification_execution(repository: pathlib.Path, terminal: dict, *,
                                         repository_admission_id: str,
                                         safe_abort_proof=None) -> dict:

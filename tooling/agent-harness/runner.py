@@ -9,7 +9,6 @@ sandbox boundary, and writes provenance/usage telemetry for every invocation.
 from __future__ import annotations
 
 import argparse
-import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -19,10 +18,8 @@ import re
 import shlex
 import stat
 import shutil
-import signal
 import subprocess
 import sys
-import threading
 import time
 import uuid
 from typing import Any
@@ -139,6 +136,7 @@ EXECUTION RULES
 
 # AH5-12b D1: Showcase's versioned per-provider models. Empty: a run without --model is refused before it starts.
 DEFAULT_MODELS: dict[str, str] = {}
+PREVIEW_REQUEST_ID, PREVIEW_EVIDENCE_ROOT = 'preview', '/EVIDENCE_ROOT'
 AGENT_TIMEOUT_SECONDS = 1800  # D2: an operational limit; orchestrate's heartbeat renews the lease until runner exits
 DENIED_BASH = [
     'Bash(git push *)', 'Bash(git commit *)', 'Bash(git merge *)', 'Bash(git rebase *)',
@@ -170,7 +168,7 @@ def resolve_model(args: argparse.Namespace) -> tuple[str, str]:
 
 def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_schema: dict[str, Any],
                       worktree: pathlib.Path | None = None) -> dict[str, Any]:
-    """The flags codex_command/claude_command pass, as the library's validated launch options."""
+    """This runner's launch policy, as the library's validated launch options."""
     if args.provider == 'codex':
         options = {'sandbox_mode': args.sandbox, 'output_schema': output_schema, 'strict': True,
                    'login_method': 'chatgpt'}
@@ -232,66 +230,39 @@ class AgentLaunchFailed(RuntimeError):
         self.status = status
 
 
-_ACTIVE_LAUNCHES: set[Any] = set()
-_ACTIVE_LAUNCHES_LOCK = threading.RLock()  # re-entrant: the handler may interrupt its own thread holding it
-_STOPPING = threading.Event()  # set by a signal: a launch that registers afterwards is cancelled at once
+# AH5-17: the library's signal handling; agent_harness.design reaches the first through this module.
+cancel_launches_on_signal, await_launch = _execution.cancel_on_signal, _execution.await_execution
 
 
-@contextlib.contextmanager
-def cancel_launches_on_signal() -> Any:
-    """AH5-16a: while open in the main thread, a SIGTERM or SIGHUP cancels every agent this process is waiting for,
-    in any thread, and raises SystemExit(128 + signal). Elsewhere it does nothing: Python runs signal handlers only
-    in the main thread, so a caller that waits for agents in worker threads opens it around them."""
-    if threading.current_thread() is not threading.main_thread():
-        yield
-        return
-
-    def stop(signum: int, frame: Any) -> None:
-        with _ACTIVE_LAUNCHES_LOCK:
-            _STOPPING.set()
-            handles = list(_ACTIVE_LAUNCHES)
-        for handle in handles:
-            handle.cancel()
-        raise SystemExit(128 + signum)
-    stop.cancels_launches = True  # type: ignore[attr-defined]
-    previous = {signum: signal.signal(signum, stop) for signum in (signal.SIGTERM, signal.SIGHUP)}
-    try:
-        yield
-    finally:
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
-        if not any(getattr(handler, 'cancels_launches', False) for handler in previous.values()):
-            _STOPPING.clear()  # the outermost one has ended, and with it every waiter it covered
+def launch_and_record(request: dict[str, Any], backend: Any, worktree: pathlib.Path,
+                      out: pathlib.Path) -> tuple[dict[str, Any], dict[str, Any], str | None, dict[str, Any]]:
+    """One launch and its wait: the library result, the execution record, stdout and the provenance fields."""
+    evidence = out / 'evidence'
+    with cancel_launches_on_signal():  # from before the launch: no signal falls between launch and wait
+        launched = await_launch(_execution.launch(request, backend, workspace=str(worktree),
+                                                  evidence_root=str(evidence)))
+    record = execution_record(launched, out, evidence, backend)
+    stdout_path = record['artifacts'].get('agent-output')
+    stdout = (out / stdout_path).read_text(encoding='utf-8') if stdout_path else None
+    return launched, record, stdout, {
+        'provider_exit_code': launched['exit_code'], 'model_resolved': launched['resolved_model'],
+        'agent_execution': record,
+        # unknown stays unknown: nothing is parsed from output that was not published
+        'provider_metadata': provider_metadata(backend.provider, stdout) if stdout is not None
+        else {'usage': None, 'cost_usd': None},
+    }
 
 
-def await_launch(handle: Any) -> dict[str, Any]:
-    """AH5-16a: wait for a launched agent; a SIGTERM or SIGHUP to this process stops the agent too.
-
-    The library runs the CLI in its own session and stops it when this process exits normally. A terminating signal
-    would end the process without that cleanup and leave the agent running unbounded, so the handle is registered
-    while it runs and cancelled by `cancel_launches_on_signal` (opened here in the main thread, by the caller around
-    worker threads); an interrupted wait cancels the execution and grants it 30 s before the exit continues. The
-    handlers stay installed during that grace, so a second signal ends the wait by SystemExit as well (and the
-    library's exit hook stops the CLI) instead of killing the process with the agent still running."""
-    with _ACTIVE_LAUNCHES_LOCK:
-        _ACTIVE_LAUNCHES.add(handle)
-        stopping = _STOPPING.is_set()
-    try:
-        with cancel_launches_on_signal():
-            try:
-                if stopping:
-                    handle.cancel()
-                return handle.result()
-            except BaseException:
-                handle.cancel()
-                try:
-                    handle.result(timeout=30)
-                except TimeoutError:
-                    pass
-                raise
-    finally:
-        with _ACTIVE_LAUNCHES_LOCK:
-            _ACTIVE_LAUNCHES.discard(handle)
+def launch_failure(launched: dict[str, Any], record: dict[str, Any], backend: Any, *, detail: str = '',
+                   result_name: str = 'task result') -> tuple[str, str] | None:
+    """The status and message of a launch that gave no usable output, today's status first (row 11); else None."""
+    if launched['outcome'] == 'rejected':
+        return 'preflight-refused', f'{backend.provider} refused before launch: {backend.rejection_reason}'
+    if launched['outcome'] != 'completed' or launched['exit_code'] != 0:
+        return 'provider-error', f'{backend.provider} ended {launched["outcome"]} (exit {launched["exit_code"]}{detail})'
+    if record['withheld_reason']:
+        return 'output-withheld', f'{backend.provider} output withheld ({record["withheld_reason"]}); no {result_name}'
+    return None
 
 
 def check_agent_timeout(args: argparse.Namespace) -> None:
@@ -324,33 +295,15 @@ def launch_structured_agent(args: argparse.Namespace, prompt: str, worktree: pat
             'input_bindings': []})
     except _contract.ContractError as exc:
         raise AgentLaunchFailed('preflight-refused', f'agent request refused before launch: {exc}') from exc
-    evidence = out / 'evidence'
-    with cancel_launches_on_signal():  # from before the launch: no signal falls between launch and wait
-        launched = await_launch(_execution.launch(request, backend, workspace=str(worktree),
-                                                  evidence_root=str(evidence)))
-    record = execution_record(launched, out, evidence, backend)
-    stdout_path = record['artifacts'].get('agent-output')
-    stdout = (out / stdout_path).read_text(encoding='utf-8') if stdout_path else None
-    provenance.update({
-        'provider_exit_code': launched['exit_code'], 'model_resolved': launched['resolved_model'],
-        'agent_execution': record,
-        # unknown stays unknown: nothing is parsed from output that was not published
-        'provider_metadata': provider_metadata(args.provider, stdout) if stdout is not None
-        else {'usage': None, 'cost_usd': None},
-    })
-    if launched['outcome'] == 'rejected':
-        raise AgentLaunchFailed('preflight-refused',
-                                f'{args.provider} refused before launch: {backend.rejection_reason}; logs: {out}')
-    if launched['outcome'] != 'completed' or launched['exit_code'] != 0:
-        detail = f', {launched["error_code"]}' if launched.get('error_code') else ''
-        reported = record.get('provider_error')
-        if isinstance(reported, dict) and reported.get('message'):  # the provider's own words (quota, reset time)
-            detail += f': {str(reported["message"])[:500]}'
-        raise AgentLaunchFailed('provider-error', f'{args.provider} ended {launched["outcome"]} '
-                                                  f'(exit {launched["exit_code"]}{detail}); logs: {out}')
-    if record['withheld_reason']:
-        raise AgentLaunchFailed('output-withheld', f'{args.provider} output withheld ({record["withheld_reason"]}); '
-                                                   f'no result; logs: {out}')
+    launched, record, stdout, fields = launch_and_record(request, backend, worktree, out)
+    provenance.update(fields)
+    detail = f', {launched["error_code"]}' if launched.get('error_code') else ''
+    reported = record.get('provider_error')
+    if isinstance(reported, dict) and reported.get('message'):  # the provider's own words (quota, reset time)
+        detail += f': {str(reported["message"])[:500]}'
+    failure = launch_failure(launched, record, backend, detail=detail, result_name='result')
+    if failure:
+        raise AgentLaunchFailed(failure[0], f'{failure[1]}; logs: {out}')
     if args.provider == 'claude':
         return extract_claude_result(stdout or '')  # without structured output: a harness error (exit 2)
     last = record['artifacts'].get('last-message')
@@ -381,100 +334,6 @@ def run_dir(packet: dict[str, Any], orchestration_id: str | None = None) -> path
     path = RUNS / str(packet['feature']) / str(packet['task']) / safe_scope / stamp
     path.mkdir(parents=True, exist_ok=False)
     return path
-
-
-def codex_command(
-    args: argparse.Namespace, prompt: str, worktree: pathlib.Path, result: pathlib.Path,
-    *, schema_path: pathlib.Path | None = None,
-) -> list[str]:
-    if not args.print_command and not shutil.which('codex'):
-        die('codex CLI is not installed')
-    cmd = [
-        'codex', 'exec', '--ephemeral', '--json',
-        '--cd', str(worktree),
-        '--sandbox', args.sandbox,
-        '--config', 'approval_policy="never"',
-        '--config', 'web_search="disabled"',
-        '--config', 'sandbox_workspace_write.network_access=false',
-        '--config', 'sandbox_workspace_write.writable_roots=[]',
-        '--output-schema', str(schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')),
-        '--output-last-message', str(result),
-    ]
-    if args.model:
-        cmd += ['--model', args.model]
-    if args.reasoning:
-        cmd += ['--config', f'model_reasoning_effort="{args.reasoning}"']
-    cmd.append(prompt)
-    return cmd
-
-
-def claude_sandbox_settings(marker_dir: pathlib.Path | None = None) -> str:
-    deny_read = list(CLAUDE_DENY_READ)
-    deny_write: list[str] = []
-    if marker_dir is not None:
-        deny_read.append(str(marker_dir))
-        deny_write.append(str(marker_dir))
-    settings = {
-        'sandbox': {
-            'enabled': True,
-            'failIfUnavailable': True,
-            'autoAllowBashIfSandboxed': True,
-            'allowUnsandboxedCommands': False,
-            'filesystem': {
-                'denyRead': deny_read,
-                'denyWrite': deny_write,
-            },
-            'network': {'allowedDomains': []},
-        }
-    }
-    return json.dumps(settings, separators=(',', ':'))
-
-
-def claude_schema_text(schema_path: pathlib.Path) -> str:
-    """Render a Claude CLI compatible schema without mutating the canonical schema file."""
-
-    try:
-        schema = json.loads(schema_path.read_text(encoding='utf-8'))
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
-        die(f'invalid Claude output schema {schema_path}: {exc}')
-    if not isinstance(schema, dict):
-        die(f'Claude output schema must contain a JSON object: {schema_path}')
-
-    return json.dumps(strip_meta_schema(schema), separators=(',', ':'), sort_keys=True)
-
-
-def claude_command(
-    args: argparse.Namespace, prompt: str, worktree: pathlib.Path, *, schema_path: pathlib.Path | None = None
-) -> list[str]:
-    if not args.print_command and not shutil.which('claude'):
-        die('claude CLI is not installed')
-    schema_path = schema_path or (worktree / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json')
-    schema = claude_schema_text(schema_path)
-    read_only_profile = args.review_existing or bool(args.profile and args.profile.endswith('-reviewer'))
-    tools = 'Read,Glob,Grep,Bash' if read_only_profile else 'Read,Edit,Write,Glob,Grep,Bash'
-    allowed = ['Read', 'Glob', 'Grep'] if read_only_profile else ['Read', 'Edit', 'Write', 'Glob', 'Grep']
-    marker_dir = unknown_state_registry.registry_path(REPO).parent
-    denied_tools = list(DENIED_BASH)
-    if marker_dir is not None:
-        absolute_pattern = '//' + marker_dir.as_posix().lstrip('/') + '/**'
-        denied_tools.extend(f'{tool}({absolute_pattern})' for tool in ('Read', 'Edit', 'Write'))
-    cmd = [
-        'claude', '--restricted', '--strict-mcp-config', '-p', prompt,
-        '--output-format', 'json',
-        '--json-schema', schema,
-        '--no-session-persistence',
-        '--permission-mode', 'dontAsk',
-        '--tools', tools,
-        '--allowedTools', *allowed,
-        '--disallowedTools', *denied_tools,
-        '--settings', claude_sandbox_settings(marker_dir),
-        '--max-turns', str(args.max_turns),
-    ]
-    if args.max_budget_usd is not None:
-        cmd += ['--max-budget-usd', str(args.max_budget_usd)]
-    if args.model:
-        cmd += ['--model', args.model]
-    return cmd
 
 
 def extract_claude_envelope(stdout: str) -> dict[str, Any]:
@@ -535,40 +394,29 @@ def cli_version(executable: str) -> str | None:
     return text[:300] if text else None
 
 
-def preview_command(
-    args: argparse.Namespace, prompt: str, worktree: pathlib.Path, result_path: pathlib.Path,
-    provider_cli_version: str | None,
-) -> tuple[list[str], str]:
-    """Render a command using an exact schema profile, without requiring a provider executable."""
+def print_agent_command(args: argparse.Namespace, packet: dict[str, Any], prompt: str, worktree: pathlib.Path,
+                        read_only_run: bool, provider_cli_version: str | None) -> None:
+    """AH5-17: the command line a run launches, rendered by the backend; starts nothing and writes nothing. A leading
+    '#' keeps it from being pasted and run: the prompt goes on stdin and the evidence root is a placeholder."""
     version = provider_cli_version
     if version is None:
-        versions = [
-            supported_version for provider, supported_version in TASK_RESULT_PROJECTION_PROFILES
-            if provider == args.provider
-        ]
+        versions = [tested for provider, tested in TASK_RESULT_PROJECTION_PROFILES if provider == args.provider]
         if not versions:
             die(f'no supported task-result schema profile exists for {args.provider}')
         version = versions[-1]
-        print(
-            f'Preview only: CLI unavailable; using the tested {args.provider} schema profile {version}.',
-            file=sys.stderr,
-        )
-
+        print(f'Preview only: CLI unavailable; using the tested {args.provider} schema profile {version}.',
+              file=sys.stderr)
     try:
-        _, schema_bytes, _ = task_result_projection(
-            TASK_RESULT_SCHEMA_PATH.read_bytes(), args.provider, version)
+        _, schema_bytes, _ = task_result_projection(TASK_RESULT_SCHEMA_PATH.read_bytes(), args.provider, version)
     except (OSError, ValueError) as exc:
         die(f'provider task-result schema preview is blocked: {exc}')
-    digest = hashlib.sha256(schema_bytes).hexdigest()
-    preview_dir = RUNS / 'schema-previews'
-    preview_dir.mkdir(parents=True, exist_ok=True)
-    schema_path = preview_dir / f'{args.provider}-{digest}.json'
-    if not schema_path.exists() or schema_path.read_bytes() != schema_bytes:
-        schema_path.write_bytes(schema_bytes)
-    cmd = (codex_command(args, prompt, worktree, result_path, schema_path=schema_path)
-           if args.provider == 'codex'
-           else claude_command(args, prompt, worktree, schema_path=schema_path))
-    return cmd, version
+    model, _ = resolve_model(args)
+    options = agent_cli_options(args, read_only_run, json.loads(schema_bytes), worktree=worktree)
+    backend = _execution.AgentCliBackend(args.provider, prompt, env=dict(os.environ), cli_options=options)
+    argv = backend.render_argv(agent_request(args, packet, model, options, PREVIEW_REQUEST_ID),
+                               {'workspace': str(worktree), 'evidence_root': PREVIEW_EVIDENCE_ROOT})
+    rendered = [item.replace(PREVIEW_EVIDENCE_ROOT, '<EVIDENCE_ROOT>') for item in argv]
+    print('# launched command, prompt on stdin: ' + shlex.join(rendered))
 
 
 def provider_metadata(provider: str, stdout: str) -> dict[str, Any]:
@@ -638,18 +486,8 @@ def main() -> None:
     before = git_snapshot(worktree)
 
     provider_cli_version = cli_version(args.provider)
-    preview_result = worktree / '.agent-result-preview.json'
     if args.print_command:
-        cmd, _ = preview_command(args, prompt, worktree, preview_result, provider_cli_version)
-        rendered = [
-            '<RESULT_PATH>' if item == str(preview_result) else '<PROMPT>' if item == prompt else item for item in cmd
-        ]
-        # AH5-12b: the run launches through agent_harness.execution; this preview is the legacy command line. Since
-        # AH5-16a no launch uses the legacy builders; this preview is their last caller (removed in AH5-17, which
-        # renders the backend's argv instead). A leading '#' keeps it from being pasted and run as is.
-        print('LEGACY PREVIEW: not the command this runner launches (it launches through agent_harness.execution)',
-              file=sys.stderr)
-        print('# legacy preview, not the launched command: ' + shlex.join(rendered))
+        print_agent_command(args, packet, prompt, worktree, read_only_run, provider_cli_version)
         return
 
     if not provider_cli_version:
@@ -702,30 +540,11 @@ def main() -> None:
     telemetry.atomic_write_json(out / 'provenance.json', provenance)
 
     try:
-        evidence = out / 'evidence'
-        with cancel_launches_on_signal():  # from before the launch: no signal falls between launch and wait
-            launched = await_launch(_execution.launch(request, backend, workspace=str(worktree),
-                                                      evidence_root=str(evidence)))
-        record = execution_record(launched, out, evidence, backend)
-        stdout_path = record['artifacts'].get('agent-output')
-        stdout = (out / stdout_path).read_text(encoding='utf-8') if stdout_path else None
-        provenance.update({
-            'provider_exit_code': launched['exit_code'],
-            'model_resolved': launched['resolved_model'],
-            'agent_execution': record,
-            # unknown stays unknown: nothing is parsed from output that was not published
-            'provider_metadata': provider_metadata(args.provider, stdout) if stdout is not None
-            else {'usage': None, 'cost_usd': None},
-            'duration_ms': round((time.monotonic() - started) * 1000),
-            'completed_at': telemetry.iso_now(),
-        })
-        failure = None
-        if launched['outcome'] == 'rejected':
-            failure = 'preflight-refused', f'{args.provider} refused before launch: {backend.rejection_reason}'
-        elif launched['outcome'] != 'completed' or launched['exit_code'] != 0:  # row 11: today's status first
-            failure = 'provider-error', f'{args.provider} ended {launched["outcome"]} (exit {launched["exit_code"]})'
-        elif record['withheld_reason']:
-            failure = 'output-withheld', f'{args.provider} output withheld ({record["withheld_reason"]}); no task result'
+        launched, record, stdout, fields = launch_and_record(request, backend, worktree, out)
+        provenance.update(fields)
+        provenance.update({'duration_ms': round((time.monotonic() - started) * 1000),
+                           'completed_at': telemetry.iso_now()})
+        failure = launch_failure(launched, record, backend)
         if failure:
             provenance['status'] = failure[0]
             telemetry.atomic_write_json(out / 'provenance.json', provenance)

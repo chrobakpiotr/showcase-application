@@ -27,7 +27,7 @@ from agent_harness import contract_authoring as library
 from agent_harness import verification_contract as validation
 
 ALIASES = ('CONSTITUTION',)
-PATHS = ('HERE', 'REPO', 'SCHEMA')
+PATHS = ('lifecycle', 'HERE', 'REPO', 'SCHEMA')
 BINDINGS = ('VALID_REQUIREMENT', 'VALID_ORIGINS', 'VALID_SOURCE_TYPES', 'die', 'sha', 'load_json', 'requirement',
             'criterion_ids')
 
@@ -35,6 +35,8 @@ BINDINGS = ('VALID_REQUIREMENT', 'VALID_ORIGINS', 'VALID_SOURCE_TYPES', 'die', '
 class ContractAuthoringBindingTest(unittest.TestCase):
     def test_the_shim_keeps_only_aliases_bindings_and_delegates(self):
         shim_layout.check_shim_layout(self, verification_contract, library, ALIASES, PATHS, BINDINGS)
+        import harness
+        self.assertIs(harness, verification_contract.lifecycle())  # AH5-17: resolved at call time
         here = verification_contract.HERE
         self.assertEqual(pathlib.Path(verification_contract.__file__).resolve().parent, here)
         self.assertEqual((here.parents[1], here / 'schemas' / 'verification-contract.schema.json'),

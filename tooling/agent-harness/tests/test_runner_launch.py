@@ -1,11 +1,12 @@
 """AH5-12b: runner.py launches through agent_harness.execution (library-owned; runs in a Showcase checkout)."""
-import contextlib
 import argparse
+import contextlib
 import importlib.util
 import io
 import json
 import os
 import pathlib
+import shlex
 import stat
 import subprocess
 import sys
@@ -156,15 +157,67 @@ class RunnerLaunchTest(unittest.TestCase):
         self.assertEqual('preflight-refused', self.provenance()[1]['status'])
         self.assertFalse(self.log.exists())  # the agent never started
 
-    def test_print_command_is_marked_as_the_legacy_preview(self):
-        """It is not the launched command line: marked, commented out, and without the prompt."""
-        code, out, err = self.main('--model', 'm', '--print-command')
+    def test_print_command_renders_what_a_run_launches(self):
+        """AH5-17: the backend's argv, marked and without the prompt; it starts nothing and writes nothing."""
+        code, out, err = self.main('--model', 'm', '--reasoning', 'high', '--print-command')
         self.assertEqual(0, code)
-        self.assertTrue(out.startswith('# legacy preview, not the launched command: codex exec'))
-        self.assertIn('LEGACY PREVIEW', err)
+        self.assertTrue(out.startswith('# launched command, prompt on stdin: codex exec'), out)
+        self.assertNotIn('LEGACY', err)
         self.assertNotIn('fix the bug', out)
         self.assertNotIn('sk-should-never-reach-the-cli', out)
         self.assertFalse(self.log.exists())
+        self.assertEqual([], list(self.runs.iterdir()))
+        preview = shlex.split(out.strip().removeprefix('# launched command, prompt on stdin: '))
+
+        self.assertEqual(0, self.main('--model', 'm', '--reasoning', 'high')[0])
+        run, _ = self.provenance()
+        launched = json.loads(self.log.read_text().splitlines()[-1])['argv']
+        slot = execution._slot('preview')
+        real = [str(run / 'evidence'), next(p.stem for p in (run / 'evidence' / 'executions').glob('*.json'))]
+        normal = ['codex', *[item.replace(real[0], '<EVIDENCE_ROOT>').replace(real[1], slot) for item in launched]]
+        self.assertEqual(normal, preview)
+
+    def test_print_command_refuses_without_a_model(self):
+        code, _, err = self.main('--print-command')
+        self.assertNotEqual(0, code)
+        self.assertIn('no model', err)
+
+    def test_print_command_without_the_cli_uses_the_tested_profile(self):
+        with mock.patch.object(runner, 'cli_version', return_value=None):
+            code, out, err = self.main('--model', 'm', '--print-command')
+        self.assertEqual(0, code)
+        self.assertIn('Preview only', err)
+        self.assertIn('<EVIDENCE_ROOT>/executions/', shlex.split(out.split(': ', 1)[1])[shlex.split(out.split(': ', 1)[1]).index('--output-schema') + 1])
+
+    def rendered(self, provider, read_only=False):
+        args = argparse.Namespace(provider=provider, sandbox='read-only' if read_only else 'workspace-write',
+                                  reasoning=None, max_turns=2, max_budget_usd=None, agent_timeout=60)
+        schema = {'$schema': 'https://json-schema.org/draft/2020-12/schema', 'type': 'object'}
+        options = runner.agent_cli_options(args, read_only, schema)
+        backend = execution.AgentCliBackend(provider, 'prompt', env={'PATH': '/nonexistent'}, cli_options=options)
+        return backend.render_argv(runner.agent_request(args, {'packet_sha256': 'x'}, 'm', options, 'preview'),
+                                   {'workspace': str(self.worktree), 'evidence_root': '/EVIDENCE_ROOT'})
+
+    def test_the_rendered_codex_command_is_ephemeral_json_and_sandboxed(self):
+        argv = self.rendered('codex')
+        for flag in ('--ephemeral', '--json', 'sandbox_workspace_write.network_access=false',
+                     'sandbox_workspace_write.writable_roots=[]'):
+            self.assertIn(flag, argv)
+        self.assertNotIn(str(runner.unknown_state_registry.registry_path(self.repo).parent), argv)
+
+    def test_the_rendered_claude_command_is_restricted_and_denies_the_marker_directory(self):
+        marker = str(runner.unknown_state_registry.registry_path(self.repo).parent)
+        argv = self.rendered('claude')
+        self.assertIn('--restricted', argv)
+        self.assertIn('--strict-mcp-config', argv)
+        self.assertNotIn('--bare', argv)
+        self.assertNotIn('$schema', json.loads(argv[argv.index('--json-schema') + 1]))
+        settings = json.loads(argv[argv.index('--settings') + 1])
+        self.assertIn(marker, settings['sandbox']['filesystem']['denyRead'])
+        self.assertIn(marker, settings['sandbox']['filesystem']['denyWrite'])
+        for tool in ('Read', 'Edit', 'Write'):
+            self.assertTrue(any(rule.startswith(f'{tool}(') and marker.lstrip('/') in rule
+                                for rule in settings['permissions']['deny']), tool)
 
     def test_a_run_records_the_library_result_and_reads_the_task_result_from_its_artifacts(self):
         code, out, _ = self.main('--model', 'm', '--reasoning', 'high', '--agent-timeout', '120')
@@ -267,26 +320,6 @@ class RunnerLaunchTest(unittest.TestCase):
                              tuple(options[k] for k in ('max_turns', 'max_budget_usd', 'restricted', 'permission_mode')))
             self.assertIn(str(runner.unknown_state_registry.registry_path(self.worktree).parent), options['deny_read'])
             execution.AgentCliBackend('claude', 'x', cli_options=options)  # the library accepts them
-
-    def test_provider_commands_keep_unresolved_state_registry_outside_agent_write_access(self):
-        marker_dir = runner.unknown_state_registry.registry_path(self.worktree).parent
-        codex_args = argparse.Namespace(print_command=True, sandbox='workspace-write', model='m', reasoning=None)
-        codex = runner.codex_command(codex_args, 'prompt', self.worktree, self.root / 'result.json')
-        self.assertIn('sandbox_workspace_write.writable_roots=[]', codex)
-        self.assertNotIn(str(marker_dir), codex)
-
-        claude_args = argparse.Namespace(print_command=True, review_existing=False, profile='builder', max_turns=2,
-                                         max_budget_usd=None, model='m')
-        claude = runner.claude_command(claude_args, 'prompt', self.worktree,
-                                       schema_path=runner.TASK_RESULT_SCHEMA_PATH)
-        settings = json.loads(claude[claude.index('--settings') + 1])
-        self.assertIn(str(marker_dir), settings['sandbox']['filesystem']['denyRead'])
-        self.assertIn(str(marker_dir), settings['sandbox']['filesystem']['denyWrite'])
-        denied = claude[claude.index('--disallowedTools') + 1:claude.index('--settings')]
-        for tool in ('Read', 'Edit', 'Write'):
-            self.assertTrue(any(item.startswith(f'{tool}(//') and '/unknown-state/**)' in item for item in denied))
-
-
 
 class StructuredLaunchTest(unittest.TestCase):
     """AH5-16a: design, wayfinder and contract authoring launch through the runner's library path."""
@@ -451,38 +484,6 @@ class AwaitLaunchTest(unittest.TestCase):
         self.assertEqual([mock.call(), mock.call(timeout=30)], handle.result.call_args_list)
 
 
-    def test_a_signal_cancels_agents_awaited_in_worker_threads(self):
-        """Delta review N-6: the handler runs in the main thread and cancels every registered launch."""
-        import signal
-        import threading
-        handle, late = self.Handle(), self.Handle()
-        waiting, outcome = threading.Event(), {}
-
-        def worker():
-            waiting.set()
-            outcome['first'] = runner.await_launch(handle)
-            outcome['late'] = runner.await_launch(late)  # registers after the signal: cancelled at once
-
-        before = signal.getsignal(signal.SIGTERM)
-        thread = threading.Thread(target=worker)
-        code = None
-        with runner.cancel_launches_on_signal():
-            thread.start()
-            waiting.wait(5)
-            threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGTERM)).start()
-            try:
-                thread.join(10)
-            except SystemExit as exc:  # raised in the main thread by the handler
-                code = exc.code
-                thread.join(10)  # as a thread pool's exit waits for its workers
-        self.assertFalse(thread.is_alive())
-        self.assertEqual(128 + signal.SIGTERM, code)
-        self.assertTrue(handle.cancelled.is_set() and late.cancelled.is_set())
-        self.assertEqual({'first': {'outcome': 'cancelled'}, 'late': {'outcome': 'cancelled'}}, outcome)
-        self.assertIs(before, signal.getsignal(signal.SIGTERM))
-        self.assertFalse(runner._STOPPING.is_set())  # the outermost context ended: later launches are not cancelled
-        self.assertEqual(set(), runner._ACTIVE_LAUNCHES)
-
     def test_a_second_signal_during_the_grace_still_exits_by_systemexit(self):
         """Delta review N-7: the handlers stay installed while the cancelled agent gets its 30 s."""
         import signal
@@ -502,16 +503,6 @@ class AwaitLaunchTest(unittest.TestCase):
         self.assertEqual(128 + signal.SIGTERM, caught.exception.code)
         self.assertEqual([], seen)  # neither signal reached the previous handler
         self.assertEqual(mock.call(timeout=30), handle.result.call_args)  # the second ended the grace wait
-
-    def test_an_inner_context_keeps_stopping_until_the_outermost_ends(self):
-        import signal
-        import threading
-        with runner.cancel_launches_on_signal():
-            with self.assertRaises(SystemExit), runner.cancel_launches_on_signal():
-                threading.Timer(0.1, os.kill, (os.getpid(), signal.SIGTERM)).start()
-                threading.Event().wait(5)
-            self.assertTrue(runner._STOPPING.is_set())  # workers of the outer one still cancel at registration
-        self.assertFalse(runner._STOPPING.is_set())
 
 class AwaitLaunchWiringTest(StructuredLaunchTest):
     """Delta review: both launch sites wait through await_launch, so the signal handling cannot be dropped silently."""
@@ -552,7 +543,7 @@ class FailureMessageTest(StructuredLaunchTest):
         handle.result.return_value = launched
         with mock.patch.object(runner._execution, 'launch', return_value=handle), \
                 mock.patch.object(runner, 'execution_record', return_value=record):
-            result, provenance, failure = self.launch()
+            _, _, failure = self.launch()
         self.assertEqual('provider-error', failure.status)
         for part in ('ended error (exit 3, provider_quota: quota resets at 17:00); logs: ', str(self.runs)):
             self.assertIn(part, str(failure))

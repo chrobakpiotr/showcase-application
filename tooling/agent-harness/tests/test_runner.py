@@ -1,7 +1,4 @@
 import importlib.util
-import argparse
-import contextlib
-import io
 import json
 import pathlib
 import tempfile
@@ -39,15 +36,6 @@ class RunnerTest(unittest.TestCase):
             'assumptions': [], 'residual_risks': []
         })
 
-
-    def test_codex_command_is_ephemeral_json_and_sandboxed(self):
-        args = argparse.Namespace(
-            print_command=True, sandbox='workspace-write', model=None, reasoning='medium'
-        )
-        cmd = runner.codex_command(args, 'prompt', pathlib.Path('/tmp/worktree'), pathlib.Path('/tmp/result.json'))
-        self.assertIn('--ephemeral', cmd)
-        self.assertIn('--json', cmd)
-        self.assertIn('sandbox_workspace_write.network_access=false', cmd)
 
     def test_codex_and_claude_result_schemas_are_projected_per_exact_cli_version(self):
         canonical = runner.load(runner.REPO / 'tooling/agent-harness/schemas/task-result.schema.json')
@@ -130,62 +118,6 @@ class RunnerTest(unittest.TestCase):
                          record['projection_sha256'])
         self.assertEqual(['/properties/rework_tasks/uniqueItems'], record['dropped_constraints'])
 
-    def test_claude_command_uses_restricted_oauth_auth_not_bare_mode(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            schema = root / 'result.schema.json'
-            schema.write_text(json.dumps({'type': 'object', 'properties': {}, 'required': []}), encoding='utf-8')
-            args = argparse.Namespace(
-                print_command=True, review_existing=False, profile=None, max_turns=1,
-                max_budget_usd=None, model=None,
-            )
-            cmd = runner.claude_command(args, 'prompt', root, schema_path=schema)
-            self.assertIn('--restricted', cmd)
-            self.assertNotIn('--bare', cmd)
-            self.assertIn('--strict-mcp-config', cmd)
-
-    def test_codex_command_accepts_explicit_output_schema(self):
-        args = argparse.Namespace(print_command=True, sandbox='read-only', model=None, reasoning='high')
-        schema = pathlib.Path('/tmp/design-result.schema.json')
-        cmd = runner.codex_command(
-            args, 'prompt', pathlib.Path('/tmp/worktree'), pathlib.Path('/tmp/result.json'), schema_path=schema
-        )
-        self.assertEqual(str(schema), cmd[cmd.index('--output-schema') + 1])
-
-
-    def test_claude_command_strips_meta_schema_without_mutating_canonical_schema(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            schema = root / 'result.schema.json'
-            canonical = {
-                '$schema': 'https://json-schema.org/draft/2020-12/schema',
-                'type': 'object',
-                'required': ['value'],
-                'properties': {'value': {'type': ['string', 'null']}},
-            }
-            schema.write_text(json.dumps(canonical), encoding='utf-8')
-
-            args = argparse.Namespace(
-                print_command=True,
-                review_existing=False,
-                profile=None,
-                max_turns=1,
-                max_budget_usd=None,
-                model=None,
-            )
-            cmd = runner.claude_command(args, 'prompt', root, schema_path=schema)
-
-            rendered = json.loads(cmd[cmd.index('--json-schema') + 1])
-            self.assertNotIn('$schema', rendered)
-            self.assertEqual('object', rendered['type'])
-            self.assertEqual(['string', 'null'], rendered['properties']['value']['type'])
-
-            persisted = json.loads(schema.read_text(encoding='utf-8'))
-            self.assertEqual(
-                'https://json-schema.org/draft/2020-12/schema',
-                persisted['$schema'],
-            )
-
     def test_packet_protocol_v3_requires_lease_policy(self):
         packet = {
             'protocol_version': 3, 'context': {}, 'lease_policy': {'ttl_seconds': 1800}
@@ -230,39 +162,6 @@ class RunnerTest(unittest.TestCase):
         raw = json.dumps({'result': json.dumps({'status': 'pass'})})
         with self.assertRaises(SystemExit):
             runner.extract_claude_result(raw)
-
-    def test_claude_print_command_uses_a_real_generated_projection(self):
-        args = argparse.Namespace(
-            provider='claude', print_command=True, review_existing=False, profile=None,
-            max_turns=1, max_budget_usd=None, model=None,
-        )
-        with tempfile.TemporaryDirectory() as tmp:
-            preview_root = pathlib.Path(tmp)
-            with mock.patch.object(runner, 'RUNS', preview_root), \
-                    mock.patch.object(runner.unknown_state_registry, 'registry_path',
-                                      wraps=runner.unknown_state_registry.registry_path) as registry_path:
-                cmd, version = runner.preview_command(
-                    args, 'prompt', preview_root, preview_root / 'result.json', '2.1.289 (Claude Code)')
-            registry_path.assert_called_once_with(runner.REPO)
-            self.assertEqual('2.1.289 (Claude Code)', version)
-            schema = json.loads(cmd[cmd.index('--json-schema') + 1])
-            self.assertFalse(schema['additionalProperties'])
-
-    def test_print_command_without_provider_cli_uses_explicit_preview_profile(self):
-        args = argparse.Namespace(
-            provider='claude', print_command=True, review_existing=False, profile=None,
-            max_turns=1, max_budget_usd=None, model=None,
-        )
-        with tempfile.TemporaryDirectory() as tmp:
-            preview_root = pathlib.Path(tmp)
-            stderr = io.StringIO()
-            with mock.patch.object(runner, 'RUNS', preview_root), mock.patch.object(runner, 'cli_version', return_value=None), \
-                    contextlib.redirect_stderr(stderr):
-                cmd, version = runner.preview_command(
-                    args, 'prompt', preview_root, preview_root / 'result.json', None)
-            self.assertEqual('2.1.289 (Claude Code)', version)
-            self.assertIn('Preview only', stderr.getvalue())
-            self.assertFalse(json.loads(cmd[cmd.index('--json-schema') + 1])['additionalProperties'])
 
     def test_read_only_postcondition_rejects_reviewer_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -333,6 +232,7 @@ class RunnerTest(unittest.TestCase):
     def test_runner_consumes_only_the_supplied_accepted_plan(self):
         import json
         import subprocess
+
         from verification.profile import load_profile
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -359,7 +259,6 @@ class RunnerTest(unittest.TestCase):
             self.assertNotIn('PYTHONHOME', run.call_args.kwargs['env'])
 
     def test_runner_refuses_missing_or_changed_control_binding_before_launch(self):
-        import subprocess
         from verification.profile import load_profile
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -384,7 +283,6 @@ class RunnerTest(unittest.TestCase):
                     verify.assert_called_once_with(binding)
 
     def test_runner_launches_verify_under_isolated_active_interpreter(self):
-        import subprocess
         from verification.profile import load_profile
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
