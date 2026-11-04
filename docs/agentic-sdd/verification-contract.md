@@ -7,7 +7,7 @@ For medium/high-risk work, the harness supports a separately-authored `verificat
 ```bash
 python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/FEATURE-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 
 python3 tooling/agent-harness/verification_contract.py validate docs/specs/FEATURE-001
 ```

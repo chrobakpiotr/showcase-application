@@ -155,18 +155,12 @@ Return ONLY JSON conforming to tooling/agent-harness/schemas/verification-contra
 """
 
 
-def provider_args(args: argparse.Namespace) -> argparse.Namespace:
-    return argparse.Namespace(
-        print_command=False, sandbox='read-only', model=args.model, reasoning=args.reasoning,
-        profile='verification-author', review_existing=True, max_turns=args.max_turns,
-        max_budget_usd=args.max_budget_usd,
-    )
-
-
 def generate(feature_dir: pathlib.Path, args: argparse.Namespace) -> pathlib.Path:
     import harness as h  # lazy: avoids circular import when harness validates contracts
 
     feature_dir = feature_dir.resolve()
+    r.check_agent_timeout(args)
+    r.resolve_model(args)  # D1: refused before any worktree or run directory exists
     for name in ('spec.md', 'plan.md'):
         if not (feature_dir / name).exists():
             die(f'missing {name}')
@@ -189,25 +183,32 @@ def generate(feature_dir: pathlib.Path, args: argparse.Namespace) -> pathlib.Pat
     run_id = args.run_id or uuid.uuid4().hex
     runtime = root / '.agent-runs' / 'verification-contract' / feature_dir.name / run_id
     runtime.mkdir(parents=True, exist_ok=True)
-    result_path = runtime / 'result.json'
     text = prompt(feature_dir, wt)
-    p_args = provider_args(args)
-    cmd = r.codex_command(p_args, text, wt, result_path, schema_path=wt / SCHEMA.relative_to(REPO)) if args.provider == 'codex' else r.claude_command(p_args, text, wt, schema_path=wt / SCHEMA.relative_to(REPO))
     (runtime / 'prompt.txt').write_text(text, encoding='utf-8')
     started = time.monotonic()
     provenance = {'schema_version': 1, 'kind': 'verification-contract', 'feature': feature_dir.name, 'provider': args.provider, 'run_id': run_id, 'started_at': telemetry.iso_now(), 'status': 'running'}
     telemetry.atomic_write_json(runtime / 'provenance.json', provenance)
+
+    def fail(status: str, message: str, error_type: str = 'GenerateFailed') -> None:
+        """AH5-16a: every failure records its status before the same refusal (exit 2) as before."""
+        provenance.update({'status': status, 'completed_at': telemetry.iso_now(),
+                           'duration_ms': round((time.monotonic() - started) * 1000),
+                           'error': {'type': error_type, 'message': message[:2000]}})
+        telemetry.atomic_write_json(runtime / 'provenance.json', provenance)
+        die(message)
+
     try:
-        proc = subprocess.run(cmd, cwd=wt, text=True, capture_output=True, check=False)
-        (runtime / 'stdout.log').write_text(proc.stdout, encoding='utf-8')
-        (runtime / 'stderr.log').write_text(proc.stderr, encoding='utf-8')
-        if proc.returncode != 0:
-            die(f'{args.provider} exited with {proc.returncode}: {(proc.stderr or proc.stdout)[-2000:]}')
-        raw = r.extract_claude_result(proc.stdout) if args.provider == 'claude' else load_json(result_path)
+        # AH5-16a: the library's execution path with the runner's policy (one execution path, plan rule 7)
+        try:
+            raw = r.launch_structured_agent(args, text, wt, runtime, load_json(wt / SCHEMA.relative_to(REPO)),
+                                            read_only=True, provenance=provenance)
+        except r.AgentLaunchFailed as exc:
+            fail(exc.status, str(exc), type(exc).__name__)
         if raw.get('status') != 'pass':
-            die(f'verification author did not pass: {raw.get("summary")}')
+            fail(raw['status'] if raw.get('status') in ('fail', 'needs-human') else 'harness-error',
+                 f'verification author did not pass: {raw.get("summary")}')
         if not isinstance(raw.get('criteria'), list) or not raw['criteria']:
-            die('verification author returned no criteria')
+            fail('harness-error', 'verification author returned no criteria')
         contract = {
             'schema_version': 1,
             'feature': feature_dir.name,
@@ -225,10 +226,17 @@ def generate(feature_dir: pathlib.Path, args: argparse.Namespace) -> pathlib.Pat
         errors = validate_contract(feature_dir, require=requirement(feature_dir) == 'required')
         if errors:
             existing.unlink(missing_ok=True)
-            die('generated verification contract is invalid: ' + '; '.join(errors))
+            fail('harness-error', 'generated verification contract is invalid: ' + '; '.join(errors))
         provenance.update({'status': 'pass', 'completed_at': telemetry.iso_now(), 'duration_ms': round((time.monotonic()-started)*1000), 'contract_sha256': sha(existing)})
         telemetry.atomic_write_json(runtime / 'provenance.json', provenance)
         return existing
+    except BaseException as exc:  # anything else (a malformed agent file, a refused backend): never left `running`
+        if provenance['status'] == 'running':
+            provenance.update({'status': 'harness-error', 'completed_at': telemetry.iso_now(),
+                               'duration_ms': round((time.monotonic() - started) * 1000),
+                               'error': {'type': type(exc).__name__, 'message': str(exc)[:2000]}})
+            telemetry.atomic_write_json(runtime / 'provenance.json', provenance)
+        raise
     finally:
         subprocess.run(['git', 'worktree', 'remove', '--force', str(wt)], cwd=root, check=False, capture_output=True)
         shutil.rmtree(wt, ignore_errors=True)
@@ -239,7 +247,7 @@ def main() -> None:
     sub = p.add_subparsers(dest='command', required=True)
     v = sub.add_parser('validate'); v.add_argument('feature_dir', type=pathlib.Path)
     s = sub.add_parser('show'); s.add_argument('feature_dir', type=pathlib.Path)
-    g = sub.add_parser('generate'); g.add_argument('feature_dir', type=pathlib.Path); g.add_argument('--provider', choices=('codex','claude'), required=True); g.add_argument('--model'); g.add_argument('--reasoning', choices=('low','medium','high','xhigh')); g.add_argument('--max-turns', type=int, default=20); g.add_argument('--max-budget-usd', type=float); g.add_argument('--run-id'); g.add_argument('--force', action='store_true')
+    g = sub.add_parser('generate'); g.add_argument('feature_dir', type=pathlib.Path); g.add_argument('--provider', choices=('codex','claude'), required=True); g.add_argument('--model'); g.add_argument('--reasoning', choices=('low','medium','high','xhigh')); g.add_argument('--max-turns', type=int, default=20); g.add_argument('--max-budget-usd', type=float); g.add_argument('--agent-timeout', type=int, default=r.AGENT_TIMEOUT_SECONDS); g.add_argument('--run-id'); g.add_argument('--force', action='store_true')
     args = p.parse_args()
     if args.command == 'validate':
         errors = validate_contract(args.feature_dir.resolve())

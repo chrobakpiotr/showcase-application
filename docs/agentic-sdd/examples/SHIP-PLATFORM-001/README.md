@@ -132,7 +132,7 @@ Codex:
 ```bash
 python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 Claude Code:
@@ -140,7 +140,7 @@ Claude Code:
 ```bash
 python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-001 \
-  --provider claude
+  --provider claude --model "$MODEL"
 ```
 
 A successful result may:
@@ -158,7 +158,7 @@ A successful result may:
 ```bash
 python3 tooling/agent-harness/wayfinder.py resolve \
   docs/wayfinder/SHIP-PLATFORM-001 D-009 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 A valid research result may return `decision: null` while adding FACT/EVIDENCE entries such as existing API/security/persistence compatibility behavior. That is correct Decision Ledger behavior.
@@ -168,7 +168,7 @@ A valid research result may return `decision: null` while adding FACT/EVIDENCE e
 ```bash
 python3 tooling/agent-harness/wayfinder.py run \
   docs/wayfinder/SHIP-PLATFORM-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --reasoning high \
   --max-decisions 8
 ```
@@ -255,7 +255,7 @@ Only after `CLEARED yes`:
 python3 tooling/agent-harness/wayfinder.py to-spec \
   docs/wayfinder/SHIP-PLATFORM-001 \
   docs/specs/SHIP-PLATFORM-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 Expected:
@@ -280,7 +280,7 @@ The handoff preserves active Decision Ledger knowledge and terminal fog disposit
 python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 --plan
 
 python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 Wayfinder answers *what must be decided to reach an implementation-ready destination*. The design gate then adversarially checks the collapsed spec/plan:
@@ -307,7 +307,7 @@ After a fresh design PASS:
 ```bash
 python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 \
-  --provider claude
+  --provider claude --model "$MODEL"
 ```
 
 or:
@@ -315,7 +315,7 @@ or:
 ```bash
 python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 Then inspect and validate:
@@ -351,7 +351,7 @@ Only with fresh design + verification contract:
 ```bash
 python3 tooling/agent-harness/wayfinder.py to-tasks \
   docs/specs/SHIP-PLATFORM-001 \
-  --provider codex --reasoning high
+  --provider codex --model "$MODEL" --reasoning high
 ```
 
 `to-tasks` now requires the generator to produce:
@@ -406,7 +406,7 @@ The harness still reruns declared verification independently. TDD evidence is pr
 
 ```bash
 python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --review-provider claude \
   --evaluator-provider claude \
   --reasoning high \
@@ -446,7 +446,7 @@ Then rerun orchestration with the same provider choices. Completed sibling tasks
 
 ```bash
 python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --review-provider claude \
   --evaluator-provider claude \
   --reasoning high \

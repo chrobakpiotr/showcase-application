@@ -63,7 +63,7 @@ Preview and then run the design loop:
 
 ```bash
 python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --plan
-python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --reasoning high
+python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --model "$MODEL" --reasoning high
 ```
 
 For this medium-risk feature, `grill=auto` and `architecture_grill=auto` run. `prototype=auto` only runs when there is a concrete question: either predeclared in `design.json` or recommended by Spec Grill. Routine prototyping is intentionally skipped.
@@ -83,7 +83,7 @@ Codex only:
 
 ```bash
 python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --reasoning high \
   --verification-sandbox auto
 ```
@@ -92,7 +92,7 @@ Claude only:
 
 ```bash
 python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
-  --provider claude \
+  --provider claude --model "$MODEL" \
   --verification-sandbox auto
 ```
 
@@ -102,7 +102,7 @@ Use Codex for implementation and a separately invoked Claude context for special
 
 ```bash
 python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --review-provider claude \
   --evaluator-provider claude \
   --reasoning high \

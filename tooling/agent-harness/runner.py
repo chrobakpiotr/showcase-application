@@ -9,6 +9,7 @@ sandbox boundary, and writes provenance/usage telemetry for every invocation.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -18,8 +19,10 @@ import re
 import shlex
 import stat
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from typing import Any
@@ -175,15 +178,13 @@ def agent_cli_options(args: argparse.Namespace, read_only_run: bool, output_sche
             options['reasoning'] = args.reasoning
         return options
     tools = ['Read', 'Glob', 'Grep', 'Bash'] if read_only_run else ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash']
-    marker_dir = (unknown_state_registry.registry_path(REPO).parent if worktree is not None else None)
-    deny_read = list(CLAUDE_DENY_READ)
-    denied_tools = list(DENIED_BASH)
-    if marker_dir is not None:
-        deny_read.append(str(marker_dir))
+    # AH5-16a: the unknown-state marker directory, for reading and writing, to sandboxed Bash and to the file tools,
+    # on every Claude launch, as before AH5-12b. It derives from REPO, so `worktree` no longer decides it.
+    marker_dir = str(unknown_state_registry.registry_path(REPO).parent)
     options = {'sandbox_mode': 'read-only' if read_only_run else 'workspace-write',
                'output_schema': strip_meta_schema(output_schema), 'restricted': True, 'permission_mode': 'dontAsk',
-               'tools': tools, 'denied_commands': denied_tools, 'deny_read': deny_read,
-               'max_turns': args.max_turns}
+               'tools': tools, 'denied_commands': list(DENIED_BASH), 'deny_read': [*CLAUDE_DENY_READ, marker_dir],
+               'deny_write': [marker_dir], 'max_turns': args.max_turns}
     if args.max_budget_usd is not None:
         options['max_budget_usd'] = args.max_budget_usd
     return options
@@ -221,6 +222,146 @@ def execution_record(result: dict[str, Any], out: pathlib.Path, evidence: pathli
             'launch_record': str(launch_path.relative_to(out)) if launch else None,
             # row 11: the provider's own failure report (quota, reset time), as the library parsed it
             'provider_error': backend.error_details.get(result['request_id'])}
+
+
+class AgentLaunchFailed(RuntimeError):
+    """AH5-16a: a structured launch ended without a result; `status` is what its provenance records."""
+
+    def __init__(self, status: str, message: str):
+        super().__init__(message)
+        self.status = status
+
+
+_ACTIVE_LAUNCHES: set[Any] = set()
+_ACTIVE_LAUNCHES_LOCK = threading.RLock()  # re-entrant: the handler may interrupt its own thread holding it
+_STOPPING = threading.Event()  # set by a signal: a launch that registers afterwards is cancelled at once
+
+
+@contextlib.contextmanager
+def cancel_launches_on_signal() -> Any:
+    """AH5-16a: while open in the main thread, a SIGTERM or SIGHUP cancels every agent this process is waiting for,
+    in any thread, and raises SystemExit(128 + signal). Elsewhere it does nothing: Python runs signal handlers only
+    in the main thread, so a caller that waits for agents in worker threads opens it around them."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
+    def stop(signum: int, frame: Any) -> None:
+        with _ACTIVE_LAUNCHES_LOCK:
+            _STOPPING.set()
+            handles = list(_ACTIVE_LAUNCHES)
+        for handle in handles:
+            handle.cancel()
+        raise SystemExit(128 + signum)
+    stop.cancels_launches = True  # type: ignore[attr-defined]
+    previous = {signum: signal.signal(signum, stop) for signum in (signal.SIGTERM, signal.SIGHUP)}
+    try:
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+        if not any(getattr(handler, 'cancels_launches', False) for handler in previous.values()):
+            _STOPPING.clear()  # the outermost one has ended, and with it every waiter it covered
+
+
+def await_launch(handle: Any) -> dict[str, Any]:
+    """AH5-16a: wait for a launched agent; a SIGTERM or SIGHUP to this process stops the agent too.
+
+    The library runs the CLI in its own session and stops it when this process exits normally. A terminating signal
+    would end the process without that cleanup and leave the agent running unbounded, so the handle is registered
+    while it runs and cancelled by `cancel_launches_on_signal` (opened here in the main thread, by the caller around
+    worker threads); an interrupted wait cancels the execution and grants it 30 s before the exit continues. The
+    handlers stay installed during that grace, so a second signal ends the wait by SystemExit as well (and the
+    library's exit hook stops the CLI) instead of killing the process with the agent still running."""
+    with _ACTIVE_LAUNCHES_LOCK:
+        _ACTIVE_LAUNCHES.add(handle)
+        stopping = _STOPPING.is_set()
+    try:
+        with cancel_launches_on_signal():
+            try:
+                if stopping:
+                    handle.cancel()
+                return handle.result()
+            except BaseException:
+                handle.cancel()
+                try:
+                    handle.result(timeout=30)
+                except TimeoutError:
+                    pass
+                raise
+    finally:
+        with _ACTIVE_LAUNCHES_LOCK:
+            _ACTIVE_LAUNCHES.discard(handle)
+
+
+def check_agent_timeout(args: argparse.Namespace) -> None:
+    if not 1 <= args.agent_timeout <= 86400:
+        die('--agent-timeout must be 1..86400 seconds')
+
+
+def launch_structured_agent(args: argparse.Namespace, prompt: str, worktree: pathlib.Path, out: pathlib.Path,
+                            output_schema: dict[str, Any], *, read_only: bool,
+                            provenance: dict[str, Any]) -> dict[str, Any]:
+    """AH5-16a: one structured agent call (design, wayfinder, contract authoring) through agent_harness.execution,
+    with this runner's policy: the D1 model, the launch options and a request bound to the prompt, as `main` launches
+    a task. The execution is recorded in `provenance`, which the caller writes; the structured result is returned. A
+    refused, failed or withheld launch raises AgentLaunchFailed with the status to record."""
+    model, model_source = resolve_model(args)
+    run = argparse.Namespace(provider=args.provider, sandbox='read-only' if read_only else 'workspace-write',
+                             reasoning=args.reasoning, max_turns=args.max_turns, max_budget_usd=args.max_budget_usd)
+    options = agent_cli_options(run, read_only, output_schema, worktree=worktree)
+    backend = _execution.AgentCliBackend(args.provider, prompt, env=dict(os.environ), cli_options=options)
+    invocation_id = uuid.uuid4().hex
+    config = hashlib.sha256(canonical_json({'model': model, 'options': options})).hexdigest()
+    provenance.update({'invocation_id': invocation_id, 'model_requested': model, 'model_source': model_source,
+                       'agent_timeout_seconds': args.agent_timeout})
+    try:
+        request = _contract.validate_request({
+            'contract_version': 1, 'request_id': invocation_id, 'trial_id': None,
+            'task_digest': 'sha256:' + hashlib.sha256(prompt.encode('utf-8')).hexdigest(),
+            'config_digest': 'sha256:' + config, 'provider': args.provider, 'model': model, 'settings': {},
+            'capabilities': ['usage', 'cancel'], 'timeout_seconds': args.agent_timeout, 'max_attempts': 1,
+            'input_bindings': []})
+    except _contract.ContractError as exc:
+        raise AgentLaunchFailed('preflight-refused', f'agent request refused before launch: {exc}') from exc
+    evidence = out / 'evidence'
+    with cancel_launches_on_signal():  # from before the launch: no signal falls between launch and wait
+        launched = await_launch(_execution.launch(request, backend, workspace=str(worktree),
+                                                  evidence_root=str(evidence)))
+    record = execution_record(launched, out, evidence, backend)
+    stdout_path = record['artifacts'].get('agent-output')
+    stdout = (out / stdout_path).read_text(encoding='utf-8') if stdout_path else None
+    provenance.update({
+        'provider_exit_code': launched['exit_code'], 'model_resolved': launched['resolved_model'],
+        'agent_execution': record,
+        # unknown stays unknown: nothing is parsed from output that was not published
+        'provider_metadata': provider_metadata(args.provider, stdout) if stdout is not None
+        else {'usage': None, 'cost_usd': None},
+    })
+    if launched['outcome'] == 'rejected':
+        raise AgentLaunchFailed('preflight-refused',
+                                f'{args.provider} refused before launch: {backend.rejection_reason}; logs: {out}')
+    if launched['outcome'] != 'completed' or launched['exit_code'] != 0:
+        detail = f', {launched["error_code"]}' if launched.get('error_code') else ''
+        reported = record.get('provider_error')
+        if isinstance(reported, dict) and reported.get('message'):  # the provider's own words (quota, reset time)
+            detail += f': {str(reported["message"])[:500]}'
+        raise AgentLaunchFailed('provider-error', f'{args.provider} ended {launched["outcome"]} '
+                                                  f'(exit {launched["exit_code"]}{detail}); logs: {out}')
+    if record['withheld_reason']:
+        raise AgentLaunchFailed('output-withheld', f'{args.provider} output withheld ({record["withheld_reason"]}); '
+                                                   f'no result; logs: {out}')
+    if args.provider == 'claude':
+        return extract_claude_result(stdout or '')  # without structured output: a harness error (exit 2)
+    last = record['artifacts'].get('last-message')
+    if last is None:  # a harness error (exit 2), as a missing result file was before AH5-16a
+        die(f'codex wrote no last message; logs: {out}')
+    path = out / last
+    try:
+        json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        die(f'{path}: {exc}')  # names the file, as before AH5-16a
+    return load(path)
 
 
 def run_output(out: pathlib.Path, stream: str) -> str | None:
@@ -503,8 +644,9 @@ def main() -> None:
         rendered = [
             '<RESULT_PATH>' if item == str(preview_result) else '<PROMPT>' if item == prompt else item for item in cmd
         ]
-        # AH5-12b: the run launches through agent_harness.execution; this preview is the legacy command line, kept for
-        # design/wayfinder/verification_contract. A leading '#' keeps it from being pasted and run as is.
+        # AH5-12b: the run launches through agent_harness.execution; this preview is the legacy command line. Since
+        # AH5-16a no launch uses the legacy builders; this preview is their last caller (removed in AH5-17, which
+        # renders the backend's argv instead). A leading '#' keeps it from being pasted and run as is.
         print('LEGACY PREVIEW: not the command this runner launches (it launches through agent_harness.execution)',
               file=sys.stderr)
         print('# legacy preview, not the launched command: ' + shlex.join(rendered))
@@ -561,7 +703,9 @@ def main() -> None:
 
     try:
         evidence = out / 'evidence'
-        launched = _execution.launch(request, backend, workspace=str(worktree), evidence_root=str(evidence)).result()
+        with cancel_launches_on_signal():  # from before the launch: no signal falls between launch and wait
+            launched = await_launch(_execution.launch(request, backend, workspace=str(worktree),
+                                                      evidence_root=str(evidence)))
         record = execution_record(launched, out, evidence, backend)
         stdout_path = record['artifacts'].get('agent-output')
         stdout = (out / stdout_path).read_text(encoding='utf-8') if stdout_path else None

@@ -42,7 +42,7 @@ FAKE_CODEX = textwrap.dedent('''\
         print("token sk-ant-" + "a" * 40)
     if mode != "nolast":
         with open(argv[argv.index("--output-last-message") + 1], "w") as f:
-            json.dump(RESULT, f)
+            f.write("{not json") if mode == "badjson" else json.dump(RESULT, f)
     with open(os.environ["FAKE_LOG"], "a") as f:
         f.write(json.dumps({"argv": argv, "stdin": prompt}) + "\\n")
     sys.exit(3 if mode == "secretfail" else 0)
@@ -285,6 +285,277 @@ class RunnerLaunchTest(unittest.TestCase):
         denied = claude[claude.index('--disallowedTools') + 1:claude.index('--settings')]
         for tool in ('Read', 'Edit', 'Write'):
             self.assertTrue(any(item.startswith(f'{tool}(//') and '/unknown-state/**)' in item for item in denied))
+
+
+
+class StructuredLaunchTest(unittest.TestCase):
+    """AH5-16a: design, wayfinder and contract authoring launch through the runner's library path."""
+
+    setUp = RunnerLaunchTest.setUp  # the same fixture: fake codex, isolation probe, writable roots
+
+    SCHEMA = {'type': 'object', 'properties': {'status': {'type': 'string'}}, 'required': ['status'],  # noqa: RUF012
+              'additionalProperties': False}
+
+    def launch(self, *, model='m', read_only=False, mode='ok', sandbox='ok'):
+        args = argparse.Namespace(provider='codex', model=model, reasoning='high', max_turns=20, max_budget_usd=None,
+                                  agent_timeout=120)
+        out = self.runs / 'design' / 'F' / 'run' / 'stage'
+        out.mkdir(parents=True, exist_ok=True)
+        provenance = {'status': 'running'}
+        with mock.patch.dict(os.environ, {'FAKE_MODE': mode, 'FAKE_SANDBOX': sandbox}):
+            try:
+                result = runner.launch_structured_agent(args, 'design it \u2713', self.worktree, out, self.SCHEMA,
+                                                        read_only=read_only, provenance=provenance)
+            except runner.AgentLaunchFailed as exc:
+                return None, provenance, exc
+        return result, provenance, None
+
+    def calls(self):
+        return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
+
+    def test_a_structured_call_returns_its_result_and_records_the_execution(self):
+        result, provenance, failure = self.launch()
+        self.assertEqual((CODEX_RESULT, None), (result, failure))
+        self.assertEqual(('m', 'argument', 120, 0, 'completed'),
+                         (provenance['model_requested'], provenance['model_source'],
+                          provenance['agent_timeout_seconds'], provenance['provider_exit_code'],
+                          provenance['agent_execution']['outcome']))
+        self.assertEqual('running', provenance['status'])  # the caller records the status, not the launch
+        [call] = self.calls()
+        self.assertEqual('design it \u2713', call['stdin'])  # row 1: the prompt on stdin, never in argv
+        self.assertNotIn('design it', ' '.join(call['argv']))
+        argv = call['argv']
+        self.assertEqual(('workspace-write', 'm', '-'), (argv[argv.index('--sandbox') + 1], argv[argv.index('-m') + 1],
+                                                         argv[-1]))
+        self.assertIn('model_reasoning_effort="high"', argv)
+
+    def test_a_read_only_stage_runs_in_the_read_only_sandbox(self):
+        self.launch(read_only=True)
+        argv = self.calls()[-1]['argv']
+        self.assertEqual('read-only', argv[argv.index('--sandbox') + 1])
+
+    def test_without_a_model_nothing_is_launched(self):
+        with self.assertRaises(SystemExit):
+            self.launch(model=None)
+        self.assertEqual([], self.calls())
+
+    def test_refused_failed_and_withheld_launches_name_their_status_and_their_evidence(self):
+        cases = {'refused': ({'sandbox': 'broken'}, 'preflight-refused', 'refused before launch'),
+                 'failed': ({'mode': 'secretfail'}, 'provider-error', 'ended completed (exit 3'),
+                 'withheld': ({'mode': 'secret'}, 'output-withheld', 'output withheld')}
+        for name, (kwargs, status, message) in cases.items():
+            with self.subTest(name):
+                result, provenance, failure = self.launch(**kwargs)
+                self.assertIsNone(result)
+                self.assertEqual(status, failure.status)
+                self.assertIn(message, str(failure))
+                self.assertIn(f'; logs: {self.runs}', str(failure))  # where the evidence is
+                self.assertIn('agent_execution', provenance)
+
+    def test_a_result_that_cannot_be_read_is_a_harness_error_naming_it(self):
+        """As before AH5-16a: no result file, or an unreadable one, ends the stage with exit 2 (a harness error)."""
+        for mode, messages in (('nolast', ('codex wrote no last message; logs: ',)),
+                               ('badjson', (str(self.runs), 'Expecting property name'))):
+            stderr = io.StringIO()
+            with self.subTest(mode), contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as caught:
+                self.launch(mode=mode)
+            self.assertEqual(2, caught.exception.code)
+            for message in messages:
+                self.assertIn(message, stderr.getvalue())
+
+    def test_the_request_is_bounded_by_the_agent_timeout(self):
+        real = runner._execution.launch
+        with mock.patch.object(runner._execution, 'launch', side_effect=real) as launch:
+            self.launch()
+        self.assertEqual(120, launch.call_args.args[0]['timeout_seconds'])
+
+    def test_the_agent_timeout_must_be_1_to_86400_seconds(self):
+        for value in (0, -1, 86401):
+            with self.subTest(value), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                runner.check_agent_timeout(argparse.Namespace(agent_timeout=value))
+        for value in (1, 86400):
+            runner.check_agent_timeout(argparse.Namespace(agent_timeout=value))
+
+    def test_claude_launches_deny_the_marker_directory_for_reading_and_writing(self):
+        args = argparse.Namespace(provider='claude', sandbox='workspace-write', reasoning=None, max_turns=5,
+                                  max_budget_usd=None)
+        marker = str(runner.unknown_state_registry.registry_path(runner.REPO).parent)
+        for worktree in (self.worktree, None):  # the marker derives from REPO: no caller can leave it out
+            with self.subTest(worktree=worktree):
+                options = runner.agent_cli_options(args, False, self.SCHEMA, worktree=worktree)
+                self.assertEqual([marker], options['deny_write'])
+                self.assertIn(marker, options['deny_read'])
+        execution.AgentCliBackend('claude', 'x', cli_options=options)  # the library accepts them (>= 0.25.0)
+
+    def test_a_claude_stage_gets_its_sandbox_its_tools_and_the_marker_denials(self):
+        marker = str(runner.unknown_state_registry.registry_path(runner.REPO).parent)
+        args = argparse.Namespace(provider='claude', model='m', reasoning=None, max_turns=5, max_budget_usd=None,
+                                  agent_timeout=120)
+        out = self.runs / 'design' / 'F' / 'run' / 'claude'
+        for read_only in (True, False):
+            with self.subTest(read_only=read_only), \
+                    mock.patch.object(runner._execution, 'AgentCliBackend', side_effect=RuntimeError('stop')) as backend, \
+                    self.assertRaisesRegex(RuntimeError, 'stop'):
+                runner.launch_structured_agent(args, 'p', self.worktree, out, self.SCHEMA, read_only=read_only,
+                                               provenance={})
+            options = backend.call_args.kwargs['cli_options']
+            self.assertEqual('read-only' if read_only else 'workspace-write', options['sandbox_mode'])
+            self.assertEqual(not read_only, {'Edit', 'Write'} <= set(options['tools']))
+            self.assertEqual(([marker], True), (options['deny_write'], marker in options['deny_read']))
+
+
+class AwaitLaunchTest(unittest.TestCase):
+    """AH5-16a review F-2: a terminating signal while an agent runs stops the agent, not only this process."""
+
+    class Handle:
+        def __init__(self):
+            import threading
+            self.cancelled = threading.Event()
+
+        def result(self, timeout=None):
+            if not self.cancelled.wait(5 if timeout is None else timeout):
+                raise TimeoutError
+            return {'outcome': 'cancelled'}
+
+        def cancel(self):
+            self.cancelled.set()
+
+    def test_sigterm_and_sighup_cancel_the_execution_and_exit(self):
+        import signal
+        import threading
+        for signum in (signal.SIGTERM, signal.SIGHUP):
+            with self.subTest(signum=signum):
+                before = signal.getsignal(signum)
+                handle = self.Handle()
+                threading.Timer(0.2, os.kill, (os.getpid(), signum)).start()
+                with self.assertRaises(SystemExit) as caught:
+                    runner.await_launch(handle)
+                self.assertEqual(128 + signum, caught.exception.code)
+                self.assertTrue(handle.cancelled.is_set())
+                self.assertIs(before, signal.getsignal(signum))  # restored
+
+    def test_a_finished_launch_returns_its_result_and_restores_the_handlers(self):
+        import signal
+        before = signal.getsignal(signal.SIGTERM)
+        handle = self.Handle()
+        handle.cancel()
+        self.assertEqual({'outcome': 'cancelled'}, runner.await_launch(handle))
+        self.assertIs(before, signal.getsignal(signal.SIGTERM))
+
+    def test_an_interrupted_wait_cancels_and_grants_the_agent_its_grace(self):
+        handle = mock.Mock()
+        handle.result.side_effect = [KeyboardInterrupt, {'outcome': 'cancelled'}]
+        with self.assertRaises(KeyboardInterrupt):
+            runner.await_launch(handle)
+        handle.cancel.assert_called_once_with()
+        self.assertEqual([mock.call(), mock.call(timeout=30)], handle.result.call_args_list)
+
+
+    def test_a_signal_cancels_agents_awaited_in_worker_threads(self):
+        """Delta review N-6: the handler runs in the main thread and cancels every registered launch."""
+        import signal
+        import threading
+        handle, late = self.Handle(), self.Handle()
+        waiting, outcome = threading.Event(), {}
+
+        def worker():
+            waiting.set()
+            outcome['first'] = runner.await_launch(handle)
+            outcome['late'] = runner.await_launch(late)  # registers after the signal: cancelled at once
+
+        before = signal.getsignal(signal.SIGTERM)
+        thread = threading.Thread(target=worker)
+        code = None
+        with runner.cancel_launches_on_signal():
+            thread.start()
+            waiting.wait(5)
+            threading.Timer(0.2, os.kill, (os.getpid(), signal.SIGTERM)).start()
+            try:
+                thread.join(10)
+            except SystemExit as exc:  # raised in the main thread by the handler
+                code = exc.code
+                thread.join(10)  # as a thread pool's exit waits for its workers
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(128 + signal.SIGTERM, code)
+        self.assertTrue(handle.cancelled.is_set() and late.cancelled.is_set())
+        self.assertEqual({'first': {'outcome': 'cancelled'}, 'late': {'outcome': 'cancelled'}}, outcome)
+        self.assertIs(before, signal.getsignal(signal.SIGTERM))
+        self.assertFalse(runner._STOPPING.is_set())  # the outermost context ended: later launches are not cancelled
+        self.assertEqual(set(), runner._ACTIVE_LAUNCHES)
+
+    def test_a_second_signal_during_the_grace_still_exits_by_systemexit(self):
+        """Delta review N-7: the handlers stay installed while the cancelled agent gets its 30 s."""
+        import signal
+        import threading
+        seen = []
+        previous = signal.signal(signal.SIGTERM, lambda signum, frame: seen.append(signum))
+        self.addCleanup(signal.signal, signal.SIGTERM, previous)
+        cancelled, never = threading.Event(), threading.Event()
+        handle = mock.Mock()
+        handle.result.side_effect = lambda timeout=None: (cancelled if timeout is None else never).wait(
+            10 if timeout is None else timeout)
+        handle.cancel.side_effect = cancelled.set
+        for delay in (0.2, 0.6):
+            threading.Timer(delay, os.kill, (os.getpid(), signal.SIGTERM)).start()
+        with self.assertRaises(SystemExit) as caught:
+            runner.await_launch(handle)
+        self.assertEqual(128 + signal.SIGTERM, caught.exception.code)
+        self.assertEqual([], seen)  # neither signal reached the previous handler
+        self.assertEqual(mock.call(timeout=30), handle.result.call_args)  # the second ended the grace wait
+
+    def test_an_inner_context_keeps_stopping_until_the_outermost_ends(self):
+        import signal
+        import threading
+        with runner.cancel_launches_on_signal():
+            with self.assertRaises(SystemExit), runner.cancel_launches_on_signal():
+                threading.Timer(0.1, os.kill, (os.getpid(), signal.SIGTERM)).start()
+                threading.Event().wait(5)
+            self.assertTrue(runner._STOPPING.is_set())  # workers of the outer one still cancel at registration
+        self.assertFalse(runner._STOPPING.is_set())
+
+class AwaitLaunchWiringTest(StructuredLaunchTest):
+    """Delta review: both launch sites wait through await_launch, so the signal handling cannot be dropped silently."""
+
+    def spy(self):
+        handles = []
+        real_launch = runner._execution.launch
+
+        def launch(*args, **kwargs):
+            handles.append(real_launch(*args, **kwargs))
+            return handles[-1]
+        awaited = mock.Mock(wraps=runner.await_launch)
+        return handles, awaited, launch
+
+    def test_the_structured_launch_waits_through_await_launch(self):
+        handles, awaited, launch = self.spy()
+        with mock.patch.object(runner._execution, 'launch', launch), mock.patch.object(runner, 'await_launch', awaited):
+            result, _, failure = self.launch()
+        self.assertEqual((CODEX_RESULT, None), (result, failure))
+        self.assertEqual([mock.call(h) for h in handles], awaited.call_args_list)
+        self.assertEqual(1, len(handles))
+
+    def test_a_task_run_waits_through_await_launch(self):
+        handles, awaited, launch = self.spy()
+        with mock.patch.object(runner._execution, 'launch', launch), mock.patch.object(runner, 'await_launch', awaited):
+            code, _, err = RunnerLaunchTest.main(self, '--model', 'm')
+        self.assertEqual(0, code, err)
+        self.assertEqual([mock.call(h) for h in handles], awaited.call_args_list)
+        self.assertEqual(1, len(handles))
+
+
+class FailureMessageTest(StructuredLaunchTest):
+    def test_a_failed_launch_names_its_error_code_and_the_provider_s_words(self):
+        launched = {'outcome': 'error', 'exit_code': 3, 'error_code': 'provider_quota', 'resolved_model': None,
+                    'request_id': 'x', 'artifacts': []}
+        record = {'artifacts': {}, 'withheld_reason': None, 'provider_error': {'message': 'quota resets at 17:00'}}
+        handle = mock.Mock()
+        handle.result.return_value = launched
+        with mock.patch.object(runner._execution, 'launch', return_value=handle), \
+                mock.patch.object(runner, 'execution_record', return_value=record):
+            result, provenance, failure = self.launch()
+        self.assertEqual('provider-error', failure.status)
+        for part in ('ended error (exit 3, provider_quota: quota resets at 17:00); logs: ', str(self.runs)):
+            self.assertIn(part, str(failure))
 
 
 if __name__ == '__main__':

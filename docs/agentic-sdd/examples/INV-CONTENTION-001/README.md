@@ -20,7 +20,7 @@ Then run the live design loop with a local provider CLI:
 
 ```bash
 python3 tooling/agent-harness/design.py docs/specs/INV-CONTENTION-001 \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --reasoning high
 ```
 

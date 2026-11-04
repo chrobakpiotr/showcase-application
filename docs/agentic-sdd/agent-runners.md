@@ -2,6 +2,22 @@
 
 The orchestration protocol is deliberately provider-neutral. `tooling/agent-harness/runner.py` binds one immutable task packet to one isolated worktree and one coding-agent CLI. Runtime logs/results go to ignored `.agent-runs/`. The **agent process** never commits or pushes; after successful completion the outer harness may create a local-only checkpoint commit so dependency DAGs can be composed safely.
 
+Every agent launch goes through `agent_harness.execution` with the runner's policy: the task runner (AH5-12b) and,
+since AH5-16a, the design loop, Wayfinder and verification-contract authoring. A launch names its model (`--model`
+or a configured `DEFAULT_MODELS` entry, never the CLI's own default), is bounded by `--agent-timeout` (default
+1800 s, valid 1..86400), receives its prompt on stdin, and runs only on the CLI's own login: API-key variables are
+removed, so authenticate through the provider CLI first. Evidence goes to the run directory's `evidence/`; a refused,
+failed or withheld launch records `preflight-refused`, `provider-error` or `output-withheld`; a launch that
+returns no readable result is a harness error (exit 2), as before. The `design.py`, `wayfinder.py` and
+`verification_contract.py generate` invocations in `README.md` predate this and omit `--model`: that file keeps
+the bytes committed evidence binds, so add `--model <model-id>` when you run them.
+While an agent runs, a SIGTERM or SIGHUP to the launching process (the runner, `design.py`, `wayfinder.py` or
+`generate`) cancels the agent before the process exits, including the prototype candidates `design.py` runs in
+parallel. SIGKILL cannot be caught: the agent then keeps running in its
+own session with no bound, so stop its process group as well.
+Claude launches deny the unknown-state marker directory by path; a home directory whose path contains one of
+`( ) [ ] { } * ? ! # \` cannot be named in Claude Code's permission rules, so Claude launches refuse to start there.
+
 ## Codex
 
 Current non-interactive Codex uses `codex exec`. The runner passes a workspace-write or read-only sandbox, `approval_policy="never"`, disabled web search for deterministic coding tasks, an output JSON schema, and a worktree-specific prompt. Keep approval configuration in explicit CLI/config overrides rather than relying on a user's global Codex profile.
@@ -11,7 +27,7 @@ Example after creating/claiming a task:
 ```bash
 python3 tooling/agent-harness/runner.py \
   docs/specs/SHOP-001/packets/T-002.json \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --worktree ../showcase-application-agent-worktrees/SHOP-001/T-002 \
   --reasoning medium
 ```
@@ -43,7 +59,7 @@ The runner records structured provenance for every invocation and independently 
 
 ```bash
 python3 tooling/agent-harness/runner.py <packet.json> \
-  --provider codex \
+  --provider codex --model "$MODEL" \
   --worktree <task-worktree> \
   --verification-sandbox required
 ```
@@ -57,7 +73,7 @@ During orchestration, task leases are heartbeated by the outer process. If that 
 
 ## Design-loop runners
 
-`tooling/agent-harness/design.py` reuses the same bounded local Codex/Claude CLI command builders but supplies a dedicated structured output schema. Spec/architecture grills and prototype evaluation are read-only; only `prototype-agent` receives a disposable workspace-write scratch worktree.
+`tooling/agent-harness/design.py` launches through the same library execution path as the runner (above), with a dedicated structured output schema. Spec/architecture grills and prototype evaluation are read-only; only `prototype-agent` receives a disposable workspace-write scratch worktree.
 
 The design loop never commits or pushes prototype code and never creates a production dependency checkpoint from it. Candidate patches/logs stay under ignored `.agent-runs/`; only structured findings/evaluations may be copied into durable feature `design/` artifacts.
 

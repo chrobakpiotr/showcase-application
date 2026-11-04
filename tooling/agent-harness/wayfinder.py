@@ -495,33 +495,14 @@ def profile_text(worktree: pathlib.Path, profile: str) -> str:
     return path.read_text(encoding='utf-8')
 
 
-def provider_args(args: argparse.Namespace, profile: str, read_only: bool) -> argparse.Namespace:
-    return argparse.Namespace(
-        print_command=False,
-        sandbox='read-only' if read_only else 'workspace-write',
-        model=args.model,
-        reasoning=args.reasoning,
-        profile=profile,
-        review_existing=read_only,
-        max_turns=args.max_turns,
-        max_budget_usd=args.max_budget_usd,
-    )
-
-
 def run_provider_json(*, epic: str, stage: str, prompt: str, worktree: pathlib.Path, profile: str,
                       args: argparse.Namespace, schema: pathlib.Path, read_only: bool) -> tuple[dict[str, Any], pathlib.Path]:
     if 'CONTEXT TRUST BOUNDARY' not in prompt:
         prompt = trust.policy_text() + '\n' + prompt
-    p_args = provider_args(args, profile, read_only)
     runtime = REPO / '.agent-runs' / 'wayfinder' / epic / args.run_id / stage
     runtime.mkdir(parents=True, exist_ok=True)
     result_path = runtime / 'result.json'
     before = r.git_snapshot(worktree)
-    command = (
-        r.codex_command(p_args, prompt, worktree, result_path, schema_path=worktree / schema.relative_to(REPO))
-        if args.provider == 'codex'
-        else r.claude_command(p_args, prompt, worktree, schema_path=worktree / schema.relative_to(REPO))
-    )
     provenance = {
         'schema_version': 1, 'kind': 'wayfinder', 'epic': epic, 'stage': stage,
         'profile': profile, 'provider': args.provider, 'model_requested': args.model,
@@ -532,12 +513,9 @@ def run_provider_json(*, epic: str, stage: str, prompt: str, worktree: pathlib.P
     (runtime / 'prompt.txt').write_text(prompt, encoding='utf-8')
     started = time.monotonic()
     try:
-        proc = subprocess.run(command, cwd=worktree, text=True, capture_output=True, check=False)
-        (runtime / 'stdout.log').write_text(proc.stdout, encoding='utf-8')
-        (runtime / 'stderr.log').write_text(proc.stderr, encoding='utf-8')
-        if proc.returncode != 0:
-            raise RuntimeError(f'{args.provider} exited with {proc.returncode}: {(proc.stderr or proc.stdout)[-2000:]}')
-        result = r.extract_claude_result(proc.stdout) if args.provider == 'claude' else load_json(result_path)
+        # AH5-16a: the library's execution path with the runner's policy (one execution path, plan rule 7)
+        result = r.launch_structured_agent(args, prompt, worktree, runtime, load_json(worktree / schema.relative_to(REPO)),
+                                           read_only=read_only, provenance=provenance)
         after = r.git_snapshot(worktree)
         if after[0] != before[0]:
             raise RuntimeError('wayfinder agent changed HEAD; commits/rebase/reset are forbidden')
@@ -560,7 +538,8 @@ def run_provider_json(*, epic: str, stage: str, prompt: str, worktree: pathlib.P
         return result, result_path
     except BaseException as exc:
         provenance.update({
-            'status': 'harness-error', 'completed_at': telemetry.iso_now(),
+            'status': exc.status if isinstance(exc, r.AgentLaunchFailed) else 'harness-error',
+            'completed_at': telemetry.iso_now(),
             'duration_ms': round((time.monotonic() - started) * 1000),
             'error': {'type': type(exc).__name__, 'message': str(exc)[:2000]},
         })
@@ -1135,12 +1114,16 @@ def add_provider_args(p: argparse.ArgumentParser) -> None:
     p.add_argument('--reasoning', choices=('low', 'medium', 'high', 'xhigh'), default='high')
     p.add_argument('--max-turns', type=int, default=24)
     p.add_argument('--max-budget-usd', type=float)
+    p.add_argument('--agent-timeout', type=int, default=r.AGENT_TIMEOUT_SECONDS,
+                   help='Seconds before each agent launch is cancelled (default %(default)s; valid 1..86400)')
     p.add_argument('--run-id')
 
 
 def ensure_provider(args: argparse.Namespace) -> None:
     if not shutil.which(args.provider):
         die(f'{args.provider} CLI is not installed')
+    r.check_agent_timeout(args)
+    r.resolve_model(args)  # D1: refused before any claim, worktree or run directory exists
     args.run_id = args.run_id or f'wayfinder-{uuid.uuid4().hex[:12]}'
 
 

@@ -25,9 +25,9 @@ echo "Preview design stages:"
 echo "  python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --plan"
 echo
 echo "Live preflight (example with Codex):"
-echo "  python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --reasoning high"
+echo "  python3 tooling/agent-harness/design.py docs/specs/INV-LOW-001 --provider codex --model <model-id> --reasoning high"
 echo
 echo "Only after design/gate.json is PASS:"
 echo "  python3 tooling/agent-harness/harness.py validate docs/specs/INV-LOW-001"
 echo "  python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 --plan"
-echo "  python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 --provider codex --review-provider claude --evaluator-provider claude --reasoning high"
+echo "  python3 tooling/agent-harness/orchestrate.py docs/specs/INV-LOW-001 --provider codex --model <model-id> --review-provider claude --evaluator-provider claude --reasoning high"

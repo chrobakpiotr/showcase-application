@@ -16,6 +16,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -237,14 +238,23 @@ def design_base(feature_dir: pathlib.Path, feature: str) -> str:
     return h.execution_base(feature_dir, {'feature': feature}, {})
 
 
+# Git does not lock its worktree registry: a `worktree add` that runs while another is still writing
+# `.git/worktrees/<name>/` can fail reading it ("failed to read .../commondir"). The prototype candidates run in
+# threads, so their worktree changes take turns.
+_WORKTREE_LOCK = threading.Lock()
+
+
 def create_worktree(feature: str, label: str, base: str) -> pathlib.Path:
     root = h.repo_root()
     target = design_worktree_root(feature) / label
-    if target.exists():
-        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=root, check=False, capture_output=True)
-        shutil.rmtree(target, ignore_errors=True)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(['git', 'worktree', 'add', '--detach', str(target), base], cwd=root, text=True, capture_output=True)
+    with _WORKTREE_LOCK:
+        if target.exists():
+            subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=root, check=False,
+                           capture_output=True)
+            shutil.rmtree(target, ignore_errors=True)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        proc = subprocess.run(['git', 'worktree', 'add', '--detach', str(target), base], cwd=root, text=True,
+                              capture_output=True)
     if proc.returncode != 0:
         die(f'cannot create design worktree {target}: {(proc.stderr or proc.stdout).strip()}')
     return target
@@ -252,8 +262,10 @@ def create_worktree(feature: str, label: str, base: str) -> pathlib.Path:
 
 def remove_worktree(target: pathlib.Path) -> None:
     root = h.repo_root()
-    subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=root, check=False, capture_output=True)
-    shutil.rmtree(target, ignore_errors=True)
+    with _WORKTREE_LOCK:
+        subprocess.run(['git', 'worktree', 'remove', '--force', str(target)], cwd=root, check=False,
+                       capture_output=True)
+        shutil.rmtree(target, ignore_errors=True)
 
 
 def profile_text(worktree: pathlib.Path, profile: str) -> str:
@@ -263,34 +275,15 @@ def profile_text(worktree: pathlib.Path, profile: str) -> str:
     return path.read_text(encoding='utf-8')
 
 
-def provider_args(args: argparse.Namespace, profile: str, read_only: bool) -> argparse.Namespace:
-    return argparse.Namespace(
-        print_command=False,
-        sandbox='read-only' if read_only else 'workspace-write',
-        model=args.model,
-        reasoning=args.reasoning,
-        profile=profile,
-        review_existing=read_only,
-        max_turns=args.max_turns,
-        max_budget_usd=args.max_budget_usd,
-    )
-
-
 def run_provider(
     *, feature: str, stage: str, prompt: str, worktree: pathlib.Path, profile: str,
     args: argparse.Namespace, read_only: bool,
 ) -> tuple[dict[str, Any], pathlib.Path]:
-    p_args = provider_args(args, profile, read_only)
     runtime = REPO / '.agent-runs' / 'design' / feature / args.run_id / stage
     runtime.mkdir(parents=True, exist_ok=True)
     result_path = runtime / 'result.json'
     schema = worktree / 'tooling' / 'agent-harness' / 'schemas' / 'design-result.schema.json'
     before = r.git_snapshot(worktree)
-    command = (
-        r.codex_command(p_args, prompt, worktree, result_path, schema_path=schema)
-        if args.provider == 'codex'
-        else r.claude_command(p_args, prompt, worktree, schema_path=schema)
-    )
     provenance = {
         'schema_version': 1,
         'kind': 'design',
@@ -309,15 +302,9 @@ def run_provider(
     (runtime / 'prompt.txt').write_text(prompt, encoding='utf-8')
     started = time.monotonic()
     try:
-        proc = subprocess.run(command, cwd=worktree, text=True, capture_output=True, check=False)
-        (runtime / 'stdout.log').write_text(proc.stdout, encoding='utf-8')
-        (runtime / 'stderr.log').write_text(proc.stderr, encoding='utf-8')
-        if proc.returncode != 0:
-            raise RuntimeError(f'{args.provider} exited with {proc.returncode}: {(proc.stderr or proc.stdout)[-2000:]}')
-        if args.provider == 'claude':
-            result = r.extract_claude_result(proc.stdout)
-        else:
-            result = load_json(result_path)
+        # AH5-16a: the library's execution path with the runner's policy (one execution path, plan rule 7)
+        result = r.launch_structured_agent(args, prompt, worktree, runtime, load_json(schema), read_only=read_only,
+                                           provenance=provenance)
         validate_design_result(result)
         after = r.git_snapshot(worktree)
         if after[0] != before[0]:
@@ -341,7 +328,7 @@ def run_provider(
         return result, result_path
     except BaseException as exc:
         provenance.update({
-            'status': 'harness-error',
+            'status': exc.status if isinstance(exc, r.AgentLaunchFailed) else 'harness-error',
             'completed_at': telemetry.iso_now(),
             'duration_ms': round((time.monotonic() - started) * 1000),
             'error': {'type': type(exc).__name__, 'message': str(exc)[:2000]},
@@ -548,6 +535,8 @@ def main() -> None:
     p.add_argument('--reasoning', choices=('low', 'medium', 'high', 'xhigh'), default='high')
     p.add_argument('--max-turns', type=int, default=20)
     p.add_argument('--max-budget-usd', type=float)
+    p.add_argument('--agent-timeout', type=int, default=r.AGENT_TIMEOUT_SECONDS,
+                   help='Seconds before each agent launch is cancelled (default %(default)s; valid 1..86400)')
     p.add_argument('--grill', choices=tuple(sorted(VALID_MODES)))
     p.add_argument('--prototype', choices=tuple(sorted(VALID_MODES)))
     p.add_argument('--architecture-grill', choices=tuple(sorted(VALID_MODES)))
@@ -585,6 +574,8 @@ def main() -> None:
 
     if not shutil.which(args.provider):
         die(f'{args.provider} CLI is not installed; use --plan for a side-effect-free preview')
+    r.check_agent_timeout(args)
+    r.resolve_model(args)  # D1: refused before any worktree or run directory exists
 
     base = design_base(feature_dir, feature_dir.name)
     design_dir = feature_dir / 'design'
@@ -620,7 +611,10 @@ def main() -> None:
             qdir = design_dir / 'prototypes' / question['id']
             write_durable(qdir / 'question.json', question)
             candidate_results: list[dict[str, Any]] = []
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_parallel, len(question['candidates']))) as pool:
+            # The candidates' agents are awaited in worker threads, where no signal handler runs: the main thread
+            # cancels them all on SIGTERM or SIGHUP.
+            with r.cancel_launches_on_signal(), \
+                    concurrent.futures.ThreadPoolExecutor(max_workers=min(max_parallel, len(question['candidates']))) as pool:
                 futures = [
                     pool.submit(run_prototype_candidate, feature_dir, spec, technical_plan, question, candidate, base, args)
                     for candidate in question['candidates']
@@ -682,7 +676,8 @@ def main() -> None:
     write_durable(design_dir / 'gate.json', gate)
     print(design_dir / 'gate.json')
     if config.get('verification_contract', 'optional') == 'required':
-        print(f"NEXT python3 tooling/agent-harness/verification_contract.py generate {feature_dir} --provider {args.provider}")
+        model = f' --model {args.model}' if args.model else ' --model <model-id>'  # AH5-16a: a model is required
+        print(f"NEXT python3 tooling/agent-harness/verification_contract.py generate {feature_dir} --provider {args.provider}{model}")
 
 
 if __name__ == '__main__':
