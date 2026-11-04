@@ -20,18 +20,23 @@ def library_functions(library):
 
 def pass_through(alias, name, arguments):
     """The one call a delegate may make: its own parameters, in order, and the shim's namespace."""
-    parts = ([a.arg for a in arguments.posonlyargs + arguments.args] + [f'{a.arg}={a.arg}' for a in arguments.kwonlyargs]
+    parts = ([a.arg for a in arguments.posonlyargs + arguments.args]
+             + ([f'*{arguments.vararg.arg}'] if arguments.vararg else [])
+             + [f'{a.arg}={a.arg}' for a in arguments.kwonlyargs]
              + ['ns=_NS'] + ([f'**{arguments.kwarg.arg}'] if arguments.kwarg else []))
     return f"{alias}.{name}({', '.join(parts)})"
 
 
-def check_shim_layout(test, shim, library, aliases, paths):
-    """Assert the layout above for `shim` (the consumer module) delegating to `library` (agent_harness.<module>)."""
+def check_shim_layout(test, shim, library, aliases, paths, bindings=()):
+    """Assert the layout above for `shim` (the consumer module) delegating to `library` (agent_harness.<module>).
+
+    `bindings`: names the shim binds as a tuple of another library module's objects, `a, b = (_impl.a, _impl.b)`
+    (the generate package's validation aliases); each must be that object, under its own name."""
     alias = '_' + library.__name__.rsplit('.', 1)[-1]
     binding = f'{alias}.bind(_transitions.ModuleNamespace(globals()))'
     functions = library_functions(library)
     tree = ast.parse(inspect.getsource(shim))
-    layer = set(functions) | set(aliases) | set(paths) | {'_NS'}
+    layer = set(functions) | set(aliases) | set(paths) | set(bindings) | {'_NS'}
     defined, places, imported = [], {}, []
     for index, node in enumerate(tree.body):
         text = ast.unparse(node)
@@ -58,6 +63,13 @@ def check_shim_layout(test, shim, library, aliases, paths):
             continue
         test.assertIsInstance(node, ast.Assign, text)
         test.assertEqual(1, len(node.targets), text)
+        if isinstance(node.targets[0], ast.Tuple):
+            names = [ast.unparse(e) for e in node.targets[0].elts]
+            test.assertTrue(set(names) <= set(bindings), text)
+            test.assertIsInstance(node.value, ast.Tuple, text)
+            test.assertEqual([f'_impl.{n}' for n in names], [ast.unparse(e) for e in node.value.elts], text)
+            defined += names
+            continue
         name = ast.unparse(node.targets[0])
         if name in aliases:
             test.assertEqual(f'{alias}.{name}', ast.unparse(node.value))
@@ -68,7 +80,7 @@ def check_shim_layout(test, shim, library, aliases, paths):
         else:
             test.assertIn(name, paths, text)
         defined.append(name)
-    test.assertEqual(sorted(functions + list(aliases) + list(paths) + ['_NS']), sorted(defined))
+    test.assertEqual(sorted(functions + list(aliases) + list(paths) + list(bindings) + ['_NS']), sorted(defined))
     test.assertEqual(sorted(set(imported)), sorted(imported))  # a second import would rebind a name the library reads
     test.assertIn(PATH_GUARD, places)
     test.assertLess(max(places['layer']), places['_NS'])
