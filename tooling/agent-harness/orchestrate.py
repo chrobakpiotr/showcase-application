@@ -32,67 +32,36 @@ from machine_outcomes import exit_code, is_control_outcome  # noqa: E402
 from verification.authority import prepare_task_plan  # noqa: E402
 from verification.profile import load_profile  # noqa: E402
 import verification_sandbox  # noqa: E402
+from agent_harness import feature_transitions as _transitions  # noqa: E402
+from agent_harness import orchestration as _orchestration  # noqa: E402
 
 RUNNER = HERE / 'runner.py'
 REPO = HERE.parents[1]
 
-VERIFICATION_BLOCKAGE_OUTCOMES = {
-    'busy', 'stale-input', 'environment-blocked', 'needs-human',
-    'verification-blocked', 'verification-owned', 'abandoned',
-}
-VERIFICATION_OUTCOMES = VERIFICATION_BLOCKAGE_OUTCOMES | {
-    'pass', 'verification-failed', 'invalid-policy', 'invalid-cache',
-    'retry-policy-violation', 'harness-error',
-}
-MAX_SAFE_JSON_INTEGER = (1 << 53) - 1
-MAX_PROCESS_EXIT_CODE = 255
+VERIFICATION_BLOCKAGE_OUTCOMES = _orchestration.VERIFICATION_BLOCKAGE_OUTCOMES
+VERIFICATION_OUTCOMES = _orchestration.VERIFICATION_OUTCOMES
+MAX_SAFE_JSON_INTEGER = _orchestration.MAX_SAFE_JSON_INTEGER
+MAX_PROCESS_EXIT_CODE = _orchestration.MAX_PROCESS_EXIT_CODE
 
-
-@dataclass(frozen=True)
-class ProviderChoice:
-    provider: str
-    model: str | None
-
-
-@dataclass
-class TaskOutcome:
-    task_id: str
-    status: str
-    evidence: pathlib.Path | None = None
-    summary: str = ''
-    rework_tasks: list[str] | None = None
-
-
-class AgentPreflightRefused(RuntimeError):
-    """The provider launch did not pass its pre-attempt readiness gate."""
+ProviderChoice = _orchestration.ProviderChoice
+TaskOutcome = _orchestration.TaskOutcome
+AgentPreflightRefused = _orchestration.AgentPreflightRefused
 
 
 def die(message: str) -> None:
-    print(f'ERROR: {message}', file=sys.stderr)
-    raise SystemExit(2)
+    return _orchestration.die(message, ns=_NS)
 
 
 def load_result(path: pathlib.Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding='utf-8'))
-    except (FileNotFoundError, json.JSONDecodeError) as exc:
-        die(f'invalid runner evidence {path}: {exc}')
-    if not isinstance(value, dict):
-        die(f'runner evidence must be an object: {path}')
-    return value
+    return _orchestration.load_result(path, ns=_NS)
 
 
 def choice_for_role(role: str, args: argparse.Namespace) -> ProviderChoice:
-    if role in {'evaluator', 'integration'}:
-        return ProviderChoice(args.evaluator_provider or args.provider, args.evaluator_model or args.model)
-    return ProviderChoice(args.provider, args.model)
+    return _orchestration.choice_for_role(role, args, ns=_NS)
 
 
 def review_choice(args: argparse.Namespace) -> ProviderChoice:
-    return ProviderChoice(
-        args.review_provider or args.evaluator_provider or args.provider,
-        args.review_model or args.evaluator_model or args.model,
-    )
+    return _orchestration.review_choice(args, ns=_NS)
 
 
 def run_accepted_verification(
@@ -100,33 +69,11 @@ def run_accepted_verification(
     *, expected_task_id: str, expected_task_attempt: int,
     expected_record: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
-    """Run only the currently accepted plan with its bound control interpreter."""
-    record = h.resolve_accepted_verification_plan(worktree, plan_id)
-    if (record.get('plan_id') != plan_id or record.get('task_id') != expected_task_id or
-            type(record.get('task_attempt')) is not int or
-            record.get('task_attempt') != expected_task_attempt or
-            (expected_record is not None and record != expected_record)):
-        raise ValueError('PLAN_BINDING_MISMATCH')
-    control_python = record.get('control_executable_binding')
-    if not isinstance(control_python, dict):
-        raise ValueError('PLAN_BINDING_MISMATCH')
-    profile_path = HERE / 'verification-profiles' / f"{record['profile_id']}.json"
-    profile = load_profile(profile_path, repository=worktree)
-    if profile.content_hash != record.get('profile_hash'):
-        raise ValueError('PLAN_BINDING_MISMATCH')
-    verification_sandbox.verify_executable_binding(control_python)
-    control_env = verification_sandbox._safe_env(
-        worktree, output_dir / 'verification-control-home', profile.toolchain_directories)
-    result = subprocess.run(
-        [control_python['path'], '-I', str(HERE / 'verify.py'), 'run',
-         '--mode', 'integration', '--repo', str(worktree), '--plan-id', plan_id],
-        cwd=worktree, env=control_env, text=True, capture_output=True,
-        timeout=timeout_seconds, check=False)
-    return record, result
+    return _orchestration.run_accepted_verification(worktree, output_dir, plan_id, timeout_seconds, expected_task_id=expected_task_id, expected_task_attempt=expected_task_attempt, expected_record=expected_record, ns=_NS)
 
 
 def owner_for(args: argparse.Namespace, task_id: str) -> str:
-    return f'{args.owner_prefix}-{args.run_id[:8]}-{task_id.lower()}'
+    return _orchestration.owner_for(args, task_id, ns=_NS)
 
 
 def runner_command(
@@ -140,67 +87,15 @@ def runner_command(
     feedback_file: pathlib.Path | None = None,
     defer_verification: bool = False,
 ) -> list[str]:
-    cmd = [
-        sys.executable,
-        str(RUNNER),
-        str(packet),
-        '--provider', choice.provider,
-        '--worktree', str(worktree),
-        '--max-turns', str(args.max_turns),
-        '--agent-timeout', str(args.agent_timeout),
-        '--verification-timeout', str(args.verification_timeout),
-        '--verification-sandbox', args.verification_sandbox,
-        '--orchestration-id', args.run_id,
-    ]
-    if choice.model:
-        cmd += ['--model', choice.model]
-    if args.reasoning and choice.provider == 'codex':
-        cmd += ['--reasoning', args.reasoning]
-    if args.max_budget_usd is not None and choice.provider == 'claude':
-        cmd += ['--max-budget-usd', str(args.max_budget_usd)]
-    if profile:
-        cmd += ['--profile', profile]
-    if review_existing:
-        cmd += ['--review-existing']
-    elif profile:
-        cmd += ['--sandbox', 'read-only']
-    if profile and profile.endswith('-reviewer'):
-        cmd += ['--skip-verification']
-    if feedback_file and feedback_file.exists():
-        cmd += ['--feedback-file', str(feedback_file)]
-    if defer_verification:
-        cmd += ['--skip-verification']
-    return cmd
+    return _orchestration.runner_command(packet, worktree, choice, args, profile=profile, review_existing=review_existing, feedback_file=feedback_file, defer_verification=defer_verification, ns=_NS)
 
 
 def invoke_runner(cmd: list[str]) -> pathlib.Path:
-    proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip() or f'exit={proc.returncode}'
-        raise RuntimeError(detail[-4000:])
-    lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-    if not lines:
-        raise RuntimeError('runner returned no evidence path')
-    path = pathlib.Path(lines[-1]).resolve()
-    if not path.exists():
-        raise RuntimeError(f'runner evidence path does not exist: {path}')
-    return path
+    return _orchestration.invoke_runner(cmd, ns=_NS)
 
 
 def invoke_preflight(cmd: list[str]) -> None:
-    """Require explicit runner preflight success before any task attempt starts."""
-    try:
-        proc = subprocess.run([*cmd, '--preflight'], text=True, capture_output=True, check=False)
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise RuntimeError(f'agent preflight unavailable: {type(exc).__name__}') from exc
-    if proc.returncode == 0 and proc.stdout.strip() == 'preflight: ok':
-        return
-    detail = proc.stderr.strip() or proc.stdout.strip() or f'exit={proc.returncode}'
-    if detail.startswith('ERROR: '):
-        detail = detail[len('ERROR: '):]
-    if proc.returncode == 0:
-        raise RuntimeError(f'agent preflight returned an invalid response: {detail[-4000:]}')
-    raise RuntimeError(detail[-4000:])
+    return _orchestration.invoke_preflight(cmd, ns=_NS)
 
 
 def preflight_task_launches(
@@ -208,254 +103,34 @@ def preflight_task_launches(
     choice: ProviderChoice, args: argparse.Namespace, feedback: pathlib.Path | None,
     *, verification_resume: bool = False,
 ) -> None:
-    """Preflight every provider/profile launch that may follow this task start."""
-    packet_doc = load_result(packet)
-    launches: list[tuple[ProviderChoice, str | None, bool, bool]] = []
-    if not verification_resume:
-        launches.append((choice, None, False, True))
-    if task['role'] == 'builder':
-        for profile in [str(item) for item in packet_doc.get('required_reviewers', [])]:
-            # A normal start has a clean worktree; a verification resume reviews its existing candidate.
-            launches.append((review_choice(args), profile, verification_resume, False))
-
-    for launch_choice, profile, review_existing, defer_verification in launches:
-        command = runner_command(
-            packet, worktree, launch_choice, args,
-            profile=profile, review_existing=review_existing,
-            feedback_file=feedback if profile is None else None,
-            defer_verification=defer_verification,
-        )
-        try:
-            invoke_preflight(command)
-        except RuntimeError as exc:
-            raise AgentPreflightRefused(str(exc)) from exc
+    return _orchestration.preflight_task_launches(task, packet, worktree, choice, args, feedback, verification_resume=verification_resume, ns=_NS)
 
 
 def prepare_ready_task_for_preflight(
     feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str,
     args: argparse.Namespace, feedback: pathlib.Path | None,
 ) -> tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]:
-    """Prepare reusable inputs without claiming the task or incrementing its attempt."""
-    state = h.load_state(feature_dir, doc)
-    if task_id not in h.ready_ids(doc, state, feature_dir):
-        raise RuntimeError(f'{task_id} is no longer ready before provider preflight')
-    task = h.active_task_contract(feature_dir, doc, task_id, state=state)
-    packet = h.write_packet(doc, task, feature_dir, state=state)
-    worktree = h.worktree_path(str(doc.get('feature', feature_dir.name)), task_id)
-    resume = isinstance(state['tasks'][task_id].get('verification_resume_pending'), dict)
-    if resume:
-        if not worktree.is_dir() or worktree.is_symlink():
-            raise RuntimeError('verification resume worktree is unavailable before provider preflight')
-    else:
-        h.cmd_worktree_create(argparse.Namespace(feature_dir=feature_dir, task_id=task_id))
-    preflight_task_launches(
-        task, packet, worktree, choice_for_role(task['role'], args), args, feedback,
-        verification_resume=resume,
-    )
-    return task, worktree, packet, feedback
+    return _orchestration.prepare_ready_task_for_preflight(feature_dir, doc, task_id, args, feedback, ns=_NS)
 
 
-@contextlib.contextmanager
 def lease_heartbeat(
     feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str, owner: str
 ) -> Iterator[None]:
-    """Refresh a running task lease while provider/reviewer subprocesses are active."""
-    stop = threading.Event()
-    errors: list[str] = []
-    interval = h.heartbeat_interval_seconds(doc)
-
-    def beat() -> None:
-        while not stop.wait(interval):
-            try:
-                h.heartbeat(feature_dir, doc, task_id, owner)
-            except BaseException as exc:  # capture; main worker converts it to infrastructure error
-                errors.append(str(exc))
-                stop.set()
-                return
-
-    # Refresh immediately so a resumed/slow-to-start provider gets a full lease window.
-    h.heartbeat(feature_dir, doc, task_id, owner)
-    thread = threading.Thread(target=beat, name=f'lease-heartbeat-{task_id}', daemon=True)
-    thread.start()
-    try:
-        yield
-    finally:
-        stop.set()
-        thread.join(timeout=max(2, min(interval, 10)))
-        if errors:
-            raise RuntimeError(f'lease heartbeat failed for {task_id}: {errors[-1]}')
+    return _orchestration.lease_heartbeat(feature_dir, doc, task_id, owner, ns=_NS)
 
 
 def prior_feedback(feature_dir: pathlib.Path, doc: dict[str, Any], task_id: str) -> pathlib.Path | None:
-    state = h.load_state(feature_dir, doc)
-    entry = state['tasks'][task_id]
-    raw = entry.get('rework_evidence') or entry.get('last_failure_evidence')
-    if not raw:
-        return None
-    path = pathlib.Path(str(raw))
-    return path if path.exists() else None
+    return _orchestration.prior_feedback(feature_dir, doc, task_id, ns=_NS)
 
 
 def aggregate_success(main_path: pathlib.Path, reviews: list[tuple[str, pathlib.Path]]) -> pathlib.Path:
-    main = load_result(main_path)
-    aggregate = dict(main)
-    aggregate['status'] = 'pass'
-    aggregate['specialist_reviews'] = []
-    for profile, path in reviews:
-        result = load_result(path)
-        aggregate['specialist_reviews'].append({
-            'profile': profile,
-            'status': result.get('status'),
-            'summary': result.get('summary'),
-            'evidence': str(path),
-            'findings': result.get('findings', []),
-            'provenance': result.get('provenance'),
-        })
-    out = main_path.parent / 'aggregate-result.json'
-    out.write_text(json.dumps(aggregate, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-    return out
-
+    return _orchestration.aggregate_success(main_path, reviews, ns=_NS)
 
 
 def verification_evidence_summary(result: dict[str, Any], plan_record: dict[str, Any],
                                   process_exit_code: int) -> dict[str, Any]:
-    """Persist only allowlisted verification decisions, never raw command output."""
-    summary: dict[str, Any] = {
-        'plan_id': plan_record['plan_id'],
-        'family_id': plan_record['family']['id'],
-        'lifecycle_generation': plan_record['lifecycle_generation'],
-        'profile_id': plan_record['profile_id'],
-        'profile_hash': plan_record['profile_hash'],
-        'policy_checkpoint': plan_record['policy_checkpoint'],
-        'outcome': 'harness-error',
-        'process_exit_code': process_exit_code,
-        'gates': [],
-    }
-    def malformed() -> dict[str, Any]:
-        summary.update({
-            'outcome': 'verification-blocked',
-            'machine_category': 'verification-blocked',
-            'reason_code': 'MALFORMED_VERIFICATION_RESULT',
-            'gates': [],
-        })
-        summary.pop('continuation', None)
-        return summary
+    return _orchestration.verification_evidence_summary(result, plan_record, process_exit_code, ns=_NS)
 
-    if not isinstance(result, dict):
-        return malformed()
-    raw_outcome = result.get('outcome')
-    raw_category = result.get('machine_category')
-    raw_continuation = result.get('continuation')
-    raw_reason_code = result.get('reason_code')
-    raw_exit_code = result.get('exit_code')
-    gates = result.get('gates')
-    allowed_outcomes = VERIFICATION_OUTCOMES | {'PASS', 'FAIL', 'ERROR', 'TIMEOUT'}
-    if (not isinstance(raw_outcome, str) or
-            raw_outcome not in allowed_outcomes or
-            raw_category is not None and (not isinstance(raw_category, str) or
-                                          raw_category not in allowed_outcomes) or
-            raw_continuation is not None and (not isinstance(raw_continuation, str) or
-                raw_continuation not in {'execute-all-and-aggregate', 'continue-from-first-non-green'}) or
-            raw_reason_code is not None and not isinstance(raw_reason_code, str) or
-            raw_exit_code is not None and (type(raw_exit_code) is not int or
-                                           not 0 <= raw_exit_code <= MAX_PROCESS_EXIT_CODE) or
-            not isinstance(gates, list)):
-        return malformed()
-    if type(process_exit_code) is not int or not 0 <= process_exit_code <= MAX_PROCESS_EXIT_CODE:
-        return malformed()
-    expected_outcome_exit = exit_code(raw_outcome)
-    if expected_outcome_exit is not None:
-        if (raw_category != raw_outcome or raw_exit_code != expected_outcome_exit or
-                process_exit_code != expected_outcome_exit):
-            return malformed()
-    elif raw_category is not None or raw_exit_code is not None:
-        return malformed()
-    if raw_outcome == 'PASS':
-        if process_exit_code != 0 or raw_category is not None or raw_exit_code is not None:
-            return malformed()
-        obligations = plan_record.get('obligations')
-        if (not isinstance(obligations, list) or not obligations or
-                any(not isinstance(item, dict) for item in gates)):
-            return malformed()
-        expected_gate_ids = [item.get('gate_id') if isinstance(item, dict) else None
-                             for item in obligations]
-        actual_gate_ids = [item.get('gate_id') for item in gates if isinstance(item, dict)]
-        if (any(not isinstance(gate_id, str) for gate_id in expected_gate_ids) or
-                actual_gate_ids != expected_gate_ids or
-                any(item.get('outcome') != 'PASS' for item in gates)):
-            return malformed()
-    allowed_gate_outcomes = {'PASS', 'FAIL', 'ERROR', 'TIMEOUT', 'NOT_RUN',
-                             'needs-human', 'verification-blocked', 'verification-owned'}
-    for gate in gates:
-        if not isinstance(gate, dict):
-            return malformed()
-        gate_id, action, gate_outcome = gate.get('gate_id'), gate.get('action'), gate.get('outcome')
-        if (not isinstance(gate_id, str) or not re.fullmatch(r'[A-Za-z0-9._-]{1,128}', gate_id) or
-                not isinstance(action, str) or action not in {'RUN', 'REUSE'}):
-            return malformed()
-        if not isinstance(gate_outcome, str) or gate_outcome not in allowed_gate_outcomes:
-            return malformed()
-        reason = gate.get('reason')
-        if reason is not None and (not isinstance(reason, str) or
-                                   not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', reason)):
-            return malformed()
-        for key in ('fingerprint', 'command_hash'):
-            value = gate.get(key)
-            if value is not None and (not isinstance(value, str) or
-                                      not re.fullmatch(r'[0-9a-f]{64}', value)):
-                return malformed()
-        for key in ('exit_code', 'started_at', 'ended_at', 'duration_seconds'):
-            value = gate.get(key)
-            if value is None:
-                continue
-            if key == 'exit_code':
-                if type(value) is not int or not 0 <= value <= MAX_PROCESS_EXIT_CODE:
-                    return malformed()
-            else:
-                if type(value) is int:
-                    if abs(value) > MAX_SAFE_JSON_INTEGER:
-                        return malformed()
-                elif type(value) is float:
-                    if not math.isfinite(value) or abs(value) > MAX_SAFE_JSON_INTEGER:
-                        return malformed()
-                else:
-                    return malformed()
-                if value < 0:
-                    return malformed()
-    summary['outcome'] = (raw_outcome if raw_outcome in
-        VERIFICATION_OUTCOMES | {'PASS', 'FAIL', 'ERROR', 'TIMEOUT'} else 'harness-error')
-    if result.get('family_id') != plan_record['family']['id'] or result.get('profile_hash') != plan_record['profile_hash']:
-        summary['outcome'] = 'verification-blocked'
-        summary['machine_category'] = 'verification-blocked'
-        summary['reason_code'] = 'PLAN_BINDING_MISMATCH'
-        return summary
-    continuation = result.get('continuation')
-    if continuation in {'execute-all-and-aggregate', 'continue-from-first-non-green'}:
-        summary['continuation'] = continuation
-    category = result.get('machine_category')
-    if category in VERIFICATION_OUTCOMES:
-        summary['machine_category'] = category
-    reason_code = result.get('reason_code')
-    if isinstance(reason_code, str) and re.fullmatch(r'[A-Z0-9_.:-]{1,128}', reason_code):
-        summary['reason_code'] = reason_code
-    for gate in gates:
-        gate_id = gate.get('gate_id')
-        action = gate.get('action')
-        outcome = gate.get('outcome')
-        item = {'gate_id': gate_id, 'action': action, 'outcome': outcome}
-        reason = gate.get('reason')
-        if isinstance(reason, str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', reason):
-            item['reason'] = reason
-        for key in ('fingerprint', 'command_hash'):
-            value = gate.get(key)
-            if isinstance(value, str) and re.fullmatch(r'[0-9a-f]{64}', value):
-                item[key] = value
-        for key in ('exit_code', 'started_at', 'ended_at', 'duration_seconds'):
-            value = gate.get(key)
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                item[key] = value
-        summary['gates'].append(item)
-    return summary
 
 def run_started_task(
     feature_dir: pathlib.Path,
@@ -466,103 +141,7 @@ def run_started_task(
     args: argparse.Namespace,
     feedback: pathlib.Path | None,
 ) -> TaskOutcome:
-    task_id = task['id']
-    owner = owner_for(args, task_id)
-    choice = choice_for_role(task['role'], args)
-    try:
-        with lease_heartbeat(feature_dir, doc, task_id, owner):
-            lifecycle = h.load_state(feature_dir, doc)
-            task_state = lifecycle.get('tasks', {}).get(task_id, {})
-            resume = task_state.get('verification_resume_active')
-            if isinstance(resume, dict):
-                return run_resumed_verification(feature_dir, doc, task, worktree, packet,
-                                                args, resume, task_state)
-            try:
-                main_path = invoke_runner(runner_command(packet, worktree, choice, args,
-                    feedback_file=feedback, defer_verification=True))
-            except RuntimeError as exc:
-                return TaskOutcome(task_id, 'runner-error', summary=str(exc))
-
-            main = load_result(main_path)
-            status = str(main.get('status'))
-            if status != 'pass':
-                return TaskOutcome(
-                    task_id, status, evidence=main_path, summary=str(main.get('summary', '')),
-                    rework_tasks=[str(t) for t in main.get('rework_tasks', [])],
-                )
-
-            # The provider has finished; trusted orchestration now seals the
-            # candidate, creates the immutable plan and accepts it through the
-            # feature lifecycle CAS. Runner/provider output never creates this
-            # authority.
-            packet_doc = load_result(packet)
-            lifecycle = h.load_state(feature_dir, doc)
-            task_attempt = lifecycle.get('tasks', {}).get(task_id, {}).get('attempts')
-            provenance_path = pathlib.Path(str(main.get('provenance', '')))
-            try:
-                provenance = json.loads(provenance_path.read_text(encoding='utf-8'))
-                base_sha = provenance.get('base_commit')
-                if not isinstance(base_sha, str) or len(base_sha) != 40:
-                    raise ValueError('BASE_COMMIT_UNAVAILABLE')
-                plan_record = prepare_task_plan(worktree, feature_dir, task_id,
-                    task_attempt, base_sha, packet_doc.get('verification', []))
-                accepted_plan, verify_proc = run_accepted_verification(
-                    worktree, main_path.parent, plan_record['plan_id'], args.verification_timeout,
-                    expected_task_id=task_id, expected_task_attempt=task_attempt,
-                    expected_record=plan_record)
-                plan_record = accepted_plan
-                verification_result = json.loads(verify_proc.stdout)
-            except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
-                return TaskOutcome(task_id, 'verification-blocked', main_path,
-                                   f'accepted verification authority unavailable: {type(exc).__name__}')
-            verification_summary = verification_evidence_summary(
-                verification_result, plan_record, verify_proc.returncode)
-            main['verification'] = verification_summary
-            if verification_summary.get('outcome') != 'PASS':
-                category = verification_summary.get('machine_category',
-                    verification_summary.get('outcome', 'verification-blocked'))
-                if category in {'FAIL', 'ERROR', 'TIMEOUT', 'harness-error'}:
-                    category = 'verification-failed'
-                if category not in VERIFICATION_OUTCOMES:
-                    category = 'verification-failed'
-                main_path.write_text(json.dumps(main, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-                return TaskOutcome(task_id, category, main_path,
-                    str(verification_summary.get('reason_code', category)))
-            main['verification_authority'] = {
-                'plan_id': plan_record['plan_id'],
-                'lifecycle_generation': plan_record['lifecycle_generation'],
-                'task_id': task_id, 'task_attempt': task_attempt,
-                'status': 'PASS',
-            }
-            main_path.write_text(json.dumps(main, indent=2, sort_keys=True) + '\n', encoding='utf-8')
-
-            reviews: list[tuple[str, pathlib.Path]] = []
-            if task['role'] == 'builder':
-                packet_doc = load_result(packet)
-                profiles = [str(p) for p in packet_doc.get('required_reviewers', [])]
-                for profile in profiles:
-                    dirty = bool(h.changed_paths(worktree))
-                    try:
-                        path = invoke_runner(
-                            runner_command(
-                                packet, worktree, review_choice(args), args,
-                                profile=profile, review_existing=dirty,
-                            )
-                        )
-                    except RuntimeError as exc:
-                        return TaskOutcome(task_id, 'reviewer-error', main_path, f'{profile}: {exc}')
-                    review = load_result(path)
-                    reviews.append((profile, path))
-                    if review.get('status') != 'pass':
-                        return TaskOutcome(
-                            task_id, str(review.get('status')), evidence=path,
-                            summary=f'{profile}: {review.get("summary", "review failed")}',
-                        )
-
-            evidence = aggregate_success(main_path, reviews) if reviews else main_path
-            return TaskOutcome(task_id, 'pass', evidence=evidence, summary=str(main.get('summary', '')))
-    except RuntimeError as exc:
-        return TaskOutcome(task_id, 'runner-error', summary=str(exc))
+    return _orchestration.run_started_task(feature_dir, doc, task, worktree, packet, args, feedback, ns=_NS)
 
 
 def run_resumed_verification(
@@ -570,175 +149,17 @@ def run_resumed_verification(
     worktree: pathlib.Path, packet: pathlib.Path, args: argparse.Namespace,
     resume: dict[str, Any], task_state: dict[str, Any],
 ) -> TaskOutcome:
-    """Resume only the exact accepted verification plan; never relaunch the builder."""
-    task_id = task['id']
-    evidence_value = resume.get('prior_result_path')
-    if not isinstance(evidence_value, str):
-        return TaskOutcome(task_id, 'verification-blocked',
-                           summary='VERIFICATION_RESUME_EVIDENCE_UNAVAILABLE')
-    main_path = pathlib.Path(evidence_value)
-    try:
-        main_path = main_path.resolve(strict=True)
-        allowed_root = (REPO / '.agent-runs' / str(doc.get('feature', feature_dir.name))).resolve(strict=True)
-        main_path.relative_to(allowed_root)
-        prior_bytes = main_path.read_bytes()
-        prior_digest = hashlib.sha256(prior_bytes).hexdigest()
-        if prior_digest != resume.get('prior_result_sha256'):
-            raise ValueError('prior builder result digest changed')
-        main = json.loads(prior_bytes)
-        if not isinstance(main, dict):
-            raise ValueError('prior builder result is not an object')
-        if main.get('task') != task_id or main.get('status') != 'pass':
-            raise ValueError('prior builder result is not a passing result for this task')
-        prior_result_path = main_path
-        plan_id = resume.get('plan_id')
-        attempt = task_state.get('attempts')
-        if (not isinstance(plan_id, str) or resume.get('task_attempt') != attempt or
-                type(attempt) is not int or not isinstance(resume.get('prior_result_sha256'), str)):
-            raise ValueError('resume tuple does not match current attempt')
-        accepted, verify_proc = run_accepted_verification(
-            worktree, main_path.parent, plan_id, args.verification_timeout,
-            expected_task_id=task_id, expected_task_attempt=attempt)
-        verification_result = json.loads(verify_proc.stdout)
-        verification_summary = verification_evidence_summary(
-            verification_result, accepted, verify_proc.returncode)
-    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError, SystemExit) as exc:
-        main = None
-        verification_summary = {
-            'outcome': 'verification-blocked', 'machine_category': 'verification-blocked',
-            'reason_code': 'VERIFICATION_RESUME_AUTHORITY_UNAVAILABLE',
-        }
-        failure_summary = f'verification resume unavailable: {type(exc).__name__}'
-    else:
-        failure_summary = str(verification_summary.get('reason_code',
-            verification_summary.get('outcome', 'verification-blocked')))
-    if main is not None:
-        main['verification'] = verification_summary
-        main['verification_resume'] = {
-            'plan_id': resume['plan_id'], 'task_attempt': attempt,
-            'lifecycle_generation': resume.get('lifecycle_generation'),
-            'operator': resume.get('operator'),
-            'prior_result_sha256': resume['prior_result_sha256'],
-            'prior_result_path': str(prior_result_path),
-            'resumed_at': telemetry.iso_now(),
-        }
-        if verification_summary.get('outcome') == 'PASS':
-            main['verification_authority'] = {
-                'plan_id': accepted['plan_id'], 'lifecycle_generation': accepted['lifecycle_generation'],
-                'task_id': task_id, 'task_attempt': attempt, 'status': 'PASS',
-            }
-        main_path = prior_result_path.parent / f'verification-resume-{uuid.uuid4().hex}.json'
-        telemetry.atomic_write_json(main_path, main)
-    if main is None or verification_summary.get('outcome') != 'PASS':
-        category = verification_summary.get('machine_category', 'verification-blocked')
-        if category in {'FAIL', 'ERROR', 'TIMEOUT', 'harness-error'}:
-            category = 'verification-failed'
-        if category not in VERIFICATION_OUTCOMES:
-            category = 'verification-blocked'
-        return TaskOutcome(task_id, category, main_path if main is not None else None,
-                           failure_summary)
-
-    reviews: list[tuple[str, pathlib.Path]] = []
-    packet_doc = load_result(packet)
-    if task['role'] == 'builder':
-        for profile in [str(item) for item in packet_doc.get('required_reviewers', [])]:
-            try:
-                review_path = invoke_runner(runner_command(
-                    packet, worktree, review_choice(args), args,
-                    profile=profile, review_existing=True))
-            except RuntimeError as exc:
-                return TaskOutcome(task_id, 'reviewer-error', main_path, f'{profile}: {exc}')
-            review = load_result(review_path)
-            reviews.append((profile, review_path))
-            if review.get('status') != 'pass':
-                return TaskOutcome(task_id, str(review.get('status')), review_path,
-                                   f'{profile}: {review.get("summary", "review failed")}')
-    evidence = aggregate_success(main_path, reviews) if reviews else main_path
-    return TaskOutcome(task_id, 'pass', evidence=evidence,
-                       summary=str(main.get('summary', 'verification resumed and passed')))
+    return _orchestration.run_resumed_verification(feature_dir, doc, task, worktree, packet, args, resume, task_state, ns=_NS)
 
 
 def start_ready_batch(
     feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace
 ) -> list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]]:
-    state = h.load_state(feature_dir, doc)
-    ids = h.ready_ids(doc, state, feature_dir)
-    started: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
-    # agent-harness 0.19.1: each committed start, as its cmd_start returned it (attempt and claim time), recorded at
-    # once so a later failure in this batch undoes exactly the starts this batch made.
-    committed: list[tuple[str, str, dict[str, Any]]] = []
-    prepared: list[tuple[dict[str, Any], pathlib.Path, pathlib.Path, pathlib.Path | None]] = []
-    try:
-        # Preflight the whole ready batch before the first cmd_start so a refusal
-        # cannot consume an attempt for an earlier task in the same batch.
-        for task_id in ids:
-            feedback = prior_feedback(feature_dir, doc, task_id)
-            prepared.append(prepare_ready_task_for_preflight(feature_dir, doc, task_id, args, feedback))
-        for task, worktree, packet, feedback in prepared:
-            task_id = task['id']
-            owner = owner_for(args, task_id)
-            identity = h.cmd_start(argparse.Namespace(feature_dir=feature_dir, task_id=task_id, owner=owner))
-            committed.append((task_id, owner, identity))
-            task = h.active_task_contract(feature_dir, doc, task_id)
-            worktree = h.worktree_path(str(doc.get('feature', feature_dir.name)), task_id)
-            packet = pathlib.Path(h.resolve_active_packet(feature_dir, doc, task_id)['path'])
-            started.append((task, worktree, packet, feedback))
-    except BaseException as exc:
-        for task_id, owner, identity in reversed(committed):
-            try:
-                h.rollback_unexecuted_start(feature_dir, doc, task_id, owner, f'batch start aborted: {exc}',
-                                            attempt=identity['attempt'], claimed_at=identity['claimed_at'])
-            except BaseException as rollback_error:  # refused or failed: the start stays for controlled recovery
-                detail = 'refused (reason above)' if isinstance(rollback_error, SystemExit) else repr(rollback_error)
-                print(f'START_ROLLBACK_NOT_DONE {task_id}: {detail}', file=sys.stderr)
-        raise
-    return started
+    return _orchestration.start_ready_batch(feature_dir, doc, args, ns=_NS)
 
 
 def apply_outcome(feature_dir: pathlib.Path, doc: dict[str, Any], outcome: TaskOutcome, args: argparse.Namespace) -> None:
-    task = h.active_task_contract(feature_dir, doc, outcome.task_id)
-    owner = owner_for(args, outcome.task_id)
-    evidence = str(outcome.evidence) if outcome.evidence else None
-
-    if outcome.status == 'pass':
-        assert outcome.evidence is not None
-        h.cmd_complete(argparse.Namespace(
-            feature_dir=feature_dir, task_id=outcome.task_id, owner=owner, evidence=str(outcome.evidence)
-        ))
-        return
-
-    if task['role'] == 'evaluator' and outcome.status == 'fail':
-        current = h.load_state(feature_dir, doc)
-        candidates = []
-        for task_id in outcome.rework_tasks or []:
-            candidate = h.active_task_contract(feature_dir, doc, task_id)
-            if candidate and candidate.get('role') == 'builder' and current['tasks'][task_id].get('status') == 'completed':
-                candidates.append(task_id)
-        if not candidates:
-            h.cmd_fail(argparse.Namespace(
-                feature_dir=feature_dir, task_id=outcome.task_id, owner=owner,
-                reason=outcome.summary or 'evaluator rejected implementation without safe rework target',
-                evidence=evidence, escalate=True,
-            ))
-            return
-        h.cmd_fail(argparse.Namespace(
-            feature_dir=feature_dir, task_id=outcome.task_id, owner=owner,
-            reason=outcome.summary or 'acceptance evaluation failed', evidence=evidence, escalate=False,
-        ))
-        for task_id in candidates:
-            h.cmd_reopen(argparse.Namespace(
-                feature_dir=feature_dir, task_id=task_id,
-                reason=outcome.summary or f'evaluator requested rework from {outcome.task_id}', evidence=evidence,
-            ))
-        return
-
-    control = outcome.status if outcome.status in VERIFICATION_BLOCKAGE_OUTCOMES else None
-    escalate = control is not None or outcome.status in {'runner-error', 'reviewer-error'}
-    h.cmd_fail(argparse.Namespace(
-        feature_dir=feature_dir, task_id=outcome.task_id, owner=owner,
-        reason=outcome.summary or outcome.status, evidence=evidence, escalate=escalate,
-        control_outcome=control,
-    ))
+    return _orchestration.apply_outcome(feature_dir, doc, outcome, args, ns=_NS)
 
 
 def stop_on_repository_admission_blockage(
@@ -746,200 +167,28 @@ def stop_on_repository_admission_blockage(
     manifest_path: pathlib.Path, outcomes: list[TaskOutcome], round_no: int,
     recovered_total: list[str],
 ) -> None:
-    """Record repository lock failures before any task-state mutation."""
-    blocked = [item for item in outcomes if item.status in {'busy', 'verification-owned'}]
-    if not blocked:
-        return
-    category = ('verification-owned' if any(item.status == 'verification-owned' for item in blocked)
-                else 'busy')
-    state = h.load_state(feature_dir, doc)
-    write_orchestration_manifest(
-        manifest_path, doc, args, rounds=round_no,
-        recovered_stale_leases=recovered_total,
-        task_statuses={tid: entry['status'] for tid, entry in state['tasks'].items()},
-        status=category,
-        control_outcomes={item.task_id: item.status for item in blocked},
-        completed_at=telemetry.iso_now(),
-    )
-    code = exit_code(category)
-    raise SystemExit(code if code is not None else 3)
+    return _orchestration.stop_on_repository_admission_blockage(feature_dir, doc, args, manifest_path, outcomes, round_no, recovered_total, ns=_NS)
 
 
 def print_plan(feature_dir: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace) -> None:
-    unresolved = h.unresolved_state_marker(feature_dir)
-    state = None if unresolved else h.load_state(feature_dir, doc)
-    print(
-        f'feature={doc["feature"]} max_parallel={doc.get("max_parallel", 4)} '
-        f'lease_ttl={h.lease_ttl_seconds(doc)}s heartbeat={h.heartbeat_interval_seconds(doc)}s'
-        f'{" lifecycle=recovery-required task-state=unknown" if unresolved else ""}'
-    )
-    for planned in doc['tasks']:
-        # A completed task packet is immutable historical evidence.  A later
-        # feature replan must not make it a prerequisite for routing current
-        # work; use the validated current DAG contract for completed rows.
-        task = (planned if unresolved or state.get('tasks', {}).get(planned['id'], {}).get('status') == 'completed'
-                else h.active_task_contract(feature_dir, doc, planned['id']))
-        choice = choice_for_role(task['role'], args)
-        reviews = h.reviewers(task) if task['role'] == 'builder' else []
-        deps = ','.join(task.get('depends_on', [])) or '-'
-        reviewer_text = ','.join(reviews) or '-'
-        print(
-            f'{task["id"]:7} role={task["role"]:11} provider={choice.provider:6} '
-            f'deps={deps:24} reviewers={reviewer_text}{" state=unknown" if unresolved else ""}'
-        )
+    return _orchestration.print_plan(feature_dir, doc, args, ns=_NS)
 
 
 def orchestration_manifest_path(feature: str, run_id: str) -> pathlib.Path:
-    path = REPO / '.agent-runs' / feature / 'orchestrations'
-    path.mkdir(parents=True, exist_ok=True)
-    return path / f'{run_id}.json'
+    return _orchestration.orchestration_manifest_path(feature, run_id, ns=_NS)
 
 
 def write_orchestration_manifest(path: pathlib.Path, doc: dict[str, Any], args: argparse.Namespace, **updates: Any) -> None:
-    if path.exists():
-        try:
-            manifest = json.loads(path.read_text(encoding='utf-8'))
-        except json.JSONDecodeError:
-            manifest = {}
-    else:
-        manifest = {
-            'schema_version': 1, 'run_id': args.run_id, 'feature': doc['feature'],
-            'started_at': telemetry.iso_now(), 'provider': args.provider,
-            'evaluator_provider': args.evaluator_provider or args.provider,
-            'review_provider': args.review_provider or args.evaluator_provider or args.provider,
-            'verification_sandbox': args.verification_sandbox,
-        }
-    manifest.update(updates)
-    telemetry.atomic_write_json(path, manifest)
+    return _orchestration.write_orchestration_manifest(path, doc, args, ns=_NS, **updates)
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description='Execute a complete SDD task DAG with bounded parallel agent workers')
-    p.add_argument('feature_dir', type=pathlib.Path)
-    p.add_argument('--provider', choices=('codex', 'claude'), default='codex')
-    p.add_argument('--evaluator-provider', choices=('codex', 'claude'))
-    p.add_argument('--review-provider', choices=('codex', 'claude'))
-    p.add_argument('--model')
-    p.add_argument('--evaluator-model')
-    p.add_argument('--review-model')
-    p.add_argument('--reasoning', choices=('low', 'medium', 'high', 'xhigh'), default='medium')
-    p.add_argument('--max-turns', type=int, default=30)
-    p.add_argument('--max-budget-usd', type=float)
-    p.add_argument('--agent-timeout', type=int, default=1800,
-                   help='Agent execution timeout in seconds (default 1800; valid range 1..86400)')
-    p.add_argument('--verification-timeout', type=int, default=900, help='Per-command timeout for outer deterministic verification')
-    p.add_argument('--verification-sandbox', choices=('auto', 'required', 'off'), default='auto')
-    p.add_argument('--owner-prefix', default='orchestrator')
-    p.add_argument('--run-id', help='Stable correlation id; generated automatically when omitted')
-    p.add_argument('--plan', action='store_true', help='Show provider/task routing without changing state')
-    p.add_argument('--max-rounds', type=int, default=100, help='Hard guard against orchestration bugs')
-    args = p.parse_args()
-    args.run_id = args.run_id or uuid.uuid4().hex[:12]
+    return _orchestration.main(ns=_NS)
 
-    feature_dir = args.feature_dir.resolve()
-    doc = h.load_validated(feature_dir)
-    if args.plan:
-        print_plan(feature_dir, doc, args)
-        return
-    if args.max_rounds < 1:
-        die('--max-rounds must be positive')
-    if not 1 <= args.agent_timeout <= 86400:
-        die('--agent-timeout must be 1..86400 seconds')
-    if args.verification_timeout < 1:
-        die('--verification-timeout must be positive')
 
-    manifest_path = orchestration_manifest_path(doc['feature'], args.run_id)
-    write_orchestration_manifest(manifest_path, doc, args, status='running', rounds=0, recovered_stale_leases=[])
-    recovered_total: list[str] = []
-
-    for round_no in range(1, args.max_rounds + 1):
-        recovered = h.recover_stale_leases(feature_dir, doc, reason=f'expired lease recovered by orchestration {args.run_id}')
-        for task_id in recovered:
-            if task_id not in recovered_total:
-                recovered_total.append(task_id)
-        if recovered:
-            telemetry.reconcile_running(
-                REPO, doc['feature'], args.run_id, set(recovered),
-                reason='task lease expired and was recovered by the orchestrator',
-            )
-        state = h.load_state(feature_dir, doc)
-        statuses = {tid: entry['status'] for tid, entry in state['tasks'].items()}
-        write_orchestration_manifest(
-            manifest_path, doc, args, rounds=round_no - 1, recovered_stale_leases=recovered_total,
-            task_statuses=statuses,
-        )
-        escalated = [tid for tid, status in statuses.items() if status == 'escalated']
-        if escalated:
-            state = h.load_state(feature_dir, doc)
-            control = [(tid, state['tasks'][tid].get('control_outcome')) for tid in escalated
-                       if state['tasks'][tid].get('control_outcome')]
-            if control:
-                precedence = {'needs-human': 0, 'verification-blocked': 1, 'verification-owned': 2}
-                category = min(control, key=lambda item: (precedence[item[1]], item[0]))[1]
-                write_orchestration_manifest(manifest_path, doc, args, status=category,
-                    control_outcomes={tid: value for tid, value in control},
-                    completed_at=telemetry.iso_now())
-                raise SystemExit(exit_code(category))
-            write_orchestration_manifest(manifest_path, doc, args, status='needs-human', completed_at=telemetry.iso_now())
-            die(f'human decision required; escalated tasks: {escalated}')
-        if all(status == 'completed' for status in statuses.values()):
-            telemetry.reconcile_running(
-                REPO, doc['feature'], args.run_id,
-                reason='DAG reached terminal completion after this invocation lost ownership',
-            )
-            usage = telemetry.summarize(REPO, doc['feature'], args.run_id)
-            write_orchestration_manifest(
-                manifest_path, doc, args, status='pass', completed_at=telemetry.iso_now(), rounds=round_no - 1,
-                recovered_stale_leases=recovered_total, task_statuses=statuses, usage=usage,
-            )
-            print(f'PASS: {doc["feature"]} DAG completed in {round_no - 1} orchestration rounds run_id={args.run_id}')
-            return
-
-        ready = h.ready_ids(doc, state, feature_dir)
-        if not ready:
-            running = [tid for tid, status in statuses.items() if status == 'running']
-            if running:
-                write_orchestration_manifest(manifest_path, doc, args, status='blocked-by-live-lease', task_statuses=statuses)
-                die(f'no task is ready because live leases are still running: {running}; resume after completion or lease expiry')
-            write_orchestration_manifest(manifest_path, doc, args, status='blocked', task_statuses=statuses)
-            die(f'DAG is not complete but no task is ready: {statuses}')
-        print(f'ROUND {round_no}: ready={ready} run_id={args.run_id}')
-        try:
-            started = start_ready_batch(feature_dir, doc, args)
-        except AgentPreflightRefused as exc:
-            current = h.load_state(feature_dir, doc)
-            current_statuses = {tid: entry['status'] for tid, entry in current['tasks'].items()}
-            write_orchestration_manifest(
-                manifest_path, doc, args, status='blocked', blocked_reason='preflight-refused',
-                preflight_error=str(exc)[:2000], task_statuses=current_statuses,
-                rounds=round_no - 1, recovered_stale_leases=recovered_total,
-                completed_at=telemetry.iso_now(),
-            )
-            die(f'agent preflight refused before task start: {exc}')
-
-        outcomes: list[TaskOutcome] = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(started)) as pool:
-            future_map = {
-                pool.submit(run_started_task, feature_dir, doc, task, worktree, packet, args, feedback): task['id']
-                for task, worktree, packet, feedback in started
-            }
-            for future in concurrent.futures.as_completed(future_map):
-                task_id = future_map[future]
-                try:
-                    outcome = future.result()
-                except Exception as exc:
-                    outcome = TaskOutcome(task_id, 'runner-error', summary=f'unhandled worker error: {exc}')
-                outcomes.append(outcome)
-                print(f'  {task_id}: {outcome.status} {outcome.summary}'.rstrip())
-
-        stop_on_repository_admission_blockage(
-            feature_dir, doc, args, manifest_path, outcomes, round_no, recovered_total)
-        for outcome in sorted(outcomes, key=lambda item: item.task_id):
-            apply_outcome(feature_dir, doc, outcome, args)
-        write_orchestration_manifest(manifest_path, doc, args, rounds=round_no, recovered_stale_leases=recovered_total)
-
-    write_orchestration_manifest(manifest_path, doc, args, status='max-rounds-exceeded', completed_at=telemetry.iso_now())
-    die(f'orchestration exceeded --max-rounds={args.max_rounds}')
+# AH5-15: the library's orchestration reads this module's names through `_NS`; checked once, here, before any
+# operation (a missing name refuses the import).
+_NS = _orchestration.bind(_transitions.ModuleNamespace(globals()))
 
 
 if __name__ == '__main__':
