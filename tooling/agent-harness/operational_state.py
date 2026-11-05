@@ -52,7 +52,7 @@ def _legacy_dir(path: pathlib.Path) -> bool:
     except FileNotFoundError:
         return False
     if not stat.S_ISDIR(info.st_mode):
-        raise RuntimeError('WAYFINDER_LEGACY_CLAIMS_UNSAFE')
+        raise RuntimeError('DECISION_MAP_LEGACY_CLAIMS_UNSAFE')
     return True
 
 
@@ -65,12 +65,12 @@ def refuse_legacy_claims(repository: pathlib.Path, epic: str) -> None:
     """
     require_primary(repository)
     directory(repository, 'wayfinder', epic)  # validate before constructing legacy paths
-    wayfinder = repository / '.agent-state' / 'wayfinder'
-    if not _legacy_dir(repository / '.agent-state') or not _legacy_dir(wayfinder):
+    decision_map = repository / '.agent-state' / 'wayfinder'
+    if not _legacy_dir(repository / '.agent-state') or not _legacy_dir(decision_map):
         return
-    for entry in sorted(wayfinder.iterdir()):
+    for entry in sorted(decision_map.iterdir()):
         if not _legacy_dir(entry):
             continue  # a stray file beside epic directories is not a claim
         claims = entry / 'claims'
         if _legacy_dir(claims) and any(claims.iterdir()):
-            raise RuntimeError(f'WAYFINDER_LEGACY_CLAIMS_REQUIRE_MIGRATION: {entry.name}')
+            raise RuntimeError(f'DECISION_MAP_LEGACY_CLAIMS_REQUIRE_MIGRATION: {entry.name}')

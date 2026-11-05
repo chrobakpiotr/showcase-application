@@ -7,7 +7,7 @@ It applies repository-wide; use the [documentation map](docs/README.md) for task
 ## Read order
 
 1. `docs/agentic-sdd/constitution.md` - non-negotiable engineering rules.
-2. For a large/foggy effort, the active decision map under `docs/wayfinder/<epic>/` until it is cleared.
+2. For a large/foggy effort, the active decision map under `docs/decision-maps/<epic>/` until it is cleared.
 3. The active feature folder under `docs/specs/<feature-id>/` - product and technical source of truth; read `design/gate.json`, `verification-contract.json`, and prototype findings when present.
 4. Relevant ADRs under `docs/adr/` - architectural decisions already made by the project.
 5. Relevant contract(s), especially `contracts/asyncapi/asyncapi.yml` for messaging changes.
@@ -67,8 +67,8 @@ Role definitions live under `docs/agentic-sdd/agents/`:
 - `prototype-agent.md`
 - `prototype-evaluator.md`
 - `verification-author.md`
-- `wayfinder-agent.md`
-- `wayfinder-synthesizer.md`
+- `decision-map-agent.md`
+- `decision-map-synthesizer.md`
 - `architect.md`
 - `builder.md`
 - `evaluator.md`
@@ -87,7 +87,7 @@ The orchestrator chooses specialists from the task's declared risk tags. Do not 
 
 ## Task protocol
 
-Large/foggy epics may first live under `docs/wayfinder/<epic>/` as a decision map. Wayfinder tickets produce decisions, not implementation slices. A cleared map is collapsed into a normal feature spec before task generation.
+Large/foggy epics may first live under `docs/decision-maps/<epic>/` as a decision map. Decision-map tickets produce decisions, not implementation slices. A cleared map is collapsed into a normal feature spec before task generation.
 
 Each executable feature lives under `docs/specs/<feature-id>/` and should contain:
 
@@ -104,7 +104,7 @@ Lifecycle for a large/foggy epic:
 
 `DESTINATION → DECISION_MAP → LEDGER/FOG/FRONTIER → RECONCILE → MAP_CLEARED → TO_SPEC → SPEC_GRILL → [PROTOTYPE] → PLAN → ARCHITECTURE_GRILL → DESIGN_GATE → VERIFICATION_CONTRACT → TO_TASKS → TASK_DAG → READY → RUNNING → EVALUATING → REVIEW → READY_FOR_HUMAN → DONE`
 
-For a small/medium feature, enter later in the lifecycle instead of forcing Wayfinder ceremony.
+For a small/medium feature, enter later in the lifecycle instead of forcing decision-map ceremony.
 
 Prototype code is disposable evidence. Never promote a scratch prototype directly into production; translate accepted findings into the plan and normal task DAG.
 

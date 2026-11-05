@@ -322,7 +322,7 @@ class RunnerLaunchTest(unittest.TestCase):
             execution.AgentCliBackend('claude', 'x', cli_options=options)  # the library accepts them
 
 class StructuredLaunchTest(unittest.TestCase):
-    """AH5-16a: design, wayfinder and contract authoring launch through the runner's library path."""
+    """AH5-16a: design, decision map and contract authoring launch through the runner's library path."""
 
     setUp = RunnerLaunchTest.setUp  # the same fixture: fake codex, isolation probe, writable roots
 

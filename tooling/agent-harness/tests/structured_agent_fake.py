@@ -1,4 +1,4 @@
-"""AH5-16a: a fake `codex` for the end-to-end tests of design, wayfinder and verification-contract authoring.
+"""AH5-16a: a fake `codex` for the end-to-end tests of design, decision map and verification-contract authoring.
 
 They launch through agent_harness.execution, as the runner does, so the fake speaks the library's command line: the
 prompt arrives on stdin, `--version` answers, the `sandbox` subcommand answers the library's availability and

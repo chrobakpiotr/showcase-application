@@ -6,17 +6,17 @@ cd "$ROOT"
 echo "== SHIP-PLATFORM-001 safe Agentic SDD preview =="
 echo
 echo "1/6 Validate schema-v2 map + Decision Ledger"
-python3 tooling/agent-harness/wayfinder.py validate "$MAP"
+python3 tooling/agent-harness/decision_map.py validate "$MAP"
 echo
 echo "2/6 Status"
-python3 tooling/agent-harness/wayfinder.py status "$MAP"
+python3 tooling/agent-harness/decision_map.py status "$MAP"
 echo
 echo "3/6 Leverage-ranked frontier"
-python3 tooling/agent-harness/wayfinder.py frontier "$MAP"
+python3 tooling/agent-harness/decision_map.py frontier "$MAP"
 echo
 echo "4/6 Terminal reconciliation must block before discovery"
 set +e
-python3 tooling/agent-harness/wayfinder.py reconcile "$MAP"
+python3 tooling/agent-harness/decision_map.py reconcile "$MAP"
 rc=$?
 set -e
 if [[ "$rc" -ne 2 ]]; then
@@ -34,4 +34,4 @@ echo "No provider/model execution or application-code mutation was performed."
 echo "To run safe eval manifests (writes ignored .agent-runs only):"
 echo "  python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1"
 echo "To activate the live decision map:"
-echo "  ./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-wayfinder.sh"
+echo "  ./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-decision-map.sh"

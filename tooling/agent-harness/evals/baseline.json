@@ -20,7 +20,7 @@
       "id": "E002-wayfinder-map",
       "command": [
         "python3",
-        "tooling/agent-harness/wayfinder.py",
+        "tooling/agent-harness/decision_map.py",
         "validate",
         "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
       ],
@@ -33,7 +33,7 @@
       "id": "E003-wayfinder-reconciliation-blocks-fog",
       "command": [
         "python3",
-        "tooling/agent-harness/wayfinder.py",
+        "tooling/agent-harness/decision_map.py",
         "reconcile",
         "docs/agentic-sdd/examples/SHIP-PLATFORM-001"
       ],

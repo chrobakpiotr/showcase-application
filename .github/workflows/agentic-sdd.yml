@@ -48,7 +48,7 @@ jobs:
           tooling/agent-harness/telemetry.py
           tooling/agent-harness/control_plane.py
           tooling/agent-harness/design.py
-          tooling/agent-harness/wayfinder.py
+          tooling/agent-harness/decision_map.py
           tooling/agent-harness/trust.py
           tooling/agent-harness/verification_contract.py
           tooling/agent-harness/eval.py
@@ -156,12 +156,12 @@ jobs:
       - name: Validate design-only prototype bake-off example
         run: python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan
 
-      - name: Validate Wayfinder-style discovery example
+      - name: Validate the decision-map discovery example
         run: |
-          python3 tooling/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 tooling/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 tooling/agent-harness/wayfinder.py frontier docs/agentic-sdd/examples/SHIP-PLATFORM-001
-          python3 tooling/agent-harness/wayfinder.py reconcile docs/agentic-sdd/examples/SHIP-PLATFORM-001 || test $? -eq 2
+          python3 tooling/agent-harness/decision_map.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/decision_map.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/decision_map.py frontier docs/agentic-sdd/examples/SHIP-PLATFORM-001
+          python3 tooling/agent-harness/decision_map.py reconcile docs/agentic-sdd/examples/SHIP-PLATFORM-001 || test $? -eq 2
 
   behavioral-evaluations:
     name: Agentic SDD behavioral evaluations

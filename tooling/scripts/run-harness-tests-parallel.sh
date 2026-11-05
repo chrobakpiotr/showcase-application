@@ -20,7 +20,7 @@ cd "$(dirname "$0")/../.."
 tests=tooling/agent-harness/tests
 out=${1:-"${RUNNER_TEMP:-/tmp}/harness-tests"}
 mkdir -p "$out/logs"
-export PYTHONDONTWRITEBYTECODE=1  # test_design/test_wayfinder copy the tooling tree; parallel .pyc writes raced with it
+export PYTHONDONTWRITEBYTECODE=1  # test_design/test_decision_map copy the tooling tree; parallel .pyc writes raced with it
 export PYTHONPATH="$tests:tooling/agent-harness${PYTHONPATH:+:$PYTHONPATH}"
 
 python3 - "$tests" "${CHUNK:-20}" > "$out/units.txt" <<'PY'

@@ -56,7 +56,7 @@ From repository root:
 Expected shape:
 
 ```text
-PASS: wayfinder decision map is structurally valid
+PASS: decision map is structurally valid
 DECISIONS closed=0/9
 FOG open=8
 LEDGER active=3/3
@@ -100,19 +100,19 @@ python3 tooling/agent-harness/eval.py compare \
 
 ---
 
-# Track B - live Wayfinder expedition
+# Track B - live decision-map expedition
 
 ## 1. Activate a working map
 
 ```bash
-./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-wayfinder.sh
+./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-decision-map.sh
 ```
 
 It creates only:
 
 ```text
-docs/wayfinder/SHIP-PLATFORM-001/
-├── wayfinder.json
+docs/decision-maps/SHIP-PLATFORM-001/
+├── decision-map.json
 └── decisions/
 ```
 
@@ -121,8 +121,8 @@ The script refuses to overwrite an existing map.
 Inspect it:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
-python3 tooling/agent-harness/wayfinder.py frontier docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py status docs/decision-maps/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py frontier docs/decision-maps/SHIP-PLATFORM-001
 ```
 
 ## 2. Resolve the highest-leverage decision
@@ -130,16 +130,16 @@ python3 tooling/agent-harness/wayfinder.py frontier docs/wayfinder/SHIP-PLATFORM
 Codex:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py resolve \
-  docs/wayfinder/SHIP-PLATFORM-001 D-001 \
+python3 tooling/agent-harness/decision_map.py resolve \
+  docs/decision-maps/SHIP-PLATFORM-001 D-001 \
   --provider codex --model "$MODEL" --reasoning high
 ```
 
 Claude Code:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py resolve \
-  docs/wayfinder/SHIP-PLATFORM-001 D-001 \
+python3 tooling/agent-harness/decision_map.py resolve \
+  docs/decision-maps/SHIP-PLATFORM-001 D-001 \
   --provider claude --model "$MODEL"
 ```
 
@@ -156,18 +156,18 @@ A successful result may:
 `D-009` exists specifically to prove that **research is not automatically a decision**:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py resolve \
-  docs/wayfinder/SHIP-PLATFORM-001 D-009 \
+python3 tooling/agent-harness/decision_map.py resolve \
+  docs/decision-maps/SHIP-PLATFORM-001 D-009 \
   --provider codex --model "$MODEL" --reasoning high
 ```
 
 A valid research result may return `decision: null` while adding FACT/EVIDENCE entries such as existing API/security/persistence compatibility behavior. That is correct Decision Ledger behavior.
 
-## 4. Let Wayfinder work progressively
+## 4. Let the decision map work progressively
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py run \
-  docs/wayfinder/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/decision_map.py run \
+  docs/decision-maps/SHIP-PLATFORM-001 \
   --provider codex --model "$MODEL" \
   --reasoning high \
   --max-decisions 8
@@ -182,8 +182,8 @@ Do **not** treat `needs-human` as failure. It means the model reached a contract
 Example only - use this if that is actually the decision you want:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py manual-resolve \
-  docs/wayfinder/SHIP-PLATFORM-001 D-006 \
+python3 tooling/agent-harness/decision_map.py manual-resolve \
+  docs/decision-maps/SHIP-PLATFORM-001 D-006 \
   --decision "Customer tracking requires authenticated order ownership; operator APIs retain SHIPMENT_READ." \
   --rationale "Preserves the operator boundary while avoiding tracking-number-only data access."
 ```
@@ -192,13 +192,13 @@ Human resolution is written into durable history rather than being hidden in a c
 
 ## 6. Inspect / supersede knowledge
 
-Read `docs/wayfinder/SHIP-PLATFORM-001/wayfinder.json` and the per-decision records under `decisions/`.
+Read `docs/decision-maps/SHIP-PLATFORM-001/decision-map.json` and the per-decision records under `decisions/`.
 
 If later evidence invalidates an earlier active ledger entry, do **not** edit/delete history manually. Supersede it:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py supersede \
-  docs/wayfinder/SHIP-PLATFORM-001 K-004 \
+python3 tooling/agent-harness/decision_map.py supersede \
+  docs/decision-maps/SHIP-PLATFORM-001 K-004 \
   --statement "<new accepted decision/fact>" \
   --reason "<evidence explaining why K-004 is no longer current>"
 ```
@@ -210,14 +210,14 @@ The old entry remains `superseded` and points to the replacement.
 At any point:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py reconcile docs/decision-maps/SHIP-PLATFORM-001
 ```
 
 Before convergence it should print blockers. A fog item that is intentionally outside this feature can be disposed explicitly rather than silently ignored:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py fog-disposition \
-  docs/wayfinder/SHIP-PLATFORM-001 F-007 \
+python3 tooling/agent-harness/decision_map.py fog-disposition \
+  docs/decision-maps/SHIP-PLATFORM-001 F-007 \
   --status deferred \
   --reason "Deferred only if a human accepts a separate migration follow-up."
 ```
@@ -236,10 +236,10 @@ AND no active blocking assumption remains
 Then:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py status docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py status docs/decision-maps/SHIP-PLATFORM-001
 # CLEARED yes
 
-python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py reconcile docs/decision-maps/SHIP-PLATFORM-001
 # RECONCILIATION PASS
 ```
 
@@ -252,8 +252,8 @@ python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFOR
 Only after `CLEARED yes`:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py to-spec \
-  docs/wayfinder/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/decision_map.py to-spec \
+  docs/decision-maps/SHIP-PLATFORM-001 \
   docs/specs/SHIP-PLATFORM-001 \
   --provider codex --model "$MODEL" --reasoning high
 ```
@@ -265,7 +265,7 @@ docs/specs/SHIP-PLATFORM-001/
 ├── spec.md
 ├── plan.md
 ├── design.json
-├── wayfinder-handoff.json
+├── decision-map-handoff.json
 ├── evidence/
 └── packets/
 ```
@@ -283,7 +283,7 @@ python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
   --provider codex --model "$MODEL" --reasoning high
 ```
 
-Wayfinder answers *what must be decided to reach an implementation-ready destination*. The design gate then adversarially checks the collapsed spec/plan:
+The decision map answers *what must be decided to reach an implementation-ready destination*. The design gate then adversarially checks the collapsed spec/plan:
 
 ```text
 Spec Grill
@@ -349,7 +349,7 @@ Editing a bound spec/plan/constitution/design gate later makes this contract sta
 Only with fresh design + verification contract:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py to-tasks \
+python3 tooling/agent-harness/decision_map.py to-tasks \
   docs/specs/SHIP-PLATFORM-001 \
   --provider codex --model "$MODEL" --reasoning high
 ```
@@ -557,7 +557,7 @@ A strong run should explicitly address at least:
 You have tested the complete stack when you have seen all of these artifacts/states:
 
 ```text
-[ ] schema-v2 Wayfinder map validates
+[ ] schema-v2 decision map validates
 [ ] typed ledger contains facts/constraints/decisions/evidence as appropriate
 [ ] a research ticket can produce fact/evidence without a fake decision
 [ ] reconciliation blocks before genuine convergence

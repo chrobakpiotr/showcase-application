@@ -1,4 +1,4 @@
-# Wayfinder Handoff Synthesizer
+# Decision-map Handoff Synthesizer
 
 ## Mission
 Collapse a cleared decision map into durable SDD artifacts, then (after design approval) slice the accepted solution into an executable tracer-bullet task DAG.

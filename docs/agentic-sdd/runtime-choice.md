@@ -19,7 +19,7 @@ The comparison focused only on the generic runtime responsibilities where a matu
 
 It did **not** treat the following as framework-replaceable because they are repository-specific engineering semantics:
 
-- Wayfinder discovery, Decision Ledger, fog/frontier and reconciliation;
+- Decision-map discovery, Decision Ledger, fog/frontier and reconciliation;
 - Spec/Plan/Verification Contract (`AC-*`/`VC-*`);
 - risk-driven TDD/test seams;
 - context-trust policy;

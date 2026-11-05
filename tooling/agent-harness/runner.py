@@ -273,7 +273,7 @@ def check_agent_timeout(args: argparse.Namespace) -> None:
 def launch_structured_agent(args: argparse.Namespace, prompt: str, worktree: pathlib.Path, out: pathlib.Path,
                             output_schema: dict[str, Any], *, read_only: bool,
                             provenance: dict[str, Any]) -> dict[str, Any]:
-    """AH5-16a: one structured agent call (design, wayfinder, contract authoring) through agent_harness.execution,
+    """AH5-16a: one structured agent call (design, decision map, contract authoring) through agent_harness.execution,
     with this runner's policy: the D1 model, the launch options and a request bound to the prompt, as `main` launches
     a task. The execution is recorded in `provenance`, which the caller writes; the structured result is returned. A
     refused, failed or withheld launch raises AgentLaunchFailed with the status to record."""

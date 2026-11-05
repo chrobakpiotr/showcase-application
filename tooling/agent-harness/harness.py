@@ -245,13 +245,13 @@ def protocol_files(feature_dir: pathlib.Path) -> list[pathlib.Path]:
         root / 'tooling' / 'agent-harness' / 'telemetry.py',
         root / 'tooling' / 'agent-harness' / 'control_plane.py',
         root / 'tooling' / 'agent-harness' / 'design.py',
-        root / 'tooling' / 'agent-harness' / 'wayfinder.py',
+        root / 'tooling' / 'agent-harness' / 'decision_map.py',
         root / 'tooling' / 'agent-harness' / 'verification_contract.py',
         root / 'tooling' / 'agent-harness' / 'trust.py',
         root / 'tooling' / 'agent-harness' / 'eval.py',
-        root / 'tooling' / 'agent-harness' / 'schemas' / 'wayfinder-result.schema.json',
-        root / 'tooling' / 'agent-harness' / 'schemas' / 'wayfinder-handoff.schema.json',
-        root / 'tooling' / 'agent-harness' / 'schemas' / 'wayfinder-tasks-result.schema.json',
+        root / 'tooling' / 'agent-harness' / 'schemas' / 'decision-map-result.schema.json',
+        root / 'tooling' / 'agent-harness' / 'schemas' / 'decision-map-handoff.schema.json',
+        root / 'tooling' / 'agent-harness' / 'schemas' / 'decision-map-tasks-result.schema.json',
         root / 'tooling' / 'agent-harness' / 'schemas' / 'task-result.schema.json',
         root / 'tooling' / 'agent-harness' / 'schemas' / 'design-result.schema.json',
         root / 'tooling' / 'agent-harness' / 'schemas' / 'verification-contract.schema.json',
@@ -1432,7 +1432,7 @@ def execution_protocol_paths(feature_dir: pathlib.Path) -> list[str]:
 
 
 def legacy_execution_snapshot_paths(feature_dir: pathlib.Path) -> list[str]:
-    """Keep the pre-task synthetic snapshot scope for design and wayfinder callers."""
+    """Keep the pre-task synthetic snapshot scope for design and decision map callers."""
     return _commands.legacy_execution_snapshot_paths(feature_dir, ns=_NS)
 
 

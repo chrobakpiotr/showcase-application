@@ -3165,12 +3165,12 @@ class HarnessTest(unittest.TestCase):
             'docs/specs/OTHER-001/spec.md', pathlib.Path('docs/specs/FEATURE-1')
         ))
 
-    def test_matching_wayfinder_map_is_allowed_during_feature_bootstrap(self):
+    def test_matching_decision_map_is_allowed_during_feature_bootstrap(self):
         self.assertTrue(harness.bootstrap_path_allowed(
-            'docs/wayfinder/FEATURE-1/wayfinder.json', pathlib.Path('docs/specs/FEATURE-1')
+            'docs/decision-maps/FEATURE-1/decision-map.json', pathlib.Path('docs/specs/FEATURE-1')
         ))
         self.assertFalse(harness.bootstrap_path_allowed(
-            'docs/wayfinder/OTHER-1/wayfinder.json', pathlib.Path('docs/specs/FEATURE-1')
+            'docs/decision-maps/OTHER-1/decision-map.json', pathlib.Path('docs/specs/FEATURE-1')
         ))
 
     def test_unsafe_allowed_path_is_rejected(self):
