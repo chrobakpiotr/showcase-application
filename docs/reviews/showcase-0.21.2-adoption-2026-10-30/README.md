@@ -42,7 +42,7 @@ Never repeat acknowledgement to adopt code.
 After exact-commit CI succeeds, activate only after fresh consistent-state, executions, leases and ownership checks.
 Preserve the registry markers for SDD-001 and AH5-04B-QUAL-001, audit, state refs, private evidence and
 the external telemetry patch. Do not initialize missing history.
-Do not resume Wayfinder/control-plane writers merely because acknowledgement succeeded: later writes can
+Do not resume decision map/control-plane writers merely because acknowledgement succeeded: later writes can
 invalidate the state inventory again.
 
 Reverting this adoption restores the prior 0.21.1 pin and expectations; the shim is identical.

@@ -17,7 +17,7 @@
       ]
     },
     {
-      "id": "E002-wayfinder-map",
+      "id": "E002-decision-map-map",
       "command": [
         "python3",
         "tooling/agent-harness/decision_map.py",
@@ -30,7 +30,7 @@
       ]
     },
     {
-      "id": "E003-wayfinder-reconciliation-blocks-fog",
+      "id": "E003-decision-map-reconciliation-blocks-fog",
       "command": [
         "python3",
         "tooling/agent-harness/decision_map.py",

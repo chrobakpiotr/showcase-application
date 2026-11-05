@@ -5,13 +5,12 @@ Owner authorized release and adoption on 2026-11-01 (standing decision) and on 2
 
 ## Scope
 
-`wayfinder.py` is removed and old-path maps and state are refused with `DECISION_MAP_MIGRATE_REQUIRED`; `decision_map.py migrate`
+The script under the former name is removed and old-path maps and state are refused with `DECISION_MAP_MIGRATE_REQUIRED`; `decision_map.py migrate`
 is the one reader. `harness.py` now passes its bootstrap allowlist, legacy snapshot list, attestation owner and doctor table to
 the library, with unchanged values, pinned by `tests/test_consumer_bindings.py`. Protocol files change, so the protocol
 fingerprint changes.
 
-**Known stale:** the digest-bound `docs/agentic-sdd/README.md` keeps its bytes, so its `wayfinder.py` commands no longer run. Use
-`decision_map.py`.
+
 
 ## Evidence
 
@@ -24,9 +23,7 @@ fingerprint changes.
 
 Repository adoption only. No Mac checkout, live lifecycle state, refs, markers, audit, worktrees, operational store, staged
 sentinel file or external telemetry patch was modified. Do not repeat recovery acknowledgement. Local activation requires the
-exact adoption CI and a fresh active-operation/state check. Test runs and earlier use can leave
-`.git/showcase-operational-v1/wayfinder/<epic>/`, which now refuses; `decision_map.py migrate docs/decision-maps/<epic>` clears it
-with a backup, also when there is no map.
+exact adoption CI and a fresh active-operation/state check. Leftover state: see the 0.31.0 adoption record.
 
 Rollback reverts this commit. Pushes from this session are ordinary non-force pushes; the remote reports them as bypassing the
 branch rules. That is not a passed branch-protection check.

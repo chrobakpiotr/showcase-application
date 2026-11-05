@@ -2,7 +2,7 @@
 
 The round-3 implementation is the immutable baseline for this feature. Keep
 its task-specific committed-HEAD snapshot separate from the synthetic snapshot
-used by design/wayfinder/verification-contract callers.
+used by design/decision map/verification-contract callers.
 
 In `prepare_task_worktree`, after resolving the task dependency checkpoints,
 obtain the committed-HEAD snapshot for a task with no dependencies. If lifecycle

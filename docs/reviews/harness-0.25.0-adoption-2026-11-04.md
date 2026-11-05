@@ -8,7 +8,7 @@ Previous consumer checkpoint: 93fa835ba5e18658c9901a32d601ed8bb9456e81 (pin 6682
 
 ## Scope
 
-AH5-16a moves the design loop (`design.py`), the decision map (`wayfinder.py`) and contract authoring
+AH5-16a moves the design loop (`design.py`), the decision map (`decision_map.py`) and contract authoring
 (`verification_contract.py generate`) from the legacy provider builders to the runner's library launch path
 (`agent_harness.execution`), as `runner.py` launches a task: the prompt on stdin, API-key variables removed, a model
 required (`--model`), `--agent-timeout` bounding each call, failures mapped to `provider-error`, credential-shaped
@@ -28,7 +28,7 @@ Also in this commit:
 - `docs/agentic-sdd/agent-runners.md` describes the new launch, `--model` for the `README.md` invocations (that file
   keeps the bytes committed evidence binds), the signal behaviour and the home-path limit.
 
-`design.py`, `wayfinder.py`, `verification_contract.py` and `runner.py` are protocol files, so their new bytes change
+`design.py`, `decision_map.py`, `verification_contract.py` and `runner.py` are protocol files, so their new bytes change
 the protocol fingerprint; no lifecycle state format changes. Run records gain additive provenance fields.
 
 ## Evidence

@@ -35,10 +35,10 @@
       "source_type": "architecture-invariant",
       "sources": [
         "docs/agentic-sdd/constitution.md",
-        "Wayfinder progressive-discovery invariant"
+        "decision map progressive-discovery invariant"
       ],
       "statement": "Discovery history must remain auditable: research may produce fact/evidence without a fake decision, superseded knowledge is preserved, and map clearance cannot occur with open fog or active blocking assumptions.",
-      "verification_hint": "Run Wayfinder unit tests for research ledger entries, supersession, blocking assumptions and reconciliation."
+      "verification_hint": "Run decision map unit tests for research ledger entries, supersession, blocking assumptions and reconciliation."
     },
     {
       "id": "VC-004",

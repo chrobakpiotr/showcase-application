@@ -434,6 +434,20 @@
       "path": "docs/specs/S30-AMQP-POISON-001/evidence/design-evidence-coverage-matrix-2026-10-17.md",
       "status": "mismatch",
       "reason": "Historical S05-05b source snapshot (source_git_sha 49ab97f plus the then-uncommitted proposal); these files were revised afterwards."
+    },
+    {
+      "record": "docs/specs/SDD-OBS-001/evidence/handbook/verification/t008-verification.json",
+      "location": "$.content_consistency.Agentic SDD README",
+      "path": "docs/agentic-sdd/README.md",
+      "status": "mismatch",
+      "reason": "Owner decision 2026-11-05: the former workflow name and its dead commands were removed from this live document. The record binds the bytes at its own commit, which Git keeps."
+    },
+    {
+      "record": "docs/specs/SDD-OBS-001/evidence/handbook/verification/t008-verification.json",
+      "location": "$.content_consistency.canonical handbook",
+      "path": "docs/agentic-sdd/handbook.md",
+      "status": "mismatch",
+      "reason": "Owner decision 2026-11-05: the former workflow name was removed from this live document. The record binds the bytes at its own commit, which Git keeps."
     }
   ]
 }

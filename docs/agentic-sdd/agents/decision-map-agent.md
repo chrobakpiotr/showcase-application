@@ -1,6 +1,6 @@
 # Decision-map Agent
 
-Formerly Wayfinder (ADR 0006 in agent-harness); older records use that name.
+Formerly decision map (ADR 0006 in agent-harness); older records use that name.
 
 ## Mission
 Resolve **one decision question** that moves a large/foggy effort toward its destination. Produce a durable decision and evidence, not an implementation ticket.

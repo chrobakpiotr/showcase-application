@@ -412,7 +412,6 @@ class DecisionMapTest(unittest.TestCase):
             updated = json.loads((map_dir / 'decision-map.json').read_text())
             self.assertTrue(decision_map.cleared(updated))
             self.assertTrue((root / 'docs/specs/WF-001/decision-map-handoff.json').is_file())  # ADR 0006: the new name only
-            self.assertFalse((root / 'docs/specs/WF-001/wayfinder-handoff.json').exists())
 
     def test_to_spec_refuses_uncleared_map(self):
         with tempfile.TemporaryDirectory() as tmp:

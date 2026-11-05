@@ -1541,8 +1541,7 @@ def parser() -> argparse.ArgumentParser:
 # AH5-17 decision 10: this repository's layout and trust policy, passed to the library explicitly.
 BOOTSTRAP_PATHS = frozenset({'AGENTS.md', 'CLAUDE.md', '.gitignore', '.github/workflows/agentic-sdd.yml'})
 BOOTSTRAP_PREFIXES = ('.claude/agents/', 'tooling/agent-harness/', 'docs/agentic-sdd/', 'docs/specs/SDD-001/')
-# The old directory stays allowed: `decision_map.py migrate` leaves its deletions uncommitted for review.
-BOOTSTRAP_MAP_DIRS = ('docs/decision-maps', 'docs/wayfinder')
+BOOTSTRAP_MAP_DIRS = ('docs/decision-maps',)
 LEGACY_SNAPSHOT_PATHS = ('.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'docs/agentic-sdd',
                          '.github/workflows/agentic-sdd.yml')
 ATTESTATION_VALIDATION_OWNER = 'tooling/agent-harness/telemetry.py'

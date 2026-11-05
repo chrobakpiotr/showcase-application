@@ -20,13 +20,12 @@ class OperationalStateTest(unittest.TestCase):
         subprocess.run(['git', 'init', '-q', str(self.repo)], check=True)
 
     def test_operational_writes_preserve_legacy_snapshot_and_lock_inode(self):
-        old = self.repo / '.agent-state/wayfinder/EPIC-001/map.lock'
+        old = self.repo / '.agent-state/old-tool/EPIC-001/map.lock'
         old.parent.mkdir(parents=True)
         old.write_bytes(b'')
         before = old.stat()
         with locks.lifecycle_lock(self.repo):
-            ops.refuse_legacy_claims(self.repo, 'EPIC-001')
-            new = ops.ensure_directory(self.repo, 'wayfinder', 'EPIC-001')
+            new = ops.ensure_directory(self.repo, 'decision-maps', 'EPIC-001')
             (new / 'map.lock').write_bytes(b'')
             cp = ops.ensure_directory(self.repo, 'control-plane')
             (cp / 'example.json').write_text('{}')
@@ -35,33 +34,6 @@ class OperationalStateTest(unittest.TestCase):
         self.assertEqual(before.st_mode, old.stat().st_mode)
         self.assertEqual(b'', old.read_bytes())
         self.assertEqual([old], [p for p in (self.repo / '.agent-state').rglob('*') if p.is_file()])
-
-    def test_legacy_claim_even_expired_is_not_silently_abandoned(self):
-        old = self.repo / '.agent-state/wayfinder/EPIC-001/claims/D-001'
-        old.mkdir(parents=True)
-        with locks.lifecycle_lock(self.repo):
-            with self.assertRaisesRegex(RuntimeError, 'REQUIRE_MIGRATION'):
-                ops.refuse_legacy_claims(self.repo, 'EPIC-001')
-        self.assertTrue(old.exists())
-        self.assertFalse(ops.root(self.repo).exists())
-
-    def test_legacy_claim_under_another_epic_also_refuses(self):
-        other = self.repo / '.agent-state/wayfinder/EPIC-001/claims/D-001'
-        other.mkdir(parents=True)
-        with locks.lifecycle_lock(self.repo):
-            with self.assertRaisesRegex(RuntimeError, 'REQUIRE_MIGRATION: EPIC-001'):
-                ops.refuse_legacy_claims(self.repo, 'EPIC-002')
-        self.assertTrue(other.exists())
-        self.assertFalse(ops.root(self.repo).exists())
-
-    def test_legacy_claims_symlink_in_other_epic_is_unsafe(self):
-        (self.repo / '.agent-state/wayfinder/EPIC-001').mkdir(parents=True)
-        outside = self.repo / 'outside'
-        outside.mkdir()
-        (self.repo / '.agent-state/wayfinder/EPIC-001/claims').symlink_to(outside, target_is_directory=True)
-        with locks.lifecycle_lock(self.repo):
-            with self.assertRaisesRegex(RuntimeError, 'LEGACY_CLAIMS_UNSAFE'):
-                ops.refuse_legacy_claims(self.repo, 'EPIC-002')
 
     def test_symlink_and_unlocked_creation_refuse(self):
         with self.assertRaisesRegex(RuntimeError, 'LOCK_REQUIRED'):
@@ -77,12 +49,12 @@ class OperationalStateTest(unittest.TestCase):
     def test_invalid_identifier_refuses(self):
         for value in ('..', '../escape', '/absolute', ''):
             with self.assertRaisesRegex(RuntimeError, 'INVALID_ID'):
-                ops.directory(self.repo, 'wayfinder', value)
+                ops.directory(self.repo, 'decision-maps', value)
 
     def test_real_writers_leave_snapshot_tree_unchanged(self):
         from test_control_plane import cp
         from test_decision_map import base_map, decision_map
-        old = self.repo / '.agent-state/wayfinder/EPIC-001/map.lock'
+        old = self.repo / '.agent-state/old-tool/EPIC-001/map.lock'
         old.parent.mkdir(parents=True)
         old.write_bytes(b'')
         before = old.stat()
@@ -99,58 +71,12 @@ class OperationalStateTest(unittest.TestCase):
         self.assertEqual(b'', old.read_bytes())
         self.assertEqual([old], [p for p in (self.repo / '.agent-state').rglob('*') if p.is_file()])
 
-    def test_state_under_the_old_directory_is_refused_until_migrated_and_both_are_refused(self):
-        from test_decision_map import decision_map
-        with mock.patch.object(decision_map, 'state_repo_root', return_value=self.repo):
-            new = ops.directory(self.repo, 'decision-maps', 'EPIC-001')
-            self.assertEqual(new, decision_map.state_root('EPIC-001'))
-            old = ops.directory(self.repo, 'wayfinder', 'EPIC-001')
-            old.mkdir(parents=True)
-            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
-                decision_map.state_root('EPIC-001')
-            self.assertIn('DECISION_MAP_MIGRATE_REQUIRED', err.getvalue())
-            new.mkdir(parents=True)
-            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
-                decision_map.state_root('EPIC-001')
-            self.assertIn('DECISION_MAP_STATE_AMBIGUOUS', err.getvalue())
-
-    def test_migrate_and_downgrade_through_the_real_locks(self):
-        from test_decision_map import base_map, decision_map
-        old_dir = self.repo / 'docs/wayfinder/EPIC-001'
-        old_dir.mkdir(parents=True)
-        doc = base_map()
-        (old_dir / 'wayfinder.json').write_text(json.dumps(doc), encoding='utf-8')
-        old_state = ops.directory(self.repo, 'wayfinder', 'EPIC-001')
-        old_state.mkdir(parents=True, mode=0o700)
-        (old_state / 'note').write_text('kept', encoding='utf-8')
-        with mock.patch.object(decision_map, 'state_repo_root', return_value=self.repo), \
-                contextlib.redirect_stdout(io.StringIO()):
-            decision_map.cmd_migrate(old_dir, False)
-            new_dir = self.repo / 'docs/decision-maps/EPIC-001'
-            self.assertEqual('EPIC-001', decision_map.load_map(new_dir)['epic'])
-            new_state = ops.directory(self.repo, 'decision-maps', 'EPIC-001')
-            self.assertEqual('kept', (new_state / 'note').read_text(encoding='utf-8'))
-            self.assertTrue((new_state / 'map.lock').is_file())
-            with decision_map.locked_claim_state('EPIC-001'):
-                pass
-            decision_map.cmd_migrate(new_dir, True)
-            self.assertTrue((old_dir / 'wayfinder.json').is_file())
-            self.assertEqual('kept', (old_state / 'note').read_text(encoding='utf-8'))
-
-    def test_the_old_script_name_is_gone(self):
-        here = pathlib.Path(ops.__file__).resolve().parent
-        self.assertFalse((here / 'wayfinder.py').exists())
-
     def test_linked_worktree_shares_operational_root(self):
         subprocess.run(['git', '-C', str(self.repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'fixture'], check=True)
         linked = pathlib.Path(self.tmp.name) / 'linked'
         subprocess.run(['git', '-C', str(self.repo), 'worktree', 'add', '--detach', str(linked)], check=True, capture_output=True)
         self.assertEqual(ops.root(self.repo).resolve(), ops.root(linked).resolve())
-        old = self.repo / '.agent-state/wayfinder/EPIC-001/claims/D-001'
-        old.mkdir(parents=True)
         with locks.lifecycle_lock(linked):
-            with self.assertRaisesRegex(RuntimeError, 'PRIMARY_CHECKOUT_REQUIRED'):
-                ops.refuse_legacy_claims(linked, 'EPIC-001')
             with self.assertRaisesRegex(RuntimeError, 'PRIMARY_CHECKOUT_REQUIRED'):
                 ops.ensure_directory(linked, 'control-plane')
         self.assertFalse(ops.root(self.repo).exists())

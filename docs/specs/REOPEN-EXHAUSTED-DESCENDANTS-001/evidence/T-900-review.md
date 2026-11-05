@@ -54,7 +54,7 @@ seven registered commands with exit code 0 in
 The full `test_harness.py` output is in `verify-1.stderr`; it reports
 `Ran 272 tests in 677.518s` and `OK`, and `verify-1.exit-code` contains `0`.
 The captured stdout/stderr and exit-code files for the other registered commands
-also record exit code 0: `test_wayfinder.py` (14 tests), `test_design.py` (10),
+also record exit code 0: `test_decision_map.py` (14 tests), `test_design.py` (10),
 `test_verification_contract.py` (4), `test_orchestrate.py` (5), Python compile,
 and `git diff --check`.
 

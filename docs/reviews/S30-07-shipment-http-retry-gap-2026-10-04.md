@@ -49,7 +49,7 @@ and browser tests do not exercise the response-loss/replay and concurrent
 advance scenarios in one real HTTP/PostgreSQL flow.
 
 The next work is verification implementation and evaluator review against the
-existing S30-07 contract, not a new Wayfinder decision. Before claiming full
+existing S30-07 contract, not a new decision map decision. Before claiming full
 E2E closure, the test must prove the first request committed once despite the
 simulated response loss, and that retry replays the canonical result without a
 second shipment transition or fulfillment effect. The current packet does not

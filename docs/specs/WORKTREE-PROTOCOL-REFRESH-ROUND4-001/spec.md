@@ -37,7 +37,7 @@ qualification report is valid.
 
 ## Verification
 
-Run the full `test_harness.py` suite, the wayfinder, design,
+Run the full `test_harness.py` suite, the decision map, design,
 verification-contract, and orchestrate suites, plus Python compilation and
 `git diff --check`. The new test must exercise the lifecycle commands without
 manually setting base fields.

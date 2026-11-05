@@ -91,8 +91,8 @@ def _validate_map_lock(path: pathlib.Path, fd: int | None) -> tuple[int, int]:
     return _decision_map._validate_map_lock(path, fd, ns=_NS)
 
 
-def locked_claim_state(epic: str, any_root: bool = False) -> Iterator[None]:
-    return _decision_map.locked_claim_state(epic, any_root, ns=_NS)
+def locked_claim_state(epic: str) -> Iterator[None]:
+    return _decision_map.locked_claim_state(epic, ns=_NS)
 
 
 def locked_map(map_dir: pathlib.Path) -> Iterator[dict[str, Any]]:
@@ -262,26 +262,6 @@ def cmd_reconcile(map_dir: pathlib.Path) -> None:
 
 def cmd_fog_disposition(map_dir: pathlib.Path, fog_id: str, status: str, reason: str) -> None:
     return _decision_map.cmd_fog_disposition(map_dir, fog_id, status, reason, ns=_NS)
-
-
-def _ambiguous(what: str) -> None:
-    return _decision_map._ambiguous(what, ns=_NS)
-
-
-def _migrate_required(what: str, epic: str) -> None:
-    return _decision_map._migrate_required(what, epic, ns=_NS)
-
-
-def _state_root_any(epic: str) -> pathlib.Path:
-    return _decision_map._state_root_any(epic, ns=_NS)
-
-
-def _move_tracked(source: pathlib.Path, target: pathlib.Path) -> None:
-    return _decision_map._move_tracked(source, target, ns=_NS)
-
-
-def cmd_migrate(map_dir: pathlib.Path, downgrade: bool) -> None:
-    return _decision_map.cmd_migrate(map_dir, downgrade, ns=_NS)
 
 
 def cmd_supersede(map_dir: pathlib.Path, old_id: str, statement: str, reason: str) -> None:

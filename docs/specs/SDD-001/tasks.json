@@ -8,7 +8,7 @@
     {
       "id": "T-001",
       "title": "Define repo-native SDD operating model",
-      "objective": "Create the concise repository map, constitution, role contracts, templates, Wayfinder/grill/prototype documentation and maintained examples without changing application runtime behavior.",
+      "objective": "Create the concise repository map, constitution, role contracts, templates, decision map/grill/prototype documentation and maintained examples without changing application runtime behavior.",
       "role": "builder",
       "depends_on": [],
       "allowed_paths": [
@@ -60,8 +60,8 @@
         ".gitignore",
         "tooling/agent-harness/design.py",
         "tooling/agent-harness/tests/test_design.py",
-        "tooling/agent-harness/wayfinder.py",
-        "tooling/agent-harness/tests/test_wayfinder.py",
+        "tooling/agent-harness/decision_map.py",
+        "tooling/agent-harness/tests/test_decision_map.py",
         "tooling/agent-harness/trust.py",
         "tooling/agent-harness/verification_contract.py",
         "tooling/agent-harness/eval.py",
@@ -101,11 +101,11 @@
       ],
       "verification": [
         "python3 -m unittest tooling/agent-harness/tests/test_harness.py tooling/agent-harness/tests/test_orchestrate.py tooling/agent-harness/tests/test_design.py -v",
-        "python3 -m unittest tooling/agent-harness/tests/test_wayfinder.py -v",
+        "python3 -m unittest tooling/agent-harness/tests/test_decision_map.py -v",
         "python3 -m unittest tooling/agent-harness/tests/test_trust.py tooling/agent-harness/tests/test_verification_contract.py tooling/agent-harness/tests/test_eval.py -v"
       ],
       "test_mode": "red-green-refactor",
-      "test_seam": "Unit tests exercise deterministic Wayfinder ledger/reconciliation, DAG validation, stale gates and task-packet protocol behavior before implementation changes."
+      "test_seam": "Unit tests exercise deterministic decision map ledger/reconciliation, DAG validation, stale gates and task-packet protocol behavior before implementation changes."
     },
     {
       "id": "T-003",
@@ -171,7 +171,7 @@
     {
       "id": "T-004",
       "title": "Make the SDD layer self-validating",
-      "objective": "Describe the Agentic SDD layer with its own accepted spec/plan/DAG and CI workflow that compiles/tests the full protocol and previews maintained implementation/design/Wayfinder examples.",
+      "objective": "Describe the Agentic SDD layer with its own accepted spec/plan/DAG and CI workflow that compiles/tests the full protocol and previews maintained implementation/design/decision map examples.",
       "role": "builder",
       "depends_on": [
         "T-001",
@@ -212,15 +212,15 @@
         "AC-032"
       ],
       "verification": [
-        "python3 -m py_compile tooling/agent-harness/harness.py tooling/agent-harness/orchestrate.py tooling/agent-harness/runner.py tooling/agent-harness/verification_sandbox.py tooling/agent-harness/telemetry.py tooling/agent-harness/control_plane.py tooling/agent-harness/design.py tooling/agent-harness/wayfinder.py tooling/agent-harness/trust.py tooling/agent-harness/verification_contract.py tooling/agent-harness/eval.py",
+        "python3 -m py_compile tooling/agent-harness/harness.py tooling/agent-harness/orchestrate.py tooling/agent-harness/runner.py tooling/agent-harness/verification_sandbox.py tooling/agent-harness/telemetry.py tooling/agent-harness/control_plane.py tooling/agent-harness/design.py tooling/agent-harness/decision_map.py tooling/agent-harness/trust.py tooling/agent-harness/verification_contract.py tooling/agent-harness/eval.py",
         "python3 -m unittest discover -s tooling/agent-harness/tests -v",
         "python3 tooling/agent-harness/harness.py validate-all docs/specs",
         "python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
         "python3 tooling/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
         "python3 tooling/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
         "python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
-        "python3 tooling/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 tooling/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 tooling/agent-harness/decision_map.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 tooling/agent-harness/decision_map.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
         "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-001",
         "python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1",
         "python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1"
@@ -231,7 +231,7 @@
     {
       "id": "T-900",
       "title": "Independent protocol evaluation",
-      "objective": "Try to falsify the Agentic SDD baseline against every accepted spec criterion and independent verification criterion, including typed Decision Ledger reconciliation, verification-contract freshness/independence, context trust, risk-driven TDD evidence, eval safety, Wayfinder handoffs, design gates, recovery, provenance and verification isolation.",
+      "objective": "Try to falsify the Agentic SDD baseline against every accepted spec criterion and independent verification criterion, including typed Decision Ledger reconciliation, verification-contract freshness/independence, context trust, risk-driven TDD evidence, eval safety, decision map handoffs, design gates, recovery, provenance and verification isolation.",
       "role": "evaluator",
       "depends_on": [
         "T-001",
@@ -297,9 +297,9 @@
         "python3 tooling/agent-harness/harness.py validate docs/agentic-sdd/examples/INV-LOW-001",
         "python3 tooling/agent-harness/orchestrate.py docs/agentic-sdd/examples/INV-LOW-001 --plan",
         "python3 tooling/agent-harness/design.py docs/agentic-sdd/examples/INV-CONTENTION-001 --plan",
-        "python3 -m unittest tooling/agent-harness/tests/test_wayfinder.py -v",
-        "python3 tooling/agent-harness/wayfinder.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
-        "python3 tooling/agent-harness/wayfinder.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 -m unittest tooling/agent-harness/tests/test_decision_map.py -v",
+        "python3 tooling/agent-harness/decision_map.py validate docs/agentic-sdd/examples/SHIP-PLATFORM-001",
+        "python3 tooling/agent-harness/decision_map.py status docs/agentic-sdd/examples/SHIP-PLATFORM-001",
         "python3 tooling/agent-harness/verification_contract.py validate docs/specs/SDD-001",
         "python3 tooling/agent-harness/eval.py run --suite baseline --repeat 1",
         "python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1"

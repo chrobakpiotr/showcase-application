@@ -14,7 +14,7 @@ No product findings. One independent fixture assertion was corrected because it 
 
 The evaluator did not implement this checkpoint. Accepted repository policy, Q01-Q06 spec/plan, recovery timeline spec, evaluator role/configuration, relevant ADRs, AsyncAPI and delivery runbook were read. Historical FAIL reports supplied counterexample hypotheses, not passing evidence. Existing independent fixtures were inspected, copied to new temporary paths, extended at the authorization boundary and freshly executed against this checkpoint. No builder result is counted as a fresh gate.
 
-Initial Git proof returned the exact reviewed SHA, empty `git status --short`, and no symbolic HEAD (detached). No active `docs/wayfinder/` or standalone S22 master-plan file was present. The available roadmap and accepted feature artifacts supplied context. Both active features are explicitly document-only; no task DAG, design gate or verification contract was fabricated.
+Initial Git proof returned the exact reviewed SHA, empty `git status --short`, and no symbolic HEAD (detached). No active `docs/decision-maps/` or standalone S22 master-plan file was present. The available roadmap and accepted feature artifacts supplied context. Both active features are explicitly document-only; no task DAG, design gate or verification contract was fabricated.
 
 All heavy gates ran serially with JBR/OpenJDK 25.0.4, the repository Gradle wrapper and host Docker/Chrome. The first persistence attempt was blocked before Gradle execution by the sandbox's host-cache lock restriction. The approved rerun passed. This environment failure is not an application defect. Production, repository tests, accepted contracts and thresholds were not edited. Only this report is a repository change.
 

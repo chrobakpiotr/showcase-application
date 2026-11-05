@@ -17,7 +17,7 @@
       "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
       "verification": [
         "python3 tooling/agent-harness/tests/test_harness.py",
-        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_decision_map.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",
@@ -38,7 +38,7 @@
       "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
       "verification": [
         "python3 tooling/agent-harness/tests/test_harness.py",
-        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_wayfinder.py' -v",
+        "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_decision_map.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_design.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_verification_contract.py' -v",
         "python3 -m unittest discover -s tooling/agent-harness/tests -p 'test_orchestrate.py' -v",

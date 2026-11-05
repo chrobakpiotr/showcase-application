@@ -5,8 +5,8 @@ c574f0b734543ba5fe0d9b7bd9250cc553c9126f (pin 26aec0c, 0.28.0). New pin: aa7c943
 
 ## Scope
 
-Wayfinder is now the decision map: `decision_map.py`, its schemas, agents, role files, template, example and CI step. Old
-paths are read in place for one release; `wayfinder.py` forwards with one deprecation line, and is removed in the next
+decision map is now the decision map: `decision_map.py`, its schemas, agents, role files, template, example and CI step. Old
+paths are read in place for one release; `decision_map.py` forwards with one deprecation line, and is removed in the next
 release. `decision_map.py migrate` moves a map and its state, `--downgrade` moves them back. Historical records, eval ids
 and digest-bound files (`docs/agentic-sdd/README.md`, `constitution.md`, `handbook.md`, the PDF) keep their bytes, so
 that README still gives old-path commands. Protocol files are renamed, so the protocol fingerprint changes once.

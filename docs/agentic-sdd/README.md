@@ -26,7 +26,7 @@ Registration records provenance; only trusted lifecycle state accepts plan cover
 
 This repository layer adapts spec-driven, multi-agent development to the application's **existing** Java/Spring/hexagonal architecture and CI rather than replacing them. Accepted repository artifacts and deterministic gates remain authoritative; models are bounded workers.
 
-**This is the consolidated Agentic SDD baseline.** It combines Wayfinder-style discovery, adversarial design review, independent verification and bounded multi-agent execution into one repository-native workflow:
+**This is the consolidated Agentic SDD baseline.** It combines Decision-map style discovery, adversarial design review, independent verification and bounded multi-agent execution into one repository-native workflow:
 
 1. **Decision Ledger 2.0** - facts, decisions, assumptions, constraints and evidence are different durable knowledge types; supersession preserves history; terminal fog reconciliation is mandatory.
 2. **Independent Verification Contract** - the feature spec no longer writes its own exam; a separate read-only author derives additional `VC-*` criteria from ADRs, invariants, existing behavior and other trusted evidence.
@@ -42,9 +42,9 @@ Do not run the heaviest workflow by default:
 |---|---|---|
 | Small/well-scoped, solution already clear | `spec -> tasks -> orchestrate` | Existing repository gates + evaluator; independent VC can be optional. |
 | Medium/uncertain but one planning session | `spec -> design.py -> [verification contract if required] -> tasks -> orchestrate` | Grill/conditional prototype plus independent VC for meaningful risk. |
-| Large/foggy epic, migration or platform change | `wayfinder.py -> to-spec -> design.py -> verification_contract.py -> to-tasks -> orchestrate.py` | Full path: Decision Ledger, reconciliation, independent VC, risk-driven seams and evals. |
+| Large/foggy epic, migration or platform change | `decision_map.py -> to-spec -> design.py -> verification_contract.py -> to-tasks -> orchestrate.py` | Full path: Decision Ledger, reconciliation, independent VC, risk-driven seams and evals. |
 
-A useful rule: **if you can already write a credible implementation spec in one sitting, do not start with Wayfinder.**
+A useful rule: **if you can already write a credible implementation spec in one sitting, do not start with decision map.**
 
 ## Mental model - discovery, verification design and execution are separate systems
 
@@ -111,7 +111,7 @@ A useful rule: **if you can already write a credible implementation spec in one 
 
 ### Decision Ledger 2.0
 
-A discovery result is not automatically a decision. Wayfinder schema v2 uses durable entries:
+A discovery result is not automatically a decision. decision map schema v2 uses durable entries:
 
 - `fact` - something established by evidence;
 - `decision` - a chosen direction/contract;
@@ -121,7 +121,7 @@ A discovery result is not automatically a decision. Wayfinder schema v2 uses dur
 
 Research/prototype tickets may close with FACT/EVIDENCE and `decision: null`. Architecture/modules/domain/contract tickets still need an actual decision. When later evidence invalidates old knowledge, use explicit supersession; never erase the audit trail.
 
-`wayfinder.py reconcile` is the terminal proof step. `0 open tickets` does **not** mean complete if fog or a blocking assumption remains. Every fog item must be `resolved`, `out-of-scope`, or explicitly `deferred` before `to-spec`.
+`decision_map.py reconcile` is the terminal proof step. `0 open tickets` does **not** mean complete if fog or a blocking assumption remains. Every fog item must be `resolved`, `out-of-scope`, or explicitly `deferred` before `to-spec`.
 
 ### Independent Verification Contract
 
@@ -238,17 +238,17 @@ python3 tooling/agent-harness/eval.py run --suite shipping-preflight --repeat 1
 Activate and discover:
 
 ```bash
-./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-wayfinder.sh
-python3 tooling/agent-harness/wayfinder.py run docs/wayfinder/SHIP-PLATFORM-001 \
+./docs/agentic-sdd/examples/SHIP-PLATFORM-001/activate-decision-map.sh
+python3 tooling/agent-harness/decision_map.py run docs/decision-maps/SHIP-PLATFORM-001 \
   --provider codex --reasoning high --max-decisions 8
-python3 tooling/agent-harness/wayfinder.py reconcile docs/wayfinder/SHIP-PLATFORM-001
+python3 tooling/agent-harness/decision_map.py reconcile docs/decision-maps/SHIP-PLATFORM-001
 ```
 
 After genuine `CLEARED yes`:
 
 ```bash
-python3 tooling/agent-harness/wayfinder.py to-spec \
-  docs/wayfinder/SHIP-PLATFORM-001 docs/specs/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/decision_map.py to-spec \
+  docs/decision-maps/SHIP-PLATFORM-001 docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 
 python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
@@ -257,7 +257,7 @@ python3 tooling/agent-harness/design.py docs/specs/SHIP-PLATFORM-001 \
 python3 tooling/agent-harness/verification_contract.py generate \
   docs/specs/SHIP-PLATFORM-001 --provider claude
 
-python3 tooling/agent-harness/wayfinder.py to-tasks docs/specs/SHIP-PLATFORM-001 \
+python3 tooling/agent-harness/decision_map.py to-tasks docs/specs/SHIP-PLATFORM-001 \
   --provider codex --reasoning high
 
 python3 tooling/agent-harness/orchestrate.py docs/specs/SHIP-PLATFORM-001 --plan
@@ -548,7 +548,7 @@ Only then create/finalize the task DAG. For manually-authored tasks start from:
 cp docs/agentic-sdd/templates/tasks.json "docs/specs/$FEATURE/tasks.json"
 ```
 
-For a Wayfinder feature prefer `wayfinder.py to-tasks`, which reads the accepted verification contract and can enumerate all `VC-*` into the evaluator task.
+For a decision-map feature prefer `decision_map.py to-tasks`, which reads the accepted verification contract and can enumerate all `VC-*` into the evaluator task.
 
 Do not start implementation while a contract-affecting open question remains unresolved. Prototype code is disposable evidence,
 not a shortcut around the normal production task/evaluator path. Prefer extending an existing bounded context and repository
@@ -836,7 +836,7 @@ python3 tooling/agent-harness/harness.py authorize-retry docs/specs/SHOP-001 T-0
 
 The grant is stored and audited in the repository-scoped lifecycle state. The next claim consumes it atomically with the transition to `running`; it authorizes exactly one attempt. If that attempt fails, the task returns to exhausted `failed` state and requires a new explicit authorization bound to the new attempt count. T-001/T-002 history is preserved, no reset is required, and dependent tasks remain blocked until normal completion.
 
-New retry grants use authorization and binding version 2. Their validity binds repository, feature, task, failed status, expected attempt count, lifecycle compatibility version and a canonical SHA-256 semantic task-contract fingerprint. The fingerprint hashes `spec.md`, `plan.md`, `tasks.json`, and present `design.json`, `design/gate.json`, `verification-contract.json` and `wayfinder-handoff.json` inputs, plus the task's `id`, `title`, `objective`, `role`, `agent_profile`, `depends_on`, `allowed_paths`, `acceptance_criteria`, `risk_tags`, `verification`, `test_mode`, `test_seam`, and feature `test_policy`. Harness source, guide contents, Git revision, timestamps and generated packet provenance remain audit-only. Existing version 1 packet-bound grants are preserved as historical records; when their semantic contract cannot be proven, they do not make a task ready and cannot be claimed.
+New retry grants use authorization and binding version 2. Their validity binds repository, feature, task, failed status, expected attempt count, lifecycle compatibility version and a canonical SHA-256 semantic task-contract fingerprint. The fingerprint hashes `spec.md`, `plan.md`, `tasks.json`, and present `design.json`, `design/gate.json`, `verification-contract.json` and `decision-map-handoff.json` inputs, plus the task's `id`, `title`, `objective`, `role`, `agent_profile`, `depends_on`, `allowed_paths`, `acceptance_criteria`, `risk_tags`, `verification`, `test_mode`, `test_seam`, and feature `test_policy`. Harness source, guide contents, Git revision, timestamps and generated packet provenance remain audit-only. Existing version 1 packet-bound grants are preserved as historical records; when their semantic contract cannot be proven, they do not make a task ready and cannot be claimed.
 
 To replace an unusable, unconsumed version 1 grant, an operator must identify it explicitly. The old grant remains unchanged and a separate immutable supersession relation records the decision:
 
@@ -1022,7 +1022,7 @@ CLAUDE.md
 tooling/agent-harness/**
 docs/agentic-sdd/**
 docs/specs/<real-feature>/{spec.md,plan.md,design.json,verification-contract.json,tasks.json}
-docs/wayfinder/<epic>/wayfinder.json and durable decision records while discovery is active/valuable
+docs/decision-maps/<epic>/decision-map.json and durable decision records while discovery is active/valuable
 selected durable design/evaluator evidence when useful
 ```
 
@@ -1045,5 +1045,5 @@ for architecture, integration and any remote action.
 ## Maintained examples
 
 See [`docs/agentic-sdd/examples/`](examples/README.md). `INV-LOW-001` is the runnable implementation pilot;
-`INV-CONTENTION-001` is a design-only Grill/Prototype/Bake-off lab; `SHIP-PLATFORM-001` is the full Wayfinder → Verification Contract → TDD/task-DAG → eval expedition. Examples stay outside `docs/specs/` until explicitly
+`INV-CONTENTION-001` is a design-only Grill/Prototype/Bake-off lab; `SHIP-PLATFORM-001` is the full decision map → Verification Contract → TDD/task-DAG → eval expedition. Examples stay outside `docs/specs/` until explicitly
 activated, and CI previews them so onboarding material cannot silently drift away from the harness.

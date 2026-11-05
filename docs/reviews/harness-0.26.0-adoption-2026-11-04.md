@@ -9,12 +9,12 @@ only made the pool signal test read the module that holds the definitions). New 
 
 ## Scope
 
-AH5-16b/c moves the design loop (`design.py`) to `agent_harness.design` and the decision map (`wayfinder.py`) to
-`agent_harness.decision_map` (Harness ADR 0006: Wayfinder is renamed the decision map; this file keeps its name until
+AH5-16b/c moves the design loop (`design.py`) to `agent_harness.design` and the decision map (`decision_map.py`) to
+`agent_harness.decision_map` (Harness ADR 0006: decision map is renamed the decision map; this file keeps its name until
 AH5-17). This commit replaces both files with the exact release shims (aliases, one delegate per function, `_NS` bound
 to the live module namespace), adds `tests/shim_layout.py`, `tests/test_design_binding.py` and
 `tests/test_decision_map_binding.py`, and updates the exact dependency pin and the qualification version guards.
-Before the copy, Harness's extraction checker passed against this checkout's `design.py` and `wayfinder.py` (the
+Before the copy, Harness's extraction checker passed against this checkout's `design.py` and `decision_map.py` (the
 blobs the extraction was made from, `21758e5d` and `b2e8fa06`); the copied files are byte-identical to the reviewed
 candidate `6e240a1`.
 
@@ -40,7 +40,7 @@ Repository adoption only. No Mac checkout, live lifecycle state, refs, markers, 
 staged sentinel file or external telemetry patch was modified. Do not repeat recovery acknowledgement. Local
 activation requires the exact adoption CI and a fresh active-operation/state check.
 
-Rollback reverts this adoption commit, restoring the 0.25.0 pin and the original `design.py` and `wayfinder.py`
+Rollback reverts this adoption commit, restoring the 0.25.0 pin and the original `design.py` and `decision_map.py`
 together; design records, maps, claims and handoffs stay readable both ways.
 
 Pushes from this session are ordinary non-force pushes; the remote reports them as bypassing the branch rules

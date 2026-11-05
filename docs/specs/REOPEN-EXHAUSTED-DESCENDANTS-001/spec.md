@@ -34,5 +34,5 @@ AH5-04B specifications or qualification evidence.
 ## Verification
 
 Run the focused reopen tests first, then the full `test_harness.py` suite,
-wayfinder, design, verification-contract, and orchestrate suites, Python
+decision map, design, verification-contract, and orchestrate suites, Python
 compilation, and `git diff --check`.

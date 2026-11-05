@@ -16,7 +16,7 @@ Use the lightest flow that fits the uncertainty:
 | --- | --- | --- |
 | Small and well understood | `spec -> tasks -> orchestrate` | Existing deterministic gates and independent evaluator. |
 | Medium with a few uncertainties | `spec -> design -> [prototype] -> verification contract -> tasks` | Resolve material design questions and add independent criteria for meaningful risk. |
-| Large, foggy, or architectural | `wayfinder -> reconcile -> spec -> design/grill -> [prototype] -> verification contract -> tasks` | Close blocking assumptions, preserve decision history, then derive and independently evaluate implementation. |
+| Large, foggy, or architectural | `decision map -> reconcile -> spec -> design/grill -> [prototype] -> verification contract -> tasks` | Close blocking assumptions, preserve decision history, then derive and independently evaluate implementation. |
 
 Prototype code is disposable evidence. Translate accepted findings into the plan and normal task DAG; do not promote a scratch prototype directly.
 

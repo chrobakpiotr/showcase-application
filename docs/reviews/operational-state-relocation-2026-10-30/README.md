@@ -5,10 +5,10 @@ Base: ab9dd27f0fa5e12b1051986dca34c294868e4aae. No Harness version or snapshot A
 
 ## Contract
 
-Wayfinder lock/claims and newly fetched control-plane snapshots use
+decision map lock/claims and newly fetched control-plane snapshots use
 `<git-common-dir>/showcase-operational-v1/`, outside `.agent-state`.
 Map documents and decision evidence stay at their existing explicit paths.
-All writes retain the lifecycle lock; Wayfinder retains map-lock-before-lifecycle ordering.
+All writes retain the lifecycle lock; decision map retains map-lock-before-lifecycle ordering.
 Only the primary checkout may operate this store. Linked worktree calls refuse, preventing
 them from bypassing checks of primary-checkout legacy claims.
 
@@ -49,14 +49,14 @@ before live activation. No Mac changes here.
 
 An independent review of 75c0fdd against the Contract above (Banjo Sniffs demonstration 4,
 fresh context, no access to this verification record) observed that `refuse_legacy_claims`
-checked only `.agent-state/wayfinder/<epic>/claims`, so a legacy claim under one epic did not
+checked only `.agent-state/<former name>/<epic>/claims`, so a legacy claim under one epic did not
 refuse starting another epic in the new store. The owner's reading of "Any legacy claim entry
 ... refuses operation" is repository-wide: old and new writers must not coexist. The check now
-walks every epic directory under `.agent-state/wayfinder/` with the same lstat discipline
+walks every epic directory under `.agent-state/<former name>/` with the same lstat discipline
 (symlinks and non-directories refuse as UNSAFE) and names the offending epic in the error.
 Two regression tests added (other-epic claim; symlinked claims directory in another epic).
 
-Verification: `tests.test_operational_state`, `tests.test_wayfinder`, `tests.test_control_plane`
+Verification: `tests.test_operational_state`, `tests.test_decision_map`, `tests.test_control_plane`
 run with `PYTHONPATH=<agent-harness checkout at 5efdb1d>/src:.:tests PYTHONDONTWRITEBYTECODE=1
 python3 -m unittest` from `tooling/agent-harness`: 31 tests OK, exit 0 (29 prior + 2 new). The
 Harness was used from its pinned source tree, not a wheel install (package index unavailable in

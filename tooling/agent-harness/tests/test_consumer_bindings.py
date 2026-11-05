@@ -12,12 +12,12 @@ class ConsumerBindingsTest(unittest.TestCase):
         feature = pathlib.Path('docs/specs/F-9')
         for path in ('AGENTS.md', 'CLAUDE.md', '.gitignore', '.github/workflows/agentic-sdd.yml', '.claude/agents/a.md',
                      'tooling/agent-harness/harness.py', 'docs/agentic-sdd/x.md', 'docs/specs/SDD-001/spec.md',
-                     'docs/decision-maps/F-9/map.md', 'docs/wayfinder/F-9/wayfinder.json', 'docs/specs/F-9/tasks.json',
+                     'docs/decision-maps/F-9/map.md', 'docs/specs/F-9/tasks.json',
                      'tooling\\agent-harness\\x.py'):
             with self.subTest(allowed=path):
                 self.assertTrue(harness.bootstrap_path_allowed(path, feature))
         for path in ('README.md', 'src/main.py', '.github/workflows/ci.yml', 'docs/specs/F-10/tasks.json',
-                     'docs/decision-maps/F-90/map.md', 'docs/wayfinder/F-90/map.md', 'tooling/other/x.py',
+                     'docs/decision-maps/F-90/map.md', 'tooling/other/x.py',
                      'docs/specs/SDD-0010/spec.md'):
             with self.subTest(refused=path):
                 self.assertFalse(harness.bootstrap_path_allowed(path, feature))
