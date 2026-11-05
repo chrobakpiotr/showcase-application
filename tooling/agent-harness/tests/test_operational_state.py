@@ -1,8 +1,6 @@
 import contextlib
 import io
 import json
-import os
-import sys
 import pathlib
 import subprocess
 import tempfile
@@ -82,8 +80,8 @@ class OperationalStateTest(unittest.TestCase):
                 ops.directory(self.repo, 'wayfinder', value)
 
     def test_real_writers_leave_snapshot_tree_unchanged(self):
-        from test_decision_map import decision_map, base_map
         from test_control_plane import cp
+        from test_decision_map import base_map, decision_map
         old = self.repo / '.agent-state/wayfinder/EPIC-001/map.lock'
         old.parent.mkdir(parents=True)
         old.write_bytes(b'')
@@ -101,51 +99,47 @@ class OperationalStateTest(unittest.TestCase):
         self.assertEqual(b'', old.read_bytes())
         self.assertEqual([old], [p for p in (self.repo / '.agent-state').rglob('*') if p.is_file()])
 
-    def test_state_under_the_old_directory_is_used_in_place_and_both_are_refused(self):
+    def test_state_under_the_old_directory_is_refused_until_migrated_and_both_are_refused(self):
         from test_decision_map import decision_map
         with mock.patch.object(decision_map, 'state_repo_root', return_value=self.repo):
             new = ops.directory(self.repo, 'decision-maps', 'EPIC-001')
             self.assertEqual(new, decision_map.state_root('EPIC-001'))
             old = ops.directory(self.repo, 'wayfinder', 'EPIC-001')
             old.mkdir(parents=True)
-            self.assertEqual(old, decision_map.state_root('EPIC-001'))
-            with decision_map.locked_claim_state('EPIC-001'):
-                self.assertTrue((old / 'map.lock').is_file())
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
+                decision_map.state_root('EPIC-001')
+            self.assertIn('DECISION_MAP_MIGRATE_REQUIRED', err.getvalue())
             new.mkdir(parents=True)
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()) as err:
                 decision_map.state_root('EPIC-001')
             self.assertIn('DECISION_MAP_STATE_AMBIGUOUS', err.getvalue())
 
     def test_migrate_and_downgrade_through_the_real_locks(self):
-        from test_decision_map import decision_map, base_map
+        from test_decision_map import base_map, decision_map
         old_dir = self.repo / 'docs/wayfinder/EPIC-001'
         old_dir.mkdir(parents=True)
         doc = base_map()
         (old_dir / 'wayfinder.json').write_text(json.dumps(doc), encoding='utf-8')
+        old_state = ops.directory(self.repo, 'wayfinder', 'EPIC-001')
+        old_state.mkdir(parents=True, mode=0o700)
+        (old_state / 'note').write_text('kept', encoding='utf-8')
         with mock.patch.object(decision_map, 'state_repo_root', return_value=self.repo), \
                 contextlib.redirect_stdout(io.StringIO()):
-            with decision_map.locked_claim_state('EPIC-001'):
-                pass
             decision_map.cmd_migrate(old_dir, False)
             new_dir = self.repo / 'docs/decision-maps/EPIC-001'
-            self.assertTrue((new_dir / 'decision-map.json').is_file())
             self.assertEqual('EPIC-001', decision_map.load_map(new_dir)['epic'])
-            self.assertTrue((ops.directory(self.repo, 'decision-maps', 'EPIC-001') / 'map.lock').is_file())
+            new_state = ops.directory(self.repo, 'decision-maps', 'EPIC-001')
+            self.assertEqual('kept', (new_state / 'note').read_text(encoding='utf-8'))
+            self.assertTrue((new_state / 'map.lock').is_file())
+            with decision_map.locked_claim_state('EPIC-001'):
+                pass
             decision_map.cmd_migrate(new_dir, True)
             self.assertTrue((old_dir / 'wayfinder.json').is_file())
-            self.assertEqual('EPIC-001', decision_map.load_map(old_dir)['epic'])
+            self.assertEqual('kept', (old_state / 'note').read_text(encoding='utf-8'))
 
-    def test_the_old_script_name_forwards_with_one_deprecation_line(self):
+    def test_the_old_script_name_is_gone(self):
         here = pathlib.Path(ops.__file__).resolve().parent
-        example = here.parents[1] / 'docs/agentic-sdd/examples/SHIP-PLATFORM-001'
-        env = {**os.environ, 'PYTHONPATH': os.pathsep.join(filter(None, [str(here), os.environ.get('PYTHONPATH')]))}
-        old = subprocess.run([sys.executable, str(here / 'wayfinder.py'), 'validate', str(example)],
-                             capture_output=True, text=True, env=env)
-        new = subprocess.run([sys.executable, str(here / 'decision_map.py'), 'validate', str(example)],
-                             capture_output=True, text=True, env=env)
-        self.assertEqual((new.returncode, new.stdout), (old.returncode, old.stdout))
-        self.assertEqual(1, old.stderr.count('DEPRECATED'), old.stderr)
-        self.assertEqual(0, new.stderr.count('DEPRECATED'))
+        self.assertFalse((here / 'wayfinder.py').exists())
 
     def test_linked_worktree_shares_operational_root(self):
         subprocess.run(['git', '-C', str(self.repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'fixture'], check=True)

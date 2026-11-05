@@ -1538,6 +1538,35 @@ def parser() -> argparse.ArgumentParser:
 
 # AH5-14b-2: the library's transitions read this module's names through `_NS`; checked once, here, before any
 # operation (a missing name or a non-callable recovery binding refuses the import).
+# AH5-17 decision 10: this repository's layout and trust policy, passed to the library explicitly.
+BOOTSTRAP_PATHS = frozenset({'AGENTS.md', 'CLAUDE.md', '.gitignore', '.github/workflows/agentic-sdd.yml'})
+BOOTSTRAP_PREFIXES = ('.claude/agents/', 'tooling/agent-harness/', 'docs/agentic-sdd/', 'docs/specs/SDD-001/')
+# The old directory stays allowed: `decision_map.py migrate` leaves its deletions uncommitted for review.
+BOOTSTRAP_MAP_DIRS = ('docs/decision-maps', 'docs/wayfinder')
+LEGACY_SNAPSHOT_PATHS = ('.gitignore', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', 'docs/agentic-sdd',
+                         '.github/workflows/agentic-sdd.yml')
+ATTESTATION_VALIDATION_OWNER = 'tooling/agent-harness/telemetry.py'
+DOCTOR_BUILD_FILES = {"gradle-wrapper": "gradlew"}
+DOCTOR_OPTIONAL_TOOLS = ('codex(optional)', 'claude(optional)')
+DOCTOR_PROTOCOL_FILES = {
+    "verification-sandbox-module": "tooling/agent-harness/verification_sandbox.py",
+    "telemetry-module": "tooling/agent-harness/telemetry.py",
+    "control-plane-module": "tooling/agent-harness/control_plane.py",
+    "design-module": "tooling/agent-harness/design.py",
+    "design-result-schema": "tooling/agent-harness/schemas/design-result.schema.json",
+    "decision-map-module": "tooling/agent-harness/decision_map.py",
+    "decision-map-result-schema": "tooling/agent-harness/schemas/decision-map-result.schema.json",
+    "decision-map-handoff-schema": "tooling/agent-harness/schemas/decision-map-handoff.schema.json",
+    "decision-map-tasks-schema": "tooling/agent-harness/schemas/decision-map-tasks-result.schema.json",
+    "verification-contract-module": "tooling/agent-harness/verification_contract.py",
+    "verification-contract-schema": "tooling/agent-harness/schemas/verification-contract.schema.json",
+    "trust-module": "tooling/agent-harness/trust.py",
+    "eval-module": "tooling/agent-harness/eval.py"
+}
+DOCTOR_PROFILE_ROOT = 'docs/agentic-sdd/agents'
+DOCTOR_PROFILES = ('grill-reviewer', 'prototype-agent', 'prototype-evaluator', 'decision-map-agent',
+                   'decision-map-synthesizer', 'verification-author')
+
 _NS = _transitions.bind(_transitions.ModuleNamespace(globals()))
 _admission.bind(_NS)
 _recovery.bind(_NS)
