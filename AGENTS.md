@@ -149,6 +149,10 @@ the private agent-harness repository, never into this repository.
   the owner switches it.
 - Full rule: `docs/agentic-sdd/model-routing.md` in the private agent-harness repository.
 
+## Handover file (owner rule, 2026-11-06)
+
+After every commit that changes this project's code, update `docs/handover/AGENT_HANDOVER.md`, so that another agent or session can take over at once. Code means source, tests, scripts, workflows and configuration that changes behaviour; a commit of only documents or log rows needs no update. Put the update in the same commit when you can, otherwise in the next one, before you stop. Keep the file short and current: state, what is unfinished, the next step, and what must not be touched. Git history keeps the earlier versions, so replace stale text instead of appending a log. If the file disagrees with the code or a release record, those win; fix the file.
+
 ## Git mutation policy
 
 - The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.
