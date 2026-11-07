@@ -104,7 +104,7 @@ env:
   dbPort: "5432"
   dbName: test_db
   dbUsername: sa
-  # For a real deployment, put this in a Secret instead (see secret.yaml) and reference it via
+  # For a real deployment, put this in a Secret instead (see templates/db-auth.yaml) and reference it via
   # extraEnvFrom, rather than plain values.yaml.
   dbPassword: sa
 

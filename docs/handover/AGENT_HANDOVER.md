@@ -6,7 +6,8 @@ Updated 2026-11-06. Read `AGENTS.md` first. Rule: "Handover file" in `AGENTS.md`
 
 - `main` pins agent-harness `v0.31.0` (`a0ea411`), adopted in `04e8c50`: `docs/reviews/harness-0.31.0-adoption-2026-11-05.md`.
 - The owner activated on the Mac on 2026-11-05: `harness.py doctor` all PASS, in a virtual environment at `~/.venvs/showcase-harness`. Install steps: `docs/specs/release-0.31.0/packet.md` in agent-harness.
-- **No lifecycle command or agent has been reported run on that installation yet.** A setup for one (FIRST-RUN-001) was handed to the owner as a script for a local branch; no result reached this repository.
+- FIRST-RUN-001 (2026-11-06, Mac, local branch `first-run-001`, never pushed): the lifecycle, worktree, claim and agent launch work. Attempt 1 (Claude) stopped at 403 `oauth_not_allowed_for_organization`: the owner's Claude organization disables subscription access for Claude Code. Attempt 2 (Codex CLI 0.160.0, ChatGPT login) wrote a correct note, but harness verification refused with `SECRET_BEARING_CANDIDATE_UNSEALABLE`: candidate sealing walks the whole worktree, and the tracked Helm template `templates/secret.yaml` matched the secret-path rule `**/*secret*`. Every Showcase task would have failed the same way. Fixed by renaming it to `templates/db-auth.yaml` (deploys unchanged: Helm renders every template, the Secret's name is unchanged). T-001 is escalated with both attempts used, and its reused worktree still has the old file, so the next proof is a new feature (FIRST-RUN-002) from this `main`.
+- Earlier the same evening a removed `.agent-state/wayfinder/EPIC-001/map.lock` (snapshotted; agent-harness's 0.31.0 packet wrongly allowed removing it) blocked all lifecycle commands with `STATE_RECOVERY_REQUIRED`; the owner recreated the empty 0644 file and the state is consistent again.
 
 ## Unfinished
 
@@ -14,7 +15,7 @@ See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen cop
 
 ## Next step
 
-Run or drop FIRST-RUN-001, then whatever the owner orders.
+Run FIRST-RUN-002 on the Mac from this `main` with Codex CLI 0.160.0 (the tested profile; the owner's default 0.166.0 has none). Then the owner decides what happens to the `first-run-001` branch and its escalated state.
 
 ## Do not touch
 
@@ -22,6 +23,8 @@ Run or drop FIRST-RUN-001, then whatever the owner orders.
 - Files whose digests committed evidence cites, and the proof files listed in agent-harness `docs/specs/AH5-17/name-removal-2026-11-05.md`.
 - `docs/agentic-sdd/constitution.md`: its digest is in verification contracts.
 - Do not repeat recovery acknowledgement on the Mac checkout.
+- Nothing under `.agent-state/` may be removed, including `wayfinder/EPIC-001/map.lock`: the repository lifecycle snapshot records it.
+- Do not name a tracked file with `secret`, `credentials` or `.env` in its path: task verification then refuses every candidate.
 
 ## Verification
 
