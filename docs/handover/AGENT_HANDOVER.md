@@ -4,8 +4,8 @@ Updated 2026-11-08. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
 
-- The local 0.32.0 rehearsal pins the unpublished Harness candidate `3d742c86abc44227d5b1bfcda1bcf86ca05fcac0`. Advance the Showcase remote pin only after the Harness release gates and publication verification pass. The candidate uses the Harness interpreter for both Python gates and changes the protocol fingerprint. Re-plan any in-flight work under the new fingerprint. See the release packet in agent-harness.
-- Local Linux verification with the corrected wheel passed 105 focused tests and the disposable plan and verifier rehearsal. The verifier refused unqualified execution as expected. The full native process-inspection gate and FIRST-RUN-004 remain open.
+- Main pins released Agent Harness `v0.32.0` (`3d742c86abc44227d5b1bfcda1bcf86ca05fcac0`). Both Python gates use the control interpreter. Re-plan any in-flight work under the new protocol fingerprint.
+- The exact adoption tree passed 991 harness tests on Linux using the released wheel. The disposable verifier rehearsal reconstructed its plan and refused unqualified execution as expected. FIRST-RUN-004 remains open.
 - The owner activated on the Mac on 2026-11-05: `harness.py doctor` all PASS, in a virtual environment at `~/.venvs/showcase-harness`. Install steps: `docs/specs/release-0.31.0/packet.md` in agent-harness.
 - FIRST-RUN-001 (2026-11-06, Mac, local branch `first-run-001`): Claude stopped at 403 `oauth_not_allowed_for_organization`. Codex wrote the candidate, but sealing refused the tracked Helm template `templates/secret.yaml` as `SECRET_BEARING_CANDIDATE_UNSEALABLE`. Renaming the template to `templates/db-auth.yaml` fixed sealing on main. T-001 used both attempts and its worktree still has the old file.
 - FIRST-RUN-002 (2026-11-06, Mac, local branch `first-run-002`): sealing passed, then verification refused `invalid-verification-plan` because the library reconstructed the plan from the control checkout. Agent-harness 0.31.1 fixed that. T-001 escalated at attempt 1/2.
@@ -18,7 +18,7 @@ See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen cop
 
 ## Next step
 
-Use a fresh Linux checkout for deterministic adoption checks. Install the pinned requirements into a Python 3.13+ virtual environment outside the checkout, sandbox home and temporary directories. Run doctor, the harness suite and a disposable plan and verifier rehearsal. Record the installed commit and separate rehearsal evidence from completion evidence.
+Use a fresh checkout and a dedicated Python 3.13+ virtual environment for FIRST-RUN-004. The offline adoption suite and verifier rehearsal have already been recorded.
 
 Required-sandbox completion needs active backend qualification for the exact checkout and policy. Linux supports discovery only in 0.32.0. Track Linux qualification separately, or qualify an independent macOS runner and record its result before attempting completion. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md). Provider activation requires a separate authenticated run with a tested CLI profile.
 
