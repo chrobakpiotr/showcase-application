@@ -67,8 +67,9 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
         import hashlib
         from verification.serialization import canonical
         binding = self.record['control_executable_binding']
-        self.assertEqual(str(pathlib.Path(sys.executable).resolve()), binding['command'])
-        self.assertEqual(str(pathlib.Path(binding['path']).resolve()), binding['path'])
+        executable = pathlib.Path(sys.executable)
+        self.assertEqual(str(executable.parent.resolve() / executable.name), binding['command'])
+        self.assertEqual(str(executable.resolve()), binding['path'])
         self.assertEqual(64, len(binding['sha256']))
         authority.validate_plan_record(self.record, repository=self.root)
 
@@ -83,6 +84,18 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
             canonical({key: value for key, value in changed.items() if key != 'plan_id'})).hexdigest()
         with self.assertRaises(StoreError):
             authority.validate_plan_record(changed)
+
+    def test_showcase_library_gates_use_the_bound_control_interpreter(self):
+        library_gates = {
+            'agent-harness-tests': '@control-python -m unittest discover -s tooling/agent-harness/tests -p test_*.py',
+            'agentic-sdd-doctor': '@control-python tooling/agent-harness/harness.py doctor',
+        }
+        bindings = {item['gate_id']: item['binding'] for item in self.record['executable_bindings']}
+        self.assertTrue(library_gates.keys() <= bindings.keys())
+        for gate in self.profile.gates:
+            if gate.id in library_gates:
+                self.assertEqual(library_gates[gate.id], gate.command)
+                self.assertEqual(self.record['control_executable_binding'], bindings[gate.id])
 
     def test_control_interpreter_swap_after_plan_is_rejected(self):
         with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as toolchain_tmp:

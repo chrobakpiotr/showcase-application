@@ -1,13 +1,15 @@
 # showcase-application - agent handover
 
-Updated 2026-11-06. Read `AGENTS.md` first. Rule: "Handover file" in `AGENTS.md`.
+Updated 2026-11-08. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
 
-- `main` pins agent-harness `v0.31.1` (`7da5d43`): `docs/reviews/harness-0.31.1-adoption-2026-11-07.md`. Hosted CI did not run for the release or this adoption (GitHub Actions spending limit until 1 December; owner's exception).
+- The local 0.32.0 rehearsal pins the unpublished Harness candidate `3d742c86abc44227d5b1bfcda1bcf86ca05fcac0`. Advance the Showcase remote pin only after the Harness release gates and publication verification pass. The candidate uses the Harness interpreter for both Python gates and changes the protocol fingerprint. Re-plan any in-flight work under the new fingerprint. See the release packet in agent-harness.
+- Local Linux verification with the corrected wheel passed 105 focused tests and the disposable plan and verifier rehearsal. The verifier refused unqualified execution as expected. The full native process-inspection gate and FIRST-RUN-004 remain open.
 - The owner activated on the Mac on 2026-11-05: `harness.py doctor` all PASS, in a virtual environment at `~/.venvs/showcase-harness`. Install steps: `docs/specs/release-0.31.0/packet.md` in agent-harness.
-- FIRST-RUN-001 (2026-11-06, Mac, local branch `first-run-001`, never pushed): the lifecycle, worktree, claim and agent launch work. Attempt 1 (Claude) stopped at 403 `oauth_not_allowed_for_organization`: the owner's Claude organization disables subscription access for Claude Code. Attempt 2 (Codex CLI 0.160.0, ChatGPT login) wrote a correct note, but harness verification refused with `SECRET_BEARING_CANDIDATE_UNSEALABLE`: candidate sealing walks the whole worktree, and the tracked Helm template `templates/secret.yaml` matched the secret-path rule `**/*secret*`. Every Showcase task would have failed the same way. Fixed by renaming it to `templates/db-auth.yaml` (deploys unchanged: Helm renders every template, the Secret's name is unchanged). T-001 is escalated with both attempts used, and its reused worktree still has the old file, so the next proof is a new feature (FIRST-RUN-002) from this `main`.
-- FIRST-RUN-002 (2026-11-06, Mac, local branch `first-run-002`, never pushed): sealing passed, then `invalid-verification-plan`: the library reconstructed the plan from this checkout instead of the task worktree (in Showcase since `36a1022f`). Fixed in agent-harness 0.31.1. T-001 is escalated at attempt 1/2, but the new pin changes the protocol fingerprint, so the next proof is FIRST-RUN-003 from this `main`.
+- FIRST-RUN-001 (2026-11-06, Mac, local branch `first-run-001`): Claude stopped at 403 `oauth_not_allowed_for_organization`. Codex wrote the candidate, but sealing refused the tracked Helm template `templates/secret.yaml` as `SECRET_BEARING_CANDIDATE_UNSEALABLE`. Renaming the template to `templates/db-auth.yaml` fixed sealing on main. T-001 used both attempts and its worktree still has the old file.
+- FIRST-RUN-002 (2026-11-06, Mac, local branch `first-run-002`): sealing passed, then verification refused `invalid-verification-plan` because the library reconstructed the plan from the control checkout. Agent-harness 0.31.1 fixed that. T-001 escalated at attempt 1/2.
+- FIRST-RUN-003 reached verification on 0.31.1. The verifier lost its virtual environment and could not import agent-harness. In 0.32.0 the verifier and both Python gates keep the launch path, and the gates suppress bytecode in the task worktree.
 - Earlier the same evening a removed `.agent-state/wayfinder/EPIC-001/map.lock` (snapshotted; agent-harness's 0.31.0 packet wrongly allowed removing it) blocked all lifecycle commands with `STATE_RECOVERY_REQUIRED`; the owner recreated the empty 0644 file and the state is consistent again.
 
 ## Unfinished
@@ -16,7 +18,9 @@ See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen cop
 
 ## Next step
 
-On the Mac: `git pull`, reinstall `tooling/agent-harness/requirements.txt` in the venv, `doctor`, the harness test suite, then FIRST-RUN-003 from this `main` with Codex CLI 0.160.0 first on `PATH` (the tested profile; the owner's default 0.166.0 has none). Then the owner decides what happens to the `first-run-001` and `first-run-002` branches and their escalated state.
+Use a fresh Linux checkout for deterministic adoption checks. Install the pinned requirements into a Python 3.13+ virtual environment outside the checkout, sandbox home and temporary directories. Run doctor, the harness suite and a disposable plan and verifier rehearsal. Record the installed commit and separate rehearsal evidence from completion evidence.
+
+Required-sandbox completion needs active backend qualification for the exact checkout and policy. Linux supports discovery only in 0.32.0. Track Linux qualification separately, or qualify an independent macOS runner and record its result before attempting completion. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md). Provider activation requires a separate authenticated run with a tested CLI profile.
 
 ## Do not touch
 

@@ -4,7 +4,7 @@
     {
       "id": "agent-harness-tests",
       "description": "Exercise the repository-local harness and verification authority regressions.",
-      "command": "python3 -m unittest discover -s tooling/agent-harness/tests -p test_*.py",
+      "command": "@control-python -m unittest discover -s tooling/agent-harness/tests -p test_*.py",
       "inputs": [
         "tooling/agent-harness/**",
         "docs/specs/SDD-OBS-001/**",
@@ -42,7 +42,7 @@
     {
       "id": "agentic-sdd-doctor",
       "description": "Validate local task, state, and feature lifecycle invariants.",
-      "command": "python3 tooling/agent-harness/harness.py doctor",
+      "command": "@control-python tooling/agent-harness/harness.py doctor",
       "inputs": [
         "tooling/agent-harness/**",
         "docs/specs/**",

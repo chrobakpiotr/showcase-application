@@ -3,7 +3,8 @@
 Open work for this repository, newest first. Remove an item when it is done; Git history keeps it.
 
 - **Standing rule (owner, 2026-11-06):** after every commit that changes this project's code, update `docs/handover/AGENT_HANDOVER.md`. See "Handover file" in `AGENTS.md`.
-- Run FIRST-RUN-003 on 0.31.1, then decide on the `first-run-001` and `first-run-002` branches and their escalated state; see `docs/handover/AGENT_HANDOVER.md`.
+- Rehearse 0.32.0 on Linux using a disposable feature. Track active Linux backend qualification before requiring isolated completion there. Track authenticated provider activation separately. See `docs/handover/AGENT_HANDOVER.md`.
+- Preserve the earlier FIRST-RUN branches and escalated state until the owner decides their disposition.
 - After 1 December 2026: confirm main and Agentic SDD CI on the 0.31.1 adoption commit (no hosted CI ran for it).
 - Claude provider: the owner's organization disables subscription access for Claude Code (403), and the Mac now has Claude Code 2.1.319, while the tested task-result profile is 2.1.289. Before using `--provider claude` again: org access, plus either 2.1.289 or a tested 2.1.319 profile.
 - Codex provider: add a tested task-result profile for the owner's default Codex CLI (0.166.0); until then runs need 0.160.0 first on `PATH`.

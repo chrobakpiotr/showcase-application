@@ -22,7 +22,9 @@ class VerificationParityTest(unittest.TestCase):
             'plan_id': plan_id,
             'profile_id': 'showcase',
             'profile_hash': 'b' * 64,
-            'control_executable_binding': {'path': sys.executable, 'sha256': 'c' * 64},
+            'control_executable_binding': {
+                'command': '/trusted/venv/bin/python', 'path': '/trusted/bin/python3', 'sha256': 'c' * 64,
+            },
         }
         profile = type('Profile', (), {
             'content_hash': record['profile_hash'], 'toolchain_directories': (),
@@ -35,6 +37,7 @@ class VerificationParityTest(unittest.TestCase):
             with mock.patch('verification.authority.resolve_accepted', return_value=record) as resolve, \
                  mock.patch('verification.profile.load_profile', return_value=profile) as load_profile, \
                  mock.patch('verification_sandbox.verify_executable_binding') as verify_binding, \
+                 mock.patch('agent_harness.executables.verify_control_launch') as verify_launch, \
                  mock.patch('verification_sandbox._safe_env', return_value=safe_environment) as safe_env, \
                  mock.patch.object(runner.subprocess, 'run', return_value=completed) as invoke:
                 passed, evidence = runner.run_verification({}, root, out, 5,
@@ -45,9 +48,10 @@ class VerificationParityTest(unittest.TestCase):
         load_profile.assert_called_once_with(
             HARNESS / 'verification-profiles' / 'showcase.json', repository=root)
         verify_binding.assert_called_once_with(record['control_executable_binding'])
+        verify_launch.assert_called_once_with(record['control_executable_binding'], worktree=root)
         safe_env.assert_called_once()
         argv = invoke.call_args.args[0]
-        self.assertEqual([sys.executable, '-I', str(HARNESS / 'verify.py'), 'run',
+        self.assertEqual([record['control_executable_binding']['command'], '-I', '-B', str(HARNESS / 'verify.py'), 'run',
             '--mode', 'integration', '--repo', str(root), '--plan-id', plan_id], argv)
         self.assertEqual(root, invoke.call_args.kwargs['cwd'])
         self.assertEqual(safe_environment, invoke.call_args.kwargs['env'])
@@ -94,7 +98,9 @@ class VerificationParityTest(unittest.TestCase):
             'task_attempt': 3,
             'profile_id': 'showcase',
             'profile_hash': 'e' * 64,
-            'control_executable_binding': {'path': sys.executable, 'sha256': 'f' * 64},
+            'control_executable_binding': {
+                'command': '/trusted/venv/bin/python', 'path': '/trusted/bin/python3', 'sha256': 'f' * 64,
+            },
         }
         profile = type('Profile', (), {
             'content_hash': record['profile_hash'], 'toolchain_directories': (),
@@ -108,6 +114,7 @@ class VerificationParityTest(unittest.TestCase):
                             return_value=record) as resolve, \
                  mock.patch('orchestrate.load_profile', return_value=profile) as load_profile, \
                  mock.patch('verification_sandbox.verify_executable_binding') as verify_binding, \
+                 mock.patch('agent_harness.executables.verify_control_launch') as verify_launch, \
                  mock.patch('verification_sandbox._safe_env', return_value=safe_environment), \
                  mock.patch('orchestrate.subprocess.run', return_value=response) as invoke:
                 accepted, result = orchestrate.run_accepted_verification(
@@ -119,7 +126,8 @@ class VerificationParityTest(unittest.TestCase):
         load_profile.assert_called_once_with(
             HARNESS / 'verification-profiles' / 'showcase.json', repository=root)
         verify_binding.assert_called_once_with(record['control_executable_binding'])
-        self.assertEqual([sys.executable, '-I', str(HARNESS / 'verify.py'), 'run',
+        verify_launch.assert_called_once_with(record['control_executable_binding'], worktree=root)
+        self.assertEqual([record['control_executable_binding']['command'], '-I', '-B', str(HARNESS / 'verify.py'), 'run',
             '--mode', 'integration', '--repo', str(root), '--plan-id', plan_id],
             invoke.call_args.args[0])
         self.assertEqual(root, invoke.call_args.kwargs['cwd'])

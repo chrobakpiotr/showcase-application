@@ -21,7 +21,9 @@ class VerificationCommandTest(unittest.TestCase):
 
     def test_argv_allowlist_and_no_shell_fallback(self):
         self.assertEqual(['python3', '-c', 'print(1)'], command.verification_argv("python3 -c 'print(1)'"))
-        for value in ('python3 -c x | cat', 'python3 $(whoami)', 'sh -c true', ''):
+        self.assertEqual(['@control-python', '-c', 'print(1)'],
+                         command.verification_argv("@control-python -c 'print(1)'"))
+        for value in ('python3 -c x | cat', 'python3 $(whoami)', '@control-python $(whoami)', 'sh -c true', ''):
             with self.subTest(value=value), self.assertRaises(command.CommandRejected):
                 command.verification_argv(value)
 

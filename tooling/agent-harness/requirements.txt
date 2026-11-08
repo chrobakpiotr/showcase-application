@@ -1,2 +1,2 @@
 cryptography==49.0.0
-agent-harness[grants] @ git+https://github.com/chrobakpiotr/agent-harness.git@7da5d43c14461b007cedcbd7edaedaae53f31e86
+agent-harness[grants] @ git+https://github.com/chrobakpiotr/agent-harness.git@3d742c86abc44227d5b1bfcda1bcf86ca05fcac0

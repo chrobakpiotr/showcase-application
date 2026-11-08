@@ -239,11 +239,12 @@ class RunnerTest(unittest.TestCase):
             completed = subprocess.CompletedProcess([], 0,
                 json.dumps({'outcome': 'PASS', 'plan_id': 'verification-plan-v1:sha256:test'}), '')
             profile = load_profile(runner.HERE / 'verification-profiles/showcase.json')
-            control_binding = {'command': 'python3', 'path': '/trusted/python3', 'sha256': 'a' * 64}
+            control_binding = {'command': '/trusted/python3', 'path': '/trusted/python3', 'sha256': 'a' * 64}
             record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash,
                       'control_executable_binding': control_binding}
             with mock.patch('verification.authority.resolve_accepted', return_value=record), \
                  mock.patch.object(runner.verification_sandbox, 'verify_executable_binding') as verify, \
+                 mock.patch('agent_harness.executables.verify_control_launch') as verify_launch, \
                  mock.patch.object(runner.subprocess, 'run', return_value=completed) as run:
                 ok, results = runner.run_verification({}, root, root, 30,
                     accepted_plan_id='verification-plan-v1:sha256:test')
@@ -252,9 +253,10 @@ class RunnerTest(unittest.TestCase):
             command = run.call_args.args[0]
             self.assertIn('--plan-id', command)
             self.assertNotIn('--base', command)
-            self.assertEqual('-I', command[1])
-            self.assertEqual(control_binding['path'], command[0])
+            self.assertEqual(['-I', '-B'], command[1:3])
+            self.assertEqual(control_binding['command'], command[0])
             verify.assert_called_once_with(control_binding)
+            verify_launch.assert_called_once_with(control_binding, worktree=root)
             self.assertNotIn('PYTHONPATH', run.call_args.kwargs['env'])
             self.assertNotIn('PYTHONHOME', run.call_args.kwargs['env'])
 
@@ -264,7 +266,7 @@ class RunnerTest(unittest.TestCase):
             root = pathlib.Path(tmp)
             profile = load_profile(runner.HERE / 'verification-profiles/showcase.json', repository=root)
             for binding, error in ((None, None),
-                    ({'command': 'python3', 'path': '/trusted/python3', 'sha256': 'a' * 64},
+                    ({'command': '/trusted/python3', 'path': '/trusted/python3', 'sha256': 'a' * 64},
                      runner.verification_sandbox.ExecutableResolutionError('executable-binding-changed'))):
                 record = {'profile_id': 'showcase', 'profile_hash': profile.content_hash}
                 if binding is not None:

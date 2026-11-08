@@ -221,21 +221,15 @@ class OrchestrateTest(unittest.TestCase):
         self.assertEqual('security-reviewer', commands[0][commands[0].index('--profile') + 1])
         self.assertIn('--review-existing', commands[0])
 
-    def _control_binding(self, contents=b'#!/bin/sh\nexit 0\n'):
-        executable = self.root / 'bound-control-python'
-        executable.write_bytes(contents)
-        executable.chmod(0o755)
-        return {'command': 'python3', 'path': str(executable.resolve()),
-                'sha256': hashlib.sha256(contents).hexdigest()}
-
     def _accepted_plan(self, plan_id, binding_marker='present', task_attempt=1):
+        from agent_harness.executables import CONTROL_PYTHON, resolve_executable
         from verification.profile import load_profile
         profile = load_profile(orchestrate.HERE / 'verification-profiles/showcase.json')
         record = {'plan_id': plan_id, 'task_id': 'T-001', 'task_attempt': task_attempt,
                   'lifecycle_generation': 1, 'profile_id': 'showcase',
                   'profile_hash': profile.content_hash}
         if binding_marker != 'missing':
-            record['control_executable_binding'] = self._control_binding()
+            record['control_executable_binding'] = resolve_executable(CONTROL_PYTHON)
         return record
 
     def _launch_started_verification(self, feature, doc, worktree, packet, main_path, plan,
@@ -306,7 +300,7 @@ class OrchestrateTest(unittest.TestCase):
                 self.assertEqual('pass', outcome.status, outcome.summary)
                 command = launch.call_args.args[0]
                 self.assertEqual([
-                    plan['control_executable_binding']['path'], '-I',
+                    plan['control_executable_binding']['command'], '-I', '-B',
                     str(orchestrate.HERE / 'verify.py'), 'run', '--mode', 'integration',
                     '--repo', str(worktree), '--plan-id', plan['plan_id'],
                 ], command)

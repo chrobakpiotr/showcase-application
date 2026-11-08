@@ -1,7 +1,7 @@
 """Showcase wrapper over `agent_harness.verification.command` (AH5-08b), plus Showcase's command policy.
 
 The allowlist (`verification_argv`), the profile scripts and their accepted-plan check, and
-`executable_binding_for_command` are Showcase policy, verbatim from `49ab97f`. The library backend and
+`executable_binding_for_command` are Showcase policy, originating in `49ab97f`. The library backend and
 `run_command` receive them, Showcase's `verification_sandbox` and Showcase's store late-bound, so names patched
 here are the ones used. See docs/migration/provenance.md.
 """
@@ -14,6 +14,7 @@ import stat
 
 import verification_sandbox
 
+from agent_harness.executables import CONTROL_PYTHON
 from agent_harness.verification import command as _impl
 from agent_harness.verification.command import SHELL_META, CommandRejected
 
@@ -81,7 +82,7 @@ def verification_argv(command: str, *, script_context=None, worktree=None, cwd=N
     executable = argv[0]
     if executable in PROFILE_SCRIPTS.values():
         return _accepted_script_argv(argv, script_context, worktree, cwd)
-    allowed = executable in {'./gradlew', 'python3', 'python', 'npm', 'npx', 'true'}
+    allowed = executable in {CONTROL_PYTHON, './gradlew', 'python3', 'python', 'npm', 'npx', 'true'}
     if executable == 'docker':
         allowed = len(argv) >= 2 and (argv[1] == 'build' or argv[1:3] == ['compose', 'config'])
     elif executable == 'helm':
