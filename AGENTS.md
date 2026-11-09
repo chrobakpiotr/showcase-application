@@ -132,8 +132,8 @@ Prefer measured simplification/improvement using `python3 tooling/agent-harness/
 Banjo Sniffs is the owner's paid skill, sold on Agensi, and this repository is public. Never commit the skill itself:
 its `SKILL.md`, references or templates, or text quoted from them, including an installed copy under `.claude/skills/`
 (ignored in `.gitignore`). Reports and handovers written with it are outputs and may be committed when they do not
-quote its instructions. Ideas for improving the skill go to the owner or to `docs/specs/banjo-sniffs/feedback.md` in
-the private agent-harness repository, never into this repository.
+quote its instructions. Record all suggestions and corrections for the skill only in the private Agent Harness
+[feedback.md](https://github.com/chrobakpiotr/agent-harness/blob/main/docs/specs/banjo-sniffs/feedback.md).
 
 ## Model and reasoning routing (owner rule, 2026-11-02)
 
