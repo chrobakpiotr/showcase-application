@@ -1,4 +1,6 @@
+import os
 import pathlib
+import pwd
 import subprocess
 import sys
 import tempfile
@@ -98,7 +100,9 @@ class AcceptedPlanResolutionTest(unittest.TestCase):
                 self.assertEqual(self.record['control_executable_binding'], bindings[gate.id])
 
     def test_control_interpreter_swap_after_plan_is_rejected(self):
-        with tempfile.TemporaryDirectory(dir=pathlib.Path.home()) as toolchain_tmp:
+        # Container CI can set HOME to a bind mount owned by the host runner.
+        account_home = pwd.getpwuid(os.geteuid()).pw_dir
+        with tempfile.TemporaryDirectory(dir=account_home) as toolchain_tmp:
             toolchain = pathlib.Path(toolchain_tmp).resolve()
             executable = toolchain / 'python3'
             executable.write_text('#!/bin/sh\nexit 0\n')
