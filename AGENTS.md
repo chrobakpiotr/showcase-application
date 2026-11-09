@@ -164,5 +164,4 @@ After every commit that changes this project's code, update `docs/handover/AGENT
 - After committing, report the commit SHA and working-tree status.
 - Commit identity (owner update, 2026-11-02): every agent may commit under its own identity.
   Do not impersonate another agent or provider. Use commit signing when available; lack of signing capability
-  does not block an otherwise authorized commit or push. Every commit message must still end with
-  `Co-Authored-By: Piotr Chrobak <125372205+chrobakpiotr@users.noreply.github.com>`.
+  does not block an otherwise authorized commit or push.
