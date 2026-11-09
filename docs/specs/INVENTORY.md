@@ -12,6 +12,7 @@
 | `COMPLETION-AUTHORITY-BINDING-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `DEMO-002` | UNDECLARED | yes | yes | yes | executable | selected |
 | `DEMO-003` | UNDECLARED | yes | yes | yes | executable | selected |
+| `DEMO-004` | UNDECLARED | yes | yes | yes | executable | selected |
 | `DOMAIN-INDEP-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `DURABLE-RECOVERY-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `FAILED-TASK-REPLAN-001` | UNDECLARED | yes | yes | yes | executable | selected |

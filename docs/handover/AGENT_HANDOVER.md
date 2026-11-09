@@ -9,6 +9,10 @@ Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
   locks cart edits until navigation settles, and a write error refreshes the
   cart before checkout resumes. A valid unresolved order attempt retains its
   payload and key. See the [specification](../specs/DEMO-004/spec.md).
+- All 31 Playwright tests passed on `cedfad713dc3ba1ff16e85569e183e873a3786fc`,
+  including the cart-origin response-loss scenario. The scenario verified
+  replay with the same payload and key, one order in history, and the cart
+  still available. [Hosted Playwright job](https://github.com/chrobakpiotr/showcase-application/actions/runs/42624030117/job/129183064988)
 - Main pins released Agent Harness `v0.32.0` (`3d742c86abc44227d5b1bfcda1bcf86ca05fcac0`). Both Python gates use the control interpreter. Re-plan any in-flight work under the new protocol fingerprint.
 - The exact adoption tree passed 991 harness tests on Linux using the released wheel. The disposable verifier rehearsal reconstructed its plan and refused unqualified execution as expected.
 - The owner closed FIRST-RUN-004 and accepted the v0.32.0 migration closeout on 2026-11-08. The live run was not performed because the Linux Codespace had no actively qualified backend. The Linux suite and offline rehearsal are the adoption evidence.
@@ -17,10 +21,6 @@ Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 - Earlier FIRST-RUN failures and hosted CI records remain in Git history.
 
 ## Unfinished
-
-Run the DEMO-004 cart-origin response-loss scenario on the disposable Compose
-stack. Docker was unavailable in the builder workspace. The Gradle wrapper
-could not download its distribution there, and graphify was unavailable.
 
 See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
@@ -41,3 +41,6 @@ See the backlog for open work. Any future required-sandbox run needs active back
 ## Verification
 
 `bash tooling/scripts/run-harness-tests-parallel.sh <dir>` and `python3 tooling/scripts/verify_evidence_checksums.py`, with the pinned library installed. `AGENTS.md` is a protocol file: changing it changes the protocol fingerprint.
+
+The Gradle wrapper could not download its distribution in the builder workspace,
+and graphify was unavailable there.
