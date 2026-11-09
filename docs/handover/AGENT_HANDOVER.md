@@ -1,25 +1,26 @@
 # showcase-application - agent handover
 
-Updated 2026-11-08. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
+Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
 
+- DEMO-004 lets an operator with `ORDER_WRITE` continue from a confirmed cart to
+  the existing order form. Cart writes settle across route changes, checkout
+  locks cart edits until navigation settles, and a write error refreshes the
+  cart before checkout resumes. A valid unresolved order attempt retains its
+  payload and key. See the [specification](../specs/DEMO-004/spec.md).
 - Main pins released Agent Harness `v0.32.0` (`3d742c86abc44227d5b1bfcda1bcf86ca05fcac0`). Both Python gates use the control interpreter. Re-plan any in-flight work under the new protocol fingerprint.
 - The exact adoption tree passed 991 harness tests on Linux using the released wheel. The disposable verifier rehearsal reconstructed its plan and refused unqualified execution as expected.
 - The owner closed FIRST-RUN-004 and accepted the v0.32.0 migration closeout on 2026-11-08. The live run was not performed because the Linux Codespace had no actively qualified backend. The Linux suite and offline rehearsal are the adoption evidence.
 - The owner activated on the Mac on 2026-11-05: `harness.py doctor` all PASS, in a virtual environment at `~/.venvs/showcase-harness`. Install steps: `docs/specs/release-0.31.0/packet.md` in agent-harness.
 - The agent sandbox can run `doctor` with a prepared interpreter that has the exact Harness pin. The [tooling guide](../../tooling/README.md#local-harness-diagnostics) records the provisioning boundary and command.
-- Hosted Agentic SDD on `ecd9c9e` stopped before the interpreter-swap test reached the swap. The fixture now creates its
-  executable under the effective user's account home. On `a17d44a`, both [Agentic SDD CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/42549726633)
-  and [main CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/42549726976) passed.
-- The v0.31.1 adoption commit `3d8ac5c` also passed hosted [Agentic SDD CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/42363833507)
-  and [main CI](https://github.com/chrobakpiotr/showcase-application/actions/runs/42363833429).
-- FIRST-RUN-001 (2026-11-06, Mac, local branch `first-run-001`): Claude stopped at 403 `oauth_not_allowed_for_organization`. Codex wrote the candidate, but sealing refused the tracked Helm template `templates/secret.yaml` as `SECRET_BEARING_CANDIDATE_UNSEALABLE`. Renaming the template to `templates/db-auth.yaml` fixed sealing on main. T-001 used both attempts and its worktree still has the old file.
-- FIRST-RUN-002 (2026-11-06, Mac, local branch `first-run-002`): sealing passed, then verification refused `invalid-verification-plan` because the library reconstructed the plan from the control checkout. Agent-harness 0.31.1 fixed that. T-001 escalated at attempt 1/2.
-- FIRST-RUN-003 reached verification on 0.31.1. The verifier lost its virtual environment and could not import agent-harness. In 0.32.0 the verifier and both Python gates keep the launch path, and the gates suppress bytecode in the task worktree.
-- Earlier the same evening a removed `.agent-state/wayfinder/EPIC-001/map.lock` (snapshotted; agent-harness's 0.31.0 packet wrongly allowed removing it) blocked all lifecycle commands with `STATE_RECOVERY_REQUIRED`; the owner recreated the empty 0644 file and the state is consistent again.
+- Earlier FIRST-RUN failures and hosted CI records remain in Git history.
 
 ## Unfinished
+
+Run the DEMO-004 cart-origin response-loss scenario on the disposable Compose
+stack. Docker was unavailable in the builder workspace. The Gradle wrapper
+could not download its distribution there, and graphify was unavailable.
 
 See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 

@@ -33,7 +33,7 @@
     <button
       type="submit"
       data-testid="add-item"
-      [disabled]="addItemForm.invalid"
+      [disabled]="addItemForm.invalid || busy()"
     >
       Add to cart
     </button>
@@ -53,7 +53,7 @@
     />
     <button
       type="submit"
-      [disabled]="couponForm.invalid"
+      [disabled]="couponForm.invalid || busy()"
       data-testid="coupon-apply"
     >
       Apply coupon
@@ -61,7 +61,7 @@
     <button
       type="button"
       (click)="removeCoupon()"
-      [disabled]="!cart()!.couponCode"
+      [disabled]="!cart()!.couponCode || busy()"
       data-testid="coupon-remove"
     >
       Remove coupon
@@ -89,6 +89,7 @@
           <input
             type="number"
             min="1"
+            [disabled]="busy()"
             [value]="item.quantity"
             data-testid="line-item-quantity"
             (change)="
@@ -101,6 +102,7 @@
           <button
             type="button"
             data-testid="remove-item"
+            [disabled]="busy()"
             (click)="removeItem(item.sku)"
           >
             Remove
@@ -134,11 +136,21 @@
     <button
       type="button"
       data-testid="clear-cart"
-      [disabled]="!cart()!.items.length"
+      [disabled]="!cart()!.items.length || busy()"
       (click)="clearCart()"
     >
       Clear cart
     </button>
+    @if (canPlaceOrder()) {
+    <button
+      type="button"
+      data-testid="cart-continue-to-order"
+      [disabled]="!cart()!.items.length || busy()"
+      (click)="continueToOrder()"
+    >
+      Continue to order
+    </button>
+    }
   </div>
   }
 </div>

@@ -1,0 +1,46 @@
+{
+  "feature": "DEMO-004",
+  "max_parallel": 1,
+  "test_policy": "risk-driven",
+  "tasks": [
+    {
+      "id": "T-001",
+      "title": "Carry a settled cart into order checkout",
+      "objective": "Connect the existing screens while preserving authoritative pricing and unresolved attempt replay.",
+      "role": "builder",
+      "depends_on": [],
+      "allowed_paths": [
+        "apps/ecommerce/frontend/src/app/cart/**",
+        "apps/ecommerce/frontend/src/app/order/**",
+        "apps/ecommerce/frontend/e2e/order-happy-path.spec.ts",
+        "docs/demo-guide.md",
+        "docs/handover/AGENT_HANDOVER.md"
+      ],
+      "risk_tags": ["frontend", "concurrency", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "npm --prefix apps/ecommerce/frontend test",
+        "npm --prefix apps/ecommerce/frontend run lint",
+        "npm --prefix apps/ecommerce/frontend run build"
+      ],
+      "test_mode": "red-green-refactor",
+      "test_seam": "Angular DOM, delayed cart mutations across remount, real router activation, and existing Playwright lost-response scenario."
+    },
+    {
+      "id": "T-002",
+      "title": "Independently evaluate the checkout handoff",
+      "objective": "Review role enforcement, cart settlement and attempt replay against the acceptance criteria.",
+      "role": "evaluator",
+      "depends_on": ["T-001"],
+      "allowed_paths": ["docs/specs/DEMO-004/evidence/**"],
+      "risk_tags": ["frontend", "concurrency", "security"],
+      "acceptance_criteria": ["AC-001", "AC-002", "AC-003", "AC-004"],
+      "verification": [
+        "npm --prefix apps/ecommerce/frontend test",
+        "npm --prefix apps/ecommerce/frontend run e2e -- --list"
+      ],
+      "test_mode": "existing-suite",
+      "test_seam": "Review the diff and rerun the frontend checks. Run the isolated browser scenario when the Compose stack is available."
+    }
+  ]
+}

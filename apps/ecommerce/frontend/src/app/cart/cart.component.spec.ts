@@ -1,8 +1,11 @@
 import type { MockedObject } from 'vitest';
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { of, throwError } from 'rxjs';
+import { provideRouter, Router } from '@angular/router';
+import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 
+import { AuthService } from '@app/auth/auth.service';
 import { CartComponent } from '@app/cart/cart.component';
 import { CartModel } from '@app/cart/cart.model';
 import { CartService } from '@app/cart/cart.service';
@@ -14,6 +17,7 @@ describe('CartComponent', () => {
   let fixture: ComponentFixture<CartComponent>;
   let component: CartComponent;
   let cartServiceSpy: MockedObject<CartService>;
+  const roles = signal(['ORDER_WRITE']);
 
   const cart: CartModel = {
     cartId: 'cart-1',
@@ -36,7 +40,10 @@ describe('CartComponent', () => {
   function setup(): void {
     cartServiceSpy = asMockedObject<CartService>({
       createCart: vi.fn().mockName('CartService.createCart'),
-      getCart: vi.fn().mockName('CartService.getCart'),
+      getCart: vi
+        .fn()
+        .mockName('CartService.getCart')
+        .mockReturnValue(of(cart)),
       addItem: vi.fn().mockName('CartService.addItem'),
       updateItemQuantity: vi.fn().mockName('CartService.updateItemQuantity'),
       removeItem: vi.fn().mockName('CartService.removeItem'),
@@ -46,7 +53,11 @@ describe('CartComponent', () => {
     });
     TestBed.configureTestingModule({
       imports: [CartComponent],
-      providers: [{ provide: CartService, useValue: cartServiceSpy }],
+      providers: [
+        { provide: CartService, useValue: cartServiceSpy },
+        { provide: AuthService, useValue: { roles } },
+        provideRouter([]),
+      ],
     });
     fixture = TestBed.createComponent(CartComponent);
     component = fixture.componentInstance;
@@ -54,6 +65,7 @@ describe('CartComponent', () => {
 
   beforeEach(() => {
     sessionStorage.removeItem(CART_ID_STORAGE_KEY);
+    roles.set(['ORDER_WRITE']);
   });
 
   afterEach(() => {
@@ -68,6 +80,258 @@ describe('CartComponent', () => {
     fixture.detectChanges();
 
     expect(component).toBeTruthy();
+  });
+
+  function checkoutButton(): HTMLButtonElement | null {
+    return (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-testid="cart-continue-to-order"]'
+    );
+  }
+
+  it('continues with a transient copy of the confirmed items and applied coupon', () => {
+    setup();
+    const confirmedCart = { ...cart, couponCode: 'SAVE10' };
+    cartServiceSpy.createCart.mockReturnValue(of(confirmedCart));
+    const navigate = vi
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true);
+    fixture.detectChanges();
+    component.couponForm.controls.code.setValue('NOT-APPLIED');
+
+    expect(checkoutButton()?.disabled).toBe(false);
+    checkoutButton()!.click();
+
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith(['/order'], {
+      info: {
+        kind: 'cart-checkout',
+        items: [
+          {
+            sku: 'SKU-1',
+            productName: 'Headphones',
+            unitPrice: 99.99,
+            quantity: 2,
+          },
+        ],
+        couponCode: 'SAVE10',
+      },
+    });
+    expect(component.cart()).toEqual(confirmedCart);
+    expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
+  });
+
+  it('does not offer checkout without the order-write role', () => {
+    roles.set(['ORDER_READ']);
+    setup();
+    cartServiceSpy.createCart.mockReturnValue(of(cart));
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    fixture.detectChanges();
+
+    expect(checkoutButton()).toBeNull();
+    component.continueToOrder();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('disables checkout for an empty cart', () => {
+    setup();
+    cartServiceSpy.createCart.mockReturnValue(
+      of({ ...cart, items: [], itemCount: 0 })
+    );
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    fixture.detectChanges();
+
+    expect(checkoutButton()?.disabled).toBe(true);
+    checkoutButton()!.click();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('blocks checkout and other mutations while a write is pending', () => {
+    setup();
+    const pending = new Subject<CartModel>();
+    cartServiceSpy.createCart.mockReturnValue(of(cart));
+    cartServiceSpy.updateItemQuantity.mockReturnValue(pending);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    fixture.detectChanges();
+
+    component.updateQuantity('SKU-1', 3);
+    fixture.detectChanges();
+
+    expect(checkoutButton()?.disabled).toBe(true);
+    checkoutButton()!.click();
+    component.removeItem('SKU-1');
+    expect(navigate).not.toHaveBeenCalled();
+    expect(cartServiceSpy.removeItem).not.toHaveBeenCalled();
+
+    pending.complete();
+  });
+
+  it.each(['refused', 'failed'])(
+    'blocks changes during checkout navigation and unlocks when navigation is %s',
+    async (outcome) => {
+      setup();
+      const pending = new Subject<boolean>();
+      cartServiceSpy.createCart.mockReturnValue(of(cart));
+      const navigate = vi
+        .spyOn(TestBed.inject(Router), 'navigate')
+        .mockReturnValue(firstValueFrom(pending));
+      fixture.detectChanges();
+
+      checkoutButton()!.click();
+      fixture.detectChanges();
+      expect(checkoutButton()?.disabled).toBe(true);
+      component.continueToOrder();
+      component.removeItem('SKU-1');
+      expect(navigate).toHaveBeenCalledOnce();
+      expect(cartServiceSpy.removeItem).not.toHaveBeenCalled();
+
+      if (outcome === 'failed') {
+        pending.error(new Error('navigation failed'));
+      } else {
+        pending.next(false);
+      }
+
+      await vi.waitFor(() => expect(component.busy()).toBe(false));
+      fixture.detectChanges();
+      expect(checkoutButton()?.disabled).toBe(false);
+      expect(component.errorMessage()).toBe(
+        outcome === 'failed'
+          ? 'Failed to open the order form. Try again.'
+          : null
+      );
+    }
+  );
+
+  it('requires a confirmed cart after a write loses its response', () => {
+    setup();
+    const write = new Subject<CartModel>();
+    const refresh = new Subject<CartModel>();
+    const updated = { ...cart, items: [{ ...cart.items[0], quantity: 3 }] };
+    cartServiceSpy.createCart.mockReturnValue(of(cart));
+    cartServiceSpy.updateItemQuantity.mockReturnValue(write);
+    cartServiceSpy.getCart.mockReturnValue(refresh);
+    const navigate = vi
+      .spyOn(TestBed.inject(Router), 'navigate')
+      .mockResolvedValue(true);
+    fixture.detectChanges();
+
+    component.updateQuantity('SKU-1', 3);
+    write.error(new HttpErrorResponse({ status: 0 }));
+    fixture.detectChanges();
+
+    expect(cartServiceSpy.getCart).toHaveBeenCalledWith('cart-1');
+    expect(checkoutButton()).toBeNull();
+    component.continueToOrder();
+    expect(navigate).not.toHaveBeenCalled();
+
+    refresh.next(updated);
+    refresh.complete();
+    fixture.detectChanges();
+
+    expect(component.errorMessage()).toBe('Failed to update quantity.');
+    checkoutButton()!.click();
+    expect(navigate).toHaveBeenCalledWith(['/order'], {
+      info: expect.objectContaining({
+        items: [expect.objectContaining({ quantity: 3 })],
+      }),
+    });
+  });
+
+  it.each([404, 503])(
+    'keeps checkout unavailable and the cart retryable after refresh fails with %s',
+    (status) => {
+      setup();
+      cartServiceSpy.createCart.mockReturnValue(of(cart));
+      cartServiceSpy.updateItemQuantity.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 0 }))
+      );
+      cartServiceSpy.getCart.mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status }))
+      );
+      fixture.detectChanges();
+
+      component.updateQuantity('SKU-1', 3);
+      fixture.detectChanges();
+
+      expect(checkoutButton()).toBeNull();
+      expect(component.errorMessage()).toContain(
+        'Failed to update quantity. Failed to load cart. Retry'
+      );
+      expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
+      expect(cartServiceSpy.createCart).toHaveBeenCalledOnce();
+      const compiled = fixture.nativeElement as HTMLElement;
+      compiled
+        .querySelector<HTMLButtonElement>('[data-testid="cart-retry"]')!
+        .click();
+      fixture.detectChanges();
+
+      expect(cartServiceSpy.getCart).toHaveBeenNthCalledWith(2, 'cart-1');
+      expect(checkoutButton()?.disabled).toBe(false);
+    }
+  );
+
+  it.each(['success', 'failure'])(
+    'waits for a cart write to settle across route re-entry after %s',
+    (outcome) => {
+      sessionStorage.setItem(CART_ID_STORAGE_KEY, 'cart-1');
+      setup();
+      const pending = new Subject<CartModel>();
+      const updatedCart = {
+        ...cart,
+        items: [{ ...cart.items[0], quantity: 3 }],
+      };
+      cartServiceSpy.getCart
+        .mockReturnValueOnce(of(cart))
+        .mockReturnValue(of(updatedCart));
+      cartServiceSpy.updateItemQuantity.mockReturnValue(pending);
+      const navigate = vi
+        .spyOn(TestBed.inject(Router), 'navigate')
+        .mockResolvedValue(true);
+      fixture.detectChanges();
+      component.updateQuantity('SKU-1', 3);
+
+      fixture.destroy();
+      fixture = TestBed.createComponent(CartComponent);
+      fixture.detectChanges();
+      fixture.componentInstance.retryLoad();
+      expect(cartServiceSpy.getCart).toHaveBeenCalledTimes(1);
+      expect(fixture.componentInstance.cart()).toBeNull();
+      expect(checkoutButton()).toBeNull();
+
+      if (outcome === 'success') {
+        pending.next(updatedCart);
+        expect(cartServiceSpy.getCart).toHaveBeenCalledTimes(1);
+        pending.complete();
+      } else {
+        pending.error(new Error('write outcome unknown'));
+      }
+      fixture.detectChanges();
+
+      expect(cartServiceSpy.getCart).toHaveBeenCalledTimes(2);
+      expect(fixture.componentInstance.cart()).toEqual(updatedCart);
+      expect(component.cart()).toEqual(cart);
+      expect(component.errorMessage()).toBeNull();
+      checkoutButton()!.click();
+      expect(navigate).toHaveBeenCalledWith(['/order'], {
+        info: expect.objectContaining({
+          items: [expect.objectContaining({ quantity: 3 })],
+        }),
+      });
+    }
+  );
+
+  it('disposes a pending cart read when the route is destroyed', () => {
+    sessionStorage.setItem(CART_ID_STORAGE_KEY, 'cart-1');
+    setup();
+    const pending = new Subject<CartModel>();
+    cartServiceSpy.getCart.mockReturnValue(pending);
+    cartServiceSpy.createCart.mockReturnValue(of(cart));
+    fixture.detectChanges();
+
+    fixture.destroy();
+    pending.error(new HttpErrorResponse({ status: 404 }));
+
+    expect(cartServiceSpy.createCart).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(CART_ID_STORAGE_KEY)).toBe('cart-1');
   });
 
   it('starts a new cart when nothing is stored', () => {

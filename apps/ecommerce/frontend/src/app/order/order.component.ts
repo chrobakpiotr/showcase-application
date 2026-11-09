@@ -16,12 +16,13 @@ import {
   Validators,
 } from '@angular/forms';
 
+import { CartCheckoutDraft } from '@app/order/cart-checkout-draft.model';
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
 import {
   OrderAttempt,
   OrderAttemptStore,
 } from '@app/order/order-attempt.store';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { OrderRecoveryTimelineEntryModel } from '@app/order/order-recovery-timeline.model';
 import { OrderRequestModel } from '@app/order/order-request.model';
@@ -72,6 +73,8 @@ export class OrderComponent implements OnInit {
   private readonly orderService = inject(OrderService);
   private readonly attemptStore = inject(OrderAttemptStore);
   private readonly problemDetails = inject(ProblemDetailsAdapter);
+  private readonly navigationInfo =
+    inject(Router).currentNavigation()?.extras.info;
 
   private readonly destroyRef = inject(DestroyRef);
   private attempt: OrderAttempt | null = null;
@@ -130,7 +133,7 @@ export class OrderComponent implements OnInit {
         validators: [Validators.required, Validators.maxLength(2)],
       }),
     }),
-    items: new FormArray([createLineItemGroup()]),
+    items: new FormArray([createLineItemGroup()], Validators.required),
     paymentMethod: new FormControl<PaymentMethod>('CARD', {
       nonNullable: true,
       validators: [Validators.required],
@@ -140,20 +143,13 @@ export class OrderComponent implements OnInit {
 
   ngOnInit(): void {
     const restored = this.attemptStore.restore();
-    if (!restored) return;
+    if (restored && this.restoreAttempt(restored)) return;
 
-    try {
-      this.restoreAttemptForm(restored.payload);
-    } catch {
-      this.attemptStore.clear();
-      return;
+    const draft = this.navigationInfo as CartCheckoutDraft | undefined;
+    if (draft?.kind === 'cart-checkout') {
+      this.replaceItems(draft.items);
+      this.orderForm.controls.couponCode.setValue(draft.couponCode ?? '');
     }
-
-    this.attempt = restored;
-    this.uncertain.set(true);
-    this.errorMessage.set(
-      'Recovered an unresolved order attempt. Retry this same attempt.'
-    );
   }
 
   get remarksControl() {
@@ -315,16 +311,50 @@ export class OrderComponent implements OnInit {
       });
   }
 
+  private restoreAttempt(attempt: OrderAttempt): boolean {
+    try {
+      this.restoreAttemptForm(attempt.payload);
+      if (
+        this.orderForm.valid &&
+        PAYMENT_METHODS.includes(attempt.payload.paymentMethod) &&
+        attempt.payload.items.every(
+          ({ quantity, unitPrice }) =>
+            Number.isFinite(quantity) && Number.isFinite(unitPrice)
+        )
+      ) {
+        this.attempt = attempt;
+        this.uncertain.set(true);
+        this.errorMessage.set(
+          'Recovered an unresolved order attempt. Retry this same attempt.'
+        );
+        return true;
+      }
+    } catch {
+      // Stored data may not match the current form structure.
+    }
+
+    this.attemptStore.clear();
+    this.orderForm.reset();
+    this.itemsFormArray.clear();
+    this.itemsFormArray.push(createLineItemGroup());
+    return false;
+  }
+
   private restoreAttemptForm(payload: OrderRequestModel): void {
     this.customerForm.setValue(payload.customer);
-    this.itemsFormArray.clear();
-    for (const item of payload.items) {
-      const group = createLineItemGroup();
-      group.setValue(item);
-      this.itemsFormArray.push(group);
-    }
+    this.replaceItems(payload.items);
     this.orderForm.controls.paymentMethod.setValue(payload.paymentMethod);
     this.orderForm.controls.couponCode.setValue(payload.couponCode ?? '');
     this.remarksControl.setValue(payload.remarks);
+  }
+
+  private replaceItems(items: readonly OrderLineItemRequestModel[]): void {
+    const groups = items.map((item) => {
+      const group = createLineItemGroup();
+      group.setValue(item);
+      return group;
+    });
+    this.itemsFormArray.clear();
+    this.itemsFormArray.push(groups);
   }
 }

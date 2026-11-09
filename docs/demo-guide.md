@@ -62,12 +62,17 @@ keeps whatever redemption count previous runs produced.
 3. Receive, reserve, release or fulfill stock as `order-admin`.
 4. Reload the same SKU and observe optimistic-lock-backed state changes.
 
-### Catalog → Cart → Coupon
+### Catalog to Cart to Order
 
 1. Open **Catalog** and choose a product.
 2. Open **Cart**, create a cart and add the product SKU.
 3. Add more products until the order value reaches a coupon threshold.
 4. Apply `SAVE10`, `WELCOME20` or `FLAT15` and compare totals.
+5. As `order-admin`, choose **Continue to order**. Confirm the order form shows
+   the cart's line items and applied coupon.
+6. Complete shipping details and remarks, then choose **Place Order**. The
+   server prices the order and validates stock and the coupon. Return to
+   **Cart** to see the same cart and coupon.
 
 ### Catalog → Order → Payment → Shipment / Return
 
@@ -124,11 +129,12 @@ replay returns the original order number without another stock reservation or
 coupon validation. There is no automatic POST retry.
 
 An initial explicit insufficient-stock or stock-version conflict unlocks the form
-so the quantity can be corrected. An unknown result keeps the form locked even if a later retry is rejected. Keep
-the page open until the attempt is resolved: the snapshot is held only by the
-mounted order screen and is lost when navigating away or reloading. Check Order
-History before starting another order after losing that state. A confirmed success
-exposes a history link and an explicit new-order action.
+so the quantity can be corrected. An unknown result keeps the form locked even
+if a later retry is rejected. The same browser tab restores the unresolved
+attempt for up to 30 minutes, including after a reload or when opening the
+order form from Cart. Check Order History before starting another order if the
+attempt has expired or the tab was closed. A confirmed success exposes a
+history link and an explicit new-order action.
 
 The version 2 request fingerprint includes submitted customer and item details,
 payment method and coupon. Replays of keys created by older versions fail closed
@@ -138,8 +144,10 @@ share the same arbitration contract.
 
 ## Repeatable browser tests
 
-The order E2E creates a unique `E2E-*` SKU and receives one unit before placing its
-order. Repeated runs do not consume the shared `DEMO-*` stock. These fixtures remain
-in the test database; use a dedicated disposable Compose project for test runs.
+The order E2E receives the required units of its seeded `DEMO-*` SKUs before
+placement. The cart recovery scenario applies `SAVE10`, drops the first
+successful browser response, reloads, then verifies that the same request and
+idempotency key return the original order and one history row. Use a dedicated
+disposable Compose project for test runs.
 Responsive checks wait for mounted routes and loaded content. Catalog checks also
 exercise populated, empty and failed responses at a 390px viewport.

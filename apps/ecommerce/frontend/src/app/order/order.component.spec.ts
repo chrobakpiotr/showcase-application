@@ -1,11 +1,15 @@
 import type { Mock } from 'vitest';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 
 import { OrderComponent } from '@app/order/order.component';
-import { ORDER_ATTEMPT_STORAGE_KEY } from '@app/order/order-attempt.store';
+import {
+  ORDER_ATTEMPT_STORAGE_KEY,
+  OrderAttemptStore,
+} from '@app/order/order-attempt.store';
 import { OrderService } from '@app/order/order.service';
 import { CustomerRequestModel } from '@app/order/customer-request.model';
 import { OrderLineItemRequestModel } from '@app/order/order-line-item-request.model';
@@ -40,7 +44,7 @@ describe('OrderComponent', () => {
   let placeOrderSpy: Mock;
   let timelineSpy: Mock;
 
-  function setup(): void {
+  function configureServices(): void {
     placeOrderSpy = vi.fn().mockName('placeOrder');
     timelineSpy = vi
       .fn()
@@ -66,6 +70,10 @@ describe('OrderComponent', () => {
         },
       ],
     });
+  }
+
+  function setup(): void {
+    configureServices();
     fixture = TestBed.createComponent(OrderComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -79,6 +87,34 @@ describe('OrderComponent', () => {
       paymentMethod: 'CARD',
       couponCode: '',
     });
+  }
+
+  const cartDraft = {
+    kind: 'cart-checkout',
+    items: [
+      {
+        sku: 'CART-1',
+        productName: 'Headphones',
+        unitPrice: 99.99,
+        quantity: 3,
+      },
+      { sku: 'CART-2', productName: 'Keyboard', unitPrice: 119, quantity: 1 },
+    ],
+    couponCode: 'SAVE10',
+  };
+
+  async function navigateToOrder(
+    couponCode: string | null = cartDraft.couponCode
+  ) {
+    const router = TestBed.inject(Router);
+    router.resetConfig([
+      { path: 'order', component: OrderComponent },
+      { path: 'away', children: [] },
+    ]);
+    const harness = await RouterTestingHarness.create();
+    await router.navigate(['/order'], { info: { ...cartDraft, couponCode } });
+    harness.detectChanges();
+    return harness;
   }
 
   beforeEach(() => {
@@ -116,6 +152,126 @@ describe('OrderComponent', () => {
     component.placeOrder();
     expect(placeOrderSpy).not.toHaveBeenCalled();
   });
+
+  it('rejects a new order with no line items', () => {
+    setup();
+    fillValidForm('valid remarks');
+    component.itemsFormArray.clear();
+    fixture.detectChanges();
+
+    component.placeOrder();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const submit = compiled.querySelector<HTMLButtonElement>(
+      '[data-testid="order-submit"]'
+    );
+    expect(submit?.disabled).toBe(true);
+    expect(placeOrderSpy).not.toHaveBeenCalled();
+  });
+
+  it('seeds only line items and coupon from the navigation that opened the order', async () => {
+    configureServices();
+    const harness = await navigateToOrder();
+    const order = harness.routeDebugElement!
+      .componentInstance as OrderComponent;
+
+    expect(order.itemsFormArray.getRawValue()).toEqual(cartDraft.items);
+    expect(order.orderForm.controls.couponCode.value).toBe('SAVE10');
+    expect(order.customerForm.controls.email.value).toBe('');
+    expect(order.remarksControl.value).toBe('');
+    expect(order.editingLocked()).toBe(false);
+    expect(placeOrderSpy).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(ORDER_ATTEMPT_STORAGE_KEY)).toBeNull();
+
+    await harness.navigateByUrl('/away');
+    const reopened = await harness.navigateByUrl('/order', OrderComponent);
+    expect(reopened.itemsFormArray.getRawValue()).toEqual([
+      { sku: '', productName: '', unitPrice: null, quantity: 1 },
+    ]);
+    expect(reopened.orderForm.controls.couponCode.value).toBe('');
+  });
+
+  it('retries the stored attempt unchanged when opened from a different cart', async () => {
+    configureServices();
+    const payload = {
+      remarks: 'uncertain order',
+      customer: VALID_CUSTOMER,
+      items: [VALID_ITEM],
+      paymentMethod: 'CARD' as const,
+      couponCode: 'FLAT15',
+      created: new Date('2026-09-17T10:00:00.000Z'),
+    };
+    TestBed.inject(OrderAttemptStore).save({ key: 'original-key', payload });
+    const harness = await navigateToOrder();
+    const order = harness.routeDebugElement!
+      .componentInstance as OrderComponent;
+    placeOrderSpy.mockReturnValue(of({ orderNumber: 'ORD-RECOVERED' }));
+
+    expect(order.itemsFormArray.getRawValue()).toEqual([VALID_ITEM]);
+    expect(order.orderForm.controls.couponCode.value).toBe('FLAT15');
+    expect(order.editingLocked()).toBe(true);
+    expect(placeOrderSpy).not.toHaveBeenCalled();
+
+    order.placeOrder();
+    expect(placeOrderSpy).toHaveBeenCalledWith(payload, 'original-key');
+  });
+
+  it('opens with a blank coupon field when the cart has no coupon', async () => {
+    configureServices();
+    const harness = await navigateToOrder(null);
+    const order = harness.routeDebugElement!
+      .componentInstance as OrderComponent;
+
+    expect(order.itemsFormArray.getRawValue()).toEqual(cartDraft.items);
+    expect(order.orderForm.controls.couponCode.value).toBe('');
+  });
+
+  it.each([
+    { name: 'no items', items: [] },
+    { name: 'zero quantity', items: [{ ...VALID_ITEM, quantity: 0 }] },
+    { name: 'a string quantity', items: [{ ...VALID_ITEM, quantity: '2' }] },
+    {
+      name: 'a nonnumeric unit price',
+      items: [{ ...VALID_ITEM, unitPrice: 'garbage' }],
+    },
+    {
+      name: 'an unknown payment method',
+      items: [VALID_ITEM],
+      paymentMethod: 'NOT-A-METHOD',
+    },
+  ])(
+    'discards a stored attempt with $name and loads the current cart draft',
+    async ({ items, paymentMethod = 'CARD' }) => {
+      configureServices();
+      sessionStorage.setItem(
+        ORDER_ATTEMPT_STORAGE_KEY,
+        JSON.stringify({
+          schemaVersion: 1,
+          key: 'invalid-key',
+          payload: {
+            remarks: 'corrupt order',
+            customer: VALID_CUSTOMER,
+            items,
+            paymentMethod,
+            couponCode: 'FLAT15',
+            created: '2026-09-17T10:00:00.000Z',
+          },
+          expiresAt: Date.now() + 60_000,
+        })
+      );
+      const harness = await navigateToOrder();
+      const order = harness.routeDebugElement!
+        .componentInstance as OrderComponent;
+
+      expect(order.itemsFormArray.getRawValue()).toEqual(cartDraft.items);
+      expect(order.orderForm.controls.couponCode.value).toBe('SAVE10');
+      expect(order.customerForm.controls.email.value).toBe('');
+      expect(order.remarksControl.value).toBe('');
+      expect(order.editingLocked()).toBe(false);
+      expect(sessionStorage.getItem(ORDER_ATTEMPT_STORAGE_KEY)).toBeNull();
+      expect(placeOrderSpy).not.toHaveBeenCalled();
+    }
+  );
 
   it('should not submit when already submitting', () => {
     setup();
