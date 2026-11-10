@@ -1,6 +1,9 @@
 service:
   rabbitmq:
     enabled: true
+    consumer:
+      # S30-06 is deferred. Publisher enablement does not authorize consuming.
+      enabled: false
 
 spring:
   rabbitmq:

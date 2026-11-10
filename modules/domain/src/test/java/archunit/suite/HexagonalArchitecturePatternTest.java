@@ -111,6 +111,10 @@ class HexagonalArchitecturePatternTest {
     @Test
     void shouldHaveProperPackageDependencies() {
 
+        HexagonalArchitecture.basePackage()
+                .withAdapters()
+                .dontDependOnEachOther(new ClassFileImporter().importPackages(MAIN_PACKAGE_IDENTIFIER));
+
         noClasses().that()
                 .resideInAPackage(ArchitectureElement.DOMAIN_PACKAGE_IDENTIFIER)
                 .should()

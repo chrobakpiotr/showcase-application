@@ -72,6 +72,7 @@ public class MessagingConfiguration {
      * candidates and {@link ObjectProvider#ifAvailable} would throw {@code NoUniqueBeanDefinitionException}.
      */
     @Bean
+    @ConditionalOnProperty(name = "service.rabbitmq.consumer.enabled", havingValue = "true")
     SimpleMessageListenerContainer container(
             final ConnectionFactory connectionFactory,
             final MessageListenerAdapter listenerAdapter,

@@ -48,6 +48,7 @@
 | `SEQUENTIAL-TASK-REPLAN-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHIP-FULFILL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHOWCASE-DOCS-001` | UNDECLARED | yes | yes | yes | executable | selected |
+| `SHOWCASE-FOLLOWUP-001` | IMPLEMENTED - bounded verification PASS; repository integration BLOCKED | yes | yes | no | document-only | not selected |
 | `STABILIZATION-N01-N13` | UNDECLARED | yes | yes | no | document-only | not selected |
 | `STABILIZATION-N14` | UNDECLARED | yes | no | no | document-only | not selected |
 | `STABILIZATION-N15-N20` | UNDECLARED | yes | no | no | document-only | not selected |

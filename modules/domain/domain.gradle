@@ -8,6 +8,11 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api'
     testImplementation project(':adapter:persistence')
     testImplementation project(':adapter:web')
+    testRuntimeOnly project(':adapter:amqp')
+    testRuntimeOnly project(':adapter:aws')
+    testRuntimeOnly project(':adapter:kafka')
+    testRuntimeOnly project(':adapter:camel')
+    testRuntimeOnly project(':adapter:ai')
     testImplementation 'org.springframework.boot:spring-boot-starter-validation'
     testImplementation('org.springframework.boot:spring-boot-starter-test') {
         exclude group: 'junit'

@@ -1,22 +1,21 @@
 package archunit;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
  * Class representing adapter of hexagonal architecture pattern.
  */
 public class Adapter extends ArchitectureElement {
 
-    private static final List<String> ADAPTER_PACKAGES = Arrays
-            .asList("persistence.", "web.", "mail.", "security.", "amqp.", "aws.");
-    /**
-     * Special cases list to omit checks for duplicated package names in path, like ex. "security.security"
-     */
-    private static final List<String> DUPLICATED_PACKAGE_NAMES_SPECIAL_CASES = List.of("security.");
+    private static final List<String> ADAPTER_PACKAGES = List
+            .of("persistence", "web", "mail", "security", "amqp", "aws", "kafka", "camel", "ai");
     private final transient HexagonalArchitecture parentContext;
     private final transient List<String> adapterPackages = new ArrayList<>();
 
@@ -28,16 +27,8 @@ public class Adapter extends ArchitectureElement {
 
     public Adapter domain(final String packageName) {
 
-        ADAPTER_PACKAGES.forEach(adapterPackage -> {
-
-            if (DUPLICATED_PACKAGE_NAMES_SPECIAL_CASES.contains(adapterPackage)) {
-
-                this.adapterPackages.add(fullQualifiedPackage(packageName));
-            } else {
-
-                this.adapterPackages.add(fullQualifiedPackage(adapterPackage + packageName));
-            }
-        });
+        ADAPTER_PACKAGES
+                .forEach(adapterPackage -> this.adapterPackages.add(fullQualifiedPackage(adapterPackage + "." + packageName)));
         return this;
     }
 
@@ -51,13 +42,25 @@ public class Adapter extends ArchitectureElement {
         return parentContext;
     }
 
-    void dontDependOnEachOther(final JavaClasses classes) {
+    public void dontDependOnEachOther(final JavaClasses classes) {
 
-        final List<String> allAdapters = allAdapterPackages();
-        for (String adapter1 : allAdapters) {
-            for (String adapter2 : allAdapters) {
-                if (!adapter1.equals(adapter2)) {
-                    denyDependency(classes);
+        for (String source : ADAPTER_PACKAGES) {
+            for (String target : ADAPTER_PACKAGES) {
+                if (!source.equals(target)) {
+                    final String targetPackage = fullQualifiedPackage(target);
+                    final String operatorProvider = fullQualifiedPackage("security.authentication.CurrentOperatorProvider");
+                    final DescribedPredicate<JavaClass> forbiddenTarget = DescribedPredicate.describe(
+                            "reside in " + targetPackage + " except the web operator-identity boundary",
+                            candidate -> (candidate.getPackageName().equals(targetPackage)
+                                    || candidate.getPackageName().startsWith(targetPackage + "."))
+                                    && !(source.equals("web") && target.equals("security")
+                                            && candidate.getName().equals(operatorProvider)));
+                    noClasses().that()
+                            .resideInAPackage(fullQualifiedPackage(source) + "..")
+                            .should()
+                            .dependOnClassesThat(forbiddenTarget)
+                            .allowEmptyShould(true)
+                            .check(classes);
                 }
             }
         }

@@ -1,8 +1,11 @@
 # showcase-application - agent handover
 
-Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
+Updated 2026-11-10. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
+
+- SHOWCASE-FOLLOWUP-001 implements the four architecture follow-ups. Adapter rules cover all technical adapter roots and the exact web operator-identity exception. k6 uses an operator token, complete order requests, bounded stock and global abort on contract failure. The AMQP consumer defaults off independently of publishing. Architecture and roadmap now include current modules and separate execution from qualification.
+- Focused module gates passed with JDK 25 and Gradle 9.7.1. Domain had 418 passing tests and AMQP 20. The Node suite passed 16 tests. Real k6 v2.3.0 passed successful, malformed-response and expired-token scenarios against synthetic HTTP transport. See [verification](../specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md) for scope and integration status.
 
 - DEMO-004 lets an operator with `ORDER_WRITE` continue from a confirmed cart to
   the existing order form. Cart writes settle across route changes, checkout
@@ -22,11 +25,11 @@ Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## Unfinished
 
-See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
+SHOWCASE-FOLLOWUP-001 bounded checks passed. Full build integration is blocked by unavailable Docker and formatting differences in six untouched frontend files, as detailed in its verification record. See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
 ## Next step
 
-See the backlog for open work. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
+Resolve the recorded frontend formatting cleanup and rerun required integration gates on a Docker host. See the backlog for external dependencies. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
 
 ## Do not touch
 

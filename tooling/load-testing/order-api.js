@@ -1,30 +1,20 @@
-// k6 load test for the order API (POST /api/order, GET /api/order/{orderNumber}).
-//
-// Prerequisites: the app + Keycloak must be running (docker compose up -d, or
-// docker compose up -d --build for the fully containerized stack).
-//
-// Run with:
-//   k6 run tooling/load-testing/order-api.js
-//
-// Override defaults via environment variables, e.g. against the plain docker-compose stack
-// (app on 9080, Keycloak on 8081) vs. a different host/port:
-//   k6 run -e BASE_URL=http://localhost:9080 -e KEYCLOAK_URL=http://localhost:8081 \
-//       tooling/load-testing/order-api.js
-//
-// Results (requests/sec, latency percentiles, error rate) print to stdout; pair this with the
-// Grafana dashboard (http://localhost:3000) to watch request rate/latency/circuit-breaker metrics
-// live while the test runs.
+// Run against a disposable demo stack with an operator bearer token in ACCESS_TOKEN.
+// Setup receives ITERATIONS units of stock. Each iteration reserves one unit.
+// See docs/testing.md for roles, token lifetime and cleanup requirements.
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import exec from 'k6/execution';
 import { Trend } from 'k6/metrics';
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:9080';
-const KEYCLOAK_URL = __ENV.KEYCLOAK_URL || 'http://localhost:8081';
-const REALM = __ENV.REALM || 'ecommerce';
-const CLIENT_ID = __ENV.CLIENT_ID || 'ecommerce-app';
-const USERNAME = __ENV.USERNAME || 'order-admin';
-const PASSWORD = __ENV.PASSWORD || 'password';
+const BASE_URL = (__ENV.BASE_URL || 'http://localhost:9080').replace(/\/+$/, '');
+const SKU = __ENV.SKU || 'DEMO-MOUSE-001';
+const ITERATIONS = positiveInteger('ITERATIONS', 20);
+const VUS = positiveInteger('VUS', 2);
+
+if (VUS > ITERATIONS) {
+    throw new Error('VUS must not exceed ITERATIONS');
+}
 
 const placeOrderTrend = new Trend('place_order_duration', true);
 const findOrderTrend = new Trend('find_order_duration', true);
@@ -32,73 +22,86 @@ const findOrderTrend = new Trend('find_order_duration', true);
 export const options = {
     scenarios: {
         order_traffic: {
-            executor: 'ramping-vus',
-            startVUs: 0,
-            stages: [
-                { duration: '30s', target: 10 }, // ramp up
-                { duration: '2m', target: 10 }, // sustained load
-                { duration: '30s', target: 0 }, // ramp down
-            ],
+            executor: 'shared-iterations',
+            vus: VUS,
+            iterations: ITERATIONS,
+            maxDuration: '2m',
         },
     },
     thresholds: {
+        checks: ['rate==1'],
+        iterations: [`count==${ITERATIONS}`],
         http_req_failed: ['rate<0.01'],
         place_order_duration: ['p(95)<1000'],
         find_order_duration: ['p(95)<500'],
     },
 };
 
-/**
- * Fetches a fresh JWT via the Resource Owner Password Credentials grant (fine for a local demo
- * client with directAccessGrantsEnabled=true - never use ROPC against a real production IdP).
- */
-function fetchToken() {
-
-    const tokenUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
-    const response = http.post(
-        tokenUrl,
-        {
-            grant_type: 'password',
-            client_id: CLIENT_ID,
-            username: USERNAME,
-            password: PASSWORD,
-        },
-        { tags: { name: 'KeycloakToken' } },
-    );
-    check(response, { 'obtained access token': (r) => r.status === 200 && r.json('access_token') });
-    return response.json('access_token');
+function positiveInteger(name, fallback) {
+    const value = Number(__ENV[name] || fallback);
+    if (!Number.isInteger(value) || value < 1 || value > 10000) {
+        throw new Error(`${name} must be an integer between 1 and 10000`);
+    }
+    return value;
 }
 
 export function setup() {
-
-    return { token: fetchToken() };
+    const token = (__ENV.ACCESS_TOKEN || '').trim();
+    if (!token || /\s/.test(token)) {
+        exec.test.abort('ACCESS_TOKEN must contain an operator bearer token');
+    }
+    const parameters = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: '10s' };
+    const productResponse = http.get(`${BASE_URL}/home/api/catalog/products/${encodeURIComponent(SKU)}`, parameters);
+    if (!check(productResponse, { 'catalog product available': response => response.status === 200 })) {
+        exec.test.abort(`Catalog lookup failed with HTTP ${productResponse.status}`);
+    }
+    const product = productResponse.json();
+    if (!product.active || typeof product.name !== 'string' || !Number.isFinite(product.unitPrice) || product.unitPrice < 0) {
+        exec.test.abort('Catalog product must be active and have a valid name and unit price');
+    }
+    const stockResponse = http.post(`${BASE_URL}/home/api/inventory/${encodeURIComponent(SKU)}/receive`,
+        JSON.stringify({ quantity: ITERATIONS }), parameters);
+    if (!check(stockResponse, { 'load-test stock prepared': response => response.status === 200 })) {
+        exec.test.abort(`Stock preparation failed with HTTP ${stockResponse.status}`);
+    }
+    return { token, product };
 }
 
 export default function (data) {
-
-    const headers = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${data.token}`,
+    const parameters = {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.token}` },
+        timeout: '10s',
+        tags: { name: 'PlaceOrder' },
     };
-
-    const placeResponse = http.post(
-        `${BASE_URL}/home/api/order`,
-        JSON.stringify({ remarks: `k6 load test order ${Date.now()}` }),
-        { headers, tags: { name: 'PlaceOrder' } },
-    );
+    const order = {
+        remarks: `Load test VU ${__VU} iteration ${__ITER}`,
+        created: new Date().toISOString(),
+        customer: {
+            fullName: 'Load Test', email: 'load-test@example.com', phone: '+48 555 123 456',
+            street: 'Test Street 1', postalCode: '00-001', city: 'Warsaw', countryCode: 'PL',
+        },
+        paymentMethod: 'CARD',
+        items: [{ sku: SKU, productName: data.product.name, unitPrice: data.product.unitPrice, quantity: 1 }],
+    };
+    const placeResponse = http.post(`${BASE_URL}/home/api/order`, JSON.stringify(order), parameters);
     placeOrderTrend.add(placeResponse.timings.duration);
-    const placed = check(placeResponse, { 'order placed (201)': (r) => r.status === 201 });
-
-    if (placed) {
-
-        const orderNumber = placeResponse.body.replace(/"/g, '');
-        const findResponse = http.get(`${BASE_URL}/home/api/order/${orderNumber}`, {
-            headers,
-            tags: { name: 'FindOrder' },
-        });
-        findOrderTrend.add(findResponse.timings.duration);
-        check(findResponse, { 'order found (200)': (r) => r.status === 200 });
+    if (!check(placeResponse, { 'order placed (201)': response => response.status === 201 })) {
+        exec.test.abort(`Order placement failed with HTTP ${placeResponse.status}`);
     }
-
+    let placement;
+    try {
+        placement = placeResponse.json();
+    } catch {
+        exec.test.abort('Order placement returned invalid JSON');
+    }
+    if (!check(placement, { 'placement has orderNumber': value => typeof value?.orderNumber === 'string' && value.orderNumber.trim().length > 0 })) {
+        exec.test.abort('Order placement returned an invalid orderNumber');
+    }
+    const findResponse = http.get(`${BASE_URL}/home/api/order/${encodeURIComponent(placement.orderNumber)}`,
+        { ...parameters, tags: { name: 'FindOrder' } });
+    findOrderTrend.add(findResponse.timings.duration);
+    if (!check(findResponse, { 'order found (200)': response => response.status === 200 })) {
+        exec.test.abort(`Order lookup failed with HTTP ${findResponse.status}`);
+    }
     sleep(1);
 }

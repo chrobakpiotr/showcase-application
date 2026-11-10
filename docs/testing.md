@@ -44,18 +44,40 @@ Workflows pin external actions by full commit SHA and assign job-level permissio
 
 ## Load testing
 
-The [k6 scenario](../tooling/load-testing/order-api.js) exercises order placement and lookup. It ramps
-to ten virtual users and checks the error rate and p95 latencies. Compare the results with the
-[Grafana dashboard](operations.md#observability) or the [Toxiproxy scenario](operations.md#chaos-testing-toxiproxy).
+The [k6 scenario](../tooling/load-testing/order-api.js), checked with k6 v2.3.0, runs a bounded number of orders on a
+**disposable demo stack**. Setup receives one unit of the selected SKU per iteration. Each
+iteration places one order and looks it up by the JSON response's `orderNumber`. The run leaves
+orders and reservations in the demo database. Recreate the disposable stack and its volumes
+between experiments. Use an isolated stack without other order writers.
 
-The script obtains a token once in setup using the password grant. The bundled `ecommerce-app`
-client disables that grant, so the default invocation cannot authenticate. The script accepts
-`CLIENT_ID`, `KEYCLOAK_URL`, `REALM`, `USERNAME`, `PASSWORD` and `BASE_URL` overrides for a separately
-configured test environment with an allowed grant and matching API audience.
+Sign in through the existing Keycloak Authorization Code + PKCE flow as `order-admin` and obtain
+its bearer access token from your local browser session. The token needs `ORDER_READ`,
+`ORDER_WRITE`, `CATALOG_READ` and `INVENTORY_WRITE`. Supply it through `ACCESS_TOKEN` in your local
+shell environment. Keep it out of tracked files, terminal recordings and reports. Start promptly
+and ensure its remaining lifetime covers the two-minute maximum run plus setup. The script aborts the run
+if authentication expires or an API contract check fails. The browser client retains its current PKCE settings.
+
+Run from the repository root after setting `ACCESS_TOKEN` in the environment.
 
 ```bash
-k6 run -e CLIENT_ID=your-test-client tooling/load-testing/order-api.js
+k6 run -e ITERATIONS=20 -e VUS=2 tooling/load-testing/order-api.js
 ```
 
-Java 25 virtual threads handle requests. The database connection pool still limits concurrent JDBC
-work. See [ADR 0011](adr/0011-java-21-virtual-threads.md) and [ADR 0012](adr/0012-java-25-closing-the-pinning-gap.md).
+`BASE_URL` selects the host origin and defaults to `http://localhost:9080`. `SKU` defaults to
+`DEMO-MOUSE-001`. The scenario reads the current catalog name and price before preparing stock.
+`ITERATIONS` and `VUS` accept integers from 1 to 10000, with `VUS` no greater than `ITERATIONS`.
+Two virtual users are the default. The global order placement rate limit also applies to load tests.
+Checks, HTTP errors and an incomplete iteration count fail the run's thresholds alongside the
+existing p95 placement/lookup limits.
+Compare results with the [Grafana dashboard](operations.md#observability).
+
+Run the isolated transport regression tests with Node 24 or later.
+
+```bash
+node --experimental-vm-modules --test tooling/load-testing/order-api.test.mjs
+```
+
+These tests load the actual k6 module with synthetic HTTP transport. Live k6 evidence additionally
+requires the disposable services, token and k6 binary. CI runs the Node regressions in the frontend job.
+Java 25 virtual threads handle requests. The database connection pool limits concurrent JDBC work.
+See [ADR 0011](adr/0011-java-21-virtual-threads.md) and [ADR 0012](adr/0012-java-25-closing-the-pinning-gap.md).

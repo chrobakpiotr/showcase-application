@@ -1,17 +1,16 @@
 # Project improvement roadmap
 
-Source review baseline: `f19fb931a271df22edd9f0462804cdae27259611`.
-The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
+Current work is tracked in [Backlog](backlog.md). The table below separates implementation
+from qualification and external publication. Earlier source-bound records retain their original status.
 
-| Priority | Finding or opportunity | Next change and acceptance |
+| Work | Current recorded state | Next step |
 |---|---|---|
-
-## Planned Agentic SDD harness work
-
-- `SDD-OBS-001` - Verification & Observability v2: deterministic gate invalidation/reuse/resume,
-  structured verification telemetry, role/rework metrics, manual evaluator registration,
-  shared runner/orchestrator verification, README/operator documentation synchronization and final
-  independent/master-agent review.
+| [Architecture follow-up](specs/SHOWCASE-FOLLOWUP-001/spec.md) | Implemented, bounded verification PASS | Resolve the Docker and existing frontend-formatting integration blockers in the [verification record](specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md) |
+| SDD-OBS-001 execution slice | Completed in the [2026-10-17 record](reviews/showcase-master-review-progress-2026-10-05.md#verification-v2-completion---2026-10-17) | Apply current accepted-plan and qualification requirements to future execution |
+| Canonical M5.3 design gate | NOT PASS | Follow the [verification handbook](agentic-sdd/handbook.md#status-and-safety-boundary) |
+| S30-06 | DEFERRED, design gate OPEN, NOT QUALIFIED | Re-entry requires the target/control mechanism or an owner-approved scope revision in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md) |
+| S05-07 external handbook | Repository delta ready, external application unverified | The handbook owner applies and verifies the [source-linked delta](reviews/external-handbook-delta-2026-10-06.md) |
+| Provider profiles and live execution | Version evidence and exact backend qualification required | Follow [Backlog](backlog.md) and the [handover](handover/AGENT_HANDOVER.md) |
 
 ## Implemented in the hardening patches
 
@@ -25,8 +24,8 @@ The remaining proposals below follow the DEMO-003 resilience/dogfooding batch.
 - Demo SKU suggestions, accessible pending status and wrapping action buttons.
 - Playwright retains traces and screenshots on failure even with zero retries.
 - E2E TypeScript configuration uses Node16 resolution and explicit Node types.
-- Main README retains technical material; domain and AI walkthroughs have their
-  own guides, linked from the documentation map.
+- Main README contains quick start, license and navigation. The [documentation map](README.md)
+  routes architecture, API, domain, AI, deployment, operations and testing material under `docs/`.
 - DEMO-002 makes order idempotency transactional, fingerprints all submitted
   request fields, hardens the browser token boundary and keeps one immutable
   retry attempt while the component remains mounted.

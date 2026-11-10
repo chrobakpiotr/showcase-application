@@ -45,7 +45,6 @@ public class HexagonalArchitecture extends ArchitectureElement {
 
         if (Optional.ofNullable(this.adapters).isPresent()) {
             this.adapters.doesNotContainEmptyPackages();
-            this.adapters.dontDependOnEachOther(classes);
             this.adapters.doesNotDependOn(classes);
         }
         this.domain.doesNotContainEmptyPackages();

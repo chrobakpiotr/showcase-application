@@ -82,50 +82,44 @@ graph TB
 
 ## Backend module structure (hexagonal architecture)
 
-How the Gradle modules map to ports & adapters (see [ADR 0001](adr/0001-hexagonal-architecture.md)).
+The [Gradle settings](../settings.gradle) map modules to directories. The backend composes
+adapters and application workflows. Domain and foundation remain independent of Spring and adapters.
 
 ```mermaid
-graph LR
-    subgraph domain_box["domain (pure Java, no framework deps)"]
-        domain["Entities · Use cases<br/>Incoming/outgoing ports"]
-    end
-
-    subgraph adapters["adapter:* modules"]
-        web["adapter:web<br/>REST controllers, OpenAPI"]
-        security["adapter:security<br/>OAuth2 Resource Server / JWT"]
-        persistence["adapter:persistence<br/>JPA, outbox, cache"]
-        amqp["adapter:amqp<br/>RabbitMQ publisher"]
-        kafka["adapter:kafka<br/>Order analytics event publisher & consumer"]
-        camel["adapter:camel<br/>Order notification routing (EIPs)"]
-        mail["adapter:mail<br/>SMTP + PDF/Freemarker"]
-        aws["adapter:aws<br/>S3 / SQS / Secrets Manager"]
-        common["adapter:common<br/>Resilience4j, shared utils"]
-    end
-
-    app["application:ecommerce<br/>Spring Boot entry point, wiring"]
-
-    web --> domain
-    security --> domain
-    persistence --> domain
-    amqp --> domain
-    kafka --> domain
-    camel --> domain
-    mail --> domain
-    aws --> domain
-    common -.-> amqp
-    common -.-> mail
-
-    app --> web
-    app --> security
-    app --> persistence
-    app --> amqp
-    app --> kafka
-    app --> camel
-    app --> mail
-    app --> aws
-
-    style domain fill:#1168bd,stroke:#0b4884,color:#fff
+flowchart TB
+    Boot["application:ecommerce - composition"]
+    Web["adapter:web - HTTP entry points"]
+    Workflows["application:orchestration - business workflows"]
+    Adapters["Persistence, messaging, security and other adapters"]
+    Domain["domain - business model and ports"]
+    Foundation["foundation - validation, markers and exceptions"]
+    Boot --> Web
+    Boot --> Workflows
+    Boot --> Adapters
+    Web --> Workflows
+    Web --> Domain
+    Workflows --> Domain
+    Adapters --> Domain
+    Domain --> Foundation
 ```
+
+| Module | Responsibility |
+|---|---|
+| `foundation` | Framework-neutral shared types used by domain and adapters |
+| `domain` | Aggregates, domain use cases and incoming/outgoing ports |
+| `application:orchestration` | Order placement and cancellation, returns and shipment workflows with transaction boundaries |
+| `adapter:web` | HTTP mapping, operator identity, rate limiting and representations |
+| Technical adapters | Port implementations, persistence and infrastructure integration |
+| `application:ecommerce` | Spring Boot composition and runtime configuration |
+
+The persistence adapter also owns durable saga, dispatch and reconciliation workers alongside
+their repositories and claims. See [placement](#order-placement-saga) and the
+[recovery runbooks](operations.md#recovery-runbooks) for their transaction and retry boundaries.
+
+The architecture tests enforce adapter independence across module roots. Shared `adapter:common`
+utilities remain available to every adapter. Web controllers may use the security adapter's
+`CurrentOperatorProvider` for operator audit identity. The rule limits this exception to that class.
+See [ADR 0001](adr/0001-hexagonal-architecture.md) for the original decision.
 
 ## Order placement saga
 

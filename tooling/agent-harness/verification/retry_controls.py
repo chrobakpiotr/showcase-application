@@ -106,7 +106,7 @@ _REGISTERED_GRADLE_BUILD_INPUT_SHA256 = {
     'modules/application/orchestration/orchestration.gradle':
         '702b65452be7645de5258230416a07014b6e58bba1a37fee107d8bfb08eec3f3',
     'modules/domain/domain.gradle':
-        'c4ca4ef302255eb9f96f7096ce3bfd08c69abadbe0121e9c4760d3c47cd680d3',
+        '7741b1839110415a282c0388e9c7f6bd45eca94f74956c4e665c8f91d31379d1',
     'modules/foundation/foundation.gradle':
         'dc90c0746b5470280d010340ebd99fe28c05dcda43283972c3b4b6e82c215d87',
     'tooling/quality/checkstyle/checkstyle.gradle':

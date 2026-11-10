@@ -43,3 +43,16 @@ or `chaos` for the corresponding optional service. Follow the
 
 See [Deployment](deployment.md) for image and environment details and [Testing and CI](testing.md)
 for verification commands.
+
+## AMQP consumer boundary
+
+`service.rabbitmq.enabled` enables RabbitMQ publishing and the original topology. The application
+listener additionally requires `service.rabbitmq.consumer.enabled=true`; its default is `false`.
+Standard local, Docker and Kubernetes profiles inherit that default. Placement can publish to the
+broker while the queue waits for a qualified consumer. Broker acceptance and fulfillment receipt
+remain separate milestones.
+
+The default-off switch implements the scheduling boundary recorded for S30-06. S30-06 remains
+[deferred with its design gate open](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md).
+Enabling a consumer in a target requires its accepted qualification and rollout decision. Isolated
+context tests may explicitly enable the bean with a synthetic connection and stopped lifecycle.
