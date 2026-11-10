@@ -2,19 +2,19 @@
 
 Optional AI capabilities, runtime setup and reproducible walkthroughs.
 
-[Technical README](../README.md) | [Documentation map](README.md) | [Demo guide](demo-guide.md)
+[Local development](development.md) | [Documentation map](README.md) | [Demo guide](demo-guide.md)
 
 - [AI-assisted order-remarks triage (Ollama)](#ai-assisted-order-remarks-triage-ollama)
 - [AI language detection for order confirmations (Ollama)](#ai-language-detection-for-order-confirmations-ollama)
 - [AI-assisted duplicate-order detection (Ollama)](#ai-assisted-duplicate-order-detection-ollama)
-- [AI customer-support assistant (RAG + tool-calling, Ollama)](#ai-customer-support-assistant-rag--tool-calling-ollama)
+- [AI customer-support assistant (RAG, Ollama)](#ai-customer-support-assistant-rag-ollama)
 - [AI ops-analytics assistant (tool-calling, Ollama)](#ai-ops-analytics-assistant-tool-calling-ollama)
 - [AI personalized product recommendations (Ollama)](#ai-personalized-product-recommendations-ollama)
 - [AI ops digest (scheduled, Ollama)](#ai-ops-digest-scheduled-ollama)
 
 ## AI-assisted order-remarks triage (Ollama)
 
-A seventh, best-effort saga step (see [ADR 0019](adr/0019-ai-assisted-order-remarks-triage.md)) uses a
+A best-effort placement step (see [ADR 0019](adr/0019-ai-assisted-order-remarks-triage.md)) uses a
 locally-hosted LLM via [Spring AI](https://spring.io/projects/spring-ai) and [Ollama](https://ollama.com/) to
 classify each order's free-text `remarks` into `STANDARD`, `URGENT`, `COMPLAINT` or `SUSPICIOUS`. It runs
 fully locally - no API key, no external SaaS call - and is opt-in, off by default, exactly like the AWS
@@ -83,18 +83,18 @@ automatically acts on the order.
 # saga.order-placement.duplicate-order-detections{duplicate="true"} counter in Prometheus/Grafana.
 ```
 
-## AI customer-support assistant (RAG + tool-calling, Ollama)
+<a id="ai-customer-support-assistant-rag--tool-calling-ollama"></a>
 
-A second, differently-shaped AI feature (see
-[ADR 0020](adr/0020-ai-support-assistant-rag-tool-calling.md)): a customer-facing chat widget, backed
-by Retrieval-Augmented Generation over a small bundled knowledge base
-(`modules/adapters/ai/src/main/resources/support-knowledge-base/*.md` - order lifecycle, cancellation, shipping,
-returns) plus a tool-calling lookup against real order data. Unlike the remarks-triage saga step above, this
-is a synchronous, user-facing endpoint, not a background best-effort step - it lives in its own bounded
-context (`assistant`) entirely outside the order-placement saga. It runs fully locally via the same Ollama
-container (no API key, no external SaaS call), is opt-in/off by default, and gracefully degrades: if the
-model is unreachable, the endpoint still returns `200` with `assistantAvailable: false` rather than an error,
-and the chat widget shows an "assistant unavailable" hint.
+## AI customer-support assistant (RAG, Ollama)
+
+The support chat uses retrieval-augmented generation over the
+[bundled knowledge base](../modules/adapters/ai/src/main/resources/support-knowledge-base/).
+It answers policy questions about order lifecycle, cancellation, shipping and returns. The public
+endpoint is stateless and has access only to the bundled policy material. See
+[ADR 0044](adr/0044-explicit-api-access-boundary.md) for the current boundary.
+
+The opt-in assistant runs locally through Ollama. If the model is unreachable, it returns HTTP 200
+with `assistantAvailable: false`, and the widget shows an unavailable hint.
 
 ```bash
 # 1. Start the existing infra stack (Postgres + RabbitMQ + Keycloak)
@@ -108,7 +108,7 @@ docker compose --profile ai up -d ollama
 SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 
 # 4. Open http://localhost:9080/home/order, log in, and click "Ask support" (bottom-right) - try
-#    "Can I still cancel my order?" or "What's the status of order <id>?"
+#    "When can an order be cancelled?" or "How do I request a return?"
 ```
 
 ## AI ops-analytics assistant (tool-calling, Ollama)
@@ -124,7 +124,7 @@ than a new one, runs fully locally via the same Ollama container, is opt-in/off 
 `service.ai.enabled` flag, and gracefully degrades exactly like the support assistant (`200` with
 `assistantAvailable: false` rather than an error). The endpoint requires the `ORDER_READ` role (same as the
 existing `/api/order/analytics/recent` read model) - log in as `order-admin` or `order-viewer` (see
-[Authentication & authorization](../README.md#authentication--authorization)) to see the nav link.
+[Authentication and authorization](api.md#authentication-and-authorization)) to see the nav link.
 
 ```bash
 # 1. Start the existing infra stack (Postgres + RabbitMQ + Keycloak)
@@ -143,19 +143,17 @@ SPRING_PROFILES_ACTIVE=local,ai-ollama ./gradlew bootRun
 
 ## AI personalized product recommendations (Ollama)
 
-A seventh AI feature (see [ADR 0036](adr/0036-ai-personalized-product-recommendations.md)) that adds a
-customer-facing discovery surface instead of another operator or back-office workflow. A shopper enters an e-mail
-address on the `/recommendations` page and the backend combines that customer's recent order history, correlated
-review history and a shortlist of active catalog products, then asks the existing Ollama chat model to choose 3-5
-structured recommendations (`sku`, `productName`, `reason`). Unlike the support assistant, this is **not** RAG or
-tool-calling: the prompt is grounded directly by small in-process business data. It reuses the same `service.ai.enabled`
-flag and `llama3.2:1b` model, and degrades gracefully with `assistantAvailable: false` plus an empty list if AI is
-disabled or unreachable.
+An operator with `ORDER_READ` enters a customer email on the `/recommendations` page.
+The backend combines the customer's recent orders, correlated review history and active catalog
+products. Ollama returns structured recommendations with `sku`, `productName` and `reason`.
+When AI is disabled or unreachable, the endpoint returns `assistantAvailable: false` and an
+empty list. See [ADR 0036](adr/0036-ai-personalized-product-recommendations.md) for the original
+design and [ADR 0044](adr/0044-explicit-api-access-boundary.md) for the access rules.
 
 ```bash
 # Same 3-step setup as the other Ollama-backed features above (Postgres/RabbitMQ/Keycloak, Ollama, ai-ollama
-# profile), then open http://localhost:9080/home/recommendations and enter a customer e-mail used in prior demo
-# orders.
+# profile), then sign in with ORDER_READ and open http://localhost:9080/home/recommendations.
+# Enter a customer email used in prior demo orders.
 ```
 
 ## AI ops digest (scheduled, Ollama)

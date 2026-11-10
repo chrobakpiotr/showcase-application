@@ -23,9 +23,9 @@ It applies repository-wide; use the [documentation map](docs/README.md) for task
 - `modules/adapters/security/` - security boundary.
 - `modules/adapters/ai/` - AI integrations behind ports.
 - `modules/adapters/aws/`, `modules/adapters/camel/`, `modules/adapters/mail/` - infrastructure adapters.
-- `tooling/` - development, quality and Agentic SDD tooling; start at [Tooling](tooling/README.md).
-- `infra/` - Docker, Kubernetes/Helm and Terraform runtime/deployment configuration; start at [Infrastructure](infra/README.md).
-- `contracts/` - machine-readable integration contracts; start at [Contracts](contracts/README.md).
+- `tooling/` - development, quality and Agentic SDD tooling; start at [Tooling](docs/tooling.md).
+- `infra/` - Docker, Kubernetes/Helm and Terraform runtime/deployment configuration; start at [Infrastructure](docs/deployment.md).
+- `contracts/` - machine-readable integration contracts; start at [Contracts](docs/contracts.md).
 - `docs/adr/` - architecture decision log.
 
 ## Repository graph

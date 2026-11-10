@@ -1,7 +1,7 @@
 # Terraform - AWS LocalStack provisioning
 
-This directory contains Terraform configuration for the three AWS resources used by the
-`aws-localstack` Spring profile: an S3 bucket, an SQS queue, and a Secrets Manager secret.
+The [Terraform configuration](../../infra/terraform/) provisions the S3 bucket, SQS queue
+and Secrets Manager secret used by the `aws-localstack` Spring profile.
 All resources are provisioned against a running [LocalStack](https://localstack.cloud/) instance.
 
 ## What is provisioned
@@ -36,7 +36,7 @@ docker compose --profile aws up terraform
 
 ## Option B: manually on the host
 
-If you prefer to run Terraform directly (requires `terraform` CLI ≥ 1.5):
+If you prefer to run Terraform directly (requires `terraform` CLI 1.5 or later):
 
 ```bash
 # Start LocalStack first
@@ -64,11 +64,17 @@ docker exec ecommerce-localstack awslocal secretsmanager list-secrets
 ## Running the Spring Boot app with the aws-localstack profile
 
 ```bash
-SPRING_PROFILES_ACTIVE=local,aws-localstack ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local,aws-localstack ./gradlew :application:ecommerce:bootRun
 ```
 
-This combines the existing Postgres+RabbitMQ local profile with the new AWS profile.
-Make sure Postgres and RabbitMQ are running (e.g. `docker compose --profile app up -d postgres rabbitmq`).
+Start the [standard local dependencies](../development.md#run-the-app-from-an-ide-with-infrastructure-in-docker)
+before running this profile. After placing a demo order, inspect the S3 export and SQS audit event.
+
+```bash
+docker exec ecommerce-localstack awslocal s3 cp s3://ecommerce-order-exports/orders/<orderNumber>.json -
+docker exec ecommerce-localstack awslocal sqs receive-message \
+  --queue-url http://localhost:4566/000000000000/ecommerce-order-audit
+```
 
 ## Git-ignored files
 

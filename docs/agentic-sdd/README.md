@@ -1,6 +1,6 @@
 # Agentic Spec-Driven Development in Showcase Application
 
-> **Verification-v2 status:** M5.3 is master-frozen after 16 Design Authority runs; the canonical M5.3 Design Gate did **not** pass. Implementation follows explicit master closure decisions and must not be described as a Design Gate pass. Operator references are the root README, accepted feature specs and plans, `python3 tooling/agent-harness/harness.py --help`, and the declarative verification profile. Authoritative execution requires a current `.agent-state` accepted plan and a backend that passes qualification; absent either, the harness fails closed.
+> **Verification-v2 status:** M5.3 is master-frozen after 16 Design Authority runs; the canonical M5.3 Design Gate did **not** pass. Implementation follows explicit master closure decisions and must not be described as a Design Gate pass. Operator references are the [verification handbook](handbook.md), accepted feature specs and plans, `python3 tooling/agent-harness/harness.py --help`, and the declarative verification profile. Authoritative execution requires a current `.agent-state` accepted plan and a backend that passes qualification; absent either, the harness fails closed.
 
 For the current verifier CLI syntax and implementation limits, see [Current verification operator reference](verification-operator-reference.md). It supplements this overview and accepted specs; it does not replace or revise the SDD-OBS-001 plan, its history, or the historical M5.3 gate result.
 

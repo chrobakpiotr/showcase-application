@@ -44,7 +44,7 @@ showcase, and make that explicit rather than leaving it to be mistaken for an ov
   `preferred_username` claim, resolved via a small new `CurrentOperatorProvider` in `adapter:security`) is
   logged on both sensitive mutating actions, `placeOrder` and `cancelOrder`. Every operator can still
   act on every order, but *who* acted on *which* order is always reconstructable after the fact from
-  the structured logs already shipped to Loki (see [Observability](../../README.md#observability)).
+  the structured logs already shipped to Loki (see [Observability](../operations.md#observability)).
 - This decision is explicitly scoped to the current deployment shape (a small, trusted set of staff
   accounts). It is **not** a general claim that object-level authorization is unnecessary. If this
   system ever grew a genuine direct-to-consumer self-service channel (customer sign-up/login, a "my

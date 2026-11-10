@@ -7,10 +7,10 @@ demonstrate a Helm-based deployment; it is not tuned for a production cluster.
 
 ## What's here
 
-- `helm/ecommerce/` - the Helm chart for the application itself (Deployment, Service, Ingress,
+- [`infra/k8s/helm/ecommerce/`](../../infra/k8s/helm/ecommerce/) - the Helm chart for the application itself (Deployment, Service, Ingress,
   HorizontalPodAutoscaler, PodDisruptionBudget, NetworkPolicy, ServiceAccount, Secret). See
   `values.yaml` for all configurable options.
-- `dev-dependencies.yaml` - minimal, dev-only plain Kubernetes manifests for Postgres, RabbitMQ,
+- [`infra/k8s/dev-dependencies.yaml`](../../infra/k8s/dev-dependencies.yaml) - minimal, dev-only plain Kubernetes manifests for Postgres, RabbitMQ,
   Redis and Keycloak (matching the credentials/images used by the root `docker-compose.yml`), so
   the chart has something to talk to in a throwaway cluster. **Not for production** - no persistent
   volumes, no resource limits, a single replica each, plaintext credentials (Redis has none at
@@ -65,7 +65,7 @@ For anything beyond local experimentation, move `env.dbPassword`/`env.rabbitmqPa
 `values.yaml` into a pre-created Kubernetes Secret and reference it via `extraEnv`, rather than
 plain-text Helm values.
 
-Redis is the distributed order cache backing every replica (see ADR 0010) - required once
+Redis is the distributed order cache backing every replica (see [ADR 0010](../adr/0010-redis-opt-in-distributed-cache.md)) - required once
 `replicaCount > 1` or `autoscaling.enabled` is set, since the default Ehcache provider caches
 locally per pod and would otherwise let different replicas serve stale/inconsistent orders.
 
@@ -77,7 +77,7 @@ escalation, all Linux capabilities dropped, a read-only root filesystem, and the
 profile. The container image already runs as a non-root `app` user (see the root `Dockerfile`). The
 only writes the application performs are the JVM/embedded Tomcat's own scratch space and the Apache
 Camel order-notification file drop (`service.camel.notification-directory`, see
-[Order fan-out and routing](../../README.md#order-fan-out-and-routing-apache-camel)), which
+[Order fan-out and routing](../architecture.md#order-fan-out-and-routing-apache-camel)), which
 both default to subdirectories of `java.io.tmpdir` - so a single `emptyDir` volume mounted at `/tmp`
 covers everything without loosening `readOnlyRootFilesystem`. If `notification-directory` is ever
 overridden to a path outside `/tmp`, mount an additional writable volume for it. The pod's

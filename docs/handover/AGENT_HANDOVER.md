@@ -17,7 +17,7 @@ Updated 2026-11-09. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 - The exact adoption tree passed 991 harness tests on Linux using the released wheel. The disposable verifier rehearsal reconstructed its plan and refused unqualified execution as expected.
 - The owner closed FIRST-RUN-004 and accepted the v0.32.0 migration closeout on 2026-11-08. The live run was not performed because the Linux Codespace had no actively qualified backend. The Linux suite and offline rehearsal are the adoption evidence.
 - The owner activated on the Mac on 2026-11-05: `harness.py doctor` all PASS, in a virtual environment at `~/.venvs/showcase-harness`. Install steps: `docs/specs/release-0.31.0/packet.md` in agent-harness.
-- The agent sandbox can run `doctor` with a prepared interpreter that has the exact Harness pin. The [tooling guide](../../tooling/README.md#local-harness-diagnostics) records the provisioning boundary and command.
+- The agent sandbox can run `doctor` with a prepared interpreter that has the exact Harness pin. The [tooling guide](../tooling.md#local-harness-diagnostics) records the provisioning boundary and command.
 - Earlier FIRST-RUN failures and hosted CI records remain in Git history.
 
 ## Unfinished

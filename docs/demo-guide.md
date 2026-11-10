@@ -1,6 +1,6 @@
 # Demo guide
 
-[Technical setup](../README.md) | [Domain and business rules](domain-guide.md) | [AI scenarios](ai-guide.md)
+[Local development](development.md) | [Domain and business rules](domain-guide.md) | [AI scenarios](ai-guide.md)
 
 This repository is meant to be explorable, not just compilable. The local IDE profiles and the `docker` Spring profile explicitly enable a dedicated Liquibase `demo` context, which loads
 deterministic catalog, stock and coupon data on a fresh database. Kubernetes does **not** enable `demo` by default, so a

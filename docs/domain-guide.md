@@ -2,9 +2,10 @@
 
 Business behavior, bounded contexts and operator workflows.
 
-[Technical README](../README.md) | [Documentation map](README.md) | [Demo guide](demo-guide.md)
+[Local development](development.md) | [Documentation map](README.md) | [Demo guide](demo-guide.md)
 
 - [Demo / one entry point](#demo--one-entry-point)
+- [Order placement and recovery](#order-placement-and-recovery)
 - [Product Catalog](#product-catalog)
 - [Inventory](#inventory)
 - [Shopping Cart](#shopping-cart)
@@ -19,20 +20,20 @@ Business behavior, bounded contexts and operator workflows.
 
 ## Demo / one entry point
 
-Once the app is up (see [Starting the application](../README.md#starting-the-application)), open
+Once the app is up (see [Starting the application](development.md#starting-the-application)), open
 `http://localhost:9080/home` and log in with one of the two demo Keycloak users (`order-admin` /
 `order-viewer`, password `password`) - you'll land on the **Dashboard**, a single page linking to every
 feature area in this showcase:
 
 - **Order History** and **Place an order** - the order-placement saga, cancellation, HATEOAS-driven
-  order/payment detail view (see [Order placement saga](../README.md#order-placement-saga) and
+  order/payment detail view (see [Order placement saga](architecture.md#order-placement-saga) and
   [Payment](#payment))
 - **Shopping Cart** - anonymous, session-based cart backed by live catalog stock (see
   [Shopping Cart](#shopping-cart))
 - **Wishlist** - anonymous, session-based wishlist with move-to-cart flow (see
   [Wishlist](#wishlist))
 - **Personalized Recommendations** - AI-picked products based on customer orders, reviews and the
-  current catalog (see [AI personalized product recommendations](ai-guide.md#ai-personalized-product-recommendations-ollama))
+  current catalog, available to operators with `ORDER_READ` (see [AI personalized product recommendations](ai-guide.md#ai-personalized-product-recommendations-ollama))
 - **Product Catalog** - browse categories/products (see [Product Catalog](#product-catalog))
 - **Inventory** - stock levels, with role-gated receive/adjust actions (see
   [Inventory](#inventory))
@@ -45,15 +46,27 @@ feature area in this showcase:
 - **Notifications** - staff-facing notification log for order and returns customer communications (see
   [Notifications](#notifications))
 - **Support assistant** and **Analytics assistant** - the two Ollama-backed AI chat widgets (see
-  [AI customer-support assistant](ai-guide.md#ai-customer-support-assistant-rag--tool-calling-ollama) and
+  [AI customer-support assistant](ai-guide.md#ai-customer-support-assistant-rag-ollama) and
   [AI ops-analytics assistant](ai-guide.md#ai-ops-analytics-assistant-tool-calling-ollama))
 
 Cards for write-gated areas (Order History, Inventory's write actions, Reviews' moderation panel) only
 render their write affordances when the logged-in user actually holds the corresponding role - log in as
 `order-viewer` to see the read-only experience, or `order-admin` for full access. This mirrors the
 role-based operator model described in
-[Authentication & authorization](../README.md#authentication--authorization): there is no per-customer "my account",
+[Authentication and authorization](api.md#authentication-and-authorization): there is no per-customer "my account",
 just staff-facing tooling that happens to also expose a customer-facing storefront (Cart/Catalog/Reviews/Wishlist).
+
+## Order placement and recovery
+
+Operators use the Angular order form to submit customer, payment and item details. The form
+validates inputs, shows submission status and supports [safe replay](demo-guide.md#retrying-an-order-safely)
+after an uncertain outcome. A successful submission gives the operator an order number and
+a link to Order History.
+
+Order History exposes cancellation while the order is eligible. The backend checks the current
+state when the operator submits a cancellation and returns HTTP 409 if it has changed.
+The [placement saga](architecture.md#order-placement-saga) coordinates payment and fulfillment.
+The [recovery timeline](api.md#order-recovery-timeline) shows durable progress after placement.
 
 ## Product Catalog
 
@@ -71,7 +84,7 @@ Angular frontend.
   rather than reusing the `order` module's structurally similar types - each bounded context owns its own
   contracts rather than being coupled through a shared "common paging" abstraction.
 - `GET /api/catalog/products` supports `category`/`activeOnly` filters and pagination (same `PagedModel`
-  HATEOAS shape as `GET /api/order` - see [API response design](../README.md#api-response-design-hateoas--pagination));
+  HATEOAS shape as `GET /api/order` - see [API response design](api.md#api-response-design-hateoas--pagination));
   `GET /api/catalog/categories` lists all categories; `POST`/`PUT` manage products and categories.
 - **Authorization** reuses the existing operator model rather than inventing a new one: `CATALOG_READ`/
   `CATALOG_WRITE` mirror `ORDER_READ`/`ORDER_WRITE` exactly (see [ADR 0017](adr/0017-order-api-operator-authorization-model.md)).
@@ -223,7 +236,7 @@ order and actually paying for it.
   reservation](#order-line-items-and-stock-reservation)), charging a payment gateway is exactly the kind of
   external-system call the saga pattern exists to protect the placement request from. `placeOrder` returns
   immediately after reserving stock and saving the order; `ensurePaymentCaptured` runs on the next saga poll,
-  ahead of fulfillment notification (see [Order placement saga](../README.md#order-placement-saga)).
+  ahead of fulfillment notification (see [Order placement saga](architecture.md#order-placement-saga)).
 - **Self-idempotent capture and refund** - `ManagePaymentInPort.capturePayment` no-ops if already captured, so
   the saga needs no attempts-counter for it (unlike `notifyFulfillment`); a decline is a deterministic
   business outcome, never retried, and compensates the order immediately. `refundPayment` no-ops if payment

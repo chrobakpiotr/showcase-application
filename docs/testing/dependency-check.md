@@ -1,6 +1,6 @@
 # OWASP Dependency-Check accepted risks
 
-`accepted-risks.xml` contains temporary, explicitly scoped vulnerability
+[`accepted-risks.xml`](../../tooling/quality/dependencycheck/accepted-risks.xml) contains temporary, explicitly scoped vulnerability
 exceptions. Every suppression must identify an owner, a review/expiry date that
 matches its `until` date, a package URL, and a vulnerability. Regex package URLs
 must be anchored and identify one exact package version.

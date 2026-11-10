@@ -128,7 +128,7 @@
       "context_refs": [
         "apps/ecommerce/frontend/",
         "modules/adapters/web/",
-        "docs/architecture/README.md"
+        "docs/architecture.md"
       ]
     },
     {
@@ -184,7 +184,7 @@
       ],
       "leverage": 8,
       "context_refs": [
-        "docs/architecture/README.md",
+        "docs/architecture.md",
         "docker-compose.yml",
         "apps/ecommerce/backend/"
       ]

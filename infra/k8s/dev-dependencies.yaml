@@ -136,7 +136,7 @@ spec:
               mountPath: /opt/keycloak/data/import
       volumes:
         - name: realm-export
-          # Created separately from the existing realm export file, see infra/k8s/README.md:
+          # Created separately from the existing realm export file, see docs/deployment/kubernetes.md:
           #   kubectl create configmap ecommerce-keycloak-realm \
           #     --from-file=realm-export.json=infra/docker/keycloak/realm-export.json
           configMap:

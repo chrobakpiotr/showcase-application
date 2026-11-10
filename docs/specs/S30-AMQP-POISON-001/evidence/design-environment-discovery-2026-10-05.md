@@ -6,7 +6,7 @@ envelope from its current deployment artifacts.
 
 ## Restore and backup ownership
 
-- [The Kubernetes guide](../../../../infra/k8s/README.md) describes the local
+- [The Kubernetes guide](https://github.com/chrobakpiotr/showcase-application/blob/a8f8caf9c52a38a0da03f42330919977da753455/infra/k8s/README.md) describes the local
   dependency manifests as dev-only, single-replica, without persistent volumes
   or backup tooling. The corresponding
   [dev manifest](../../../../infra/k8s/dev-dependencies.yaml) has plain
@@ -17,7 +17,7 @@ envelope from its current deployment artifacts.
   [Redis](../../../../infra/docker/redis/docker-compose.yml) Compose files do
   not provide a deployment-owned, out-of-backup restore inhibit or a
   backup/PITR lifecycle.
-- [Terraform documentation](../../../../infra/terraform/README.md) provisions
+- [Terraform documentation](https://github.com/chrobakpiotr/showcase-application/blob/a8f8caf9c52a38a0da03f42330919977da753455/infra/terraform/README.md) provisions
   LocalStack S3, SQS, and Secrets Manager fixtures; it does not own database or
   Redis restore workflows.
 - The checked-in [GitHub CI workflow](../../../../.github/workflows/ci.yml) is

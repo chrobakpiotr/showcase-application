@@ -24,7 +24,7 @@
       ],
       "leverage": 10,
       "context_refs": [
-        "docs/architecture/README.md",
+        "docs/architecture.md",
         "docs/adr/"
       ]
     }
