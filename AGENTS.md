@@ -165,3 +165,5 @@ After every commit that changes this project's code, update `docs/handover/AGENT
 - Commit identity (owner update, 2026-11-02): every agent may commit under its own identity.
   Do not impersonate another agent or provider. Use commit signing when available; lack of signing capability
   does not block an otherwise authorized commit or push.
+
+- Add `[skip ci]` to commit messages only when the changes cannot affect code behavior, tests, builds, GitHub Actions workflows, or deployment, and do not need CI triggered by a push or pull request. If the impact is uncertain or CI validation is needed on either event, omit the marker.
