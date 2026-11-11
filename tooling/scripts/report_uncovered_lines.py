@@ -2,7 +2,8 @@
 """Print classes and lines with missed instructions from JaCoCo XML reports.
 
 CI uploads the HTML coverage reports as artifacts, but they are not always reachable. When the 100% instruction
-coverage rule fails, this script puts the missed lines into the job log instead.
+coverage rule fails, this script puts the missed lines into the job log instead. It does not apply the exclusions in
+tooling/quality/jacoco/jacoco.gradle, so excluded configuration classes also appear.
 Usage: report_uncovered_lines.py [root]   (default: current directory)
 """
 

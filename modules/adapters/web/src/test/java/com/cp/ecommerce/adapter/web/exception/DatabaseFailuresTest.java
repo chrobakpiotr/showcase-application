@@ -21,7 +21,9 @@ class DatabaseFailuresTest {
 
         assertThat(DatabaseFailures.sqlException(new RuntimeException("outer", sqlException))).containsSame(sqlException);
         assertThat(DatabaseFailures.sqlException(suppressing)).containsSame(sqlException);
-        assertThat(DatabaseFailures.sqlException(new RuntimeException("no database"))).isEmpty();
+        final RuntimeException otherSuppressed = new RuntimeException("no database");
+        otherSuppressed.addSuppressed(new IllegalStateException("cleanup failed"));
+        assertThat(DatabaseFailures.sqlException(otherSuppressed)).isEmpty();
     }
 
     @Test
