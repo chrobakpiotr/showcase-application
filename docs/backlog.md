@@ -4,7 +4,6 @@ Open work for this repository, newest first. Remove an item when it is done; Git
 
 The [roadmap](improvement-roadmap.md) summarizes completed execution, qualification and external dependencies.
 
-- Confirm the next hosted CI and Agentic SDD runs after the [CI repair](specs/ORDER-CUSTOMER-EMAIL-001/evidence/ci-repair-2026-11-11.md): frontend formatting with Prettier 3.8.1, `RepeatCustomerOrderPostgresIntegrationTest` and the Playwright job.
 - Align the frontend `prettier` devDependency (3.9.6 in `package-lock.json`) with the Spotless pin (3.8.1). Bump both together and reformat in one commit; this needs `npm` and Gradle.
 - Decide whether to lower `retention-days` in `agentic-sdd.yml` to 7. GitHub caps it anyway, but the file is part of the protocol fingerprint.
 

@@ -1,6 +1,6 @@
 # ORDER-CUSTOMER-EMAIL-001 - repeat customer orders
 
-Status: IMPLEMENTED - real-stack k6 smoke PASS; hosted CI verification pending
+Status: IMPLEMENTED - real-stack k6 smoke PASS; hosted CI PASS at 84066c0
 
 The owner requested the root-cause fix on 2026-11-11 after the first real-stack k6 smoke failed.
 

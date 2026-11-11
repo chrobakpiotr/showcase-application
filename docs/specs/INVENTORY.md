@@ -25,7 +25,7 @@
 | `OPERATOR-CAP-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `OPS-LIST-PAGING-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-APP-001` | UNDECLARED | yes | yes | yes | executable | selected |
-| `ORDER-CUSTOMER-EMAIL-001` | IMPLEMENTED - real-stack k6 smoke PASS; hosted CI verification pending | yes | yes | no | document-only | not selected |
+| `ORDER-CUSTOMER-EMAIL-001` | IMPLEMENTED - real-stack k6 smoke PASS; hosted CI PASS at 84066c0 | yes | yes | no | document-only | not selected |
 | `ORDER-PRICING-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-READ-BATCH-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-SAGA-001` | UNDECLARED | yes | yes | yes | executable | selected |
