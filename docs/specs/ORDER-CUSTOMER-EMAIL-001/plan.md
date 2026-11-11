@@ -4,7 +4,9 @@ The specification in [spec.md](spec.md) owns acceptance.
 
 1. Add `db.changelog-customer-email-not-unique.xml`, included last in the master changelog. On PostgreSQL it runs
    `ALTER TABLE ... DROP CONSTRAINT IF EXISTS customer_email_key`. The rollback re-adds the constraint.
-2. Add `RepeatCustomerOrderPostgresIntegrationTest` with sequential, concurrent and schema checks for AC-001 to AC-003,
+2. Add `AbstractRepeatCustomerOrderIntegrationTest` with sequential and concurrent cases, run by
+   `RepeatCustomerOrderPostgresIntegrationTest` (plus the schema check) and `RepeatCustomerOrderH2IntegrationTest`.
+   The PostgreSQL class covers AC-001 to AC-003
    and register its three cases in the critical PostgreSQL manifest so the CI gate requires them.
 3. Run the k6 smoke again on a fresh Docker Compose stack after hosted CI passes.
 

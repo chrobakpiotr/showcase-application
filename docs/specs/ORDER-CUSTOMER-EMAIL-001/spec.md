@@ -23,7 +23,9 @@ The UI form and the integration fixtures had avoided the defect by generating a 
 
 ## Boundaries
 
-- PostgreSQL only. H2 names the inline constraint unpredictably, so the changeset is limited to PostgreSQL. H2 is
-  used only by tests, whose fixtures use unique emails. Do not use H2 tests as evidence for repeat-customer behaviour.
+- PostgreSQL drops `customer_email_key` by name. H2 generated the inline constraint name, so its changeset looks the
+  name up in `INFORMATION_SCHEMA` and runs the drop with `EXECUTE IMMEDIATE`, with a no-op fallback when it is absent.
+  Both were checked locally: PostgreSQL 16 and H2 2.4.240 built from source. `RepeatCustomerOrderH2IntegrationTest`
+  runs the sequential and concurrent cases on H2 through the shared abstract test.
 - Rollback restores the constraint only while no email repeats. Once repeat-customer rows exist, use a forward fix.
 - Mapping other database integrity violations to 409 is out of scope; it would define a new API response contract.

@@ -4,9 +4,6 @@ Open work for this repository, newest first. Remove an item when it is done; Git
 
 The [roadmap](improvement-roadmap.md) summarizes completed execution, qualification and external dependencies.
 
-- Align the frontend `prettier` devDependency (3.9.6 in `package-lock.json`) with the Spotless pin (3.8.1). Bump both together and reformat in one commit; this needs `npm` and Gradle.
-- Decide whether to lower `retention-days` in `agentic-sdd.yml` to 7. GitHub caps it anyway, but the file is part of the protocol fingerprint.
-
 - S30-06 remains deferred with an open design gate and no qualification. Re-entry requires the concrete target/control mechanism or owner-approved scope revision recorded in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md). The application consumer defaults off independently of publishing.
 - S05-07 requires the external handbook owner to apply and verify the [prepared delta](reviews/external-handbook-delta-2026-10-06.md). External completion has not been verified.
 - A future required-sandbox live run needs active qualification for its exact checkout and policy, together with a tested provider profile. The v0.32.0 migration closeout is recorded in [Handover](handover/AGENT_HANDOVER.md).
