@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+    <!-- ORDER-CUSTOMER-EMAIL-001: every order owns its CUSTOMER row (OrderEntity#customer, CascadeType.ALL), so a repeat customer needs several rows with one EMAIL. The baseline UNIQUE constraint failed the second order with HTTP 500. IDX_CUSTOMER_EMAIL (changeset 19) keeps the lookup indexed. PostgreSQL only: H2 names the inline constraint unpredictably. -->
+    <changeSet id="order-customer-email-001-drop-unique" author="cp" dbms="postgresql">
+
+        <sql stripComments="true" splitStatements="true">
+            ALTER TABLE ${schema_name}CUSTOMER DROP CONSTRAINT IF EXISTS customer_email_key;
+        </sql>
+
+        <!-- Restoring uniqueness fails while repeat-customer rows exist; forward-fix instead of rolling back. -->
+        <rollback>
+            <sql stripComments="true" splitStatements="true">
+                ALTER TABLE ${schema_name}CUSTOMER ADD CONSTRAINT customer_email_key UNIQUE (EMAIL);
+            </sql>
+        </rollback>
+
+    </changeSet>
+
+</databaseChangeLog>

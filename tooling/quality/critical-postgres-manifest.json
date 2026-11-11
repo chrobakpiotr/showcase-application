@@ -511,6 +511,24 @@
       "scenario": "redrive serializes with scheduler claims and fences stale finalization",
       "suite": "com.cp.ecommerce.adapter.persistence.order.dispatch.DispatchRedrivePostgresIntegrationTest",
       "testMethod": "schedulerClaimMustSerializeWithRedriveAndStaleOwnerMustNotFinalize"
+    },
+    {
+      "ac": "AC-ORDER-CUSTOMER-EMAIL-01",
+      "scenario": "a repeat customer places sequential orders with the same email",
+      "suite": "com.cp.ecommerce.application.RepeatCustomerOrderPostgresIntegrationTest",
+      "testMethod": "shouldPlaceSequentialOrdersForTheSameCustomerEmail"
+    },
+    {
+      "ac": "AC-ORDER-CUSTOMER-EMAIL-02",
+      "scenario": "concurrent orders with the same customer email both succeed",
+      "suite": "com.cp.ecommerce.application.RepeatCustomerOrderPostgresIntegrationTest",
+      "testMethod": "shouldPlaceConcurrentOrdersForTheSameCustomerEmail"
+    },
+    {
+      "ac": "AC-ORDER-CUSTOMER-EMAIL-03",
+      "scenario": "customer email keeps its lookup index without a unique constraint",
+      "suite": "com.cp.ecommerce.application.RepeatCustomerOrderPostgresIntegrationTest",
+      "testMethod": "shouldKeepTheEmailLookupIndexWithoutUniqueness"
     }
   ]
 }

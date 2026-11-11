@@ -53,5 +53,6 @@
     <include file="changelogs/db.changelog-order-placement-dispatch.xml" relativeToChangelogFile="true" />
 
     <include file="changelogs/db.changelog-order-placement-dispatch-redrive.xml" relativeToChangelogFile="true" />
+    <include file="changelogs/db.changelog-customer-email-not-unique.xml" relativeToChangelogFile="true" />
 
 </databaseChangeLog>

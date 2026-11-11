@@ -8,6 +8,7 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 - The CI build excluded the frontend Spotless tasks, so green CI never checked frontend formatting. The six files from the local verification record are now formatted, and the CI backend job and `verify-before-push.sh` run `:adapter:ecommerce-frontend:spotlessStylingCheck` explicitly. The formatting was produced with Prettier 3.8.1 (single quotes, `es5` trailing commas) because Gradle could not run in that workspace; the changes are only quotes, trailing commas and one line wrap.
 
 - SHOWCASE-FOLLOWUP-001 implements the four architecture follow-ups. Adapter rules cover all technical adapter roots and the exact web operator-identity exception. k6 uses an operator token, complete order requests, bounded stock and global abort on contract failure. The AMQP consumer defaults off independently of publishing. Architecture and roadmap now include current modules and separate execution from qualification.
+- ORDER-CUSTOMER-EMAIL-001: the first real k6 smoke returned HTTP 500 for a second order with the same customer email. Every order owns its CUSTOMER row, but the baseline made `CUSTOMER.EMAIL` unique. A PostgreSQL-only changeset drops `customer_email_key` and keeps `IDX_CUSTOMER_EMAIL`. `RepeatCustomerOrderPostgresIntegrationTest` covers sequential, concurrent and schema cases and is registered in the critical PostgreSQL manifest. Java was not compiled locally; hosted CI is its first build. See the [specification](../specs/ORDER-CUSTOMER-EMAIL-001/spec.md).
 - Focused module gates passed with JDK 25 and Gradle 9.7.1. k6 v2.3.0 passed against synthetic HTTP transport only. See [verification](../specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md).
 
 - DEMO-004 lets an operator with `ORDER_WRITE` continue from a confirmed cart to
@@ -28,13 +29,14 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## Unfinished
 
+- ORDER-CUSTOMER-EMAIL-001 has not run in hosted CI yet. If Spotless or the new test fails, fix it before anything else. H2 keeps the unique constraint by design; see the specification.
 - The new frontend formatting gate has not run in hosted CI yet. If it fails, the Spotless report names the files; apply its output rather than local Prettier.
 - The real-stack k6 smoke has not run. It needs an operator token from a browser session, so an agent cannot run it alone. See `docs/backlog.md`.
 - `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
 ## Next step
 
-Check the backend job's `Verify frontend formatting` step on the next CI run. Then run the k6 smoke on a disposable Docker Compose stack with `ITERATIONS=20` and `VUS=2` and record p95. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
+Check the next CI run: `Verify frontend formatting`, `Verify Java formatting` and the critical PostgreSQL gate with `RepeatCustomerOrderPostgresIntegrationTest`. Then rerun the k6 smoke on a disposable Docker Compose stack with `ITERATIONS=20` and `VUS=2` and record p95. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
 
 ## Do not touch
 
