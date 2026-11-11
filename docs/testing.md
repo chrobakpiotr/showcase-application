@@ -18,7 +18,8 @@ Run backend tests with `./gradlew test` and the full build with `./gradlew build
 Use `./gradlew spotlessApply` to apply formatting. The CI backend job and the pre-push script run
 `spotlessJavaCheck` and `:adapter:ecommerce-frontend:spotlessStylingCheck` as explicit gates, because the
 build command excludes the frontend Spotless tasks. Spotless formats the frontend with Prettier 3.9.6, the version in
-`package-lock.json`, and the options in `apps/ecommerce/frontend/.prettierrc.json`; Prettier 2 cannot read Angular control flow. The [frontend package scripts](../apps/ecommerce/frontend/package.json)
+`package-lock.json`, and the options in `apps/ecommerce/frontend/.prettierrc.json`; Prettier 2 cannot read Angular control flow. Run `npm run format` or `npm run format:check` in
+`apps/ecommerce/frontend` for the same check without Gradle; the frontend CI job runs `format:check` too. The [frontend package scripts](../apps/ecommerce/frontend/package.json)
 define Angular lint, unit and Playwright commands. Use the [disposable E2E stack](testing/e2e-stack.md)
 for browser tests and the [demo guide](demo-guide.md#repeatable-browser-tests) for the seeded scenarios.
 

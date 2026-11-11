@@ -8,6 +8,8 @@
     "test": "ng test --no-watch --coverage",
     "test-watch": "ng test --watch",
     "lint": "ng lint",
+    "format": "prettier --write \"src/**/*.{css,scss,ts,html,js,json}\"",
+    "format:check": "prettier --check \"src/**/*.{css,scss,ts,html,js,json}\"",
     "e2e": "playwright test --config=e2e/playwright.config.ts",
     "e2e:headed": "playwright test --headed --config=e2e/playwright.config.ts"
   },

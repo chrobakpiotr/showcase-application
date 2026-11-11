@@ -1,0 +1,3 @@
+# Same exclusions as the Spotless styling target (tooling/quality/spotless/spotless-prettier.gradle).
+src/generated/
+src/assets/i18n/

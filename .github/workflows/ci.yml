@@ -477,6 +477,10 @@ jobs:
       - name: Lint
         run: npx ng lint
 
+      # Same Prettier version and options as the Spotless styling gate in the backend job.
+      - name: Check formatting
+        run: npm run format:check
+
       - name: Unit tests (Vitest)
         run: npx ng test --no-watch --coverage
 
