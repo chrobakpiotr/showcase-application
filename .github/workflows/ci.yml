@@ -67,6 +67,9 @@ jobs:
       - name: Test verifier unit preflight ordering
         run: python3 -m unittest tooling/scripts/tests/test_verifier_unit_preflight.py -v
 
+      - name: Test coverage gap reporter
+        run: python3 -m unittest tooling/scripts/tests/test_report_uncovered_lines.py -v
+
       - name: Verify committed evidence checksums
         # Files bound by SHA256SUMS lists and JSON evidence manifests must keep their exact bytes; known historical
         # exceptions are listed with reasons in tooling/quality/evidence-checksum-baseline.json (a ratchet).
@@ -214,6 +217,10 @@ jobs:
             **/build/test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Report lines without coverage
+        if: failure()
+        run: python3 tooling/scripts/report_uncovered_lines.py
 
       - name: Publish JaCoCo coverage reports
         if: always()
