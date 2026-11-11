@@ -90,3 +90,5 @@ Falsification coverage: contract mismatch tested; sensitive-data exposure tested
   left for an owner scope decision (backlog).
 - Finding 5: `WishlistConflictException` builds its message from the wishlist id only; no change.
 - Finding 6: call-site tests remain limited to the cancellation scheduler and the new handler; accepted as Low.
+- Hosted CI for `0601455` (run 43114938870) passed, including the new handler test; the run for `9d38c9d` failed
+  only on import order in `PersistenceConfiguration`, fixed in `0601455`.
