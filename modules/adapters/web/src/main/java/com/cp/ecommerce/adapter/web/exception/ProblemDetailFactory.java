@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
 import java.sql.SQLException;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -17,8 +18,6 @@ final class ProblemDetailFactory {
 
     private static final String ERROR_ID_PROPERTY = "errorId";
     private static final String TRACE_ID_PROPERTY = "traceId";
-
-    private static final int MAX_CAUSE_DEPTH = 16;
 
     private final ObjectProvider<Tracer> tracerProvider;
 
@@ -58,12 +57,9 @@ final class ProblemDetailFactory {
     /** Database messages echo rejected values such as customer emails, so only their SQLState is logged. */
     private static String logDetail(final Exception exception) {
 
-        Throwable current = exception;
-        for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
-            if (current instanceof SQLException sqlException) {
-                return "database error, SQLState=" + sqlException.getSQLState() + ", message omitted";
-            }
-            current = current.getCause();
+        final Optional<SQLException> sqlException = DatabaseFailures.sqlException(exception);
+        if (sqlException.isPresent()) {
+            return "database error, SQLState=" + sqlException.get().getSQLState() + ", message omitted";
         }
         return exception.getMessage();
     }

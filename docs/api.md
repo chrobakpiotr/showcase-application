@@ -72,6 +72,10 @@ Problem Details with content type `application/problem+json`. Responses include 
   request has an active Micrometer trace, the same response also carries its `traceId`; both identifiers are logged,
   so a client-visible failure can be correlated first to the exact log event and then to the distributed trace
   without leaking a stack trace or internal details in the response body itself.
+- A unique-key violation from the database (SQLState `23505`) returns 409 `urn:problem-type:data-conflict` with a
+  fixed detail; other database integrity failures stay 500. Error logs record only the SQLState of a database
+  failure, because database messages echo rejected values. See
+  [API-DATA-CONFLICT-001](specs/API-DATA-CONFLICT-001/spec.md).
 - Validation failures (`ConstraintViolationException`), domain business rule violations
   (`DomainObjectValidationException`, `BusinessRuleException`), and anything unmapped (`RuntimeException`
   fallback, never leaking the original message) each get their own `type`/`title`/HTTP status - documented

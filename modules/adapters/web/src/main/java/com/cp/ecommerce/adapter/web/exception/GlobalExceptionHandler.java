@@ -22,7 +22,10 @@ import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
+import org.hibernate.JDBCException;
+
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -60,6 +63,8 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
 
     public static final String RUNTIME_EXCEPTION_ERROR_MESSAGE = "Could not process your request";
 
+    static final String DATA_CONFLICT_MESSAGE = "The request conflicts with existing data";
+
     private static final String PROBLEM_TYPE_PREFIX = "urn:problem-type:";
 
     private static final URI TYPE_CONSTRAINT_VIOLATION = URI.create(PROBLEM_TYPE_PREFIX + "constraint-violation");
@@ -77,6 +82,7 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
     private static final URI TYPE_PAYMENT_REFUND_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "payment-refund-conflict");
     private static final URI TYPE_TECHNICAL_PROBLEM = URI.create(PROBLEM_TYPE_PREFIX + "technical-problem");
     private static final URI TYPE_RATE_LIMIT_EXCEEDED = URI.create(PROBLEM_TYPE_PREFIX + "rate-limit-exceeded");
+    private static final URI TYPE_DATA_CONFLICT = URI.create(PROBLEM_TYPE_PREFIX + "data-conflict");
     private static final URI TYPE_INTERNAL_ERROR = URI.create(PROBLEM_TYPE_PREFIX + "internal-error");
 
     public GlobalExceptionHandler(final ObjectProvider<Tracer> tracerProvider) {
@@ -263,6 +269,22 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
                 TYPE_INTERNAL_ERROR,
                 "Internal Server Error",
                 RUNTIME_EXCEPTION_ERROR_MESSAGE);
+    }
+
+    /** A unique-key violation conflicts with existing data; other database failures stay internal errors. */
+    @ExceptionHandler({ DataIntegrityViolationException.class, JDBCException.class })
+    public ResponseEntity<ProblemDetail> databaseException(final RuntimeException exception) {
+
+        if (DatabaseFailures.isUniqueViolation(exception)) {
+            final ProblemDetail problemDetail = problemDetail(
+                    exception,
+                    CONFLICT,
+                    TYPE_DATA_CONFLICT,
+                    "Conflict",
+                    DATA_CONFLICT_MESSAGE);
+            return ResponseEntity.status(CONFLICT).body(problemDetail);
+        }
+        return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(runtimeException(exception));
     }
 
     @ExceptionHandler(ResponseStatusException.class)
