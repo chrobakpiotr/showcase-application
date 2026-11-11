@@ -123,7 +123,7 @@ jobs:
           name: harness-tests-${{ github.sha }}
           path: ${{ runner.temp }}/harness-tests/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
   examples-validation:
     name: Agentic SDD examples validation
@@ -204,7 +204,7 @@ jobs:
         with:
           name: agentic-sdd-evaluation-reports
           path: .agent-runs/evals/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
   agentic-sdd-gate:
