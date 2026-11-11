@@ -1,10 +1,7 @@
 import { HalPageMetadata } from '@app/shared/hal-page.model';
 
 export type ShipmentStatus =
-  | 'PENDING'
-  | 'DISPATCHED'
-  | 'IN_TRANSIT'
-  | 'DELIVERED';
+  'PENDING' | 'DISPATCHED' | 'IN_TRANSIT' | 'DELIVERED';
 
 export interface ShipmentModel {
   shipmentNumber: string;
