@@ -28,13 +28,16 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 - The agent sandbox can run `doctor` with a prepared interpreter that has the exact Harness pin. The [tooling guide](../tooling.md#local-harness-diagnostics) records the provisioning boundary and command.
 - Earlier FIRST-RUN failures and hosted CI records remain in Git history.
 
+- Owner decisions 2026-11-11: S30-06 is closed by scope revision without implementation; the AMQP consumer stays disabled and any consumer needs a new specification ([decision](../specs/S30-AMQP-POISON-001/evidence/s30-06-closure-decision-2026-11-11.md)). S05-07 is handed to the external handbook owner ([decision](../reviews/external-handbook-handoff-2026-11-11.md)). Provider profile evidence and the required-sandbox live run are closed as not needed.
+- Provider re-entry: register no new provider version without structured-output evidence from a real run. The tested profiles stay Claude Code 2.1.289 and Codex CLI 0.160.0. Claude Code access was blocked by the organization (403) on 2026-11-11. A required-sandbox live run needs active backend qualification for its exact checkout and policy and one of these profiles.
+
 ## Unfinished
 
 - `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
 ## Next step
 
-Pick the next item from `docs/backlog.md`. For frontend formatting failures, apply the Spotless diff from the log; do not format with a different Prettier version. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
+The backlog has no open items. For frontend formatting failures, apply the Spotless diff from the log; do not format with a different Prettier version.
 
 ## Do not touch
 

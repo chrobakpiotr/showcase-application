@@ -8,9 +8,9 @@ from qualification and external publication. Earlier source-bound records retain
 | [Architecture follow-up](specs/SHOWCASE-FOLLOWUP-001/spec.md) | Implemented. Bounded verification PASS. Hosted CI at `0b18f3d` passed Playwright, the critical PostgreSQL and RabbitMQ gates and Agentic SDD ([record](specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md)) | Real-stack k6 smoke passed after [ORDER-CUSTOMER-EMAIL-001](specs/ORDER-CUSTOMER-EMAIL-001/spec.md) ([record](specs/ORDER-CUSTOMER-EMAIL-001/evidence/k6-smoke-2026-11-11.md)). Hosted CI passed at `84066c0` ([CI repair](specs/ORDER-CUSTOMER-EMAIL-001/evidence/ci-repair-2026-11-11.md)) |
 | SDD-OBS-001 execution slice | Completed in the [2026-10-17 record](reviews/showcase-master-review-progress-2026-10-05.md#verification-v2-completion---2026-10-17) | Apply current accepted-plan and qualification requirements to future execution |
 | Canonical M5.3 design gate | NOT PASS | Follow the [verification handbook](agentic-sdd/handbook.md#status-and-safety-boundary) |
-| S30-06 | DEFERRED, design gate OPEN, NOT QUALIFIED | Re-entry requires the target/control mechanism or an owner-approved scope revision in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md) |
-| S05-07 external handbook | Repository delta ready, external application unverified | The handbook owner applies and verifies the [source-linked delta](reviews/external-handbook-delta-2026-10-06.md) |
-| Provider profiles and live execution | Version evidence and exact backend qualification required | Follow [Backlog](backlog.md) and the [handover](handover/AGENT_HANDOVER.md) |
+| S30-06 | CLOSED by owner scope revision, NOT QUALIFIED, consumer stays disabled | A consumer needs a new specification; see the [closure decision](specs/S30-AMQP-POISON-001/evidence/s30-06-closure-decision-2026-11-11.md) |
+| S05-07 external handbook | Closed in this repository; delta handed to the handbook owner, external application unverified | None here; see the [handoff decision](reviews/external-handbook-handoff-2026-11-11.md) |
+| Provider profiles and live execution | Closed by owner decision 2026-11-11; tested profiles stay Claude 2.1.289 and Codex 0.160.0 | Re-entry conditions are in the [handover](handover/AGENT_HANDOVER.md) |
 
 ## Implemented in the hardening patches
 

@@ -52,7 +52,7 @@ Standard local, Docker and Kubernetes profiles inherit that default. Placement c
 broker while the queue waits for a qualified consumer. Broker acceptance and fulfillment receipt
 remain separate milestones.
 
-The default-off switch implements the scheduling boundary recorded for S30-06. S30-06 remains
-[deferred with its design gate open](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md).
-Enabling a consumer in a target requires its accepted qualification and rollout decision. Isolated
+The default-off switch implements the boundary recorded for S30-06, which the owner
+[closed without implementation](specs/S30-AMQP-POISON-001/evidence/s30-06-closure-decision-2026-11-11.md).
+Enabling a consumer in a target requires a new specification, its qualification and a rollout decision. Isolated
 context tests may explicitly enable the bean with a synthetic connection and stopped lifecycle.
