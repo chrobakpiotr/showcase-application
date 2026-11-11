@@ -1,6 +1,6 @@
 # API-DATA-CONFLICT-001 - unique-key violations as conflicts
 
-Status: IMPLEMENTED - unit and MockMvc tests; hosted CI verification pending; owner acceptance of the allowlist pending
+Status: IMPLEMENTED - hosted CI PASS at 787a6f0; owner acceptance of the allowlist pending
 
 The owner approved this change on 2026-11-11 as a follow-up to ORDER-CUSTOMER-EMAIL-001.
 
