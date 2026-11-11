@@ -5,7 +5,7 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 ## State
 
 - Hosted CI at `0b18f3d` passed Playwright, the critical PostgreSQL and RabbitMQ gates and Agentic SDD. This closes the Docker-dependent integration gap of SHOWCASE-FOLLOWUP-001. See the [hosted CI record](../specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md).
-- The CI build excluded the frontend Spotless tasks, so green CI never checked frontend formatting. The six files from the local verification record are now formatted, and the CI backend job and `verify-before-push.sh` run `:adapter:ecommerce-frontend:spotlessStylingCheck` explicitly. The formatting was produced with Prettier 3.8.1 (single quotes, `es5` trailing commas) because Gradle could not run in that workspace; the changes are only quotes, trailing commas and one line wrap.
+- CI and Agentic SDD failed after these pushes. Fixed: Spotless now pins Prettier 3.8.1 (Prettier 2 flattened Angular control flow) and 26 frontend files are reformatted; the repeat-customer test SKU fits the 40-character column; the retry-control trust anchor and its pinned digests include the new manifest and Spotless hashes; Playwright browser install retries apt DNS failures. See the [CI repair record](../specs/ORDER-CUSTOMER-EMAIL-001/evidence/ci-repair-2026-11-11.md).
 
 - SHOWCASE-FOLLOWUP-001 implements the four architecture follow-ups. Adapter rules cover all technical adapter roots and the exact web operator-identity exception. k6 uses an operator token, complete order requests, bounded stock and global abort on contract failure. The AMQP consumer defaults off independently of publishing. Architecture and roadmap now include current modules and separate execution from qualification.
 - ORDER-CUSTOMER-EMAIL-001: the first real k6 smoke returned HTTP 500 for a second order with the same customer email. Every order owns its CUSTOMER row, but the baseline made `CUSTOMER.EMAIL` unique. A PostgreSQL-only changeset drops `customer_email_key` and keeps `IDX_CUSTOMER_EMAIL`. `RepeatCustomerOrderPostgresIntegrationTest` covers sequential, concurrent and schema cases and is registered in the critical PostgreSQL manifest. Java was not compiled locally; hosted CI is its first build. After the fix the owner's k6 smoke passed: 20/20 iterations, place p95 406 ms, lookup p95 85 ms ([record](../specs/ORDER-CUSTOMER-EMAIL-001/evidence/k6-smoke-2026-11-11.md)). See the [specification](../specs/ORDER-CUSTOMER-EMAIL-001/spec.md).
@@ -30,13 +30,12 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 ## Unfinished
 
 - Artifact retention is 7 days in `ci.yml`, `scorecard.yml` and `verification-sandbox-qualification.yml`, the repository maximum. `agentic-sdd.yml` still asks for 14 and GitHub caps it with a warning. That file is in the protocol fingerprint, so changing it needs an owner decision.
-- ORDER-CUSTOMER-EMAIL-001 has not run in hosted CI yet. If Spotless or the new test fails, fix it before anything else. H2 keeps the unique constraint by design; see the specification.
-- The new frontend formatting gate has not run in hosted CI yet. If it fails, the Spotless report names the files; apply its output rather than local Prettier.
+- The CI repair has not run in hosted CI yet. Java, Gradle and Docker were unavailable to the agent; harness tests and evals passed locally with the pinned library. H2 keeps the unique email constraint by design.
 - `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
 ## Next step
 
-Check the next CI run: `Verify frontend formatting`, `Verify Java formatting` and the critical PostgreSQL gate with `RepeatCustomerOrderPostgresIntegrationTest`. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
+Check the next CI and Agentic SDD runs. If `Verify frontend formatting` fails, apply the Spotless diff from the log; do not format with a different Prettier version. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
 
 ## Do not touch
 

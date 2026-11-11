@@ -132,7 +132,7 @@ class RepeatCustomerOrderPostgresIntegrationTest {
 
     private String preparedSku(final int quantity) {
 
-        final String sku = "REPEAT-" + UUID.randomUUID();
+        final String sku = "RC-" + UUID.randomUUID();
         catalogProductFixture.ensureActiveProduct(sku, "Integration fixture", BigDecimal.TEN);
         inventory.receiveStock(sku, quantity);
         return sku;

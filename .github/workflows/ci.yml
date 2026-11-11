@@ -551,7 +551,18 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: apps/ecommerce/frontend
-        run: npx playwright install --with-deps chromium
+        # --with-deps uses apt; retry transient Ubuntu archive DNS failures on hosted runners.
+        run: |
+          for attempt in 1 2 3; do
+            if npx playwright install --with-deps chromium; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Playwright browser install failed after 3 attempts"
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
 
       - name: Run Playwright e2e tests
         working-directory: apps/ecommerce/frontend
