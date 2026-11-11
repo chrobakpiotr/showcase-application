@@ -28,9 +28,8 @@ public class Wishlist extends ValidDomainObject<Wishlist> {
     @Size(max = ValidationConstants.WISHLIST_ID_MAX, message = ValidationConstants.INVALID_WISHLIST_ID)
     String wishlistId;
 
-    @Valid
     @Builder.Default
-    List<WishlistItem> items = List.of();
+    List<@Valid WishlistItem> items = List.of();
 
     Instant updated;
 

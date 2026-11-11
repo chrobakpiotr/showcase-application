@@ -33,9 +33,8 @@ public class Cart extends ValidDomainObject<Cart> {
     @Size(max = ValidationConstants.CART_ID_MAX, message = ValidationConstants.INVALID_CART_ID)
     String cartId;
 
-    @Valid
     @Builder.Default
-    List<CartLineItem> items = List.of();
+    List<@Valid CartLineItem> items = List.of();
 
     @Size(max = ValidationConstants.COUPON_CODE_MAX, message = ValidationConstants.INVALID_CART_COUPON_CODE)
     String couponCode;

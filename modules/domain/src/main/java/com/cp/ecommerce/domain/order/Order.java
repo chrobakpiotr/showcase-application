@@ -41,9 +41,8 @@ public class Order extends ValidDomainObject<Order> {
     Customer customer;
 
     @NotEmpty(message = ValidationConstants.INVALID_ORDER_LINE_ITEMS)
-    @Valid
     @Builder.Default
-    List<OrderLineItem> items = List.of();
+    List<@Valid OrderLineItem> items = List.of();
 
     @Builder.Default
     OrderStatus status = OrderStatus.CONFIRMED;

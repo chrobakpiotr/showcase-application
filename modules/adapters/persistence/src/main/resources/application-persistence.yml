@@ -1,5 +1,8 @@
 spring:
     jpa:
+        # Persistence adapters map entities to domain objects inside their own transactions, so web
+        # requests never need an open session. Disabled explicitly; Boot otherwise enables it with a warning.
+        open-in-view: false
         properties:
             hibernate.jdbc.time_zone: UTC
     liquibase:

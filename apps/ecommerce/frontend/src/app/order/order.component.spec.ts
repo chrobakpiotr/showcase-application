@@ -570,8 +570,8 @@ describe('OrderComponent', () => {
       unitPrice: 39.9,
       quantity: 1,
     });
-    expect(component.customerForm.controls.email.value).toContain(
-      'demo.buyer+'
+    expect(component.customerForm.controls.email.value).toBe(
+      'demo.buyer@example.com'
     );
     expect(component.orderNumber()).toBeNull();
     expect(component.errorMessage()).toBeNull();

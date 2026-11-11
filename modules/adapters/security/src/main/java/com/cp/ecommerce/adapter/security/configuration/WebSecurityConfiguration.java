@@ -9,7 +9,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -78,8 +77,6 @@ public class WebSecurityConfiguration {
 
     private static final String SHIPMENTS_API_PATH_MATCHER = "/api/shipments/**";
 
-    private static final String H2_PATH_MATCHER = "/h2-console/**";
-
     private static final String[] OPEN_API_PATH_MATCHERS = { "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**" };
 
     private static final String ORDER_READ_ROLE = "ORDER_READ";
@@ -119,12 +116,6 @@ public class WebSecurityConfiguration {
     // the browser-facing issuer-uri keeps CSP and JWT issuer validation aligned across profiles.
     @Value("${security.oauth2.issuer-uri:http://localhost:8081/realms/ecommerce}")
     private String oauth2IssuerUri;
-
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-
-        return (web) -> web.ignoring().requestMatchers(H2_PATH_MATCHER);
-    }
 
     @Bean
     public SecurityFilterChain webSecurityFilterChain(final HttpSecurity http) {

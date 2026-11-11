@@ -188,7 +188,7 @@ export class OrderComponent implements OnInit {
 
     this.customerForm.setValue({
       fullName: 'Demo Buyer',
-      email: `demo.buyer+${Date.now()}@example.com`,
+      email: 'demo.buyer@example.com',
       phone: '+48 600 123 456',
       street: 'Demo Street 1',
       postalCode: '00-001',
