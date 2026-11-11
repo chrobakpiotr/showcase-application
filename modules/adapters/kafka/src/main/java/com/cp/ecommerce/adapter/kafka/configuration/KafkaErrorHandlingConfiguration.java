@@ -5,6 +5,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.KafkaException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
@@ -48,10 +49,17 @@ public class KafkaErrorHandlingConfiguration {
         final DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 kafkaTemplate,
                 (record, exception) -> new TopicPartition(ORDER_ANALYTICS_DEAD_LETTER_TOPIC_NAME, record.partition()));
+        // Database messages echo rejected values, so dead-letter records carry the exception class names but not the
+        // message or stack trace, and the framework's own failure log moves to DEBUG: the retry listener
+        // (OrderAnalyticsConsumerMetrics) logs every failure through FailureMessages instead.
+        recoverer.excludeHeader(
+                DeadLetterPublishingRecoverer.HeaderNames.HeadersToAdd.EX_MSG,
+                DeadLetterPublishingRecoverer.HeaderNames.HeadersToAdd.EX_STACKTRACE);
         final DefaultErrorHandler errorHandler = new DefaultErrorHandler(
                 recoverer,
                 new FixedBackOff(BACKOFF_INTERVAL_MS, MAX_RETRY_ATTEMPTS));
         errorHandler.setRetryListeners(retryListener);
+        errorHandler.setLogLevel(KafkaException.Level.DEBUG);
         return errorHandler;
     }
 
