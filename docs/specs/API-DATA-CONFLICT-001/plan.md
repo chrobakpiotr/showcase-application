@@ -2,9 +2,11 @@
 
 The specification in [spec.md](spec.md) owns acceptance.
 
-1. `DatabaseFailures` walks at most 16 causes for an `SQLException`; `ProblemDetailFactory` uses it to log only the
-   SQLState, and `GlobalExceptionHandler#databaseException` uses it to choose 409 or the existing 500 response.
-2. `GlobalExceptionHandlerTest` covers the Spring and Hibernate unique-violation forms and a non-unique violation.
+1. `DatabaseFailures` walks at most 16 causes (and their suppressed exceptions) for an `SQLException` and a Hibernate
+   `ConstraintViolationException`. `ProblemDetailFactory` uses it to log only the SQLState and cause class names;
+   the `RuntimeException` fallback in `GlobalExceptionHandler` uses it to choose 409 for client-data unique keys.
+2. `GlobalExceptionHandlerTest` covers client-data, commit-wrapped, server-generated, unnamed and non-unique
+   violations. `DataConflictHandlerTest` checks routing and the serialized body through MockMvc.
    `ProblemDetailFactoryTest` proves the log omits the rejected value.
 3. `docs/api.md` documents the new problem type.
 

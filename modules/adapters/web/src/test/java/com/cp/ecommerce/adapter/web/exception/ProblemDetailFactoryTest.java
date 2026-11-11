@@ -23,6 +23,8 @@ class ProblemDetailFactoryTest {
 
     private static final URI TYPE = URI.create("urn:problem-type:test");
 
+    private static final String MESSAGE = "message";
+
     @SuppressWarnings("unchecked")
     private final ObjectProvider<Tracer> tracerProvider = mock(ObjectProvider.class);
 
@@ -66,7 +68,7 @@ class ProblemDetailFactoryTest {
         final RuntimeException exception = new RuntimeException("could not execute statement", sqlException);
 
         try (LogCapture logs = new LogCapture(ProblemDetailFactory.class)) {
-            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
+            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", MESSAGE);
 
             final String messages = logs.formattedMessages();
             assertThat(messages).contains("SQLState=23505").contains("causes=RuntimeException < SQLException");
@@ -84,7 +86,7 @@ class ProblemDetailFactoryTest {
         }
 
         try (LogCapture logs = new LogCapture(ProblemDetailFactory.class)) {
-            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
+            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", MESSAGE);
 
             assertThat(logs.formattedMessages()).contains("message omitted").doesNotContain("buyer@example.com");
         }
@@ -102,6 +104,6 @@ class ProblemDetailFactoryTest {
 
     private ProblemDetail createProblem() {
 
-        return factory.create(new RuntimeException("message"), INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
+        return factory.create(new RuntimeException(MESSAGE), INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", MESSAGE);
     }
 }

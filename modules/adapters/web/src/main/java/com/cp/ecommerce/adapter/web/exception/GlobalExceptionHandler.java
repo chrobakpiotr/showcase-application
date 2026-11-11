@@ -22,10 +22,7 @@ import com.cp.ecommerce.foundation.exception.RateLimitExceededException;
 import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
-import org.hibernate.JDBCException;
-
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -259,23 +256,11 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
                 exception.getMessage());
     }
 
-    @ResponseStatus(INTERNAL_SERVER_ERROR)
+    /** Unmapped failures are 500s; a client-data unique-key violation anywhere in the cause chain is a 409 conflict. */
     @ExceptionHandler(RuntimeException.class)
-    public ProblemDetail runtimeException(final RuntimeException exception) {
+    public ResponseEntity<ProblemDetail> runtimeException(final RuntimeException exception) {
 
-        return problemDetail(
-                exception,
-                INTERNAL_SERVER_ERROR,
-                TYPE_INTERNAL_ERROR,
-                "Internal Server Error",
-                RUNTIME_EXCEPTION_ERROR_MESSAGE);
-    }
-
-    /** A unique-key violation conflicts with existing data; other database failures stay internal errors. */
-    @ExceptionHandler({ DataIntegrityViolationException.class, JDBCException.class })
-    public ResponseEntity<ProblemDetail> databaseException(final RuntimeException exception) {
-
-        if (DatabaseFailures.isUniqueViolation(exception)) {
+        if (DatabaseFailures.isClientDataConflict(exception)) {
             final ProblemDetail problemDetail = problemDetail(
                     exception,
                     CONFLICT,
@@ -284,7 +269,13 @@ public class GlobalExceptionHandler extends ReturnAndShipmentExceptionHandlerSup
                     DATA_CONFLICT_MESSAGE);
             return ResponseEntity.status(CONFLICT).body(problemDetail);
         }
-        return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(runtimeException(exception));
+        final ProblemDetail problemDetail = problemDetail(
+                exception,
+                INTERNAL_SERVER_ERROR,
+                TYPE_INTERNAL_ERROR,
+                "Internal Server Error",
+                RUNTIME_EXCEPTION_ERROR_MESSAGE);
+        return ResponseEntity.status(INTERNAL_SERVER_ERROR).body(problemDetail);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

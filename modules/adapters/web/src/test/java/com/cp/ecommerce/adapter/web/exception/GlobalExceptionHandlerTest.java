@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Set;
 
@@ -23,13 +22,11 @@ import com.cp.ecommerce.foundation.exception.ReturnQuantityConflictException;
 import com.cp.ecommerce.foundation.exception.StockLevelConflictException;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
-import org.hibernate.JDBCException;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -78,7 +75,7 @@ class GlobalExceptionHandlerTest {
     void shouldHandleRuntimeException() {
 
         assertProblem(
-                handler.runtimeException(new RuntimeException()),
+                handler.runtimeException(new RuntimeException()).getBody(),
                 INTERNAL_SERVER_ERROR,
                 "Internal Server Error",
                 GlobalExceptionHandler.RUNTIME_EXCEPTION_ERROR_MESSAGE);
@@ -282,53 +279,12 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldReturnDataConflictForSpringUniqueKeyViolation() {
-
-        final SQLException cause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
-        final var exception = new DataIntegrityViolationException("could not execute statement", cause);
-
-        assertDataConflict(handler.databaseException(exception));
-    }
-
-    @Test
-    void shouldReturnDataConflictForHibernateUniqueKeyViolation() {
-
-        final SQLException cause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
-
-        assertDataConflict(handler.databaseException(new JDBCException("could not execute statement", cause)));
-    }
-
-    @Test
-    void shouldKeepOtherDatabaseFailuresInternal() {
-
-        final SQLException cause = new SQLException("null value in column \"email\"", "23502");
-        final var exception = new DataIntegrityViolationException("could not execute statement", cause);
-
-        final ResponseEntity<ProblemDetail> response = handler.databaseException(exception);
-
-        assertThat(response.getStatusCode()).isEqualTo(INTERNAL_SERVER_ERROR);
-        assertProblem(
-                response.getBody(),
-                INTERNAL_SERVER_ERROR,
-                "Internal Server Error",
-                GlobalExceptionHandler.RUNTIME_EXCEPTION_ERROR_MESSAGE);
-        assertThat(response.getBody().getType()).isEqualTo(URI.create("urn:problem-type:internal-error"));
-    }
-
-    @Test
     void shouldAddCorrelatableErrorIdExtensionMember() {
 
-        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException());
+        final ProblemDetail problemDetail = handler.runtimeException(new RuntimeException()).getBody();
 
         assertThat(problemDetail.getProperties()).containsKey("errorId");
         assertThat(problemDetail.getProperties().get("errorId")).asString().isNotBlank();
-    }
-
-    private void assertDataConflict(final ResponseEntity<ProblemDetail> response) {
-
-        assertThat(response.getStatusCode()).isEqualTo(CONFLICT);
-        assertProblem(response.getBody(), CONFLICT, "Conflict", GlobalExceptionHandler.DATA_CONFLICT_MESSAGE);
-        assertThat(response.getBody().getType()).isEqualTo(URI.create("urn:problem-type:data-conflict"));
     }
 
     private void assertProblem(
