@@ -3,8 +3,8 @@ apply plugin: 'com.diffplug.spotless'
 spotless {
 	format 'styling', {
 		// Prettier 2.x, the Spotless default, treats Angular control flow (@if, @for) as text and flattens it.
-		// Pin a Prettier 3 release and keep es5 trailing commas so the TypeScript style stays unchanged.
-		prettier('3.8.1').config(['singleQuote': true, 'trailingComma': 'es5'])
+		// Use the frontend's own Prettier version and .prettierrc.json, so Spotless and npx prettier agree.
+		prettier('3.9.6').configFile('.prettierrc.json')
 		target 'src/**/*.css', 'src/**/*.scss', 'src/**/*.ts', 'src/**/*.html', 'src/**/*.js', 'src/**/*.json'
 		targetExclude 'src/generated/**/*.*', 'src/assets/i18n/**/*.*'
 	}

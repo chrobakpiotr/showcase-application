@@ -124,7 +124,7 @@ _REGISTERED_GRADLE_BUILD_INPUT_SHA256 = {
     'tooling/quality/spotless/spotless-java.gradle':
         '7ca8fa7d074b04cae38fc8ab015e7010ef61910df01e8767a06032a1884ca2dc',
     'tooling/quality/spotless/spotless-prettier.gradle':
-        '3d2a040b718c38742fc71399cb1773a91fff3675e3d38462ed8a50d1d921c88f',
+        '1f4dacaf433132434755b5275fcc66ad502a5818b1b0f5c1dc43b8034cf9901f',
     'tooling/quality/spotless/spotless-xml.gradle':
         'fd52f6c94dc1d2ec193956f93cf133e6d6cb8be5d9206320357c17a69bdd7431',
 }
