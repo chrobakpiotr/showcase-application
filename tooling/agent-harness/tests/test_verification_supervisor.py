@@ -36,9 +36,9 @@ class SupervisorTest(unittest.TestCase):
         controls = {control.control_id: control for control in RETRY_CONTROLS}
         self.assertEqual({
             'critical-postgres-gate-disables-gradle-test-retry-v1':
-                'a49b9c140c46dc0a3d9df4f78147af8bc2ce6d7eeeb69c008b66f7e4759c24a9',
+                '0fd58bebbba2d077038f6ab7a43a84b335f5fb5674c3e8f68b68877be6529990',
             'critical-rabbit-gate-disables-gradle-test-retry-v1':
-                '6b19ca8318fb1c947d9a360273a70646f62cf649d9e141f740ae39bb558ee822',
+                '224920421aadc2dd2308d55e027fdaa88e56fa756dc30146874515fc7f6977a7',
         }, {control_id: control.inputs_digest() for control_id, control in controls.items()})
         self.assertTrue(all(isinstance(control, RetryControl) for control in controls.values()))
 

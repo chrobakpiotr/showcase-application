@@ -4,6 +4,9 @@ Updated 2026-11-10. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
 
+- CI for `39b45b2` passed backend, frontend, PIT, critical PostgreSQL/RabbitMQ, infrastructure, CodeQL and vulnerability scans. Playwright passed 30/31; its trace showed the cart test filling the old Inventory SKU input before navigation completed. The test now waits for `/cart` and scopes inputs to `add-item-form`.
+- The changed Gradle-input registration also changed both retry-control aggregate digests. The hard-coded expectations in `test_verification_supervisor.py` are now coordinated with the reviewed registration. The prior mismatch caused the harness unit test and the A007 evaluation to fail. Fresh CI remains required for these two corrections.
+
 - SHOWCASE-FOLLOWUP-001 implements the four architecture follow-ups. Adapter rules cover all technical adapter roots and the exact web operator-identity exception. k6 uses an operator token, complete order requests, bounded stock and global abort on contract failure. The AMQP consumer defaults off independently of publishing. Architecture and roadmap now include current modules and separate execution from qualification.
 - Focused module gates passed with JDK 25 and Gradle 9.7.1. Domain had 418 passing tests and AMQP 20. The Node suite passed 16 tests. Real k6 v2.3.0 passed successful, malformed-response and expired-token scenarios against synthetic HTTP transport. See [verification](../specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md) for scope and integration status.
 

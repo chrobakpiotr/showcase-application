@@ -74,9 +74,11 @@ test("unknown cart order outcome survives reload and replays the same attempt", 
   await loginAs(page);
   await prepareOrderStock(page, fixtureSku, 2);
   await page.getByRole("link", { name: "Cart", exact: true }).click();
-  await page.getByTestId("sku").fill(fixtureSku);
-  await page.getByTestId("quantity").fill("2");
-  await page.getByTestId("add-item").click();
+  await expect(page).toHaveURL(/\/cart(?:$|[?#])/);
+  const addItemForm = page.getByTestId("add-item-form");
+  await addItemForm.getByTestId("sku").fill(fixtureSku);
+  await addItemForm.getByTestId("quantity").fill("2");
+  await addItemForm.getByTestId("add-item").click();
   await expect(page.getByTestId("cart-line-item")).toContainText(fixtureSku);
   await page.getByTestId("coupon-input").fill(coupon);
   await page.getByTestId("coupon-apply").click();
