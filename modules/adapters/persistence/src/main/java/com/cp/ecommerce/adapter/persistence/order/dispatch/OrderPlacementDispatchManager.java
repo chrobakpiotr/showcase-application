@@ -10,6 +10,7 @@ import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.incoming.ManageOrderInPort;
 import com.cp.ecommerce.domain.order.port.incoming.RouteOrderNotificationInPort;
 import com.cp.ecommerce.domain.order.port.incoming.SendOrderConfirmationEmailInPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -103,7 +104,7 @@ public class OrderPlacementDispatchManager {
             markSent(claim, now());
         } catch (final RuntimeException exception) { // SUPPRESS CHECKSTYLE IllegalCatch
             log.warn("Could not deliver durable placement dispatch: type={}", claim.dispatchType());
-            markFailed(claim, exception.getMessage(), now());
+            markFailed(claim, FailureMessages.describe(exception), now());
         }
     }
 

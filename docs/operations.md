@@ -14,6 +14,9 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   `json-logging` Spring profile and is automatically pulled in by both the `docker` and `k8s` profiles, since a
   log collectors read container stdout in both environments. It can also be activated
   standalone (e.g. for `local`) via `--spring.profiles.active=local,json-logging`.
+- Database messages echo rejected values, such as a customer email in a unique-key violation. Error logs and stored
+  last-error fields therefore describe a database failure by its SQLState and cause class names only, through
+  `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
 and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:

@@ -16,6 +16,7 @@ import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.CompleteRefundReturnContinuationInPort;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
 import com.cp.ecommerce.domain.payment.port.outgoing.ManageRefundReturnContinuationOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -55,8 +56,14 @@ class PaymentReconciliationScheduler {
     private void reconcileReturnContinuation(final String returnNumber) {
 
         RuntimeFailureBoundary.run(() -> completeRefundReturnContinuationInPort.complete(returnNumber), exception -> {
-            refundReturnContinuationOutPort.recordFailure(returnNumber, exception.getMessage());
-            log.warn("Could not complete refund continuation for return {}", returnNumber, exception);
+            final String failure = FailureMessages.describe(exception);
+            refundReturnContinuationOutPort.recordFailure(returnNumber, failure);
+            // A null trailing argument is ignored by SLF4J, so database failures are logged without their stack trace.
+            log.warn(
+                    "Could not complete refund continuation for return {}: {}",
+                    returnNumber,
+                    failure,
+                    FailureMessages.loggableCause(exception));
         });
     }
 
@@ -67,7 +74,7 @@ class PaymentReconciliationScheduler {
         }
         RuntimeFailureBoundary.run(
                 () -> reconcileClaimed(operationId, claimId),
-                exception -> arbitrator.recordFailure(operationId, claimId, exception.getMessage()));
+                exception -> arbitrator.recordFailure(operationId, claimId, FailureMessages.describe(exception)));
     }
 
     private void reconcileClaimed(final String operationId, final String claimId) {

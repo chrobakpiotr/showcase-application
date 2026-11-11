@@ -72,3 +72,9 @@ Runtime behaviour of any item above; the real-stack k6 smoke; Hibernate 7.4.7 so
   smoke. CI does not print application logs, so the absence of HHH90000025 there is not evidence; it remains
   UNVERIFIED until a local or E2E application log is read.
 - Residual risks outside this change are tracked in `docs/backlog.md`.
+- Residual risks (Q2), second pass: `FailureMessages` in the foundation module now describes the failure stored in the
+  saga, dispatch, notification, cancellation-recovery and payment-reconciliation last-error fields and in the
+  order-analytics Kafka logs, and the two scheduler warnings attach a stack trace only for non-database failures.
+  The client-facing messages in `ProductController:160`, `DispatchRedriveController:39` and
+  `ParkedDispatchController:28` were checked: they come from `CategoryNotFoundException` and argument validation in
+  command records, not from the database, and are unchanged.

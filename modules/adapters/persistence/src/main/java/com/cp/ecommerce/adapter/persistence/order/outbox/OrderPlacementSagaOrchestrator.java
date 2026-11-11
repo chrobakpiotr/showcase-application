@@ -17,6 +17,7 @@ import com.cp.ecommerce.domain.order.port.incoming.SendMessageInPort;
 import com.cp.ecommerce.domain.payment.PaymentStatus;
 import com.cp.ecommerce.domain.payment.PaymentTransaction;
 import com.cp.ecommerce.domain.payment.port.incoming.ManagePaymentInPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.exception.PaymentDeclinedException;
 import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
@@ -120,7 +121,7 @@ public class OrderPlacementSagaOrchestrator {
         RuntimeFailureBoundary.run(
                 () -> claimPlacementEvent(candidate)
                         .ifPresent(claim -> RuntimeFailureBoundary.run(() -> processPlacementClaim(claim), exception -> {
-                            releasePlacementClaim(claim, exception.getMessage());
+                            releasePlacementClaim(claim, FailureMessages.describe(exception));
                             throw exception;
                         })),
                 exception -> log.warn("Could not process durable order placement"));
@@ -199,7 +200,7 @@ public class OrderPlacementSagaOrchestrator {
         } catch (final PaymentDeclinedException exception) {
             sagaMetrics.recordStepDuration(PAYMENT_CAPTURE_STEP, elapsedSince(startNanos), false);
             log.error("Payment capture declined; starting order compensation");
-            startCompensation(order, claim, exception.getMessage());
+            startCompensation(order, claim, FailureMessages.describe(exception));
             return false;
         }
     }
@@ -292,7 +293,7 @@ public class OrderPlacementSagaOrchestrator {
                         .filter(event -> ownsPlacementClaim(event, claim))
                         .ifPresent(event -> {
                             event.setAttempts(event.getAttempts() + 1);
-                            event.setLastError(exception.getMessage());
+                            event.setLastError(FailureMessages.describe(exception));
                             if (event.getAttempts() >= maxFulfillmentAttempts) {
 
                                 log.error(
@@ -412,7 +413,7 @@ public class OrderPlacementSagaOrchestrator {
                 .filter(event -> ownsCompensationClaim(event, claim))
                 .ifPresent(event -> {
                     event.setCompensationAttempts(event.getCompensationAttempts() + 1);
-                    event.setLastError(exception.getMessage());
+                    event.setLastError(FailureMessages.describe(exception));
                     event.setNextAttemptDate(Instant.ofEpochMilli(clock.instant().toEpochMilli() + retryBackoffMillis));
                     if (event.getCompensationAttempts() >= maxCompensationAttempts) {
                         event.setStatus(OutboxEventStatus.MANUAL_REVIEW);

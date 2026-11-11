@@ -1,9 +1,9 @@
 package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
-import java.sql.SQLException;
-import java.util.Optional;
 import java.util.UUID;
+
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatusCode;
@@ -40,7 +40,7 @@ final class ProblemDetailFactory {
                 exception.getClass().getSimpleName(),
                 errorId,
                 traceId != null ? traceId : "none",
-                logDetail(exception));
+                FailureMessages.describe(exception));
 
         final ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setType(type);
@@ -52,21 +52,6 @@ final class ProblemDetailFactory {
             problemDetail.setProperty(TRACE_ID_PROPERTY, traceId);
         }
         return problemDetail;
-    }
-
-    /** Database messages echo rejected values such as customer emails, so only their SQLState and causes are logged. */
-    private static String logDetail(final Exception exception) {
-
-        final Optional<SQLException> sqlException = DatabaseFailures.sqlException(exception);
-        if (sqlException.isPresent()) {
-            final String sqlState = sqlException.get().getSQLState();
-            final String causes = DatabaseFailures.causeNames(exception);
-            return "database error, SQLState=" + sqlState + ", causes=" + causes + ", message omitted";
-        }
-        if (DatabaseFailures.exceedsDepth(exception)) {
-            return "cause chain longer than " + DatabaseFailures.MAX_CAUSE_DEPTH + ", message omitted";
-        }
-        return exception.getMessage();
     }
 
     private String currentTraceId() {

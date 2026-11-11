@@ -22,6 +22,7 @@ import com.cp.ecommerce.domain.notification.port.outgoing.FindNotificationsOutPo
 import com.cp.ecommerce.domain.notification.port.outgoing.ManageNotificationDeliveryOutPort;
 import com.cp.ecommerce.domain.notification.port.outgoing.SaveNotificationOutPort;
 import com.cp.ecommerce.foundation.annotation.UseCase;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
 import lombok.RequiredArgsConstructor;
@@ -86,7 +87,8 @@ public class ManageNotificationUseCase
             deliverNotificationOutPort.deliver(claim.notification().getNotificationId(), claim.notification());
             manageNotificationDeliveryOutPort.markSent(notificationId, claim.claimId(), now());
         } catch (final TechnicalProblemException exception) {
-            manageNotificationDeliveryOutPort.markFailed(notificationId, claim.claimId(), exception.getMessage(), now());
+            final String failure = FailureMessages.describe(exception);
+            manageNotificationDeliveryOutPort.markFailed(notificationId, claim.claimId(), failure, now());
         }
     }
 

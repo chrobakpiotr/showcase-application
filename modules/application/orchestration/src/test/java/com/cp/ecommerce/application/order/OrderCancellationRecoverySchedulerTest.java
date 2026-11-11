@@ -1,5 +1,6 @@
 package com.cp.ecommerce.application.order;
 
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -88,5 +89,20 @@ class OrderCancellationRecoverySchedulerTest {
         verify(recoveryOutPort).recordFailure(ORDER_1, CLAIM_1, "temporary failure", NOW);
         verify(cancelOrderWorkflow).recoverCancellation(ORDER_2, CLAIM_2);
         verify(recoveryOutPort).recordSuccess(ORDER_2, CLAIM_2);
+    }
+
+    @Test
+    void shouldStoreDatabaseFailuresWithoutTheirMessages() {
+        given(recoveryOutPort.findDueCancellationOrderNumbers(NOW, 50)).willReturn(List.of(ORDER_1));
+        given(recoveryOutPort.claim(ORDER_1, NOW)).willReturn(new OrderCancellationRecoveryClaim(ORDER_1, CLAIM_1));
+        final SQLException cause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        final IllegalStateException failure = new IllegalStateException("statement failed", cause);
+        doThrow(failure).when(cancelOrderWorkflow).recoverCancellation(ORDER_1, CLAIM_1);
+
+        new OrderCancellationRecoveryScheduler(recoveryOutPort, cancelOrderWorkflow, Clock.fixed(NOW, ZoneOffset.UTC))
+                .recover();
+
+        final String expected = "database error, SQLState=23505, causes=IllegalStateException < SQLException, message omitted";
+        verify(recoveryOutPort).recordFailure(ORDER_1, CLAIM_1, expected, NOW);
     }
 }

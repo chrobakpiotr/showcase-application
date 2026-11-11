@@ -1,6 +1,6 @@
 # API-DATA-CONFLICT-001 - unique-key violations as conflicts
 
-Status: IMPLEMENTED - hosted CI PASS at 787a6f0; owner acceptance of the allowlist pending
+Status: IMPLEMENTED - hosted CI PASS at 787a6f0; allowlist accepted by the owner on 2026-11-11
 
 The owner approved this change on 2026-11-11 as a follow-up to ORDER-CUSTOMER-EMAIL-001.
 
@@ -30,8 +30,9 @@ which echoes the rejected value.
 - Client-data unique keys: `UQ_PRODUCT_SKU`, `UQ_CATEGORY_SLUG`, `UK_IDEMPOTENCY_KEY`, `UK_SHIPMENT_ORDER_NUMBER` and
   `UK_PAYMENT_REFUND_RETURN_CONTINUATION_RETURN`. They guard values or one-per-resource actions a client chooses.
   Server-generated keys (order number, dispatch, stock reservation, notification event, analytics projection) stay
-  500 because a violation there is a server defect. The independent review raised this choice for the owner; the
-  allowlist is the agent's decision while the owner was away and awaits owner acceptance.
+  500 because a violation there is a server defect. The independent review raised this choice for the owner. The
+  agent proposed the allowlist while the owner was away; the owner accepted it on 2026-11-11 ("Zrób 2 sugestie",
+  answering a reply that listed this decision first).
 - The mapping lives in the `RuntimeException` fallback so that Spring wrappers whose type would otherwise select the
   fallback are still inspected.
 - Not-null, foreign-key and check violations stay 500: they indicate a server defect, not a client conflict.

@@ -1,5 +1,7 @@
 package com.cp.ecommerce.adapter.kafka.order.metrics;
 
+import com.cp.ecommerce.foundation.exception.FailureMessages;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import org.springframework.kafka.listener.RetryListener;
@@ -54,7 +56,7 @@ public class OrderAnalyticsConsumerMetrics implements RetryListener {
                 record.partition(),
                 record.offset(),
                 deliveryAttempt,
-                exception.getMessage());
+                FailureMessages.describe(exception));
     }
 
     @Override
@@ -66,7 +68,7 @@ public class OrderAnalyticsConsumerMetrics implements RetryListener {
                         + "dead-letter topic: {}",
                 record.partition(),
                 record.offset(),
-                exception.getMessage());
+                FailureMessages.describe(exception));
     }
 
     @Override
@@ -77,7 +79,7 @@ public class OrderAnalyticsConsumerMetrics implements RetryListener {
                         + "dead-letter topic - it is lost: {}",
                 record.partition(),
                 record.offset(),
-                failure.getMessage());
+                FailureMessages.describe(failure));
     }
 
 }

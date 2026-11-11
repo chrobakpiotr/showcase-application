@@ -5,6 +5,7 @@ import java.time.Instant;
 
 import com.cp.ecommerce.domain.order.OrderCancellationRecoveryClaim;
 import com.cp.ecommerce.domain.order.port.outgoing.ManageOrderCancellationRecoveryOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 import com.cp.ecommerce.foundation.function.RuntimeFailureBoundary;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -45,11 +46,12 @@ class OrderCancellationRecoveryScheduler {
             }
             recoveryOutPort.recordSuccess(orderNumber, claim.claimId());
         }, exception -> {
-            recoveryOutPort.recordFailure(orderNumber, claim.claimId(), exception.getMessage(), now());
+            final String failure = FailureMessages.describe(exception);
+            recoveryOutPort.recordFailure(orderNumber, claim.claimId(), failure, now());
             LOGGER.log(
                     System.Logger.Level.WARNING,
-                    "Cancellation recovery for order " + orderNumber + " remains pending",
-                    exception);
+                    "Cancellation recovery for order " + orderNumber + " remains pending: " + failure,
+                    FailureMessages.loggableCause(exception));
         });
     }
 
