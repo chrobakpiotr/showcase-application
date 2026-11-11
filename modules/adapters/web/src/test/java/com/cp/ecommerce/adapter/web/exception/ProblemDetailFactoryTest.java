@@ -69,8 +69,24 @@ class ProblemDetailFactoryTest {
             factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
 
             final String messages = logs.formattedMessages();
-            assertThat(messages).contains("SQLState=23505");
+            assertThat(messages).contains("SQLState=23505").contains("causes=RuntimeException < SQLException");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
             assertThat(messages).doesNotContain("buyer@example.com").doesNotContain("could not execute statement");
+        }
+    }
+
+    @Test
+    void shouldOmitTheMessageWhenTheCauseChainIsTooDeepToInspect() {
+
+        Exception exception = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        for (int depth = 0; depth < 20; depth++) {
+            exception = new RuntimeException("wrapper " + exception.getMessage(), exception);
+        }
+
+        try (LogCapture logs = new LogCapture(ProblemDetailFactory.class)) {
+            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
+
+            assertThat(logs.formattedMessages()).contains("message omitted").doesNotContain("buyer@example.com");
         }
     }
 

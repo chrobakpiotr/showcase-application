@@ -54,12 +54,17 @@ final class ProblemDetailFactory {
         return problemDetail;
     }
 
-    /** Database messages echo rejected values such as customer emails, so only their SQLState is logged. */
+    /** Database messages echo rejected values such as customer emails, so only their SQLState and causes are logged. */
     private static String logDetail(final Exception exception) {
 
         final Optional<SQLException> sqlException = DatabaseFailures.sqlException(exception);
         if (sqlException.isPresent()) {
-            return "database error, SQLState=" + sqlException.get().getSQLState() + ", message omitted";
+            final String sqlState = sqlException.get().getSQLState();
+            final String causes = DatabaseFailures.causeNames(exception);
+            return "database error, SQLState=" + sqlState + ", causes=" + causes + ", message omitted";
+        }
+        if (DatabaseFailures.exceedsDepth(exception)) {
+            return "cause chain longer than " + DatabaseFailures.MAX_CAUSE_DEPTH + ", message omitted";
         }
         return exception.getMessage();
     }
