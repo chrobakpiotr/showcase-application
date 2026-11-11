@@ -75,6 +75,8 @@ Checks, HTTP errors and an incomplete iteration count fail the run's thresholds 
 existing p95 placement/lookup limits.
 Compare results with the [Grafana dashboard](operations.md#observability).
 
+The CI end-to-end job runs the same smoke after the Playwright suite on its disposable stack. [`capture-operator-token.mjs`](../apps/ecommerce/frontend/e2e/capture-operator-token.mjs) signs in as `order-admin` through the PKCE flow in headless Chromium and hands the bearer token to k6 without printing it. k6 v2.3.0 is downloaded from its release and checked against the published SHA-256.
+
 Run the isolated transport regression tests with Node 24 or later.
 
 ```bash
