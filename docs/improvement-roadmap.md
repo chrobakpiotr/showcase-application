@@ -5,7 +5,7 @@ from qualification and external publication. Earlier source-bound records retain
 
 | Work | Current recorded state | Next step |
 |---|---|---|
-| [Architecture follow-up](specs/SHOWCASE-FOLLOWUP-001/spec.md) | Implemented. Bounded verification PASS. Hosted CI at `0b18f3d` passed Playwright, the critical PostgreSQL and RabbitMQ gates and Agentic SDD ([record](specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md)) | Confirm the new frontend formatting gate in the next CI run, then run the real-stack k6 smoke from [Backlog](backlog.md) |
+| [Architecture follow-up](specs/SHOWCASE-FOLLOWUP-001/spec.md) | Implemented. Bounded verification PASS. Hosted CI at `0b18f3d` passed Playwright, the critical PostgreSQL and RabbitMQ gates and Agentic SDD ([record](specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md)) | Real-stack k6 smoke passed after [ORDER-CUSTOMER-EMAIL-001](specs/ORDER-CUSTOMER-EMAIL-001/spec.md) ([record](specs/ORDER-CUSTOMER-EMAIL-001/evidence/k6-smoke-2026-11-11.md)). Confirm hosted CI for `10b80f3` |
 | SDD-OBS-001 execution slice | Completed in the [2026-10-17 record](reviews/showcase-master-review-progress-2026-10-05.md#verification-v2-completion---2026-10-17) | Apply current accepted-plan and qualification requirements to future execution |
 | Canonical M5.3 design gate | NOT PASS | Follow the [verification handbook](agentic-sdd/handbook.md#status-and-safety-boundary) |
 | S30-06 | DEFERRED, design gate OPEN, NOT QUALIFIED | Re-entry requires the target/control mechanism or an owner-approved scope revision in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md) |

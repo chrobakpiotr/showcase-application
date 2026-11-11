@@ -1,6 +1,6 @@
 # SHOWCASE-FOLLOWUP-001 - architecture review follow-up
 
-Status: IMPLEMENTED - bounded verification PASS; hosted CI integration PASS at 0b18f3d; real-stack k6 smoke OPEN
+Status: IMPLEMENTED - bounded verification PASS; hosted CI integration PASS at 0b18f3d; real-stack k6 smoke PASS after ORDER-CUSTOMER-EMAIL-001
 
 The owner requested implementation of the four follow-ups proposed in the architecture review on 2026-11-10.
 

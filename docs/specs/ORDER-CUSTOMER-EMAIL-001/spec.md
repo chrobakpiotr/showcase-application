@@ -1,6 +1,6 @@
 # ORDER-CUSTOMER-EMAIL-001 - repeat customer orders
 
-Status: IMPLEMENTED - PostgreSQL migration and regression tests; hosted CI verification pending
+Status: IMPLEMENTED - real-stack k6 smoke PASS; hosted CI verification pending
 
 The owner requested the root-cause fix on 2026-11-11 after the first real-stack k6 smoke failed.
 

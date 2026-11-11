@@ -25,7 +25,7 @@
 | `OPERATOR-CAP-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `OPS-LIST-PAGING-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-APP-001` | UNDECLARED | yes | yes | yes | executable | selected |
-| `ORDER-CUSTOMER-EMAIL-001` | IMPLEMENTED - PostgreSQL migration and regression tests; hosted CI verification pending | yes | yes | no | document-only | not selected |
+| `ORDER-CUSTOMER-EMAIL-001` | IMPLEMENTED - real-stack k6 smoke PASS; hosted CI verification pending | yes | yes | no | document-only | not selected |
 | `ORDER-PRICING-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-READ-BATCH-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `ORDER-SAGA-001` | UNDECLARED | yes | yes | yes | executable | selected |
@@ -49,7 +49,7 @@
 | `SEQUENTIAL-TASK-REPLAN-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHIP-FULFILL-001` | UNDECLARED | yes | yes | yes | executable | selected |
 | `SHOWCASE-DOCS-001` | UNDECLARED | yes | yes | yes | executable | selected |
-| `SHOWCASE-FOLLOWUP-001` | IMPLEMENTED - bounded verification PASS; hosted CI integration PASS at 0b18f3d; real-stack k6 smoke OPEN | yes | yes | no | document-only | not selected |
+| `SHOWCASE-FOLLOWUP-001` | IMPLEMENTED - bounded verification PASS; hosted CI integration PASS at 0b18f3d; real-stack k6 smoke PASS after ORDER-CUSTOMER-EMAIL-001 | yes | yes | no | document-only | not selected |
 | `STABILIZATION-N01-N13` | UNDECLARED | yes | yes | no | document-only | not selected |
 | `STABILIZATION-N14` | UNDECLARED | yes | no | no | document-only | not selected |
 | `STABILIZATION-N15-N20` | UNDECLARED | yes | no | no | document-only | not selected |

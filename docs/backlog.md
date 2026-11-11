@@ -4,7 +4,7 @@ Open work for this repository, newest first. Remove an item when it is done; Git
 
 The [roadmap](improvement-roadmap.md) summarizes completed execution, qualification and external dependencies.
 
-- Run the k6 order smoke on a disposable Docker Compose stack with `ITERATIONS=20` and `VUS=2`. It needs an `order-admin` access token from a local Keycloak browser session and a fresh database. Record the p95 placement and lookup values as the first measurement for this environment. The first attempt on 2026-11-11 found the repeat-customer defect fixed by [ORDER-CUSTOMER-EMAIL-001](specs/ORDER-CUSTOMER-EMAIL-001/spec.md); rerun after its hosted CI passes. See [Load testing](testing.md#load-testing) and the [hosted CI record](specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md).
+- Confirm hosted CI for `10b80f3` ([ORDER-CUSTOMER-EMAIL-001](specs/ORDER-CUSTOMER-EMAIL-001/spec.md)): Java formatting, frontend formatting and `RepeatCustomerOrderPostgresIntegrationTest` in the critical PostgreSQL gate. Java was not compiled before the push.
 
 - S30-06 remains deferred with an open design gate and no qualification. Re-entry requires the concrete target/control mechanism or owner-approved scope revision recorded in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md). The application consumer defaults off independently of publishing.
 - S05-07 requires the external handbook owner to apply and verify the [prepared delta](reviews/external-handbook-delta-2026-10-06.md). External completion has not been verified.
