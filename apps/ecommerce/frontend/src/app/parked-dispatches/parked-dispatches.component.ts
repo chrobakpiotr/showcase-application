@@ -1,4 +1,4 @@
-import { DatePipe } from "@angular/common";
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,26 +6,26 @@ import {
   OnInit,
   inject,
   signal,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { Subject, catchError, of, startWith, switchMap, tap } from "rxjs";
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, catchError, of, startWith, switchMap, tap } from 'rxjs';
 
-import { AuthService } from "@app/auth/auth.service";
+import { AuthService } from '@app/auth/auth.service';
 import {
   ParkedDispatch,
   ParkedDispatchesService,
-} from "@app/parked-dispatches/parked-dispatches.service";
+} from '@app/parked-dispatches/parked-dispatches.service';
 
-const REASON_LABELS: Record<ParkedDispatch["reasonCode"], string> = {
-  ORDER_MISSING: "Order was not found",
-  ATTEMPT_BUDGET_EXHAUSTED: "Delivery attempt limit reached",
-  OTHER: "Other",
+const REASON_LABELS: Record<ParkedDispatch['reasonCode'], string> = {
+  ORDER_MISSING: 'Order was not found',
+  ATTEMPT_BUDGET_EXHAUSTED: 'Delivery attempt limit reached',
+  OTHER: 'Other',
 };
 
 @Component({
-  selector: "app-parked-dispatches",
-  templateUrl: "./parked-dispatches.component.html",
-  styleUrls: ["./parked-dispatches.component.scss"],
+  selector: 'app-parked-dispatches',
+  templateUrl: './parked-dispatches.component.html',
+  styleUrls: ['./parked-dispatches.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe],
 })
@@ -45,7 +45,7 @@ export class ParkedDispatchesComponent implements OnInit {
   readonly oldestAgeSeconds = signal<number | null>(null);
 
   get canRead(): boolean {
-    return this.authService.roles().includes("ORDER_READ");
+    return this.authService.roles().includes('ORDER_READ');
   }
 
   ngOnInit(): void {
@@ -60,12 +60,12 @@ export class ParkedDispatchesComponent implements OnInit {
         switchMap(() =>
           this.service.listParkedDispatches(this.page(), this.pageSize).pipe(
             catchError(() => {
-              this.errorMessage.set("Failed to load parked dispatches.");
+              this.errorMessage.set('Failed to load parked dispatches.');
               return of(null);
-            }),
-          ),
+            })
+          )
         ),
-        takeUntilDestroyed(this.destroyRef),
+        takeUntilDestroyed(this.destroyRef)
       )
       .subscribe((result) => {
         this.loading.set(false);
@@ -78,33 +78,33 @@ export class ParkedDispatchesComponent implements OnInit {
       });
   }
 
-  reasonLabel(code: ParkedDispatch["reasonCode"]): string {
+  reasonLabel(code: ParkedDispatch['reasonCode']): string {
     return REASON_LABELS[code] ?? REASON_LABELS.OTHER;
   }
 
   formatAge(seconds: number | null): string {
     if (seconds === null || !Number.isFinite(seconds) || seconds < 0) {
-      return "Unknown";
+      return 'Unknown';
     }
     if (seconds < 60)
-      return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+      return `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
     if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
-      return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+      return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
     }
     if (seconds < 86400) {
       const hours = Math.floor(seconds / 3600);
-      return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
     }
     const days = Math.floor(seconds / 86400);
-    return `${days} ${days === 1 ? "day" : "days"}`;
+    return `${days} ${days === 1 ? 'day' : 'days'}`;
   }
 
   ageOf(createdAt: string): string {
     const createdAtMillis = Date.parse(createdAt);
-    if (!Number.isFinite(createdAtMillis)) return "Unknown";
+    if (!Number.isFinite(createdAtMillis)) return 'Unknown';
     return this.formatAge(
-      Math.max(0, Math.floor((Date.now() - createdAtMillis) / 1000)),
+      Math.max(0, Math.floor((Date.now() - createdAtMillis) / 1000))
     );
   }
 

@@ -84,7 +84,7 @@
               <td>{{ reasonLabel(dispatch.reasonCode) }}</td>
               <td>{{ dispatch.attempts }}</td>
               <td>{{ ageOf(dispatch.createdAt) }}</td>
-              <td>{{ dispatch.createdAt | date: "medium" }}</td>
+              <td>{{ dispatch.createdAt | date: 'medium' }}</td>
             </tr>
           } @empty {
             @if (!loading() && !errorMessage()) {

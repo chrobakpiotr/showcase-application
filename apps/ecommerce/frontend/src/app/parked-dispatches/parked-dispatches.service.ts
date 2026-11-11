@@ -1,18 +1,18 @@
-import { HttpClient } from "@angular/common/http";
-import { Injectable, inject } from "@angular/core";
-import { Observable } from "rxjs";
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 
-import { environment } from "@environments/environment";
+import { environment } from '@environments/environment';
 
 export interface ParkedDispatch {
   dispatchId: string;
   orderNumber: string;
   dispatchType: string;
-  status: "PARKED";
+  status: 'PARKED';
   attempts: number;
   createdAt: string;
   nextAttemptAt: null;
-  reasonCode: "ORDER_MISSING" | "ATTEMPT_BUDGET_EXHAUSTED" | "OTHER";
+  reasonCode: 'ORDER_MISSING' | 'ATTEMPT_BUDGET_EXHAUSTED' | 'OTHER';
 }
 
 export interface ParkedDispatchPage {
@@ -24,14 +24,14 @@ export interface ParkedDispatchPage {
   oldestAgeSeconds: number | null;
 }
 
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class ParkedDispatchesService {
   private readonly httpClient = inject(HttpClient);
 
   listParkedDispatches(page = 0, size = 20): Observable<ParkedDispatchPage> {
     return this.httpClient.get<ParkedDispatchPage>(
       `${environment.apiPrefix}/order-placement/dispatches/parked`,
-      { params: { page, size } },
+      { params: { page, size } }
     );
   }
 }

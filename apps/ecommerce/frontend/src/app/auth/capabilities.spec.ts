@@ -19,6 +19,8 @@ describe('capabilities', () => {
   });
 
   it('restricts parked dispatches to read-authorized operators', () => {
-    expect(capabilityForPath('/parked-dispatches')?.readRole).toBe('ORDER_READ');
+    expect(capabilityForPath('/parked-dispatches')?.readRole).toBe(
+      'ORDER_READ'
+    );
   });
 });
