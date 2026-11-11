@@ -124,7 +124,7 @@ jobs:
         with:
           name: critical-postgres-evidence
           path: apps/ecommerce/backend/build/critical-postgres-results/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: error
 
   backend-rabbitmq-gate:
@@ -159,7 +159,7 @@ jobs:
         with:
           name: critical-rabbitmq-evidence
           path: apps/ecommerce/backend/build/critical-rabbitmq-results/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: error
 
   backend:
@@ -212,7 +212,7 @@ jobs:
           path: |
             **/build/reports/tests/
             **/build/test-results/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
       - name: Publish JaCoCo coverage reports
@@ -221,7 +221,7 @@ jobs:
         with:
           name: backend-coverage-reports
           path: '**/build/reports/jacoco/'
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
       - name: Publish static analysis reports (Checkstyle, PMD, SpotBugs)
@@ -233,7 +233,7 @@ jobs:
             **/build/reports/checkstyle/
             **/build/reports/pmd/
             **/build/reports/spotbugs/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
   mutation-testing:
@@ -263,7 +263,7 @@ jobs:
         with:
           name: domain-pit-evidence
           path: modules/domain/build/reports/pitest/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: error
 
   dependency-check:
@@ -304,7 +304,7 @@ jobs:
         with:
           name: dependency-check-report
           path: '**/build/reports/security/'
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
   dependency-review:
@@ -356,7 +356,7 @@ jobs:
           path: |
             **/build/reports/cyclonedx/
             **/build/reports/cyclonedx-direct/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
   infra-validation:
@@ -489,7 +489,7 @@ jobs:
         with:
           name: frontend-coverage-report
           path: apps/ecommerce/frontend/coverage/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
   e2e:
@@ -563,7 +563,7 @@ jobs:
         with:
           name: playwright-report
           path: apps/ecommerce/frontend/playwright-report/
-          retention-days: 14
+          retention-days: 7
           if-no-files-found: ignore
 
       - name: Dump application logs on failure

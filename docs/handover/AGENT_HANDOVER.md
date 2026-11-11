@@ -29,6 +29,7 @@ Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## Unfinished
 
+- Artifact retention is 7 days in `ci.yml`, `scorecard.yml` and `verification-sandbox-qualification.yml`, the repository maximum. `agentic-sdd.yml` still asks for 14 and GitHub caps it with a warning. That file is in the protocol fingerprint, so changing it needs an owner decision.
 - ORDER-CUSTOMER-EMAIL-001 has not run in hosted CI yet. If Spotless or the new test fails, fix it before anything else. H2 keeps the unique constraint by design; see the specification.
 - The new frontend formatting gate has not run in hosted CI yet. If it fails, the Spotless report names the files; apply its output rather than local Prettier.
 - `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).

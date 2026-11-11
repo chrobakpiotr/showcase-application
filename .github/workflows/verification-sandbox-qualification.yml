@@ -46,4 +46,4 @@ jobs:
           name: verification-sandbox-qualification-${{ github.run_id }}-${{ github.run_attempt }}
           path: docs/specs/AH5-04B-QUAL-001/evidence/github-runner/${{ github.run_id }}-attempt-${{ github.run_attempt }}/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
