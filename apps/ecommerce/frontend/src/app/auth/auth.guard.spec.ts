@@ -18,7 +18,7 @@ describe('authGuard', () => {
           provide: Router,
           useValue: {
             createUrlTree: (commands: unknown[], extras?: unknown) =>
-              ({ commands, extras } as unknown as UrlTree),
+              ({ commands, extras }) as unknown as UrlTree,
             navigate: vi.fn().mockName('navigate'),
           },
         },

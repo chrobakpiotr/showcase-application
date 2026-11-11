@@ -17,7 +17,7 @@ describe('roleGuard', () => {
           provide: Router,
           useValue: {
             createUrlTree: (commands: unknown[]) =>
-              ({ commands } as unknown as UrlTree),
+              ({ commands }) as unknown as UrlTree,
           },
         },
         {

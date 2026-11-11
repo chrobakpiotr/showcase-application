@@ -51,7 +51,7 @@ _RETRY_CONTROL_INPUT_SHA256 = {
         'tooling/scripts/tests/test_verify_critical_postgres_results.py':
             '8a15f2bca8b9851c0b497c4c5b80e3a32813610168e82b0c30a8c55ec55a375d',
         'tooling/quality/critical-postgres-manifest.json':
-            'd9e6489ca51c45e0f4787ed52b4fd95a773570e853257a19ca12bdbc69e035d7',
+            '55612fa5a1bf001f1fb4f8986c6151ca1c2cd1a90d651c9f1f6dbded45060d78',
         'tooling/scripts/verify-critical-postgres-tests.sh':
             '7612e68ac5253b6c9afa36f173755fff7da7daf32a1c88297888d7231676aff0',
     },
@@ -124,7 +124,7 @@ _REGISTERED_GRADLE_BUILD_INPUT_SHA256 = {
     'tooling/quality/spotless/spotless-java.gradle':
         '7ca8fa7d074b04cae38fc8ab015e7010ef61910df01e8767a06032a1884ca2dc',
     'tooling/quality/spotless/spotless-prettier.gradle':
-        '6298c46a770d41d3f1fe95c9338e3425f64473fd5958554b60f64decd369134d',
+        '3d2a040b718c38742fc71399cb1773a91fff3675e3d38462ed8a50d1d921c88f',
     'tooling/quality/spotless/spotless-xml.gradle':
         'fd52f6c94dc1d2ec193956f93cf133e6d6cb8be5d9206320357c17a69bdd7431',
 }

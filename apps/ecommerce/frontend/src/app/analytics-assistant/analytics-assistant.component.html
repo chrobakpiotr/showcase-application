@@ -8,50 +8,55 @@
   </header>
 
   @if (opsDigest(); as digest) {
-  <div class="digest-card" data-testid="ops-digest-card">
-    <h3>Latest ops digest</h3>
-    <p class="narrative">{{ digest.narrative }}</p>
-    <dl class="digest-figures">
-      <div>
-        <dt>Orders placed (last 24h)</dt>
-        <dd>{{ digest.ordersPlacedLastDay }}</dd>
-      </div>
-      @for ( entry of digest.remarksClassificationCounts | keyvalue; track
-      entry.key ) {
-      <div>
-        <dt>{{ entry.key }}</dt>
-        <dd>{{ entry.value }}</dd>
-      </div>
-      }
-    </dl>
-    <p class="generated-date">
-      Generated {{ digest.generatedDate | date : 'medium' }}
-    </p>
-  </div>
+    <div class="digest-card" data-testid="ops-digest-card">
+      <h3>Latest ops digest</h3>
+      <p class="narrative">{{ digest.narrative }}</p>
+      <dl class="digest-figures">
+        <div>
+          <dt>Orders placed (last 24h)</dt>
+          <dd>{{ digest.ordersPlacedLastDay }}</dd>
+        </div>
+        @for (
+          entry of digest.remarksClassificationCounts | keyvalue;
+          track entry.key
+        ) {
+          <div>
+            <dt>{{ entry.key }}</dt>
+            <dd>{{ entry.value }}</dd>
+          </div>
+        }
+      </dl>
+      <p class="generated-date">
+        Generated {{ digest.generatedDate | date: 'medium' }}
+      </p>
+    </div>
   }
 
   <div class="messages" data-testid="analytics-assistant-messages">
     @if (messages().length === 0) {
-    <p class="hint">
-      e.g. "How many orders were placed between 2024-01-01 and 2024-01-31?" or
-      "What's the remarks classification breakdown?"
-    </p>
-    } @for (message of messages(); track $index) {
-    <div
-      class="message"
-      [class.user]="message.role === 'user'"
-      [class.assistant]="message.role === 'assistant'"
-    >
-      <span class="text">{{ message.text }}</span>
-      @if (message.role === 'assistant' && message.assistantAvailable === false)
-      {
-      <span class="unavailable-hint"
-        >The assistant is currently unavailable.</span
+      <p class="hint">
+        e.g. "How many orders were placed between 2024-01-01 and 2024-01-31?" or
+        "What's the remarks classification breakdown?"
+      </p>
+    }
+    @for (message of messages(); track $index) {
+      <div
+        class="message"
+        [class.user]="message.role === 'user'"
+        [class.assistant]="message.role === 'assistant'"
       >
-      }
-    </div>
-    } @if (sending()) {
-    <p class="loading" data-testid="analytics-assistant-loading">Thinking…</p>
+        <span class="text">{{ message.text }}</span>
+        @if (
+          message.role === 'assistant' && message.assistantAvailable === false
+        ) {
+          <span class="unavailable-hint"
+            >The assistant is currently unavailable.</span
+          >
+        }
+      </div>
+    }
+    @if (sending()) {
+      <p class="loading" data-testid="analytics-assistant-loading">Thinking…</p>
     }
   </div>
 

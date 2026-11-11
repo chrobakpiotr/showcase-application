@@ -18,8 +18,7 @@ export interface PendingShipmentAdvanceOperation {
   expectedStatus: ShipmentStatus;
 }
 
-interface StoredShipmentAdvanceOperation
-  extends PendingShipmentAdvanceOperation {
+interface StoredShipmentAdvanceOperation extends PendingShipmentAdvanceOperation {
   version: 1;
   shipmentNumber: string;
 }

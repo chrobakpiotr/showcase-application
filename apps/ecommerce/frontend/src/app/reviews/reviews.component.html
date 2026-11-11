@@ -2,7 +2,7 @@
   <h2>Reviews & Ratings</h2>
 
   @if (errorMessage()) {
-  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+    <div class="error-message" role="alert">{{ errorMessage() }}</div>
   }
 
   <section class="browse-section">
@@ -32,27 +32,27 @@
     </form>
 
     @if (summary()) {
-    <p class="summary" data-testid="review-summary">
-      Average rating: {{ summary()!.averageRating }} ({{
-        summary()!.reviewCount
-      }}
-      review(s))
-    </p>
+      <p class="summary" data-testid="review-summary">
+        Average rating: {{ summary()!.averageRating }} ({{
+          summary()!.reviewCount
+        }}
+        review(s))
+      </p>
     }
 
     <ul class="review-list" data-testid="review-list">
       @for (review of reviews(); track review.reviewId) {
-      <li data-testid="review-item">
-        <strong>{{ review.authorName }}</strong> - {{ review.rating }}/5
-        <p>{{ review.comment }}</p>
-        <span class="date">{{ review.created | date }}</span>
-      </li>
+        <li data-testid="review-item">
+          <strong>{{ review.authorName }}</strong> - {{ review.rating }}/5
+          <p>{{ review.comment }}</p>
+          <span class="date">{{ review.created | date }}</span>
+        </li>
       } @empty {
-      <li class="empty" data-testid="empty-reviews">
-        {{
-          loadingReviews() ? 'Loading reviews...' : 'No approved reviews yet.'
-        }}
-      </li>
+        <li class="empty" data-testid="empty-reviews">
+          {{
+            loadingReviews() ? 'Loading reviews...' : 'No approved reviews yet.'
+          }}
+        </li>
       }
     </ul>
   </section>
@@ -109,66 +109,67 @@
         {{ submittingReview() ? 'Submitting...' : 'Submit review' }}
       </button>
       @if (submitted()) {
-      <p class="success" data-testid="submit-success">
-        Thanks! Your review is pending moderation.
-      </p>
+        <p class="success" data-testid="submit-success">
+          Thanks! Your review is pending moderation.
+        </p>
       }
     </form>
   </section>
 
   @if (canModerate) {
-  <section class="moderation-section">
-    <h3>Moderation queue</h3>
-    @if (moderationLoading()) {
-    <p class="loading" data-testid="moderation-loading">
-      Loading moderation queue...
-    </p>
-    } @if (moderationErrorMessage()) {
-    <div class="error-message" role="alert">
-      {{ moderationErrorMessage() }}
-    </div>
-    }
-    <ul class="review-list" data-testid="pending-review-list">
-      @for (review of pendingReviews(); track review.reviewId) {
-      <li data-testid="pending-review-item">
-        <strong>{{ review.authorName }}</strong> ({{ review.sku }}) -
-        {{ review.rating }}/5
-        <p>{{ review.comment }}</p>
-        @if (canWrite) {
-        <div class="actions">
-          <button
-            type="button"
-            data-testid="approve"
-            [disabled]="moderatingReviewId() !== null"
-            (click)="approve(review.reviewId)"
-          >
-            {{
-              moderatingReviewId() === review.reviewId
-                ? 'Updating...'
-                : 'Approve'
-            }}
-          </button>
-          <button
-            type="button"
-            data-testid="reject"
-            [disabled]="moderatingReviewId() !== null"
-            (click)="reject(review.reviewId)"
-          >
-            {{
-              moderatingReviewId() === review.reviewId
-                ? 'Updating...'
-                : 'Reject'
-            }}
-          </button>
-        </div>
-        }
-      </li>
-      } @empty {
-      <li class="empty" data-testid="empty-pending-reviews">
-        No reviews pending moderation.
-      </li>
+    <section class="moderation-section">
+      <h3>Moderation queue</h3>
+      @if (moderationLoading()) {
+        <p class="loading" data-testid="moderation-loading">
+          Loading moderation queue...
+        </p>
       }
-    </ul>
-  </section>
+      @if (moderationErrorMessage()) {
+        <div class="error-message" role="alert">
+          {{ moderationErrorMessage() }}
+        </div>
+      }
+      <ul class="review-list" data-testid="pending-review-list">
+        @for (review of pendingReviews(); track review.reviewId) {
+          <li data-testid="pending-review-item">
+            <strong>{{ review.authorName }}</strong> ({{ review.sku }}) -
+            {{ review.rating }}/5
+            <p>{{ review.comment }}</p>
+            @if (canWrite) {
+              <div class="actions">
+                <button
+                  type="button"
+                  data-testid="approve"
+                  [disabled]="moderatingReviewId() !== null"
+                  (click)="approve(review.reviewId)"
+                >
+                  {{
+                    moderatingReviewId() === review.reviewId
+                      ? 'Updating...'
+                      : 'Approve'
+                  }}
+                </button>
+                <button
+                  type="button"
+                  data-testid="reject"
+                  [disabled]="moderatingReviewId() !== null"
+                  (click)="reject(review.reviewId)"
+                >
+                  {{
+                    moderatingReviewId() === review.reviewId
+                      ? 'Updating...'
+                      : 'Reject'
+                  }}
+                </button>
+              </div>
+            }
+          </li>
+        } @empty {
+          <li class="empty" data-testid="empty-pending-reviews">
+            No reviews pending moderation.
+          </li>
+        }
+      </ul>
+    </section>
   }
 </div>

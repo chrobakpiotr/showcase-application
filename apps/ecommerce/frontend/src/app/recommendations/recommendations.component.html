@@ -31,27 +31,30 @@
   </form>
 
   @if (errorMessage()) {
-  <div class="error-message" role="alert">{{ errorMessage() }}</div>
-  } @if (!assistantAvailable()) {
-  <p class="unavailable-hint">
-    The recommendation assistant is currently unavailable.
-  </p>
+    <div class="error-message" role="alert">{{ errorMessage() }}</div>
+  }
+  @if (!assistantAvailable()) {
+    <p class="unavailable-hint">
+      The recommendation assistant is currently unavailable.
+    </p>
   }
 
   <div class="results" data-testid="recommendations-results">
     @if (recommendations().length === 0 && !loading() && !errorMessage()) {
-    <p class="hint">
-      No recommendations yet. Try an e-mail that has previous orders in the
-      demo.
-    </p>
-    } @for (recommendation of recommendations(); track recommendation.sku) {
-    <article class="recommendation-card" data-testid="recommendation-card">
-      <h3>{{ recommendation.productName }}</h3>
-      <p class="sku">{{ recommendation.sku }}</p>
-      <p>{{ recommendation.reason }}</p>
-    </article>
-    } @if (loading()) {
-    <p class="loading">Thinking…</p>
+      <p class="hint">
+        No recommendations yet. Try an e-mail that has previous orders in the
+        demo.
+      </p>
+    }
+    @for (recommendation of recommendations(); track recommendation.sku) {
+      <article class="recommendation-card" data-testid="recommendation-card">
+        <h3>{{ recommendation.productName }}</h3>
+        <p class="sku">{{ recommendation.sku }}</p>
+        <p>{{ recommendation.reason }}</p>
+      </article>
+    }
+    @if (loading()) {
+      <p class="loading">Thinking…</p>
     }
   </div>
 </section>

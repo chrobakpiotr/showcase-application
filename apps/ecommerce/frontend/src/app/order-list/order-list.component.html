@@ -2,9 +2,10 @@
   <h2>Orders</h2>
 
   @if (loading()) {
-  <p class="loading">Loading orders…</p>
-  } @if (errorMessage()) {
-  <div class="error-message" role="alert">{{ errorMessage() }}</div>
+    <p class="loading">Loading orders…</p>
+  }
+  @if (errorMessage()) {
+    <div class="error-message" role="alert">{{ errorMessage() }}</div>
   }
 
   <table class="order-table" data-testid="order-table">
@@ -19,27 +20,27 @@
     </thead>
     <tbody>
       @for (order of orders(); track order.orderNumber) {
-      <tr data-testid="order-row">
-        <td>{{ order.orderNumber }}</td>
-        <td>{{ order.status }}</td>
-        <td>{{ order.created | date : 'medium' }}</td>
-        <td>{{ order.total | currency }}</td>
-        <td>
-          <button
-            type="button"
-            data-testid="view-order"
-            (click)="selectOrder(order.orderNumber)"
-          >
-            View
-          </button>
-        </td>
-      </tr>
+        <tr data-testid="order-row">
+          <td>{{ order.orderNumber }}</td>
+          <td>{{ order.status }}</td>
+          <td>{{ order.created | date: 'medium' }}</td>
+          <td>{{ order.total | currency }}</td>
+          <td>
+            <button
+              type="button"
+              data-testid="view-order"
+              (click)="selectOrder(order.orderNumber)"
+            >
+              View
+            </button>
+          </td>
+        </tr>
       } @empty {
-      <tr>
-        <td colspan="5" class="empty" data-testid="empty-orders">
-          No orders found.
-        </td>
-      </tr>
+        <tr>
+          <td colspan="5" class="empty" data-testid="empty-orders">
+            No orders found.
+          </td>
+        </tr>
       }
     </tbody>
   </table>
@@ -67,210 +68,226 @@
   </div>
 
   @if (selectedOrder(); as order) {
-  <div class="order-details" data-testid="order-details">
-    <h3>Order {{ order.orderNumber }}</h3>
-    <p>
-      Status: <strong>{{ order.status }}</strong>
-    </p>
-    <p>Created: {{ order.created | date : 'medium' }}</p>
-    <p>Remarks: {{ order.remarks }}</p>
-
-    <h4>Customer</h4>
-    <p>{{ order.customer.fullName }} - {{ order.customer.email }}</p>
-    <p>
-      {{ order.customer.street }}, {{ order.customer.postalCode }}
-      {{ order.customer.city }}, {{ order.customer.countryCode }}
-    </p>
-
-    <h4>Items</h4>
-    <ul>
-      @for (item of order.items; track item.sku) {
-      <li>
-        {{ item.productName }} ({{ item.sku }}) x {{ item.quantity }} =
-        {{ item.subtotal | currency }}
-      </li>
-      }
-    </ul>
-    <p class="total">Total: {{ order.total | currency }}</p>
-
-    <h4>Payment</h4>
-    @if (order.payment) {
-    <p data-testid="payment-info">
-      {{ order.paymentMethod }} - {{ order.payment.status }} -
-      {{ order.payment.amount | currency }}
-      @if (order.payment.gatewayReference) {
-      <span> ({{ order.payment.gatewayReference }})</span>
-      }
-    </p>
-    } @else {
-    <p data-testid="payment-pending">Payment not yet captured.</p>
-    }
-
-    <div class="actions">
-      @if (order._links?.cancel) {
-      <button
-        type="button"
-        data-testid="cancel-order"
-        (click)="cancelOrder(order.orderNumber)"
-      >
-        Cancel order
-      </button>
-      }
-      <button
-        type="button"
-        data-testid="close-details"
-        (click)="closeDetails()"
-      >
-        Close
-      </button>
-    </div>
-
-    @if (canReadReturns) {
-    <section class="returns-section">
-      <h4>Returns / RMA</h4>
-      @if (returnErrorMessage()) {
-      <div class="error-message" role="alert">{{ returnErrorMessage() }}</div>
-      } @if (returnSuccessMessage()) {
-      <p class="success" data-testid="return-success">
-        {{ returnSuccessMessage() }}
+    <div class="order-details" data-testid="order-details">
+      <h3>Order {{ order.orderNumber }}</h3>
+      <p>
+        Status: <strong>{{ order.status }}</strong>
       </p>
-      }
+      <p>Created: {{ order.created | date: 'medium' }}</p>
+      <p>Remarks: {{ order.remarks }}</p>
 
-      <ul data-testid="order-returns">
-        @for (returnRequest of orderReturns(); track returnRequest.returnNumber)
-        {
-        <li data-testid="order-return-item">
-          {{ returnRequest.returnNumber }} - {{ returnRequest.sku }} x
-          {{ returnRequest.quantity }} - {{ returnRequest.status }} -
-          {{ returnRequest.refundAmount | currency }}
-        </li>
-        } @empty {
-        <li data-testid="empty-order-returns">No return requests yet.</li>
+      <h4>Customer</h4>
+      <p>{{ order.customer.fullName }} - {{ order.customer.email }}</p>
+      <p>
+        {{ order.customer.street }}, {{ order.customer.postalCode }}
+        {{ order.customer.city }}, {{ order.customer.countryCode }}
+      </p>
+
+      <h4>Items</h4>
+      <ul>
+        @for (item of order.items; track item.sku) {
+          <li>
+            {{ item.productName }} ({{ item.sku }}) x {{ item.quantity }} =
+            {{ item.subtotal | currency }}
+          </li>
         }
       </ul>
+      <p class="total">Total: {{ order.total | currency }}</p>
 
-      @if (canWriteReturns && order.status === 'CONFIRMED' &&
-      hasReturnableItems()) {
-      <form
-        [formGroup]="returnForm"
-        (ngSubmit)="requestReturn()"
-        data-testid="request-return-form"
-      >
-        <div class="field">
-          <label for="return-sku">Line item</label>
-          <select
-            id="return-sku"
-            formControlName="sku"
-            data-testid="return-sku"
-          >
-            @for (item of order.items; track item.sku) { @if
-            (remainingQuantity(item.sku) > 0) {
-            <option [value]="item.sku">
-              {{ item.productName }} ({{ item.sku }}) -
-              {{ remainingQuantity(item.sku) }}
-              remaining
-            </option>
-            } }
-          </select>
-        </div>
-        <div class="field">
-          <label for="return-quantity">Quantity</label>
-          <input
-            id="return-quantity"
-            type="number"
-            min="1"
-            formControlName="quantity"
-            data-testid="return-quantity"
-          />
-        </div>
-        <div class="field">
-          <label for="return-reason">Reason</label>
-          <textarea
-            id="return-reason"
-            formControlName="reason"
-            data-testid="return-reason"
-          ></textarea>
-        </div>
-        <button
-          type="submit"
-          data-testid="request-return"
-          [disabled]="returnForm.invalid"
-        >
-          Request return
-        </button>
-      </form>
-      } @else if (canWriteReturns && order.status !== 'CONFIRMED') {
-      <p data-testid="return-unavailable">
-        Returns are only available for confirmed orders.
-      </p>
-      } @else if (canWriteReturns && !hasReturnableItems()) {
-      <p data-testid="return-fully-requested">
-        Every ordered quantity is already covered by a return request.
-      </p>
-      }
-    </section>
-    } @if (canReadShipments) {
-    <section class="returns-section">
-      <h4>Track Shipment</h4>
-      @if (shipmentErrorMessage()) {
-      <div class="error-message" role="alert">{{ shipmentErrorMessage() }}</div>
-      } @if (shipmentSuccessMessage()) {
-      <p class="success" data-testid="shipment-success">
-        {{ shipmentSuccessMessage() }}
-      </p>
+      <h4>Payment</h4>
+      @if (order.payment) {
+        <p data-testid="payment-info">
+          {{ order.paymentMethod }} - {{ order.payment.status }} -
+          {{ order.payment.amount | currency }}
+          @if (order.payment.gatewayReference) {
+            <span> ({{ order.payment.gatewayReference }})</span>
+          }
+        </p>
+      } @else {
+        <p data-testid="payment-pending">Payment not yet captured.</p>
       }
 
-      <ul data-testid="order-shipments">
-        @for (shipment of orderShipments(); track shipment.shipmentNumber) {
-        <li data-testid="order-shipment-item">
-          {{ shipment.shipmentNumber }} - {{ shipment.carrier }} -
-          {{ shipment.trackingNumber }} - {{ shipment.status }}
-          @if (canWriteShipments && shipment._links?.['advance-status']) {
+      <div class="actions">
+        @if (order._links?.cancel) {
           <button
             type="button"
-            data-testid="advance-order-shipment"
-            (click)="advanceShipmentStatus(shipment.shipmentNumber)"
+            data-testid="cancel-order"
+            (click)="cancelOrder(order.orderNumber)"
           >
-            Advance Status
+            Cancel order
           </button>
-          }
-        </li>
-        } @empty {
-        <li data-testid="empty-order-shipments">No shipments yet.</li>
         }
-      </ul>
-
-      @if (canWriteShipments && order.status === 'CONFIRMED' &&
-      !orderShipments().length) {
-      <form
-        [formGroup]="shipmentForm"
-        (ngSubmit)="createShipment()"
-        data-testid="create-shipment-form"
-      >
-        <div class="field">
-          <label for="shipment-carrier">Carrier</label>
-          <input
-            id="shipment-carrier"
-            type="text"
-            formControlName="carrier"
-            data-testid="shipment-carrier"
-          />
-        </div>
         <button
-          type="submit"
-          data-testid="create-shipment"
-          [disabled]="shipmentForm.invalid"
+          type="button"
+          data-testid="close-details"
+          (click)="closeDetails()"
         >
-          Ship this order
+          Close
         </button>
-      </form>
-      } @else if (canWriteShipments && order.status !== 'CONFIRMED') {
-      <p data-testid="shipment-unavailable">
-        Shipments can only be created for confirmed orders.
-      </p>
+      </div>
+
+      @if (canReadReturns) {
+        <section class="returns-section">
+          <h4>Returns / RMA</h4>
+          @if (returnErrorMessage()) {
+            <div class="error-message" role="alert">
+              {{ returnErrorMessage() }}
+            </div>
+          }
+          @if (returnSuccessMessage()) {
+            <p class="success" data-testid="return-success">
+              {{ returnSuccessMessage() }}
+            </p>
+          }
+
+          <ul data-testid="order-returns">
+            @for (
+              returnRequest of orderReturns();
+              track returnRequest.returnNumber
+            ) {
+              <li data-testid="order-return-item">
+                {{ returnRequest.returnNumber }} - {{ returnRequest.sku }} x
+                {{ returnRequest.quantity }} - {{ returnRequest.status }} -
+                {{ returnRequest.refundAmount | currency }}
+              </li>
+            } @empty {
+              <li data-testid="empty-order-returns">No return requests yet.</li>
+            }
+          </ul>
+
+          @if (
+            canWriteReturns &&
+            order.status === 'CONFIRMED' &&
+            hasReturnableItems()
+          ) {
+            <form
+              [formGroup]="returnForm"
+              (ngSubmit)="requestReturn()"
+              data-testid="request-return-form"
+            >
+              <div class="field">
+                <label for="return-sku">Line item</label>
+                <select
+                  id="return-sku"
+                  formControlName="sku"
+                  data-testid="return-sku"
+                >
+                  @for (item of order.items; track item.sku) {
+                    @if (remainingQuantity(item.sku) > 0) {
+                      <option [value]="item.sku">
+                        {{ item.productName }} ({{ item.sku }}) -
+                        {{ remainingQuantity(item.sku) }}
+                        remaining
+                      </option>
+                    }
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="return-quantity">Quantity</label>
+                <input
+                  id="return-quantity"
+                  type="number"
+                  min="1"
+                  formControlName="quantity"
+                  data-testid="return-quantity"
+                />
+              </div>
+              <div class="field">
+                <label for="return-reason">Reason</label>
+                <textarea
+                  id="return-reason"
+                  formControlName="reason"
+                  data-testid="return-reason"
+                ></textarea>
+              </div>
+              <button
+                type="submit"
+                data-testid="request-return"
+                [disabled]="returnForm.invalid"
+              >
+                Request return
+              </button>
+            </form>
+          } @else if (canWriteReturns && order.status !== 'CONFIRMED') {
+            <p data-testid="return-unavailable">
+              Returns are only available for confirmed orders.
+            </p>
+          } @else if (canWriteReturns && !hasReturnableItems()) {
+            <p data-testid="return-fully-requested">
+              Every ordered quantity is already covered by a return request.
+            </p>
+          }
+        </section>
       }
-    </section>
-    }
-  </div>
+      @if (canReadShipments) {
+        <section class="returns-section">
+          <h4>Track Shipment</h4>
+          @if (shipmentErrorMessage()) {
+            <div class="error-message" role="alert">
+              {{ shipmentErrorMessage() }}
+            </div>
+          }
+          @if (shipmentSuccessMessage()) {
+            <p class="success" data-testid="shipment-success">
+              {{ shipmentSuccessMessage() }}
+            </p>
+          }
+
+          <ul data-testid="order-shipments">
+            @for (shipment of orderShipments(); track shipment.shipmentNumber) {
+              <li data-testid="order-shipment-item">
+                {{ shipment.shipmentNumber }} - {{ shipment.carrier }} -
+                {{ shipment.trackingNumber }} - {{ shipment.status }}
+                @if (canWriteShipments && shipment._links?.['advance-status']) {
+                  <button
+                    type="button"
+                    data-testid="advance-order-shipment"
+                    (click)="advanceShipmentStatus(shipment.shipmentNumber)"
+                  >
+                    Advance Status
+                  </button>
+                }
+              </li>
+            } @empty {
+              <li data-testid="empty-order-shipments">No shipments yet.</li>
+            }
+          </ul>
+
+          @if (
+            canWriteShipments &&
+            order.status === 'CONFIRMED' &&
+            !orderShipments().length
+          ) {
+            <form
+              [formGroup]="shipmentForm"
+              (ngSubmit)="createShipment()"
+              data-testid="create-shipment-form"
+            >
+              <div class="field">
+                <label for="shipment-carrier">Carrier</label>
+                <input
+                  id="shipment-carrier"
+                  type="text"
+                  formControlName="carrier"
+                  data-testid="shipment-carrier"
+                />
+              </div>
+              <button
+                type="submit"
+                data-testid="create-shipment"
+                [disabled]="shipmentForm.invalid"
+              >
+                Ship this order
+              </button>
+            </form>
+          } @else if (canWriteShipments && order.status !== 'CONFIRMED') {
+            <p data-testid="shipment-unavailable">
+              Shipments can only be created for confirmed orders.
+            </p>
+          }
+        </section>
+      }
+    </div>
   }
 </div>

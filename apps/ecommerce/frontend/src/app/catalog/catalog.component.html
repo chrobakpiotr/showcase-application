@@ -25,7 +25,7 @@
       >
         <option value="">All categories</option>
         @for (category of categories(); track category.slug) {
-        <option [value]="category.slug">{{ category.name }}</option>
+          <option [value]="category.slug">{{ category.name }}</option>
         }
       </select>
     </div>
@@ -35,57 +35,58 @@
   </div>
 
   @if (loading()) {
-  <div class="status-panel loading" role="status">Loading products…</div>
-  } @if (errorMessage()) {
-  <div class="status-panel error-message" role="alert">
-    {{ errorMessage() }}
-  </div>
+    <div class="status-panel loading" role="status">Loading products…</div>
+  }
+  @if (errorMessage()) {
+    <div class="status-panel error-message" role="alert">
+      {{ errorMessage() }}
+    </div>
   }
 
   <div class="product-grid" data-testid="product-grid">
     @for (product of products(); track product.sku) {
-    <article class="product-card" data-testid="product-card">
-      <div class="product-media">
-        @if (product.imageUrl) {
-        <img [src]="product.imageUrl" [alt]="product.name" />
-        } @else {
-        <div class="product-placeholder" aria-hidden="true">
-          {{ product.categoryName.slice(0, 1) }}
+      <article class="product-card" data-testid="product-card">
+        <div class="product-media">
+          @if (product.imageUrl) {
+            <img [src]="product.imageUrl" [alt]="product.name" />
+          } @else {
+            <div class="product-placeholder" aria-hidden="true">
+              {{ product.categoryName.slice(0, 1) }}
+            </div>
+          }
         </div>
-        }
-      </div>
-      <div class="product-body">
-        <div class="product-meta">
-          <span class="category">{{ product.categoryName }}</span>
-          <code>{{ product.sku }}</code>
-        </div>
-        <h2>{{ product.name }}</h2>
-        <a
-          routerLink="/inventory"
-          [queryParams]="{ sku: product.sku }"
-          data-testid="product-inventory"
-          >Check inventory</a
-        >
-        <p class="description">{{ product.description }}</p>
-        <div class="product-footer">
-          <span class="price">{{ product.unitPrice | currency }}</span>
-          <span
-            class="availability"
-            [class.availability--inactive]="!product.active"
+        <div class="product-body">
+          <div class="product-meta">
+            <span class="category">{{ product.categoryName }}</span>
+            <code>{{ product.sku }}</code>
+          </div>
+          <h2>{{ product.name }}</h2>
+          <a
+            routerLink="/inventory"
+            [queryParams]="{ sku: product.sku }"
+            data-testid="product-inventory"
+            >Check inventory</a
           >
-            {{ product.active ? 'Active' : 'Inactive' }}
-          </span>
+          <p class="description">{{ product.description }}</p>
+          <div class="product-footer">
+            <span class="price">{{ product.unitPrice | currency }}</span>
+            <span
+              class="availability"
+              [class.availability--inactive]="!product.active"
+            >
+              {{ product.active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
     } @empty {
-    <div class="empty" data-testid="empty-products">
-      <strong>No products found.</strong>
-      <span
-        >Try another category or start the app with a local/demo profile to load
-        the seed catalog.</span
-      >
-    </div>
+      <div class="empty" data-testid="empty-products">
+        <strong>No products found.</strong>
+        <span
+          >Try another category or start the app with a local/demo profile to
+          load the seed catalog.</span
+        >
+      </div>
     }
   </div>
 
