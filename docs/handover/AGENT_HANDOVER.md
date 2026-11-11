@@ -1,14 +1,14 @@
 # showcase-application - agent handover
 
-Updated 2026-11-10. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
+Updated 2026-11-11. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## State
 
-- CI for `39b45b2` passed backend, frontend, PIT, critical PostgreSQL/RabbitMQ, infrastructure, CodeQL and vulnerability scans. Playwright passed 30/31; its trace showed the cart test filling the old Inventory SKU input before navigation completed. The test now waits for `/cart` and scopes inputs to `add-item-form`.
-- The changed Gradle-input registration also changed both retry-control aggregate digests. The hard-coded expectations in `test_verification_supervisor.py` are now coordinated with the reviewed registration. The prior mismatch caused the harness unit test and the A007 evaluation to fail. Fresh CI remains required for these two corrections.
+- Hosted CI at `0b18f3d` passed Playwright, the critical PostgreSQL and RabbitMQ gates and Agentic SDD. This closes the Docker-dependent integration gap of SHOWCASE-FOLLOWUP-001. See the [hosted CI record](../specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md).
+- The CI build excluded the frontend Spotless tasks, so green CI never checked frontend formatting. The six files from the local verification record are now formatted, and the CI backend job and `verify-before-push.sh` run `:adapter:ecommerce-frontend:spotlessStylingCheck` explicitly. The formatting was produced with Prettier 3.8.1 (single quotes, `es5` trailing commas) because Gradle could not run in that workspace; the changes are only quotes, trailing commas and one line wrap.
 
 - SHOWCASE-FOLLOWUP-001 implements the four architecture follow-ups. Adapter rules cover all technical adapter roots and the exact web operator-identity exception. k6 uses an operator token, complete order requests, bounded stock and global abort on contract failure. The AMQP consumer defaults off independently of publishing. Architecture and roadmap now include current modules and separate execution from qualification.
-- Focused module gates passed with JDK 25 and Gradle 9.7.1. Domain had 418 passing tests and AMQP 20. The Node suite passed 16 tests. Real k6 v2.3.0 passed successful, malformed-response and expired-token scenarios against synthetic HTTP transport. See [verification](../specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md) for scope and integration status.
+- Focused module gates passed with JDK 25 and Gradle 9.7.1. k6 v2.3.0 passed against synthetic HTTP transport only. See [verification](../specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md).
 
 - DEMO-004 lets an operator with `ORDER_WRITE` continue from a confirmed cart to
   the existing order form. Cart writes settle across route changes, checkout
@@ -28,11 +28,13 @@ Updated 2026-11-10. Read `AGENTS.md` first. Rule "Handover file" in `AGENTS.md`.
 
 ## Unfinished
 
-SHOWCASE-FOLLOWUP-001 bounded checks passed. Full build integration is blocked by unavailable Docker and formatting differences in six untouched frontend files, as detailed in its verification record. See `docs/backlog.md`. `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
+- The new frontend formatting gate has not run in hosted CI yet. If it fails, the Spotless report names the files; apply its output rather than local Prettier.
+- The real-stack k6 smoke has not run. It needs an operator token from a browser session, so an agent cannot run it alone. See `docs/backlog.md`.
+- `qualification/report.py` is the one remaining frozen copy of library code (agent-harness backlog).
 
 ## Next step
 
-Resolve the recorded frontend formatting cleanup and rerun required integration gates on a Docker host. See the backlog for external dependencies. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
+Check the backend job's `Verify frontend formatting` step on the next CI run. Then run the k6 smoke on a disposable Docker Compose stack with `ITERATIONS=20` and `VUS=2` and record p95. Keep S30-06 deferred. Any future required-sandbox run needs active backend qualification for its exact checkout and policy and a tested provider CLI profile. Linux supports discovery only in v0.32.0. See the [verification operator reference](../agentic-sdd/verification-operator-reference.md).
 
 ## Do not touch
 
@@ -48,5 +50,4 @@ Resolve the recorded frontend formatting cleanup and rerun required integration 
 
 `bash tooling/scripts/run-harness-tests-parallel.sh <dir>` and `python3 tooling/scripts/verify_evidence_checksums.py`, with the pinned library installed. `AGENTS.md` is a protocol file: changing it changes the protocol fingerprint.
 
-The Gradle wrapper could not download its distribution in the builder workspace,
-and graphify was unavailable there.
+On 2026-11-11 the agent workspace had no Docker daemon, no network for the Gradle wrapper and no graphify.

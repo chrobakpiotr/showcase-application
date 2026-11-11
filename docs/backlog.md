@@ -4,8 +4,7 @@ Open work for this repository, newest first. Remove an item when it is done; Git
 
 The [roadmap](improvement-roadmap.md) summarizes completed execution, qualification and external dependencies.
 
-- Frontend formatting gate reports six files already present at `84a18cd`, including capabilities.spec.ts and the parked-dispatches files. Reconcile them with the existing Spotless/Prettier policy in a focused cleanup and run `./gradlew :adapter:ecommerce-frontend:spotlessStylingCheck`. The [verification record](specs/SHOWCASE-FOLLOWUP-001/evidence/verification.md) lists exact paths and the baseline comparison.
-- Finish SHOWCASE-FOLLOWUP-001 integration on a Docker host. Required PostgreSQL initialization and 88 skipped integration cases remain unverified locally. Run the full build and required PostgreSQL/RabbitMQ gates at the published revision; retain the default-off consumer boundary. A real-stack k6 smoke additionally needs a local operator token and a disposable database.
+- Run the k6 order smoke on a disposable Docker Compose stack with `ITERATIONS=20` and `VUS=2`. It needs an `order-admin` access token from a local Keycloak browser session and a fresh database. Record the p95 placement and lookup values as the first measurement for this environment. See [Load testing](testing.md#load-testing) and the [hosted CI record](specs/SHOWCASE-FOLLOWUP-001/evidence/hosted-ci-2026-11-11.md).
 
 - S30-06 remains deferred with an open design gate and no qualification. Re-entry requires the concrete target/control mechanism or owner-approved scope revision recorded in the [deferral decision](specs/S30-AMQP-POISON-001/evidence/s30-06-deferral-decision-2026-10-18.md). The application consumer defaults off independently of publishing.
 - S05-07 requires the external handbook owner to apply and verify the [prepared delta](reviews/external-handbook-delta-2026-10-06.md). External completion has not been verified.

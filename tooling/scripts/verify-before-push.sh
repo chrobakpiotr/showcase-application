@@ -76,6 +76,9 @@ run_backend_ci_gate() {
   echo "==> Checking persistence XML formatting"
   ./gradlew :adapter:persistence:spotlessXmlCheck
 
+  echo "==> Checking frontend formatting"
+  ./gradlew :adapter:ecommerce-frontend:spotlessStylingCheck
+
   echo "==> Running the exact backend CI build command"
   ./gradlew clean build \
     -x :adapter:ecommerce-frontend:npm_run_build \

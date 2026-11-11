@@ -188,6 +188,11 @@ jobs:
       - name: Verify Java formatting
         run: ./gradlew spotlessJavaCheck
 
+      # The build step below excludes the frontend Spotless tasks, so the Prettier
+      # formatting gate for the Angular sources runs here explicitly.
+      - name: Verify frontend formatting
+        run: ./gradlew :adapter:ecommerce-frontend:spotlessStylingCheck
+
       - name: Build, verify quality gates and run tests
         run: >
           ./gradlew build
