@@ -8,6 +8,12 @@ spring:
     liquibase:
         change-log: classpath:db/changelog/db.changelog-master.xml
 
+logging:
+    level:
+        # Hibernate's SqlExceptionHelper logs database messages at WARN, and they echo rejected values such as
+        # customer emails. Web errors log the SQLState instead (ProblemDetailFactory).
+        org.hibernate.orm.jdbc.error: ERROR
+
 cache:
   enabled: true
   provider: ehcache

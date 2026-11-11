@@ -1,6 +1,9 @@
 package com.cp.ecommerce.adapter.web.exception;
 
 import java.net.URI;
+import java.sql.SQLException;
+
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +57,31 @@ class ProblemDetailFactoryTest {
         given(tracerProvider.getIfAvailable()).willReturn(tracer);
 
         assertThat(createProblem().getProperties()).doesNotContainKey("traceId");
+    }
+
+    @Test
+    void shouldLogOnlySqlStateForDatabaseFailures() {
+
+        final SQLException sqlException = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        final RuntimeException exception = new RuntimeException("could not execute statement", sqlException);
+
+        try (LogCapture logs = new LogCapture(ProblemDetailFactory.class)) {
+            factory.create(exception, INTERNAL_SERVER_ERROR, TYPE, "Internal Server Error", "message");
+
+            final String messages = logs.formattedMessages();
+            assertThat(messages).contains("SQLState=23505");
+            assertThat(messages).doesNotContain("buyer@example.com").doesNotContain("could not execute statement");
+        }
+    }
+
+    @Test
+    void shouldKeepTheMessageOfOtherExceptions() {
+
+        try (LogCapture logs = new LogCapture(ProblemDetailFactory.class)) {
+            createProblem();
+
+            assertThat(logs.formattedMessages()).contains("RuntimeException").contains(": message");
+        }
     }
 
     private ProblemDetail createProblem() {
