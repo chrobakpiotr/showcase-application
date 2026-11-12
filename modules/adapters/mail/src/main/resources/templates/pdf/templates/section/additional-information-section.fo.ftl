@@ -6,7 +6,7 @@
                     <fo:table-body>
                         <fo:table-cell>
                             <fo:block>
-                                <#noescape>${message("pdf.remarks.title")}: ${remarks}</#noescape>
+                                ${message("pdf.remarks.title")}: ${remarks!}
                             </fo:block>
                         </fo:table-cell>
                     </fo:table-body>

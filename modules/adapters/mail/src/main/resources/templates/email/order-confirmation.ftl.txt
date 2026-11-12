@@ -1,7 +1,10 @@
+<#-- The mail is sent as HTML, so every value is HTML-escaped. -->
+<#escape x as x?html>
 <pre>
-${message("mail.greetings")} ${contact.fullName},
+${message("mail.greetings")} ${(contact.fullName)!},
 
 ${message("mail.thanks")}
 
 ${message("mail.footer")}
 </pre>
+</#escape>

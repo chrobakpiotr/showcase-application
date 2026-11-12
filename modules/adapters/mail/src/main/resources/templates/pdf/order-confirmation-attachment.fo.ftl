@@ -7,10 +7,10 @@
 
 <@layout.layout>
 <fo:block  font-weight="bold" color="${DARK_GREEN}" font-size="14pt">
-    <#noescape>${message("pdf.order.number")} ${orderNumber!}</#noescape>
+    ${message("pdf.order.number")} ${orderNumber!}
 </fo:block>
 <fo:block>
-    <#noescape>${message("pdf.order.date")} ${currentDate!}</#noescape>
+    ${message("pdf.order.date")} ${currentDate!}
 </fo:block>
 <@divider.divider/>
 <#include "templates/section/contact-section.fo.ftl">

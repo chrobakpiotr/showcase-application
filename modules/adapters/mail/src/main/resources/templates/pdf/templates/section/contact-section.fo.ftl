@@ -7,17 +7,17 @@
                         <fo:table-cell>
                             <#if contact.fullName??>
                                 <fo:block margin-top="${BLOCK_MARGIN}">
-                                    <#noescape>${(contact.fullName)!}</#noescape>
+                                    ${(contact.fullName)!}
                                 </fo:block>
                             </#if>
                             <#if contact.phone??>
                                 <fo:block margin-top="${BLOCK_MARGIN}">
-                                    <#noescape>${message("pdf.contact.phone")} ${(contact.phone)!}</#noescape>
+                                    ${message("pdf.contact.phone")} ${(contact.phone)!}
                                 </fo:block>
                             </#if>
                             <#if contact.email??>
                                 <fo:block margin-top="${BLOCK_MARGIN}">
-                                    <#noescape>${message("pdf.contact.email")} ${(contact.email.address)!}</#noescape>
+                                    ${message("pdf.contact.email")} ${(contact.email.address)!}
                                 </fo:block>
                             </#if>
                         </fo:table-cell>
@@ -32,15 +32,12 @@
                         <fo:table-row>
                             <fo:table-cell>
                                 <fo:block margin-top="${BLOCK_MARGIN}">
-                                    <#noescape>
-                                        ${(contact.address.street)!},
-                                        ${(contact.address.city)!}<#if (contact.address.postalCode)??>,</#if>
-                                        ${(contact.address.postalCode)!}
-                                    </#noescape>
+                                    ${(contact.address.street)!},
+                                    ${(contact.address.city)!}<#if (contact.address.postalCode)??>,</#if>
+                                    ${(contact.address.postalCode)!}
                                 </fo:block>
                                 <fo:block margin-top="${BLOCK_MARGIN}">
-                                    <#noescape>${(contact.address.countryCode)!}
-                                    </#noescape>
+                                    ${(contact.address.countryCode)!}
                                 </fo:block>
                             </fo:table-cell>
                         </fo:table-row>
