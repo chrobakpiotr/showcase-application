@@ -76,8 +76,7 @@ class SendEmailAdapterTest {
         doNothing().when(sender).send(message);
         try (LogCapture logs = new LogCapture(SendEmailAdapter.class)) {
             new SendEmailAdapter(sender, factory).send(order, SupportedLocale.ENGLISH);
-            assertThat(logs.formattedMessages())
-                    .isEqualTo("Email sent (dispatchId=" + SendEmailAdapter.dispatchId(order) + ")")
+            assertThat(logs.formattedMessages()).isEqualTo("Email sent (dispatchId=" + SendEmailAdapter.dispatchId(order) + ")")
                     .doesNotContain(TEST_EMAIL);
         }
     }
