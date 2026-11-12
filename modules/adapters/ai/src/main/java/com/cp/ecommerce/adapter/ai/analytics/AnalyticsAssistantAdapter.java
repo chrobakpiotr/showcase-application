@@ -7,6 +7,7 @@ import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
 import com.cp.ecommerce.domain.order.AnalyticsQuestion;
 import com.cp.ecommerce.domain.order.port.outgoing.AskAnalyticsQuestionOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -75,7 +76,9 @@ public class AnalyticsAssistantAdapter implements AskAnalyticsQuestionOutPort {
 
         return resilientExecutor
                 .callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> askModel(question, effectiveConversationId), exception -> {
-                    log.warn("Could not answer analytics question via Ollama, returning fallback answer.", exception);
+                    // Messages from the model client can echo prompt data, so only the cause class names are logged.
+                    final String causes = FailureMessages.causeNames(exception);
+                    log.warn("Could not answer analytics question via Ollama, returning fallback answer (causes={}).", causes);
                     return AnalyticsAnswer.unavailable();
                 });
     }

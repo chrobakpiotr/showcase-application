@@ -5,6 +5,7 @@ import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 import com.cp.ecommerce.domain.order.port.outgoing.GenerateOpsDigestNarrativeOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -60,7 +61,9 @@ public class OpsDigestNarrativeAdapter implements GenerateOpsDigestNarrativeOutP
                 RESILIENCE_INSTANCE_NAME,
                 () -> generateWithModel(ordersPlacedLastDay, remarksClassificationSummary),
                 exception -> {
-                    log.warn("Could not generate ops-digest narrative via Ollama, returning fallback narrative.", exception);
+                    // Messages from the model client can echo prompt data, so only the cause class names are logged.
+                    final String causes = FailureMessages.causeNames(exception);
+                    log.warn("Could not generate ops-digest narrative via Ollama, using the fallback (causes={}).", causes);
                     return FALLBACK_NARRATIVE;
                 });
     }

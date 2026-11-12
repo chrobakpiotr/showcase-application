@@ -38,6 +38,8 @@ import static org.apache.xmlgraphics.util.MimeConstants.MIME_PDF;
 @RequiredArgsConstructor
 public class PdfGenerator {
 
+    static final String GENERATION_ERROR = "Error generating the PDF from a rendered template of %d characters";
+
     private final transient TransformerFactory transformerFactory;
 
     private final transient FopFactory fopFactory;
@@ -79,7 +81,8 @@ public class PdfGenerator {
                                 new SAXResult(getFop(bos).getDefaultHandler()));
                 return bos.toByteArray();
             } catch (final IOException | FOPException | TransformerException ex) {
-                throw new TechnicalProblemException("Error generating the PDF for template '" + templateContent + "'", ex);
+                // The rendered template holds customer data, so the message names only its size.
+                throw new TechnicalProblemException(GENERATION_ERROR.formatted(templateContent.length()), ex);
             }
         }
         log.error("Template content is null or empty - cannot proceed with PDF generation");

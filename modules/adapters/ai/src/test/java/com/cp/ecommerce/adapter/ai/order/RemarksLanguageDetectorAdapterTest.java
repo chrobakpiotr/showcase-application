@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.SupportedLocale;
 
 import org.junit.jupiter.api.Test;
@@ -75,13 +76,33 @@ class RemarksLanguageDetectorAdapterTest {
     @Test
     void shouldDefaultToEnglishWhenModelReturnsAnUnrecognisedLanguage() {
 
-        respondWith("{\"language\": \"GERMAN\"}");
+        respondWith("{\"language\": \"call jan@example.com\"}");
         runResilientActionEagerly();
         final RemarksLanguageDetectorAdapter adapter = newAdapter();
 
-        final SupportedLocale locale = adapter.detectLanguage("Bitte liefern Sie morgen.");
+        try (LogCapture logs = new LogCapture(RemarksLanguageDetectorAdapter.class)) {
+            final SupportedLocale locale = adapter.detectLanguage("Bitte liefern Sie morgen.");
 
-        assertThat(locale).isEqualTo(SupportedLocale.ENGLISH);
+            assertThat(locale).isEqualTo(SupportedLocale.ENGLISH);
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Model returned an unrecognised language of 20 characters, defaulting to ENGLISH.");
+        }
+    }
+
+    @Test
+    void shouldDefaultToEnglishWhenModelReturnsNoLanguage() {
+
+        respondWith("{}");
+        runResilientActionEagerly();
+        final RemarksLanguageDetectorAdapter adapter = newAdapter();
+
+        try (LogCapture logs = new LogCapture(RemarksLanguageDetectorAdapter.class)) {
+            final SupportedLocale locale = adapter.detectLanguage("Please deliver tomorrow.");
+
+            assertThat(locale).isEqualTo(SupportedLocale.ENGLISH);
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Model returned an unrecognised language of 0 characters, defaulting to ENGLISH.");
+        }
     }
 
     @Test
@@ -89,13 +110,20 @@ class RemarksLanguageDetectorAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            final IllegalArgumentException cause = new IllegalArgumentException("remarks");
+            return fallback.apply(new IllegalStateException("prompt echo: jan@example.com", cause));
         });
         final RemarksLanguageDetectorAdapter adapter = newAdapter();
 
-        final SupportedLocale locale = adapter.detectLanguage("Please deliver tomorrow.");
+        try (LogCapture logs = new LogCapture(RemarksLanguageDetectorAdapter.class)) {
+            final SupportedLocale locale = adapter.detectLanguage("Please deliver tomorrow.");
 
-        assertThat(locale).isEqualTo(SupportedLocale.ENGLISH);
+            assertThat(locale).isEqualTo(SupportedLocale.ENGLISH);
+            assertThat(logs.formattedMessages()).startsWith("Could not detect remarks language via Ollama")
+                    .endsWith("(causes=IllegalStateException < IllegalArgumentException).")
+                    .doesNotContain("jan@example.com", "prompt echo");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     private RemarksLanguageDetectorAdapter newAdapter() {

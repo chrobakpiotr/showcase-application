@@ -65,7 +65,9 @@ public class PdfGeneratorTest {
         assertThatThrownBy(() -> new PdfGenerator(fopConfigXml, resourceResolver).generatePdf("badly-formed-template"))
                 .isInstanceOf(TechnicalProblemException.class)
                 .hasCauseInstanceOf(TransformerException.class)
-                .hasMessage("Error generating the PDF for template 'badly-formed-template'");
+                .hasMessage("Error generating the PDF from a rendered template of 21 characters")
+                .message()
+                .doesNotContain("badly-formed-template");
     }
 
     @Test

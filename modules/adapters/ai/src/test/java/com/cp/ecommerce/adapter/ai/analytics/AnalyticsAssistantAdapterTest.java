@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.AnalyticsAnswer;
 import com.cp.ecommerce.domain.order.AnalyticsQuestion;
 import com.cp.ecommerce.domain.order.port.incoming.CountOrderAnalyticsProjectionsInPort;
@@ -84,13 +85,19 @@ class AnalyticsAssistantAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: jan@example.com"));
         });
         final AnalyticsAssistantAdapter adapter = newAdapter();
 
-        final AnalyticsAnswer answer = adapter.ask(question("How many orders were placed today?"), "conversation-1");
+        try (LogCapture logs = new LogCapture(AnalyticsAssistantAdapter.class)) {
+            final AnalyticsAnswer answer = adapter.ask(question("How many orders were placed today?"), "conversation-1");
 
-        assertThat(answer.isAssistantAvailable()).isFalse();
+            assertThat(answer.isAssistantAvailable()).isFalse();
+            assertThat(logs.formattedMessages()).startsWith("Could not answer analytics question via Ollama")
+                    .endsWith("(causes=IllegalStateException).")
+                    .doesNotContain("jan@example.com", "prompt echo");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     private AnalyticsAssistantAdapter newAdapter() {

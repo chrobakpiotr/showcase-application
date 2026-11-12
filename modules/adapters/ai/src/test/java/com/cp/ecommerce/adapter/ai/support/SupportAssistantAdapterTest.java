@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.assistant.SupportAnswer;
 import com.cp.ecommerce.domain.assistant.SupportQuestion;
 
@@ -93,13 +94,19 @@ class SupportAssistantAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: jan@example.com"));
         });
         final SupportAssistantAdapter adapter = newAdapter();
 
-        final SupportAnswer answer = adapter.ask(question("What is the return policy?"), "conversation-1");
+        try (LogCapture logs = new LogCapture(SupportAssistantAdapter.class)) {
+            final SupportAnswer answer = adapter.ask(question("What is the return policy?"), "conversation-1");
 
-        assertThat(answer.isAssistantAvailable()).isFalse();
+            assertThat(answer.isAssistantAvailable()).isFalse();
+            assertThat(logs.formattedMessages()).startsWith("Could not answer support question via Ollama")
+                    .endsWith("(causes=IllegalStateException).")
+                    .doesNotContain("jan@example.com", "prompt echo");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     private SupportAssistantAdapter newAdapter() {

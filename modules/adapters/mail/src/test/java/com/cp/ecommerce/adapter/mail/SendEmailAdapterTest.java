@@ -1,5 +1,6 @@
 package com.cp.ecommerce.adapter.mail;
 
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.adapter.common.utils.OrderBuilder;
 import com.cp.ecommerce.adapter.mail.message.EmailMessageFactory;
 import com.cp.ecommerce.domain.order.Order;
@@ -66,17 +67,19 @@ class SendEmailAdapterTest {
     }
 
     @Test
-    void shouldWrapRecipientReadFailureAfterSend() throws Exception {
+    void shouldLogOnlyTheDispatchIdAfterSend() throws Exception {
         final Order order = OrderBuilder.mockOrder();
-        final JavaMailSenderImpl sender = Mockito.mock(JavaMailSenderImpl.class);
+        final JavaMailSenderImpl sender = Mockito.spy(new JavaMailSenderImpl());
         final EmailMessageFactory factory = Mockito.mock(EmailMessageFactory.class);
-        final MimeMessage message = Mockito.mock(MimeMessage.class);
+        final MimeMessage message = createMimeMessage(sender);
         given(factory.createEmailMessage(order)).willReturn(message);
         doNothing().when(sender).send(message);
-        given(message.getAllRecipients()).willThrow(new MessagingException("cannot read recipients"));
-        assertThatThrownBy(() -> new SendEmailAdapter(sender, factory).send(order, SupportedLocale.ENGLISH))
-                .isInstanceOf(MailParseException.class)
-                .hasCauseInstanceOf(MessagingException.class);
+        try (LogCapture logs = new LogCapture(SendEmailAdapter.class)) {
+            new SendEmailAdapter(sender, factory).send(order, SupportedLocale.ENGLISH);
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Email sent (dispatchId=" + SendEmailAdapter.dispatchId(order) + ")")
+                    .doesNotContain(TEST_EMAIL);
+        }
     }
 
     private static MimeMessage createMimeMessage(final JavaMailSenderImpl sender) throws MessagingException {

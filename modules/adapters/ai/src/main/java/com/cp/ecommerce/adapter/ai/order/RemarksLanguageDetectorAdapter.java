@@ -6,6 +6,7 @@ import com.cp.ecommerce.adapter.common.annotation.WebAdapter;
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.SupportedLocale;
 import com.cp.ecommerce.domain.order.port.outgoing.DetectRemarksLanguageOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -57,7 +58,9 @@ public class RemarksLanguageDetectorAdapter implements DetectRemarksLanguageOutP
         }
 
         return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> detectWithModel(remarks), exception -> {
-            log.warn("Could not detect remarks language via Ollama, defaulting to ENGLISH.", exception);
+            // Messages from the model client can echo prompt data, so only the cause class names are logged.
+            final String causes = FailureMessages.causeNames(exception);
+            log.warn("Could not detect remarks language via Ollama, defaulting to ENGLISH (causes={}).", causes);
             return SupportedLocale.ENGLISH;
         });
     }
@@ -78,7 +81,9 @@ public class RemarksLanguageDetectorAdapter implements DetectRemarksLanguageOutP
         try {
             return SupportedLocale.valueOf(rawLanguage.strip().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException | NullPointerException exception) {
-            log.warn("Model returned an unrecognised language '{}', defaulting to ENGLISH.", rawLanguage);
+            // The value is model output that can echo customer remarks, so only its length is logged.
+            final int length = rawLanguage == null ? 0 : rawLanguage.length();
+            log.warn("Model returned an unrecognised language of {} characters, defaulting to ENGLISH.", length);
             return SupportedLocale.ENGLISH;
         }
     }

@@ -5,6 +5,7 @@ import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.assistant.SupportAnswer;
 import com.cp.ecommerce.domain.assistant.SupportQuestion;
 import com.cp.ecommerce.domain.assistant.port.outgoing.AskSupportQuestionOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -58,7 +59,9 @@ public class SupportAssistantAdapter implements AskSupportQuestionOutPort {
         // conversationId remains part of the public contract for compatibility. ADR 0044 intentionally does not use it as
         // a server-side memory key because anonymous callers have no trustworthy identity/session binding.
         return resilientExecutor.callResilientOrElse(RESILIENCE_INSTANCE_NAME, () -> askModel(question), exception -> {
-            log.warn("Could not answer support question via Ollama, returning fallback answer.", exception);
+            // Messages from the model client can echo prompt data, so only the cause class names are logged.
+            final String causes = FailureMessages.causeNames(exception);
+            log.warn("Could not answer support question via Ollama, returning fallback answer (causes={}).", causes);
             return SupportAnswer.unavailable();
         });
     }

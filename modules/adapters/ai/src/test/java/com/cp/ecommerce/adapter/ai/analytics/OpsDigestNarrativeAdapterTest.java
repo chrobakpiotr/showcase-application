@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.RemarksClassificationSummary;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 
@@ -67,13 +68,19 @@ class OpsDigestNarrativeAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: jan@example.com"));
         });
         final OpsDigestNarrativeAdapter adapter = newAdapter();
 
-        final String narrative = adapter.generateNarrative(6L, SUMMARY);
+        try (LogCapture logs = new LogCapture(OpsDigestNarrativeAdapter.class)) {
+            final String narrative = adapter.generateNarrative(6L, SUMMARY);
 
-        assertThat(narrative).isEqualTo("AI narrative generation is currently unavailable; see the figures above.");
+            assertThat(narrative).isEqualTo("AI narrative generation is currently unavailable; see the figures above.");
+            assertThat(logs.formattedMessages()).startsWith("Could not generate ops-digest narrative via Ollama")
+                    .endsWith("(causes=IllegalStateException).")
+                    .doesNotContain("jan@example.com", "prompt echo");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     private OpsDigestNarrativeAdapter newAdapter() {
