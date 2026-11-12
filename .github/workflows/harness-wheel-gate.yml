@@ -1,0 +1,65 @@
+name: Harness wheel gate
+
+# Manual stand-in for agent-harness CI while that repository's own Actions cannot start. It runs the Harness's full
+# gate (T2, scripts/check-wheel.sh: wheel built, installed outside the checkout, every test) and its lint on an exact
+# Harness commit on a Linux runner with PyPI access. It changes nothing in either repository.
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Full 40-character agent-harness commit SHA to check'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-wheel:
+    name: Harness check-wheel (Python 3.13)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate the commit SHA
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          if ! printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::sha must be a full 40-character lowercase commit SHA"
+            exit 1
+          fi
+
+      - name: Checkout agent-harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: chrobakpiotr/agent-harness
+          ref: ${{ inputs.sha }}
+          token: ${{ secrets.HARNESS_READ_TOKEN }}
+          persist-credentials: false
+
+      - name: Confirm the checked-out commit
+        env:
+          SHA: ${{ inputs.sha }}
+        run: test "$(git rev-parse HEAD)" = "$SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Remove group and world write from the interpreter and system executable paths
+        # Same step as agent-harness CI: the runner ships these trees as mode 777, and the Harness's executable
+        # resolver correctly refuses binaries under writable directories.
+        run: |
+          sudo chmod go-w /usr/local/bin /opt /opt/hostedtoolcache /opt/hostedtoolcache/Python
+          sudo chmod -R go-w "$(dirname "$pythonLocation")"
+
+      - name: Lint
+        run: pipx run ruff==0.16.10 check .
+
+      - name: Evidence checksums
+        run: python3 scripts/verify-evidence-checksums.py
+
+      - name: Build wheel, install outside checkout, test installed package
+        env:
+          AGENT_HARNESS_BENCHMARK: '1'
+        run: scripts/check-wheel.sh

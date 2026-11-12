@@ -53,6 +53,13 @@ scripts disabled and prints the `package.json` and lockfile diff to the job log.
 CI then checks that every lockfile entry comes from registry.npmjs.org with a SHA-512 integrity
 (`tooling/scripts/check_npm_lockfile.py`) and runs `npm ci`, `npm audit`, lint and the tests on it.
 
+## Harness gate while its own CI cannot start
+
+The manual workflow **Harness wheel gate** (`.github/workflows/harness-wheel-gate.yml`) runs agent-harness's full
+gate (`scripts/check-wheel.sh`), its lint (the ruff version its CI pins) and its evidence checksums on an exact
+agent-harness commit, using the read-only `HARNESS_READ_TOKEN`. Use it when that repository's Actions do not start;
+it changes nothing in either repository.
+
 ## AMQP consumer boundary
 
 `service.rabbitmq.enabled` enables RabbitMQ publishing and the original topology. The application
