@@ -44,6 +44,14 @@ or `chaos` for the corresponding optional service. Follow the
 See [Deployment](deployment.md) for image and environment details and [Testing and CI](testing.md)
 for verification commands.
 
+## Frontend lockfile without registry access
+
+Agent sandboxes often cannot reach the npm registry. To change frontend dependencies, run the manual workflow
+**Frontend lockfile refresh** (`.github/workflows/lockfile-refresh.yml`). Its optional `overrides` input is a JSON
+object of `package.json` overrides to set (a `null` value removes one). It resolves `package-lock.json` with install
+scripts disabled and prints the `package.json` and lockfile diff to the job log. Apply that diff in a normal commit;
+CI then runs `npm ci`, `npm audit`, lint and the tests on it.
+
 ## AMQP consumer boundary
 
 `service.rabbitmq.enabled` enables RabbitMQ publishing and the original topology. The application
