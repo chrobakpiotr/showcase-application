@@ -166,8 +166,8 @@ def configureDependencyManagement(subproject) {
 			}
 			dependencies {
 				// Springdoc's BOM lags the Swagger UI WebJar; pin the patched asset bundle
-				// so the packaged Swagger UI contains DOMPurify 3.4.16 or later.
-				dependency 'org.webjars:swagger-ui:5.33.2'
+				// so the packaged Swagger UI contains DOMPurify 3.4.17 or later.
+				dependency 'org.webjars:swagger-ui:5.34.1'
 				// Kafka 4.3.1 brings lz4-java 1.10.2, which is affected by
 				// CVE-2026-106451. Pin the fixed compatible release.
 				dependency 'at.yawk.lz4:lz4-java:1.11.4'
