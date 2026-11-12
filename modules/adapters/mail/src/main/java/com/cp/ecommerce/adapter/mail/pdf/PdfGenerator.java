@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
 
+import javax.xml.transform.ErrorListener;
+import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.sax.SAXResult;
@@ -76,10 +78,11 @@ public class PdfGenerator {
 
             try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
 
-                transformerFactory.newTransformer()
-                        .transform(
-                                new StreamSource(new StringReader(templateContent)),
-                                new SAXResult(getFop(bos).getDefaultHandler()));
+                final Transformer transformer = transformerFactory.newTransformer();
+                // The default listener prints parser errors, which can quote the rendered template, to standard error.
+                transformer.setErrorListener(new QuietErrorListener());
+                final StreamSource source = new StreamSource(new StringReader(templateContent));
+                transformer.transform(source, new SAXResult(getFop(bos).getDefaultHandler()));
                 return bos.toByteArray();
             } catch (final IOException | FOPException | TransformerException ex) {
                 // The rendered template holds customer data, and FOP messages can quote it, so the failure names only the
@@ -105,4 +108,24 @@ public class PdfGenerator {
         return fopFactory.newFop(MIME_PDF, bos);
     }
 
+    /** Reports transformation problems only by throwing them, so nothing from the document reaches standard error. */
+    static final class QuietErrorListener implements ErrorListener {
+
+        @Override
+        public void warning(final TransformerException exception) {
+            // Warnings do not stop the transformation and their text can quote the document, so they are dropped.
+        }
+
+        @Override
+        public void error(final TransformerException exception) throws TransformerException {
+
+            throw exception;
+        }
+
+        @Override
+        public void fatalError(final TransformerException exception) throws TransformerException {
+
+            throw exception;
+        }
+    }
 }

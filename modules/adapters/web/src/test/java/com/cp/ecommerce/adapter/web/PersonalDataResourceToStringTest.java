@@ -5,12 +5,16 @@ import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
+import com.cp.ecommerce.adapter.web.assistant.resource.SupportAnswerResource;
 import com.cp.ecommerce.adapter.web.assistant.resource.SupportQuestionResource;
 import com.cp.ecommerce.adapter.web.notifications.resource.NotificationResource;
+import com.cp.ecommerce.adapter.web.order.resource.AnalyticsAnswerResource;
 import com.cp.ecommerce.adapter.web.order.resource.AnalyticsQuestionResource;
 import com.cp.ecommerce.adapter.web.order.resource.CustomerResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderDetailsResource;
 import com.cp.ecommerce.adapter.web.order.resource.OrderResource;
+import com.cp.ecommerce.adapter.web.returns.resource.RequestReturnResource;
+import com.cp.ecommerce.adapter.web.returns.resource.ReturnRequestResource;
 import com.cp.ecommerce.adapter.web.review.resource.ReviewResource;
 import com.cp.ecommerce.adapter.web.review.resource.SubmitReviewResource;
 
@@ -34,7 +38,11 @@ class PersonalDataResourceToStringTest {
                 SubmitReviewResource.class,
                 SupportQuestionResource.class,
                 AnalyticsQuestionResource.class,
-                NotificationResource.class);
+                NotificationResource.class,
+                RequestReturnResource.class,
+                ReturnRequestResource.class,
+                SupportAnswerResource.class,
+                AnalyticsAnswerResource.class);
     }
 
     @ParameterizedTest
@@ -55,6 +63,9 @@ class PersonalDataResourceToStringTest {
 
         if (parameterType == String.class) {
             return SECRET;
+        }
+        if (parameterType == boolean.class) {
+            return false;
         }
         return parameterType == int.class ? 0 : null;
     }

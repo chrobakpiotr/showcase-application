@@ -6,6 +6,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import javax.xml.transform.TransformerException;
+
 import com.cp.ecommerce.adapter.mail.pdf.utils.ClasspathResourceResolver;
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -18,6 +20,7 @@ import org.xml.sax.SAXException;
 import org.springframework.core.io.Resource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -102,4 +105,14 @@ public class PdfGeneratorTest {
         return new String(bytes, StandardCharsets.UTF_8); // SUPPRESS CHECKSTYLE IllegalInstantiation
     }
 
+    @Test
+    public void shouldRethrowTransformerErrorsWithoutPrintingThem() {
+
+        final PdfGenerator.QuietErrorListener listener = new PdfGenerator.QuietErrorListener();
+        final TransformerException problem = new TransformerException("Content is not allowed in prolog.");
+
+        assertThatCode(() -> listener.warning(problem)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> listener.error(problem)).isSameAs(problem);
+        assertThatThrownBy(() -> listener.fatalError(problem)).isSameAs(problem);
+    }
 }

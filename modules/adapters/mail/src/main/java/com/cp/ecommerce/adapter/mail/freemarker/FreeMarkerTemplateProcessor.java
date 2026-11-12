@@ -19,6 +19,7 @@ import freemarker.core.Environment;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import freemarker.template.TemplateExceptionHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,13 +61,22 @@ public class FreeMarkerTemplateProcessor {
                         objectWrapperFactory.createWrapper(model),
                         new EnvironmentConfigurer().getConfigurer());
             } catch (final TemplateException | IOException | RuntimeException ex) { // SUPPRESS CHECKSTYLE IllegalCatch
-                // Template errors can quote model values, so only the cause classes are kept, not the cause.
-                final String causes = FailureMessages.causeNames(ex);
-                throw new TechnicalProblemException(
-                        format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName) + " (causes=" + causes + ")");
+                // Template errors can quote model values, so the failure keeps the template position and the cause
+                // classes, not the cause.
+                throw new TechnicalProblemException(failureMessage(model, templateName, ex));
             }
         }
         return null;
+    }
+
+    private static String failureMessage(final Object model, final String templateName, final Exception failure) {
+
+        String position = "";
+        if (failure instanceof TemplateException templateFailure) {
+            position = " at line " + templateFailure.getLineNumber() + ", column " + templateFailure.getColumnNumber();
+        }
+        final String causes = " (causes=" + FailureMessages.causeNames(failure) + ")";
+        return format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName) + position + causes;
     }
 
     private void setupFreeMarkerConfiguration() {
@@ -75,6 +85,9 @@ public class FreeMarkerTemplateProcessor {
             classTemplateLoader = new ClassTemplateLoader(Thread.currentThread().getContextClassLoader(), TEMPLATES_BASE_PATH);
             configuration.setTemplateLoader(classTemplateLoader);
             configuration.setCacheStorage(new StrongCacheStorage());
+            // FreeMarker would otherwise log each template error itself, with messages that can quote model values.
+            configuration.setLogTemplateExceptions(false);
+            configuration.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
         }
     }
 

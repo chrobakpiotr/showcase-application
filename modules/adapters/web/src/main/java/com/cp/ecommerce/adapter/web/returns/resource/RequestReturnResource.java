@@ -11,4 +11,10 @@ public record RequestReturnResource(@Schema(example = "ORD-20240907-0001") Strin
         @Schema(example = "SKU-1234") String sku, @Schema(example = "1") Integer quantity,
         @Schema(example = "Damaged on arrival") String reason) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "RequestReturnResource[personal data omitted]";
+    }
 }

@@ -71,6 +71,18 @@ class FailureMessagesTest {
         assertThat(FailureMessages.redact("phones 555 555 555 (home)")).isEqualTo("phones [phone] (home)");
         assertThat(FailureMessages.redact("call 600700800!")).isEqualTo("call [phone]!");
         assertThat(FailureMessages.redact("call 600700800- now")).isEqualTo("call [phone]- now");
+        assertThat(FailureMessages.redact("call +48 600 700 800-ext 12")).isEqualTo("call [phone]-ext 12");
+    }
+
+    @Test
+    void shouldReplacePhoneListsAndLabelledPhones() {
+
+        assertThat(FailureMessages.redact("phones 600700800,601701801")).isEqualTo("phones [phone],[phone]");
+        assertThat(FailureMessages.redact("phones 600700800 601701801")).isEqualTo("phones [phone]");
+        assertThat(FailureMessages.redact("phones 600 700 800 601 701 801")).isEqualTo("phones [phone]");
+        assertThat(FailureMessages.redact("tel:600700800, phone:+48600700800")).isEqualTo("tel:[phone], phone:[phone]");
+        assertThat(FailureMessages.redact("tel.:600 700 800")).isEqualTo("tel.:[phone]");
+        assertThat(FailureMessages.redact("{\"phone\":600700800}")).isEqualTo("{\"phone\":[phone]}");
     }
 
     @Test
@@ -78,12 +90,34 @@ class FailureMessagesTest {
 
         final String identifiers = "order f47ac10b-58cc-4372-a567-0e02b2c3d479-42, span 0123456789abcdef, 2026-11-11T10:00Z";
         assertThat(FailureMessages.redact(identifiers)).isEqualTo(identifiers);
-        final String locations = "queue arn:aws:sqs:eu-central-1:123456789012:audit and /123456789012/audit, ( ";
+        final String locations = "queue arn:aws:sqs:eu-central-1:123456789012:audit, iam::123456789012, /123456789012/a, ( ";
         assertThat(FailureMessages.redact(locations)).isEqualTo(locations);
         final String numbers = "attempt 3 of 12345678, total 1234567890.50, 1234567890,5, 12345678901234567, 600700800-x";
         assertThat(FailureMessages.redact(numbers)).isEqualTo(numbers);
+        final String lists = "timestamp 1731340800000, values 1 2 3 4 5 6 7 8 9, at 2026-11-11 10:00, nr600700800";
+        assertThat(FailureMessages.redact(lists)).isEqualTo(lists);
         assertThat(FailureMessages.redact("time 600700800:00")).isEqualTo("time 600700800:00");
         assertThat(FailureMessages.redact("id 600700800_a and 600700800/b")).isEqualTo("id 600700800_a and 600700800/b");
+    }
+
+    @Test
+    void shouldKeepObjectIdentityStringsAndMaskEncodedAddresses() {
+
+        final String identity = "rejected by java.util.concurrent.ThreadPoolExecutor@6d06d69c[Running]";
+        assertThat(FailureMessages.redact(identity)).isEqualTo(identity);
+        assertThat(FailureMessages.redact("GET /users?email=jane%40example.com")).isEqualTo("GET /users?email=[email]");
+    }
+
+    @Test
+    void shouldDropTheStackTraceWhenASuppressedExceptionNamesAnAddress() {
+
+        final IllegalStateException exception = new IllegalStateException("close failed");
+        exception.addSuppressed(new RuntimeException("wrapper", new RuntimeException("mailbox jan@example.com is full")));
+
+        assertThat(FailureMessages.loggableCause(exception)).isNull();
+        final IllegalStateException clean = new IllegalStateException("close failed");
+        clean.addSuppressed(new RuntimeException("socket closed"));
+        assertThat(FailureMessages.loggableCause(clean)).isSameAs(clean);
     }
 
     @Test

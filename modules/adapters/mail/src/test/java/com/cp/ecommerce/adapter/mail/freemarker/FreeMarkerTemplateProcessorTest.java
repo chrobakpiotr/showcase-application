@@ -16,12 +16,14 @@ import org.mockito.quality.Strictness;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
+import freemarker.template.TemplateExceptionHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static com.cp.ecommerce.adapter.mail.freemarker.FreeMarkerTemplateProcessor.ERROR_MESSAGE;
@@ -67,7 +69,9 @@ public class FreeMarkerTemplateProcessorTest {
                 .isInstanceOf(TechnicalProblemException.class)
                 .hasNoCause()
                 .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName))
-                .hasMessageEndingWith(" (causes=TemplateException)");
+                .hasMessageEndingWith(" at line null, column null (causes=TemplateException)");
+        verify(configuration).setLogTemplateExceptions(false);
+        verify(configuration).setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
     }
 
     @Test
@@ -76,10 +80,12 @@ public class FreeMarkerTemplateProcessorTest {
         final String templateName = "default-text";
         when(configuration.getTemplate(templateName, LOCALE)).thenReturn(template);
         doThrow(IOException.class).when(freeMarkerUtils).processTemplateIntoString(eq(template), eq(model), any(), any());
+        final String expected = String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName);
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))
                 .isInstanceOf(TechnicalProblemException.class)
-                .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName));
+                .hasNoCause()
+                .hasMessage(expected + " (causes=IOException)");
     }
 
     @Test

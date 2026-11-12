@@ -14,4 +14,11 @@ import java.math.BigDecimal;
  */
 public record ReturnRequestCommand(String orderNumber, String sku, int quantity, int orderedQuantity, String reason,
         BigDecimal refundAmount) {
+
+    /** Leaves out the customer's reason, which is free text that can hold personal data. */
+    @Override
+    public String toString() {
+
+        return "ReturnRequestCommand[orderNumber=" + orderNumber + ", sku=" + sku + ", quantity=" + quantity + "]";
+    }
 }

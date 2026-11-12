@@ -15,4 +15,10 @@ public record AnalyticsAnswerResource(
         @Schema(example = "14 order(s) were placed between 2024-01-01 and 2024-01-31 (inclusive, UTC).") String answer,
         boolean assistantAvailable) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "AnalyticsAnswerResource[personal data omitted]";
+    }
 }

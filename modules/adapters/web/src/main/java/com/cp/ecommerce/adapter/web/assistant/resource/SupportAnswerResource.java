@@ -15,4 +15,10 @@ public record SupportAnswerResource(@Schema(
         example = "Yes, you can cancel your order any time before it ships, from the order details page.") String answer,
         boolean assistantAvailable) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "SupportAnswerResource[personal data omitted]";
+    }
 }

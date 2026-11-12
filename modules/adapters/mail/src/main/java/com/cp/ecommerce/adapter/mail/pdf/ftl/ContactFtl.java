@@ -42,4 +42,10 @@ public record ContactFtl(String fullName, EmailFtl email, String phone, AddressF
                 .build();
     }
 
+    /** Omits the components, which hold personal data; templates read the components, never this text. */
+    @Override
+    public String toString() {
+
+        return "ContactFtl[personal data omitted]";
+    }
 }

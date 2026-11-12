@@ -22,4 +22,10 @@ public record EmailFtl(String address) implements Serializable {
         return EmailFtl.builder().address(email).build();
     }
 
+    /** Omits the components, which hold personal data; templates read the components, never this text. */
+    @Override
+    public String toString() {
+
+        return "EmailFtl[personal data omitted]";
+    }
 }

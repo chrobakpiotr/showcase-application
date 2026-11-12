@@ -1,6 +1,7 @@
 package com.cp.ecommerce.domain.assistant;
 
 import lombok.Builder;
+import lombok.ToString;
 import lombok.Value;
 
 /**
@@ -12,6 +13,7 @@ import lombok.Value;
 @Builder
 public class SupportAnswer {
 
+    @ToString.Exclude
     String answer;
 
     /**

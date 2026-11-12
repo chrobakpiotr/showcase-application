@@ -15,4 +15,10 @@ public record ReturnRequestResource(@Schema(example = "RETURN-3f2504e0-4f89-11d3
         @Schema(example = "1") int quantity, @Schema(example = "Damaged on arrival") String reason,
         @Schema(example = "REQUESTED") String status, Instant requestedDate, Instant decidedDate, BigDecimal refundAmount) {
 
+    /** Omits the components, which hold personal data, so that framework debug logs of request bodies do not expose them. */
+    @Override
+    public String toString() {
+
+        return "ReturnRequestResource[personal data omitted]";
+    }
 }

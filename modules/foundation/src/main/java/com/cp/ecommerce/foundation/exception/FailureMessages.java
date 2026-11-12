@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,16 +24,31 @@ public final class FailureMessages {
 
     private static final int PHONE_MAX_DIGITS = 15;
 
-    // Characters that end a token. Any token with text before an '@' counts as an address, so quoted, non-ASCII and
-    // malformed addresses are masked too. A match starts only at a token start and quantifiers are possessive, so a scan
-    // stays linear; a quoted local part is bounded to 64 characters.
-    private static final String DELIMITERS = "\\s<>()\\[\\]{},;\"`=";
+    private static final int PLAIN_PHONE_MAX_DIGITS = 11;
 
-    private static final Pattern EMAIL = Pattern.compile("\"[^\"\\r\\n]{0,64}+\"@[^" + DELIMITERS + "]*+|(?<![^" + DELIMITERS
-            + "])[^" + DELIMITERS + "@]++@[^" + DELIMITERS + "]*+");
+    private static final int DECIMAL_MAX_DIGITS = 3;
 
-    // A run of digits with phone separators that is not part of a word, an identifier, a time, a path or a number.
-    private static final Pattern PHONE_CANDIDATE = Pattern.compile("(?<![\\p{L}\\p{N}_+\\-:./@])\\(?+\\+?+[0-9(][0-9 ()-]*+");
+    // Any token with text before an '@' counts as an address, so quoted, non-ASCII and malformed addresses are masked.
+    // A match starts only at a token start and quantifiers are possessive, so a scan stays linear.
+    private static final String TOKEN_CHAR = "[^\\s<>()\\[\\]{},;\"`=]";
+
+    private static final String LOCAL_CHAR = "[^\\s<>()\\[\\]{},;\"`=@]";
+
+    private static final String QUOTED_ADDRESS = "\"[^\"\\r\\n]{0,64}+\"@" + TOKEN_CHAR + "*+";
+
+    private static final String ADDRESS = "(?<!" + TOKEN_CHAR + ")" + LOCAL_CHAR + "++@" + TOKEN_CHAR + "*+";
+
+    private static final Pattern EMAIL = Pattern.compile(QUOTED_ADDRESS + "|" + ADDRESS);
+
+    private static final Pattern URL_ENCODED_AT = Pattern.compile("%40", Pattern.CASE_INSENSITIVE);
+
+    // Object.toString() of a class, such as com.example.Pool@6d06d69c, is a diagnostic, not an address.
+    private static final Pattern IDENTITY_HASH = Pattern.compile("[A-Za-z_$][\\w$]*+(?:\\.[A-Za-z_$][\\w$]*+)++@[0-9a-f]{1,8}");
+
+    // A phone run may not continue a word, identifier, path, number, or a ':' or '.' that follows a digit (ARNs, times).
+    private static final String PHONE_START = "(?<![\\p{L}\\p{N}_+\\-/@])(?<![\\p{N}:][:.])";
+
+    private static final Pattern PHONE_CANDIDATE = Pattern.compile(PHONE_START + "\\(?+\\+?+[0-9(][0-9 ()-]*+");
 
     private FailureMessages() {
     }
@@ -51,14 +67,20 @@ public final class FailureMessages {
         return redact(exception.getMessage());
     }
 
-    /**
-     * The message with email addresses replaced by {@link #EMAIL_PLACEHOLDER} and phone numbers by
-     * {@link #PHONE_PLACEHOLDER}; {@code null} stays {@code null}. Names and street addresses cannot be recognised, so
-     * callers must keep them out of messages.
-     */
+    /** The message with email addresses and phone numbers replaced; names and street addresses are not recognised. */
     public static String redact(final String message) {
 
-        return message == null ? null : redactPhones(EMAIL.matcher(message).replaceAll(EMAIL_PLACEHOLDER));
+        if (message == null) {
+            return null;
+        }
+        final String decoded = URL_ENCODED_AT.matcher(message).replaceAll("@");
+        return redactPhones(EMAIL.matcher(decoded).replaceAll(FailureMessages::emailReplacement));
+    }
+
+    private static String emailReplacement(final MatchResult match) {
+
+        final String token = match.group();
+        return IDENTITY_HASH.matcher(token).matches() ? Matcher.quoteReplacement(token) : EMAIL_PLACEHOLDER;
     }
 
     private static String redactPhones(final String message) {
@@ -87,38 +109,104 @@ public final class FailureMessages {
 
     private static boolean isPhone(final String message, final int start, final int trimmedEnd, final int runEnd) {
 
-        final long digits = message.substring(start, trimmedEnd).chars().filter(Character::isDigit).count();
-        return digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS && !attachedToWord(message, trimmedEnd, runEnd);
-    }
-
-    // A run that ends in a digit or dash right before a letter, ':' or a decimal point belongs to a larger token.
-    private static boolean attachedToWord(final String message, final int trimmedEnd, final int runEnd) {
-
-        if (runEnd == message.length() || trimmedEnd < runEnd && message.charAt(runEnd - 1) != '-') {
+        final String run = message.substring(start, trimmedEnd);
+        final boolean formatted = run.chars().anyMatch(character -> " ()+-".indexOf(character) >= 0);
+        if (!digitGroupsLookLikeAPhone(run) || attachedToWord(message, trimmedEnd, runEnd, formatted)) {
             return false;
         }
-        final char next = message.charAt(runEnd);
-        final boolean decimal = (next == '.' || next == ',') && runEnd + 1 < message.length()
-                && Character.isDigit(message.charAt(runEnd + 1));
-        return Character.isLetter(next) || next == '_' || next == ':' || next == '/' || next == '@' || decimal;
+        final long digits = run.chars().filter(Character::isDigit).count();
+        if (!formatted) {
+            return digits >= PHONE_MIN_DIGITS && digits <= PLAIN_PHONE_MAX_DIGITS;
+        }
+        // More than one spaced number in a row, such as two phones in one field, is masked as a whole.
+        return digits >= PHONE_MIN_DIGITS && (digits <= PHONE_MAX_DIGITS || run.indexOf(' ') >= 0);
+    }
+
+    // Phone groups have at least two digits, except a country or area code after '+' or '('; "1 2 3" is a list.
+    private static boolean digitGroupsLookLikeAPhone(final String run) {
+
+        int groupLength = 0;
+        boolean prefixed = false;
+        for (int index = 0; index <= run.length(); index++) {
+            final char character = index < run.length() ? run.charAt(index) : ' ';
+            if (Character.isDigit(character)) {
+                groupLength++;
+            } else {
+                if (groupLength == 1 && !prefixed) {
+                    return false;
+                }
+                groupLength = 0;
+                prefixed = character == '+' || character == '(';
+            }
+        }
+        return true;
+    }
+
+    // A run that ends in a digit, or a plain run ending in a dash, right before a letter, ':', '/' or a decimal part
+    // belongs to a larger token such as an identifier, a time or an amount.
+    private static boolean attachedToWord(final String text, final int trimmedEnd, final int runEnd, final boolean formatted) {
+
+        if (runEnd == text.length()) {
+            return false;
+        }
+        final char last = text.charAt(runEnd - 1);
+        if (trimmedEnd < runEnd && (last != '-' || formatted)) {
+            return false;
+        }
+        final char next = text.charAt(runEnd);
+        return Character.isLetter(next) || next == '_' || next == ':' || next == '/' || isDecimalPart(text, runEnd);
+    }
+
+    private static boolean isDecimalPart(final String message, final int separator) {
+
+        final char character = message.charAt(separator);
+        if (character != '.' && character != ',') {
+            return false;
+        }
+        int digits = 0;
+        int index = separator + 1;
+        while (index < message.length() && digits <= DECIMAL_MAX_DIGITS && Character.isDigit(message.charAt(index))) {
+            digits++;
+            index++;
+        }
+        return digits >= 1 && digits <= DECIMAL_MAX_DIGITS;
     }
 
     /** The exception to attach to a log event for its stack trace, or {@code null} when its messages may hold data. */
     public static Throwable loggableCause(final Throwable exception) {
 
-        return sqlException(exception).isPresent() || exceedsDepth(exception) || containsPersonalData(exception) ? null
-                : exception;
+        if (sqlException(exception).isPresent() || exceedsDepth(exception)) {
+            return null;
+        }
+        return containsPersonalData(exception) ? null : exception;
     }
 
     private static boolean containsPersonalData(final Throwable exception) {
 
         for (final Throwable current : causes(exception)) {
-            final String message = current.getMessage();
-            if (message != null && !message.equals(redact(message))) {
+            if (holdsPersonalData(current) || suppressedHoldPersonalData(current)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean suppressedHoldPersonalData(final Throwable exception) {
+
+        for (final Throwable suppressed : exception.getSuppressed()) {
+            for (final Throwable nested : causes(suppressed)) {
+                if (holdsPersonalData(nested)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean holdsPersonalData(final Throwable exception) {
+
+        final String message = exception.getMessage();
+        return message != null && !message.equals(redact(message));
     }
 
     /** The first {@link SQLException} among the causes and their suppressed exceptions. */

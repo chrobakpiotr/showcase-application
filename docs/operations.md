@@ -17,16 +17,24 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
 - Database messages echo rejected values, such as a customer email in a unique-key violation. Error logs and stored
   last-error fields therefore describe a database failure by its SQLState and cause class names only, through
   `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message with
-  email addresses replaced by `[email]` and phone numbers by `[phone]`, and lose their stack trace when any cause
-  message holds either. Any token with text before an `@` counts as an address, so quoted, non-ASCII and malformed
-  addresses are masked too. A phone number is a run of 9 to 15 digits, optionally with `+`, spaces, dashes or
-  parentheses, that is not part of an identifier, time, path or decimal number.
+  email addresses replaced by `[email]` and phone numbers by `[phone]`, and lose their stack trace when any cause or
+  suppressed exception message holds either.
+- Any token with text before an `@` counts as an address, so quoted, non-ASCII, URL-encoded (`%40`) and malformed
+  addresses are masked; a Java identity string such as `com.example.Pool@6d06d69c` is kept. A phone number is a run
+  of digit groups of at least two digits (a code after `+` or `(` may be shorter), optionally with `+`, spaces,
+  dashes or parentheses: 9 to 15 digits when formatted, 9 to 11 when plain, and any length when several spaced
+  numbers follow each other. Runs that continue an identifier, path, time, ARN or decimal number are kept. Plain
+  10-digit numbers such as epoch seconds or Kafka offsets are masked too; that loss of detail is accepted.
 - Names, street addresses and free text such as order remarks cannot be recognised by pattern, so they are kept out
-  structurally. Domain objects leave personal fields out of `toString()`, and web request and response records with
-  personal data print only their type, because Spring logs bodies at debug level. Mail template, PDF and remarks
-  classification failures name the cause classes and do not keep third-party causes, whose messages can quote the
-  rendered document or the prompt. A successful mail send logs only the dispatch id, not the recipients. All six
-  Ollama adapters log only the cause class names on fallback, and an unrecognised model value by its length.
+  structurally. Domain objects leave personal fields out of `toString()`; web request and response records and the
+  mail template models with personal data print only their type, because Spring logs bodies at debug level. Mail
+  template, PDF and remarks classification failures keep only the cause class names (and the template line and
+  column), not third-party causes, whose messages can quote the document or the prompt. FreeMarker does not log
+  template errors itself, and the PDF transformer reports errors only by throwing. A successful mail send logs only
+  the dispatch id. All six Ollama adapters log only the cause class names on fallback, and an unrecognised model value
+  by its length.
+- Known remaining exposure: `GET /api/notifications/recipient/{recipientEmail}` and `GET /api/recommendations?email=`
+  carry an email address in the URL, which Spring's debug request log, access logs and trace attributes record.
 - New code must not put customer fields into log lines or exception messages; masking is a backstop, not the control.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
