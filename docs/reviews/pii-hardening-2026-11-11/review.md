@@ -62,3 +62,8 @@ the outputs above; 14 hostile shapes up to 1.6 M characters ran in at most 82 ms
 - P1: not in this change; reported to the owner.
 - The test file `FailureMessagesTest` (16 tests) was run locally against the real class with JUnit and AssertJ stubs:
   all passed; hostile inputs of 0.8 to 1 M characters ran in at most about 400 ms.
+- CI run 43151214198 on `27895a1` exposed that the two FreeMarker failure tests never reached their stubs (the
+  `FreeMarkerUtils` mock was not injected and the stubbed `getTemplate` overload was not the one called), so they had
+  always passed on a `NullPointerException`. They now stub `getTemplate(path)` and
+  `Template.createProcessingEnvironment`, so the `IOException` and `TemplateException` paths are really exercised.
+  The same run flagged a duplicate literal in `FailureMessagesTest` (PMD); all other gates passed.

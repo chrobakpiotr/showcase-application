@@ -1,7 +1,6 @@
 package com.cp.ecommerce.adapter.mail.freemarker;
 
 import java.io.IOException;
-import java.util.Locale;
 import java.util.Map;
 
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
@@ -22,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,8 +32,6 @@ import static com.cp.ecommerce.adapter.mail.freemarker.FreeMarkerTemplateProcess
 @MockitoSettings(strictness = Strictness.LENIENT)
 @ExtendWith(MockitoExtension.class)
 public class FreeMarkerTemplateProcessorTest {
-
-    private static final Locale LOCALE = Locale.UK;
 
     private static final String TEMPLATE_PATH = "default-path";
 
@@ -52,18 +48,14 @@ public class FreeMarkerTemplateProcessorTest {
     private transient FreeMarkerCustomObjectWrapper objectWrapper;
 
     @Mock
-    private transient FreeMarkerUtils freeMarkerUtils;
-
-    @Mock
     private transient Object model;
 
     @Test
     public void shouldWrapTemplateExceptionInTechnicalProblemException() throws IOException, TemplateException {
 
         final String templateName = "default-text";
-        when(configuration.getTemplate(templateName, LOCALE)).thenReturn(template);
-        doThrow(new TemplateException(null)).when(freeMarkerUtils)
-                .processTemplateIntoString(eq(template), eq(model), any(), any());
+        when(configuration.getTemplate(TEMPLATE_PATH + "/" + templateName)).thenReturn(template);
+        when(template.createProcessingEnvironment(eq(model), any(), any())).thenThrow(new TemplateException(null));
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))
                 .isInstanceOf(TechnicalProblemException.class)
@@ -75,11 +67,10 @@ public class FreeMarkerTemplateProcessorTest {
     }
 
     @Test
-    public void shouldWrapMessageExceptionOnTemplateNotFoundException() throws IOException, TemplateException {
+    public void shouldWrapMessageExceptionOnTemplateNotFoundException() throws IOException {
 
         final String templateName = "default-text";
-        when(configuration.getTemplate(templateName, LOCALE)).thenReturn(template);
-        doThrow(IOException.class).when(freeMarkerUtils).processTemplateIntoString(eq(template), eq(model), any(), any());
+        when(configuration.getTemplate(TEMPLATE_PATH + "/" + templateName)).thenThrow(new IOException("not found"));
         final String expected = String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName);
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))

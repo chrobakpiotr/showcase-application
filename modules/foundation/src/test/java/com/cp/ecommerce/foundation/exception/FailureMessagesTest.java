@@ -13,6 +13,8 @@ class FailureMessagesTest {
     private static final String REJECTED = "Key (email)=(buyer@example.com) already exists.";
     private static final String UNIQUE_VIOLATION = "23505";
 
+    private static final String MASKED_RECIPIENT = "to [email]";
+
     @Test
     void shouldDescribeDatabaseFailuresWithoutTheirMessages() {
 
@@ -46,10 +48,10 @@ class FailureMessagesTest {
     @Test
     void shouldReplaceUnusualAndMalformedEmailAddresses() {
 
-        assertThat(FailureMessages.redact("to user@localhost")).isEqualTo("to [email]");
-        assertThat(FailureMessages.redact("to j\u00fcrgen@m\u00fcnchen.de")).isEqualTo("to [email]");
-        assertThat(FailureMessages.redact("to o'brien@example.com.")).isEqualTo("to [email]");
-        assertThat(FailureMessages.redact("to \"jane doe\"@example.com")).isEqualTo("to [email]");
+        assertThat(FailureMessages.redact("to user@localhost")).isEqualTo(MASKED_RECIPIENT);
+        assertThat(FailureMessages.redact("to j\u00fcrgen@m\u00fcnchen.de")).isEqualTo(MASKED_RECIPIENT);
+        assertThat(FailureMessages.redact("to o'brien@example.com.")).isEqualTo(MASKED_RECIPIENT);
+        assertThat(FailureMessages.redact("to \"jane doe\"@example.com")).isEqualTo(MASKED_RECIPIENT);
         assertThat(FailureMessages.redact("Illegal address ``a@@b''")).isEqualTo("Illegal address ``[email]");
         assertThat(FailureMessages.redact("Key (email)=(buyer@example.com)")).isEqualTo("Key (email)=([email])");
         assertThat(FailureMessages.redact("email=buyer@example.com")).isEqualTo("email=[email]");
