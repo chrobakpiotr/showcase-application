@@ -8,6 +8,7 @@ import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.port.outgoing.DetectDuplicateOrderOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,10 +81,12 @@ public class DuplicateOrderDetectorAdapter implements DetectDuplicateOrderOutPor
                 RESILIENCE_INSTANCE_NAME,
                 () -> compareWithModel(order, comparableCandidates),
                 exception -> {
+                    // Messages from the model client can echo prompt data, so only the cause class names are logged.
+                    final String causes = FailureMessages.causeNames(exception);
                     log.warn(
-                            "Could not run AI duplicate-order similarity check via Ollama, treating order as not a duplicate: {}",
+                            "AI duplicate-order check via Ollama failed, treating order {} as not a duplicate (causes={}).",
                             order.getOrderNumber(),
-                            exception);
+                            causes);
                     return DuplicateOrderCheckResult.none();
                 });
     }

@@ -91,7 +91,9 @@ public class OrderRemarksClassifierAdapter implements ClassifyOrderRemarksOutPor
         try {
             return RemarksTriageCategory.valueOf(rawCategory.strip().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException | NullPointerException exception) {
-            log.warn("Model returned an unrecognised remarks-triage category '{}', defaulting to STANDARD.", rawCategory);
+            // The value is model output that can echo customer remarks, so only its length is logged.
+            final int length = rawCategory == null ? 0 : rawCategory.length();
+            log.warn("Model returned an unrecognised triage category of {} characters, defaulting to STANDARD.", length);
             return RemarksTriageCategory.STANDARD;
         }
     }

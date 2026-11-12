@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.order.Order;
 import com.cp.ecommerce.domain.order.RemarksTriageCategory;
 import com.cp.ecommerce.domain.order.RemarksTriageResult;
@@ -81,14 +82,35 @@ class OrderRemarksClassifierAdapterTest {
     @Test
     void shouldDefaultToStandardWhenModelReturnsAnUnrecognisedCategory() {
 
-        respondWith("{\"category\": \"NOT_A_REAL_CATEGORY\", \"rationale\": \"unclear\"}");
+        respondWith("{\"category\": \"call jan@example.com\", \"rationale\": \"unclear\"}");
         runResilientActionEagerly();
         final Order order = mockOrder();
         final OrderRemarksClassifierAdapter adapter = newAdapter();
 
-        final RemarksTriageResult result = adapter.classify(order);
+        try (LogCapture logs = new LogCapture(OrderRemarksClassifierAdapter.class)) {
+            final RemarksTriageResult result = adapter.classify(order);
 
-        assertThat(result.getCategory()).isEqualTo(RemarksTriageCategory.STANDARD);
+            assertThat(result.getCategory()).isEqualTo(RemarksTriageCategory.STANDARD);
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Model returned an unrecognised triage category of 20 characters, defaulting to STANDARD.");
+        }
+    }
+
+    @Test
+    void shouldDefaultToStandardWhenModelReturnsNoCategory() {
+
+        respondWith("{\"rationale\": \"unclear\"}");
+        runResilientActionEagerly();
+        final Order order = mockOrder();
+        final OrderRemarksClassifierAdapter adapter = newAdapter();
+
+        try (LogCapture logs = new LogCapture(OrderRemarksClassifierAdapter.class)) {
+            final RemarksTriageResult result = adapter.classify(order);
+
+            assertThat(result.getCategory()).isEqualTo(RemarksTriageCategory.STANDARD);
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Model returned an unrecognised triage category of 0 characters, defaulting to STANDARD.");
+        }
     }
 
     @Test

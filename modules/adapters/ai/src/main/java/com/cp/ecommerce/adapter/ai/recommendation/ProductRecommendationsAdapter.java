@@ -16,6 +16,7 @@ import com.cp.ecommerce.domain.recommendation.PurchasedProductProfile;
 import com.cp.ecommerce.domain.recommendation.RecommendationCandidateProduct;
 import com.cp.ecommerce.domain.recommendation.RecommendationRequest;
 import com.cp.ecommerce.domain.recommendation.port.outgoing.GenerateProductRecommendationsOutPort;
+import com.cp.ecommerce.foundation.exception.FailureMessages;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -61,10 +62,9 @@ public class ProductRecommendationsAdapter implements GenerateProductRecommendat
                 RESILIENCE_INSTANCE_NAME,
                 () -> recommendWithModel(request, purchasedProducts, reviews, candidates),
                 exception -> {
-                    log.warn(
-                            "Could not generate personalized recommendations via Ollama for customer {}.",
-                            request.getCustomerEmail(),
-                            exception);
+                    // Messages from the model client can echo prompt data, so only the cause class names are logged.
+                    final String causes = FailureMessages.causeNames(exception);
+                    log.warn("Could not generate personalized recommendations via Ollama (causes={}).", causes);
                     return ProductRecommendations.unavailable();
                 });
     }

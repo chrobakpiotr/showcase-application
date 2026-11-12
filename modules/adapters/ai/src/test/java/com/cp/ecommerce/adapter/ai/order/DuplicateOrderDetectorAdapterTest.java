@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.customer.Customer;
 import com.cp.ecommerce.domain.order.DuplicateOrderCheckResult;
 import com.cp.ecommerce.domain.order.Order;
@@ -138,15 +139,20 @@ class DuplicateOrderDetectorAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: " + DELIVER_TOMORROW));
         });
         final Order order = orderWithRemarks(ORD_1, DELIVER_TOMORROW);
         final Order candidate = orderWithRemarks(ORD_2, UNRELATED_REMARK);
         final DuplicateOrderDetectorAdapter adapter = newAdapter();
 
-        final DuplicateOrderCheckResult result = adapter.check(order, List.of(candidate));
+        try (LogCapture logs = new LogCapture(DuplicateOrderDetectorAdapter.class)) {
+            final DuplicateOrderCheckResult result = adapter.check(order, List.of(candidate));
 
-        assertThat(result).isEqualTo(DuplicateOrderCheckResult.none());
+            assertThat(result).isEqualTo(DuplicateOrderCheckResult.none());
+            assertThat(logs.formattedMessages()).endsWith("order ORD-1 as not a duplicate (causes=IllegalStateException).")
+                    .doesNotContain(DELIVER_TOMORROW);
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     private DuplicateOrderDetectorAdapter newAdapter() {

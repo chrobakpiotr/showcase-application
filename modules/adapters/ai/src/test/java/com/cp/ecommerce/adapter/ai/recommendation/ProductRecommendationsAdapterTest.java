@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import com.cp.ecommerce.adapter.common.resilience.ResilientExecutor;
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
 import com.cp.ecommerce.domain.recommendation.CustomerReviewProfile;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendation;
 import com.cp.ecommerce.domain.recommendation.ProductRecommendations;
@@ -120,24 +121,29 @@ class ProductRecommendationsAdapterTest {
 
         when(resilientExecutor.callResilientOrElse(anyString(), any(), any())).thenAnswer(invocation -> {
             final java.util.function.Function<RuntimeException, ?> fallback = invocation.getArgument(2);
-            return fallback.apply(new IllegalStateException("circuit open"));
+            return fallback.apply(new IllegalStateException("prompt echo: " + CUSTOMER_EMAIL));
         });
         final ProductRecommendationsAdapter adapter = newAdapter();
 
-        final ProductRecommendations result = adapter.recommend(
-                RecommendationRequest.builder().customerEmail(CUSTOMER_EMAIL).build(),
-                List.of(),
-                List.of(),
-                List.of(
-                        RecommendationCandidateProduct.builder()
-                                .sku(KEYBOARD_SKU)
-                                .productName(KEYBOARD_NAME)
-                                .description(DEFAULT_DESCRIPTION)
-                                .categoryName(ELECTRONICS_CATEGORY)
-                                .build()));
+        try (LogCapture logs = new LogCapture(ProductRecommendationsAdapter.class)) {
+            final ProductRecommendations result = adapter.recommend(
+                    RecommendationRequest.builder().customerEmail(CUSTOMER_EMAIL).build(),
+                    List.of(),
+                    List.of(),
+                    List.of(
+                            RecommendationCandidateProduct.builder()
+                                    .sku(KEYBOARD_SKU)
+                                    .productName(KEYBOARD_NAME)
+                                    .description(DEFAULT_DESCRIPTION)
+                                    .categoryName(ELECTRONICS_CATEGORY)
+                                    .build()));
 
-        assertThat(result.isAssistantAvailable()).isFalse();
-        assertThat(result.getRecommendations()).isEmpty();
+            assertThat(result.isAssistantAvailable()).isFalse();
+            assertThat(result.getRecommendations()).isEmpty();
+            assertThat(logs.formattedMessages())
+                    .isEqualTo("Could not generate personalized recommendations via Ollama (causes=IllegalStateException).");
+            assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
+        }
     }
 
     @Test
