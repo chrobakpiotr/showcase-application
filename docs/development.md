@@ -46,11 +46,12 @@ for verification commands.
 
 ## Frontend lockfile without registry access
 
-Agent sandboxes often cannot reach the npm registry. To change frontend dependencies, run the manual workflow
+Agent sandboxes often cannot reach the npm registry. To change frontend dependency overrides, run the manual workflow
 **Frontend lockfile refresh** (`.github/workflows/lockfile-refresh.yml`). Its optional `overrides` input is a JSON
-object of `package.json` overrides to set (a `null` value removes one). It resolves `package-lock.json` with install
+object of `package.json` overrides to set (a `null` value removes one); only registry version ranges are accepted. It resolves `package-lock.json` with install
 scripts disabled and prints the `package.json` and lockfile diff to the job log. Apply that diff in a normal commit;
-CI then runs `npm ci`, `npm audit`, lint and the tests on it.
+CI then checks that every lockfile entry comes from registry.npmjs.org with a SHA-512 integrity
+(`tooling/scripts/check_npm_lockfile.py`) and runs `npm ci`, `npm audit`, lint and the tests on it.
 
 ## AMQP consumer boundary
 

@@ -44,6 +44,17 @@ jobs:
             if (changes === null || typeof changes !== "object" || Array.isArray(changes)) {
               throw new Error("overrides must be a JSON object");
             }
+            // Only registry version ranges: no git, URL, file or npm: alias specs.
+            const checkSpecs = (value) => {
+              if (value === null) return;
+              if (typeof value === "string") {
+                if (!/^[0-9A-Za-z.^~<>=|* -]+$/.test(value)) throw new Error("not a version range: " + value);
+                return;
+              }
+              if (typeof value !== "object" || Array.isArray(value)) throw new Error("invalid override value");
+              Object.values(value).forEach(checkSpecs);
+            };
+            Object.values(changes).forEach(checkSpecs);
             const manifest = JSON.parse(fs.readFileSync("package.json", "utf8"));
             manifest.overrides = manifest.overrides || {};
             for (const [name, value] of Object.entries(changes)) {

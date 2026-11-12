@@ -70,6 +70,9 @@ jobs:
       - name: Test coverage gap reporter
         run: python3 -m unittest tooling/scripts/tests/test_report_uncovered_lines.py -v
 
+      - name: Test npm lockfile origin check
+        run: python3 -m unittest tooling/scripts/tests/test_check_npm_lockfile.py -v
+
       - name: Verify committed evidence checksums
         # Files bound by SHA256SUMS lists and JSON evidence manifests must keep their exact bytes; known historical
         # exceptions are listed with reasons in tooling/quality/evidence-checksum-baseline.json (a ratchet).
@@ -472,6 +475,11 @@ jobs:
       - name: Test k6 scenario contract
         working-directory: .
         run: node --experimental-vm-modules --test tooling/load-testing/order-api.test.mjs
+
+      - name: Check lockfile origins
+        # npm ci verifies hashes but not origins; lockfile changes reach main by direct push.
+        working-directory: .
+        run: python3 tooling/scripts/check_npm_lockfile.py apps/ecommerce/frontend/package-lock.json
 
       - name: Install dependencies
         run: npm ci
