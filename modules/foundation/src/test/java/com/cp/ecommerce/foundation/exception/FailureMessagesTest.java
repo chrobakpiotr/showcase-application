@@ -1,10 +1,12 @@
 package com.cp.ecommerce.foundation.exception;
 
 import java.sql.SQLException;
+import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class FailureMessagesTest {
 
@@ -29,6 +31,35 @@ class FailureMessagesTest {
 
         assertThat(FailureMessages.describe(exception)).isEqualTo("payment gateway timed out");
         assertThat(FailureMessages.loggableCause(exception)).isSameAs(exception);
+    }
+
+    @Test
+    void shouldReplaceEmailAddressesInOtherFailures() {
+
+        final IllegalStateException exception = new IllegalStateException("mail to <buyer.one+tag@mail.example.co.uk> failed");
+
+        assertThat(FailureMessages.describe(exception)).isEqualTo("mail to <[email]> failed");
+        assertThat(FailureMessages.loggableCause(exception)).isNull();
+        assertThat(FailureMessages.redactEmails(null)).isNull();
+        assertThat(FailureMessages.redactEmails("user@localhost stays")).isEqualTo("user@localhost stays");
+    }
+
+    @Test
+    void shouldDropTheStackTraceWhenAnyCauseNamesAnEmailAddress() {
+
+        final RuntimeException cause = new RuntimeException("Invalid Addresses: buyer@example.com");
+
+        assertThat(FailureMessages.loggableCause(new IllegalStateException("send failed", cause))).isNull();
+        final IllegalStateException withoutEmail = new IllegalStateException("send failed", new RuntimeException());
+        assertThat(FailureMessages.loggableCause(withoutEmail)).isSameAs(withoutEmail);
+    }
+
+    @Test
+    void shouldScanLongMessagesInLinearTime() {
+
+        final String hostile = "a".repeat(200_000) + "@" + "b".repeat(200_000);
+
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> FailureMessages.redactEmails(hostile));
     }
 
     @Test

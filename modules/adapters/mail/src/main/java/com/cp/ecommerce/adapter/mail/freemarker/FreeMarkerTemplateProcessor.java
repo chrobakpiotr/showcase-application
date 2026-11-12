@@ -35,7 +35,8 @@ public class FreeMarkerTemplateProcessor {
 
     private static final String FILE_SEPARATOR = "/";
 
-    public static final String ERROR_MESSAGE = "Failed to transform model '%s' using template '%s'";
+    // The model holds customer data (name, email, address), so only its type is named in the failure message.
+    public static final String ERROR_MESSAGE = "Failed to transform a model of type '%s' using template '%s'";
 
     private final transient Configuration configuration;
 
@@ -58,7 +59,7 @@ public class FreeMarkerTemplateProcessor {
                         objectWrapperFactory.createWrapper(model),
                         new EnvironmentConfigurer().getConfigurer());
             } catch (final TemplateException | IOException | RuntimeException ex) { // SUPPRESS CHECKSTYLE IllegalCatch
-                throw new TechnicalProblemException(format(ERROR_MESSAGE, model, templateName), ex);
+                throw new TechnicalProblemException(format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName), ex);
             }
         }
         return null;

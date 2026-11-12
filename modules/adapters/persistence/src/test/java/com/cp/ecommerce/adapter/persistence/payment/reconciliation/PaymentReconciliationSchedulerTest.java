@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.payment.reconciliation;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +45,9 @@ class PaymentReconciliationSchedulerTest {
     private static final String RETURN_FAIL = "RETURN-FAIL";
     private static final String CAPTURE_ID = "ORDER-CAPTURE:ORDER-1";
     private static final BigDecimal CAPTURE_AMOUNT = new BigDecimal("10.00");
+    private static final SQLException DATABASE_CAUSE = new SQLException("Key (email)=(buyer@example.com) exists.", "23505");
+    private static final String CAUSE_NAMES = "causes=IllegalStateException < SQLException";
+    private static final String DATABASE_FAILURE = "database error, SQLState=23505, " + CAUSE_NAMES + ", message omitted";
 
     @Mock
     private PaymentReconciliationArbitrator arbitrator;
@@ -291,14 +295,14 @@ class PaymentReconciliationSchedulerTest {
     void shouldContainContinuationFailureAndKeepSchedulerAlive() {
         given(arbitrator.findDueOperationIds(50)).willReturn(List.of());
         given(refundReturnContinuationOutPort.findRecoverableReturnNumbers(50)).willReturn(List.of(RETURN_FAIL));
-        org.mockito.BDDMockito.willThrow(new IllegalStateException("continuation unavailable"))
+        org.mockito.BDDMockito.willThrow(new IllegalStateException("continuation unavailable", DATABASE_CAUSE))
                 .given(completeRefundReturnContinuationInPort)
                 .complete(RETURN_FAIL);
 
         scheduler().reconcileDueOperations();
 
         verify(completeRefundReturnContinuationInPort).complete(RETURN_FAIL);
-        verify(refundReturnContinuationOutPort).recordFailure(RETURN_FAIL, "continuation unavailable");
+        verify(refundReturnContinuationOutPort).recordFailure(RETURN_FAIL, DATABASE_FAILURE);
     }
 
     @Test

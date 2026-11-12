@@ -130,17 +130,17 @@ class ManageNotificationUseCaseTest {
                 .willReturn(List.of(TestDomainObjectFactory.TEST_NOTIFICATION_ID));
         given(manageNotificationDeliveryOutPort.claimDelivery(TestDomainObjectFactory.TEST_NOTIFICATION_ID, NOW))
                 .willReturn(new NotificationDeliveryClaim(delivering, "claim-2"));
-        doThrow(new TechnicalProblemException("transport unavailable")).when(deliverNotificationOutPort)
+        doThrow(new TechnicalProblemException("transport rejected buyer@example.com")).when(deliverNotificationOutPort)
                 .deliver(TestDomainObjectFactory.TEST_NOTIFICATION_ID, delivering);
         given(
                 manageNotificationDeliveryOutPort
-                        .markFailed(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-2", "transport unavailable", NOW))
+                        .markFailed(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-2", "transport rejected [email]", NOW))
                 .willReturn(failed);
 
         useCase.retryDueNotifications();
 
         verify(manageNotificationDeliveryOutPort)
-                .markFailed(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-2", "transport unavailable", NOW);
+                .markFailed(TestDomainObjectFactory.TEST_NOTIFICATION_ID, "claim-2", "transport rejected [email]", NOW);
     }
 
     @Test

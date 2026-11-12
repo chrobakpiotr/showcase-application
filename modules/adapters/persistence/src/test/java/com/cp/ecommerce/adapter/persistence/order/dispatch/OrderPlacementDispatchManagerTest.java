@@ -142,7 +142,8 @@ class OrderPlacementDispatchManagerTest {
         final OrderPlacementDispatchEntity row = dispatch(FAILED_DISPATCH_ID, OrderPlacementDispatchType.CONFIRMATION_EMAIL);
         given(repository.findByIdForUpdate(FAILED_DISPATCH_ID)).willReturn(Optional.of(row));
         given(manageOrderInPort.findOrder(order.getOrderNumber())).willReturn(order);
-        doThrow(new IllegalStateException("smtp outcome unknown")).when(email).sendConfirmationEmail(order);
+        final IllegalStateException failure = new IllegalStateException("smtp outcome unknown for buyer@example.com");
+        doThrow(failure).when(email).sendConfirmationEmail(order);
         try (LogCapture logs = new LogCapture(OrderPlacementDispatchManager.class)) {
             manager.deliverDueDispatch(FAILED_DISPATCH_ID);
             assertThat(logs.formattedMessages()).contains("Could not deliver durable placement dispatch")
@@ -150,7 +151,7 @@ class OrderPlacementDispatchManagerTest {
             assertThat(logs.events()).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
         }
         assertThat(row.getStatus()).isEqualTo(OrderPlacementDispatchStatus.FAILED);
-        assertThat(row.getLastError()).contains("smtp outcome unknown");
+        assertThat(row.getLastError()).isEqualTo("smtp outcome unknown for [email]");
         assertThat(row.getNextAttemptDate()).isEqualTo(NOW.plusMillis(manager.retryDelayMillis));
 
         final OrderPlacementDispatchEntity stale = dispatch("stale", OrderPlacementDispatchType.CAMEL_ROUTING);

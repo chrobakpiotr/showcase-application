@@ -92,3 +92,7 @@ Falsification coverage: contract mismatch tested; sensitive-data exposure tested
 - Finding 6: call-site tests remain limited to the cancellation scheduler and the new handler; accepted as Low.
 - Hosted CI for `0601455` (run 43114938870) passed, including the new handler test; the run for `9d38c9d` failed
   only on import order in `PersistenceConfiguration`, fixed in `0601455`.
+- Owner decisions 2026-11-11 ("Zrób oba zadania"): finding 4 and finding 6 were taken on. `FailureMessages` replaces
+  email addresses in non-database messages and drops the stack trace when any cause names one;
+  `FreeMarkerTemplateProcessor` no longer prints the template model (customer data) in its failure message. Call-site
+  tests now cover the saga, dispatch, notification, payment-reconciliation and Kafka-metrics paths.

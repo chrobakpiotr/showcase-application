@@ -2,6 +2,7 @@ package com.cp.ecommerce.adapter.mail.freemarker;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Map;
 
 import com.cp.ecommerce.foundation.exception.TechnicalProblemException;
 
@@ -64,7 +65,7 @@ public class FreeMarkerTemplateProcessorTest {
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))
                 .isInstanceOf(TechnicalProblemException.class)
-                .hasMessageContaining(String.format(ERROR_MESSAGE, model, templateName));
+                .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName));
     }
 
     @Test
@@ -76,13 +77,24 @@ public class FreeMarkerTemplateProcessorTest {
 
         assertThatThrownBy(() -> createTemplateProcessor().processTemplate(templateName, TEMPLATE_PATH, model))
                 .isInstanceOf(TechnicalProblemException.class)
-                .hasMessageContaining(String.format(ERROR_MESSAGE, model, templateName));
+                .hasMessageContaining(String.format(ERROR_MESSAGE, model.getClass().getSimpleName(), templateName));
     }
 
     @Test
     public void shouldReturnEmptyTemplateIfOneOrManyProcessedParametersAreNull() {
 
         assertThat(createTemplateProcessor().processTemplate(null, null, model)).isNull();
+    }
+
+    @Test
+    public void shouldNotPutModelDataIntoTheFailureMessage() {
+
+        final Map<String, String> customerModel = Map.of("email", "buyer@example.com");
+        final FreeMarkerTemplateProcessor processor = new FreeMarkerTemplateProcessor(configuration, objectWrapperFactory);
+
+        assertThatThrownBy(() -> processor.processTemplate("default-text", TEMPLATE_PATH, customerModel))
+                .isInstanceOf(TechnicalProblemException.class)
+                .hasMessageNotContaining("buyer@example.com");
     }
 
     private FreeMarkerTemplateProcessor createTemplateProcessor() {

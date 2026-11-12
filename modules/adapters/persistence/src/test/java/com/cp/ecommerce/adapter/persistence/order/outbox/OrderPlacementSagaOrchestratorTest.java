@@ -1,6 +1,7 @@
 package com.cp.ecommerce.adapter.persistence.order.outbox;
 
 import java.math.BigDecimal;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -444,7 +445,8 @@ class OrderPlacementSagaOrchestratorTest {
                 .thenReturn(List.of(event));
         when(manageOrderInPort.findOrder(order.getOrderNumber())).thenReturn(order);
         doReturn(Optional.of(event)).when(outboxEventEntityRepository).findByIdForUpdate(1L);
-        doThrow(new IllegalStateException("Inventory unavailable")).when(manageStockInPort)
+        final SQLException databaseCause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        doThrow(new IllegalStateException("Inventory unavailable", databaseCause)).when(manageStockInPort)
                 .releaseStock(order.getStockReservationId(), order.getItems().get(0).getSku());
 
         try (LogCapture logs = new LogCapture(OrderPlacementSagaOrchestrator.class)) {
@@ -455,7 +457,8 @@ class OrderPlacementSagaOrchestratorTest {
 
         assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.COMPENSATING);
         assertThat(event.getCompensationAttempts()).isEqualTo(1);
-        assertThat(event.getLastError()).isEqualTo("Inventory unavailable");
+        final String expected = "database error, SQLState=23505, causes=IllegalStateException < SQLException, message omitted";
+        assertThat(event.getLastError()).isEqualTo(expected);
         verify(managePaymentInPort, never()).refundPayment(order.getOrderNumber());
         assertThat(compensationCount()).isZero();
     }

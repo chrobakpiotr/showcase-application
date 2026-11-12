@@ -1,5 +1,9 @@
 package com.cp.ecommerce.adapter.kafka.order.metrics;
 
+import java.sql.SQLException;
+
+import com.cp.ecommerce.adapter.common.utils.LogCapture;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +58,19 @@ class OrderAnalyticsConsumerMetricsTest {
         orderAnalyticsConsumerMetrics.failedDelivery(consumerRecord(), new IllegalStateException("boom"), 1);
 
         assertThat(meterRegistry.get("orders.analytics.dead_lettered").counter().count()).isZero();
+    }
+
+    @Test
+    void shouldLogDatabaseFailuresWithoutTheirMessages() {
+
+        final SQLException cause = new SQLException("Key (email)=(buyer@example.com) already exists.", "23505");
+        final IllegalStateException failure = new IllegalStateException("insert failed", cause);
+
+        try (LogCapture logs = new LogCapture(OrderAnalyticsConsumerMetrics.class)) {
+            orderAnalyticsConsumerMetrics.failedDelivery(consumerRecord(), failure, 1);
+
+            assertThat(logs.formattedMessages()).contains("SQLState=23505").doesNotContain("buyer@example.com");
+        }
     }
 
     @Test

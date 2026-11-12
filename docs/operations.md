@@ -16,7 +16,9 @@ and distributed traces via OpenTelemetry/OTLP, in addition to the usual health/i
   standalone (e.g. for `local`) via `--spring.profiles.active=local,json-logging`.
 - Database messages echo rejected values, such as a customer email in a unique-key violation. Error logs and stored
   last-error fields therefore describe a database failure by its SQLState and cause class names only, through
-  `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message.
+  `FailureMessages` in the foundation module; its stack trace is not logged. Other failures keep their message with
+  email addresses replaced by `[email]`, and lose their stack trace when any cause names an email address. Mail
+  template failures name the model type, not the model, because the model holds customer data.
 
 A ready-to-use observability stack (Prometheus + Grafana + Tempo + Loki/Alloy, with pre-provisioned datasources
 and an "Showcase application - Overview" dashboard) is provided under `/infra/docker/observability`:
