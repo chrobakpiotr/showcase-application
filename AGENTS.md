@@ -150,9 +150,9 @@ After every commit that changes this project's code, update `docs/handover/AGENT
 - The owner has authorized ordinary direct pushes to the configured branch, including GitHub accepting a push while reporting protected-branch rule bypasses; do not ask again before a normal push. Preserve the exact bypass report in evidence and never describe bypassed checks as passed. If GitHub blocks the authorized push, report the specific blocker.
 - Do not force-push, rewrite history, change repository security settings, or publish a release/tag unless separately and explicitly authorized.
 - Do not create or switch branches unless required by the active harness/task protocol.
-- A local commit is allowed only when explicitly requested by the human or required by the accepted task protocol.
+- Owner decision (2026-11-12): commits and direct pushes to `main` for the work at hand need no separate request and no pull request; do not ask before them.
 - Never amend, squash, rewrite, or delete existing history unless explicitly authorized.
-- Before any requested commit, verify the relevant tests and `git diff --check`.
+- Before any commit, verify the relevant tests and `git diff --check`.
 - After committing, report the commit SHA and working-tree status.
 - Commit identity (owner update, 2026-11-02): every agent may commit under its own identity.
   Do not impersonate another agent or provider. Use commit signing when available; lack of signing capability
